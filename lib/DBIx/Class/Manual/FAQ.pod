@@ -22,7 +22,7 @@ How Do I:
 
 First, choose a database. For testing/experimenting, we reccommend
 L<DBD::SQLite>, which is a self-contained small database (i.e. all you
-need to do is to install L<DBD::SQLite> from CPAN, and it's usable).
+need to do is to install L<DBD::SQLite> from CPAN, and it works).
 
 Next, spend some time defining which data you need to store, and how
 it relates to the other data you have. For some help on normalisation,
@@ -89,7 +89,7 @@ L<DBIx::Class::Schema/load_namespaces> call.
 
 Add the name of the schema to the L<DBIx::Class::ResultSource/table>
 as part of the name, and make sure you give the one user you are going
-to connect with rights to read/write all the schemas/tables as
+to connect with has permissions to read/write all the schemas/tables as
 necessary.
 
 =back
@@ -163,10 +163,11 @@ L<DBIx::Class::Manual::Cookbook/Using relationships>.
 
 =item .. search for data?
 
-Create a C<$schema> object, as mentioned above in ".. connect to my
-database". Find the L<ResultSet|DBIx::Class::Manual::Glossary/ResultSet>
-that you want to search in, and call C<search> on it. See
-L<DBIx::Class::ResultSet/search>.
+Create a C<$schema> object, as mentioned above in L</.. connect to my
+database?>. Find the
+L<ResultSet|DBIx::Class::Manual::Glossary/ResultSet> that you want to
+search in, by calling C<< $schema->resultset('MySource') >> and call
+C<search> on it. See L<DBIx::Class::ResultSet/search>.
 
 =item .. search using database functions?
 
@@ -295,11 +296,15 @@ In your table schema class, create a "private" column accessor with:
 Then, in the same class, implement a subroutine called "my_column" that
 fetches the real value and does the formatting you want.
 
-See the Cookbook for more details.
+See the L<Cookbook|DBIx::Class::Manual::Cookbook> for more details.
 
 =item .. fetch a single (or topmost) row?
 
-See L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
+Use the L<DBIx::Class::ResultSet/rows> and
+L<DBIx::Class::ResultSet/order_by> attributes to order your data and
+pick off a single row.
+
+See also L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
 
 A less readable way is to ask a regular search to return 1 row, using
 L<DBIx::Class::ResultSet/slice>:
@@ -313,14 +318,14 @@ in the cookbook can do the same if you pass a C<rows> attribute to the search.
 
 =item .. refresh a row from storage?
 
-Use L<DBIx::Class::PK/discard_changes>.
+Use L<DBIx::Class::Row/discard_changes>.
 
   $row->discard_changes
 
 Discarding changes and refreshing from storage are two sides fo the same coin.  When you
 want to discard your local changes, just re-fetch the row from storage.  When you want
 to get a new, fresh copy of the row, just re-fetch the row from storage.
-L<DBIx::Class::PK/discard_changes> does just that by re-fetching the row from storage
+L<DBIx::Class::Row/discard_changes> does just that by re-fetching the row from storage
 using the row's primary key.
 
 =item .. fetch my data a "page" at a time?
@@ -345,18 +350,16 @@ C<count> on the resultset will only return the total number in the page.
 
 =item .. insert a row with an auto incrementing primary key?
 
-In versions of L<DBIx::Class> less than 0.07, you need to ensure your
-table class loads the L<PK::Auto|DBIx::Class::PK::Auto>
-component. This will attempt to fetch the value of your primary key
-from the database after the insert has happened, and store it in the
-created object. In versions 0.07 and above, this component is
-automatically loaded.
+This happens automatically. After
+L<creating|DBIx::Class::ResultSet/create> a row object, the primary
+key value created by your database can be fetched by calling C<id> (or
+the access of your primary key column) on the object.
 
 =item .. insert a row with a primary key that uses a sequence?
 
 You need to create a trigger in your database that updates your
-primary key field from the sequence. To help PK::Auto find your
-inserted key, you can tell it the name of the sequence in the
+primary key field from the sequence. To help PK::Auto find the next
+key value, you can tell it the name of the sequence in the
 C<column_info> supplied with C<add_columns>.
 
  ->add_columns({ id => { sequence => 'mysequence', auto_nextval => 1 } });
@@ -366,10 +369,12 @@ C<column_info> supplied with C<add_columns>.
 The C<populate> method in L<DBIx::Class::ResultSet> provides
 efficient bulk inserts.
 
+L<DBIx::Class::Fixtures> provides an alternative way to do this.
+
 =item .. update a collection of rows at the same time?
 
-Create a resultset using a search, to filter the rows of data you
-would like to update, then call update on the resultset to change all
+Create a resultset using a C<search>, to filter the rows of data you
+would like to update, then call C<update> on the resultset to change all
 the rows at once.
 
 =item .. use database functions when updating rows?
@@ -381,18 +386,22 @@ scalar reference:
 
  ->update({ somecolumn => \'othercolumn' })
 
-But note that when using a scalar reference the column in the database
-will be updated but when you read the value from the object with e.g.
+This method will not retrieve the new value and put it in your Row
+object. To fetch the new value, use the C<discard_changes> method on
+the Row.
 
- ->somecolumn()
+  # will return the scalar reference:
+  $row->somecolumn()
 
-you still get back the scalar reference to the string, B<not> the new
-value in the database. To get that you must refresh the row from storage
-using C<discard_changes()>. Or chain your function calls like this:
+  # issue a select using the PK to re-fetch the row data:
+  $row->discard_changes();
 
-  ->update->discard_changes
+  # Now returns the correct new value:
+  $row->somecolumn()
 
-to update the database and refresh the object in one step.
+To update and refresh at once, chain your calls:
+
+  $row->update({ 'somecolumn' => \'othercolumn' })->discard_changes;
 
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
@@ -506,12 +515,17 @@ Like normal objects, mostly. However you need to watch out for TT
 calling methods in list context. When calling relationship accessors
 you will not get resultsets, but a list of all the related objects.
 
-Starting with version 0.07, you can use L<DBIx::Class::ResultSet/search_rs>
-to work around this issue.
+Use the L<DBIx::Class::ResultSet/search_rs> method, or the
+relationship accessor methods ending with "_rs" to work around this
+issue.
+
+See also L<DBIx::Class::Relationship/has_many>.
 
 =item See the SQL statements my code is producing?
 
-Turn on debugging! See L<DBIx::Class::Storage> for details of how
+Set the shell environment variable C<DBIC_TRACE> to a true value.
+
+For more info see L<DBIx::Class::Storage> for details of how
 to turn on debugging in the environment, pass your own filehandle to
 save debug to, or create your own callback.
 
