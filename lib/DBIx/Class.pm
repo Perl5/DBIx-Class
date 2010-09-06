@@ -74,6 +74,8 @@ The community can be found via:
 
 =item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
+=item * twitter L<http://www.twitter.com/dbix_class>
+
 =back
 
 =head1 SYNOPSIS
