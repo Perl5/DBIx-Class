@@ -81,6 +81,9 @@ my @rdbms_specific_methods = qw/
 
   get_use_dbms_capability
   get_dbms_capability
+
+  _server_info
+  _get_server_version
 /;
 
 for my $meth (@rdbms_specific_methods) {
