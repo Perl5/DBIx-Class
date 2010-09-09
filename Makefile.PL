@@ -56,7 +56,7 @@ my $runtime_requires = {
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
-  'SQL::Abstract'            => '1.67',
+  'SQL::Abstract'            => '1.68',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',
@@ -65,6 +65,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.14',
   'Math::BigInt'             => '1.89',
   'Math::Base36'             => '0.07',
+  'Config::Any'              => '0.20',
 };
 
 # this is so we can order requires alphabetically

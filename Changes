@@ -9,6 +9,9 @@ Revision history for DBIx::Class
           most of the heavy lifting for a while anyway
         - FilterColumn now passes data through when transformations
           are not specified rather than throwing an exception.
+        - Use DBIx::Class::Storage::Debug::PrettyPrint when the
+          environment variable DBIC_TRACE_PROFILE is set, see
+          DBIx::Class::Storage for more information
 
     * Fixes
         - Fixed rels ending with me breaking subqueried limit realiasing

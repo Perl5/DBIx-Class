@@ -63,9 +63,22 @@ sub new {
   bless $new, $self;
 
   $new->set_schema($schema);
-  $new->debugobj(new DBIx::Class::Storage::Statistics());
+  my $debugobj;
+  if (my $profile = $ENV{DBIC_TRACE_PROFILE}) {
+    require DBIx::Class::Storage::Debug::PrettyPrint;
+    if ($profile =~ /^\.?\//) {
+      require Config::Any;
+      my $cfg = Config::Any->load_files({ files => [$profile], use_ext => 1 });
 
-  #my $fh;
+      my ($filename, $config) = %{$cfg->[0]};
+      $debugobj = DBIx::Class::Storage::Debug::PrettyPrint->new($config)
+    } else {
+      $debugobj = DBIx::Class::Storage::Debug::PrettyPrint->new({ profile => $profile })
+    }
+  } else {
+    $debugobj = DBIx::Class::Storage::Statistics->new
+  }
+  $new->debugobj($debugobj);
 
   my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
@@ -486,6 +499,16 @@ This environment variable is checked when the storage object is first
 created (when you call connect on your schema).  So, run-time changes
 to this environment variable will not take effect unless you also
 re-connect on your schema.
+
+=head2 DBIC_TRACE_PROFILE
+
+If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::PrettyPrint>
+will be used to format the output from C<DBIC_TRACE>.  The value it
+is set to is the C<profile> that it will be used.  If the value is a
+filename the file is read with L<Config::Any> and the results are
+used as the configuration for tracing.  See L<SQL::Abstract::Tree/new>
+for what that structure should look like.
+
 
 =head2 DBIX_CLASS_STORAGE_DBI_DEBUG
 
