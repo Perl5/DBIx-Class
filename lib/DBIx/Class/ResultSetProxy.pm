@@ -1,6 +1,10 @@
 package # hide from PAUSE
     DBIx::Class::ResultSetProxy;
 
+unless ($INC{"DBIx/Class/DB.pm"}) {
+  warn "IMPORTANT: DBIx::Class::ResultSetProxy is DEPRECATED AND *WILL* BE REMOVED. DO NOT USE.\n";
+}
+
 use strict;
 use warnings;
 
