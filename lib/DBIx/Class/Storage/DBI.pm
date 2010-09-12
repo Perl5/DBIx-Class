@@ -808,8 +808,6 @@ sub txn_do {
     my $args = \@_;
 
     try {
-      $self->_get_dbh;
-
       $self->txn_begin;
       if($want_array) {
           @result = $coderef->(@$args);
@@ -846,7 +844,7 @@ sub txn_do {
     # We were not connected, and was first try - reconnect and retry
     # via the while loop
     carp "Retrying $coderef after catching disconnected exception: $exception"
-      if $ENV{DBIC_DBIRETRY_DEBUG};
+      if $ENV{DBIC_TXNRETRY_DEBUG};
     $self->_populate_dbh;
   }
 }
