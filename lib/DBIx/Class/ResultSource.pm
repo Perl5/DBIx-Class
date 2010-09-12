@@ -537,6 +537,30 @@ sub _pri_cols {
   return @pcols;
 }
 
+=head2 sequence
+
+Manually define the correct sequence for your table, to avoid the overhead
+associated with looking up the sequence automatically. The supplied sequence
+will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
+
+=over 4
+
+=item Arguments: $sequence_name
+
+=item Return value: undefined
+
+=back
+
+=cut
+
+sub sequence {
+    my ($self,$seq) = @_;
+    foreach my $pri ($self->primary_columns) {
+        $self->column_info($pri)->{sequence} = $seq;
+    }
+}
+
+
 =head2 add_unique_constraint
 
 =over 4

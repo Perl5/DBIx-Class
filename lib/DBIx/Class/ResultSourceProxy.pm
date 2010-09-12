@@ -67,6 +67,7 @@ for my $method_to_proxy (qw/
   set_primary_key
   primary_columns
   _pri_cols
+  sequence
 
   add_unique_constraint
   add_unique_constraints

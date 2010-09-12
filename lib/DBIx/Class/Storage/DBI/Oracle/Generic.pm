@@ -19,7 +19,6 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
   use base 'DBIx::Class::Core';
   __PACKAGE__->add_columns({ id => { sequence => 'mysequence', auto_nextval => 1 } });
   __PACKAGE__->set_primary_key('id');
-  __PACKAGE__->sequence('mysequence');
 
   # Somewhere in your Code
   # add some data to a table with a hierarchical relationship

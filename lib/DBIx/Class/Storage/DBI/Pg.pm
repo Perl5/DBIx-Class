@@ -229,7 +229,6 @@ DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
   # In your result (table) classes
   use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
-  __PACKAGE__->sequence('mysequence');
 
 =head1 DESCRIPTION
 

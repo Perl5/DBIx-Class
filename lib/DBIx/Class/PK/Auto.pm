@@ -5,6 +5,8 @@ use base qw/DBIx::Class/;
 use strict;
 use warnings;
 
+1;
+
 =head1 NAME
 
 DBIx::Class::PK::Auto - Automatic primary key class
@@ -36,19 +38,8 @@ The code that was handled here is now in Row for efficiency.
 
 =head2 sequence
 
-Manually define the correct sequence for your table, to avoid the overhead
-associated with looking up the sequence automatically.
-
-=cut
-
-sub sequence {
-    my ($self,$seq) = @_;
-    foreach my $pri ($self->primary_columns) {
-        $self->column_info($pri)->{sequence} = $seq;
-    }
-}
-
-1;
+The code that was handled here is now in ResultSource, and is being proxied to
+Row as well.
 
 =head1 AUTHORS
 
