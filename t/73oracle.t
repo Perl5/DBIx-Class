@@ -517,22 +517,20 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       is_same_sql_bind (
         $rs->as_query,
-        '( 
+        '(
             SELECT artistid, name, rank, charfield, parentid FROM (
-                  SELECT artistid, name, rank, charfield, parentid, ROWNUM rownum__index FROM (
-                      SELECT 
-                          me.artistid,
-                          me.name,
-                          me.rank,
-                          me.charfield,
-                          me.parentid 
-                      FROM artist me 
-                      START WITH name = ? 
-                      CONNECT BY parentid = PRIOR artistid
-                      ORDER BY name ASC 
-                  ) me 
+              SELECT
+                  me.artistid,
+                  me.name,
+                  me.rank,
+                  me.charfield,
+                  me.parentid
+                FROM artist me
+              START WITH name = ?
+              CONNECT BY parentid = PRIOR artistid
+              ORDER BY name ASC 
             ) me
-            WHERE rownum__index BETWEEN 1 AND 2
+            WHERE ROWNUM <= 2
         )',
         [ [ name => 'root' ] ],
       );
@@ -551,19 +549,18 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       # 
       is_same_sql_bind (
         $rs->count_rs->as_query,
-        '( 
-            SELECT COUNT( * ) FROM (
-                SELECT artistid FROM (
-                    SELECT artistid, ROWNUM rownum__index FROM (
-                        SELECT 
-                            me.artistid
-                        FROM artist me 
-                        START WITH name = ? 
-                        CONNECT BY parentid = PRIOR artistid
-                    ) me
-                ) me 
-                WHERE rownum__index BETWEEN 1 AND 2
-            ) me
+        '(
+          SELECT COUNT( * ) FROM (
+            SELECT artistid
+              FROM (
+                SELECT
+                  me.artistid
+                FROM artist me 
+                START WITH name = ? 
+                CONNECT BY parentid = PRIOR artistid
+              ) me
+            WHERE ROWNUM <= 2
+          ) me
         )',
         [ [ name => 'root' ] ],
       );

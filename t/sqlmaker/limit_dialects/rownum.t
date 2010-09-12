@@ -18,22 +18,24 @@ is_same_sql_bind (
       { 'bar.id' => 'bar.id' },
       { bleh => \ 'TO_CHAR (foo.womble, "blah")' },
     ]})->as_query,
-  '(SELECT id, bar__id, bleh
+  '(
+    SELECT id, bar__id, bleh
       FROM (
         SELECT id, bar__id, bleh, ROWNUM rownum__index
           FROM (
             SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
               FROM cd me
           ) me
+        WHERE ROWNUM <= 4
       ) me
-    WHERE rownum__index BETWEEN 4 AND 4
+    WHERE rownum__index >= 4
   )',
   [],
   'Rownum subsel aliasing works correctly'
 );
 
 is_same_sql_bind (
-  $rs->search ({}, { rows => 1, offset => 3,columns => [
+  $rs->search ({}, { rows => 2, offset => 3,columns => [
       { id => 'foo.id' },
       { 'ends_with_me.id' => 'ends_with_me.id' },
     ]})->as_query,
@@ -44,8 +46,9 @@ is_same_sql_bind (
             SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
               FROM cd me
           ) me
+        WHERE ROWNUM <= 5
       ) me
-    WHERE rownum__index BETWEEN 4 AND 4
+    WHERE rownum__index >= 4
   )',
   [],
   'Rownum subsel aliasing works correctly'

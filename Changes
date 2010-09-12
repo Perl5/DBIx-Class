@@ -1,6 +1,9 @@
 Revision history for DBIx::Class
 
     * New Features / Changes
+        - Use DBIx::Class::Storage::Debug::PrettyPrint when the
+          environment variable DBIC_TRACE_PROFILE is set, see
+          DBIx::Class::Storage for more information
         - Implemented add_unique_constraints() which delegates to
           add_unique_constraint() as appropriate
         - add_unique_constraint() now poparly throws if called with
@@ -9,9 +12,7 @@ Revision history for DBIx::Class
           most of the heavy lifting for a while anyway
         - FilterColumn now passes data through when transformations
           are not specified rather than throwing an exception.
-        - Use DBIx::Class::Storage::Debug::PrettyPrint when the
-          environment variable DBIC_TRACE_PROFILE is set, see
-          DBIx::Class::Storage for more information
+        - Optimized RowNum based Oracle limit-dialect (RT#61277)
 
     * Fixes
         - Fixed rels ending with me breaking subqueried limit realiasing

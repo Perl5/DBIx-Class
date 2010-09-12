@@ -266,8 +266,8 @@ sub _FirstSkip {
  SELECT * FROM (
   SELECT *, ROWNUM rownum__index FROM (
    SELECT ...
-  )
- ) WHERE rownum__index BETWEEN ($offset+1) AND ($limit+$offset)
+  ) WHERE ROWNUM <= ($limit+$offset)
+ ) WHERE rownum__index >= ($offset+1)
 
 Supported by B<Oracle>.
 
@@ -285,15 +285,27 @@ sub _RowNum {
   my $idx_name = $self->_quote ('rownum__index');
   my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
 
-  $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
+  if ($offset) {
+
+    $sql = sprintf (<<EOS, $offset + $rows, $offset + 1 );
 
 SELECT $outsel FROM (
   SELECT $outsel, ROWNUM $idx_name FROM (
     SELECT $insel ${sql}${order_group_having}
-  ) $qalias
-) $qalias WHERE $idx_name BETWEEN %u AND %u
+  ) $qalias WHERE ROWNUM <= %u
+) $qalias WHERE $idx_name >= %u
 
 EOS
+  }
+  else {
+    $sql = sprintf (<<EOS, $rows );
+
+  SELECT $outsel FROM (
+    SELECT $insel ${sql}${order_group_having}
+  ) $qalias WHERE ROWNUM <= %u
+
+EOS
+  }
 
   $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
