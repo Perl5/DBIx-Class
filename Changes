@@ -15,6 +15,9 @@ Revision history for DBIx::Class
         - Optimized RowNum based Oracle limit-dialect (RT#61277)
 
     * Fixes
+        - Make sure exception_action does not allow exception-hiding
+          due to badly-written handlers (the mechanism was never meant
+          to be able to suppress exceptions)
         - Fixed rels ending with me breaking subqueried limit realiasing
         - Oracle sequence detection now *really* works across schemas
           (fixed some ommissions from 0.08123)

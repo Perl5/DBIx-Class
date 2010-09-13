@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use Try::Tiny;
 use Scalar::Util 'weaken';
 use File::Spec;
@@ -438,14 +438,13 @@ L<DBIx::Class::Storage::DBI::Replicated> for an example of this.
 
 =back
 
-If C<exception_action> is set for this class/object, L</throw_exception>
-will prefer to call this code reference with the exception as an argument,
-rather than L<DBIx::Class::Exception/throw>.
+When L</throw_exception> is invoked and L</exception_action> is set to a code
+reference, this reference will be called instead of
+L<DBIx::Class::Exception/throw>, with the exception message passed as the only
+argument.
 
-Your subroutine should probably just wrap the error in the exception
-object/class of your choosing and rethrow.  If, against all sage advice,
-you'd like your C<exception_action> to suppress a particular exception
-completely, simply have it return true.
+Your custom throw code B<must> rethrow the exception, as L</throw_exception> is
+an integral part of DBIC's internal execution control flow.
 
 Example:
 
@@ -458,9 +457,6 @@ Example:
    # or:
    my $schema_obj = My::Schema->connect( .... );
    $schema_obj->exception_action(sub { My::ExceptionClass->throw(@_) });
-
-   # suppress all exceptions, like a moron:
-   $schema_obj->exception_action(sub { 1 });
 
 =head2 stacktrace
 
@@ -1031,11 +1027,29 @@ default behavior will provide a detailed stack trace.
 
 =cut
 
+my $false_exception_action_warned;
 sub throw_exception {
   my $self = shift;
 
-  DBIx::Class::Exception->throw($_[0], $self->stacktrace)
-    if !$self->exception_action || !$self->exception_action->(@_);
+  if (my $act = $self->exception_action) {
+    if ($act->(@_)) {
+      DBIx::Class::Exception->throw(
+          "Invocation of the exception_action handler installed on $self did *not*"
+        .' result in an exception. DBIx::Class is unable to function without a reliable'
+        .' exception mechanism, ensure that exception_action does not hide exceptions'
+        ." (original error: $_[0])"
+      );
+    }
+    elsif(! $false_exception_action_warned++) {
+      carp (
+          "The exception_action handler installed on $self returned false instead"
+        .' of throwing an exception. This behavior has been deprecated, adjust your'
+        .' handler to always rethrow the supplied error.'
+      );
+    }
+  }
+
+  DBIx::Class::Exception->throw($_[0], $self->stacktrace);
 }
 
 =head2 deploy
