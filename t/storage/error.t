@@ -32,6 +32,7 @@ throws_ok (
   'DBI exceptions properly handled by dbic-installed callback'
 );
 
+# This usage is a bit unusual but it was actually seen in the wild
 # destruction of everything except the $dbh should use the proper
 # exception fallback:
 

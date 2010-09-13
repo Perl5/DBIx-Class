@@ -5,8 +5,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 9;
-
 # Set up the "usual" sqlite for DBICTest
 my $schema = DBICTest->init_schema;
 
@@ -70,13 +68,4 @@ eval { $schema->storage->throw_exception('floob') };
 like($@, qr/DBICTest::Exception is handling this: floob/);
 
 
-# This usage is a bit unusual but it was actually seen in the wild
-eval {
-
-  my $dbh = $schema->storage->dbh;
-  undef $schema;
-
-  $dbh->do ('glaring_syntax_error;');
-};
-like($@, qr/DBI Exception.+do failed/, 'Exception thrown even after $storage is destroyed');
-
+done_testing;
