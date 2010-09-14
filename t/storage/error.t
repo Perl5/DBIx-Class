@@ -36,12 +36,7 @@ throws_ok (
 # destruction of everything except the $dbh should use the proper
 # exception fallback:
 
-# FIXME
-# These explicit disconnections on loss of $storage don't seem
-# right... disable it here for the test anyway
 {
-  local $dbh->{Callbacks}{disconnect} = sub { 1 };
-
   undef ($schema);
   throws_ok (
     sub {

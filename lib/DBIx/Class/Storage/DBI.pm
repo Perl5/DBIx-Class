@@ -187,17 +187,8 @@ sub new {
 sub DESTROY {
   my $self = shift;
 
-  # destroy just the object if not native to this process/thread
-  $self->_preserve_foreign_dbh;
-
-  # some databases need this to stop spewing warnings
-  if (my $dbh = $self->_dbh) {
-    try {
-      %{ $dbh->{CachedKids} } = ();
-      $dbh->disconnect;
-    };
-  }
-
+  # some databases spew warnings on implicit disconnect
+  local $SIG{__WARN__} = sub {};
   $self->_dbh(undef);
 }
 

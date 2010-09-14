@@ -41,6 +41,8 @@ Revision history for DBIx::Class
           perl versions
         - Non-blessed reference exceptions are now correctly preserved
           when thrown from udner DBIC (e.g. from txn_do)
+        - No longer disconnecting database handles supplied to connect
+          via a coderef
 
     * Misc
         - Refactored capability handling in Storage::DBI, allows for
