@@ -1,12 +1,14 @@
 Revision history for DBIx::Class
 
-    * New Features
+    * New Features / Changes
         - Implemented add_unique_constraints() which delegates to
           add_unique_constraint() as appropriate
         - add_unique_constraint() now poparly throws if called with
           multiple constraint definitions
         - No longer depend on SQL::Abstract::Limit - DBIC has been doing
           most of the heavy lifting for a while anyway
+        - FilterColumn now passes data through when transformations
+          are not specified rather than throwing an exception.
 
     * Fixes
         - Fixed rels ending with me breaking subqueried limit realiasing

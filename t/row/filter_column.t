@@ -139,4 +139,62 @@ IC_DIE: {
   } q(Can't filter column after inflate column);
 }
 
+# test when we do not set both filter_from_storage/filter_to_storage
+DBICTest::Schema::Artist->filter_column(rank => {
+  filter_to_storage => sub { $to_storage_ran++; $_[1] },
+});
+Class::C3->reinitialize();
+
+ASYMMETRIC_TO_TEST: {
+  # initialise value
+  $artist->rank(20);
+  $artist->update;
+
+  my $expected_from = $from_storage_ran;
+  my $expected_to   = $to_storage_ran;
+
+  $artist->rank(10);
+  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on accessor-set value');
+  is ($artist->rank, '10', 'Column set properly');
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, ++$expected_to,  'to did run';
+
+  $artist->discard_changes;
+
+  is ($artist->rank, '20', 'Column set properly');
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+}
+
+DBICTest::Schema::Artist->filter_column(rank => {
+  filter_from_storage => sub { $from_storage_ran++; $_[1] },
+});
+Class::C3->reinitialize();
+
+ASYMMETRIC_FROM_TEST: {
+  # initialise value
+  $artist->rank(23);
+  $artist->update;
+
+  my $expected_from = $from_storage_ran;
+  my $expected_to   = $to_storage_ran;
+
+  $artist->rank(13);
+  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on accessor-set value');
+  is ($artist->rank, '13', 'Column set properly');
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+
+  $artist->discard_changes;
+
+  is ($artist->rank, '23', 'Column set properly');
+  is $from_storage_ran, ++$expected_from, 'from did run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+}
+
+throws_ok { DBICTest::Schema::Artist->filter_column( rank => {} ) }
+  qr/\QAn invocation of filter_column() must specify either a filter_from_storage or filter_to_storage/,
+  'Correctly throws exception for empty attributes'
+;
+
 done_testing;

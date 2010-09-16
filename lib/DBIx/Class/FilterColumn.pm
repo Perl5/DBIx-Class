@@ -7,15 +7,18 @@ use base qw/DBIx::Class::Row/;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
-  $self->throw_exception("FilterColumn does not work with InflateColumn")
+  $self->throw_exception('FilterColumn does not work with InflateColumn')
     if $self->isa('DBIx::Class::InflateColumn') &&
       defined $self->column_info($col)->{_inflate_info};
 
   $self->throw_exception("No such column $col to filter")
     unless $self->has_column($col);
 
-  $self->throw_exception("filter_column needs attr hashref")
+  $self->throw_exception('filter_column expects a hashref of filter specifications')
     unless ref $attrs eq 'HASH';
+
+  $self->throw_exception('An invocation of filter_column() must specify either a filter_from_storage or filter_to_storage')
+    unless $attrs->{filter_from_storage} || $attrs->{filter_to_storage};
 
   $self->column_info($col)->{_filter_info} = $attrs;
   my $acc = $self->column_info($col)->{accessor};
@@ -34,9 +37,8 @@ sub _column_from_storage {
   return $value unless exists $info->{_filter_info};
 
   my $filter = $info->{_filter_info}{filter_from_storage};
-  $self->throw_exception("No filter for $col") unless defined $filter;
 
-  return $self->$filter($value);
+  return defined $filter ? $self->$filter($value) : $value;
 }
 
 sub _column_to_storage {
@@ -48,8 +50,8 @@ sub _column_to_storage {
   return $value unless exists $info->{_filter_info};
 
   my $unfilter = $info->{_filter_info}{filter_to_storage};
-  $self->throw_exception("No unfilter for $col") unless defined $unfilter;
-  return $self->$unfilter($value);
+
+  return defined $unfilter ? $self->$unfilter($value) : $value;
 }
 
 sub get_filtered_column {
@@ -188,15 +190,23 @@ be done with L<DBIx::Class::InflateColumn> can be done with this component.
 =head2 filter_column
 
  __PACKAGE__->filter_column( colname => {
-     filter_from_storage => 'method',
-     filter_to_storage   => 'method',
+     filter_from_storage => 'method'|\&coderef,
+     filter_to_storage   => 'method'|\&coderef,
  })
 
-This is the method that you need to call to set up a filtered column.  It takes
-exactly two arguments; the first being the column name the second being a
-C<HashRef> with C<filter_from_storage> and C<filter_to_storage> having
-something that can be called as a method.  The method will be called with
-the value of the column as the first non-C<$self> argument.
+This is the method that you need to call to set up a filtered column. It takes
+exactly two arguments; the first being the column name the second being a hash
+reference with C<filter_from_storage> and C<filter_to_storage> set to either
+a method name or a code reference. In either case the filter is invoked as:
+
+  $row_obj->$filter_specification ($value_to_filter)
+
+with C<$filter_specification> being chosen depending on whether the
+C<$value_to_filter> is being retrieved from or written to permanent
+storage.
+
+If a specific directional filter is not specified, the original value will be
+passed to/from storage unfiltered.
 
 =head2 get_filtered_column
 
@@ -209,3 +219,22 @@ Returns the filtered value of the column
  $obj->set_filtered_column(colname => 'new_value')
 
 Sets the filtered value of the column
+
+=head1 EXAMPLE OF USE
+
+Some databases have restrictions on values that can be passed to
+boolean columns, and problems can be caused by passing value that
+perl considers to be false (such as C<undef>).
+
+One solution to this is to ensure that the boolean values are set
+to something that the database can handle - such as numeric zero
+and one, using code like this:-
+
+    __PACKAGE__->filter_column(
+        my_boolean_column => {
+            filter_to_storage   => sub { $_[1] ? 1 : 0 },
+        }
+    );
+
+In this case the C<filter_from_storage> is not required, as just
+passing the database value through to perl does the right thing.
