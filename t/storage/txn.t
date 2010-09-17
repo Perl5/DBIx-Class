@@ -366,7 +366,7 @@ $schema->storage->disconnect;
 }
 
 # make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
-{
+warnings_are {
   my $factory = DBICTest->init_schema (AutoCommit => 0);
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
@@ -374,18 +374,21 @@ $schema->storage->disconnect;
   ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
   my $schema = DBICTest::Schema->connect (sub { $dbh });
 
-
   lives_ok ( sub {
     my $guard = $schema->txn_scope_guard;
     $schema->resultset('CD')->delete;
     $guard->commit;
   }, 'No attempt to start a transaction with scope guard');
 
-  is ($schema->resultset('CD')->count, 0, 'Deletion successful');
-}
+  is ($schema->resultset('CD')->count, 0, 'Deletion successful in txn');
+
+  # this will commit the implicitly started txn
+  $dbh->commit;
+
+} [], 'No warnings on AutoCommit => 0 with txn_guard';
 
 # make sure AutoCommit => 0 on external handles behaves correctly with txn_do
-{
+warnings_are {
   my $factory = DBICTest->init_schema (AutoCommit => 0);
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
@@ -399,6 +402,10 @@ $schema->storage->disconnect;
   }, 'No attempt to start a atransaction with txn_do');
 
   is ($schema->resultset('CD')->count, 0, 'Deletion successful');
-}
+
+  # this will commit the implicitly started txn
+  $dbh->commit;
+
+} [], 'No warnings on AutoCommit => 0 with txn_do';
 
 done_testing;
