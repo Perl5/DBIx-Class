@@ -1770,15 +1770,14 @@ sub _execute_array {
   }
   catch {
     $err = shift;
+  };
+
+  # Statement must finish even if there was an exception.
+  try {
+    $sth->finish
   }
-  finally {
-    # Statement must finish even if there was an exception.
-    try {
-      $sth->finish
-    }
-    catch {
-      $err = shift unless defined $err
-    };
+  catch {
+    $err = shift unless defined $err
   };
 
   $err = $sth->errstr

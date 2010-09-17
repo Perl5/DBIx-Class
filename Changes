@@ -15,6 +15,7 @@ Revision history for DBIx::Class
         - Optimized RowNum based Oracle limit-dialect (RT#61277)
 
     * Fixes
+        - Fix memory leak during populate() on 5.8.x perls
         - Make sure exception_action does not allow exception-hiding
           due to badly-written handlers (the mechanism was never meant
           to be able to suppress exceptions)
