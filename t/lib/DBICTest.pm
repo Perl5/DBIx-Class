@@ -99,63 +99,83 @@ sub _database {
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
         # an open database, which fails on Win32)
-        if (-e $db_file and my $orig_inode = (stat($db_file))[1] ) {
-
-          my $failed_once;
-          my $connected = 1;
-          my $cb = sub {
-            return if $failed_once;
-
-            my $event = shift;
-            if ($event eq 'connect') {
-              # this is necessary in case we are disconnected and connected again, all within the same $dbh object
-              $connected = 1;
-              return;
-            }
-            elsif ($event eq 'disconnect') {
-              $connected = 0;
-            }
-            elsif ($event eq 'DESTROY' and ! $connected ) {
-              return;
-            }
-
-            my $fail_reason;
-            if (! -e $db_file) {
-              $fail_reason = 'is missing';
-            }
-            else {
-              my $cur_inode = (stat($db_file))[1];
-
-              $fail_reason ||= sprintf 'was recreated (inode %s vs %s)', ($orig_inode, $cur_inode)
-                if $orig_inode != $cur_inode;
-            }
-
-            if ($fail_reason) {
-              $failed_once++;
-
-              require Test::Builder;
-              my $t = Test::Builder->new;
-              local $Test::Builder::Level = $Test::Builder::Level + 1;
-
-              $t->ok (0,
-                  "$db_file $fail_reason before $event of DBI handle - a strong indicator that "
-                . 'the SQLite file was tampered with while still being open. This action would '
-                . 'fail massively if running under Win32, hence DBICTest makes sure it fails '
-                . 'on any OS :)'
-              );
-            }
-
-            return; # this empty return is a DBI requirement
-          };
+        if (my $guard_cb = __mk_disconnect_guard($db_file)) {
           $dbh->{Callbacks} = {
-            connect => sub { $cb->('connect') },
-            disconnect => sub { $cb->('disconnect') },
-            DESTROY => sub { $cb->('DESTROY') },
+            connect => sub { $guard_cb->('connect') },
+            disconnect => sub { $guard_cb->('disconnect') },
+            DESTROY => sub { $guard_cb->('DESTROY') },
           };
         }
       },
       %args,
     });
+}
+
+sub __mk_disconnect_guard {
+  my $db_file = shift;
+  return unless -f $db_file;
+
+  my $orig_inode = (stat($db_file))[1]
+    or return;
+
+  my $clan_connect_caller = '*UNKNOWN*';
+  my $i;
+  while ( my ($pack, $file, $line) = caller(++$i) ) {
+    next if $file eq __FILE__;
+    next if $pack =~ /^DBIx::Class|^Try::Tiny/;
+    $clan_connect_caller = "$file line $line";
+  }
+
+  my $failed_once = 0;
+  my $connected = 1;
+
+  return sub {
+    return if $failed_once;
+
+    my $event = shift;
+    if ($event eq 'connect') {
+      # this is necessary in case we are disconnected and connected again, all within the same $dbh object
+      $connected = 1;
+      return;
+    }
+    elsif ($event eq 'disconnect') {
+      $connected = 0;
+    }
+    elsif ($event eq 'DESTROY' and ! $connected ) {
+      return;
+    }
+
+    my $fail_reason;
+    if (! -e $db_file) {
+      $fail_reason = 'is missing';
+    }
+    else {
+      my $cur_inode = (stat($db_file))[1];
+
+      if ($orig_inode != $cur_inode) {
+        # pack/unpack to match the unsigned longs returned by `stat`
+        $fail_reason = sprintf 'was recreated (initially inode %s, now %s)', (
+          map { unpack ('L', pack ('l', $_) ) } ($orig_inode, $cur_inode )
+        );
+      }
+    }
+
+    if ($fail_reason) {
+      $failed_once++;
+
+      require Test::Builder;
+      my $t = Test::Builder->new;
+      local $Test::Builder::Level = $Test::Builder::Level + 3;
+      $t->ok (0,
+        "$db_file originally created at $clan_connect_caller $fail_reason before $event "
+      . 'of DBI handle - a strong indicator that the database file was tampered with while '
+      . 'still being open. This action would fail massively if running under Win32, hence '
+      . 'we make sure it fails on any OS :)'
+      );
+    }
+
+    return; # this empty return is a DBI requirement
+  };
 }
 
 sub init_schema {

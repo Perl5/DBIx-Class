@@ -184,13 +184,16 @@ my $fail_code = sub {
   })->first;
   ok(!defined($cd), q{deleted the failed txn's cd});
   $schema->storage->_dbh->rollback;
+
 }
 
 # reset schema object (the txn_rollback meddling screws it up)
-$schema = DBICTest->init_schema();
+undef $schema;
 
 # Test nested failed txn_do()
 {
+  my $schema = DBICTest->init_schema();
+
   is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
 
   my $nested_fail_code = sub {
@@ -221,18 +224,16 @@ $schema = DBICTest->init_schema();
 
 # Grab a new schema to test txn before connect
 {
-    my $schema2 = DBICTest->init_schema(no_deploy => 1);
-    lives_ok (sub {
-        $schema2->txn_begin();
-        $schema2->txn_begin();
-    }, 'Pre-connection nested transactions.');
+  my $schema = DBICTest->init_schema(no_deploy => 1);
+  lives_ok (sub {
+    $schema->txn_begin();
+    $schema->txn_begin();
+  }, 'Pre-connection nested transactions.');
 
-    # although not connected DBI would still warn about rolling back at disconnect
-    $schema2->txn_rollback;
-    $schema2->txn_rollback;
-    $schema2->storage->disconnect;
+  # although not connected DBI would still warn about rolling back at disconnect
+  $schema->txn_rollback;
+  $schema->txn_rollback;
 }
-$schema->storage->disconnect;
 
 # Test txn_scope_guard
 {
@@ -240,10 +241,10 @@ $schema->storage->disconnect;
 
   is($schema->storage->transaction_depth, 0, "Correct transaction depth");
   my $artist_rs = $schema->resultset('Artist');
+
   my $fn = __FILE__;
   throws_ok {
    my $guard = $schema->txn_scope_guard;
-
 
     $artist_rs->create({
       name => 'Death Cab for Cutie',
@@ -263,22 +264,28 @@ $schema->storage->disconnect;
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
   lives_ok (sub {
+
+    # this weird assignment is to stop perl <= 5.8.9 leaking $schema on nested sub{}s
+    my $s = $schema;
+
     warnings_exist ( sub {
       # The 0 arg says don't die, just let the scope guard go out of scope
       # forcing a txn_rollback to happen
-      outer($schema, 0);
+      outer($s, 0);
     }, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./, 'Out of scope warning detected');
+
     ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+
   }, 'rollback successful withot exception');
 
   sub outer {
-    my ($schema) = @_;
+    my ($schema, $fatal) = @_;
 
     my $guard = $schema->txn_scope_guard;
     $schema->resultset('Artist')->create({
       name => 'Death Cab for Cutie',
     });
-    inner(@_);
+    inner($schema, $fatal);
   }
 
   sub inner {
@@ -287,7 +294,7 @@ $schema->storage->disconnect;
     my $inner_guard = $schema->txn_scope_guard;
     is($schema->storage->transaction_depth, 2, "Correct transaction depth");
 
-    my $artist = $artist_rs->find({ name => 'Death Cab for Cutie' });
+    my $artist = $schema->resultset('Artist')->find({ name => 'Death Cab for Cutie' });
 
     eval {
       $artist->cds->create({

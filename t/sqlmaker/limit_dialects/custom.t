@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBICTest::Schema;
 use DBIC::SqlMakerTest;
 
@@ -22,8 +23,7 @@ use DBIC::SqlMakerTest;
     );
   }
 }
-
-my $s = DBICTest::Schema->connect ('dbi:SQLite::memory:');
+my $s = DBICTest::Schema->connect (DBICTest->_database);
 $s->storage->sql_maker_class ('DBICTest::SQLMaker::CustomDialect');
 
 my $rs = $s->resultset ('CD');
