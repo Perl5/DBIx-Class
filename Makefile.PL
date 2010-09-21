@@ -24,6 +24,14 @@ if (@ARGV) {
   warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
 }
 
+# get cpanX --installdeps . to behave in a checkout (most users do not need
+# the deps for a full test suite run, and if they do - there's MI::AutoInstall
+# for that)
+##
+## DO NOT USE THIS HACK IN YOUR DISTS!!! (it makes #toolchain sad)
+##
+$Module::Install::AUTHOR = 0 if (grep { $ENV{"PERL5_${_}_IS_RUNNING"} } (qw/CPANM CPANPLUS CPAN/) );
+
 ###
 ### DO NOT ADD OPTIONAL DEPENDENCIES HERE, EVEN AS recommends()
 ### All of them should go to DBIx::Class::Optional::Dependencies
@@ -176,7 +184,7 @@ eval {
   recursive_author_tests (qw/xt/);
   1;
 } || do {
-  unless ($args->{skip_author_deps}) {
+  if ($Module::Install::AUTHOR && ! $args->{skip_author_deps}) {
     my $err = $@;
     eval { require Module::Install::AuthorTests }
       || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL in author mode (or supply --skip_author_deps):\n\n$@\n";
