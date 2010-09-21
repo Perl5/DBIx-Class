@@ -148,7 +148,7 @@ my $reqs = {
       %$datetime_basic,
       # t/inflate/datetime_pg.t
       # (doesn't need PG itself)
-      'DateTime::Format::Pg'      => '0',
+      'DateTime::Format::Pg'      => '0.16004',
     },
   },
 
