@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
     * New Features / Changes
+        - Extend 'proxy' relationship attribute
         - Use DBIx::Class::Storage::Debug::PrettyPrint when the
           environment variable DBIC_TRACE_PROFILE is set, see
           DBIx::Class::Storage for more information

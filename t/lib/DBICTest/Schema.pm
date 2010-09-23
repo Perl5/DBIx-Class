@@ -13,8 +13,8 @@ __PACKAGE__->load_classes(qw/
   CD
   FileColumn
   Genre
-  Link
   Bookmark
+  Link
   #dummy
   Track
   Tag

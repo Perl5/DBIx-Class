@@ -93,7 +93,11 @@ Explicitly specifies the type of join to use in the relationship. Any SQL
 join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
 command immediately before C<JOIN>.
 
-=item proxy
+=item proxy =E<gt> $column | \@columns | \%column
+
+=over 4
+
+=item \@columns
 
 An arrayref containing a list of accessors in the foreign class to create in
 the main class. If, for example, you do the following:
@@ -108,6 +112,25 @@ Then, assuming MyDB::Schema::LinerNotes has an accessor named notes, you can do:
   my $cd = MyDB::Schema::CD->find(1);
   $cd->notes('Notes go here'); # set notes -- LinerNotes object is
                                # created if it doesn't exist
+
+=item \%column
+
+A hashref where each key is the accessor you want installed in the main class,
+and its value is the name of the original in the fireign class.
+
+  MyDB::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+      proxy => { cd_title => 'title' },
+  });
+
+This will create an accessor named C<cd_title> on the C<$track> row object.
+
+=back
+
+NOTE: you can pass a nested struct too, for example:
+
+  MyDB::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+    proxy => [ 'year', { cd_title => 'title' } ],
+  });
 
 =item accessor
 

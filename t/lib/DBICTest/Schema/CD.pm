@@ -39,6 +39,7 @@ __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
 __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { 
     is_deferrable => 1, 
+    proxy => { artist_name => 'name' },
 });
 __PACKAGE__->belongs_to( very_long_artist_relationship => 'DBICTest::Schema::Artist', 'artist', { 
     is_deferrable => 1, 

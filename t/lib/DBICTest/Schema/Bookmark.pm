@@ -1,8 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Bookmark;
 
-    use base qw/DBICTest::BaseResult/;
-
+use base qw/DBICTest::BaseResult/;
 
 use strict;
 use warnings;
@@ -20,6 +19,13 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->set_primary_key('id');
-__PACKAGE__->belongs_to(link => 'DBICTest::Schema::Link', 'link', { on_delete => 'SET NULL' } );
+
+require DBICTest::Schema::Link; # so we can get a columnlist
+__PACKAGE__->belongs_to(
+    link => 'DBICTest::Schema::Link', 'link', {
+    on_delete => 'SET NULL',
+    join_type => 'LEFT',
+    proxy => { map { join('_', 'link', $_) => $_ } DBICTest::Schema::Link->columns },
+});
 
 1;

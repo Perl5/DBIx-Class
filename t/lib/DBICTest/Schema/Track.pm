@@ -44,8 +44,12 @@ __PACKAGE__->position_column ('position');
 __PACKAGE__->grouping_column ('cd');
 
 
-__PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
-__PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
+__PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD', undef, {
+    proxy => { cd_title => 'title' },
+});
+__PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd', {
+    proxy => 'year'
+});
 
 __PACKAGE__->might_have( cd_single => 'DBICTest::Schema::CD', 'single_track' );
 __PACKAGE__->might_have( lyrics => 'DBICTest::Schema::Lyrics', 'track_id' );
