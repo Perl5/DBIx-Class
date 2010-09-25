@@ -1877,7 +1877,7 @@ just looking for this.
 For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
-You can accomplish this by overriding C<store_column>:
+You can accomplish this by overriding C<store_column> in your L<Result class|DBIx::Class::Manual::Glossary/Result class>:
 
   sub store_column {
     my ( $self, $name, $value ) = @_;
@@ -1889,6 +1889,10 @@ You can accomplish this by overriding C<store_column>:
 
 Note that the hard work is done by the call to C<next::method>, which
 redispatches your call to store_column in the superclass(es).
+
+Generally, if this is a calculation your database can easily do, try
+and avoid storing the calculated value, it is safer to calculate when
+needed, than rely on the data being in sync.
 
 =head2 Automatically creating related objects
 
