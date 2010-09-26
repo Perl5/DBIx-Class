@@ -898,6 +898,7 @@ sub compose_namespace {
   my $schema = $self->clone;
   {
     no warnings qw/redefine/;
+    no strict qw/refs/;
 #    local *Class::C3::reinitialize = sub { };
     foreach my $moniker ($schema->sources) {
       my $source = $schema->source($moniker);
@@ -906,8 +907,14 @@ sub compose_namespace {
         $target_class => $source->result_class, ($base ? $base : ())
       );
       $source->result_class($target_class);
-      $target_class->result_source_instance($source)
-        if $target_class->can('result_source_instance');
+      if ($target_class->can('result_source_instance')) {
+
+        # since the newly created classes are registered only with
+        # the instance of $schema, it should be safe to weaken
+        # the ref (it will GC when $schema is destroyed)
+        $target_class->result_source_instance($source);
+        weaken ${"${target_class}::__cag_result_source_instance"};
+      }
      $schema->register_source($moniker, $source);
     }
   }

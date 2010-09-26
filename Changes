@@ -17,6 +17,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls
+        - Fix result_soutrce_instance leaks on compose_namespace
         - Make sure exception_action does not allow exception-hiding
           due to badly-written handlers (the mechanism was never meant
           to be able to suppress exceptions)
@@ -62,6 +63,8 @@ Revision history for DBIx::Class
         - DT-related tests now require a DateTime >= 0.55 (RT#60324)
         - Makefile.PL now provides a pre-parsed DBIC version to the
           Opt::Dep pod generator
+        - t/52leaks.t now performs very aggressive leak detection in
+          author/smoker mode
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes
