@@ -114,7 +114,7 @@ my $reqs = {
     },
   },
 
-  test_cycle => {
+  test_leaks => {
     req => {
       'Test::Memory::Cycle'       => '0',
       'Devel::Cycle'              => '1.10',

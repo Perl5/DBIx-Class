@@ -1,13 +1,14 @@
 use strict;
 use warnings;
+
 use Test::More;
 
 use lib qw(t/lib);
 
 BEGIN {
-  require DBIx::Class;
-  plan skip_all => 'Test needs: ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_cycle')
-    unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_cycle') );
+  require DBIx::Class::Optional::Dependencies;
+  plan skip_all => 'Test needs: ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_leaks')
+    unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks') );
 }
 
 use DBICTest;

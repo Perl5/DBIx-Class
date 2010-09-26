@@ -135,64 +135,53 @@ sub register_column {
     } elsif ($type eq "smalldatetime") {
       $type = "datetime";
       $info->{_ic_dt_method} ||= "smalldatetime";
+    } else {
+      $info->{_ic_dt_method} ||= $type;
     }
   }
+
+  return unless ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp');
 
   if ($info->{extra}) {
-    if ( defined $info->{extra}{timezone} ) {
-      carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
-           "please put it directly into the '$column' column definition.";
-      $info->{timezone} = $info->{extra}{timezone} unless defined $info->{timezone};
-    }
-
-    if ( defined $info->{extra}{locale} ) {
-     carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
-          "please put it directly into the '$column' column definition.";
-     $info->{locale} = $info->{extra}{locale} unless defined $info->{locale};
+    for my $slot (qw/timezone locale floating_tz_ok/) {
+      if ( defined $info->{extra}{$slot} ) {
+        carp "Putting $slot into extra => { $slot => '...' } has been deprecated, ".
+             "please put it directly into the '$column' column definition.";
+        $info->{$slot} = $info->{extra}{$slot} unless defined $info->{$slot};
+      }
     }
   }
 
-  my $undef_if_invalid = $info->{datetime_undef_if_invalid};
+  # shallow copy to avoid unfounded(?) Devel::Cycle complaints
+  my $infcopy = {%$info};
 
-  if ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp') {
-    # This shallow copy of %info avoids t/52_cycle.t treating
-    # the resulting deflator as a circular reference.
-    my %info = ( '_ic_dt_method' => $type , %{ $info } );
+  $self->inflate_column(
+    $column =>
+      {
+        inflate => sub {
+          my ($value, $obj) = @_;
 
-    if (defined $info->{extra}{floating_tz_ok}) {
-      carp "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
-           "please put it directly into the '$column' column definition.";
-      $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
-    }
+          my $dt = try
+            { $obj->_inflate_to_datetime( $value, $infcopy ) }
+            catch {
+              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_")
+                unless $infcopy->{datetime_undef_if_invalid};
+              undef;  # rv
+            };
 
-    $self->inflate_column(
-      $column =>
-        {
-          inflate => sub {
-            my ($value, $obj) = @_;
+          return (defined $dt)
+            ? $obj->_post_inflate_datetime( $dt, $infcopy )
+            : undef
+          ;
+        },
+        deflate => sub {
+          my ($value, $obj) = @_;
 
-            my $dt = try
-              { $obj->_inflate_to_datetime( $value, \%info ) }
-              catch {
-                $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_")
-                  unless $undef_if_invalid;
-                undef;  # rv
-              };
-
-            return (defined $dt)
-              ? $obj->_post_inflate_datetime( $dt, \%info )
-              : undef
-            ;
-          },
-          deflate => sub {
-            my ($value, $obj) = @_;
-
-            $value = $obj->_pre_deflate_datetime( $value, \%info );
-            $obj->_deflate_from_datetime( $value, \%info );
-          },
-        }
-    );
-  }
+          $value = $obj->_pre_deflate_datetime( $value, $infcopy );
+          $obj->_deflate_from_datetime( $value, $infcopy );
+        },
+      }
+  );
 }
 
 sub _flate_or_fallback
