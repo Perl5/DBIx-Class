@@ -403,6 +403,8 @@ willert: Sebastian Willert <willert@cpan.org>
 
 wreis: Wallace Reis <wreis@cpan.org>
 
+yrlnry: Mark Jason Dominus <mjd@plover.com>
+
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
