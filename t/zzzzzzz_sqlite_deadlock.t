@@ -9,12 +9,12 @@ use File::Temp ();
 use DBICTest;
 use DBICTest::Schema;
 
-unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
+if ( DBICTest::RunMode->is_plain ) {
   plan( skip_all => "Skipping test on plain module install" );
 }
 
 plan tests => 2;
-my $wait_for = 30;  # how many seconds to wait
+my $wait_for = 120;  # how many seconds to wait
 
 for my $close (0,1) {
 

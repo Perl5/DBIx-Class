@@ -6,14 +6,14 @@ use lib qw(t/lib);
 use DBICTest;
 
 # Don't run tests for installs
-unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
+if ( DBICTest::RunMode->is_plain ) {
   plan( skip_all => "Author tests not required for installation" );
 }
 
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_pod') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_pod');
-  $ENV{RELEASE_TESTING} || DBICTest::AuthorCheck->is_author
+  (! DBICTest::RunMode->is_plain && ! DBICTest::RunMode->is_smoker )
     ? die ("Failed to load release-testing module requirements: $missing")
     : plan skip_all => "Test needs: $missing"
 }

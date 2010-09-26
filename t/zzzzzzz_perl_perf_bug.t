@@ -23,8 +23,8 @@ plan skip_all =>
   'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
   if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
 
-plan skip_all => 'Skipping as AUTOMATED_TESTING is set'
-  if ( $ENV{AUTOMATED_TESTING} );
+plan skip_all => 'Skipping as system appears to be a smoker'
+  if DBICTest::RunMode->is_smoker;
 
 plan tests => 3;
 

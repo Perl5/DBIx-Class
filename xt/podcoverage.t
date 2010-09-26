@@ -8,7 +8,7 @@ use DBICTest;
 use namespace::clean;
 
 # Don't run tests for installs
-unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
+if ( DBICTest::RunMode->is_plain ) {
   plan( skip_all => "Author tests not required for installation" );
 }
 

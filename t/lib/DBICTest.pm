@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use DBICTest::AuthorCheck;
+use DBICTest::RunMode;
 use DBICTest::Schema;
 use Carp;
 

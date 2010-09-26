@@ -1,5 +1,5 @@
 package # hide from PAUSE 
-    DBICTest::AuthorCheck;
+    DBICTest::RunMode;
 
 use strict;
 use warnings;
@@ -108,8 +108,16 @@ sub is_author {
   return (
     ( not -d $root->subdir ('inc') )
       or
-    ( -e $root->subdir ('inc')->file ($^O eq 'VMS' ? '_author' : '.author') )
+    ( -e $root->subdir ('inc')->subdir ($^O eq 'VMS' ? '_author' : '.author') )
   );
+}
+
+sub is_smoker {
+  return ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
+}
+
+sub is_plain {
+  return (! __PACKAGE__->is_smoker && ! __PACKAGE__->is_author && ! $ENV{RELEASE_TESTING} )
 }
 
 # Try to determine the root of a checkout/untar if possible
