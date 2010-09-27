@@ -14,6 +14,12 @@ Revision history for DBIx::Class
         - FilterColumn now passes data through when transformations
           are not specified rather than throwing an exception.
         - Optimized RowNum based Oracle limit-dialect (RT#61277)
+        - Requesting a pager on a resultset with cached entries now
+          throws an exception, instead of returning a 1-page object
+          since the amount of rows is always equal to the "pagesize"
+        - $rs->pager now uses a lazy count to determine the amount of
+          total entries only when really needed, instead of doing it
+          at instantiation time
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls

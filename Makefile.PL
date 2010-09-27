@@ -66,6 +66,7 @@ my $runtime_requires = {
   'Path::Class'              => '0.18',
   'SQL::Abstract'            => '1.68',
   'Sub::Name'                => '0.04',
+  'Variable::Magic'          => '0.44',
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',
   'Context::Preserve'        => '0.01',
