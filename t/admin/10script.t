@@ -24,6 +24,7 @@ plan tests => ($tests_per_run * @json_backends) + 1;
 test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --insert --connect=[] |);
 cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC schema' );
 
+# test json backends
 for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };
@@ -35,6 +36,9 @@ for my $js (@json_backends) {
         diag $@ if $@;
     }
 }
+
+# test dbicadmin schema create
+test_exec ( default_args(), qw|--create --sqlt-args add_drop_tables=1| );
 
 sub test_dbicadmin {
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run

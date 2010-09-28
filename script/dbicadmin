@@ -54,6 +54,7 @@ my ($opts, $usage) = describe_options(
     ['connect:s' => 'Supply the connect info as a json string' ],
     ['sql-dir:s' => 'The directory where sql diffs will be created'],
     ['sql-type:s' => 'The RDBMs flavour you wish to use'],
+    ['sqlt-args:s%' => 'Arguments to pass to SQL::Translate'], 
     ['version:i' => 'Supply a version install'],
     ['preversion:s' => 'The previous version to diff against',],
     ['set:s' => 'JSON data used to perform data operations' ],

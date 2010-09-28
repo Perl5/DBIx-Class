@@ -243,6 +243,18 @@ has 'sql_type' => (
   isa    => Str,
 );
 
+=head2 sqlt_args
+
+Arguments that are passed to SQL::Translator when ever it is invoked
+
+=cut
+
+has 'sqlt_args' => (
+  is     => 'ro',
+  isa    => DBICHashRef,
+);
+
+
 =head2 version
 
 Used for install, the version which will be 'installed' in the schema
@@ -339,6 +351,7 @@ sub create {
 
   $preversion ||= $self->preversion();
   $sqlt_type ||= $self->sql_type();
+  $sqlt_args ||= $self->sqlt_args();
 
   my $schema = $self->schema();
   # create the dir if does not exist
