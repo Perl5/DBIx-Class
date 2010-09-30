@@ -10,7 +10,7 @@ throws_ok (
     use base 'DBIx::Class::Core';
 
     __PACKAGE__->table('buggy_table');
-    __PACKAGE__->columns qw/this doesnt work as expected/;
+    __PACKAGE__->columns( qw/this doesnt work as expected/ );
   },
   qr/\bcolumns\(\) is a read-only/,
   'columns() error when apparently misused',
