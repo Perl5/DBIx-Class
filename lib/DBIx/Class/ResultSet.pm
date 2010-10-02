@@ -3255,6 +3255,15 @@ it and sets C<select> from that, then auto-populates C<as> from
 C<select> as normal. (You may also use the C<cols> attribute, as in
 earlier versions of DBIC.)
 
+Essentially C<columns> does the same as L</select> and L</as>.
+
+    columns => [ 'foo', { bar => 'baz' } ]
+
+is the same as
+
+    select => [qw/foo baz/],
+    as => [qw/foo bar/]
+
 =head2 +columns
 
 =over 4
