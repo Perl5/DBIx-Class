@@ -54,7 +54,7 @@ BEGIN {
     *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
       sub {
         if (Carp::longmess() =~ /DBIx::Class::SQLMaker::[\w]+ .+? called \s at/x) {
-          $clan_import->(@_);
+          goto $clan_import;
         }
         else {
           goto $orig;
