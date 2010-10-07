@@ -106,6 +106,27 @@ is_deeply (
   'Only two rows incremented (where => scalarref works)',
 );
 
+{
+  my $rs = $schema->resultset('FourKeys_to_TwoKeys')->search (
+    {
+      -or => [
+        { 'me.pilot_sequence' => 12 },
+        { 'me.autopilot'      => 'b' },
+      ],
+    }
+  );
+  lives_ok { $rs->update({ autopilot => 'z' }) }
+    'Update with table name qualifier in -or conditions lives';
+  is_deeply (
+    [ $tkfks->search ({ pilot_sequence => [12, 22]})
+              ->get_column ('autopilot')->all
+    ],
+    [qw/z z/],
+    '... and yields the right data',
+  );
+}
+
+
 $sub_rs->delete;
 is ($tkfks->count, $tkfk_cnt -= 2, 'Only two rows deleted');
 

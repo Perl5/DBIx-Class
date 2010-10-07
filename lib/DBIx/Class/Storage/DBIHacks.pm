@@ -520,8 +520,13 @@ sub _strip_cond_qualifiers {
     }
     else {
       foreach my $key (keys %$where) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $where->{$key};
+        if ($key eq '-or' && ref $where->{$key} eq 'ARRAY') {
+          $cond->{$key} = $self->_strip_cond_qualifiers($where->{$key});
+        }
+        else {
+          $key =~ /([^.]+)$/;
+          $cond->{$1} = $where->{$key};
+        }
       }
     }
   }
