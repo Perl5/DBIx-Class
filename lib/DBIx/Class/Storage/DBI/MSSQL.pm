@@ -157,7 +157,7 @@ sub _select_args_to_query {
   if (
     $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
       &&
-    scalar $self->_parse_order_by ($attrs->{order_by})
+    scalar $self->_extract_order_columns ($attrs->{order_by})
   ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL

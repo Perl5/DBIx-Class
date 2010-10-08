@@ -67,7 +67,7 @@ sub new {
   if (
     scalar grep
       { ! $collist{$_} }
-      ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
+      ( $rs->result_source->schema->storage->_extract_order_columns ($orig_attrs->{order_by} ) ) 
   ) {
     # nuke the prefetch before collapsing to sql
     my $subq_rs = $rs->search;

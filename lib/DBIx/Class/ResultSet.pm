@@ -2674,7 +2674,7 @@ sub is_paged {
 
 sub is_ordered {
   my ($self) = @_;
-  return scalar $self->result_source->storage->_parse_order_by($self->{attrs}{order_by});
+  return scalar $self->result_source->storage->_extract_order_columns($self->{attrs}{order_by});
 }
 
 =head2 related_resultset
@@ -3155,7 +3155,7 @@ sub _resolved_attrs {
       # add any order_by parts that are not already present in the group_by
       # we need to be careful not to add any named functions/aggregates
       # i.e. select => [ ... { count => 'foo', -as 'foocount' } ... ]
-      for my $chunk ($storage->_parse_order_by($attrs->{order_by})) {
+      for my $chunk ($storage->_extract_order_columns($attrs->{order_by})) {
 
         # only consider real columns (for functions the user got to do an explicit group_by)
         my $colinfo = $rs_column_list->{$chunk}

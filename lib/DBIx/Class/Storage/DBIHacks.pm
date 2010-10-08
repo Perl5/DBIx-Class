@@ -249,7 +249,7 @@ sub _resolve_aliastypes_from_select_args {
       }),
     ],
     selecting => [
-      $self->_parse_order_by ($attrs->{order_by}, $sql_maker),
+      $self->_extract_order_columns ($attrs->{order_by}, $sql_maker),
       $sql_maker->_recurse_fields ($select),
     ],
   };
@@ -536,7 +536,7 @@ sub _strip_cond_qualifiers {
   return $cond;
 }
 
-sub _parse_order_by {
+sub _extract_order_columns {
   my ($self, $order_by, $sql_maker) = @_;
 
   my $parser = sub {
