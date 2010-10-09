@@ -10,10 +10,16 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use List::Util ();
+use Hash::Merge ();
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
 use Storable qw/nfreeze thaw/;
 use namespace::clean;
+
+BEGIN {
+  # De-duplication in _merge_attr() is disabled, but left in for reference
+  *__HM_DEDUP = sub () { 0 };
+}
 
 use overload
         '0+'     => "count",
@@ -326,7 +332,11 @@ sub search_rs {
   my $new_attrs = { %{$old_attrs}, %{$call_attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as +columns include_columns bind/) {
+  foreach my $key (qw/join prefetch/) {
+    next unless exists $call_attrs->{$key};
+    $new_attrs->{$key} = $self->_merge_joinpref_attr($old_attrs->{$key}, $call_attrs->{$key});
+  }
+  foreach my $key (qw/+select +as +columns include_columns bind/) {
     next unless exists $call_attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($old_attrs->{$key}, $call_attrs->{$key});
   }
@@ -2913,7 +2923,7 @@ sub _chain_relationship {
 
   # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
-  my $join = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
+  my $join = $self->_merge_joinpref_attr( $attrs->{join}, $attrs->{prefetch} );
 
   delete @{$attrs}{qw/join prefetch collapse group_by distinct select as columns +select +as +columns/};
 
@@ -2931,7 +2941,7 @@ sub _chain_relationship {
     # are resolved (prefetch is useless - we are wrapping
     # a subquery anyway).
     my $rs_copy = $self->search;
-    $rs_copy->{attrs}{join} = $self->_merge_attr (
+    $rs_copy->{attrs}{join} = $self->_merge_joinpref_attr (
       $rs_copy->{attrs}{join},
       delete $rs_copy->{attrs}{prefetch},
     );
@@ -3014,97 +3024,171 @@ sub _resolved_attrs {
   my $source = $self->result_source;
   my $alias  = $attrs->{alias};
 
-  $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
-  my @colbits;
+########
+# resolve selectors, this one is quite hairy
 
-  # build columns (as long as select isn't set) into a set of as/select hashes
-  unless ( $attrs->{select} ) {
+  my $selection_pieces;
 
-    my @cols;
-    if ( ref $attrs->{columns} eq 'ARRAY' ) {
-      @cols = @{ delete $attrs->{columns}}
-    } elsif ( defined $attrs->{columns} ) {
-      @cols = delete $attrs->{columns}
-    } else {
-      @cols = $source->columns
-    }
+  $attrs->{columns} ||= delete $attrs->{cols}
+    if exists $attrs->{cols};
 
-    for (@cols) {
-      if ( ref $_ eq 'HASH' ) {
-        push @colbits, $_
-      } else {
-        my $key = /^\Q${alias}.\E(.+)$/
-          ? "$1"
-          : "$_";
-        my $value = /\./
-          ? "$_"
-          : "${alias}.$_";
-        push @colbits, { $key => $value };
+  # disassemble columns / +columns
+  (
+    $selection_pieces->{columns}{select},
+    $selection_pieces->{columns}{as},
+    $selection_pieces->{'+columns'}{select},
+    $selection_pieces->{'+columns'}{as},
+  ) = map
+    {
+      my (@sel, @as);
+
+      for my $colbit (@$_) {
+
+        if (ref $colbit eq 'HASH') {
+          for my $as (keys %$colbit) {
+            push @sel, $colbit->{$as};
+            push @as, $as;
+          }
+        }
+        elsif ($colbit) {
+          push @sel, $colbit;
+          push @as, $colbit;
+        }
       }
+
+      (\@sel, \@as)
+    }
+    (
+      (ref $attrs->{columns} eq 'ARRAY' ? delete $attrs->{columns} : [ delete $attrs->{columns} ]),
+      # include_columns is a legacy add-on to +columns
+      [ map { ref $_ eq 'ARRAY' ? @$_ : ($_ || () ) } delete @{$attrs}{qw/+columns include_columns/} ] )
+  ;
+
+  # make copies of select/as and +select/+as
+  (
+    $selection_pieces->{'select/as'}{select},
+    $selection_pieces->{'select/as'}{as},
+    $selection_pieces->{'+select/+as'}{select},
+    $selection_pieces->{'+select/+as'}{as},
+  ) = map
+    { $_ ? [ ref $_ eq 'ARRAY' ? @$_ : $_ ] : [] }
+    ( delete @{$attrs}{qw/select as +select +as/} )
+  ;
+
+  # default to * only when neither no non-plus selectors are available
+  if (
+    ! @{$selection_pieces->{'select/as'}{select}}
+      and
+    ! @{$selection_pieces->{'columns'}{select}}
+  ) {
+    for ($source->columns) {
+      push @{$selection_pieces->{'select/as'}{select}}, $_;
+      push @{$selection_pieces->{'select/as'}{as}}, $_;
     }
   }
 
-  # add the additional columns on
-  foreach (qw{include_columns +columns}) {
-    if ( $attrs->{$_} ) {
-      my @list = ( ref($attrs->{$_}) eq 'ARRAY' )
-        ? @{ delete $attrs->{$_} }
-        : delete $attrs->{$_};
-      for (@list) {
-        if ( ref($_) eq 'HASH' ) {
-          push @colbits, $_
-        } else {
-          my $key = ( split /\./, $_ )[-1];
-          my $value = ( /\./ ? $_ : "$alias.$_" );
-          push @colbits, { $key => $value };
+  # final composition order (important)
+  my @sel_pairs = grep {
+    $selection_pieces->{$_}
+      &&
+    (
+      ( $selection_pieces->{$_}{select} && @{$selection_pieces->{$_}{select}} )
+        ||
+      ( $selection_pieces->{$_}{as} && @{$selection_pieces->{$_}{as}} )
+    )
+  } qw|columns select/as +columns +select/+as|;
+
+  # fill in missing as bits for each pair
+  # if it's the last pair we can let things slide ( bare +select is sadly popular)
+  my $out_of_sync;
+
+  for my $i (0 .. $#sel_pairs) {
+
+    my $pairname = $sel_pairs[$i];
+
+    my ($sel, $as) = @{$selection_pieces->{$pairname}}{qw/select as/};
+
+    $self->throw_exception(
+      "Unable to assemble final selection list: $pairname specified in addition to unbalanced $sel_pairs[$i-1]"
+    ) if ($out_of_sync);
+
+    if (@$sel == @$as) {
+      next;
+    }
+    elsif (@$sel < @$as) {
+      $self->throw_exception(
+        "More 'as' elements than 'select' elements for $pairname, unable to continue"
+      );
+    }
+    else {
+      # try to deduce the 'as' part, will work only if all the selectors are "plain", or contain an explicit -as
+      # if we can not deduce something - stop right there and leave the rest of the selector un-as'ed
+      # if there is an extra selection pair coming after that - it will die due to out_of_sync being set
+      for my $j ($#$as+1 .. $#$sel) {
+        if (my $ref = ref $sel->[$j]) {
+          if ($ref eq 'HASH' and exists $sel->[$j]{-as}) {
+            push @$as, $sel->[$j]{-as};
+          }
+          else {
+            $out_of_sync++;
+            last;
+          }
+        }
+        else {
+          push @$as, $sel->[$j];
         }
       }
     }
   }
 
-  # start with initial select items
-  if ( $attrs->{select} ) {
-    $attrs->{select} =
-        ( ref $attrs->{select} eq 'ARRAY' )
-      ? [ @{ $attrs->{select} } ]
-      : [ $attrs->{select} ];
+  # assume all unqualified selectors to apply to the current alias (legacy stuff)
+  # disqualify all $alias.col as-bits (collapser mandated)
+  for (values %$selection_pieces) {
+    $_->{select} = [ map { (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_" } @{$_->{select}} ];
+    $_->{as} = [  map { $_ =~ /^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$_->{as}} ];
+  }
 
-    if ( $attrs->{as} ) {
-      $attrs->{as} =
-        (
-          ref $attrs->{as} eq 'ARRAY'
-            ? [ @{ $attrs->{as} } ]
-            : [ $attrs->{as} ]
-        )
-    } else {
-      $attrs->{as} = [ map {
-         m/^\Q${alias}.\E(.+)$/
-           ? $1
-           : $_
-         } @{ $attrs->{select} }
-      ]
+  # FIXME !!!
+  # Blatant bugwardness encoded into multiple tests.
+  # While columns behaves sensibly, +columns is expected
+  # to dump *any* foreign columns into the main object
+  # /me vomits
+  $selection_pieces->{'+columns'}{as} = [ map
+    { (split /\./, $_)[-1] }
+    @{$selection_pieces->{'+columns'}{as}}
+  ];
+
+  # merge everything
+  for (@sel_pairs) {
+    $attrs->{select} = $self->_merge_attr ($attrs->{select}, $selection_pieces->{$_}{select});
+    $attrs->{as} = $self->_merge_attr ($attrs->{as}, $selection_pieces->{$_}{as});
+  }
+
+  # de-duplicate the result (remove *identical* select/as pairs)
+  # and also die on duplicate {as} pointing to different {select}s
+  # not using a c-style for as the condition is prone to shrinkage
+  my $seen;
+  my $i = 0;
+  while ($i <= $#{$attrs->{as}} ) {
+    my ($sel, $as) = map { $attrs->{$_}[$i] } (qw/select as/);
+
+    if ($seen->{"$sel \x00\x00 $as"}++) {
+      splice @$_, $i, 1
+        for @{$attrs}{qw/select as/};
+    }
+    elsif ($seen->{$as}++) {
+      $self->throw_exception(
+        "inflate_result() alias '$as' specified twice with different SQL-side {select}-ors"
+      );
+    }
+    else {
+      $i++;
     }
   }
-  else {
 
-    # otherwise we intialise select & as to empty
-    $attrs->{select} = [];
-    $attrs->{as}     = [];
-  }
+## selector resolution done
+########
 
-  # now add colbits to select/as
-  push @{ $attrs->{select} }, map values %{$_}, @colbits;
-  push @{ $attrs->{as}     }, map keys   %{$_}, @colbits;
-
-  if ( my $adds = delete $attrs->{'+select'} ) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push @{ $attrs->{select} },
-      map { /\./ || ref $_ ? $_ : "$alias.$_" } @$adds;
-  }
-  if ( my $adds = delete $attrs->{'+as'} ) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push @{ $attrs->{as} }, @$adds;
-  }
 
   $attrs->{from} ||= [{
     -source_handle => $source->handle,
@@ -3120,7 +3204,7 @@ sub _resolved_attrs {
     my $join = delete $attrs->{join} || {};
 
     if ( defined $attrs->{prefetch} ) {
-      $join = $self->_merge_attr( $join, $attrs->{prefetch} );
+      $join = $self->_merge_joinpref_attr( $join, $attrs->{prefetch} );
     }
 
     $attrs->{from} =    # have to copy here to avoid corrupting the original
@@ -3165,7 +3249,7 @@ sub _resolved_attrs {
 
   $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
-    $prefetch = $self->_merge_attr( {}, $prefetch );
+    $prefetch = $self->_merge_joinpref_attr( {}, $prefetch );
 
     my $prefetch_ordering = [];
 
@@ -3288,7 +3372,7 @@ sub _calculate_score {
   }
 }
 
-sub _merge_attr {
+sub _merge_joinpref_attr {
   my ($self, $orig, $import) = @_;
 
   return $import unless defined($orig);
@@ -3320,7 +3404,7 @@ sub _merge_attr {
         $orig->[$best_candidate->{position}] = $import_element;
       } elsif (ref $import_element eq 'HASH') {
         my ($key) = keys %{$orig_best};
-        $orig->[$best_candidate->{position}] = { $key => $self->_merge_attr($orig_best->{$key}, $import_element->{$key}) };
+        $orig->[$best_candidate->{position}] = { $key => $self->_merge_joinpref_attr($orig_best->{$key}, $import_element->{$key}) };
       }
     }
     $seen_keys->{$import_key} = 1; # don't merge the same key twice
@@ -3329,6 +3413,88 @@ sub _merge_attr {
   return $orig;
 }
 
+{
+  my $hm;
+
+  sub _merge_attr {
+    $hm ||= do {
+      my $hm = Hash::Merge->new;
+
+      $hm->specify_behavior({
+        SCALAR => {
+          SCALAR => sub {
+            my ($defl, $defr) = map { defined $_ } (@_[0,1]);
+
+            if ($defl xor $defr) {
+              return $defl ? $_[0] : $_[1];
+            }
+            elsif (! $defl) {
+              return ();
+            }
+            elsif (__HM_DEDUP and $_[0] eq $_[1]) {
+              return $_[0];
+            }
+            else {
+              return [$_[0], $_[1]];
+            }
+          },
+          ARRAY => sub {
+            return $_[1] if !defined $_[0];
+            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return [$_[0], @{$_[1]}]
+          },
+          HASH  => sub {
+            return $_[1] if !defined $_[0];
+            return $_[0] if !keys %{$_[1]};
+            return [$_[0], $_[1]]
+          },
+        },
+        ARRAY => {
+          SCALAR => sub {
+            return $_[0] if !defined $_[1];
+            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return [@{$_[0]}, $_[1]]
+          },
+          ARRAY => sub {
+            my @ret = @{$_[0]} or return $_[1];
+            return [ @ret, @{$_[1]} ] unless __HM_DEDUP;
+            my %idx = map { $_ => 1 } @ret;
+            push @ret, grep { ! defined $idx{$_} } (@{$_[1]});
+            \@ret;
+          },
+          HASH => sub {
+            return [ $_[1] ] if ! @{$_[0]};
+            return $_[0] if !keys %{$_[1]};
+            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return [ @{$_[0]}, $_[1] ];
+          },
+        },
+        HASH => {
+          SCALAR => sub {
+            return $_[0] if !defined $_[1];
+            return $_[1] if !keys %{$_[0]};
+            return [$_[0], $_[1]]
+          },
+          ARRAY => sub {
+            return $_[0] if !@{$_[1]};
+            return $_[1] if !keys %{$_[0]};
+            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return [ $_[0], @{$_[1]} ];
+          },
+          HASH => sub {
+            return $_[0] if !keys %{$_[1]};
+            return $_[1] if !keys %{$_[0]};
+            return $_[0] if $_[0] eq $_[1];
+            return [ $_[0], $_[1] ];
+          },
+        }
+      } => 'DBIC_RS_ATTR_MERGER');
+      $hm;
+    };
+
+    return $hm->merge ($_[1], $_[2]);
+  }
+}
 
 sub result_source {
     my $self = shift;

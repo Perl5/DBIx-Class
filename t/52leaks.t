@@ -128,6 +128,10 @@ unless (DBICTest::RunMode->is_plain) {
 
     resultset => $rs,
 
+    # twice so that we make sure only one H::M object spawned
+    chained_resultset => $rs->search_rs ({}, { '+columns' => [ 'foo' ] } ),
+    chained_resultset2 => $rs->search_rs ({}, { '+columns' => [ 'bar' ] } ),
+
     row_object => $row_obj,
 
     result_source => $rs->result_source,
@@ -165,7 +169,7 @@ for my $slot (keys %$weak_registry) {
     delete $weak_registry->{$slot};
   }
   elsif ($slot =~ /^\QHash::Merge/) {
-    # only clear one object - more would indicate trouble
+    # only clear one object of a specific behavior - more would indicate trouble
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
   }

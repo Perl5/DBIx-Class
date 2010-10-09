@@ -14,6 +14,8 @@ Revision history for DBIx::Class
           (RT#62642)
         - Fix incomplete logic while detecting correct Oracle sequence
           on insert
+        - Fixed incorrect composition of select/as/columns attributes during
+          chaining (RT#61235)
         - Refactor handling of RDBMS-side values during insert() - fix
           regression of inserts into a Postgres / ::Replicated combination
         - Missing dependency check in t/60core.t (RT#62635)

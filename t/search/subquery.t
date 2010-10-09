@@ -29,7 +29,7 @@ my @tests = (
       artist_id => { 'in' => $art_rs->search({}, { rows => 1 })->get_column( 'id' )->as_query },
     },
     sqlbind => \[
-      "( SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE artist_id IN ( SELECT id FROM artist me LIMIT 1 ) )",
+      "( SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE artist_id IN ( SELECT me.id FROM artist me LIMIT 1 ) )",
     ],
   },
 
@@ -41,7 +41,7 @@ my @tests = (
       ],
     },
     sqlbind => \[
-      "( SELECT (SELECT id FROM cd me LIMIT 1) FROM artist me )",
+      "( SELECT (SELECT me.id FROM cd me LIMIT 1) FROM artist me )",
     ],
   },
 
@@ -53,7 +53,7 @@ my @tests = (
       ],
     },
     sqlbind => \[
-      "( SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cd me LIMIT 1) FROM artist me )",
+      "( SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT me.id FROM cd me LIMIT 1) FROM artist me )",
     ],
   },
 

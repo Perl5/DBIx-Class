@@ -618,27 +618,27 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     # combine a connect_by with group_by and having
     {
       my $rs = $schema->resultset('Artist')->search({}, {
-        select => ['count(rank)'],
+        select => { count => 'rank', -as => 'cnt' },
         start_with => { name => 'root' },
         connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
         group_by => ['rank'],
-        having => { 'count(rank)' => { '<', 2 } },
+        having => \[ 'count(rank) < ?', [ cnt => 2 ] ],
       });
 
       is_same_sql_bind (
         $rs->as_query,
         '(
-            SELECT count(rank)
+            SELECT COUNT(rank) AS cnt
             FROM artist me
             START WITH name = ?
             CONNECT BY parentid = PRIOR artistid
             GROUP BY rank HAVING count(rank) < ?
         )',
-        [ [ name => 'root' ], [ 'count(rank)' => 2 ] ],
+        [ [ name => 'root' ], [ cnt => 2 ] ],
       );
 
       is_deeply (
-        [ $rs->get_column ('count(rank)')->all ],
+        [ $rs->get_column ('cnt')->all ],
         [1, 1],
         'Group By a Connect By query - correct values'
       );
@@ -667,7 +667,8 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'cycle-root' },
-        '+select'  => [ \ 'CONNECT_BY_ISCYCLE' ],
+        '+select'  => \ 'CONNECT_BY_ISCYCLE',
+        '+as'      => [ 'connector' ],
         connect_by_nocycle => { parentid => { -prior => { -ident => 'artistid' } } },
       });
 
@@ -687,7 +688,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
         'got artist tree with nocycle (name)',
       );
       is_deeply (
-        [ $rs->get_column ('CONNECT_BY_ISCYCLE')->all ],
+        [ $rs->get_column ('connector')->all ],
         [ qw/1 0 0 0/ ],
         'got artist tree with nocycle (CONNECT_BY_ISCYCLE)',
       );
