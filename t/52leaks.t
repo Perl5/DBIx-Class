@@ -39,6 +39,7 @@ unless (DBICTest::RunMode->is_plain) {
   require Errno;
   require Class::Struct;
   require FileHandle;
+  require Hash::Merge;
 
   no warnings qw/redefine once/;
   no strict qw/refs/;
@@ -121,6 +122,7 @@ unless (DBICTest::RunMode->is_plain) {
     storage => $storage,
 
     resultset => $rs,
+
     row_object => $row_obj,
 
     result_source => $rs->result_source,
@@ -146,6 +148,21 @@ unless (DBICTest::RunMode->is_plain) {
 memory_cycle_ok($weak_registry, 'No cycles in the weakened object collection')
   if $have_test_cycle;
 
+# Naturally we have some exceptions
+my $cleared;
+for my $slot (keys %$weak_registry) {
+  if ($slot =~ /^SQL\:\:Translator/) {
+    # SQLT is a piece of shit, leaks all over
+    delete $weak_registry->{$slot};
+  }
+  elsif ($slot =~ /^Hash\:\:Merge/) {
+    # only clear one object - more would indicate trouble
+    delete $weak_registry->{$slot}
+      unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
+  }
+}
+
+
 # FIXME
 # For reasons I can not yet fully understand the table() god-method (located in
 # ::ResultSourceProxy::Table) attaches an actual source instance to each class
@@ -164,8 +181,6 @@ DBICTest::Schema->source_registrations(undef);
 
 my $tb = Test::More->builder;
 for my $slot (keys %$weak_registry) {
-  # SQLT is a piece of shit, leaks all over
-  next if $slot =~ /^SQL\:\:Translator/;
 
   ok (! defined $weak_registry->{$slot}{weakref}, "No leaks of $slot") or do {
     my $diag = '';
