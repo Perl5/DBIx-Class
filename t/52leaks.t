@@ -1,6 +1,16 @@
 use strict;
 use warnings;
 
+# Do the override as early as possible so that CORE::bless doesn't get compiled away
+# We will replace $bless_override only if we are in author mode
+my $bless_override;
+BEGIN {
+  $bless_override = sub {
+    CORE::bless( $_[0], (@_ > 1) ? $_[1] : caller() );
+  };
+  *CORE::GLOBAL::bless = sub { goto $bless_override };
+}
+
 use Test::More;
 use Scalar::Util qw/refaddr reftype weaken/;
 use Carp qw/longmess/;
@@ -16,23 +26,26 @@ BEGIN {
     and import Test::Memory::Cycle;
 }
 
-# preload stuff so that we don't trap globals
-use DBI;
-use Errno;
-use Class::Struct;
-use DBD::SQLite;
-use FileHandle;
-
 # this is what holds all weakened refs to be checked for leakage
 my $weak_registry = {};
 
 # Skip the heavy-duty leak tracing when just doing an install
 unless (DBICTest::RunMode->is_plain) {
+
+  # Some modules are known to install singletons on-load
+  # Load them before we swap out $bless_override
+  require DBI;
+  require DBD::SQLite;
+  require Errno;
+  require Class::Struct;
+  require FileHandle;
+
   no warnings qw/redefine once/;
   no strict qw/refs/;
 
-  # override bless so that we can catch each and every object created
-  *CORE::GLOBAL::bless = sub {
+  # redefine the bless override so that we can catch each and every object created
+  $bless_override = sub {
+
     my $obj = CORE::bless(
       $_[0], (@_ > 1) ? $_[1] : do {
         my ($class, $fn, $line) = caller();
