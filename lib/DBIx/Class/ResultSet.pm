@@ -1503,8 +1503,16 @@ sub _rs_update_delete {
 =back
 
 Sets the specified columns in the resultset to the supplied values in a
-single query. Return value will be true if the update succeeded or false
-if no records were updated; exact type of success value is storage-dependent.
+single query. Note that this will not run any accessor/set_column/update
+triggers, nor will it update any row object instances derived from this
+resultset (this includes the contents of the L<resultset cache|/set_cache>
+if any). See L</update_all> if you need to execute any on-update
+triggers or cascades defined either by you or a
+L<result component|DBIx::Class::Manual::Component/WHAT_IS_A_COMPONENT>.
+
+The return value is a pass through of what the underlying
+storage backend returned, and may vary. See L<DBI/execute> for the most
+common case.
 
 =cut
 
@@ -1526,8 +1534,9 @@ sub update {
 
 =back
 
-Fetches all objects and updates them one at a time. Note that C<update_all>
-will run DBIC cascade triggers, while L</update> will not.
+Fetches all objects and updates them one at a time via
+L<DBIx::Class::Row/update>. Note that C<update_all> will run DBIC defined
+triggers, while L</update> will not.
 
 =cut
 
@@ -1552,12 +1561,16 @@ sub update_all {
 
 =back
 
-Deletes the contents of the resultset from its result source. Note that this
-will not run DBIC cascade triggers. See L</delete_all> if you need triggers
-to run. See also L<DBIx::Class::Row/delete>.
+Deletes the rows matching this resultset in a single query. Note that this
+will not run any delete triggers, nor will it alter the
+L<in_storage|DBIx::Class::Row/in_storage> status of any row object instances
+derived from this resultset (this includes the contents of the
+L<resultset cache|/set_cache> if any). See L</delete_all> if you need to
+execute any on-delete triggers or cascades defined either by you or a
+L<result component|DBIx::Class::Manual::Component/WHAT_IS_A_COMPONENT>.
 
-Return value will be the number of rows deleted; exact type of return value
-is storage-dependent.
+The return value is a pass through of what the underlying storage backend
+returned, and may vary. See L<DBI/execute> for the most common case.
 
 =cut
 
@@ -1579,8 +1592,9 @@ sub delete {
 
 =back
 
-Fetches all objects and deletes them one at a time. Note that C<delete_all>
-will run DBIC cascade triggers, while L</delete> will not.
+Fetches all objects and deletes them one at a time via
+L<DBIx::Class::Row/delete>. Note that C<delete_all> will run DBIC defined
+triggers, while L</delete> will not.
 
 =cut
 
