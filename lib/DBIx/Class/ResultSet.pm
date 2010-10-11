@@ -682,15 +682,15 @@ sub cursor {
 
 =item Arguments: $cond?
 
-=item Return Value: $row_object?
+=item Return Value: $row_object | undef
 
 =back
 
   my $cd = $schema->resultset('CD')->single({ year => 2001 });
 
 Inflates the first result without creating a cursor if the resultset has
-any records in it; if not returns nothing. Used by L</find> as a lean version of
-L</search>.
+any records in it; if not returns C<undef>. Used by L</find> as a lean version
+of L</search>.
 
 While this method can take an optional search condition (just like L</search>)
 being a fast-code-path it does not recognize search attributes. If you need to
@@ -913,7 +913,7 @@ sub slice {
   $attrs->{offset} = $self->{attrs}{offset} || 0;
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  return $self->search(undef(), $attrs);
+  return $self->search(undef, $attrs);
   #my $slice = (ref $self)->new($self->result_source, $attrs);
   #return (wantarray ? $slice->all : $slice);
 }
@@ -924,7 +924,7 @@ sub slice {
 
 =item Arguments: none
 
-=item Return Value: $result?
+=item Return Value: $result | undef
 
 =back
 
@@ -1409,12 +1409,12 @@ sub reset {
 
 =item Arguments: none
 
-=item Return Value: $object?
+=item Return Value: $object | undef
 
 =back
 
-Resets the resultset and returns an object for the first result (if the
-resultset returns anything).
+Resets the resultset and returns an object for the first result (or C<undef>
+if the resultset is empty).
 
 =cut
 
@@ -2583,7 +2583,7 @@ sub update_or_new {
 
 =item Arguments: none
 
-=item Return Value: \@cache_objects?
+=item Return Value: \@cache_objects | undef
 
 =back
 
@@ -2631,7 +2631,7 @@ sub set_cache {
 
 =item Arguments: none
 
-=item Return Value: []
+=item Return Value: undef
 
 =back
 
