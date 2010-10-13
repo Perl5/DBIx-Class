@@ -19,6 +19,10 @@
           size        => 100,
           is_nullable => 1,
       },
+      'autoinc_col' => {
+          data_type         => 'integer',
+          is_auto_increment => 1,
+      },
   );
   __PACKAGE__->set_primary_key('artistid');
 
@@ -75,42 +79,74 @@ $schema->class('Artist')->load_components('PK::Auto');
 $schema->class('CD')->load_components('PK::Auto::Oracle');
 $schema->class('Track')->load_components('PK::Auto::Oracle');
 
-# test primary key handling
+
+# test primary key handling with multiple triggers
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 is($new->artistid, 1, "Oracle Auto-PK worked");
+
+like ($new->result_source->column_info('artistid')->{sequence}, qr/\.artist_pk_seq$/, 'Correct PK sequence selected');
+
+# test again with fully-qualified table name
+my $artistfqn_rs = $schema->resultset('ArtistFQN');
+my $artist_rsrc = $artistfqn_rs->result_source;
+
+delete $artist_rsrc->column_info('artistid')->{sequence};
+
+$new = $artistfqn_rs->create( { name => 'bar' } );
+is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
+
+delete $artist_rsrc->column_info('artistid')->{sequence};
+
+$new = $artistfqn_rs->create( { name => 'bar', autoinc_col => 1000 } );
+is( $new->artistid, 3, "Oracle Auto-PK worked with fully-qualified tablename" );
+is( $new->autoinc_col, 1000, "Oracle Auto-Inc overruled with fully-qualified tablename");
+
+like ($artist_rsrc->column_info('artistid')->{sequence}, qr/\.artist_pk_seq$/, 'Still correct PK sequence');
+
+# test LIMIT support
+for (1..6) {
+    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
+}
+my $it = $schema->resultset('Artist')->search( { name => { -like => 'Artist %' }},
+    { rows => 3,
+      offset => 4,
+      order_by => 'artistid' }
+);
+is( $it->count, 2, "LIMIT count past end of RS ok" );
+is( $it->next->name, "Artist 5", "iterator->next ok" );
+is( $it->next->name, "Artist 6", "iterator->next ok" );
+is( $it->next, undef, "next past end of resultset ok" );
 
 my $cd = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
 is($cd->cdid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
 
-# test again with fully-qualified table name
-$new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
-is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
-
 # test rel names over the 30 char limit
-my $query = $schema->resultset('Artist')->search({
-  artistid => 1 
-}, {
-  prefetch => 'cds_very_very_very_long_relationship_name'
-});
-
-lives_and {
-  is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
-} 'query with rel name over 30 chars survived and worked';
-
-# rel name over 30 char limit with user condition
-# This requires walking the SQLA data structure.
 {
-  local $TODO = 'user condition on rel longer than 30 chars';
-
-  $query = $schema->resultset('Artist')->search({
-    'cds_very_very_very_long_relationship_name.title' => 'EP C'
+  my $query = $schema->resultset('Artist')->search({
+    artistid => 1
   }, {
     prefetch => 'cds_very_very_very_long_relationship_name'
   });
 
   lives_and {
     is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
-  } 'query with rel name over 30 chars and user condition survived and worked';
+  } 'query with rel name over 30 chars survived and worked';
+
+  # rel name over 30 char limit with user condition
+  # This requires walking the SQLA data structure.
+  {
+    local $TODO = 'user condition on rel longer than 30 chars';
+
+    $query = $schema->resultset('Artist')->search({
+      'cds_very_very_very_long_relationship_name.title' => 'EP C'
+    }, {
+      prefetch => 'cds_very_very_very_long_relationship_name'
+    });
+
+    lives_and {
+      is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
+    } 'query with rel name over 30 chars and user condition survived and worked';
+  }
 }
 
 # test join with row count ambiguity
@@ -154,21 +190,6 @@ $tcount = $schema->resultset('Track')->search(
   }
 );
 is($tcount->count, 2, 'multiple column COUNT DISTINCT using column syntax ok');
-
-# test LIMIT support
-for (1..6) {
-    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
-}
-my $it = $schema->resultset('Artist')->search( {},
-    { rows => 3,
-      offset => 3,
-      order_by => 'artistid' }
-);
-is( $it->count, 3, "LIMIT count ok" );
-is( $it->next->name, "Artist 2", "iterator->next ok" );
-$it->next;
-$it->next;
-is( $it->next, undef, "next past end of resultset ok" );
 
 {
   my $rs = $schema->resultset('Track')->search( undef, { columns=>[qw/trackid position/], group_by=> [ qw/trackid position/ ] , rows => 2, offset=>1 });
@@ -718,7 +739,8 @@ sub do_creates {
   my $dbh = shift;
 
   eval {
-    $dbh->do("DROP SEQUENCE artist_seq");
+    $dbh->do("DROP SEQUENCE artist_autoinc_seq");
+    $dbh->do("DROP SEQUENCE artist_pk_seq");
     $dbh->do("DROP SEQUENCE cd_seq");
     $dbh->do("DROP SEQUENCE track_seq");
     $dbh->do("DROP SEQUENCE pkid1_seq");
@@ -729,14 +751,15 @@ sub do_creates {
     $dbh->do("DROP TABLE track");
     $dbh->do("DROP TABLE cd");
   };
-  $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+  $dbh->do("CREATE SEQUENCE artist_autoinc_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+  $dbh->do("CREATE SEQUENCE artist_pk_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE cd_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE track_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE pkid1_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
 
-  $dbh->do("CREATE TABLE artist (artistid NUMBER(12), parentid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
+  $dbh->do("CREATE TABLE artist (artistid NUMBER(12), parentid NUMBER(12), name VARCHAR(255), autoinc_col NUMBER(12), rank NUMBER(38), charfield VARCHAR2(10))");
   $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
 
   $dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
@@ -749,12 +772,24 @@ sub do_creates {
   $dbh->do("ALTER TABLE track ADD (CONSTRAINT track_pk PRIMARY KEY (trackid))");
 
   $dbh->do(qq{
-    CREATE OR REPLACE TRIGGER artist_insert_trg
+    CREATE OR REPLACE TRIGGER artist_insert_trg_auto
+    BEFORE INSERT ON artist
+    FOR EACH ROW
+    BEGIN
+      IF :new.autoinc_col IS NULL THEN
+        SELECT artist_autoinc_seq.nextval
+        INTO :new.autoinc_col
+        FROM DUAL;
+      END IF;
+    END;
+  });
+  $dbh->do(qq{
+    CREATE OR REPLACE TRIGGER artist_insert_trg_pk
     BEFORE INSERT ON artist
     FOR EACH ROW
     BEGIN
       IF :new.artistid IS NULL THEN
-        SELECT artist_seq.nextval
+        SELECT artist_pk_seq.nextval
         INTO :new.artistid
         FROM DUAL;
       END IF;
@@ -802,7 +837,8 @@ sub do_creates {
 END {
   for my $dbh (map $_->storage->dbh, grep $_, ($schema, $schema2)) {
     eval {
-      $dbh->do("DROP SEQUENCE artist_seq");
+      $dbh->do("DROP SEQUENCE artist_autoinc_seq");
+      $dbh->do("DROP SEQUENCE artist_pk_seq");
       $dbh->do("DROP SEQUENCE cd_seq");
       $dbh->do("DROP SEQUENCE track_seq");
       $dbh->do("DROP SEQUENCE pkid1_seq");

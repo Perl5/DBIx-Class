@@ -148,7 +148,7 @@ sub _dbh_get_autoinc_seq {
   $sth->execute (@bind);
 
   while (my ($insert_trigger, $schema) = $sth->fetchrow_array) {
-    my ($seq_name) = $insert_trigger =~ m!("?[.\w"]+"?)\.nextval!i;
+    my ($seq_name) = $insert_trigger =~ m/("?[.\w"]+"?)\.nextval .+ into \s+ :new\.$col/xmsi;
 
     next unless $seq_name;
 

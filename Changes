@@ -61,6 +61,8 @@ Revision history for DBIx::Class
         - Fix dirtyness detection on source-less objects
         - Fix incorrect limit_dialect assignment on Replicated pool members
         - Fix invalid sql on relationship attr order_by with prefetch
+        - Fix primary key sequence detection for Oracle
+          (first trigger instead of trigger for column)
 
     * Misc
         - Refactored capability handling in Storage::DBI, allows for
