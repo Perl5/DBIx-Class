@@ -96,11 +96,6 @@ this will attempt to upgrade the database from its current version to the curren
 schema version using a diff from your I<upgrade_directory>. If a suitable diff is
 not found then no upgrade is possible.
 
-NB: At the moment, only SQLite and MySQL are supported. This is due to
-spotty behaviour in the SQL::Translator producers, please help us by
-enhancing them. Ask on the mailing list or IRC channel for details (community details
-in L<DBIx::Class>).
-
 =head1 GETTING STARTED
 
 Firstly you need to setup your schema class as per the L</SYNOPSIS>, make sure
