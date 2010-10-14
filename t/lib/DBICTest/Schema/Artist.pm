@@ -39,7 +39,7 @@ __PACKAGE__->mk_classdata('field_name_for', {
 
 __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
-    { order_by => 'year' },
+    { order_by => { -asc => 'year'} },
 );
 __PACKAGE__->has_many(
     cds_unordered => 'DBICTest::Schema::CD'

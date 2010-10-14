@@ -1545,13 +1545,33 @@ sub _resolve_prefetch {
         # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
-      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
-                   ? @{$rel_info->{attrs}{order_by}}
+      push @$order, map { "${as}.$_" } @key;
 
-                : (defined $rel_info->{attrs}{order_by}
-                       ? ($rel_info->{attrs}{order_by})
-                       : ()));
-      push(@$order, map { "${as}.$_" } (@key, @ord));
+      if (my $rel_order = $rel_info->{attrs}{order_by}) {
+        # this is kludgy and incomplete, I am well aware
+        # but the parent method is going away entirely anyway
+        # so sod it
+        my $sql_maker = $self->storage->sql_maker;
+        my ($orig_ql, $orig_qr) = $sql_maker->_quote_chars;
+        my $sep = $sql_maker->name_sep;
+
+        # install our own quoter, so we can catch unqualified stuff
+        local $sql_maker->{quote_char} = ["\x00", "\xFF"];
+
+        my $quoted_prefix = "\x00${as}\xFF";
+
+        for my $chunk ( $sql_maker->_order_by_chunks ($rel_order) ) {
+          my @bind;
+          ($chunk, @bind) = @$chunk if ref $chunk;
+
+          $chunk = "${quoted_prefix}${sep}${chunk}"
+            unless $chunk =~ /\Q$sep/;
+
+          $chunk =~ s/\x00/$orig_ql/g;
+          $chunk =~ s/\xFF/$orig_qr/g;
+          push @$order, \[$chunk, @bind];
+        }
+      }
     }
 
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }

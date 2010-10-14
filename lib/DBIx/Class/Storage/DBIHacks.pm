@@ -245,7 +245,6 @@ sub _resolve_aliastypes_from_select_args {
 
   my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
-
   # generate sql chunks
   my $to_scan = {
     restricting => [
