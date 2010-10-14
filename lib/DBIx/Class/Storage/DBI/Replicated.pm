@@ -754,7 +754,7 @@ sub limit_dialect {
   foreach my $source ($self->all_storages) {
     $source->limit_dialect(@_);
   }
-  return $self->master->quote_char;
+  return $self->master->limit_dialect;
 }
 
 =head2 quote_char
