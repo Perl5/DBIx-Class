@@ -348,7 +348,7 @@ sub _Top {
   my $inner_order = ($order_by_requested
     ? $requested_order
     : [ map
-      { join ('', $rs_attrs->{alias}, $self->{name_sep}||'.', $_ ) }
+      { "$rs_attrs->{alias}.$_" }
       ( $rs_attrs->{_rsroot_source_handle}->resolve->_pri_cols )
     ]
   );
@@ -608,10 +608,7 @@ sub _subqueried_limit_attrs {
   croak 'Limit dialect implementation usable only in the context of DBIC (missing $rs_attrs)'
     unless ref ($rs_attrs) eq 'HASH';
 
-  my ($re_sep, $re_alias) = map { quotemeta $_ } (
-    $self->name_sep || '.',
-    $rs_attrs->{alias},
-  );
+  my ($re_sep, $re_alias) = map { quotemeta $_ } ( $self->{name_sep}, $rs_attrs->{alias} );
 
   # correlate select and as, build selection index
   my (@sel, $in_sel_index);
@@ -651,7 +648,11 @@ sub _subqueried_limit_attrs {
   # for possible further chaining)
   my (@in_sel, @out_sel, %renamed);
   for my $node (@sel) {
-    if (first { $_ =~ / (?<! ^ $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
+    if (
+      $node->{as} =~ / (?<! ^ $re_alias ) \. /x
+        or
+      $node->{unquoted_sql} =~ / (?<! ^ $re_alias ) $re_sep /x
+    ) {
       $node->{as} = $self->_unqualify_colname($node->{as});
       my $quoted_as = $self->_quote($node->{as});
       push @in_sel, sprintf '%s AS %s', $node->{sql}, $quoted_as;
@@ -690,8 +691,7 @@ sub _subqueried_limit_attrs {
 
 sub _unqualify_colname {
   my ($self, $fqcn) = @_;
-  my $re_sep = quotemeta($self->name_sep || '.');
-  $fqcn =~ s/ $re_sep /__/xg;
+  $fqcn =~ s/ \. /__/xg;
   return $fqcn;
 }
 

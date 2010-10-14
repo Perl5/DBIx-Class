@@ -263,7 +263,6 @@ NULLINSEARCH: {
   my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, {
     on_connect_call => 'set_strict_mode',
     quote_char => '`',
-    name_sep => '.'
   });
   my $rs = $ansi_schema->resultset('CD');
 

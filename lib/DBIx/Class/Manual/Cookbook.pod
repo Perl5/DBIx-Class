@@ -1669,7 +1669,8 @@ brackets, or a C<"> or C<'>:
 
 Check the documentation of your database for the correct quote
 characters to use. C<name_sep> needs to be set to allow the SQL
-generator to put the quotes the correct place.
+generator to put the quotes the correct place, and defaults to
+C<.> if not supplied.
 
 In most cases you should set these as part of the arguments passed to
 L<DBIx::Class::Schema/connect>:

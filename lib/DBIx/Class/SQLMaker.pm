@@ -42,6 +42,14 @@ use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
 
+# for when I need a normalized l/r pair
+sub _quote_chars {
+  map
+    { defined $_ ? $_ : '' }
+    ( ref $_[0]->{quote_char} ? (@{$_[0]->{quote_char}}) : ( ($_[0]->{quote_char}) x 2 ) )
+  ;
+}
+
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
   # as Carp and Carp::Clan do not like each other much

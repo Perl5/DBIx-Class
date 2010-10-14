@@ -453,8 +453,7 @@ of available limit dialects see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =item quote_char
 
-Specifies what characters to use to quote table and column names. If
-you use this you will want to specify L</name_sep> as well.
+Specifies what characters to use to quote table and column names.
 
 C<quote_char> expects either a single character, in which case is it
 is placed on either side of the table/column name, or an arrayref of length
@@ -465,14 +464,9 @@ SQL Server you should use C<< quote_char => [qw/[ ]/] >>.
 
 =item name_sep
 
-This only needs to be used in conjunction with C<quote_char>, and is used to
+This parameter is only useful in conjunction with C<quote_char>, and is used to
 specify the character that separates elements (schemas, tables, columns) from
-each other. In most cases this is simply a C<.>.
-
-The consequences of not supplying this value is that L<SQL::Abstract>
-will assume DBIx::Class' uses of aliases to be complete column
-names. The output will look like I<"me.name"> when it should actually
-be I<"me"."name">.
+each other. If unspecified it defaults to the most commonly used C<.>.
 
 =item unsafe
 
@@ -525,7 +519,7 @@ L<DBIx::Class::Schema/connect>
       'postgres',
       'my_pg_password',
       { AutoCommit => 1 },
-      { quote_char => q{"}, name_sep => q{.} },
+      { quote_char => q{"} },
     ]
   );
 
@@ -999,6 +993,7 @@ sub sql_maker {
       bindtype=>'columns',
       array_datatypes => 1,
       limit_dialect => $dialect,
+      name_sep => '.',
       %opts,
     ));
   }
