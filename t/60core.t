@@ -122,16 +122,10 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
   $artist->delete;
 }
 
-# Test backwards compatibility
-{
-  my $warnings = '';
-  local $SIG{__WARN__} = sub { $warnings .= $_[0] };
-
-  my $artist_by_hash = $schema->resultset('Artist')->find(artistid => 4);
-  is($artist_by_hash->name, 'Man With A Spoon', 'Retrieved correctly');
-  is($artist_by_hash->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
-  like($warnings, qr/deprecated/, 'warned about deprecated find usage');
-}
+# this has been warning for 4 years, killing
+throws_ok {
+  $schema->resultset('Artist')->find(artistid => 4);
+} qr|expects either a column/value hashref, or a list of values corresponding to the columns of the specified unique constraint|;
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
 

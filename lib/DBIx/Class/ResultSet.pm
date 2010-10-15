@@ -471,47 +471,49 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
-  # Default to the primary key, but allow a specific key
-  my @cols = exists $attrs->{key}
-    ? $self->result_source->unique_constraint_columns($attrs->{key})
-    : $self->result_source->primary_columns;
-  $self->throw_exception(
-    "Can't find unless a primary key is defined or unique constraint is specified"
-  ) unless @cols;
-
-  # Parse out a hashref from input
+  # Parse out a query from input
   my $input_query;
   if (ref $_[0] eq 'HASH') {
     $input_query = { %{$_[0]} };
   }
-  elsif (@_ == @cols) {
-    $input_query = {};
-    @{$input_query}{@cols} = @_;
-  }
   else {
-    # Compatibility: Allow e.g. find(id => $value)
-    carp "Find by key => value deprecated; please use a hashref instead";
-    $input_query = {@_};
+    my $constraint = exists $attrs->{key} ? $attrs->{key} : 'primary';
+    my @c_cols = $self->result_source->unique_constraint_columns($constraint);
+
+    $self->throw_exception(
+      "No constraint columns, maybe a malformed '$constraint' constraint?"
+    ) unless @c_cols;
+
+    $self->throw_exception (
+      'find() expects either a column/value hashref, or a list of values '
+    . "corresponding to the columns of the specified unique constraint '$constraint'"
+    ) unless @c_cols == @_;
+
+    $input_query = {};
+    @{$input_query}{@c_cols} = @_;
   }
 
-  my (%related, $info);
-
-  KEY: foreach my $key (keys %$input_query) {
-    if (ref($input_query->{$key})
-        && ($info = $self->result_source->relationship_info($key))) {
+  my %related;
+  for my $key (keys %$input_query) {
+    if (
+      my $keyref = ref($input_query->{$key})
+        and
+      my $relinfo = $self->result_source->relationship_info($key)
+    ) {
       my $val = delete $input_query->{$key};
-      next KEY if (ref($val) eq 'ARRAY'); # has_many for multi_create
+
+      next if $keyref eq 'ARRAY'; # has_many for multi_create
+
       my $rel_q = $self->result_source->_resolve_condition(
-                    $info->{cond}, $val, $key
-                  );
-      die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
+        $relinfo->{cond}, $val, $key
+      );
+      die "Can't handle complex relationship conditions in find" if ref($rel_q) ne 'HASH';
       @related{keys %$rel_q} = values %$rel_q;
     }
   }
-  if (my @keys = keys %related) {
-    @{$input_query}{@keys} = values %related;
-  }
 
+  # relationship conditions take precedence (?)
+  @{$input_query}{keys %related} = values %related;
 
   # Build the final query: Default to the disjunction of the unique queries,
   # but allow the input query in case the ResultSet defines the query or the

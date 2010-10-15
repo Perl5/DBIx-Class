@@ -22,6 +22,8 @@ Revision history for DBIx::Class
           at instantiation time
         - New documentation map organized by features
           (DBIx::Class::Manual::Features)
+        - find( col1 => $val1, col2 => $val2, ... ) is no longer supported
+          (it has been in deprecated state for more than 4 years)
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls
