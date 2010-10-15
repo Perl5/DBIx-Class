@@ -272,104 +272,94 @@ sub search_rs {
 
   # Special-case handling for (undef, undef).
   if ( @_ == 2 && !defined $_[1] && !defined $_[0] ) {
-    pop(@_); pop(@_);
+    @_ = ();
   }
 
-  my $attrs = {};
-  $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
-  my $our_attrs = { %{$self->{attrs}} };
-  my $having = delete $our_attrs->{having};
-  my $where = delete $our_attrs->{where};
+  my $call_attrs = {};
+  $call_attrs = pop(@_) if @_ > 1 and ref $_[-1] eq 'HASH';
 
-  my $rows;
-
+  # see if we can keep the cache (no $rs changes)
+  my $cache;
   my %safe = (alias => 1, cache => 1);
-
-  unless (
-    (@_ && defined($_[0])) # @_ == () or (undef)
-    ||
-    (keys %$attrs # empty attrs or only 'safe' attrs
-    && List::Util::first { !$safe{$_} } keys %$attrs)
-  ) {
-    # no search, effectively just a clone
-    $rows = $self->get_cache;
+  if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
+    ! defined $_[0]
+      or
+    ref $_[0] eq 'HASH' && ! keys %{$_[0]}
+      or
+    ref $_[0] eq 'ARRAY' && ! @{$_[0]}
+  )) {
+    $cache = $self->get_cache;
   }
+
+  my $old_attrs = { %{$self->{attrs}} };
+  my $old_having = delete $old_attrs->{having};
+  my $old_where = delete $old_attrs->{where};
 
   # reset the selector list
-  if (List::Util::first { exists $attrs->{$_} } qw{columns select as}) {
-     delete @{$our_attrs}{qw{select as columns +select +as +columns include_columns}};
+  if (List::Util::first { exists $call_attrs->{$_} } qw{columns select as}) {
+     delete @{$old_attrs}{qw{select as columns +select +as +columns include_columns}};
   }
 
-  my $new_attrs = { %{$our_attrs}, %{$attrs} };
+  my $new_attrs = { %{$old_attrs}, %{$call_attrs} };
 
   # merge new attrs into inherited
   foreach my $key (qw/join prefetch +select +as +columns include_columns bind/) {
-    next unless exists $attrs->{$key};
-    $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
+    next unless exists $call_attrs->{$key};
+    $new_attrs->{$key} = $self->_merge_attr($old_attrs->{$key}, $call_attrs->{$key});
   }
 
-  my $cond = (@_
-    ? (
-        (@_ == 1 || ref $_[0] eq "HASH")
-          ? (
-              (ref $_[0] eq 'HASH')
-                ? (
-                    (keys %{ $_[0] }  > 0)
-                      ? shift
-                      : undef
-                   )
-                :  shift
-             )
-          : (
-              (@_ % 2)
-                ? $self->throw_exception("Odd number of arguments to search")
-                : {@_}
-             )
-      )
-    : undef
-  );
+  # rip apart the rest of @_, parse a condition
+  my $call_cond = do {
 
-  if (defined $where) {
-    $new_attrs->{where} = (
-      defined $new_attrs->{where}
-        ? { '-and' => [
-              map {
-                ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_
-              } $where, $new_attrs->{where}
-            ]
-          }
-        : $where);
+    if (ref $_[0] eq 'HASH') {
+      (keys %{$_[0]}) ? $_[0] : undef
+    }
+    elsif (@_ == 1) {
+      $_[0]
+    }
+    elsif (@_ % 2) {
+      $self->throw_exception('Odd number of arguments to search')
+    }
+    else {
+      +{ @_ }
+    }
+
+  } if @_;
+
+  for ($old_where, $call_cond) {
+    if (defined $_) {
+      $new_attrs->{where} = $self->_stack_cond (
+        $_, $new_attrs->{where}
+      );
+    }
   }
 
-  if (defined $cond) {
-    $new_attrs->{where} = (
-      defined $new_attrs->{where}
-        ? { '-and' => [
-              map {
-                ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_
-              } $cond, $new_attrs->{where}
-            ]
-          }
-        : $cond);
-  }
-
-  if (defined $having) {
-    $new_attrs->{having} = (
-      defined $new_attrs->{having}
-        ? { '-and' => [
-              map {
-                ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_
-              } $having, $new_attrs->{having}
-            ]
-          }
-        : $having);
+  if (defined $old_having) {
+    $new_attrs->{having} = $self->_stack_cond (
+      $old_having, $new_attrs->{having}
+    )
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
 
-  $rs->set_cache($rows) if ($rows);
+  $rs->set_cache($cache) if ($cache);
 
   return $rs;
+}
+
+sub _stack_cond {
+  my ($self, $left, $right) = @_;
+  if (defined $left xor defined $right) {
+    return defined $left ? $left : $right;
+  }
+  elsif (defined $left) {
+    return { -and => [ map
+      { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+      ($left, $right)
+    ]};
+  }
+
+  return undef;
 }
 
 =head2 search_literal
@@ -534,6 +524,10 @@ sub find {
     # relationship
   }
   else {
+    # no key was specified - fall down to heuristics mode
+    # get all possible unique queries based on the combination of $query
+    # and the condition available in $self, and then run a search with
+    # each and every possible constraint (as long as it's completely specified)
     my @unique_queries = $self->_unique_queries($input_query, $attrs);
     $query = @unique_queries
       ? [ map { $self->_add_alias($_, $alias) } @unique_queries ]
@@ -570,7 +564,7 @@ sub _add_alias {
 
 # _unique_queries
 #
-# Build a list of queries which satisfy unique constraints.
+# Build a list of queries which satisfy the unique constraint(s) as per $attrs
 
 sub _unique_queries {
   my ($self, $query, $attrs) = @_;
