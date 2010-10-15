@@ -159,20 +159,18 @@ lives_ok(
 TODO: {
   local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
-  eval {
+  throws_ok {
       DBICTest::Schema::Artist->add_relationship(
           tracks => 'DBICTest::Schema::Track',
           { 'foreign.cd' => 'self.cdid' }
       );
-  };
-  like($@, qr/Unknown column/, 'failed when creating a rel with invalid key, ok');
+  } qr/Unknown column/, 'failed when creating a rel with invalid key, ok';
 }
-  
+
 # another bogus relationship using no join condition
-eval {
+throws_ok {
     DBICTest::Schema::Artist->add_relationship( tracks => 'DBICTest::Track' );
-};
-like($@, qr/join condition/, 'failed when creating a rel without join condition, ok');
+} qr/join condition/, 'failed when creating a rel without join condition, ok';
 
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
@@ -223,12 +221,13 @@ is( $cd->producers->count(), $prod_before_count+2,
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);
 is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
 
-eval { $cd->remove_from_producers({ fake => 'hash' }); };
-like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );
+throws_ok {
+  $cd->remove_from_producers({ fake => 'hash' })
+} qr/needs an object/, 'remove_from_$rel($hash) dies correctly';
 
-eval { $cd->add_to_producers(); };
-like( $@, qr/needs an object or hashref/,
-      'add_to_$rel(undef) dies correctly' );
+throws_ok {
+  $cd->add_to_producers()
+} qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly';
 
 # many_to_many stresstest
 my $twokey = $schema->resultset('TwoKeys')->find(1,1);
@@ -250,10 +249,9 @@ is( $twokey->fourkeys_to_twokeys->count, 0,
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
 is($undef_artist_cd->search_related('artist')->count, 0, '0=1 search when FK does not exist and object not yet in db');
-eval{ 
+lives_ok {
      $undef_artist_cd->related_resultset('artist')->new({name => 'foo'});
-};
-is( $@, '', "Object created on a resultset related to not yet inserted object");
+} 'Object created on a resultset related to not yet inserted object';
 lives_ok{
   $schema->resultset('Artwork')->new_result({})->cd;
 } 'undef_on_null_fk does not choke on empty conds';
