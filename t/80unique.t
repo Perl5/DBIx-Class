@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -228,6 +229,8 @@ is($row->baz, 3, 'baz is correct');
   my $artist = $schema->resultset('Artist')->next;
 
   my ($sql, @bind);
+  my $old_debugobj = $schema->storage->debugobj;
+  my $old_debug = $schema->storage->debug;
   $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
   $schema->storage->debug(1);
 
@@ -240,8 +243,8 @@ is($row->baz, 3, 'baz is correct');
     [qw/'1'/],
   );
 
-  $schema->storage->debug(0);
-  $schema->storage->debugobj(undef);
+  $schema->storage->debug($old_debug);
+  $schema->storage->debugobj($old_debugobj);
 }
 
 {
@@ -266,7 +269,22 @@ MOD
   } qr/\Qadd_unique_constraint() does not accept multiple constraints, use add_unique_constraints() instead\E/,
     'add_unique_constraint throws when more than one constraint specified';
 }
+# make sure NULL is not considered condition-deterministic
+my $art_rs = $schema->resultset('Artist')->search({}, { order_by => 'artistid' });
+$art_rs->create ({ artistid => $_ + 640, name => "Outranked $_" }) for (1..2);
+warnings_are {
+  is(
+    $art_rs->find ({ artistid => 642, rank => 13, charfield => undef })->name,
+    'Outranked 2',
+    'Correct artist retrieved with find'
+  );
 
+  is (
+    $art_rs->search({ charfield => undef })->find ({ artistid => 642, rank => 13 })->name,
+    'Outranked 2',
+    'Correct artist retrieved with find'
+  );
+} [], 'no warnings';
 
 done_testing;
 

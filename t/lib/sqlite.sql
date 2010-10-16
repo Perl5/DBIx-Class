@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Oct 16 16:17:01 2010
+-- Created on Sun Oct 17 01:51:06 2010
 -- 
 
 --
@@ -16,6 +16,8 @@ CREATE TABLE artist (
 CREATE INDEX artist_name_hookidx ON artist (name);
 
 CREATE UNIQUE INDEX artist_name ON artist (name);
+
+CREATE UNIQUE INDEX u_nullable ON artist (charfield, rank);
 
 --
 -- Table: bindtype_test
