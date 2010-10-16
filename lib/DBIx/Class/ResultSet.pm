@@ -461,14 +461,16 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
-  # Parse out a query from input
-  my $input_query;
+  my $rsrc = $self->result_source;
+
+  # Parse out the condition from input
+  my $call_cond;
   if (ref $_[0] eq 'HASH') {
-    $input_query = { %{$_[0]} };
+    $call_cond = { %{$_[0]} };
   }
   else {
     my $constraint = exists $attrs->{key} ? $attrs->{key} : 'primary';
-    my @c_cols = $self->result_source->unique_constraint_columns($constraint);
+    my @c_cols = $rsrc->unique_constraint_columns($constraint);
 
     $self->throw_exception(
       "No constraint columns, maybe a malformed '$constraint' constraint?"
@@ -479,22 +481,22 @@ sub find {
     . "corresponding to the columns of the specified unique constraint '$constraint'"
     ) unless @c_cols == @_;
 
-    $input_query = {};
-    @{$input_query}{@c_cols} = @_;
+    $call_cond = {};
+    @{$call_cond}{@c_cols} = @_;
   }
 
   my %related;
-  for my $key (keys %$input_query) {
+  for my $key (keys %$call_cond) {
     if (
-      my $keyref = ref($input_query->{$key})
+      my $keyref = ref($call_cond->{$key})
         and
-      my $relinfo = $self->result_source->relationship_info($key)
+      my $relinfo = $rsrc->relationship_info($key)
     ) {
-      my $val = delete $input_query->{$key};
+      my $val = delete $call_cond->{$key};
 
       next if $keyref eq 'ARRAY'; # has_many for multi_create
 
-      my $rel_q = $self->result_source->_resolve_condition(
+      my $rel_q = $rsrc->_resolve_condition(
         $relinfo->{cond}, $val, $key
       );
       die "Can't handle complex relationship conditions in find" if ref($rel_q) ne 'HASH';
@@ -503,17 +505,20 @@ sub find {
   }
 
   # relationship conditions take precedence (?)
-  @{$input_query}{keys %related} = values %related;
+  @{$call_cond}{keys %related} = values %related;
 
-  # Build the final query: Default to the disjunction of the unique queries,
-  # but allow the input query in case the ResultSet defines the query or the
-  # user is abusing find
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
-  my $query;
+  my $final_cond;
   if (exists $attrs->{key}) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($attrs->{key});
-    my $unique_query = $self->_build_unique_query($input_query, \@unique_cols);
-    $query = $self->_add_alias($unique_query, $alias);
+    $final_cond = $self->_qualify_cond_columns (
+
+      $self->_build_unique_cond (
+        $attrs->{key},
+        $call_cond,
+      ),
+
+      $alias,
+    );
   }
   elsif ($self->{attrs}{accessor} and $self->{attrs}{accessor} eq 'single') {
     # This means that we got here after a merger of relationship conditions
@@ -524,18 +529,28 @@ sub find {
     # relationship
   }
   else {
-    # no key was specified - fall down to heuristics mode
-    # get all possible unique queries based on the combination of $query
-    # and the condition available in $self, and then run a search with
-    # each and every possible constraint (as long as it's completely specified)
-    my @unique_queries = $self->_unique_queries($input_query, $attrs);
-    $query = @unique_queries
-      ? [ map { $self->_add_alias($_, $alias) } @unique_queries ]
-      : $self->_add_alias($input_query, $alias);
+    # no key was specified - fall down to heuristics mode:
+    # run through all unique queries registered on the resultset, and
+    # 'OR' all qualifying queries together
+    my (@unique_queries, %seen_column_combinations);
+    for my $c_name ($rsrc->unique_constraint_names) {
+      next if $seen_column_combinations{
+        join "\x00", sort $rsrc->unique_constraint_columns($c_name)
+      }++;
+
+      push @unique_queries, try {
+        $self->_build_unique_cond ($c_name, $call_cond)
+      } || ();
+    }
+
+    $final_cond = @unique_queries
+      ? [ map { $self->_qualify_cond_columns($_, $alias) } @unique_queries ]
+      : $self->_qualify_cond_columns($call_cond, $alias)
+    ;
   }
 
   # Run the query, passing the result_class since it should propagate for find
-  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search ($final_cond, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -546,71 +561,41 @@ sub find {
   }
 }
 
-# _add_alias
-#
-# Add the specified alias to the specified query hash. A copy is made so the
-# original query is not modified.
+sub _qualify_cond_columns {
+  my ($self, $cond, $alias) = @_;
 
-sub _add_alias {
-  my ($self, $query, $alias) = @_;
-
-  my %aliased = %$query;
-  foreach my $col (grep { ! m/\./ } keys %aliased) {
-    $aliased{"$alias.$col"} = delete $aliased{$col};
+  my %aliased = %$cond;
+  for (keys %aliased) {
+    $aliased{"$alias.$_"} = delete $aliased{$_}
+      if $_ !~ /\./;
   }
 
   return \%aliased;
 }
 
-# _unique_queries
-#
-# Build a list of queries which satisfy the unique constraint(s) as per $attrs
+sub _build_unique_cond {
+  my ($self, $constraint_name, $extra_cond) = @_;
 
-sub _unique_queries {
-  my ($self, $query, $attrs) = @_;
+  my @c_cols = $self->result_source->unique_constraint_columns($constraint_name);
 
-  my @constraint_names = exists $attrs->{key}
-    ? ($attrs->{key})
-    : $self->result_source->unique_constraint_names;
+  # combination may fail if $self->{cond} is non-trivial
+  my ($final_cond) = try {
+    $self->_merge_with_rscond ($extra_cond)
+  } catch {
+    +{ %$extra_cond }
+  };
 
-  my $where = $self->_collapse_cond($self->{attrs}{where} || {});
-  my $num_where = scalar keys %$where;
+  # trim out everything not in $columns
+  $final_cond = { map { $_ => $final_cond->{$_} } @c_cols };
 
-  my (@unique_queries, %seen_column_combinations);
-  foreach my $name (@constraint_names) {
-    my @constraint_cols = $self->result_source->unique_constraint_columns($name);
-
-    my $constraint_sig = join "\x00", sort @constraint_cols;
-    next if $seen_column_combinations{$constraint_sig}++;
-
-    my $unique_query = $self->_build_unique_query($query, \@constraint_cols);
-
-    my $num_cols = scalar @constraint_cols;
-    my $num_query = scalar keys %$unique_query;
-
-    my $total = $num_query + $num_where;
-    if ($num_query && ($num_query == $num_cols || $total == $num_cols)) {
-      # The query is either unique on its own or is unique in combination with
-      # the existing where clause
-      push @unique_queries, $unique_query;
-    }
+  if (my @missing = grep { ! defined $final_cond->{$_} } (@c_cols) ) {
+    $self->throw_exception( sprintf ( "Unable to satisfy constraint '%s', no values for column(s): %s",
+      $constraint_name,
+      join (', ', map { "'$_'" } @missing),
+    ) );
   }
 
-  return @unique_queries;
-}
-
-# _build_unique_query
-#
-# Constrain the specified query hash based on the specified column names.
-
-sub _build_unique_query {
-  my ($self, $query, $unique_cols) = @_;
-
-  return {
-    map  { $_ => $query->{$_} }
-    grep { exists $query->{$_} }
-      @$unique_cols
-  };
+  return $final_cond;
 }
 
 =head2 search_related
@@ -1699,7 +1684,7 @@ sub populate {
     }
 
     ## inherit the data locked in the conditions of the resultset
-    my ($rs_data) = $self->_merge_cond_with_data({});
+    my ($rs_data) = $self->_merge_with_rscond({});
     delete @{$rs_data}{@columns};
     my @inherit_cols = keys %$rs_data;
     my @inherit_data = values %$rs_data;
@@ -2006,7 +1991,7 @@ sub new_result {
   $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
 
-  my ($merged_cond, $cols_from_relations) = $self->_merge_cond_with_data($values);
+  my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
 
   my %new = (
     %$merged_cond,
@@ -2020,13 +2005,13 @@ sub new_result {
   return $self->result_class->new(\%new);
 }
 
-# _merge_cond_with_data
+# _merge_with_rscond
 #
 # Takes a simple hash of K/V data and returns its copy merged with the
 # condition already present on the resultset. Additionally returns an
 # arrayref of value/condition names, which were inferred from related
 # objects (this is needed for in-memory related objects)
-sub _merge_cond_with_data {
+sub _merge_with_rscond {
   my ($self, $data) = @_;
 
   my (%new_data, @cols_from_relations);

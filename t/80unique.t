@@ -132,6 +132,12 @@ is($cd8->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd8->title, $cd1->title, 'title is correct');
 is($cd8->year, $cd1->year, 'year is correct');
 
+# Add an extra row to potentially confuse the query
+$schema->resultset('CD')->create ({
+  artist => 2,
+  title => $title,
+  year => 2022,
+});
 my $cd9 = $artist->cds->update_or_create(
   {
     cdid   => $cd1->cdid,
