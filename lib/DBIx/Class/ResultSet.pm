@@ -745,12 +745,6 @@ sub single {
     }
   }
 
-#  XXX: Disabled since it doesn't infer uniqueness in all cases
-#  unless ($self->_is_unique_query($attrs->{where})) {
-#    carp "Query not guaranteed to return a single row"
-#      . "; please declare your unique constraints or use search instead";
-#  }
-
   my @data = $self->result_source->storage->select_single(
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
@@ -759,38 +753,6 @@ sub single {
   return (@data ? ($self->_construct_object(@data))[0] : undef);
 }
 
-
-# _is_unique_query
-#
-# Try to determine if the specified query is guaranteed to be unique, based on
-# the declared unique constraints.
-
-sub _is_unique_query {
-  my ($self, $query) = @_;
-
-  my $collapsed = $self->_collapse_query($query);
-  my $alias = $self->{attrs}{alias};
-
-  foreach my $name ($self->result_source->unique_constraint_names) {
-    my @unique_cols = map {
-      "$alias.$_"
-    } $self->result_source->unique_constraint_columns($name);
-
-    # Count the values for each unique column
-    my %seen = map { $_ => 0 } @unique_cols;
-
-    foreach my $key (keys %$collapsed) {
-      my $aliased = $key =~ /\./ ? $key : "$alias.$key";
-      next unless exists $seen{$aliased};  # Additional constraints are okay
-      $seen{$aliased} = scalar keys %{ $collapsed->{$key} };
-    }
-
-    # If we get 0 or more than 1 value for a column, it's not necessarily unique
-    return 1 unless grep { $_ != 1 } values %seen;
-  }
-
-  return 0;
-}
 
 # _collapse_query
 #
