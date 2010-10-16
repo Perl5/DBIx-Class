@@ -60,16 +60,18 @@ is_deeply (
   'CD year column updated correctly',
 );
 
-# expect a failing create:
+# expect a failing create (with a warning):
 # the unique constraint is not complete, and there is nothing
 # in the database with such a year yet - insertion will fail due
 # to missing artist fk
-throws_ok {
-  $genre->update_or_create_related ('cds', {
-    year => 2020,
-    title => 'the best thing since sliced bread',
-  })
-} qr/\Qcd.artist may not be NULL/, 'ambiguous find + create failed';
+warnings_exist {
+  throws_ok {
+    $genre->update_or_create_related ('cds', {
+      year => 2020,
+      title => 'the best thing since sliced bread',
+    })
+  } qr/\Qcd.artist may not be NULL/, 'ambiguous find + create failed'
+} qr/Search arguments do not satisfy any of the unique constraints/, 'warned on ambiguous condition';
 
 # expect a create, after a failed search using *only* the
 # *current* relationship and the unique column constraints

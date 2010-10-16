@@ -637,6 +637,13 @@ sub find {
 sub _non_unique_find_fallback {
   my ($self, $cond, $attrs) = @_;
 
+  carp sprintf(
+    'Search arguments do not satisfy any of the unique constraints of %s, '
+  . 'falling back to a plain search on columns: %s',
+    $self->result_source->source_name,
+    join (', ', map { "'$_'" } sort keys %$cond ),
+  );
+
   return $self->_qualify_cond_columns(
     $cond,
     exists $attrs->{alias}
