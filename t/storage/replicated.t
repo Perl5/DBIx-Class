@@ -735,7 +735,7 @@ ok my $transaction = sub {
         ->schema
         ->populate('Artist', [
             [ qw/artistid name/ ],
-            [ $id, "Children of the Grave"],
+            [ $id, "Children of the Grave $id"],
         ]);
 
     ok my $result = $replicated->schema->resultset('Artist')->find($id)

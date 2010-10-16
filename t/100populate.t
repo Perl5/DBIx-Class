@@ -115,47 +115,46 @@ is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
 
+# populate with literals
+{
+  my $rs = $schema->resultset('Link');
+  $rs->delete;
+
+  # test _execute_array_empty (insert_bulk with all literal sql)
+
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => \"'The ''best of'' cpan'",
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal SQL');
+
+  $rs->delete;
+
+  # test mixed binds with literal sql
+
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => "The 'best of' cpan",
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal SQL');
+
+  $rs->delete;
+}
+
 my $rs = $schema->resultset('Artist');
 $rs->delete;
-
-# test _execute_array_empty (insert_bulk with all literal sql)
-
-$rs->populate([
-    (+{
-        name => \"'DT'",
-        rank => \500,
-        charfield => \"'mtfnpy'",
-    }) x 5
-]);
-
-is((grep {
-  $_->name eq 'DT' &&
-  $_->rank == 500  &&
-  $_->charfield eq 'mtfnpy'
-} $rs->all), 5, 'populate with all literal SQL');
-
-$rs->delete;
-
-# test mixed binds with literal sql
-
-$rs->populate([
-    (+{
-        name => \"'DT'",
-        rank => 500,
-        charfield => \"'mtfnpy'",
-    }) x 5
-]);
-
-is((grep {
-  $_->name eq 'DT' &&
-  $_->rank == 500  &&
-  $_->charfield eq 'mtfnpy'
-} $rs->all), 5, 'populate with all literal SQL');
-
-$rs->delete;
-
-###
-
 throws_ok {
     $rs->populate([
         {

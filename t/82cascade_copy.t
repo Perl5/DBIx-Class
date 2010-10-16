@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -7,11 +7,10 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 4;
 my $artist = $schema->resultset('Artist')->find(1);
 my $artist_cds = $artist->search_related('cds');
 
-my $cover_band = $artist->copy;
+my $cover_band = $artist->copy ({name => $artist->name . '_cover' });
 
 my $cover_cds = $cover_band->search_related('cds');
 cmp_ok($cover_band->id, '!=', $artist->id, 'ok got new column id...');
@@ -24,3 +23,4 @@ cmp_ok($cover_band->search_related('twokeys')->count, '>', 0, 'duplicated multiP
 cmp_ok($cover_cds->search_related('tags')->count, '==',
    $artist_cds->search_related('tags')->count , 'duplicated count ok');
 
+done_testing;

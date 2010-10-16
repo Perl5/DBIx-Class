@@ -307,15 +307,15 @@ ok($schema->storage(), 'Storage available');
     ]
   });
 
-  $rs->update({ name => 'Test _cond_for_update_delete' });
+  $rs->update({ rank => 6134 });
 
   my $art;
 
   $art = $schema->resultset("Artist")->find(1);
-  is($art->name, 'Test _cond_for_update_delete', 'updated first artist name');
+  is($art->rank, 6134, 'updated first artist rank');
 
   $art = $schema->resultset("Artist")->find(2);
-  is($art->name, 'Test _cond_for_update_delete', 'updated second artist name');
+  is($art->rank, 6134, 'updated second artist rank');
 }
 
 # test source_name

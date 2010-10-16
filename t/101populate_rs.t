@@ -313,12 +313,12 @@ ARRAY_CONTEXT: {
       {
         title => 'Some CD3',
         year => '1997',
-        artist => { artistid=> ++$aid, name => 'Fred BloggsC'},
+        artist => { artistid=> ++$aid, name => 'Fred BloggsE'},
       },
       {
         title => 'Some CD4',
         year => '1997',
-        artist => { artistid=> ++$aid, name => 'Fred BloggsD'},
+        artist => { artistid=> ++$aid, name => 'Fred BloggsF'},
       },    
     ];
 
@@ -326,11 +326,11 @@ ARRAY_CONTEXT: {
 
     isa_ok($cdA, 'DBICTest::CD', 'Created CD');
     isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
-    is($cdA->artist->name, 'Fred BloggsC', 'Set Artist to FredC');
+    is($cdA->artist->name, 'Fred BloggsE', 'Set Artist to FredE');
 
     isa_ok($cdB, 'DBICTest::CD', 'Created CD');
     isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
-    is($cdB->artist->name, 'Fred BloggsD', 'Set Artist to FredD');
+    is($cdB->artist->name, 'Fred BloggsF', 'Set Artist to FredF');
     ok($cdB->artist->artistid == $aid, "Got Expected Artist ID");
   }
 
