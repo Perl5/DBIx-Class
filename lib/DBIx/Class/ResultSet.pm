@@ -2052,11 +2052,13 @@ sub _merge_cond_with_data {
     my %implied = %{$self->_remove_alias($collapsed_cond, $alias)};
 
     while ( my($col, $value) = each %implied ) {
-      if (ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '=') {
+      my $vref = ref $value;
+      if ($vref eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '=') {
         $new_data{$col} = $value->{'='};
-        next;
       }
-      $new_data{$col} = $value if $self->_is_deterministic_value($value);
+      elsif( !$vref or $vref eq 'SCALAR' or blessed($value) ) {
+        $new_data{$col} = $value;
+      }
     }
   }
 
@@ -2066,20 +2068,6 @@ sub _merge_cond_with_data {
   );
 
   return (\%new_data, \@cols_from_relations);
-}
-
-# _is_deterministic_value
-#
-# Make an effor to strip non-deterministic values from the condition,
-# to make sure new_result chokes less
-
-sub _is_deterministic_value {
-  my $self = shift;
-  my $value = shift;
-  my $ref_type = ref $value;
-  return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
-  return 1 if blessed $value;
-  return 0;
 }
 
 # _has_resolved_attr
