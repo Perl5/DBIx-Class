@@ -692,7 +692,7 @@ SKIP: {
   my $schema1_dbh  = $schema->storage->dbh;
 
   $schema1_dbh->do("GRANT INSERT ON artist TO $user2");
-  $schema1_dbh->do("GRANT SELECT ON artist_seq TO $user2");
+  $schema1_dbh->do("GRANT SELECT ON artist_pk_seq TO $user2");
 
   my $rs = $schema2->resultset('ArtistFQN');
 
@@ -704,14 +704,13 @@ SKIP: {
   } 'used autoinc sequence across schemas';
 
   # now quote the sequence name
-
   $schema1_dbh->do(qq{
-    CREATE OR REPLACE TRIGGER artist_insert_trg
+    CREATE OR REPLACE TRIGGER artist_insert_trg_pk
     BEFORE INSERT ON artist
     FOR EACH ROW
     BEGIN
       IF :new.artistid IS NULL THEN
-        SELECT "ARTIST_SEQ".nextval
+        SELECT "ARTIST_PK_SEQ".nextval
         INTO :new.artistid
         FROM DUAL;
       END IF;
@@ -729,7 +728,7 @@ SKIP: {
   my $schema_name = uc $user;
 
   is $rs->result_source->column_info('artistid')->{sequence},
-    qq[${schema_name}."ARTIST_SEQ"],
+    qq[${schema_name}."ARTIST_PK_SEQ"],
     'quoted sequence name correctly extracted';
 }
 
