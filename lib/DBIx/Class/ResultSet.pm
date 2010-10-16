@@ -408,25 +408,56 @@ sub search_literal {
 
 =over 4
 
-=item Arguments: @values | \%cols, \%attrs?
+=item Arguments: \%columns_values | @pk_values, \%attrs?
 
 =item Return Value: $row_object | undef
 
 =back
 
-Finds a row based on its primary key or unique constraint. For example, to find
-a row by its primary key:
+Finds and returns a single row based on supplied criteria. Takes either a
+hashref with the same format as L</create> (including inference of foreign
+keys from related objects), or a list of primary key values in the same
+order as the L<primary columns|DBIx::Class::ResultSource/primary_columns>
+declaration on the L</result_source>.
+
+In either case an attempt is made to combine conditions already existing on
+the resultset with the condition passed to this method.
+
+To aid with preparing the correct query for the storage you may supply the
+C<key> attribute, which is the name of a
+L<unique constraint|DBIx::Class::ResultSource/add_unique_constraint> (the
+unique constraint corresponding to the
+L<primary columns|DBIx::Class::ResultSource/primary_columns> is always named
+C<primary>). If the C<key> attribute has been supplied, and DBIC is unable
+to construct a query that satisfies the named unique constraint fully (
+non-NULL values for each column member of the constraint) an exception is
+thrown.
+
+If no C<key> is specified, the search is carried over all unique constraints
+which are fully defined by the available condition.
+
+If no such constraint is found, C<find> currently defaults to a simple
+C<< search->(\%column_values) >> which may or may not do what you expect.
+Note that this fallback behavior may be deprecated in further versions. If
+you need to search with arbitrary conditions - use L</search>.
+
+In addition to C<key>, L</find> recognizes and applies standard
+L<resultset attributes|/ATTRIBUTES> in the same way as L</search> does.
+
+If the resulting query produces more than one row, a warning to the effect is
+issued, though only the first row is constructed and returned as C<$row_object>
+
+Note that if you have extra concerns about the correctness of the resulting
+query you need to specify the C<key> attribute and supply the entire condition
+as an argument to find (since it is not always possible to perform the
+combination of the resultset condition with the supplied one, especially if
+the resultset condition contains literal sql).
+
+For example, to find a row by its primary key:
 
   my $cd = $schema->resultset('CD')->find(5);
 
-You can also find a row by a specific unique constraint using the C<key>
-attribute. For example:
-
-  my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', {
-    key => 'cd_artist_title'
-  });
-
-Additionally, you can specify the columns explicitly by name:
+You can also find a row by a specific unique constraint:
 
   my $cd = $schema->resultset('CD')->find(
     {
@@ -436,24 +467,7 @@ Additionally, you can specify the columns explicitly by name:
     { key => 'cd_artist_title' }
   );
 
-If the C<key> is specified as C<primary>, it searches only on the primary key.
-
-If no C<key> is specified, it searches on all unique constraints defined on the
-source for which column data is provided, including the primary key.
-
-If your table does not have a primary key, you B<must> provide a value for the
-C<key> attribute matching one of the unique constraints on the source.
-
-In addition to C<key>, L</find> recognizes and applies standard
-L<resultset attributes|/ATTRIBUTES> in the same way as L</search> does.
-
-Note: If your query does not return only one row, a warning is generated:
-
-  Query returned more than one row
-
-See also L</find_or_create> and L</update_or_create>. For information on how to
-declare unique constraints, see
-L<DBIx::Class::ResultSource/add_unique_constraint>.
+See also L</find_or_create> and L</update_or_create>.
 
 =cut
 
@@ -2212,17 +2226,18 @@ sub as_query {
   $cd->cd_to_producer->find_or_new({ producer => $producer },
                                    { key => 'primary });
 
-Find an existing record from this resultset, based on its primary
-key, or a unique constraint. If none exists, instantiate a new result
-object and return it. The object will not be saved into your storage
-until you call L<DBIx::Class::Row/insert> on it.
+Find an existing record from this resultset using L</find>. if none exists,
+instantiate a new result object and return it. The object will not be saved
+into your storage until you call L<DBIx::Class::Row/insert> on it.
 
-You most likely want this method when looking for existing rows using
-a unique constraint that is not the primary key, or looking for
-related rows.
+You most likely want this method when looking for existing rows using a unique
+constraint that is not the primary key, or looking for related rows.
 
-If you want objects to be saved immediately, use L</find_or_create>
-instead.
+If you want objects to be saved immediately, use L</find_or_create> instead.
+
+B<Note>: Make sure to read the documentation of L</find> and understand the
+significance of the C<key> attribute, as its lack may skew your search, and
+subsequently result in spurious new objects.
 
 B<Note>: Take care when using C<find_or_new> with a table having
 columns with default values that you intend to be automatically
@@ -2364,6 +2379,10 @@ constraint. For example:
     { key => 'cd_artist_title' }
   );
 
+B<Note>: Make sure to read the documentation of L</find> and understand the
+significance of the C<key> attribute, as its lack may skew your search, and
+subsequently result in spurious row creation.
+
 B<Note>: Because find_or_create() reads from the database and then
 possibly inserts based on the result, this method is subject to a race
 condition. Another process could create a record in the table after
@@ -2397,16 +2416,15 @@ sub find_or_create {
 
 =item Arguments: \%col_values, { key => $unique_constraint }?
 
-=item Return Value: $rowobject
+=item Return Value: $row_object
 
 =back
 
   $resultset->update_or_create({ col => $val, ... });
 
-First, searches for an existing row matching one of the unique constraints
-(including the primary key) on the source of this resultset. If a row is
-found, updates it with the other given column values. Otherwise, creates a new
-row.
+Like L</find_or_create>, but if a row is found it is immediately updated via
+C<< $found_row->update (\%col_values) >>.
+
 
 Takes an optional C<key> attribute to search on a specific unique constraint.
 For example:
@@ -2428,20 +2446,18 @@ For example:
     key => 'primary',
   });
 
-
-If no C<key> is specified, it searches on all unique constraints defined on the
-source, including the primary key.
-
-If the C<key> is specified as C<primary>, it searches only on the primary key.
-
-See also L</find> and L</find_or_create>. For information on how to declare
-unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
+B<Note>: Make sure to read the documentation of L</find> and understand the
+significance of the C<key> attribute, as its lack may skew your search, and
+subsequently result in spurious row creation.
 
 B<Note>: Take care when using C<update_or_create> with a table having
 columns with default values that you intend to be automatically
 supplied by the database (e.g. an auto_increment primary key column).
 In normal usage, the value of such columns should NOT be included at
 all in the call to C<update_or_create>, even when set to C<undef>.
+
+See also L</find> and L</find_or_create>. For information on how to declare
+unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
@@ -2471,13 +2487,9 @@ sub update_or_create {
 
   $resultset->update_or_new({ col => $val, ... });
 
-First, searches for an existing row matching one of the unique constraints
-(including the primary key) on the source of this resultset. If a row is
-found, updates it with the other given column values. Otherwise, instantiate
-a new result object and return it. The object will not be saved into your storage
-until you call L<DBIx::Class::Row/insert> on it.
+Like L</find_or_new> but if a row is found it is immediately updated via
+C<< $found_row->update (\%col_values) >>.
 
-Takes an optional C<key> attribute to search on a specific unique constraint.
 For example:
 
   # In your application
@@ -2498,13 +2510,17 @@ For example:
       $cd->insert;
   }
 
+B<Note>: Make sure to read the documentation of L</find> and understand the
+significance of the C<key> attribute, as its lack may skew your search, and
+subsequently result in spurious new objects.
+
 B<Note>: Take care when using C<update_or_new> with a table having
 columns with default values that you intend to be automatically
 supplied by the database (e.g. an auto_increment primary key column).
 In normal usage, the value of such columns should NOT be included at
 all in the call to C<update_or_new>, even when set to C<undef>.
 
-See also L</find>, L</find_or_create> and L</find_or_new>.
+See also L</find>, L</find_or_create> and L</find_or_new>. 
 
 =cut
 
