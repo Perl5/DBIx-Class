@@ -707,10 +707,18 @@ my $schema2;
 
 # test sequence detection from a different schema
 SKIP: {
+TODO: {
   skip ((join '',
 'Set DBICTEST_ORA_EXTRAUSER_DSN, _USER and _PASS to a *DIFFERENT* Oracle user',
 ' to run the cross-schema autoincrement test.'),
     1) unless $dsn2 && $user2 && $user2 ne $user;
+
+  # Oracle8i Reference Release 2 (8.1.6) 
+  #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
+  # Oracle Database Reference 10g Release 2 (10.2)
+  #   http://download.oracle.com/docs/cd/B19306_01/server.102/b14237/statviews_2107.htm#sthref1297
+  local $TODO = "On Oracle8i all_triggers view is empty, i don't yet know why..."
+    if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
   $schema2 = DBICTest::Schema->connect($dsn2, $user2, $pass2);
 
@@ -755,7 +763,7 @@ SKIP: {
   is $rs->result_source->column_info('artistid')->{sequence},
     qq[${schema_name}."ARTIST_PK_SEQ"],
     'quoted sequence name correctly extracted';
-}
+} }
 
 done_testing;
 
