@@ -225,13 +225,23 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       arrayfield => [5, 6],
     });
 
+    my $afield_rs = $schema->resultset('ArrayTest')->search({
+      arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #Todo anything less ugly than this?
+    });
+
     my $count;
     lives_ok {
-      $count = $schema->resultset('ArrayTest')->search({
-        arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #Todo anything less ugly than this?
-      })->count;
+      $count = $afield_rs->count
     } 'comparing arrayref to pg array data does not blow up';
     is($count, 1, 'comparing arrayref to pg array data gives correct result');
+
+    TODO: {
+      local $TODO = 'No introspection of scalarref conditions :(';
+      my $row = $afield_rs->create({});
+      is_deeply ($row->arrayfield, [3,4], 'Array value taken from $rs condition');
+      $row->discard_changes;
+      is_deeply ($row->arrayfield, [3,4], 'Array value made it to storage');
+    }
   }
 
 

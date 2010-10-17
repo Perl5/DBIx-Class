@@ -32,6 +32,7 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('artistid');
 __PACKAGE__->add_unique_constraint(['name']);
 __PACKAGE__->add_unique_constraint(artist => ['artistid']); # do not remove, part of a test
+__PACKAGE__->add_unique_constraint(u_nullable => [qw/charfield rank/]);
 
 
 __PACKAGE__->mk_classdata('field_name_for', {
