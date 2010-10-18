@@ -1371,20 +1371,36 @@ sub get_from_storage {
     return $resultset->find($ident_cond);
 }
 
-=head2 discard_changes ($attrs)
+=head2 discard_changes ($attrs?)
+
+  $row->discard_changes
+
+=over
+
+=item Arguments: none or $attrs
+
+=item Returns: self (updates object in-place)
+
+=back
 
 Re-selects the row from the database, losing any changes that had
-been made. Throws an exception if a proper WHERE clause identifying
+been made. Throws an exception if a proper C<WHERE> clause identifying
 the database row can not be constructed (i.e. if the original object
 does not contain its entire
-L<primary key|DBIx::Class::Manual::Intro/The Significance and Importance of Primary Keys>
-).
+L<primary key|DBIx::Class::Manual::Intro/The Significance and Importance of Primary Keys>).
 
 This method can also be used to refresh from storage, retrieving any
 changes made since the row was last read from storage.
 
-$attrs is expected to be a hashref of attributes suitable for passing as the
-second argument to $resultset->search($cond, $attrs);
+$attrs, if supplied, is expected to be a hashref of attributes suitable for passing as the
+second argument to C<< $resultset->search($cond, $attrs) >>;
+
+Note: If you are using L<DBIx::Class::Storage::DBI::Replicated> as your
+storage, please kept in mind that if you L</discard_changes> on a row that you
+just updated or created, you should wrap the entire bit inside a transaction.
+Otherwise you run the risk that you insert or update to the master database
+but read from a replicant database that has not yet been updated from the
+master.  This will result in unexpected results.
 
 =cut
 
@@ -1445,34 +1461,6 @@ sub throw_exception {
 Returns the primary key(s) for a row. Can't be called as a class method.
 Actually implemented in L<DBIx::Class::PK>
 
-=head2 discard_changes
-
-  $row->discard_changes
-
-=over
-
-=item Arguments: none
-
-=item Returns: nothing (updates object in-place)
-
-=back
-
-Retrieves and sets the row object data from the database, losing any
-local changes made.
-
-This method can also be used to refresh from storage, retrieving any
-changes made since the row was last read from storage. Actually
-implemented in L<DBIx::Class::PK>
-
-Note: If you are using L<DBIx::Class::Storage::DBI::Replicated> as your
-storage, please kept in mind that if you L</discard_changes> on a row that you
-just updated or created, you should wrap the entire bit inside a transaction.
-Otherwise you run the risk that you insert or update to the master database
-but read from a replicant database that has not yet been updated from the
-master.  This will result in unexpected results.
-
-=cut
-
 1;
 
 =head1 AUTHORS
@@ -1484,3 +1472,5 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+
+1;
