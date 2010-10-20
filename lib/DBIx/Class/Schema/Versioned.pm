@@ -96,6 +96,32 @@ this will attempt to upgrade the database from its current version to the curren
 schema version using a diff from your I<upgrade_directory>. If a suitable diff is
 not found then no upgrade is possible.
 
+=head1 SEE ALSO
+
+L<DBIx::Class::DeploymentHandler> is a much more powerful alternative to this
+module.  Examples of things it can do that this module cannot do include
+
+=over
+
+=item *
+
+Downgrades in addition to upgrades
+
+=item *
+
+Multiple sql files files per upgrade/downgrade/install
+
+=item *
+
+Perl scripts allowed for upgrade/downgrade/install
+
+=item *
+
+Just one set of files needed for upgrade, unlike this module where one might
+need to generate C<factorial(scalar @versions)>
+
+=back
+
 =head1 GETTING STARTED
 
 Firstly you need to setup your schema class as per the L</SYNOPSIS>, make sure
