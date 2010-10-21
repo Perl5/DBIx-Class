@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
     * New Features / Changes
+        - Add new -ident "function" indicating rhs is a column name
+          { col => { -ident => 'othercol' } } vs { col => \'othercol' }
         - Extend 'proxy' relationship attribute
         - Use DBIx::Class::Storage::Debug::PrettyPrint when the
           environment variable DBIC_TRACE_PROFILE is set, see

@@ -24,6 +24,8 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
+=item * The -ident operator
+
 =back
 
 =cut
@@ -78,6 +80,38 @@ BEGIN {
 # refers to it (i.e. for the case of software_limit or
 # as the value to abuse with MSSQL ordered subqueries)
 sub __max_int { 0xFFFFFFFF };
+
+sub new {
+  my $self = shift->next::method(@_);
+
+  # use the same coderef, it is prepared to handle both cases
+  push @{$self->{special_ops}}, {
+    regex => qr/^ ident $/xi, handler => '_where_op_IDENT',
+  };
+  push @{$self->{unary_ops}}, {
+    regex => qr/^ ident $/xi, handler => '_where_op_IDENT',
+  };
+
+  $self;
+}
+
+sub _where_op_IDENT {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+  if (ref $rhs) {
+    croak "-$op takes a single scalar argument (a quotable identifier)";
+  }
+
+  # in case we are called as a top level special op
+  my $lhs = shift;
+
+  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
+
+  return $lhs
+    ? "$lhs = $rhs"
+    : $rhs
+  ;
+}
 
 # Handle limit-dialect selection
 sub select {

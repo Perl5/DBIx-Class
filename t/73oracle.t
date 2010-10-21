@@ -361,13 +361,13 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     );
 
     $schema->resultset('Artist')->find({ name => 'cycle-root' })
-      ->update({ parentid => \'artistid' });
+      ->update({ parentid => { -ident => 'artistid' } });
 
     # select the whole tree
     {
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
       });
 
       is_same_sql_bind (
@@ -409,7 +409,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident =>  'artistid' } } },
         order_siblings_by => { -desc => 'name' },
       });
 
@@ -436,7 +436,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     {
       my $rs = $schema->resultset('Artist')->search({ parentid => undef }, {
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
       });
 
       is_same_sql_bind (
@@ -469,7 +469,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
         {
           join => 'cds',
           start_with => { 'me.name' => 'root' },
-          connect_by => { parentid => { -prior => \ 'artistid' } },
+          connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
         }
       );
 
@@ -513,7 +513,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     {
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
         order_by => { -asc => [ 'LEVEL', 'name' ] },
       });
 
@@ -558,7 +558,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
         order_by => { -asc => 'name' },
         rows => 2,
       });
@@ -615,7 +615,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({}, {
         select => ['count(rank)'],
         start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
         group_by => ['rank'],
         having => { 'count(rank)' => { '<', 2 } },
       });
@@ -644,7 +644,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     {
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'cycle-root' },
-        connect_by => { parentid => { -prior => \ 'artistid' } },
+        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
       });
       eval { $rs->get_column ('name')->all };
       if ( $@ =~ /ORA-01436/ ){ # ORA-01436:  CONNECT BY loop in user data
@@ -663,7 +663,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({}, {
         start_with => { name => 'cycle-root' },
         '+select'  => [ \ 'CONNECT_BY_ISCYCLE' ],
-        connect_by_nocycle => { parentid => { -prior => \ 'artistid' } },
+        connect_by_nocycle => { parentid => { -prior => { -ident => 'artistid' } } },
       });
 
       is_same_sql_bind (

@@ -349,7 +349,7 @@ from, select, and +select attributes.
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
-        { artist_id => { '=' => \'me.artist_id' } },
+        { artist_id => { '=' => { -ident => 'me.artist_id' } } },
         { alias => 'inner' }
       )->get_column('year')->max_rs->as_query,
     },

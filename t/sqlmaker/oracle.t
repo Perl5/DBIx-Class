@@ -20,10 +20,10 @@ my @handle_tests = (
         msg         => 'Simple: "parentid" = PRIOR artistid',
     },
     {
-        connect_by  => { 'parentid' => { '!=' => { '-prior' => \'artistid' } } },
-        stmt        => '"parentid" != ( PRIOR artistid )',
+        connect_by  => { 'parentid' => { '!=' => { '-prior' => { -ident => 'artistid' } } } },
+        stmt        => '"parentid" != ( PRIOR "artistid" )',
         bind        => [],
-        msg         => 'Simple: "parentid" != ( PRIOR artistid )',
+        msg         => 'Simple: "parentid" != ( PRIOR "artistid" )',
     },
     # Examples from http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/queries003.htm
 
@@ -31,9 +31,9 @@ my @handle_tests = (
     {
         connect_by  => [
             last_name => { '!=' => 'King' },
-            manager_id => { '-prior' => \'employee_id' },
+            manager_id => { '-prior' => { -ident => 'employee_id' } },
         ],
-        stmt        => '( "last_name" != ? OR "manager_id" = PRIOR employee_id )',
+        stmt        => '( "last_name" != ? OR "manager_id" = PRIOR "employee_id" )',
         bind        => ['King'],
         msg         => 'oracle.com example #1',
     },
@@ -41,10 +41,10 @@ my @handle_tests = (
     #            PRIOR account_mgr_id = customer_id ...
     {
         connect_by  => {
-            manager_id => { '-prior' => \'employee_id' },
+            manager_id => { '-prior' => { -ident => 'employee_id' } },
             customer_id => { '>', { '-prior' => \'account_mgr_id' } },
         },
-        stmt        => '( "customer_id" > ( PRIOR account_mgr_id ) AND "manager_id" = PRIOR employee_id )',
+        stmt        => '( "customer_id" > ( PRIOR account_mgr_id ) AND "manager_id" = PRIOR "employee_id" )',
         bind        => [],
         msg         => 'oracle.com example #2',
     },

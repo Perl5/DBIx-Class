@@ -381,10 +381,11 @@ the rows at once.
 
 =item .. update a column using data from another column?
 
-To stop the column name from being quoted, you'll need to supply a
-scalar reference:
+To stop the column name from being quoted, you'll need to tell DBIC
+that the right hand side is an SQL identity (it will be quoted
+properly if you have quoting enabled):
 
- ->update({ somecolumn => \'othercolumn' })
+ ->update({ somecolumn => { -ident => 'othercolumn' } })
 
 This method will not retrieve the new value and put it in your Row
 object. To fetch the new value, use the C<discard_changes> method on
@@ -401,7 +402,7 @@ the Row.
 
 To update and refresh at once, chain your calls:
 
-  $row->update({ 'somecolumn' => \'othercolumn' })->discard_changes;
+  $row->update({ 'somecolumn' => { -ident => 'othercolumn' } })->discard_changes;
 
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
