@@ -18,7 +18,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
-plan tests => $num_children + 6;
+plan tests => ($num_children*2) + 6;
 
 use lib qw(t/lib);
 
@@ -76,18 +76,36 @@ while(@pids < $num_children) {
 
     $pid = $$;
 
-    my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
-    my $row = $parent_rs->next;
-    if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
-        $schema->resultset('CD')->create({ title => "test success $pid", artist => $pid, year => scalar(@pids) });
+    my $work = sub {
+      my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
+      my $row = $parent_rs->next;
+      $schema->resultset('CD')->create({ title => "test success $pid", artist => $pid, year => scalar(@pids) })
+        if($row && $row->get_column('artist') =~ /^(?:123|456)$/);
+    };
+
+    # try with and without transactions
+    if ((@pids % 3) == 1) {
+      my $guard = $schema->txn_scope_guard;
+      $work->();
+      $guard->commit;
     }
+    elsif ((@pids % 3) == 2) {
+      $schema->txn_do ($work);
+    }
+    else {
+      $work->();
+    }
+
     sleep(3);
-    exit;
+    exit 0;
 }
 
 ok(1, "past forking");
 
-waitpid($_,0) for(@pids);
+for (@pids) {
+  waitpid($_,0);
+  ok (! $?, "Child $_ exitted cleanly");
+};
 
 ok(1, "past waiting");
 

@@ -4,13 +4,16 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
+use Scalar::Util qw/weaken/;
 use namespace::clean;
 
 sub new {
   my ($class, $storage) = @_;
 
   $storage->txn_begin;
-  bless [ 0, $storage ], ref $class || $class;
+  my $guard = bless [ 0, $storage, $storage->_dbh ], ref $class || $class;
+  weaken ($guard->[2]);
+  $guard;
 }
 
 sub commit {
@@ -25,6 +28,10 @@ sub DESTROY {
 
   return if $dismiss;
 
+  # if our dbh is not ours anymore, the weakref will go undef
+  $storage->_preserve_foreign_dbh;
+  return unless $_[0]->[2];
+
   my $exception = $@;
 
   {
@@ -34,7 +41,9 @@ sub DESTROY {
       unless $exception;
 
     my $rollback_exception;
-    try { $storage->txn_rollback }
+    # do minimal connectivity check due to weird shit like
+    # https://rt.cpan.org/Public/Bug/Display.html?id=62370
+    try { $storage->_seems_connected && $storage->txn_rollback }
     catch { $rollback_exception = shift };
 
     if (defined $rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {

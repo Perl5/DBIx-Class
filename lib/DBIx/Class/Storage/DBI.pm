@@ -778,8 +778,6 @@ sub txn_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  return $coderef->(@_) if $self->{transaction_depth} && ! $self->auto_savepoint;
-
   local $self->{_in_dbh_do} = 1;
 
   my @result;
@@ -794,6 +792,7 @@ sub txn_do {
 
     try {
       $self->txn_begin;
+      my $txn_start_depth = $self->transaction_depth;
       if($want_array) {
           @result = $coderef->(@$args);
       }
@@ -803,14 +802,22 @@ sub txn_do {
       else {
           $coderef->(@$args);
       }
-      $self->txn_commit;
+
+      my $delta_txn = $txn_start_depth - $self->transaction_depth;
+      if ($delta_txn == 0) {
+        $self->txn_commit;
+      }
+      elsif ($delta_txn != 1) {
+        # an off-by-one would mean we fired a rollback
+        carp "Unexpected reduction of transaction depth by $delta_txn after execution of $coderef";
+      }
     } catch {
       $exception = $_;
     };
 
     if(! defined $exception) { return $want_array ? @result : $result[0] }
 
-    if($tried++ || $self->connected) {
+    if($self->transaction_depth > 1 || $tried++ || $self->connected) {
       my $rollback_exception;
       try { $self->txn_rollback } catch { $rollback_exception = shift };
       if(defined $rollback_exception) {
@@ -1368,9 +1375,8 @@ sub svp_rollback {
 }
 
 sub _svp_generate_name {
-    my ($self) = @_;
-
-    return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
+  my ($self) = @_;
+  return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
 }
 
 sub txn_begin {
@@ -1378,9 +1384,18 @@ sub txn_begin {
 
   # this means we have not yet connected and do not know the AC status
   # (e.g. coderef $dbh)
-  $self->ensure_connected if (! defined $self->_dbh_autocommit);
+  if (! defined $self->_dbh_autocommit) {
+    $self->ensure_connected;
+  }
+  # otherwise re-connect on pid changes, so
+  # that the txn_depth is adjusted properly
+  # the lightweight _get_dbh is good enoug here
+  # (only superficial handle check, no pings)
+  else {
+    $self->_get_dbh;
+  }
 
-  if($self->{transaction_depth} == 0) {
+  if($self->transaction_depth == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
     $self->_dbh_begin_work;
@@ -1419,6 +1434,9 @@ sub txn_commit {
     $self->{transaction_depth}--;
     $self->svp_release
       if $self->auto_savepoint;
+  }
+  else {
+    $self->throw_exception( 'Refusing to commit without a started transaction' );
   }
 }
 

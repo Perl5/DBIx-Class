@@ -99,6 +99,145 @@ my $code = sub {
   is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
 }
 
+# test nested txn_begin on fresh connection
+{
+  my $schema = DBICTest->init_schema(sqlite_use_file => 1, no_deploy => 1);
+  $schema->storage->ensure_connected;
+
+  is ($schema->storage->transaction_depth, 0, 'Start outside txn');
+
+  my @pids;
+  for my $action (
+    sub {
+      my $s = shift;
+      die "$$ starts in txn!" if $s->storage->transaction_depth != 0;
+      $s->txn_do ( sub {
+        die "$$ not in txn!" if $s->storage->transaction_depth == 0;
+        $s->storage->dbh->do('SELECT 1') } 
+      );
+      die "$$ did not finish txn!" if $s->storage->transaction_depth != 0;
+    },
+    sub {
+      $_[0]->txn_begin;
+      $_[0]->storage->dbh->do('SELECT 1');
+      $_[0]->txn_commit
+    },
+    sub {
+      my $guard = $_[0]->txn_scope_guard;
+      $_[0]->storage->dbh->do('SELECT 1');
+      $guard->commit
+    },
+  ) {
+    push @pids, fork();
+    die "Unable to fork: $!\n"
+      if ! defined $pids[-1];
+
+    if ($pids[-1]) {
+      next;
+    }
+
+    $action->($schema);
+    exit 0;
+  }
+
+  is ($schema->storage->transaction_depth, 0, 'Parent still outside txn');
+
+  for my $pid (@pids) {
+    waitpid ($pid, 0);
+    ok (! $?, "Child $pid exit ok");
+  }
+}
+
+# Test txn_do/scope_guard with forking: outer txn_do
+{
+  my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
+
+  for my $pass (1..2) {
+
+    # do something trying to destabilize the depth count
+    for (1..2) {
+      eval {
+        my $guard = $schema->txn_scope_guard;
+        $schema->txn_do( sub { die } );
+      };
+      $schema->txn_do( sub {
+        ok ($schema->storage->_dbh->do ('SELECT 1'), "Query after exceptions ok ($_)");
+      });
+    }
+
+    for my $pid ( $schema->txn_do ( sub { _forking_action ($schema) } ) ) {
+      waitpid ($pid, 0);
+      ok (! $?, "Child $pid exit ok (pass $pass)");
+      isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
+    }
+  }
+}
+
+# same test with outer guard
+{
+  my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
+
+  for my $pass (1..2) {
+
+    # do something trying to destabilize the depth count
+    for (1..2) {
+      eval {
+        my $guard = $schema->txn_scope_guard;
+        $schema->txn_do( sub { die } );
+      };
+      $schema->txn_do( sub {
+        ok ($schema->storage->_dbh->do ('SELECT 1'), "Query after exceptions ok ($_)");
+      });
+    }
+
+    my @pids;
+    my $guard = $schema->txn_scope_guard;
+    _forking_action ($schema);
+    $guard->commit;
+
+    for my $pid (@pids) {
+      waitpid ($pid, 0);
+      ok (! $?, "Child $pid exit ok (pass $pass)");
+      isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
+    }
+  }
+}
+
+sub _forking_action {
+  my $schema = shift;
+
+  my @pids;
+  while (@pids < 5) {
+
+    push @pids, fork();
+    die "Unable to fork: $!\n"
+      if ! defined $pids[-1];
+
+    if ($pids[-1]) {
+      next;
+    }
+
+    if (@pids % 2) {
+      $schema->txn_do (sub {
+        my $depth = $schema->storage->transaction_depth;
+        die "$$(txn_do)unexpected txn depth $depth!" if $depth != 1;
+        $schema->resultset ('Artist')->create ({ name => "forking action $$"});
+      });
+    }
+    else {
+      my $guard = $schema->txn_scope_guard;
+      my $depth = $schema->storage->transaction_depth;
+      die "$$(scope_guard) unexpected txn depth $depth!" if $depth != 1;
+      $schema->resultset ('Artist')->create ({ name => "forking action $$"});
+      $guard->commit;
+    }
+
+    exit 0;
+  }
+
+  return @pids;
+}
+
 my $fail_code = sub {
   my ($artist) = @_;
   $artist->create_related('cds', {
@@ -316,12 +455,20 @@ undef $schema;
 
 # make sure the guard does not eat exceptions
 {
-  my $schema = DBICTest->init_schema();
+  my $schema = DBICTest->init_schema;
+
+  no strict 'refs';
+  no warnings 'redefine';
+  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+
   throws_ok (sub {
     my $guard = $schema->txn_scope_guard;
     $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
 
-    $schema->storage->disconnect;  # this should freak out the guard rollback
+    # this should freak out the guard rollback
+    # but it won't work because DBD::SQLite is buggy
+    # instead just install a toxic rollback above
+    #$schema->storage->_dbh( $schema->storage->_dbh->clone );
 
     die 'Deliberate exception';
   }, qr/Deliberate exception.+Rollback failed/s);
@@ -331,14 +478,21 @@ undef $schema;
 {
   my $schema = DBICTest->init_schema();
 
-  # something is really confusing Test::Warn here, no time to debug
+  no strict 'refs';
+  no warnings 'redefine';
+  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+
+#The warn from within a DESTROY callback freaks out Test::Warn, do it old-school
 =begin
   warnings_exist (
     sub {
       my $guard = $schema->txn_scope_guard;
       $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
 
-      $schema->storage->disconnect;  # this should freak out the guard rollback
+      # this should freak out the guard rollback
+      # but it won't work because DBD::SQLite is buggy
+      # instead just install a toxic rollback above
+      #$schema->storage->_dbh( $schema->storage->_dbh->clone );
     },
     [
       qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
@@ -348,6 +502,7 @@ undef $schema;
   );
 =cut
 
+# delete this once the above works properly (same test)
   my @want = (
     qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
     qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
@@ -365,8 +520,6 @@ undef $schema;
   {
       my $guard = $schema->txn_scope_guard;
       $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
-
-      $schema->storage->disconnect;  # this should freak out the guard rollback
   }
 
   is (@w, 2, 'Both expected warnings found');
