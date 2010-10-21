@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::DebugObj;
@@ -10,6 +11,8 @@ use Path::Class qw/file/;
 
 my $schema = DBICTest->init_schema();
 
+# make sure we are testing the vanilla debugger and not ::PrettyPrint
+$schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
 $schema->storage->debugfh(file('t/var/sql.log')->openw);
@@ -21,7 +24,7 @@ $rs->count();
 my $log = file('t/var/sql.log')->openr;
 my $line = <$log>;
 $log->close();
-ok($line =~ /^SELECT COUNT/, 'Log success');
+like($line, qr/^SELECT COUNT/, 'Log success');
 
 $schema->storage->debugfh(undef);
 $ENV{'DBIC_TRACE'} = '=t/var/foo.log';
@@ -30,17 +33,18 @@ $rs->count();
 $log = file('t/var/foo.log')->openr;
 $line = <$log>;
 $log->close();
-ok($line =~ /^SELECT COUNT/, 'Log success');
+like($line, qr/^SELECT COUNT/, 'Log success');
 $schema->storage->debugobj->debugfh(undef);
 delete($ENV{'DBIC_TRACE'});
+
 open(STDERRCOPY, '>&STDERR');
 stat(STDERRCOPY); # nop to get warnings quiet
 close(STDERR);
-eval {
+dies_ok {
     $rs = $schema->resultset('CD')->search({});
     $rs->count();
-};
-ok($@, 'Died on closed FH');
+} 'Died on closed FH';
+
 open(STDERR, '>&STDERRCOPY');
 
 # test trace output correctness for bind params
