@@ -815,7 +815,7 @@ sub get_inflated_columns {
   }
 
   # return all loaded columns with the inflations overlayed on top
-  return ($self->get_columns, %inflated);
+  return %{ { $self->get_columns, %inflated } };
 }
 
 sub _is_column_numeric {
