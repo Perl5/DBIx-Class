@@ -381,6 +381,7 @@ my @unimplemented = qw(
   sql_limit_dialect
 
   _inner_join_to_node
+  _group_over_selection
 );
 
 # the capability framework

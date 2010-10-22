@@ -45,6 +45,8 @@ Revision history for DBIx::Class
           -or condition
         - Remove rogue GROUP BY on non-multiplying prefetch-induced
           subqueries
+        - Fix incorrect order_by handling with prefetch on
+          $ordered_rs->search_related ('has_many_rel') resultsets
         - Oracle sequence detection now *really* works across schemas
           (fixed some ommissions from 0.08123)
         - dbicadmin now uses a /usr/bin/env shebang to work better with

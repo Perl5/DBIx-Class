@@ -117,8 +117,15 @@ sub _adjust_select_args_for_complex_prefetch {
 
     # if a multi-type join was needed in the subquery - add a group_by to simulate the
     # collapse in the subq
-    $inner_attrs->{group_by} ||= $inner_select
-      if first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from]);
+    if (
+      ! $inner_attrs->{group_by}
+        and
+      first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from])
+    ) {
+      $inner_attrs->{group_by} = $self->_group_over_selection (
+        $inner_from, $inner_select, $inner_attrs->{order_by}
+      );
+    }
 
     # we already optimized $inner_from above
     local $self->{_use_join_optimizer} = 0;
@@ -325,6 +332,39 @@ sub _resolve_aliastypes_from_select_args {
   }
 
   return $aliases_by_type;
+}
+
+sub _group_over_selection {
+  my ($self, $from, $select, $order_by) = @_;
+
+  my $rs_column_list = $self->_resolve_column_info ($from);
+
+  my (@group_by, %group_index);
+
+  for (@$select) {
+    if (! ref($_) or ref ($_) ne 'HASH' ) {
+      push @group_by, $_;
+      $group_index{$_}++;
+      if ($rs_column_list->{$_} and $_ !~ /\./ ) {
+        # add a fully qualified version as well
+        $group_index{"$rs_column_list->{$_}{-source_alias}.$_"}++;
+      }
+    }
+  }
+
+  # add any order_by parts that are not already present in the group_by
+  # we need to be careful not to add any named functions/aggregates
+  # i.e. select => [ ... { count => 'foo', -as 'foocount' } ... ]
+  for my $chunk ($self->_extract_order_columns($order_by)) {
+    # only consider real columns (for functions the user got to do an explicit group_by)
+    my $colinfo = $rs_column_list->{$chunk}
+      or next;
+
+    $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
+    push @group_by, $chunk unless $group_index{$chunk}++;
+  }
+
+  return \@group_by;
 }
 
 sub _resolve_ident_sources {
