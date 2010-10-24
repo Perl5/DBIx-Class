@@ -36,7 +36,8 @@ The coderef is expected to return one or two values
   make $some_row_obj->set_from_related ($another_obj) work, and also
   to optimise $row_obj->relationship calls, by avoiding a full-join
   and instead constructing a WHERE clause with the contents of said
-  hashref
+  hashref. Naturally the values of this hashref *must be* plain
+  scalars.
   (Note - such rel-to-ident resolution is currently possible for *all*
   DBIC relationships, but can not be guaranteed for all custom rels
   possible via this syntax. Thus the escape hatch of a *mandatory*
@@ -48,8 +49,8 @@ Why the complexity of two RVs - custom rels are generally simplifiable
 right?
 
 This is generally true, except when it isn't. The main issue is that a
-coderef is blackbox, and we want to keep it this way for simplicity.
-This means that no state is communicate from DBIC to the coderef (except
+coderef is a blackbox, and we want to keep it this way for simplicity.
+This means that no state is communicated from DBIC to the coderef (except
 for the optional row-obj), and no state is communicated out when the
 coderef returns (i.e. you can use this hashref for real joins but not for
 set_from_related).
@@ -62,12 +63,13 @@ a return value for a specific scenario
   we *have* to do a full join when doing $artist->cds, as this is the
   only way to evaluate the artist.name condition. For this we need a
   defined $on_as_where, but a missing $vals_from_related, which will
-  signal the need to wrap a full query
+  signal the need to wrap a full query. Also set_from_related will
+  throw an exception here, as it largely makes no sense.
 
-- Given the same relationship as above, we want
-  $new_cd->set_from_related($artist) to do the right thing depending
-  on the name of $artist - the coderef would be tasked to return
-  { artistid => xxx } or {} depending on the value of $artist->name
+- Given a relationship
+    { 'cd.year' => '2000', 'artist.id' => \'cds.artistid }
+  we could use the knowledge of the year to pre-fill the correct value
+  via $artist->create_related('year_2k_cd', {});
 
 
 What needs to be adjusted (non-exhaustive summary):

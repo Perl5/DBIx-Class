@@ -15,16 +15,16 @@ DBIx::Class::Relationship::Base - Inter-table relationships
 
 =head1 SYNOPSIS
 
-    __PACKAGE__->add_relationship('spiders',
-                                  'My::DB::Result::Creatures',
-                                  sub {
-                                    my ( $me_alias, $rel_alias) = @_;
-                                    return
-                                       { "${rel_alias}.id"    => { '=' => \"${me_alias}.id"},
-                                         "${rel_alias}.type"  => { '=', "arachnid" },
-                                        };
-                                     
-                                  });
+  __PACKAGE__->add_relationship(
+    spiders => 'My::DB::Result::Creatures',
+    sub {
+      my $args = shift;
+      return {
+        "$args->{foreign_alias}.id"   => { -ident => "$args->{self_alias}.id" },
+        "$args->{foreign_alias}.type" => 'arachnid'
+      };
+    },
+  );
 
 =head1 DESCRIPTION
 
@@ -42,8 +42,8 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =back
 
-  __PACKAGE__->add_relationship('relname', 
-                                'Foreign::Class', 
+  __PACKAGE__->add_relationship('relname',
+                                'Foreign::Class',
                                 $condition, $attrs);
 
 Create a custom relationship between one result source and another
@@ -51,109 +51,141 @@ source, indicated by its class name.
 
 =head3 condition
 
-The condition argument describes the JOIN expression used to connect
-the two sources when creating SQL queries.
+The condition argument describes the C<ON> clause of the C<JOIN>
+expression used to connect the two sources when creating SQL queries.
 
 To create simple equality joins, supply a hashref containing the
 remote table column name as the key(s), and the local table column
-name as the value(s), for example:
+name as the value(s), for example given:
 
-  { 'foreign.author_id' => 'self.id' }
+  My::Schema::Author->has_many(
+    books => 'My::Schema::Book',
+    { 'foreign.author_id' => 'self.id' }
+  );
 
-will result in the C<JOIN> clause:
+A query like:
 
-  author me JOIN book book ON book.author_id = me.id
+  $author_rs->search_related('books')->next
+
+will result in the following C<JOIN> clause:
+
+  ... FROM author me LEFT JOIN book books ON books.author_id = me.id ...
 
 This describes a relationship between the C<Author> table and the
 C<Book> table where the C<Book> table has a column C<author_id>
 containing the ID value of the C<Author>.
 
-C<foreign> and C<self> are psuedo aliases and must be entered
+C<foreign> and C<self> are pseudo aliases and must be entered
 literally. They will be replaced with the actual correct table alias
 when the SQL is produced.
 
 Similarly:
 
-  {
-    'foreign.publisher_id' => 'self.publisher_id',
-    'foreign.type_id'      => 'self.type_id',
-  }
+  My::Schema::Book->has_many(
+    editions => 'My::Schema::Edition',
+    {
+      'foreign.publisher_id' => 'self.publisher_id',
+      'foreign.type_id'      => 'self.type_id',
+    }
+  );
+
+  ...
+
+  $book_rs->search_related('editions')->next
 
 will result in the C<JOIN> clause:
 
-  book me JOIN edition edition ON edition.publisher_id = me.publisher_id
-    AND edition.type_id = me.type_id
+  ... FROM book me
+      LEFT JOIN edition editions ON
+           editions.publisher_id = me.publisher_id
+       AND editions.type_id = me.type_id ...
 
 This describes the relationship from C<Book> to C<Edition>, where the
 C<Edition> table refers to a publisher and a type (e.g. "paperback"):
 
 As is the default in L<SQL::Abstract>, the key-value pairs will be
 C<AND>ed in the result. C<OR> can be achieved with an arrayref, for
+example a condition like:
+
+  My::Schema::Item->has_many(
+    related_item_links => My::Schema::Item::Links,
+    [
+      { 'foreign.left_itemid'  => 'self.id' },
+      { 'foreign.right_itemid' => 'self.id' },
+    ],
+  );
+
+will translate to the following C<JOIN> clause:
+
+ ... FROM item me JOIN item_relations related_item_links ON
+         related_item_links.left_itemid = me.id
+      OR related_item_links.right_itemid = me.id ...
+
+This describes the relationship from C<Item> to C<Item::Links>, where
+C<Item::Links> is a many-to-many linking table, linking items back to
+themselves in a peer fashion (without a "parent-child" designation)
+
+To specify joins which describe more than a simple equality of column
+values, the custom join condition coderef syntax can be used. For
 example:
 
-  [
-    { 'foreign.left_itemid' => 'self.id' },
-    { 'foreign.right_itemid' => 'self.id' },
-  ]
-
-which results in the C<JOIN> clause:
-
-  items me JOIN related_items rel_link ON rel_link.left_itemid = me.id
-    OR rel_link.right_itemid = me.id
-
-This describes the relationship from C<Items> to C<RelatedItems>,
-where C<RelatedItems> is a many-to-many linking table, linking Items
-back to themselves.
-
-To create joins which describe more than a simple equality of column
-values, the custom join condition coderef syntax can be used:
-
+  My::Schema::Artist->has_many(
+    cds_80s => 'My::Schema::CD',
     sub {
-      my ( $me_alias, $rel_alias ) = @_;
-      return
-        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
-           "${rel_alias}.year"    => { '>', "1979",
-                                       '<', "1990" }
-         });
-  }
+      my $args = shift;
 
-this will result in the C<JOIN> clause:
+      return {
+        "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
+      };
+    }
+  );
 
-  artist me LEFT JOIN cd cds_80s_noopt ON 
-   ( cds_80s_noopt.artist = me.artistid 
-     AND ( cds_80s_noopt.year < ? AND cds_80s_noopt.year > ? )
-   )
+  ...
+
+  $artist_rs->search_related('cds_80s')->next;
+
+will result in the C<JOIN> clause:
+
+  ... FROM artist me LEFT JOIN cd cds_80s ON
+        cds_80s.artist = me.artistid
+    AND cds_80s.year < ?
+    AND cds_80s.year > ?
 
 with the bind values:
 
    '1990', '1979'
 
-C<$rel_alias> is the equivalent to C<foreign> in the simple syntax,
-and will be replaced by the actual remote table alias in the produced
-SQL. Similarly, C<$me_alias> is the equivalent to C<self> and will be
-replaced with the local table alias in the SQL.
+C<< $args->{foreign_alias} >> and C<< $args->{self_alias} >> are supplied the
+same values that would be otherwise substituted for C<foreign> and C<self>
+in the simple hashref syntax case.
 
-The actual syntax returned by the coderef should be valid
-L<SQL::Abstract> syntax, similar to normal
-L<DBIx::Class::ResultSet/search> conditions.
+The coderef is expected to return a valid L<SQL::Abstract> query-structure, just
+like what one would supply as the first argument to
+L<DBIx::Class::ResultSet/search>. The return value will be passed directly to
+L<SQL::Abstract> and the resulting SQL will be used verbatim as the C<ON>
+clause of the C<JOIN> statement associated with this relationship.
 
-To help optimise the SQL produced, a second optional hashref can be
-returned to be used when the relationship accessor is called directly
-on a Row object:
+While every coderef-based condition must return a valid C<ON> clause, it may
+elect to additionally return a simplified join-free condition hashref when 
+invoked as C<< $row_object->relationship >>, as opposed to
+C<< $rs->related_resultset('relationship') >>. In this case C<$row_object> is
+passed to the coderef as C<< $args->{self_rowobj} >>, so a user can do the
+following:
 
-    sub {
-      my ( $me_alias, $rel_alias, $me_result_source, 
-           $rel_name, $optional_me_object ) = @_;
-      return
-        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
-           "${rel_alias}.year"    => { '>', "1979",
-                                       '<', "1990" }
-         },
-         $optional_me_object &&
-         { "${rel_alias}.artist" => $optional_me_object->artistid,
-           "${rel_alias}.year"   => { '>', "1979",
-                                      '<', "1990" }
-       });
+  sub {
+    my $args = shift;
+
+    return (
+      {
+        "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
+      },
+    );
   }
 
 Now this code:
@@ -161,23 +193,38 @@ Now this code:
     my $artist = $schema->resultset("Artist")->find({ id => 4 });
     $artist->cds_80s->all;
 
-Produces:
+Can skip a C<JOIN> altogether and instead produce:
 
-    SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-      FROM cd me 
-      WHERE ( ( me.artist = ? AND ( me.year < ? AND me.year > ? ) ) )
+    SELECT cds_80s.cdid, cds_80s.artist, cds_80s.title, cds_80s.year, cds_80s.genreid, cds_80s.single_track
+      FROM cd cds_80s
+      WHERE cds_80s.artist = ?
+        AND cds_80s.year < ?
+        AND cds_80s.year > ?
 
 With the bind values:
 
     '4', '1990', '1979'
 
-The C<$optional_me_object> used to create the second hashref contains
-a row object, the object that the relation accessor was called on.
+Note that in order to be able to use
+L<< $row->create_related|DBIx::Class::Relationship::Base/create_related >>,
+the coderef must not only return as its second such a "simple" condition
+hashref which does not depend on joins being available, but the hashref must
+contain only plain values/deflatable objects, such that the result can be
+passed directly to L<DBIx::Class::Relationship::Base/set_from_related>. For
+instance the C<year> constraint in the above example prevents the relationship
+from being used to to create related objects (an exception will be thrown).
 
-C<$me_result_source> the L<DBIx::Class::ResultSource> of the table
-being searched on, and C<$rel_name>, the name of the relation
-containing this condition, are also provided as arguments. These may
-be useful to more complicated condition calculation.
+In order to allow the user to go truly crazy when generating a custom C<ON>
+clause, the C<$args> hashref passed to the subroutine contains some extra
+metadata. Currently the supplied coderef is executed as:
+
+  $relationship_info->{cond}->({
+    self_alias        => The alias of the invoking resultset ('me' in case of a row object),
+    foreign_alias     => The alias of the to-be-joined resultset (often matches relname),
+    self_resultsource => The invocant's resultsource,
+    foreign_relname   => The relationship name (does *not* always match foreign_alias),
+    self_rowobj       => The invocant itself in case of $row_obj->relationship
+  });
 
 =head3 attributes
 

@@ -47,43 +47,43 @@ __PACKAGE__->has_many(
 
 
 __PACKAGE__->has_many(
-    cds_80s => 'DBICTest::Schema::CD',
-    sub {
-      my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
-      return
-        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
-           "${rel_alias}.year"    => { '>', "1979",
-                                       '<', "1990" }
-         },
-         $optional_me_object &&
-         { "${rel_alias}.artist" => $optional_me_object->artistid,
-           "${rel_alias}.year"   => { '>', "1979",
-                                      '<', "1990" }
-       });
-  }
+  cds_80s => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+
+    return (
+      { "$args->{foreign_alias}.artist" => { '=' => { -ident => "$args->{self_alias}.artistid"} },
+        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
+      }
+    );
+  },
 );
 
 __PACKAGE__->has_many(
-    cds_80s_noopt => 'DBICTest::Schema::CD',
-    sub {
-      my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
-      return
-        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
-           "${rel_alias}.year"    => { '>', "1979",
-                                       '<', "1990" }
-         });
-  }
+  cds_80s_noopt => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+    return (
+      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
+      }
+    );
+  },
 );
 
 __PACKAGE__->has_many(
-    cds_90s => 'DBICTest::Schema::CD',
-    sub {
-      my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
-      return
-        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
-           "${rel_alias}.year"    => { '>', "1989",
-                                       '<', "2000" }
-         });
+  cds_90s => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+    return (
+      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => { '>' => 1989, '<' => 2000 },
+      }
+    );
   }
 );
 

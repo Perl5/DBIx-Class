@@ -105,13 +105,13 @@ L<DBIx::Class::Relationship::Base>.
 
 All helper methods are called similar to the following template:
 
-  __PACKAGE__->$method_name('relname', 'Foreign::Class', 
-                            \%cond | \@cond | \&conf, \%attrs);
+  __PACKAGE__->$method_name('relname', 'Foreign::Class', \%cond|\@cond|\&cond?, \%attrs?);
 
 Both C<cond> and C<attrs> are optional. Pass C<undef> for C<cond> if
 you want to use the default value for it, but still want to set C<attrs>.
 
-See L<DBIx::Class::Relationship::Base/condition> for full documentation on definition of the C<cond> argument.
+See L<DBIx::Class::Relationship::Base/condition> for full documentation on
+definition of the C<cond> argument.
 
 See L<DBIx::Class::Relationship::Base/attributes> for documentation on the
 attributes that are allowed in the C<attrs> argument.
@@ -159,7 +159,7 @@ OR
 =item cond
 
 A hashref, arrayref or coderef specifying a custom join expression. For
-documentation see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship/condition>.
 
 =back
 
@@ -231,7 +231,7 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond\&cond?, \%attrs?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, \%attrs?
 
 =back
 
@@ -271,7 +271,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-documentation see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship/condition>.
 
 =back
 
@@ -392,7 +392,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-documentation see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship/condition>.
 
 =back
 
@@ -440,7 +440,7 @@ current table allows nulls (i.e., has the C<is_nullable> attribute set to a
 true value), than C<might_have> will warn about this because it's naughty and
 you shouldn't do that. The warning will look something like:
 
-   "might_have/has_one" must not be on columns with is_nullable set to true (MySchema::SomeClass/key)
+  "might_have/has_one" must not be on columns with is_nullable set to true (MySchema::SomeClass/key)
 
 If you must be naughty, you can suppress the warning by setting
 C<DBIC_DONT_VALIDATE_RELS> environment variable to a true value.  Otherwise,
@@ -487,7 +487,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-documentation see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship/condition>.
 
 =back
 
