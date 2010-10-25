@@ -7,8 +7,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest->init_schema();
-
 my $code = sub {
   my ($artist, @cd_titles) = @_;
 
@@ -17,11 +15,13 @@ my $code = sub {
     year => 2006,
   }) foreach (@cd_titles);
 
-  return $artist->cds->all;
+  return $artist->cds;
 };
 
 # Test checking of parameters
 {
+  my $schema = DBICTest->init_schema;
+
   throws_ok (sub {
     (ref $schema)->txn_do(sub{});
   }, qr/storage/, "can't call txn_do without storage");
@@ -31,15 +31,26 @@ my $code = sub {
   }, qr/must be a CODE reference/, '$coderef parameter check ok');
 }
 
-# Test successful txn_do() - scalar context
-{
+# Test successful txn_do() - scalar/list context
+for my $want (0,1) {
+  my $schema = DBICTest->init_schema;
+
   is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
 
   my @titles = map {'txn_do test CD ' . $_} (1..5);
   my $artist = $schema->resultset('Artist')->find(1);
   my $count_before = $artist->cds->count;
-  my $count_after = $schema->txn_do($code, $artist, @titles);
-  is($count_after, $count_before+5, 'successful txn added 5 cds');
+
+  my @res;
+  if ($want) {
+    @res = $schema->txn_do($code, $artist, @titles);
+    is(scalar @res, $count_before+5, 'successful txn added 5 cds');
+  }
+  else {
+    $res[0] = $schema->txn_do($code, $artist, @titles);
+    is($res[0], $count_before+5, 'successful txn added 5 cds');
+  }
+
   is($artist->cds({
     title => "txn_do test CD $_",
   })->first->year, 2006, "new CD $_ year correct") for (1..5);
@@ -47,24 +58,10 @@ my $code = sub {
   is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
 }
 
-# Test successful txn_do() - list context
-{
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
-
-  my @titles = map {'txn_do test CD ' . $_} (6..10);
-  my $artist = $schema->resultset('Artist')->find(1);
-  my $count_before = $artist->cds->count;
-  my @cds = $schema->txn_do($code, $artist, @titles);
-  is(scalar @cds, $count_before+5, 'added 5 CDs and returned in list context');
-  is($artist->cds({
-    title => "txn_do test CD $_",
-  })->first->year, 2006, "new CD $_ year correct") for (6..10);
-
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
-}
-
 # Test txn_do() @_ aliasing support
 {
+  my $schema = DBICTest->init_schema;
+
   my $res = 'original';
   $schema->storage->txn_do (sub { $_[0] = 'changed' }, $res);
   is ($res, 'changed', "Arguments properly aliased for txn_do");
@@ -72,6 +69,8 @@ my $code = sub {
 
 # Test nested successful txn_do()
 {
+  my $schema = DBICTest->init_schema;
+
   is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
 
   my $nested_code = sub {
@@ -247,87 +246,69 @@ my $fail_code = sub {
   die "the sky is falling";
 };
 
-# Test failed txn_do()
 {
+  my $schema = DBICTest->init_schema;
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+  # Test failed txn_do()
+  for my $pass (1,2) {
 
-  my $artist = $schema->resultset('Artist')->find(3);
+    is( $schema->storage->{transaction_depth}, 0, "txn depth starts at 0 (pass $pass)");
 
-  throws_ok (sub {
-    $schema->txn_do($fail_code, $artist);
-  }, qr/the sky is falling/, 'failed txn_do threw an exception');
+    my $artist = $schema->resultset('Artist')->find(3);
 
-  my $cd = $artist->cds({
-    title => 'this should not exist',
-    year => 2005,
-  })->first;
-  ok(!defined($cd), q{failed txn_do didn't change the cds table});
-
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
-}
-
-# do the same transaction again
-{
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
-
-  my $artist = $schema->resultset('Artist')->find(3);
-
-  throws_ok (sub {
-    $schema->txn_do($fail_code, $artist);
-  }, qr/the sky is falling/, 'failed txn_do threw an exception');
-
-  my $cd = $artist->cds({
-    title => 'this should not exist',
-    year => 2005,
-  })->first;
-  ok(!defined($cd), q{failed txn_do didn't change the cds table});
-
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
-}
-
-# Test failed txn_do() with failed rollback
-{
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
-
-  my $artist = $schema->resultset('Artist')->find(3);
-
-  # Force txn_rollback() to throw an exception
-  no warnings 'redefine';
-  no strict 'refs';
-
-  # die in rollback
-  local *{"DBIx::Class::Storage::DBI::SQLite::txn_rollback"} = sub{
-    my $storage = shift;
-    die 'FAILED';
-  };
-
-  throws_ok (
-    sub {
+    throws_ok (sub {
       $schema->txn_do($fail_code, $artist);
-    },
-    qr/the sky is falling.+Rollback failed/s,
-    'txn_rollback threw a rollback exception (and included the original exception'
-  );
+    }, qr/the sky is falling/, "failed txn_do threw an exception (pass $pass)");
 
-  my $cd = $artist->cds({
-    title => 'this should not exist',
-    year => 2005,
-  })->first;
-  isa_ok($cd, 'DBICTest::CD', q{failed txn_do with a failed txn_rollback }.
-         q{changed the cds table});
-  $cd->delete; # Rollback failed
-  $cd = $artist->cds({
-    title => 'this should not exist',
-    year => 2005,
-  })->first;
-  ok(!defined($cd), q{deleted the failed txn's cd});
-  $schema->storage->_dbh->rollback;
+    my $cd = $artist->cds({
+      title => 'this should not exist',
+      year => 2005,
+    })->first;
+    ok(!defined($cd), qq{failed txn_do didn't change the cds table (pass $pass)});
 
+    is( $schema->storage->{transaction_depth}, 0, "txn depth has been reset (pass $pass)");
+  }
+
+
+  # Test failed txn_do() with failed rollback
+  {
+    is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+
+    my $artist = $schema->resultset('Artist')->find(3);
+
+    # Force txn_rollback() to throw an exception
+    no warnings 'redefine';
+    no strict 'refs';
+
+    # die in rollback
+    local *{"DBIx::Class::Storage::DBI::SQLite::txn_rollback"} = sub{
+      my $storage = shift;
+      die 'FAILED';
+    };
+
+    throws_ok (
+      sub {
+        $schema->txn_do($fail_code, $artist);
+      },
+      qr/the sky is falling.+Rollback failed/s,
+      'txn_rollback threw a rollback exception (and included the original exception'
+    );
+
+    my $cd = $artist->cds({
+      title => 'this should not exist',
+      year => 2005,
+    })->first;
+    isa_ok($cd, 'DBICTest::CD', q{failed txn_do with a failed txn_rollback }.
+           q{changed the cds table});
+    $cd->delete; # Rollback failed
+    $cd = $artist->cds({
+      title => 'this should not exist',
+      year => 2005,
+    })->first;
+    ok(!defined($cd), q{deleted the failed txn's cd});
+    $schema->storage->_dbh->rollback;
+  }
 }
-
-# reset schema object (the txn_rollback meddling screws it up)
-undef $schema;
 
 # Test nested failed txn_do()
 {
@@ -372,157 +353,6 @@ undef $schema;
   # although not connected DBI would still warn about rolling back at disconnect
   $schema->txn_rollback;
   $schema->txn_rollback;
-}
-
-# Test txn_scope_guard
-{
-  my $schema = DBICTest->init_schema();
-
-  is($schema->storage->transaction_depth, 0, "Correct transaction depth");
-  my $artist_rs = $schema->resultset('Artist');
-
-  my $fn = __FILE__;
-  throws_ok {
-   my $guard = $schema->txn_scope_guard;
-
-    $artist_rs->create({
-      name => 'Death Cab for Cutie',
-      made_up_column => 1,
-    });
-
-   $guard->commit;
-  } qr/No such column made_up_column .*? at .*?$fn line \d+/s, "Error propogated okay";
-
-  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
-
-  my $inner_exception = '';  # set in inner() below
-  throws_ok (sub {
-    outer($schema, 1);
-  }, qr/$inner_exception/, "Nested exceptions propogated");
-
-  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
-
-  lives_ok (sub {
-
-    # this weird assignment is to stop perl <= 5.8.9 leaking $schema on nested sub{}s
-    my $s = $schema;
-
-    warnings_exist ( sub {
-      # The 0 arg says don't die, just let the scope guard go out of scope
-      # forcing a txn_rollback to happen
-      outer($s, 0);
-    }, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./, 'Out of scope warning detected');
-
-    ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
-
-  }, 'rollback successful withot exception');
-
-  sub outer {
-    my ($schema, $fatal) = @_;
-
-    my $guard = $schema->txn_scope_guard;
-    $schema->resultset('Artist')->create({
-      name => 'Death Cab for Cutie',
-    });
-    inner($schema, $fatal);
-  }
-
-  sub inner {
-    my ($schema, $fatal) = @_;
-
-    my $inner_guard = $schema->txn_scope_guard;
-    is($schema->storage->transaction_depth, 2, "Correct transaction depth");
-
-    my $artist = $schema->resultset('Artist')->find({ name => 'Death Cab for Cutie' });
-
-    eval {
-      $artist->cds->create({
-        title => 'Plans',
-        year => 2005,
-        $fatal ? ( foo => 'bar' ) : ()
-      });
-    };
-    if ($@) {
-      # Record what got thrown so we can test it propgates out properly.
-      $inner_exception = $@;
-      die $@;
-    }
-
-    # inner guard should commit without consequences
-    $inner_guard->commit;
-  }
-}
-
-# make sure the guard does not eat exceptions
-{
-  my $schema = DBICTest->init_schema;
-
-  no strict 'refs';
-  no warnings 'redefine';
-  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
-
-  throws_ok (sub {
-    my $guard = $schema->txn_scope_guard;
-    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
-
-    # this should freak out the guard rollback
-    # but it won't work because DBD::SQLite is buggy
-    # instead just install a toxic rollback above
-    #$schema->storage->_dbh( $schema->storage->_dbh->clone );
-
-    die 'Deliberate exception';
-  }, qr/Deliberate exception.+Rollback failed/s);
-}
-
-# make sure it warns *big* on failed rollbacks
-{
-  my $schema = DBICTest->init_schema();
-
-  no strict 'refs';
-  no warnings 'redefine';
-  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
-
-#The warn from within a DESTROY callback freaks out Test::Warn, do it old-school
-=begin
-  warnings_exist (
-    sub {
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
-
-      # this should freak out the guard rollback
-      # but it won't work because DBD::SQLite is buggy
-      # instead just install a toxic rollback above
-      #$schema->storage->_dbh( $schema->storage->_dbh->clone );
-    },
-    [
-      qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
-      qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
-    ],
-    'proper warnings generated on out-of-scope+rollback failure'
-  );
-=cut
-
-# delete this once the above works properly (same test)
-  my @want = (
-    qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
-    qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
-  );
-
-  my @w;
-  local $SIG{__WARN__} = sub {
-    if (grep {$_[0] =~ $_} (@want)) {
-      push @w, $_[0];
-    }
-    else {
-      warn $_[0];
-    }
-  };
-  {
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
-  }
-
-  is (@w, 2, 'Both expected warnings found');
 }
 
 # make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
