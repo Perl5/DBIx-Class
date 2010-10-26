@@ -173,11 +173,29 @@ my $reqs = {
     },
   },
 
+  test_rdbms_mssql_odbc => {
+    req => {
+      $ENV{DBICTEST_MSSQL_ODBC_DSN}
+        ? (
+          'DBD::ODBC'             => '0',
+        ) : ()
+    },
+  },
+
+  test_rdbms_mssql_sybase => {
+    req => {
+      $ENV{DBICTEST_MSSQL_DSN}
+        ? (
+          'DBD::Sybase'           => '0',
+        ) : ()
+    },
+  },
+
   test_rdbms_mysql => {
     req => {
       $ENV{DBICTEST_MYSQL_DSN}
         ? (
-          'DBD::mysql'              => '0',
+          'DBD::mysql'            => '0',
         ) : ()
     },
   },
