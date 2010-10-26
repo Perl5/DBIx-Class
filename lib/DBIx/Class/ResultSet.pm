@@ -439,13 +439,13 @@ which are fully defined by the available condition.
 If no such constraint is found, C<find> currently defaults to a simple
 C<< search->(\%column_values) >> which may or may not do what you expect.
 Note that this fallback behavior may be deprecated in further versions. If
-you need to search with arbitrary conditions - use L</search>.
+you need to search with arbitrary conditions - use L</search>. If the query
+resulting from this fallback produces more than one row, a warning to the
+effect is issued, though only the first row is constructed and returned as
+C<$row_object>.
 
 In addition to C<key>, L</find> recognizes and applies standard
 L<resultset attributes|/ATTRIBUTES> in the same way as L</search> does.
-
-If the resulting query produces more than one row, a warning to the effect is
-issued, though only the first row is constructed and returned as C<$row_object>
 
 Note that if you have extra concerns about the correctness of the resulting
 query you need to specify the C<key> attribute and supply the entire condition
@@ -559,7 +559,7 @@ sub find {
 
     $final_cond = @unique_queries
       ? [ map { $self->_qualify_cond_columns($_, $alias) } @unique_queries ]
-      : $self->_qualify_cond_columns($call_cond, $alias)
+      : $self->_non_unique_find_fallback ($call_cond, $attrs)
     ;
   }
 
@@ -574,6 +574,30 @@ sub find {
     return $rs->single;
   }
 }
+
+# This is a stop-gap method as agreed during the discussion on find() cleanup:
+# http://lists.scsys.co.uk/pipermail/dbix-class/2010-October/009535.html
+#
+# It is invoked when find() is called in legacy-mode with insufficiently-unique
+# condition. It is provided for overrides until a saner way forward is devised
+#
+# *NOTE* This is not a public method, and it's *GUARANTEED* to disappear down
+# the road. Please adjust your tests accordingly to catch this situation early
+# DBIx::Class::ResultSet->can('_non_unique_find_fallback') is reasonable
+#
+# The method will not be removed without an adequately complete replacement
+# for strict-mode enforcement
+sub _non_unique_find_fallback {
+  my ($self, $cond, $attrs) = @_;
+
+  return $self->_qualify_cond_columns(
+    $cond,
+    exists $attrs->{alias}
+      ? $attrs->{alias}
+      : $self->{attrs}{alias}
+  );
+}
+
 
 sub _qualify_cond_columns {
   my ($self, $cond, $alias) = @_;
@@ -603,7 +627,7 @@ sub _build_unique_cond {
   $final_cond = { map { $_ => $final_cond->{$_} } @c_cols };
 
   if (my @missing = grep { ! defined $final_cond->{$_} } (@c_cols) ) {
-    $self->throw_exception( sprintf ( "Unable to satisfy constraint '%s', no values for column(s): %s",
+    $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', no values for column(s): %s",
       $constraint_name,
       join (', ', map { "'$_'" } @missing),
     ) );

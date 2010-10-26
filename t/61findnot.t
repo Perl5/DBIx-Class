@@ -59,7 +59,7 @@ warnings_exist {
     =>  "Non-unique find generated a cursor inexhaustion warning";
 throws_ok {
   $artist_rs->find({}, { key => 'primary' })
-} qr/Unable to satisfy constraint 'primary'/;
+} qr/Unable to satisfy requested constraint 'primary'/;
 
 $artist_rs = $schema->resultset("Artist")->search({}, { prefetch => 'cds' });
 warnings_exist {
@@ -67,6 +67,6 @@ warnings_exist {
 } qr/\QDBIx::Class::ResultSet::find(): Query returned more than one row/, "Non-unique find generated a cursor inexhaustion warning";
 throws_ok {
   $artist_rs->find({}, { key => 'primary' })
-} qr/Unable to satisfy constraint 'primary'/;
+} qr/Unable to satisfy requested constraint 'primary'/;
 
 done_testing;
