@@ -31,6 +31,8 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls
+        - Temporarily fixed 5.13.x failures (RT#58225)
+          (perl-core fix still pending)
         - Fix result_soutrce_instance leaks on compose_namespace
         - Make sure exception_action does not allow exception-hiding
           due to badly-written handlers (the mechanism was never meant

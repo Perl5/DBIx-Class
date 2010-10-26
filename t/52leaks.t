@@ -165,6 +165,10 @@ for my $slot (keys %$weak_registry) {
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
   }
+  elsif ($slot =~ /^__TxnScopeGuard__FIXUP__/) {
+    die 'The $@ debacle should have been fixed by now!!!' if $] >= 5.013008;
+    delete $weak_registry->{$slot};
+  }
 }
 
 

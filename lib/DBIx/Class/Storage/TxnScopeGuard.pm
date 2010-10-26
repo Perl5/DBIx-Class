@@ -4,14 +4,69 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
-use Scalar::Util qw/weaken/;
+use Scalar::Util qw/weaken blessed/;
+use DBIx::Class::Exception;
 use namespace::clean;
+
+# temporary until we fix the $@ issue in core
+# we also need a real appendable, stackable exception object
+# (coming soon)
+BEGIN {
+  if ($] < 5.013001) {
+    *IS_BROKEN_PERL = sub () { 0 };
+  }
+  elsif ($] < 5.013008) {
+    *IS_BROKEN_PERL = sub () { 1 };
+  }
+  else {
+    die 'The $@ debacle should have been resolved by now, adjust DBIC';
+  }
+}
+
+my ($guards_count, $compat_handler, $foreign_handler);
 
 sub new {
   my ($class, $storage) = @_;
 
   $storage->txn_begin;
   my $guard = bless [ 0, $storage, $storage->_dbh ], ref $class || $class;
+
+
+  # install a callback carefully
+  if (IS_BROKEN_PERL and !$guards_count) {
+
+    # if the thrown exception is a plain string, wrap it in our
+    # own exception class
+    # this is actually a pretty cool idea, may very well keep it
+    # after perl is fixed
+    $compat_handler ||= bless(
+      sub {
+        $@ = (blessed($_[0]) or ref($_[0]))
+          ? $_[0]
+          : bless ( { msg => $_[0] }, 'DBIx::Class::Exception')
+        ;
+        die;
+      },
+      '__TxnScopeGuard__FIXUP__',
+    );
+
+    if ($foreign_handler = $SIG{__DIE__}) {
+      $SIG{__DIE__} = bless (
+        sub {
+          # we trust the foreign handler to do whatever it wants, all we do is set $@
+          eval { $compat_handler->(@_) };
+          $foreign_handler->(@_);
+        },
+        '__TxnScopeGuard__FIXUP__',
+      );
+    }
+    else {
+      $SIG{__DIE__} = $compat_handler;
+    }
+  }
+
+  $guards_count++;
+
   weaken ($guard->[2]);
   $guard;
 }
@@ -25,6 +80,29 @@ sub commit {
 
 sub DESTROY {
   my ($dismiss, $storage) = @{$_[0]};
+
+  $guards_count--;
+
+  # don't touch unless it's ours, and there are no more of us left
+  if (
+    IS_BROKEN_PERL
+      and
+    !$guards_count
+  ) {
+
+    if (ref $SIG{__DIE__} eq '__TxnScopeGuard__FIXUP__') {
+      # restore what we saved
+      if ($foreign_handler) {
+        $SIG{__DIE__} = $foreign_handler;
+      }
+      else {
+        delete $SIG{__DIE__};
+      }
+    }
+
+    # make sure we do not leak the foreign one in case it exists
+    undef $foreign_handler;
+  }
 
   return if $dismiss;
 
@@ -47,7 +125,13 @@ sub DESTROY {
     catch { $rollback_exception = shift };
 
     if (defined $rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
-      if ($exception) {
+      # append our text - THIS IS A TEMPORARY FIXUP!
+      # a real stackable exception object is in the works
+      if (ref $exception eq 'DBIx::Class::Exception') {
+        $exception->{msg} = "Transaction aborted: $exception->{msg} "
+          ."Rollback failed: ${rollback_exception}";
+      }
+      elsif ($exception) {
         $exception = "Transaction aborted: ${exception} "
           ."Rollback failed: ${rollback_exception}";
       }
@@ -62,7 +146,7 @@ sub DESTROY {
     }
   }
 
-  $@ = $exception;
+  $@ = $exception unless IS_BROKEN_PERL;
 }
 
 1;

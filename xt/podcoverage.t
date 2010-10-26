@@ -47,6 +47,11 @@ my $exceptions = {
             MULTICREATE_DEBUG
         /],
     },
+    'DBIx::Class::Storage::TxnScopeGuard' => {
+        ignore => [qw/
+            IS_BROKEN_PERL
+        /],
+    },
     'DBIx::Class::FilterColumn' => {
         ignore => [qw/
             new
