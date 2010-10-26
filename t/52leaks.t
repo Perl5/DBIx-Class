@@ -12,6 +12,11 @@ BEGIN {
 }
 
 use Test::More;
+BEGIN {
+  plan skip_all => '5.13.6 leaks like a sieve (fixed in blead/cefd5c7c)'
+    if $] == '5.013006';
+}
+
 use Scalar::Util qw/refaddr reftype weaken/;
 use Carp qw/longmess/;
 use Try::Tiny;
@@ -151,11 +156,11 @@ memory_cycle_ok($weak_registry, 'No cycles in the weakened object collection')
 # Naturally we have some exceptions
 my $cleared;
 for my $slot (keys %$weak_registry) {
-  if ($slot =~ /^SQL\:\:Translator/) {
+  if ($slot =~ /^\QSQL::Translator/) {
     # SQLT is a piece of shit, leaks all over
     delete $weak_registry->{$slot};
   }
-  elsif ($slot =~ /^Hash\:\:Merge/) {
+  elsif ($slot =~ /^\QHash::Merge/) {
     # only clear one object - more would indicate trouble
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;

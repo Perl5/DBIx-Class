@@ -112,6 +112,8 @@ sub _database {
 }
 
 sub __mk_disconnect_guard {
+  return if $] == '5.013006'; # leaks handles, delaying DESTROY, can't work right
+
   my $db_file = shift;
   return unless -f $db_file;
 
