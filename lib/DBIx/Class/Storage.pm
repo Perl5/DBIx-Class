@@ -68,7 +68,14 @@ sub new {
     require DBIx::Class::Storage::Debug::PrettyPrint;
     if ($profile =~ /^\.?\//) {
       require Config::Any;
-      my $cfg = Config::Any->load_files({ files => [$profile], use_ext => 1 });
+
+      my $cfg = try {
+        Config::Any->load_files({ files => [$profile], use_ext => 1 });
+      } catch {
+        # sanitize the error message a bit
+        $_ =~ s/at \s+ .+ Storage\.pm \s line \s \d+ $//x;
+        $self->throw_exception("Failure processing \$ENV{DBIC_TRACE_PROFILE}: $_");
+      };
 
       my ($filename, $config) = %{$cfg->[0]};
       $debugobj = DBIx::Class::Storage::Debug::PrettyPrint->new($config)
@@ -135,7 +142,7 @@ Throws an exception - croaks.
 sub throw_exception {
   my $self = shift;
 
-  if ($self->schema) {
+  if (ref $self and $self->schema) {
     $self->schema->throw_exception(@_);
   }
   else {

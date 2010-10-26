@@ -11,6 +11,10 @@ use Carp;
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
+my $json_any = {
+  'JSON::Any'                     => '1.22',
+};
+
 my $moose_basic = {
   'Moose'                         => '0.98',
   'MooseX::Types'                 => '0.21',
@@ -23,9 +27,9 @@ my $replicated = {
 
 my $admin_basic = {
   %$moose_basic,
+  %$json_any,
   'MooseX::Types::Path::Class'    => '0.05',
   'MooseX::Types::JSON'           => '0.02',
-  'JSON::Any'                     => '1.22',
   'namespace::autoclean'          => '0.09',
 };
 
@@ -88,7 +92,6 @@ my $reqs = {
     },
   },
 
-
   test_pod => {
     req => {
       'Test::Pod'                 => '1.41',
@@ -112,6 +115,10 @@ my $reqs = {
     req => {
       'Test::EOL'                 => '0.6',
     },
+  },
+
+  test_prettydebug => {
+    req => $json_any,
   },
 
   test_leaks => {
