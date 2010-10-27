@@ -244,7 +244,9 @@ sub load_namespaces {
     use warnings 'redefine';
 
     # ensure classes are loaded and attached in inheritance order
-    $class->ensure_class_loaded($_) foreach(values %results);
+    for my $res (values %results) {
+      $class->ensure_class_loaded($res);
+    }
     my %inh_idx;
     my @subclass_last = sort {
 

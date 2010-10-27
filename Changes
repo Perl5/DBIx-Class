@@ -29,15 +29,17 @@ Revision history for DBIx::Class
           when the supplied data does not fully specify $constraint
         - find( col1 => $val1, col2 => $val2, ... ) is no longer supported
           (it has been in deprecated state for more than 4 years)
+        - Make sure exception_action does not allow exception-hiding
+          due to badly-written handlers (the mechanism was never meant
+          to be able to suppress exceptions)
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls
         - Temporarily fixed 5.13.x failures (RT#58225)
           (perl-core fix still pending)
         - Fix result_soutrce_instance leaks on compose_namespace
-        - Make sure exception_action does not allow exception-hiding
-          due to badly-written handlers (the mechanism was never meant
-          to be able to suppress exceptions)
+        - Fix $_ volatility on load_namespaces (a class changing $_
+          at compile time no longer causes a massive fail)
         - Fix find() without a key attr. choosing constraints even if
           some of the supplied values are NULL (RT#59219)
         - Fixed rels ending with me breaking subqueried limit realiasing
