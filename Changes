@@ -1,5 +1,11 @@
 Revision history for DBIx::Class
 
+0.08123_03 2010-10-27 23:23 (UTC)
+    * Fixes
+        - Add various missing things to Optional::Dependencies
+        - Skip a test that breaks due to serious bugs in current DBD::SQLite
+
+
 0.08123_02 2010-10-26 14:59 (UTC)
     * New Features / Changes
         - Add new -ident "function" indicating rhs is a column name
