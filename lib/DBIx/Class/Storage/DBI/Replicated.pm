@@ -376,23 +376,18 @@ my @unimplemented = qw(
   set_use_dbms_capability
   get_dbms_capability
   set_dbms_capability
+  _dbh_details
 
   sql_limit_dialect
 
-  _dbh_details
-
-  _use_insert_returning
-  _supports_insert_returning
-
-  _use_placeholders
-  _supports_placeholders
-  _determine_supports_placeholders
-
-  _use_typeless_placeholders
-  _supports_typeless_placeholders
-  _determine_supports_typeless_placeholders
-
   _inner_join_to_node
+);
+
+# the capability framework
+# not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
+push @unimplemented, ( grep
+  { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
+  ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
 );
 
 for my $method (@unimplemented) {
