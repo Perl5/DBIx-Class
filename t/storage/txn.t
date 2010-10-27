@@ -7,6 +7,9 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
+plan skip_all => 'Disabled on windows, pending resolution of DBD::SQLite SIGSEGVs'
+  if $^O eq 'MSWin32';
+
 my $code = sub {
   my ($artist, @cd_titles) = @_;
 
