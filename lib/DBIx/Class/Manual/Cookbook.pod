@@ -1878,14 +1878,18 @@ just looking for this.
 For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
-You can accomplish this by overriding C<store_column> in your L<Result class|DBIx::Class::Manual::Glossary/Result class>:
+You can accomplish this by wrapping the C<number> accessor with
+L<Class::Method::Modifiers>:
 
-  sub store_column {
-    my ( $self, $name, $value ) = @_;
-    if ($name eq 'number') {
-      $self->squared($value * $value);
+  around number => sub {
+    my ($orig, $self) = (shift, shift);
+
+    if (@_) {
+      my $value = $_[0];
+      $self->squared( $value * $value );
     }
-    $self->next::method($name, $value);
+
+    $self->next::method(@_);
   }
 
 Note that the hard work is done by the call to C<next::method>, which
