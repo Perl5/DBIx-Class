@@ -23,9 +23,10 @@ use namespace::clean;
 # {from} specs, aiding the RDBMS query optimizer
 #
 sub _prune_unused_joins {
-  my ($self) = shift;
-
+  my $self = shift;
   my ($from, $select, $where, $attrs) = @_;
+
+  return $from unless $self->_use_join_optimizer;
 
   if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY') {
     return $from;   # only standard {from} specs are supported
@@ -100,31 +101,41 @@ sub _adjust_select_args_for_complex_prefetch {
     push @{$inner_attrs->{as}}, $attrs->{as}[$i];
   }
 
-  # construct the inner $from for the subquery
+  # construct the inner $from and lock it in a subquery
   # we need to prune first, because this will determine if we need a group_by below
   # the fake group_by is so that the pruner throws away all non-selecting, non-restricting
   # multijoins (since we def. do not care about those inside the subquery)
-  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
-    group_by => ['dummy'], %$inner_attrs,
-  });
 
-  # if a multi-type join was needed in the subquery - add a group_by to simulate the
-  # collapse in the subq
-  $inner_attrs->{group_by} ||= $inner_select
-    if first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from]);
+  my $subq_joinspec = do {
 
-  # generate the subquery
-  my $subq = $self->_select_args_to_query (
-    $inner_from,
-    $inner_select,
-    $where,
-    $inner_attrs,
-  );
+    # must use it here regardless of user requests
+    local $self->{_use_join_optimizer} = 1;
 
-  my $subq_joinspec = {
-    -alias => $attrs->{alias},
-    -source_handle => $inner_from->[0]{-source_handle},
-    $attrs->{alias} => $subq,
+    my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
+      group_by => ['dummy'], %$inner_attrs,
+    });
+
+    # if a multi-type join was needed in the subquery - add a group_by to simulate the
+    # collapse in the subq
+    $inner_attrs->{group_by} ||= $inner_select
+      if first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from]);
+
+    # we already optimized $inner_from above
+    local $self->{_use_join_optimizer} = 0;
+
+    # generate the subquery
+    my $subq = $self->_select_args_to_query (
+      $inner_from,
+      $inner_select,
+      $where,
+      $inner_attrs,
+    );
+
+    +{
+      -alias => $attrs->{alias},
+      -source_handle => $inner_from->[0]{-source_handle},
+      $attrs->{alias} => $subq,
+    };
   };
 
   # Generate the outer from - this is relatively easy (really just replace
@@ -156,7 +167,7 @@ sub _adjust_select_args_for_complex_prefetch {
     }
   }
 
-  # scan the from spec against different attributes, and see which joins are needed
+  # scan the *remaining* from spec against different attributes, and see which joins are needed
   # in what role
   my $outer_aliastypes =
     $self->_resolve_aliastypes_from_select_args( $from, $outer_select, $where, $outer_attrs );
@@ -304,10 +315,10 @@ sub _resolve_aliastypes_from_select_args {
     );
   }
 
-  # mark all join parents as mentioned
+  # mark all restricting/selecting join parents as such
   # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
-  for my $type (keys %$aliases_by_type) {
-    for my $alias (keys %{$aliases_by_type->{$type}}) {
+  for my $type (qw/restricting selecting/) {
+    for my $alias (keys %{$aliases_by_type->{$type}||{}}) {
       $aliases_by_type->{$type}{$_} = 1
         for (map { values %$_ } @{ $alias_list->{$alias}{-join_path} || [] });
     }

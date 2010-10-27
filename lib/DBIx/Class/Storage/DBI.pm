@@ -54,10 +54,13 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 # will get the same rdbms version). _determine_supports_X does not need to
 # exist on a driver, as we ->can for it before calling.
 
-my @capabilities = (qw/insert_returning placeholders typeless_placeholders/);
+my @capabilities = (qw/insert_returning placeholders typeless_placeholders join_optimizer/);
 __PACKAGE__->mk_group_accessors( dbms_capability => map { "_supports_$_" } @capabilities );
-__PACKAGE__->mk_group_accessors( use_dbms_capability => map { "_use_$_" } @capabilities );
+__PACKAGE__->mk_group_accessors( use_dbms_capability => map { "_use_$_" } (@capabilities ) );
 
+# on by default, not strictly a capability (pending rewrite)
+__PACKAGE__->_use_join_optimizer (1);
+sub _determine_supports_join_optimizer { 1 };
 
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization

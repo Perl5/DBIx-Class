@@ -78,8 +78,6 @@ Revision history for DBIx::Class
           (first trigger instead of trigger for column)
 
     * Misc
-        - Refactored capability handling in Storage::DBI, allows for
-          standardized capability handling wrt query/enable/disable
         - Entire test suite now passes under DBIC_TRACE=1
         - Makefile.PL no longer imports GetOptions() to interoperate
           better with Catalyst installers
