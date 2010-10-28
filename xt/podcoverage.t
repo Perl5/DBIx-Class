@@ -122,6 +122,7 @@ my $exceptions = {
 
 # internals
     'DBIx::Class::SQLMaker*'                        => { skip => 1 },
+    'DBIx::Class::SQLAHacks*'                       => { skip => 1 },
     'DBIx::Class::Storage::DBI*'                    => { skip => 1 },
     'SQL::Translator::*'                            => { skip => 1 },
 
