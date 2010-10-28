@@ -1,12 +1,6 @@
 Revision history for DBIx::Class
 
-0.08123_03 2010-10-27 23:23 (UTC)
-    * Fixes
-        - Add various missing things to Optional::Dependencies
-        - Skip a test that breaks due to serious bugs in current DBD::SQLite
-
-
-0.08123_02 2010-10-26 14:59 (UTC)
+0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes
         - Add new -ident "function" indicating rhs is a column name
           { col => { -ident => 'othercol' } } vs { col => \'othercol' }
@@ -86,6 +80,9 @@ Revision history for DBIx::Class
         - Fix invalid sql on relationship attr order_by with prefetch
         - Fix primary key sequence detection for Oracle
           (first trigger instead of trigger for column)
+        - Add various missing things to Optional::Dependencies
+        - Skip a test that breaks due to serious bugs in current DBD::SQLite
+        - Fix tests related to leaks and leaky perls (5.13.5, 5.13.6)
 
     * Misc
         - Entire test suite now passes under DBIC_TRACE=1
