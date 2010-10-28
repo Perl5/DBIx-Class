@@ -156,7 +156,11 @@ memory_cycle_ok($weak_registry, 'No cycles in the weakened object collection')
 # Naturally we have some exceptions
 my $cleared;
 for my $slot (keys %$weak_registry) {
-  if ($slot =~ /^\QSQL::Translator/) {
+  if ($slot =~ /^\QTest::Builder/) {
+    # T::B 2.0 has result objects and other fancyness
+    delete $weak_registry->{$slot};
+  }
+  elsif ($slot =~ /^\QSQL::Translator/) {
     # SQLT is a piece of shit, leaks all over
     delete $weak_registry->{$slot};
   }
