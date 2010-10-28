@@ -99,6 +99,24 @@ EOE
   }
 }
 
+sub peepeeness {
+  return ! $ENV{DBICTEST_ALL_LEAKS} if defined $ENV{DBICTEST_ALL_LEAKS};
+
+  # don't smoke perls with known issues:
+  if (__PACKAGE__->is_smoker) {
+    if ($] == '5.013006') {
+      # leaky 5.13.6 (fixed in blead/cefd5c7c)
+      return 1;
+    }
+    elsif ($] == '5.013005') {
+      # not sure why this one leaks, but disable anyway - ANDK seems to make it weep
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 # Mimic $Module::Install::AUTHOR
 sub is_author {
 
