@@ -51,8 +51,6 @@ sub _attr_cache {
 
 1;
 
-Git-season is OPEN! Ask about 'dbic commit?', and get busy :) | DBIC: 0.08124, Schema::Loader: 0.07002 | NO PASTING, use http://paste.scsys.co.uk | Query syntax is perldoc SQL::Abstract | "many_to_many" is not a relationship | DBIC_TRACE=1 | chainsaw delegates - DBIC: ribasushi, Schema::Loader: ribasushi | < dnm> MySQL is a piece of horsesnot.
-
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
