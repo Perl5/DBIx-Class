@@ -1731,8 +1731,41 @@ See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
 placeholders and bind values (subqueries)> for more explanation. Note that
 L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
 the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
-arrayrefs together with the column name, like this: C<< [column_name => value]
->>.
+arrayrefs together with the column name, like this:
+C<< [column_name => value] >>.
+
+=head2 Formatting DateTime objects in queries
+
+To ensure C<WHERE> conditions containing L<DateTime> arguments are properly
+formatted to be understood by your RDBMS, you must use the C<DateTime>
+formatter returned by L<DBIx::Class::Storage::DBI/datetime_parser> to format
+any L<DateTime> objects you pass to L<search|DBIx::Class::ResultSet/search>
+conditions. Any L<Storage|DBIx::Class::Storage> object attached to your
+L<Schema|DBIx::Class::Schema> provides a correct C<DateTime> formatter, so
+all you have to do is:
+
+  my $dtf = $schema->storage->datetime_parser;
+  my $rs = $schema->resultset('users')->search(
+    {
+      signup_date => {
+        -between => [
+          $dtf->format_datetime($dt_start),
+          $dtf->format_datetime($dt_end),
+        ],
+      }
+    },
+  );
+
+Without doing this the query will contain the simple stringification of the
+C<DateTime> object, which almost never matches the RDBMS expectations.
+
+This kludge is necessary only for conditions passed to
+L<DBIx::Class::ResultSet/search>, whereas
+L<create|DBIx::Class::ResultSet/create>,
+L<find|DBIx::Class::ResultSet/find>,
+L<DBIx::Class::Row/update> (but not L<DBIx::Class::ResultSet/update>) are all
+L<DBIx::Class::InflateColumn>-aware and will do the right thing when supplied
+an inflated C<DateTime> object.
 
 =head2 Using Unicode
 

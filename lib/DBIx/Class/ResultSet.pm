@@ -245,6 +245,16 @@ documentation for the first argument, see L<SQL::Abstract>.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
+=head3 CAVEAT
+
+Note that L</search> does not process/deflate any of the values passed in the
+L<SQL::Abstract>-compatible search condition structure. This is unlike other
+condition-bound methods L</new>, L</create> and L</find>. The user must ensure
+manually that any value passed to this method will stringify to something the
+RDBMS knows how to deal with. A notable example is the handling of L<DateTime>
+objects, for more info see:
+L<DBIx::Class::Manual::Cookbook/Formatting_DateTime_objects_in_queries>.
+
 =cut
 
 sub search {
@@ -1510,6 +1520,15 @@ L<result component|DBIx::Class::Manual::Component/WHAT_IS_A_COMPONENT>.
 The return value is a pass through of what the underlying
 storage backend returned, and may vary. See L<DBI/execute> for the most
 common case.
+
+=head3 CAVEAT
+
+Note that L</update> does not process/deflate any of the values passed in.
+This is unlike the corresponding L<DBIx::Class::Row/update>. The user must
+ensure manually that any value passed to this method will stringify to
+something the RDBMS knows how to deal with. A notable example is the
+handling of L<DateTime> objects, for more info see:
+L<DBIx::Class::Manual::Cookbook/Formatting_DateTime_objects_in_queries>.
 
 =cut
 

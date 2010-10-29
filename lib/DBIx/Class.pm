@@ -295,6 +295,8 @@ hobbs: Andrew Rodland <arodland@cpan.org>
 
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
+initself: Mike Baas <mike@initselftech.com>
+
 jasonmay: Jason May <jason.a.may@gmail.com>
 
 jesper: Jesper Krogh
