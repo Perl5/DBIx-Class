@@ -840,18 +840,6 @@ sub do_creates {
     END;
   });
   $dbh->do(qq{
-    CREATE OR REPLACE TRIGGER cd_insert_trg
-    BEFORE INSERT ON cd
-    FOR EACH ROW
-    BEGIN
-      IF :new.cdid IS NULL THEN
-        SELECT cd_seq.nextval
-        INTO :new.cdid
-        FROM DUAL;
-      END IF;
-    END;
-  });
-  $dbh->do(qq{
     CREATE OR REPLACE TRIGGER track_insert_trg
     BEFORE INSERT ON track
     FOR EACH ROW
