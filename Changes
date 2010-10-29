@@ -7,6 +7,8 @@ Revision history for DBIx::Class
     * Fixes
         - Fixed read-only attribute set attempt in ::Storage::Replicated
           (RT#62642)
+        - Fix incomplete logic while detecting correct Oracle sequence
+          on insert
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes

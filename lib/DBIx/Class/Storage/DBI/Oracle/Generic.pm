@@ -136,29 +136,89 @@ sub _dbh_get_autoinc_seq {
   my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/;
   my ($sql, @bind) = $sql_maker->select (
     'ALL_TRIGGERS',
-    ['trigger_body', 'table_owner'],
+    [qw/ trigger_body table_owner trigger_name /],
     {
       $schema ? (owner => $schema) : (),
       table_name => $table || $source_name,
-      triggering_event => { -like => '%INSERT%' },
+      triggering_event => { -like => '%INSERT%' },  # this will also catch insert_or_update
+      trigger_type => { -like => '%BEFORE%' },      # we care only about 'before' triggers
       status => 'ENABLED',
      },
   );
-  my $sth = $dbh->prepare($sql);
-  $sth->execute (@bind);
 
-  while (my ($insert_trigger, $schema) = $sth->fetchrow_array) {
-    my ($seq_name) = $insert_trigger =~ m/("?[.\w"]+"?)\.nextval .+ into \s+ :new\.$col/xmsi;
+  # to find all the triggers that mention the column in question a simple
+  # regex grep since the trigger_body above is a LONG and hence not searchable
+  my @triggers = ( map
+    { my %inf; @inf{qw/body schema name/} = @$_; \%inf }
+    ( grep
+      { $_->[0] =~ /\:new\.$col/i }
+      @{ $dbh->selectall_arrayref( $sql, {}, @bind ) }
+    )
+  );
 
-    next unless $seq_name;
+  # extract all sequence names mentioned in each trigger
+  for (@triggers) {
+    $_->{sequences} = [ $_->{body} =~ / ( "? [\.\w\"\-]+ "? ) \. nextval /xig ];
+  }
 
-    if ($seq_name !~ /\./) {
-      $seq_name = join '.' => $schema, $seq_name;
+  my $chosen_trigger;
+
+  # if only one trigger matched things are easy
+  if (@triggers == 1) {
+
+    if ( @{$triggers[0]{sequences}} == 1 ) {
+      $chosen_trigger = $triggers[0];
     }
+    else {
+      $self->throw_exception( sprintf (
+        "Unable to introspect trigger '%s' for column %s.%s (references multiple sequences). "
+      . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
+        $triggers[0]{name},
+        $source_name,
+        $col,
+        $col,
+      ) );
+    }
+  }
+  # got more than one matching trigger - see if we can narrow it down
+  elsif (@triggers > 1) {
+
+    my @candidates = grep
+      { $_->{body} =~ / into \s+ \:new\.$col /xi }
+      @triggers
+    ;
+
+    if (@candidates == 1 && @{$candidates[0]{sequences}} == 1) {
+      $chosen_trigger = $candidates[0];
+    }
+    else {
+      $self->throw_exception( sprintf (
+        "Unable to reliably select a BEFORE INSERT trigger for column %s.%s (possibilities: %s). "
+      . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
+        $source_name,
+        $col,
+        ( join ', ', map { "'$_->{name}'" } @triggers ),
+        $col,
+      ) );
+    }
+  }
+
+  if ($chosen_trigger) {
+    my $seq_name = $chosen_trigger->{sequences}[0];
+
+    $seq_name = "$chosen_trigger->{schema}.$seq_name"
+      unless $seq_name =~ /\./;
 
     return $seq_name;
   }
-  $self->throw_exception("Unable to find a sequence %INSERT% trigger on table '$source_name'.");
+
+  $self->throw_exception( sprintf (
+    "No suitable BEFORE INSERT triggers found for column %s.%s. "
+  . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
+    $source_name,
+    $col,
+    $col,
+  ));
 }
 
 sub _sequence_fetch {
