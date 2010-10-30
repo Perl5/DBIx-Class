@@ -21,6 +21,9 @@ Revision history for DBIx::Class
         - Switch all serialization to use Storable::nfreeze for portable
           architecture independent ice
 
+    * Fixes
+        - Proper serialization of resultsets with open cursors
+
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes
         - Add new -ident "function" indicating rhs is a column name

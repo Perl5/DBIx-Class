@@ -70,6 +70,12 @@ my $exceptions = {
             resolve_prefetch
         /],
     },
+    'DBIx::Class::ResultSet' => {
+        ignore => [qw/
+            STORABLE_freeze
+            STORABLE_thaw
+        /],
+    },
     'DBIx::Class::ResultSourceHandle' => {
         ignore => [qw/
             schema

@@ -12,6 +12,7 @@ use DBIx::Class::ResultSourceHandle;
 use List::Util ();
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
+use Storable qw/nfreeze thaw/;
 use namespace::clean;
 
 use overload
@@ -3309,6 +3310,7 @@ sub _merge_attr {
   return $orig;
 }
 
+
 sub result_source {
     my $self = shift;
 
@@ -3318,6 +3320,27 @@ sub result_source {
         $self->_source_handle->resolve;
     }
 }
+
+
+sub STORABLE_freeze {
+  my ($self, $cloning) = @_;
+  my $to_serialize = { %$self };
+
+  # A cursor in progress can't be serialized (and would make little sense anyway)
+  delete $to_serialize->{cursor};
+
+  return nfreeze($to_serialize);
+}
+
+# need this hook for symmetry
+sub STORABLE_thaw {
+  my ($self, $cloning, $serialized) = @_;
+
+  %$self = %{ thaw($serialized) };
+
+  return $self;
+}
+
 
 =head2 throw_exception
 

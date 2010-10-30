@@ -8,6 +8,7 @@ use DBICTest;
 use Storable qw(dclone freeze nfreeze thaw);
 
 my $schema = DBICTest->init_schema();
+my $orig_debug = $schema->storage->debug;
 
 my %stores = (
     dclone_method           => sub { return $schema->dclone($_[0]) },
@@ -24,7 +25,7 @@ my %stores = (
     },
 );
 
-plan tests => (11 * keys %stores);
+plan tests => (17 * keys %stores);
 
 for my $name (keys %stores) {
     my $store = $stores{$name};
@@ -49,9 +50,9 @@ for my $name (keys %stores) {
 
     my $cd_rs = $artist->search_related("cds");
 
-    # test that a result source can be serialized as well
-
-    $cd_rs->_resolved_attrs;  # this builds up the {from} attr
+    # test that a live result source can be serialized as well
+    is( $cd_rs->count, 3, '3 CDs in database');
+    ok( $cd_rs->next, 'Advance cursor' );
 
     lives_ok {
       $copy = $store->($cd_rs);
@@ -73,6 +74,35 @@ for my $name (keys %stores) {
                   qq[serialize with related_resultset "$key"]);
     }
 
-    ok eval { $copy->discard_changes; 1 } or diag $@;
+    lives_ok(
+      sub { $copy->discard_changes }, "Discard changes works: $name"
+    ) or diag $@;
     is($copy->id, $artist->id, "IDs still match ");
+
+
+    # Test resultsource with cached rows
+    my $query_count;
+    $cd_rs = $cd_rs->search ({}, { cache => 1 });
+
+    $schema->storage->debug(1);
+    $schema->storage->debugcb(sub { $query_count++ } );
+
+    # this will hit the database once and prime the cache
+    my @cds = $cd_rs->all;
+
+    lives_ok {
+      $copy = $store->($cd_rs);
+      is_deeply (
+        [ $copy->all ],
+        [ $cd_rs->all ],
+        "serialize cached resultset works: $name",
+      );
+
+      is ($copy->count, $cd_rs->count, 'Cached count identical');
+    } "serialize cached resultset lives: $name";
+
+    is ($query_count, 1, 'Only one db query fired');
+
+    $schema->storage->debug($orig_debug);
+    $schema->storage->debugcb(undef);
 }
