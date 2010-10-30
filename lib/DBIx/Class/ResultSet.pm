@@ -1862,7 +1862,8 @@ my $mk_lazy_count_wizard = sub {
 
 # the tie class for 5.8.1
 {
-  package DBIx::Class::__DBIC_LAZY_RS_COUNT__;
+  package # hide from pause
+    DBIx::Class::__DBIC_LAZY_RS_COUNT__;
   use base qw/Tie::Hash/;
 
   sub FIRSTKEY { my $dummy = scalar keys %{$_[0]{data}}; each %{$_[0]{data}} }
