@@ -1201,13 +1201,13 @@ sub thaw {
 
 =head2 freeze
 
-This doesn't actually do anything more than call L<Storable/freeze>, it is just
+This doesn't actually do anything more than call L<Storable/nfreeze>, it is just
 provided here for symmetry.
 
 =cut
 
 sub freeze {
-  return Storable::freeze($_[1]);
+  return Storable::nfreeze($_[1]);
 }
 
 =head2 dclone

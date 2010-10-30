@@ -81,7 +81,7 @@ sub STORABLE_freeze {
     delete $to_serialize->{schema};
     $to_serialize->{_frozen_from_class} = $self->schema->class($self->source_moniker);
 
-    return (Storable::freeze($to_serialize));
+    return (Storable::nfreeze($to_serialize));
 }
 
 =head2 STORABLE_thaw

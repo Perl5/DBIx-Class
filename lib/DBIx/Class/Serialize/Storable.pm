@@ -14,7 +14,7 @@ sub STORABLE_freeze {
     # Dynamic values, easy to recalculate
     delete $to_serialize->{$_} for qw/related_resultsets _inflated_column/;
 
-    return (Storable::freeze($to_serialize));
+    return (Storable::nfreeze($to_serialize));
 }
 
 sub STORABLE_thaw {
@@ -33,7 +33,7 @@ __END__
 
 =head1 NAME
 
-    DBIx::Class::Serialize::Storable - hooks for Storable freeze/thaw
+    DBIx::Class::Serialize::Storable - hooks for Storable nfreeze/thaw
 
 =head1 SYNOPSIS
 

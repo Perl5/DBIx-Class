@@ -1,11 +1,11 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use Storable qw(dclone freeze thaw);
+use Storable qw(dclone freeze nfreeze thaw);
 
 my $schema = DBICTest->init_schema();
 
@@ -19,6 +19,9 @@ my %stores = (
     "freeze/thaw_func"      => sub {
         thaw(freeze($_[0]));
     },
+    "nfreeze/thaw_func"      => sub {
+        thaw(nfreeze($_[0]));
+    },
 );
 
 plan tests => (11 * keys %stores);
@@ -28,7 +31,7 @@ for my $name (keys %stores) {
     my $copy;
 
     my $artist = $schema->resultset('Artist')->find(1);
-    
+
     # Test that the procedural versions will work if there's a registered
     # schema as with CDBICompat objects and that the methods work
     # without.

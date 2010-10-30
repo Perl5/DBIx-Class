@@ -18,6 +18,8 @@ Revision history for DBIx::Class
           regression of inserts into a Postgres / ::Replicated combination
         - Missing dependency check in t/60core.t (RT#62635)
         - Fix regressions in IC::DT registration logic
+        - Switch all serialization to use Storable::nfreeze for portable
+          architecture independent ice
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes

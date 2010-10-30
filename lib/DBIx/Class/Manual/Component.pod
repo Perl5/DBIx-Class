@@ -82,7 +82,7 @@ Check out the L<Class::C3> docs for more information about inheritance.
 These components provide extra functionality beyond
 basic functionality that you can't live without.
 
-L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
+L<DBIx::Class::Serialize::Storable> - Hooks for Storable nfreeze/thaw.
 
 L<DBIx::Class::CDBICompat> - Class::DBI Compatibility layer.
 
