@@ -14,7 +14,16 @@ DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
  my $rs = $schema->resultset('CD');
  $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
  while (my $hashref = $rs->next) {
-    ...
+   ...
+ }
+
+  OR as an attribute:
+
+ my $rs = $schema->resultset('CD')->search({}, {
+   result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+ });
+ while (my $hashref = $rs->next) {
+   ...
  }
 
 =head1 DESCRIPTION

@@ -234,6 +234,8 @@ aherzog: Adam Herzog <adam@herzogdesigns.com>
 
 Alexander Keusch <cpan@keusch.at>
 
+alnewkirk: Al Newkirk <we@ana.im>
+
 amiri: Amiri Barksdale <amiri@metalabel.com>
 
 amoore: Andrew Moore <amoore@cpan.org>
