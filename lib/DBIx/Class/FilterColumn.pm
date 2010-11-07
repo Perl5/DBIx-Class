@@ -7,9 +7,11 @@ use base qw/DBIx::Class::Row/;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
+  my $colinfo = $self->column_info($col);
+
   $self->throw_exception('FilterColumn does not work with InflateColumn')
     if $self->isa('DBIx::Class::InflateColumn') &&
-      defined $self->column_info($col)->{_inflate_info};
+      defined $colinfo->{_inflate_info};
 
   $self->throw_exception("No such column $col to filter")
     unless $self->has_column($col);
@@ -20,8 +22,8 @@ sub filter_column {
   $self->throw_exception('An invocation of filter_column() must specify either a filter_from_storage or filter_to_storage')
     unless $attrs->{filter_from_storage} || $attrs->{filter_to_storage};
 
-  $self->column_info($col)->{_filter_info} = $attrs;
-  my $acc = $self->column_info($col)->{accessor};
+  $colinfo->{_filter_info} = $attrs;
+  my $acc = $colinfo->{accessor};
   $self->mk_group_accessors(filtered_column => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }

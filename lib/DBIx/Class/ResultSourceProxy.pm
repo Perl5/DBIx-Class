@@ -62,6 +62,7 @@ for my $method_to_proxy (qw/
   remove_columns
 
   column_info
+  columns_info
   column_info_from_storage
 
   set_primary_key

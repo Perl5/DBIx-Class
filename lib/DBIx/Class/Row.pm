@@ -798,15 +798,14 @@ See L<DBIx::Class::InflateColumn> for how to setup inflation.
 sub get_inflated_columns {
   my $self = shift;
 
-  my %loaded_colinfo = (map
-    { $_ => $self->column_info($_) }
-    (grep { $self->has_column_loaded($_) } $self->columns)
-  );
+  my $loaded_colinfo = $self->columns_info ([
+    grep { $self->has_column_loaded($_) } $self->columns
+  ]);
 
   my %inflated;
-  for my $col (keys %loaded_colinfo) {
-    if (exists $loaded_colinfo{$col}{accessor}) {
-      my $acc = $loaded_colinfo{$col}{accessor};
+  for my $col (keys %$loaded_colinfo) {
+    if (exists $loaded_colinfo->{$col}{accessor}) {
+      my $acc = $loaded_colinfo->{$col}{accessor};
       $inflated{$col} = $self->$acc if defined $acc;
     }
     else {
@@ -1025,9 +1024,11 @@ sub copy {
   my ($self, $changes) = @_;
   $changes ||= {};
   my $col_data = { %{$self->{_column_data}} };
+
+  my $colinfo = $self->columns_info([ keys %$col_data ]);
   foreach my $col (keys %$col_data) {
     delete $col_data->{$col}
-      if $self->result_source->column_info($col)->{is_auto_increment};
+      if $colinfo->{$col}{is_auto_increment};
   }
 
   my $new = { _column_data => $col_data };

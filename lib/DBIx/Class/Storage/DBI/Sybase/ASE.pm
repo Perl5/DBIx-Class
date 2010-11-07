@@ -262,7 +262,7 @@ sub _prep_for_execute {
   ;
   my $identity_col =
     blessed $ident &&
-    first { $ident->column_info($_)->{is_auto_increment} } $ident->columns
+    first { $_->{is_auto_increment} } values %{ $ident->columns_info }
   ;
 
   if (($op eq 'insert' && $bound_identity_col) ||
@@ -351,7 +351,7 @@ sub insert {
   my ($source, $to_insert) = @_;
 
   my $identity_col =
-    (first { $source->column_info($_)->{is_auto_increment} } $source->columns)
+    (first { $_->{is_auto_increment} } values %{ $source->columns_info } )
     || '';
 
   # check for empty insert
@@ -436,7 +436,7 @@ sub update {
   my $table = $source->name;
 
   my $identity_col =
-    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
+    first { $_->{is_auto_increment} } values %{ $source->columns_info };
 
   my $is_identity_update = $identity_col && defined $fields->{$identity_col};
 
@@ -486,7 +486,7 @@ sub insert_bulk {
   my ($source, $cols, $data) = @_;
 
   my $identity_col =
-    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
+    first { $_->{is_auto_increment} } values %{ $source->columns_info };
 
   my $is_identity_insert = (first { $_ eq $identity_col } @{$cols}) ? 1 : 0;
 

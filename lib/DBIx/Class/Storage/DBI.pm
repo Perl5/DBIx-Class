@@ -2103,11 +2103,13 @@ sub source_bind_attributes {
   my ($self, $source) = @_;
 
   my $bind_attributes;
-  foreach my $column ($source->columns) {
 
-    my $data_type = $source->column_info($column)->{data_type} || '';
-    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-     if $data_type;
+  my $colinfo = $source->columns_info;
+
+  for my $col (keys %$colinfo) {
+    if (my $dt = $colinfo->{$col}{data_type} ) {
+      $bind_attributes->{$col} = $self->bind_attribute_by_data_type($dt)
+    }
   }
 
   return $bind_attributes;

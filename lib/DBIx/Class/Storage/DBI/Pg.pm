@@ -46,8 +46,10 @@ sub last_insert_id {
 
   my @values;
 
+  my $col_info = $source->columns_info(\@cols);
+
   for my $col (@cols) {
-    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
+    my $seq = ( $col_info->{$col}{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
       or $self->throw_exception( sprintf(
         'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
           $source->name,

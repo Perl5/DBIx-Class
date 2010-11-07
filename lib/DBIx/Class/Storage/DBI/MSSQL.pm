@@ -50,7 +50,10 @@ sub insert_bulk {
   my ($source, $cols, $data) = @_;
 
   my $is_identity_insert =
-    (first { $source->column_info ($_)->{is_auto_increment} } @{$cols}) ? 1 : 0;
+    (first { $_->{is_auto_increment} } values %{ $source->columns_info($cols) } )
+      ? 1
+      : 0
+  ;
 
   if ($is_identity_insert) {
      $self->_set_identity_insert ($source->name);
@@ -93,11 +96,15 @@ sub _prep_for_execute {
   if ($op eq 'insert' || $op eq 'update') {
     my $fields = $args->[0];
 
+    my $colinfo = $ident->columns_info([keys %$fields]);
+
     for my $col (keys %$fields) {
       # $ident is a result source object with INSERT/UPDATE ops
-      if ($ident->column_info ($col)->{data_type}
-         &&
-         $ident->column_info ($col)->{data_type} =~ /^money\z/i) {
+      if (
+        $colinfo->{$col}{data_type}
+          &&
+        $colinfo->{$col}{data_type} =~ /^money\z/i
+      ) {
         my $val = $fields->{$col};
         $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
       }

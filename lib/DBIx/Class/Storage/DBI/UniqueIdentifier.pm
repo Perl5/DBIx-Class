@@ -34,7 +34,7 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert] );
+  my $col_info = $source->columns_info;
 
   my %guid_cols;
   my @pk_cols = $source->primary_columns;
@@ -42,17 +42,17 @@ sub insert {
   @pk_cols{@pk_cols} = ();
 
   my @pk_guids = grep {
-    $source->column_info($_)->{data_type}
+    $col_info->{$_}{data_type}
     &&
-    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
+    $col_info->{$_}{data_type} =~ /^uniqueidentifier/i
   } @pk_cols;
 
   my @auto_guids = grep {
-    $source->column_info($_)->{data_type}
+    $col_info->{$_}{data_type}
     &&
-    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
+    $col_info->{$_}{data_type} =~ /^uniqueidentifier/i
     &&
-    $source->column_info($_)->{auto_nextval}
+    $col_info->{$_}{auto_nextval}
   } grep { not exists $pk_cols{$_} } $source->columns;
 
   my @get_guids_for =

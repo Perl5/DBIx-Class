@@ -41,15 +41,21 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
+  my $colinfo = $source->columns_info;
+
   my $identity_col =
-    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
+    first { $_->{is_auto_increment} } values %$colinfo;
 
 # user might have an identity PK without is_auto_increment
   if (not $identity_col) {
     foreach my $pk_col ($source->primary_columns) {
-      if (not exists $to_insert->{$pk_col} &&
-          $source->column_info($pk_col)->{data_type} !~ /^uniqueidentifier/i)
-      {
+      if (
+        ! exists $to_insert->{$pk_col}
+          and
+        $colinfo->{$pk_col}{data_type}
+          and
+        $colinfo->{$pk_col}{data_type} !~ /^uniqueidentifier/i
+      ) {
         $identity_col = $pk_col;
         last;
       }

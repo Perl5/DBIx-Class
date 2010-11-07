@@ -361,22 +361,22 @@ sub column_info {
   my ($self, $column) = @_;
   $self->throw_exception("No such column $column")
     unless exists $self->_columns->{$column};
-  #warn $self->{_columns_info_loaded}, "\n";
+
   if ( ! $self->_columns->{$column}{data_type}
-       and $self->column_info_from_storage
        and ! $self->{_columns_info_loaded}
-       and $self->schema and $self->storage )
+       and $self->column_info_from_storage
+       and $self->schema and my $stor = $self->storage )
   {
     $self->{_columns_info_loaded}++;
-    my $info = {};
-    my $lc_info = {};
 
     # try for the case of storage without table
     try {
-      $info = $self->storage->columns_info_for( $self->from );
-      for my $realcol ( keys %{$info} ) {
-        $lc_info->{lc $realcol} = $info->{$realcol};
-      }
+      my $info = $stor->columns_info_for( $self->from );
+      my $lc_info = { map
+        { (lc $_) => $info->{$_} }
+        ( keys %$info )
+      };
+
       foreach my $col ( keys %{$self->_columns} ) {
         $self->_columns->{$col} = {
           %{ $self->_columns->{$col} },
@@ -385,6 +385,7 @@ sub column_info {
       }
     };
   }
+
   return $self->_columns->{$column};
 }
 
@@ -410,6 +411,82 @@ sub columns {
     "columns() is a read-only accessor, did you mean add_columns()?"
   ) if @_;
   return @{$self->{_ordered_columns}||[]};
+}
+
+=head2 columns_info
+
+=over
+
+=item Arguments: \@colnames ?
+
+=item Return value: Hashref of column name/info pairs
+
+=back
+
+  my $columns_info = $source->columns_info;
+
+Like L</column_info> but returns information for the requested columns. If
+the optional column-list arrayref is ommitted it returns info on all columns
+currently defined on the ResultSource via L</add_columns>.
+
+=cut
+
+sub columns_info {
+  my ($self, $columns) = @_;
+
+  my $colinfo = $self->_columns;
+
+  if (
+    first { ! $_->{data_type} } values %$colinfo
+      and
+    ! $self->{_columns_info_loaded}
+      and
+    $self->column_info_from_storage
+      and
+    $self->schema
+      and
+    my $stor = $self->storage
+  ) {
+    $self->{_columns_info_loaded}++;
+
+    # try for the case of storage without table
+    try {
+      my $info = $stor->columns_info_for( $self->from );
+      my $lc_info = { map
+        { (lc $_) => $info->{$_} }
+        ( keys %$info )
+      };
+
+      foreach my $col ( keys %$colinfo ) {
+        $colinfo->{$col} = {
+          %{ $colinfo->{$col} },
+          %{ $info->{$col} || $lc_info->{lc $col} || {} }
+        };
+      }
+    };
+  }
+
+  my %ret;
+
+  if ($columns) {
+    for (@$columns) {
+      if (my $inf = $colinfo->{$_}) {
+        $ret{$_} = $inf;
+      }
+      else {
+        $self->throw_exception( sprintf (
+          "No such column '%s' on source %s",
+          $_,
+          $self->source_name,
+        ));
+      }
+    }
+  }
+  else {
+    %ret = %$colinfo;
+  }
+
+  return \%ret;
 }
 
 =head2 remove_columns
@@ -554,10 +631,14 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 =cut
 
 sub sequence {
-    my ($self,$seq) = @_;
-    foreach my $pri ($self->primary_columns) {
-        $self->column_info($pri)->{sequence} = $seq;
-    }
+  my ($self,$seq) = @_;
+
+  my $rsrc = $self->result_source;
+  my @pks = $rsrc->primary_columns
+    or next;
+
+  $_->{sequence} = $seq
+    for values %{ $rsrc->columns_info (\@pks) };
 }
 
 

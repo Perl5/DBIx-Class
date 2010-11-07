@@ -411,7 +411,7 @@ sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
 
-  my (%return, %seen_cols, @auto_colnames);
+  my (%seen_cols, @auto_colnames);
 
   # compile a global list of column names, to be able to properly
   # disambiguate unqualified column names (if at all possible)
@@ -428,25 +428,23 @@ sub _resolve_column_info {
     grep { @{$seen_cols{$_}} == 1 } (keys %seen_cols),
   ];
 
-  COLUMN:
+  my (%return, $colinfos);
   foreach my $col (@$colnames) {
-    my ($alias, $colname) = $col =~ m/^ (?: ([^\.]+) \. )? (.+) $/x;
+    my ($source_alias, $colname) = $col =~ m/^ (?: ([^\.]+) \. )? (.+) $/x;
 
-    unless ($alias) {
-      # see if the column was seen exactly once (so we know which rsrc it came from)
-      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
-        $alias = $seen_cols{$colname}[0];
-      }
-      else {
-        next COLUMN;
-      }
-    }
+    # if the column was seen exactly once - we know which rsrc it came from
+    $source_alias ||= $seen_cols{$colname}[0]
+      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1);
 
-    my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && {
-      %{$rsrc->column_info($colname)},
+    next unless $source_alias;
+
+    my $rsrc = $alias2src->{$source_alias}
+      or next;
+
+    $return{$col} = {
+      %{ ( $colinfos->{$source_alias} ||= $rsrc->columns_info )->{$colname} },
       -result_source => $rsrc,
-      -source_alias => $alias,
+      -source_alias => $source_alias,
     };
   }
 

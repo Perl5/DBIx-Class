@@ -347,7 +347,67 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   my $typeinfo = $schema->source("Artist")->column_info('artistid');
   is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
   $schema->source("Artist")->column_info('artistid');
-  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info loaded flag set');
+}
+
+# test columns_info
+{
+  $schema->source("Artist")->{_columns}{'artistid'} = {};
+  $schema->source("Artist")->column_info_from_storage(1);
+  $schema->source("Artist")->{_columns_info_loaded} = 0;
+
+  is_deeply (
+    $schema->source('Artist')->columns_info,
+    {
+      artistid => {
+        data_type => "INTEGER",
+        default_value => undef,
+        is_nullable => 0,
+        size => undef
+      },
+      charfield => {
+        data_type => "char",
+        default_value => undef,
+        is_nullable => 1,
+        size => 10
+      },
+      name => {
+        data_type => "varchar",
+        default_value => undef,
+        is_nullable => 1,
+        is_numeric => 0,
+        size => 100
+      },
+      rank => {
+        data_type => "integer",
+        default_value => 13,
+        is_nullable => 0,
+        size => undef
+      },
+    },
+    'columns_info works',
+  );
+
+  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info loaded flag set');
+
+  is_deeply (
+    $schema->source('Artist')->columns_info([qw/artistid rank/]),
+    {
+      artistid => {
+        data_type => "INTEGER",
+        default_value => undef,
+        is_nullable => 0,
+        size => undef
+      },
+      rank => {
+        data_type => "integer",
+        default_value => 13,
+        is_nullable => 0,
+        size => undef
+      },
+    },
+    'limited columns_info works',
+  );
 }
 
 # test source_info
