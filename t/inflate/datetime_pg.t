@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -15,7 +16,7 @@ plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missin
 
 my $schema = DBICTest->init_schema();
 
-{
+warnings_are {
   my $event = $schema->resultset("EventTZPg")->find(1);
   $event->update({created_on => '2009-01-15 17:00:00+00'});
   $event->discard_changes;
@@ -33,6 +34,6 @@ my $schema = DBICTest->init_schema();
   is($event->ts_without_tz, $dt, 'timestamp without time zone inflation');
   is($event->ts_without_tz->microsecond, $dt->microsecond,
     'timestamp without time zone microseconds survived');
-}
+} [], 'No warnings during DT manipulations';
 
 done_testing;

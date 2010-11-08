@@ -22,4 +22,9 @@ sub _datetime_parser {
   DateTime::Format::Pg->new();
 }
 
+# this is for a reentrancy test, the duplication from above is intentional
+__PACKAGE__->add_columns(
+  ts_without_tz => { data_type => 'timestamp without time zone', inflate_datetime => 1 },
+);
+
 1;

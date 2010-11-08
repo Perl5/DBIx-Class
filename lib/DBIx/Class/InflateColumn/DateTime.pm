@@ -109,38 +109,44 @@ the C<datetime_undef_if_invalid> option in the column info:
 
 sub register_column {
   my ($self, $column, $info, @rest) = @_;
+
   $self->next::method($column, $info, @rest);
+
   return unless defined($info->{data_type});
 
-  my $type;
-
+  my $requested_type;
   for (qw/date datetime timestamp/) {
     my $key = "inflate_${_}";
 
     next unless exists $info->{$key};
-    return unless $info->{$key};
 
-    $type = $_;
+    return if ! $info->{$key};
+
+    $requested_type = $_;
     last;
   }
 
-  unless ($type) {
-    $type = lc($info->{data_type});
-    if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
-      $type = "timestamp";
-      $info->{_ic_dt_method} ||= "timestamp_with_timezone";
-    } elsif ($type eq "timestamp without time zone") {
-      $type = "timestamp";
-      $info->{_ic_dt_method} ||= "timestamp_without_timezone";
-    } elsif ($type eq "smalldatetime") {
-      $type = "datetime";
-      $info->{_ic_dt_method} ||= "smalldatetime";
-    } else {
-      $info->{_ic_dt_method} ||= $type;
-    }
+  my $data_type = lc($info->{data_type} || '');
+
+  # _ic_dt_method will follow whatever the registration requests
+  # thus = instead of ||=
+  if ($data_type eq 'timestamp with time zone' || $data_type eq 'timestamptz') {
+    $info->{_ic_dt_method} = 'timestamp_with_timezone';
+  }
+  elsif ($data_type eq 'timestamp without time zone') {
+    $info->{_ic_dt_method} = 'timestamp_without_timezone';
+  }
+  elsif ($data_type eq 'smalldatetime') {
+    $info->{_ic_dt_method} = 'smalldatetime';
+  }
+  elsif ($data_type =~ /^ (?: date | datetime | timestamp ) $/x) {
+    $info->{_ic_dt_method} = $data_type;
+  }
+  else {
+    $info->{_ic_dt_method} = $requested_type;
   }
 
-  return unless ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp');
+  return unless $info->{_ic_dt_method};
 
   if ($info->{extra}) {
     for my $slot (qw/timezone locale floating_tz_ok/) {
