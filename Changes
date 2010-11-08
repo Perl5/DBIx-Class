@@ -16,6 +16,7 @@ Revision history for DBIx::Class
           on insert
         - Refactor handling of RDBMS-side values during insert() - fix
           regression of inserts into a Postgres / ::Replicated combination
+        - Missing dependency check in t/60core.t (RT#62635)
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes

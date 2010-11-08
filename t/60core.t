@@ -10,9 +10,6 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-eval { require DateTime::Format::SQLite };
-my $NO_DTFM = $@ ? 1 : 0;
-
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
 is(@art, 3, "Three artists returned");
@@ -208,10 +205,21 @@ $new->title('Insert or Update - updated');
 $new->update_or_insert;
 is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
 
-# get_inflated_columns w/relation and accessor alias
 SKIP: {
-    skip "This test requires DateTime::Format::SQLite", 8 if $NO_DTFM;
+    skip "Tests require " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite'), 13
+      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
+    # test get_inflated_columns with objects
+    my $event = $schema->resultset('Event')->search->first;
+    my %edata = $event->get_inflated_columns;
+    is($edata{'id'}, $event->id, 'got id');
+    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
+    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
+    is($edata{'starts_at'}, $event->starts_at, 'got start date');
+    is($edata{'created_on'}, $event->created_on, 'got created date');
+
+
+    # get_inflated_columns w/relation and accessor alias
     isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
     my %tdata = $new->get_inflated_columns;
     is($tdata{'trackid'}, 100, 'got id');
@@ -453,18 +461,6 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   my $priv_columns = $schema->source('CD')->_columns;
   ok(! exists $priv_columns->{'year'}, 'year purged from _columns');
   ok(! exists $priv_columns->{'genreid'}, 'genreid purged from _columns');
-}
-
-# test get_inflated_columns with objects
-SKIP: {
-    skip "This test requires DateTime::Format::SQLite", 5 if $NO_DTFM;
-    my $event = $schema->resultset('Event')->search->first;
-    my %edata = $event->get_inflated_columns;
-    is($edata{'id'}, $event->id, 'got id');
-    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
-    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
-    is($edata{'starts_at'}, $event->starts_at, 'got start date');
-    is($edata{'created_on'}, $event->created_on, 'got created date');
 }
 
 # test resultsource->table return value when setting
