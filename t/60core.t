@@ -122,6 +122,11 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
   $artist->delete;
 }
 
+# deprecation of rolled-out search
+warnings_exist {
+  $schema->resultset('Artist')->search_rs(id => 4)
+} qr/\Qsearch( %condition ) is deprecated/, 'Deprecation warning on ->search( %condition )';
+
 # this has been warning for 4 years, killing
 throws_ok {
   $schema->resultset('Artist')->find(artistid => 4);

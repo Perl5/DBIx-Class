@@ -286,7 +286,9 @@ sub search_rs {
   }
 
   my $call_attrs = {};
-  $call_attrs = pop(@_) if @_ > 1 and ref $_[-1] eq 'HASH';
+  $call_attrs = pop(@_) if (
+   @_ > 1 and ( ! defined $_[-1] or ref $_[-1] eq 'HASH' )
+  );
 
   # see if we can keep the cache (no $rs changes)
   my $cache;
@@ -335,6 +337,9 @@ sub search_rs {
     }
 
   } if @_;
+
+  carp 'search( %condition ) is deprecated, use search( \%condition ) instead'
+    if (@_ > 1 and ! $self->result_source->result_class->isa('DBIx::Class::CDBICompat') );
 
   for ($old_where, $call_cond) {
     if (defined $_) {

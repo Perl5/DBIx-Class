@@ -105,7 +105,7 @@ $track = $schema->resultset("Track")->create( {
 } );
 $track->update_from_related( cd => $cd );
 
-my $t_cd = ($schema->resultset("Track")->search( cd => 4, title => 'Hidden Track 2' ))[0]->cd;
+my $t_cd = ($schema->resultset("Track")->search({ cd => 4, title => 'Hidden Track 2' }))[0]->cd;
 
 is( $t_cd->cdid, 4, 'update_from_related ok' );
 
@@ -124,7 +124,7 @@ is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
 is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
 
 $artist->delete_related( cds => { title => 'Greatest Hits' });
-cmp_ok( $schema->resultset("CD")->search( title => 'Greatest Hits' ), '==', 0, 'delete_related ok' );
+cmp_ok( $schema->resultset("CD")->search({ title => 'Greatest Hits' }), '==', 0, 'delete_related ok' );
 
 # find_or_new_related with an existing record
 $cd = $artist->find_or_new_related( 'cds', { title => 'Big Flop' } );
@@ -178,7 +178,7 @@ my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 is( $cd->producers_sorted->next->name, 'Bob The Builder',
     'sorted many_to_many ok' );
-is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype',
+is( $cd->producers_sorted({producerid => 3})->next->name, 'Fred The Phenotype',
     'sorted many_to_many with search condition ok' );
 
 $cd = $schema->resultset('CD')->find(2);

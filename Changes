@@ -5,6 +5,7 @@ Revision history for DBIx::Class
           pairs of column name/info at once
         - $rs->search now throws when called in void context, as it makes
           no sense (and is nearly always a sign of a bug/misdesign)
+        - Deprecate legacy $rs->search( %condition ) syntax
         - NULL is now supplied unquoted to all debug-objects, in order to
           differentiate between a real NULL and the string 'NULL'
 

@@ -31,7 +31,7 @@ for (21..30) {
     } );
 }
 $schema->storage->txn_rollback;
-($artist) = $schema->resultset("Artist")->search( artistid => 25 );
+($artist) = $schema->resultset("Artist")->search({ artistid => 25 });
 is($artist, undef, "Rollback ok");
 
 is_deeply (
