@@ -249,7 +249,17 @@ For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 sub search {
   my $self = shift;
   my $rs = $self->search_rs( @_ );
-  return (wantarray ? $rs->all : $rs);
+
+  my $want = wantarray;
+  if ($want) {
+    return $rs->all;
+  }
+  elsif (defined $want) {
+    return $rs;
+  }
+  else {
+    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense');
+  }
 }
 
 =head2 search_rs

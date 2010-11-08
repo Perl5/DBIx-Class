@@ -18,7 +18,7 @@ my $code = sub {
     year => 2006,
   }) foreach (@cd_titles);
 
-  return $artist->cds;
+  return $artist->cds->all;
 };
 
 # Test checking of parameters
