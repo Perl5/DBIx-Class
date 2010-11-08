@@ -295,6 +295,8 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
 
+  my $storage = $source->storage;
+
   my $rollback_guard;
 
   # Check if we stored uninserted relobjs here in new()
@@ -314,7 +316,7 @@ sub insert {
                   );
 
       # The guard will save us if we blow out of this scope via die
-      $rollback_guard ||= $source->storage->txn_scope_guard;
+      $rollback_guard ||= $storage->txn_scope_guard;
 
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
@@ -343,51 +345,48 @@ sub insert {
   # start a transaction here if not started yet and there is more stuff
   # to insert after us
   if (keys %related_stuff) {
-    $rollback_guard ||= $source->storage->txn_scope_guard
-  }
-
-  ## PK::Auto
-  my %auto_pri;
-  my $auto_idx = 0;
-  for ($self->primary_columns) {
-    if (
-      not defined $self->get_column($_)
-        ||
-      (ref($self->get_column($_)) eq 'SCALAR')
-    ) {
-      my $col_info = $source->column_info($_);
-      $auto_pri{$_} = $auto_idx++ unless $col_info->{auto_nextval};   # auto_nextval's are pre-fetched in the storage
-    }
+    $rollback_guard ||= $storage->txn_scope_guard
   }
 
   MULTICREATE_DEBUG and do {
     no warnings 'uninitialized';
     warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
   };
-  my $updated_cols = $source->storage->insert(
+
+  my %current_rowdata = $self->get_columns;
+
+  # perform the insert - the storage may return some stuff for us right there
+  #
+  my $returned_cols = $storage->insert(
     $source,
-    { $self->get_columns },
-    (keys %auto_pri) && $source->storage->_use_insert_returning
-      ? { returning => [ sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri ] }
-      : ()
-    ,
+    \%current_rowdata,
   );
 
-  foreach my $col (keys %$updated_cols) {
-    $self->store_column($col, $updated_cols->{$col});
-    delete $auto_pri{$col};
+  for (keys %$returned_cols) {
+    $self->store_column(
+      $_,
+      ( $current_rowdata{$_} = $returned_cols->{$_} )
+    );
   }
 
-  if (keys %auto_pri) {
-    my @missing = sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri;
-    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @missing )."\n";
-    my $storage = $self->result_source->storage;
+  # see if any of the pcols still need filling (or re-querying in case of scalarrefs)
+  my @missing_pri = grep
+    { ! defined $current_rowdata{$_} or ref $current_rowdata{$_} eq 'SCALAR' }
+    $self->primary_columns
+  ;
+
+  if (@missing_pri) {
+    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @missing_pri )."\n";
+
     $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
       unless $storage->can('last_insert_id');
-    my @ids = $storage->last_insert_id($self->result_source, @missing);
+
+    my @pri_values = $storage->last_insert_id($self->result_source, @missing_pri);
+
     $self->throw_exception( "Can't get last insert id" )
-      unless (@ids == @missing);
-    $self->store_column($missing[$_] => $ids[$_]) for 0 .. $#missing;
+      unless (@pri_values == @missing_pri);
+
+    $self->store_column($missing_pri[$_] => $pri_values[$_]) for 0 .. $#missing_pri;
   }
 
   $self->{_dirty_columns} = {};

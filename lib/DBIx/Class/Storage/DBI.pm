@@ -1590,41 +1590,62 @@ sub _execute {
     $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
-sub _prefetch_insert_auto_nextvals {
+sub insert {
   my ($self, $source, $to_insert) = @_;
 
-  my $upd = {};
+  my $colinfo = $source->columns_info;
 
-  foreach my $col ( $source->columns ) {
-    if ( !defined $to_insert->{$col} ) {
-      my $col_info = $source->column_info($col);
-
-      if ( $col_info->{auto_nextval} ) {
-        $upd->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
-          'nextval',
-          $col_info->{sequence} ||=
+  # mix with auto-nextval marked values (a bit of a speed hit, but
+  # no saner way to handle this yet)
+  my $auto_nextvals = {} ;
+  for my $col (keys %$colinfo) {
+    if (
+      $colinfo->{$col}{auto_nextval}
+        and
+      (
+        ! exists $to_insert->{$col}
+          or
+        ref $to_insert->{$col} eq 'SCALAR'
+      )
+    ) {
+      $auto_nextvals->{$col} = $self->_sequence_fetch(
+        'nextval',
+        ( $colinfo->{$col}{sequence} ||=
             $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
-        );
-      }
+        ),
+      );
     }
   }
 
-  return $upd;
-}
+  # fuse the values
+  $to_insert = { %$to_insert, %$auto_nextvals };
 
-sub insert {
-  my $self = shift;
-  my ($source, $to_insert, $opts) = @_;
+  # list of primary keys we try to fetch from the database
+  # both not-exsists and scalarrefs are considered
+  my %fetch_pks;
+  %fetch_pks = ( map
+    { $_ => scalar keys %fetch_pks }  # so we can preserve order for prettyness
+    grep
+      { ! exists $to_insert->{$_} or ref $to_insert->{$_} eq 'SCALAR' }
+      $source->primary_columns
+  );
 
-  my $updated_cols = $self->_prefetch_insert_auto_nextvals (@_);
+  my $sqla_opts;
+  if ($self->_use_insert_returning) {
+
+    # retain order as declared in the resultsource
+    for (sort { $fetch_pks{$a} <=> $fetch_pks{$b} } keys %fetch_pks ) {
+      push @{$sqla_opts->{returning}}, $_;
+    }
+  }
 
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $opts);
+  my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $sqla_opts);
 
-  if ($opts->{returning}) {
-    my @ret_cols = @{$opts->{returning}};
+  my %returned_cols = %$auto_nextvals;
 
+  if (my $retlist = $sqla_opts->{returning}) {
     my @ret_vals = try {
       local $SIG{__WARN__} = sub {};
       my @r = $sth->fetchrow_array;
@@ -1632,17 +1653,12 @@ sub insert {
       @r;
     };
 
-    my %ret;
-    @ret{@ret_cols} = @ret_vals if (@ret_vals);
-
-    $updated_cols = {
-      %$updated_cols,
-      %ret,
-    };
+    @returned_cols{@$retlist} = @ret_vals if @ret_vals;
   }
 
-  return $updated_cols;
+  return \%returned_cols;
 }
+
 
 ## Currently it is assumed that all values passed will be "normal", i.e. not
 ## scalar refs, or at least, all the same type as the first set, the statement is

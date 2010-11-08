@@ -362,7 +362,6 @@ has 'write_handler' => (
     _do_query
     _dbh_sth
     _dbh_execute
-    _prefetch_insert_auto_nextvals
   /],
 );
 

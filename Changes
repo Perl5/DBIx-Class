@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           (RT#62642)
         - Fix incomplete logic while detecting correct Oracle sequence
           on insert
+        - Refactor handling of RDBMS-side values during insert() - fix
+          regression of inserts into a Postgres / ::Replicated combination
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes
