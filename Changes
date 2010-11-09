@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - NULL is now supplied unquoted to all debug-objects, in order to
+          differentiate between a real NULL and the string 'NULL'
+
     * Fixes
         - Fixed read-only attribute set attempt in ::Storage::Replicated
           (RT#62642)

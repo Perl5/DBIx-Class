@@ -1522,7 +1522,7 @@ sub _fix_bind_params {
             if ( defined( $_ && $_->[1] ) ) {
                 map { qq{'$_'}; } @{$_}[ 1 .. $#$_ ];
             }
-            else { q{'NULL'}; }
+            else { q{NULL}; }
         } @bind;
 }
 
