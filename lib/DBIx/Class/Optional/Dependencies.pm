@@ -235,6 +235,15 @@ my $reqs = {
     },
   },
 
+  test_memcached => {
+    req => {
+      $ENV{DBICTEST_MEMCACHED}
+        ? (
+          'Cache::Memcached' => 0,
+        ) : ()
+    },
+  },
+
 };
 
 

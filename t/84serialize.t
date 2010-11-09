@@ -6,46 +6,81 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Storable qw(dclone freeze nfreeze thaw);
+use Scalar::Util qw/refaddr/;
 
-my $schema = DBICTest->init_schema();
-my $orig_debug = $schema->storage->debug;
+sub ref_ne {
+  my ($refa, $refb) = map { refaddr $_ or die "$_ is not a reference!" } @_[0,1];
+  cmp_ok (
+    $refa,
+      '!=',
+    $refb,
+    sprintf ('%s (0x%07x != 0x%07x)',
+      $_[2],
+      $refa,
+      $refb,
+    ),
+  );
+}
+
+my $schema = DBICTest->init_schema;
 
 my %stores = (
     dclone_method           => sub { return $schema->dclone($_[0]) },
-    dclone_func             => sub { return dclone($_[0]) },
-    "freeze/thaw_method"    => sub {
-        my $ice = $schema->freeze($_[0]);
-        return $schema->thaw($ice);
+    dclone_func             => sub {
+      local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
+      return dclone($_[0])
     },
-    "freeze/thaw_func"      => sub {
-        thaw(freeze($_[0]));
+    "freeze/thaw_method"    => sub {
+      my $ice = $schema->freeze($_[0]);
+      return $schema->thaw($ice);
     },
     "nfreeze/thaw_func"      => sub {
-        thaw(nfreeze($_[0]));
+      my $ice = freeze($_[0]);
+      local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
+      return thaw($ice);
     },
+
+    "freeze/thaw_func (cdbi legacy)" => sub {
+      # this one is special-cased to leak the $schema all over
+      # the same way as cdbi-compat does
+      DBICTest::Artist->result_source_instance->schema($schema);
+      DBICTest::CD->result_source_instance->schema($schema);
+
+      my $fire = thaw(freeze($_[0]));
+
+      # clean up the mess
+      $_->result_source_instance->schema(undef)
+        for map { $schema->class ($_) } $schema->sources;
+
+      return $fire;
+    },
+
+    ($ENV{DBICTEST_MEMCACHED})
+      ? do {
+        require Cache::Memcached;
+        my $memcached = Cache::Memcached->new(
+          { servers => [ $ENV{DBICTEST_MEMCACHED} ] } );
+
+        my $key = 'tmp_dbic_84serialize_memcached_test';
+
+        ( memcached => sub {
+            $memcached->set( $key, $_[0], 60 );
+            local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
+            return $memcached->get($key);
+        });
+      } : ()
+    ,
 );
 
-plan tests => (17 * keys %stores);
-
 for my $name (keys %stores) {
+
     my $store = $stores{$name};
     my $copy;
 
     my $artist = $schema->resultset('Artist')->find(1);
 
-    # Test that the procedural versions will work if there's a registered
-    # schema as with CDBICompat objects and that the methods work
-    # without.
-    if( $name =~ /func/ ) {
-        $artist->result_source_instance->schema($schema);
-        DBICTest::CD->result_source_instance->schema($schema);
-    }
-    else {
-        $artist->result_source_instance->schema(undef);
-        DBICTest::CD->result_source_instance->schema(undef);
-    }
-
     lives_ok { $copy = $store->($artist) } "serialize row object lives: $name";
+    ref_ne($copy, $artist, 'Simple row cloned');
     is_deeply($copy, $artist, "serialize row object works: $name");
 
     my $cd_rs = $artist->search_related("cds");
@@ -56,6 +91,9 @@ for my $name (keys %stores) {
 
     lives_ok {
       $copy = $store->($cd_rs);
+
+      ref_ne($copy, $artist, 'Simple row cloned');
+
       is_deeply (
         [ $copy->all ],
         [ $cd_rs->all ],
@@ -70,8 +108,12 @@ for my $name (keys %stores) {
     for my $key (keys %$artist) {
         next if $key eq 'related_resultsets';
         next if $key eq '_inflated_column';
+
+        ref_ne($copy->{$key}, $artist->{$key}, "Simple row internals cloned '$key'")
+          if ref $artist->{$key};
+
         is_deeply($copy->{$key}, $artist->{$key},
-                  qq[serialize with related_resultset "$key"]);
+                  qq[serialize with related_resultset '$key']);
     }
 
     lives_ok(
@@ -84,6 +126,7 @@ for my $name (keys %stores) {
     my $query_count;
     $cd_rs = $cd_rs->search ({}, { cache => 1 });
 
+    my $orig_debug = $schema->storage->debug;
     $schema->storage->debug(1);
     $schema->storage->debugcb(sub { $query_count++ } );
 
@@ -92,6 +135,7 @@ for my $name (keys %stores) {
 
     lives_ok {
       $copy = $store->($cd_rs);
+      ref_ne($copy, $cd_rs, 'Cached resultset cloned');
       is_deeply (
         [ $copy->all ],
         [ $cd_rs->all ],
@@ -106,3 +150,5 @@ for my $name (keys %stores) {
     $schema->storage->debug($orig_debug);
     $schema->storage->debugcb(undef);
 }
+
+done_testing;
