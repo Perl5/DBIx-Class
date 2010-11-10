@@ -430,8 +430,9 @@ around connect_info => sub {
       $merge->merge((delete $opts{pool_args} || {}), $self->pool_args)
     );
 
-    $self->pool($self->_build_pool)
-      if $self->pool;
+    ## Since we possibly changed the pool_args, we need to clear the current
+    ## pool object so that next time it is used it will be rebuilt.
+    $self->clear_pool;
   }
 
   if (@opts{qw/balancer_type balancer_args/}) {

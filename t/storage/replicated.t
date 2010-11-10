@@ -89,7 +89,7 @@ TESTSCHEMACLASSES: {
             balancer_type=>'::Random',
             balancer_args=>{
               auto_validate_every=>100,
-          master_read_weight => 1
+              master_read_weight => 1
             },
           }
         },
@@ -105,8 +105,11 @@ TESTSCHEMACLASSES: {
         storage_type=> '::DBI::Replicated',
         balancer_type=>'::Random',
         balancer_args=> {
-          auto_validate_every=>100,
-      master_read_weight => 1
+            auto_validate_every=>100,
+            master_read_weight => 1
+        },
+        pool_args=>{
+            maximum_lag=>1,
         },
         deploy_args=>{
           add_drop_table => 1,

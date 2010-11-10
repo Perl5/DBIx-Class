@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fixed read-only attribute set attempt in ::Storage::Replicated
+          (RT#62642)
+
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes
         - Add new -ident "function" indicating rhs is a column name
