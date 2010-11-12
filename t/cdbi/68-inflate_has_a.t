@@ -35,7 +35,7 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = $schema->resultset("CD")->search( year => $now->year );
+($cd) = $schema->resultset("CD")->search({ year => $now->year });
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # re-test using alternate deflate syntax
@@ -56,6 +56,6 @@ $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = $schema->resultset("CD")->search( year => $now->year );
+($cd) = $schema->resultset("CD")->search({ year => $now->year });
 is( $cd->year->year, $now->year, 'deflate ok' );
 
