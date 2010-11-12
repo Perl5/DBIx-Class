@@ -3156,16 +3156,6 @@ sub _resolved_attrs {
     $_->{as} = [  map { $_ =~ /^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$_->{as}} ];
   }
 
-  # FIXME !!!
-  # Blatant bugwardness encoded into multiple tests.
-  # While columns behaves sensibly, +columns is expected
-  # to dump *any* foreign columns into the main object
-  # /me vomits
-  $selection_pieces->{'+columns'}{as} = [ map
-    { (split /\./, $_)[-1] }
-    @{$selection_pieces->{'+columns'}{as}}
-  ];
-
   # merge everything
   for (@sel_pairs) {
     $attrs->{select} = $self->_merge_attr ($attrs->{select}, $selection_pieces->{$_}{select});
