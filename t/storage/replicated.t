@@ -4,20 +4,17 @@ use warnings;
 use Test::More;
 
 BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
+  require DBIx::Class;
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
 }
 
-use Test::Moose;
 use Test::Exception;
 use List::Util 'first';
 use Scalar::Util 'reftype';
 use File::Spec;
 use IO::Handle;
-use Moose();
-use MooseX::Types();
-note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
+use Class::Inspector;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -29,15 +26,13 @@ use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
-
 =head1 HOW TO USE
 
     This is a test of the replicated storage system.  This will work in one of
     two ways, either it was try to fake replication with a couple of SQLite DBs
     and creative use of copy, or if you define a couple of %ENV vars correctly
     will try to test those.  If you do that, it will assume the setup is properly
-    replicating.  Your results may vary, but I have demonstrated this to work with
-    mysql native replication.
+    replicating.  
 
 =cut
 
@@ -66,6 +61,7 @@ TESTSCHEMACLASSES: {
         my $self = $class->SUPER::new(@_);
 
         $self->schema( $self->init_schema($schema_method) );
+
         return $self;
     }
 
@@ -107,8 +103,8 @@ TESTSCHEMACLASSES: {
         storage_type=> '::DBI::Replicated',
         balancer_type=>'::Random',
         balancer_args=> {
-            auto_validate_every=>100,
-            master_read_weight => 1
+          auto_validate_every=>100,
+          master_read_weight => 1
         },
         pool_args=>{
             maximum_lag=>1,
@@ -126,22 +122,18 @@ TESTSCHEMACLASSES: {
     ## --------------------------------------------------------------------- ##
     ## Add a connect_info option to test option merging.
     ## --------------------------------------------------------------------- ##
+
     {
     package DBIx::Class::Storage::DBI::Replicated;
 
-    use Moose;
-
-    __PACKAGE__->meta->make_mutable;
-
+    use Moo;
     around connect_info => sub {
       my ($next, $self, $info) = @_;
       $info->[3]{master_option} = 1;
       $self->$next($info);
     };
 
-    __PACKAGE__->meta->make_immutable;
-
-    no Moose;
+    no Moo;
     }
 
     ## --------------------------------------------------------------------- ##
@@ -262,6 +254,7 @@ my $replicated;
 
 for my $method (qw/by_connect_info by_storage_type/) {
   undef $replicated;
+
   ok $replicated = $replicated_class->new($method)
       => "Created a replication object $method";
 
@@ -276,58 +269,36 @@ for my $method (qw/by_connect_info by_storage_type/) {
       => 'configured balancer_type';
 }
 
-### check that all Storage::DBI methods are handled by ::Replicated
+## Check that all Storage::DBI methods are handled by ::Replicated
 {
-  my @storage_dbi_methods = Class::MOP::Class
-    ->initialize('DBIx::Class::Storage::DBI')->get_all_method_names;
+  ## Get a bunch of methods to check
+  my @storage_dbi_methods = @{Class::Inspector->methods('DBIx::Class::Storage::DBI')||[]};
 
-  my @replicated_methods  = DBIx::Class::Storage::DBI::Replicated->meta
-    ->get_all_method_names;
-
-# remove constants and OTHER_CRAP
+  ## remove constants and OTHER_CRAP
   @storage_dbi_methods = grep !/^[A-Z_]+\z/, @storage_dbi_methods;
 
-# remove CAG accessors
+  ## remove CAG accessors
   @storage_dbi_methods = grep !/_accessor\z/, @storage_dbi_methods;
 
-# remove DBIx::Class (the root parent, with CAG and stuff) methods
-  my @root_methods = Class::MOP::Class->initialize('DBIx::Class')
-    ->get_all_method_names;
-  my %count;
-  $count{$_}++ for (@storage_dbi_methods, @root_methods);
+  ## we need to exclude this stuff as well
+  my %root_methods = map { $_ => 1 } @{Class::Inspector->methods('DBIx::Class')};
 
-  @storage_dbi_methods = grep $count{$_} != 2, @storage_dbi_methods;
+  @storage_dbi_methods = grep { !$root_methods{$_} } @storage_dbi_methods;
 
-# make hashes
-  my %storage_dbi_methods;
-  @storage_dbi_methods{@storage_dbi_methods} = ();
-  my %replicated_methods;
-  @replicated_methods{@replicated_methods} = ();
-
-# remove ::Replicated-specific methods
-  for my $method (@replicated_methods) {
-    delete $replicated_methods{$method}
-      unless exists $storage_dbi_methods{$method};
+  ## anything missing?
+  my @missing_methods;
+  for my $method (@storage_dbi_methods) {
+    push @missing_methods, $method
+      unless $replicated->schema->storage->can($method);
   }
-  @replicated_methods = keys %replicated_methods;
 
-# check that what's left is implemented
-  %count = ();
-  $count{$_}++ for (@storage_dbi_methods, @replicated_methods);
-
-  if ((grep $count{$_} == 2, @storage_dbi_methods) == @storage_dbi_methods) {
+  if(scalar(@missing_methods)) {
+    my $missing = join (',', @missing_methods);
+    fail "the following DBIx::Class::Storage::DBI methods are unimplemented: $missing";
+  } else {
     pass 'all DBIx::Class::Storage::DBI methods implemented';
-  }
-  else {
-    my @unimplemented = grep $count{$_} == 1, @storage_dbi_methods;
-
-    fail 'the following DBIx::Class::Storage::DBI methods are unimplemented: '
-      . "@unimplemented";
-  }
+  }  
 }
-
-ok $replicated->schema->storage->meta
-    => 'has a meta object';
 
 isa_ok $replicated->schema->storage->master
     => 'DBIx::Class::Storage::DBI';
@@ -335,8 +306,8 @@ isa_ok $replicated->schema->storage->master
 isa_ok $replicated->schema->storage->pool
     => 'DBIx::Class::Storage::DBI::Replicated::Pool';
 
-does_ok $replicated->schema->storage->balancer
-    => 'DBIx::Class::Storage::DBI::Replicated::Balancer';
+ok  $replicated->schema->storage->balancer->does('DBIx::Class::Storage::DBI::Replicated::Balancer'),
+  'does Balancer';
 
 ok my @replicant_connects = $replicated->generate_replicant_connect_info
     => 'got replication connect information';
@@ -372,9 +343,8 @@ my @all_storage_opts =
   grep { (reftype($_)||'') eq 'HASH' }
     map @{ $_->_connect_info }, @all_storages;
 
-is ((grep $_->{master_option}, @all_storage_opts),
-    3
-    => 'connect_info was merged from master to replicants');
+  is ((grep $_->{master_option}, @all_storage_opts), 3,
+    'connect_info was merged from master to replicants');
 
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };
 
@@ -390,23 +360,26 @@ isa_ok $replicated->schema->storage->balancer->current_replicant
 
 $replicated->schema->storage->debugobj->silence(0);
 
-ok $replicated->schema->storage->pool->has_replicants
+ok scalar(keys(%{$replicated->schema->storage->pool->replicants}))
     => 'does have replicants';
 
-is $replicated->schema->storage->pool->num_replicants => 2
+is scalar(keys(%{$replicated->schema->storage->pool->replicants})), 2
     => 'has two replicants';
 
-does_ok $replicated_storages[0]
-    => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
-does_ok $replicated_storages[1]
-    => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
+ok $replicated_storages[0]->does('DBIx::Class::Storage::DBI::Replicated::Replicant'),
+  'does Replicant';
 
-does_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
-    => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
+ok $replicated_storages[1]->does('DBIx::Class::Storage::DBI::Replicated::Replicant'),
+  'does Replicant';
 
-does_ok $replicated->schema->storage->replicants->{$replicant_names[1]}
-    => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
+ok $replicated->schema->storage->replicants->{$replicant_names[0]}
+    ->does('DBIx::Class::Storage::DBI::Replicated::Replicant'),
+    'Does Replicant';
+
+ok $replicated->schema->storage->replicants->{$replicant_names[1]}
+    ->does('DBIx::Class::Storage::DBI::Replicated::Replicant'),
+    'Does Replicant';
 
 ## Add some info to the database
 

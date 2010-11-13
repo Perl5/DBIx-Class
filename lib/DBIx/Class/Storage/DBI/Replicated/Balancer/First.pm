@@ -1,8 +1,7 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer::First;
 
-use Moose;
+use Moo;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
-use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -41,14 +40,12 @@ sub next_storage {
 
 =head1 AUTHOR
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+John Napiorkowski <jjnapiork@cpan.org>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;

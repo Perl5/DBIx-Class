@@ -1,5 +1,5 @@
 package DBIx::Class::Storage::DBI::Replicated;
-
+ 
 BEGIN {
   use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class;
@@ -7,19 +7,17 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
 }
 
-use Moose;
+use Moo;
+use Role::Tiny ();
 use DBIx::Class::Storage::DBI;
-use DBIx::Class::Storage::DBI::Replicated::Pool;
-use DBIx::Class::Storage::DBI::Replicated::Balancer;
-use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSchema DBICStorageDBI/;
-use MooseX::Types::Moose qw/ClassName HashRef Object/;
-use Scalar::Util 'reftype';
-use Hash::Merge;
-use List::Util qw/min max reduce/;
+use Scalar::Util qw(reftype blessed);
+use List::Util qw(min max reduce);
 use Try::Tiny;
-use namespace::clean;
-
-use namespace::clean -except => 'meta';
+use Sub::Name 'subname';
+use Class::Inspector;
+use DBIx::Class::Storage::DBI::Replicated::Types
+  qw(DBICSchema DBICStorageDBI ClassName HashRef Object 
+  DoesDBICStorageReplicatedBalancer DBICStorageDBIReplicatedPool Defined);
 
 =head1 NAME
 
@@ -117,10 +115,10 @@ The underlying L<DBIx::Class::Schema> object this storage is attaching
 =cut
 
 has 'schema' => (
-    is=>'rw',
-    isa=>DBICSchema,
-    weak_ref=>1,
-    required=>1,
+  is=>'rw',
+  isa=>DBICSchema,
+  weak_ref=>1,
+  required=>1,
 );
 
 =head2 pool_type
@@ -133,7 +131,7 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 has 'pool_type' => (
   is=>'rw',
   isa=>ClassName,
-  default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+  default=> sub { 'DBIx::Class::Storage::DBI::Replicated::Pool'},
   handles=>{
     'create_pool' => 'new',
   },
@@ -148,7 +146,7 @@ See L<DBIx::Class::Storage::DBI::Replicated::Pool> for available arguments.
 
 has 'pool_args' => (
   is=>'rw',
-  isa=>HashRef,
+  isa =>HashRef,
   lazy=>1,
   default=>sub { {} },
 );
@@ -163,14 +161,18 @@ choose how to spread the query load across each replicant in the pool.
 
 has 'balancer_type' => (
   is=>'rw',
-  isa=>BalancerClassNamePart,
-  coerce=>1,
-  required=>1,
-  default=> 'DBIx::Class::Storage::DBI::Replicated::Balancer::First',
-  handles=>{
-    'create_balancer' => 'new',
-  },
+  isa=>Defined,
+  default=>sub { 'DBIx::Class::Storage::DBI::Replicated::Balancer::First' },
 );
+
+sub create_balancer {
+    my ($self, @args) = @_;
+    my $type = $self->balancer_type;
+    $type = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$type
+      if ($type=~m/^::/);
+    $self->schema->ensure_class_loaded($type);
+    return $type->new(@args);
+}
 
 =head2 balancer_args
 
@@ -181,10 +183,9 @@ See L<DBIx::Class::Storage::DBI::Replicated::Balancer> for available arguments.
 
 has 'balancer_args' => (
   is=>'rw',
-  isa=>HashRef,
+  isa =>HashRef,
   lazy=>1,
-  required=>1,
-  default=>sub { {} },
+  default=>sub { +{} },
 );
 
 =head2 pool
@@ -196,12 +197,13 @@ container class for one or more replicated databases.
 
 has 'pool' => (
   is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
-  lazy_build=>1,
+  isa =>DBICStorageDBIReplicatedPool,
+  lazy=>1,
+  builder=>'_build_pool',
+  clearer=>'clear_pool',
   handles=>[qw/
     connect_replicants
     replicants
-    has_replicants
   /],
 );
 
@@ -214,8 +216,9 @@ is a class that takes a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
 
 has 'balancer' => (
   is=>'rw',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
-  lazy_build=>1,
+  isa => DoesDBICStorageReplicatedBalancer,
+  lazy=>1,
+  builder=>'_build_balancer',
   handles=>[qw/auto_validate_every/],
 );
 
@@ -231,8 +234,9 @@ pool of databases that is allowed to handle write traffic.
 
 has 'master' => (
   is=> 'ro',
-  isa=>DBICStorageDBI,
-  lazy_build=>1,
+  isa => DBICStorageDBI,
+  lazy=>1,
+  builder=>'_build_master',
 );
 
 =head1 ATTRIBUTES IMPLEMENTING THE DBIx::Storage::DBI INTERFACE
@@ -249,7 +253,8 @@ Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
 has 'read_handler' => (
   is=>'rw',
   isa=>Object,
-  lazy_build=>1,
+  lazy=>1,
+  builder=>'_build_read_handler',
   handles=>[qw/
     select
     select_single
@@ -271,7 +276,8 @@ run on a replicant.
 has 'write_handler' => (
   is=>'ro',
   isa=>Object,
-  lazy_build=>1,
+  lazy=>1,
+  builder=>'_build_write_handler',
   handles=>[qw/
     on_connect_do
     on_disconnect_do
@@ -303,7 +309,6 @@ has 'write_handler' => (
     with_deferred_fk_checks
     dbh_do
     reload_row
-    with_deferred_fk_checks
     _prep_for_execute
 
     backup
@@ -365,7 +370,9 @@ has 'write_handler' => (
 
 my @unimplemented = qw(
   _arm_global_destructor
+  _preserve_foreign_dbh
   _verify_pid
+  _verify_tid
 
   get_use_dbms_capability
   set_use_dbms_capability
@@ -377,27 +384,32 @@ my @unimplemented = qw(
 
   _inner_join_to_node
   _group_over_selection
-  _prefetch_autovalues
   _extract_order_criteria
-  _max_column_bytesize
   _is_lob_type
+  _max_column_bytesize
+  _prefetch_autovalues
 );
 
 # the capability framework
-# not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
 push @unimplemented, ( grep
   { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
-  ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
+  @{Class::Inspector->methods('DBIx::Class::Storage::DBI')||[]}
 );
 
 for my $method (@unimplemented) {
-  __PACKAGE__->meta->add_method($method, sub {
-    croak "$method must not be called on ".(blessed shift).' objects';
-  });
+  { 
+    no strict qw/refs/;
+    *{__PACKAGE__ ."::$method"} = subname $method => sub {
+      croak "$method must not be called on ".(blessed shift).' objects';
+    };
+  }
 }
 
-has _master_connect_info_opts =>
-  (is => 'rw', isa => HashRef, default => sub { {} });
+has _master_connect_info_opts => (
+  is => 'rw',
+  isa =>HashRef ,
+  default => sub { +{} },
+);
 
 =head2 around: connect_info
 
@@ -456,9 +468,10 @@ around connect_info => sub {
   # Make sure master is blessed into the correct class and apply role to it.
   my $master = $self->master;
   $master->_determine_driver;
-  Moose::Meta::Class->initialize(ref $master);
 
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+  ## Moose::Meta::Class->initialize(ref $master);
+  Role::Tiny->apply_roles_to_object($master, 'DBIx::Class::Storage::DBI::Replicated::WithDSN');
+  ## DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
 
   # link pool back to master
   $self->pool->master($master);
@@ -470,7 +483,7 @@ around connect_info => sub {
 
 This class defines the following methods.
 
-=head2 BUILDARGS
+=head2 new
 
 L<DBIx::Class::Schema> when instantiating its storage passed itself as the
 first argument.  So we need to massage the arguments a bit so that all the
@@ -478,15 +491,15 @@ bits get put into the correct places.
 
 =cut
 
-sub BUILDARGS {
-  my ($class, $schema, $storage_type_args, @args) = @_;
-
-  return {
-    schema=>$schema,
+around 'new', sub {
+  my ($orig, $class, $schema, $storage_type_args, @args) = @_;
+  return $orig->(
+    $class,
+    schema => $schema,
     %$storage_type_args,
-    @args
-  }
-}
+    @args,
+  );
+};
 
 =head2 _build_master
 
@@ -497,7 +510,7 @@ Lazy builder for the L</master> attribute.
 sub _build_master {
   my $self = shift @_;
   my $master = DBIx::Class::Storage::DBI->new($self->schema);
-  $master
+  return $master;
 }
 
 =head2 _build_pool
@@ -1096,7 +1109,7 @@ using the Schema clone method.
 
 =head1 AUTHOR
 
-  John Napiorkowski <john.napiorkowski@takkle.com>
+  John Napiorkowski <jjnapiork@cpan.org>
 
 Based on code originated by:
 
@@ -1108,7 +1121,5 @@ Based on code originated by:
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;

@@ -1,11 +1,11 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer;
 
-use Moose::Role;
+use Moo::Role;
+use Scalar::Util ();
+use DBIx::Class::Storage::DBI::Replicated::Types
+  qw(PositiveInteger DBICStorageDBI DBICStorageDBIReplicatedPool);
+
 requires 'next_storage';
-use MooseX::Types::Moose qw/Int/;
-use DBIx::Class::Storage::DBI::Replicated::Pool;
-use DBIx::Class::Storage::DBI::Replicated::Types qw/DBICStorageDBI/;
-use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -35,8 +35,9 @@ validating every query.
 
 has 'auto_validate_every' => (
   is=>'rw',
-  isa=>Int,
+  isa=>PositiveInteger,
   predicate=>'has_auto_validate_every',
+
 );
 
 =head2 master
@@ -62,7 +63,7 @@ balance.
 
 has 'pool' => (
   is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+  isa=>DBICStorageDBIReplicatedPool,
   required=>1,
 );
 
@@ -82,7 +83,8 @@ via its balancer object.
 has 'current_replicant' => (
   is=> 'rw',
   isa=>DBICStorageDBI,
-  lazy_build=>1,
+  lazy=>1,
+  builder=>'_build_current_replicant',
   handles=>[qw/
     select
     select_single
@@ -101,7 +103,7 @@ Lazy builder for the L</current_replicant_storage> attribute.
 =cut
 
 sub _build_current_replicant {
-  my $self = shift @_;
+  my $self = shift;
   $self->next_storage;
 }
 
@@ -123,7 +125,7 @@ Advice on next storage to add the autovalidation.  We have this broken out so
 that it's easier to break out the auto validation into a role.
 
 This also returns the master in the case that none of the replicants are active
-or just just forgot to create them :)
+or just just for?blgot to create them :)
 
 =cut
 
@@ -161,7 +163,7 @@ Rolls the Storage to whatever is next in the queue, as defined by the Balancer.
 =cut
 
 sub increment_storage {
-  my $self = shift @_;
+  my $self = shift;
   my $next_replicant = $self->next_storage;
   $self->current_replicant($next_replicant);
 }
@@ -219,7 +221,7 @@ the load evenly (hopefully) across existing capacity.
 =cut
 
 before 'columns_info_for' => sub {
-  my $self = shift @_;
+  my $self = shift;
   $self->increment_storage;
 };
 
@@ -231,7 +233,7 @@ Given an identifier, find the most correct storage object to handle the query.
 
 sub _get_forced_pool {
   my ($self, $forced_pool) = @_;
-  if(blessed $forced_pool) {
+  if(Scalar::Util::blessed($forced_pool)) {
     return $forced_pool;
   } elsif($forced_pool eq 'master') {
     return $self->master;

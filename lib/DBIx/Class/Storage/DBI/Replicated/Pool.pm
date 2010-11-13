@@ -1,16 +1,14 @@
 package DBIx::Class::Storage::DBI::Replicated::Pool;
 
-use Moose;
-use DBIx::Class::Storage::DBI::Replicated::Replicant;
-use List::Util 'sum';
-use Scalar::Util 'reftype';
+use Moo;
+use Role::Tiny ();
+use List::Util ();
+use Scalar::Util qw(reftype);
 use DBI ();
 use Carp::Clan qw/^DBIx::Class/;
-use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
-use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 use Try::Tiny;
-
-use namespace::clean -except => 'meta';
+use DBIx::Class::Storage::DBI::Replicated::Types
+  qw(PositiveInteger Number DBICStorageDBI ClassName HashRef);
 
 =head1 NAME
 
@@ -44,10 +42,9 @@ return a number of seconds that the replicating database is lagging.
 
 has 'maximum_lag' => (
   is=>'rw',
-  isa=>Num,
-  required=>1,
+  isa=>Number,
   lazy=>1,
-  default=>0,
+  default=>sub {0},
 );
 
 =head2 last_validated
@@ -60,11 +57,9 @@ built-in.
 
 has 'last_validated' => (
   is=>'rw',
-  isa=>Int,
-  reader=>'last_validated',
-  writer=>'_last_validated',
+  isa=>PositiveInteger,
   lazy=>1,
-  default=>0,
+  default=>sub {0},
 );
 
 =head2 replicant_type ($classname)
@@ -78,8 +73,7 @@ just leave this alone.
 has 'replicant_type' => (
   is=>'ro',
   isa=>ClassName,
-  required=>1,
-  default=>'DBIx::Class::Storage::DBI',
+  default=> sub{'DBIx::Class::Storage::DBI'},
   handles=>{
     'create_replicant' => 'new',
   },  
@@ -87,7 +81,7 @@ has 'replicant_type' => (
 
 =head2 replicants
 
-A hashref of replicant, with the key being the dsn and the value returning the
+A hashref of replicants, with the key being the dsn and the value returning the
 actual replicant storage.  For example, if the $dsn element is something like:
 
   "dbi:SQLite:dbname=dbfile"
@@ -96,63 +90,26 @@ You could access the specific replicant via:
 
   $schema->storage->replicants->{'dbname=dbfile'}
 
-This attributes also supports the following helper methods:
-
-=over 4
-
-=item set_replicant($key=>$storage)
-
-Pushes a replicant onto the HashRef under $key
-
-=item get_replicant($key)
-
-Retrieves the named replicant
-
-=item has_replicants
-
-Returns true if the Pool defines replicants.
-
-=item num_replicants
-
-The number of replicants in the pool
-
-=item delete_replicant ($key)
-
-Removes the replicant under $key from the pool
-
-=back
-
 =cut
 
 has 'replicants' => (
-  is=>'rw',
-  traits => ['Hash'],
-  isa=>HashRef['Object'],
-  default=>sub {{}},
-  handles  => {
-    'set_replicant' => 'set',
-    'get_replicant' => 'get',
-    'has_replicants' => 'is_empty',
-    'num_replicants' => 'count',
-    'delete_replicant' => 'delete',
-    'all_replicant_storages' => 'values',
-  },
+  is => 'rw',
+  isa => HashRef,
+  default => sub { +{} },
 );
-
-around has_replicants => sub {
-    my ($orig, $self) = @_;
-    return !$self->$orig;
-};
 
 has next_unknown_replicant_id => (
   is => 'rw',
-  traits => ['Counter'],
-  isa => Int,
-  default => 1,
-  handles => {
-    'inc_unknown_replicant_id' => 'inc',
-  },
+  isa=>PositiveInteger
+  default => sub { 1 },
 );
+
+sub inc_unknown_replicant_id {
+    my $self = shift;
+    my $next = $self->next_unknown_replicant_id + 1;
+    $self->next_unknown_replicant_id($next);
+    return $next;
+}
 
 =head2 master
 
@@ -160,7 +117,11 @@ Reference to the master Storage.
 
 =cut
 
-has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
+has master => (
+  is => 'rw',
+  isa =>DBICStorageDBI,
+  weak_ref => 1,
+);
 
 =head1 METHODS
 
@@ -190,8 +151,8 @@ sub connect_replicants {
 
     my $dsn;
     my $replicant = do {
-# yes this is evil, but it only usually happens once (for coderefs)
-# this will fail if the coderef does not actually DBI::connect
+      ## yes this is evil, but it only usually happens once (for coderefs)
+      ## this will fail if the coderef does not actually DBI::connect
       no warnings 'redefine';
       my $connect = \&DBI::connect;
       local *DBI::connect = sub {
@@ -219,8 +180,17 @@ sub connect_replicants {
       ($key) = ($dsn =~ m/^dbi\:.+\:(.+)$/i);
     }
 
-    $replicant->id($key);
-    $self->set_replicant($key => $replicant);  
+    if($key) {
+      $replicant->id($key);
+    } else {
+      $replicant->debugobj->print("Could not create an ID for the replicant!");
+    }
+
+    ## Add the new replicant to the list
+    $self->replicants({
+        $key => $replicant,
+        %{$self->replicants},
+    });  
 
     push @newly_created, $replicant;
   }
@@ -240,7 +210,7 @@ sub connect_replicant {
   my $replicant = $self->create_replicant($schema);
   $replicant->connect_info($connect_info);
 
-## It is undesirable for catalyst to connect at ->conect_replicants time, as
+## It is undesirable for catalyst to connect at ->connect_replicants time, as
 ## connections should only happen on the first request that uses the database.
 ## So we try to set the driver without connecting, however this doesn't always
 ## work, as a driver may need to connect to determine the DB version, and this
@@ -253,9 +223,7 @@ sub connect_replicant {
     $replicant->_determine_driver
   });
 
-  Moose::Meta::Class->initialize(ref $replicant);
-
-  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+  Role::Tiny->apply_roles_to_object($replicant, 'DBIx::Class::Storage::DBI::Replicated::Replicant');
 
   # link back to master
   $replicant->master($self->master);
@@ -324,7 +292,7 @@ is actually connected, try not to hit this 10 times a second.
 
 sub connected_replicants {
   my $self = shift @_;
-  return sum( map {
+  return List::Util::sum( map {
     $_->connected ? 1:0
   } $self->all_replicants );
 }
@@ -408,19 +376,17 @@ sub validate_replicants {
     }
   }
   ## Mark that we completed this validation.  
-  $self->_last_validated(time);  
+  $self->last_validated(time);  
 }
 
 =head1 AUTHOR
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+John Napiorkowski <jjnapiork@cpan.org>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;

@@ -1,11 +1,9 @@
 package DBIx::Class::Storage::DBI::Replicated::WithDSN;
 
-use Moose::Role;
-use Scalar::Util 'reftype';
+use Try::Tiny qw(try);
+use Scalar::Util ();
+use Role::Tiny;
 requires qw/_query_start/;
-
-use Try::Tiny;
-use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -39,7 +37,7 @@ around '_query_start' => sub {
   my $storage_type = $self->can('active') ? 'REPLICANT' : 'MASTER';
 
   my $query = do {
-    if ((reftype($dsn)||'') ne 'CODE') {
+    if ((Scalar::Util::reftype($dsn)||'') ne 'CODE') {
       "$op [DSN_$storage_type=$dsn]$rest";
     }
     elsif (my $id = try { $self->id }) {
@@ -59,7 +57,7 @@ L<DBIx::Class::Storage::DBI>
 
 =head1 AUTHOR
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+John Napiorkowski <jjnapiork@cpan.org>
 
 =head1 LICENSE
 

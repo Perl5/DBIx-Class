@@ -21,7 +21,6 @@ my $moose_basic = {
 };
 
 my $replicated = {
-  %$moose_basic,
 };
 
 my $admin_basic = {
@@ -82,12 +81,8 @@ my $reqs = {
   },
 
   test_replicated => {
-    req => {
-      %$replicated,
-      'Test::Moose'               => '0',
-    },
+    req => $replicated,
   },
-
 
   admin => {
     req => {

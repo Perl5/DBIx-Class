@@ -1,12 +1,11 @@
 package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
-use Moose::Role;
+use Moo::Role;
+use DBIx::Class::Storage::DBI::Replicated::Types
+  qw(Boolean DBICStorageDBI Defined);
+
 requires qw/_query_start/;
 with 'DBIx::Class::Storage::DBI::Replicated::WithDSN';
-use MooseX::Types::Moose qw/Bool Str/;
-use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
-
-use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -47,14 +46,14 @@ storage driver for more information.
 
 has 'active' => (
   is=>'rw',
-  isa=>Bool,
+  isa=>Boolean,
   lazy=>1,
   required=>1,
-  default=>1,
+  default=> sub {1},
 );
 
-has dsn => (is => 'rw', isa => Str);
-has id  => (is => 'rw', isa => Str);
+has dsn => (is => 'rw', isa => Defined(err=>sub{"'dsn' must be defined"}));
+has id  => (is => 'rw', isa => Defined(err=>sub{"'id' must be defined"}));
 
 =head2 master
 
@@ -62,7 +61,11 @@ Reference to the master Storage.
 
 =cut
 
-has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
+has master => (
+  is => 'rw',
+  isa =>DBICStorageDBI,
+  weak_ref => 1,
+);
 
 =head1 METHODS
 
@@ -75,9 +78,7 @@ Override the debugobj method to redirect this method call back to the master.
 =cut
 
 sub debugobj {
-  my $self = shift;
-
-  return $self->master->debugobj;
+  (shift)->master->debugobj;
 }
 
 =head1 ALSO SEE
@@ -87,7 +88,7 @@ L<DBIx::Class::Storage::DBI::Replicated>
 
 =head1 AUTHOR
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+John Napiorkowski <jjnapiork@cpan.org>
 
 =head1 LICENSE
 

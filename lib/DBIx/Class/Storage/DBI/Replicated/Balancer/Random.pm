@@ -1,9 +1,8 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
 
-use Moose;
+use Moo;
+use DBIx::Class::Storage::DBI::Replicated::Types qw(PositiveNumber);
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
-use DBIx::Class::Storage::DBI::Replicated::Types 'Weight';
-use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -19,10 +18,6 @@ shouldn't need to create instances of this class.
 Given a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>) of replicated
 database's (L<DBIx::Class::Storage::DBI::Replicated::Replicant>), defines a
 method by which query load can be spread out across each replicant in the pool.
-
-This Balancer uses L<List::Util> keyword 'shuffle' to randomly pick an active
-replicant from the associated pool.  This may or may not be random enough for
-you, patches welcome.
 
 =head1 ATTRIBUTES
 
@@ -43,7 +38,11 @@ any single replicant, if for example you have a very powerful master.
 
 =cut
 
-has master_read_weight => (is => 'rw', isa => Weight, default => sub { 0 });
+has master_read_weight => (
+  is => 'rw',
+  isa => PositiveNumber(err => sub {"weight must be a positive number, not $_[0]"}),
+  default => sub { 0 },
+);
 
 =head1 METHODS
 
@@ -58,8 +57,7 @@ be requested several times in a row.
 =cut
 
 sub next_storage {
-  my $self = shift @_;
-
+  my $self = shift;
   my @replicants = $self->pool->active_replicants;
 
   if (not @replicants) {
@@ -67,27 +65,24 @@ sub next_storage {
     return;
   }
 
-  my $master     = $self->master;
-
+  my $master = $self->master;
   my $rnd = $self->_random_number(@replicants + $self->master_read_weight);
 
   return $rnd >= @replicants ? $master : $replicants[int $rnd];
 }
 
 sub _random_number {
-  rand($_[1])
+  rand($_[1]);
 }
 
 =head1 AUTHOR
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+John Napiorkowski <jjnapiork@cpan.org>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;
