@@ -171,9 +171,9 @@ sub new {
 
   sub _arm_global_destructor {
     my $self = shift;
-    my $key = Scalar::Util::refaddr ($self);
+    my $key = refaddr ($self);
     $seek_and_destroy{$key} = $self;
-    Scalar::Util::weaken ($seek_and_destroy{$key});
+    weaken ($seek_and_destroy{$key});
   }
 
   END {

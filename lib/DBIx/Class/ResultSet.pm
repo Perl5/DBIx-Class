@@ -9,12 +9,16 @@ use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
-use List::Util ();
 use Hash::Merge ();
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
 use Storable qw/nfreeze thaw/;
+
+# not importing first() as it will clash with our own method
+use List::Util ();
+
 use namespace::clean;
+
 
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
