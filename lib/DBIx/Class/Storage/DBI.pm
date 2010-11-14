@@ -10,7 +10,6 @@ use mro 'c3';
 use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
-use DBIx::Class::Storage::Statistics;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Data::Dumper::Concise 'Dumper';
 use Sub::Name 'subname';

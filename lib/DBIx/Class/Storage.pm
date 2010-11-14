@@ -13,7 +13,7 @@ use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
+__PACKAGE__->mk_group_accessors('simple' => qw/debug schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
@@ -63,34 +63,8 @@ sub new {
   bless $new, $self;
 
   $new->set_schema($schema);
-  my $debugobj;
-  if (my $profile = $ENV{DBIC_TRACE_PROFILE}) {
-    require DBIx::Class::Storage::Debug::PrettyPrint;
-    if ($profile =~ /^\.?\//) {
-      require Config::Any;
-
-      my $cfg = try {
-        Config::Any->load_files({ files => [$profile], use_ext => 1 });
-      } catch {
-        # sanitize the error message a bit
-        $_ =~ s/at \s+ .+ Storage\.pm \s line \s \d+ $//x;
-        $self->throw_exception("Failure processing \$ENV{DBIC_TRACE_PROFILE}: $_");
-      };
-
-      my ($filename, $config) = %{$cfg->[0]};
-      $debugobj = DBIx::Class::Storage::Debug::PrettyPrint->new($config)
-    } else {
-      $debugobj = DBIx::Class::Storage::Debug::PrettyPrint->new({ profile => $profile })
-    }
-  } else {
-    $debugobj = DBIx::Class::Storage::Statistics->new
-  }
-  $new->debugobj($debugobj);
-
-  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
-                  || $ENV{DBIC_TRACE};
-
-  $new->debug(1) if $debug_env;
+  $new->debug(1)
+    if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} || $ENV{DBIC_TRACE};
 
   $new;
 }
@@ -393,6 +367,42 @@ Sets or retrieves the object used for metric collection. Defaults to an instance
 of L<DBIx::Class::Storage::Statistics> that is compatible with the original
 method of using a coderef as a callback.  See the aforementioned Statistics
 class for more information.
+
+=cut
+
+sub debugobj {
+  my $self = shift;
+
+  if (@_) {
+    return $self->{debugobj} = $_[0];
+  }
+
+  $self->{debugobj} ||= do {
+    if (my $profile = $ENV{DBIC_TRACE_PROFILE}) {
+      require DBIx::Class::Storage::Debug::PrettyPrint;
+      if ($profile =~ /^\.?\//) {
+        require Config::Any;
+
+        my $cfg = try {
+          Config::Any->load_files({ files => [$profile], use_ext => 1 });
+        } catch {
+          # sanitize the error message a bit
+          $_ =~ s/at \s+ .+ Storage\.pm \s line \s \d+ $//x;
+          $self->throw_exception("Failure processing \$ENV{DBIC_TRACE_PROFILE}: $_");
+        };
+
+        DBIx::Class::Storage::Debug::PrettyPrint->new(values %{$cfg->[0]});
+      }
+      else {
+        DBIx::Class::Storage::Debug::PrettyPrint->new({ profile => $profile });
+      }
+    }
+    else {
+      require DBIx::Class::Storage::Statistics;
+      DBIx::Class::Storage::Statistics->new
+    }
+  };
+}
 
 =head2 debugcb
 
