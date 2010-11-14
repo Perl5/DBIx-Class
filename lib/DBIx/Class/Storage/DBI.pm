@@ -11,6 +11,7 @@ use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
+use List::Util qw/first/;
 use Data::Dumper::Concise 'Dumper';
 use Sub::Name 'subname';
 use Try::Tiny;
@@ -1727,15 +1728,15 @@ sub insert_bulk {
   my ($sql, $bind) = $self->_prep_for_execute (
     'insert', undef, $source, [\%colvalues]
   );
-  my @bind = @$bind;
 
-  my $empty_bind = 1 if (not @bind) &&
-    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
+  if (! @$bind) {
+    # if the bindlist is empty - make sure all "values" are in fact
+    # literal scalarrefs. If not the case this means the storage ate
+    # them away (e.g. the NoBindVars component) and interpolated them
+    # directly into the SQL. This obviosly can't be good for multi-inserts
 
-  if ((not @bind) && (not $empty_bind)) {
-    $self->throw_exception(
-      'Cannot insert_bulk without support for placeholders'
-    );
+    $self->throw_exception('Cannot insert_bulk without support for placeholders')
+      if first { ref $_ ne 'SCALAR' } values %colvalues;
   }
 
   # neither _execute_array, nor _execute_inserts_with_no_binds are
@@ -1743,24 +1744,24 @@ sub insert_bulk {
   # scope guard
   my $guard = $self->txn_scope_guard;
 
-  $self->_query_start( $sql, [ dummy => '__BULK_INSERT__' ] );
+  $self->_query_start( $sql, @$bind ? [ dummy => '__BULK_INSERT__' ] : () );
   my $sth = $self->sth($sql);
   my $rv = do {
-    if ($empty_bind) {
+    if (@$bind) {
+      #@bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, $bind, $cols, $data );
+    }
+    else {
       # bind_param_array doesn't work if there are no binds
       $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
     }
-    else {
-#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
-      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
-    }
   };
 
-  $self->_query_end( $sql, [ dummy => '__BULK_INSERT__' ] );
+  $self->_query_end( $sql, @$bind ? [ dummy => '__BULK_INSERT__' ] : () );
 
   $guard->commit;
 
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  return (wantarray ? ($rv, $sth, @$bind) : $rv);
 }
 
 sub _execute_array {
