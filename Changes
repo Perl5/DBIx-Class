@@ -16,15 +16,16 @@ Revision history for DBIx::Class
           on insert
         - Fixed incorrect composition of select/as/columns attributes during
           chaining (RT#61235)
+        - Proper serialization of resultsets with open cursors
         - Refactor handling of RDBMS-side values during insert() - fix
           regression of inserts into a Postgres / ::Replicated combination
         - Missing dependency check in t/60core.t (RT#62635)
         - Fix regressions in IC::DT registration logic
+        - Fix infinite loops on old perls with a recent Try::Tiny
+
+    * Misc
         - Switch all serialization to use Storable::nfreeze for portable
           architecture independent ice
-
-    * Fixes
-        - Proper serialization of resultsets with open cursors
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes

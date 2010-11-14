@@ -1849,15 +1849,14 @@ sub _dbh_execute_inserts_with_no_binds {
   }
   catch {
     $err = shift;
+  };
+
+  # Make sure statement is finished even if there was an exception.
+  try {
+    $sth->finish
   }
-  finally {
-    # Make sure statement is finished even if there was an exception.
-    try {
-      $sth->finish
-    }
-    catch {
-      $err = shift unless defined $err;
-    };
+  catch {
+    $err = shift unless defined $err;
   };
 
   $self->throw_exception($err) if defined $err;

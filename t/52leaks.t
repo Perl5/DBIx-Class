@@ -97,9 +97,10 @@ unless (DBICTest::RunMode->is_plain) {
 
   ok ($storage->connected, 'we are connected');
 
-  my $row_obj = $rs->next;
+  my $row_obj = $rs->search({}, { rows => 1})->next;  # so that commits/rollbacks work
   ok ($row_obj, 'row from db');
 
+  # txn_do to invoke more codepaths
   my ($mc_row_obj, $pager, $pager_explicit_count) = $schema->txn_do (sub {
 
     my $artist = $rs->create ({
@@ -121,6 +122,25 @@ unless (DBICTest::RunMode->is_plain) {
 
   # based on 66 per 10 pages
   is ($pager_explicit_count->last_page, 7, 'Correct last page');
+
+  # do some population (invokes some extra codepaths)
+  # also exercise the guard code and the manual txn control
+  {
+    my $guard = $schema->txn_scope_guard;
+    # populate with bindvars
+    $rs->populate([{ name => 'James Bound' }]);
+    $guard->commit;
+
+    $schema->txn_begin;
+    # populate mixed
+    $rs->populate([{ name => 'James Rebound', rank => \ '11'  }]);
+    $schema->txn_commit;
+
+    $schema->txn_begin;
+    # and without bindvars
+    $rs->populate([{ name => \ '"James Unbound"' }]);
+    $schema->txn_rollback;
+  }
 
   my $base_collection = {
     schema => $schema,
