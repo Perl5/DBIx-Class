@@ -194,7 +194,7 @@ for my $want (0,1) {
 
     my @pids;
     my $guard = $schema->txn_scope_guard;
-    _forking_action ($schema);
+    @pids = _forking_action ($schema);
     $guard->commit;
 
     for my $pid (@pids) {
