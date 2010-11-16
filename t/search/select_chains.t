@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
@@ -23,7 +22,7 @@ my @chain = (
     '+columns'  => [ { max_year => { max => 'me.year', -as => 'last_y' }}, ],
     '+select'   => [ { count => 'me.cdid' }, ],
     '+as'       => [ 'cnt' ],
-  } => 'SELECT me.cdid, LOWER( title ) AS lctitle, MAX( me.year ) AS last_y, me.genreid, COUNT( me.cdid ) FROM cd me',
+  } => 'SELECT me.cdid, LOWER( title ) AS lctitle, me.genreid, MAX( me.year ) AS last_y, COUNT( me.cdid ) FROM cd me',
 
   {
     select      => [ { min => 'me.cdid' }, ],
@@ -99,9 +98,9 @@ is_same_sql_bind (
   $rs->as_query,
   '( SELECT
       me.title,
+      COUNT( artistid ) AS baz,
       me.year AS foo,
-      me.artistid AS bar,
-      COUNT( artistid ) AS baz
+      me.artistid AS bar
         FROM cd me
   )',
   [],

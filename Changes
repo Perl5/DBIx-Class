@@ -5,14 +5,16 @@ Revision history for DBIx::Class
           pairs of column name/info at once
         - $rs->search now throws when called in void context, as it makes
           no sense (and is nearly always a sign of a bug/misdesign)
+        - Restore long-lost ability to supply unbalanced select/as pairs
+          e.g. +select => \'DISTINCT(foo, bar)', +as => ['foo', 'bar']
+        - +columns now behaves just like columns by not stripping a
+          fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
         - Deprecate legacy $rs->search( %condition ) syntax (warn once per
           callsite)
         - NULL is now supplied unquoted to all debug-objects, in order to
           differentiate between a real NULL and the string 'NULL'
         - New search() condition operator -value used to pass complex bind
           values to DBI: search({ array_col => { -value => [1,2,3] }})
-        - +columns now behaves just like columns by not stripping a
-          fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
         - Add full INSERT...RETURNING support for Oracle
         - Deprecate use of -nest in search conditions (warn once per
           callsite)
