@@ -6,6 +6,7 @@ use 5.008001;
 
 use FindBin;
 use lib "$FindBin::Bin/lib";
+use DBIx::Class::Optional::Dependencies;
 
 # adjust ENV for $AUTHOR system() calls
 use Config;
@@ -85,6 +86,9 @@ my $reqs = {
   test_requires => { %$test_requires },
 };
 
+my $opt_testdeps = {
+  map { %$_ } (values %{DBIx::Class::Optional::Dependencies->req_group_list})
+};
 
 # require extra modules for testing if we're in a checkout
 my $optdep_msg;
@@ -120,10 +124,9 @@ EOW
 
 EOW
 
-    require DBIx::Class::Optional::Dependencies;
     $reqs->{test_requires} = {
       %{$reqs->{test_requires}},
-      map { %$_ } (values %{DBIx::Class::Optional::Dependencies->req_group_list}),
+      %$opt_testdeps
     };
   }
 }
@@ -240,41 +243,47 @@ no_index package => $_ for (qw/
 
 WriteAll();
 
-# Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
-# We are also not using M::I::AuthorRequires as this will be an extra dep, and
-# deps in Makefile.PL suck (no autoinstall)
-if ($Module::Install::AUTHOR && ! $args->{skip_author_deps} ) {
+# Re-write META.yml to _exclude_ all forced build-requires (we do not want to ship
+# this) We are also not using M::I::AuthorRequires as this will be an extra dep,
+# and deps in Makefile.PL still suck
+# Also always test the result so we stop shipping borked dependency lists to CPAN
 
-  # FIXME test_requires is not yet part of META
-  my %original_build_requires = ( %$build_requires, %$test_requires );
-  my @all_build_requires = @{delete Meta->{values}{build_requires}};
-  my %removed_build_requires;
+# FIXME test_requires is not yet part of META
+my %original_build_requires = ( %$build_requires, %$test_requires );
+my @all_build_requires = @{delete Meta->{values}{build_requires}};
+my %removed_build_requires;
 
-  for (@all_build_requires) {
-    if ($original_build_requires{$_->[0]}) {
-      push @{Meta->{values}{build_requires}}, $_;
-    }
-    else {
-      $removed_build_requires{$_->[0]} = $_->[1]
-        unless $_->[0] eq 'ExtUtils::MakeMaker';
-    }
+for (@all_build_requires) {
+  if ($original_build_requires{$_->[0]}) {
+    push @{Meta->{values}{build_requires}}, $_;
   }
+  else {
+    $removed_build_requires{$_->[0]} = $_->[1]
+      unless $_->[0] eq 'ExtUtils::MakeMaker';
+  }
+}
 
+# Rewrite only in author mode, the original META should not contain anything anyway
+# if we executed as non-author
+if ($Module::Install::AUTHOR && keys %removed_build_requires) {
   print "Regenerating META with author requires excluded\n";
   Meta->write;
+}
 
-  # test that we really took things away (just in case)
-  my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
-  for (keys %removed_build_requires) {
-    delete $removed_build_requires{$_}
-      unless $meta =~ /^ \s+ $_: \s+ $removed_build_requires{$_} \s* $/mx
-  }
+# test that we really took things away (just in case, happened twice somehow)
+exit 0 unless -f 'META.yml';  # in case bizarro comes around
+my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
 
-  if (keys %removed_build_requires) {
-    die join ("\n",
-      "\n\nFATAL FAIL! It looks like some author dependencies made it to the META.yml:",
-      "(most likely a broken Module::Install)\n",
-      map { "\t$_" } (keys %removed_build_requires)
-    ) . "\n\n";
-  }
+# this is safe as there is a fatal check earlier to make sure $opt_testdeps does
+# not contain any real dependencies
+my @illegal_leftovers = grep
+  { $meta =~ /^ \s+ \Q$_\E \: \s+ /mx }
+  ( sort keys %$opt_testdeps )
+;
+
+if (@illegal_leftovers) {
+  die join ("\n",
+    "\n\nFATAL FAIL! It looks like some author dependencies made it to the META.yml:\n",
+    map { "\t$_" } @illegal_leftovers
+  ) . "\n\n";
 }
