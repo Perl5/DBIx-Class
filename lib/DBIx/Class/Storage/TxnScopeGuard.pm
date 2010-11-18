@@ -107,7 +107,7 @@ sub DESTROY {
   return if $dismiss;
 
   # if our dbh is not ours anymore, the weakref will go undef
-  $storage->_preserve_foreign_dbh;
+  $storage->_verify_pid;
   return unless $_[0]->[2];
 
   my $exception = $@;

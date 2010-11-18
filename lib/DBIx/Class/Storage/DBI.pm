@@ -27,7 +27,7 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
-  _dbh _dbh_details _conn_pid _conn_tid _sql_maker _sql_maker_opts
+  _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts
   transaction_depth _dbh_autocommit  savepoints
 /);
 
@@ -166,6 +166,8 @@ sub new {
 # of a fork()ed child to kill the parent's shared DBI handle,
 # *before perl reaches the DESTROY in this package*
 # Yes, it is ugly and effective.
+# Additionally this registry is used by the CLONE method to
+# make sure no handles are shared between threads
 {
   my %seek_and_destroy;
 
@@ -180,10 +182,21 @@ sub new {
     local $?; # just in case the DBI destructor changes it somehow
 
     # destroy just the object if not native to this process/thread
-    $_->_preserve_foreign_dbh for (grep
+    $_->_verify_pid for (grep
       { defined $_ }
       values %seek_and_destroy
     );
+  }
+
+  sub CLONE {
+    # As per DBI's recommendation, DBIC disconnects all handles as
+    # soon as possible (DBIC will reconnect only on demand from within
+    # the thread)
+    for (values %seek_and_destroy) {
+      next unless $_;
+      $_->{_dbh_gen}++;  # so that existing cursors will drop as well
+      $_->_dbh(undef);
+    }
   }
 }
 
@@ -195,50 +208,19 @@ sub DESTROY {
   $self->_dbh(undef);
 }
 
-sub _preserve_foreign_dbh {
-  my $self = shift;
-
-  return unless $self->_dbh;
-
-  $self->_verify_tid;
-
-  return unless $self->_dbh;
-
-  $self->_verify_pid;
-
-}
-
 # handle pid changes correctly - do not destroy parent's connection
 sub _verify_pid {
   my $self = shift;
 
-  return if ( defined $self->_conn_pid and $self->_conn_pid == $$ );
-
-  $self->_dbh->{InactiveDestroy} = 1;
-  $self->_dbh(undef);
-  $self->{_dbh_gen}++;
+  my $pid = $self->_conn_pid;
+  if( defined $pid and $pid != $$ and my $dbh = $self->_dbh ) {
+    $dbh->{InactiveDestroy} = 1;
+    $self->{_dbh_gen}++;
+    $self->_dbh(undef);
+  }
 
   return;
 }
-
-# very similar to above, but seems to FAIL if I set InactiveDestroy
-sub _verify_tid {
-  my $self = shift;
-
-  if ( ! defined $self->_conn_tid ) {
-    return; # no threads
-  }
-  elsif ( $self->_conn_tid == threads->tid ) {
-    return; # same thread
-  }
-
-  #$self->_dbh->{InactiveDestroy} = 1;  # why does t/51threads.t fail...?
-  $self->_dbh(undef);
-  $self->{_dbh_gen}++;
-
-  return;
-}
-
 
 =head2 connect_info
 
@@ -921,7 +903,7 @@ sub connected {
 sub _seems_connected {
   my $self = shift;
 
-  $self->_preserve_foreign_dbh;
+  $self->_verify_pid;
 
   my $dbh = $self->_dbh
     or return 0;
@@ -969,7 +951,7 @@ sub dbh {
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
   my $self = shift;
-  $self->_preserve_foreign_dbh;
+  $self->_verify_pid;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
@@ -1023,8 +1005,7 @@ sub _populate_dbh {
 
   $self->_dbh($self->_connect(@info));
 
-  $self->_conn_pid($$);
-  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+  $self->_conn_pid($$) if $^O ne 'MSWin32'; # on win32 these are in fact threads
 
   $self->_determine_driver;
 

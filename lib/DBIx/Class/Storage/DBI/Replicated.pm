@@ -345,7 +345,6 @@ has 'write_handler' => (
     _sqlt_minimum_version
     _sql_maker_opts
     _conn_pid
-    _conn_tid
     _dbh_autocommit
     _native_data_type
     _get_dbh
@@ -367,9 +366,7 @@ has 'write_handler' => (
 
 my @unimplemented = qw(
   _arm_global_destructor
-  _preserve_foreign_dbh
   _verify_pid
-  _verify_tid
 
   get_use_dbms_capability
   set_use_dbms_capability

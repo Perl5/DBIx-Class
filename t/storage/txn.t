@@ -7,9 +7,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Disabled on windows, pending resolution of DBD::SQLite SIGSEGVs'
-  if $^O eq 'MSWin32';
-
 my $code = sub {
   my ($artist, @cd_titles) = @_;
 
@@ -130,11 +127,12 @@ for my $want (0,1) {
       $guard->commit
     },
   ) {
-    push @pids, fork();
+    my $pid = fork();
     die "Unable to fork: $!\n"
-      if ! defined $pids[-1];
+      if ! defined $pid;
 
-    if ($pids[-1]) {
+    if ($pid) {
+      push @pids, $pid;
       next;
     }
 
@@ -167,11 +165,8 @@ for my $want (0,1) {
       });
     }
 
-    for my $pid ( $schema->txn_do ( sub { _forking_action ($schema) } ) ) {
-      waitpid ($pid, 0);
-      ok (! $?, "Child $pid exit ok (pass $pass)");
-      isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
-    }
+    $schema->txn_do ( sub { _test_forking_action ($schema, $pass) } );
+
   }
 }
 
@@ -192,34 +187,32 @@ for my $want (0,1) {
       });
     }
 
-    my @pids;
     my $guard = $schema->txn_scope_guard;
-    @pids = _forking_action ($schema);
+    my @pids = _test_forking_action ($schema, $pass);
     $guard->commit;
-
-    for my $pid (@pids) {
-      waitpid ($pid, 0);
-      ok (! $?, "Child $pid exit ok (pass $pass)");
-      isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
-    }
   }
 }
 
-sub _forking_action {
-  my $schema = shift;
+sub _test_forking_action {
+  my ($schema, $pass) = @_;
 
   my @pids;
-  while (@pids < 5) {
 
-    push @pids, fork();
+  SKIP: for my $count (1 .. 5) {
+
+    skip 'Weird DBI General Protection Faults, skip forking tests (RT#63104)', 5
+      if $^O eq 'MSWin32';
+
+    my $pid = fork();
     die "Unable to fork: $!\n"
-      if ! defined $pids[-1];
+      if ! defined $pid;
 
-    if ($pids[-1]) {
+    if ($pid) {
+      push @pids, $pid;
       next;
     }
 
-    if (@pids % 2) {
+    if ($count % 2) {
       $schema->txn_do (sub {
         my $depth = $schema->storage->transaction_depth;
         die "$$(txn_do)unexpected txn depth $depth!" if $depth != 1;
@@ -237,7 +230,11 @@ sub _forking_action {
     exit 0;
   }
 
-  return @pids;
+  for my $pid (@pids) {
+    waitpid ($pid, 0);
+    ok (! $?, "Child $pid exit ok (pass $pass)");
+    isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
+  }
 }
 
 my $fail_code = sub {

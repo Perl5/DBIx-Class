@@ -28,9 +28,11 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
-diag 'It is normal to see a series of "Scalars leaked: ..." warnings during this test';
-
 use_ok('DBICTest::Schema');
+
+diag "\n\nIt is ok if you see series of 'Attempt to free unreferenced scalar: ...' warnings during this test\n "
+  if $] < '5.008005';
+
 my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 
 my $parent_rs;

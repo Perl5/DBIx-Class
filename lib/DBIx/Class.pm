@@ -195,7 +195,8 @@ resultset is used as an iterator it only fetches rows off the statement
 handle as requested in order to minimise memory usage. It has auto-increment
 support for SQLite, MySQL, PostgreSQL, Oracle, SQL Server and DB2 and is
 known to be used in production on at least the first four, and is fork-
-and thread-safe out of the box (although your DBD may not be).
+and thread-safe out of the box (although
+L<your DBD may not be|DBI/Threads_and_Thread_Safety>).
 
 This project is still under rapid development, so large new features may be
 marked EXPERIMENTAL - such APIs are still usable but may have edge bugs.
