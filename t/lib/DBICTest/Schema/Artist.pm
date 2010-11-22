@@ -64,24 +64,29 @@ __PACKAGE__->has_many(
 );
 
 __PACKAGE__->has_many(
-  cds_80s_noopt => 'DBICTest::Schema::CD',
-  sub {
-    my $args = shift;
-    return (
-      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
-        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
-      }
-    );
-  },
-);
-
-__PACKAGE__->has_many(
   cds_90s => 'DBICTest::Schema::CD',
   sub {
     my $args = shift;
     return (
       { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>' => 1989, '<' => 2000 },
+      }
+    );
+  }
+);
+
+
+__PACKAGE__->has_many(
+  cds_84 => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+    return (
+      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => 1984,
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.year"   => 1984,
       }
     );
   }

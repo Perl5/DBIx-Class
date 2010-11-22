@@ -1677,6 +1677,7 @@ sub _resolve_prefetch {
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
       my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
+
       if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
                          keys %{$collapse}) {
         my ($last) = ($fail =~ /([^\.]+)$/);
@@ -1690,6 +1691,7 @@ sub _resolve_prefetch {
           . 'Use at your own risk.'
         );
       }
+
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
       $collapse->{".${as_prefix}${pre}"} = [ $rel_source->_pri_cols ];
