@@ -1571,14 +1571,12 @@ sub _execute {
     $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
-sub insert {
+sub _prefetch_autovalues {
   my ($self, $source, $to_insert) = @_;
 
   my $colinfo = $source->columns_info;
 
-  # mix with auto-nextval marked values (a bit of a speed hit, but
-  # no saner way to handle this yet)
-  my $auto_nextvals = {} ;
+  my %values;
   for my $col (keys %$colinfo) {
     if (
       $colinfo->{$col}{auto_nextval}
@@ -1589,7 +1587,7 @@ sub insert {
         ref $to_insert->{$col} eq 'SCALAR'
       )
     ) {
-      $auto_nextvals->{$col} = $self->_sequence_fetch(
+      $values{$col} = $self->_sequence_fetch(
         'nextval',
         ( $colinfo->{$col}{sequence} ||=
             $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
@@ -1598,8 +1596,16 @@ sub insert {
     }
   }
 
+  \%values;
+}
+
+sub insert {
+  my ($self, $source, $to_insert) = @_;
+
+  my $prefetched_values = $self->_prefetch_autovalues($source, $to_insert);
+
   # fuse the values
-  $to_insert = { %$to_insert, %$auto_nextvals };
+  $to_insert = { %$to_insert, %$prefetched_values };
 
   # list of primary keys we try to fetch from the database
   # both not-exsists and scalarrefs are considered
@@ -1624,7 +1630,7 @@ sub insert {
 
   my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $sqla_opts);
 
-  my %returned_cols = %$auto_nextvals;
+  my %returned_cols;
 
   if (my $retlist = $sqla_opts->{returning}) {
     my @ret_vals = try {
@@ -1637,7 +1643,7 @@ sub insert {
     @returned_cols{@$retlist} = @ret_vals if @ret_vals;
   }
 
-  return \%returned_cols;
+  return { %$prefetched_values, %returned_cols };
 }
 
 

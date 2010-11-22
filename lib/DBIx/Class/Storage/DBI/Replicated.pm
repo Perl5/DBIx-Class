@@ -378,6 +378,7 @@ my @unimplemented = qw(
 
   _inner_join_to_node
   _group_over_selection
+  _prefetch_autovalues
 );
 
 # the capability framework

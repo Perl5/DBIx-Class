@@ -37,14 +37,16 @@ sub last_insert_id { shift->_identity }
 
 sub _new_uuid { 'UUIDTOSTR(NEWID())' }
 
-sub insert {
+sub _prefetch_autovalues {
   my $self = shift;
   my ($source, $to_insert) = @_;
+
+  my $values = $self->next::method(@_);
 
   my $colinfo = $source->columns_info;
 
   my $identity_col =
-    first { $_->{is_auto_increment} } values %$colinfo;
+    first { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
 
 # user might have an identity PK without is_auto_increment
   if (not $identity_col) {
@@ -72,12 +74,12 @@ sub insert {
     };
 
     if (defined $identity) {
-      $to_insert->{$identity_col} = $identity;
+      $values->{$identity_col} = $identity;
       $self->_identity($identity);
     }
   }
 
-  return $self->next::method(@_);
+  return $values;
 }
 
 # convert UUIDs to strings in selects
