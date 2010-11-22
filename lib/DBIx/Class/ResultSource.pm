@@ -1675,7 +1675,7 @@ sub _resolve_prefetch {
     if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
-        unless ref($rel_info->{cond}) eq 'HASH';
+        unless (ref($rel_info->{cond}) eq 'HASH' || ref($rel_info->{cond}) eq 'CODE');
       my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
 
       if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
@@ -1697,9 +1697,17 @@ sub _resolve_prefetch {
       $collapse->{".${as_prefix}${pre}"} = [ $rel_source->_pri_cols ];
         # action at a distance. prepending the '.' allows simpler code
         # in ResultSet->_collapse_result
-      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
-                    keys %{$rel_info->{cond}};
-      push @$order, map { "${as}.$_" } @key;
+
+      if (ref $rel_info->{cond} eq 'HASH') {
+        my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
+          keys %{$rel_info->{cond}};
+        push @$order, map { "${as}.$_" } @key;
+      } else { # ref $rel_info->{cond} eq 'CODE'
+        # call the cond to get the keys...
+        my $cond_data = $rel_info->{cond}->({ foreign_alias => $as,
+                                              self_alias => $alias });
+        push @$order, keys %$cond_data;
+      }
 
       if (my $rel_order = $rel_info->{attrs}{order_by}) {
         # this is kludgy and incomplete, I am well aware
