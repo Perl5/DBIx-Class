@@ -8,15 +8,25 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
+my $artist  = $schema->resultset("Artist")->create({ name => 'Michael Jackson', rank => 20 });
+my $artist2 = $schema->resultset("Artist")->create({ name => 'Chico Buarque', rank => 1 }) ;
+my $artist3 = $schema->resultset("Artist")->create({ name => 'Ziraldo', rank => 1 });
+my $artist4 = $schema->resultset("Artist")->create({ name => 'Paulo Caruso', rank => 20 });
 
-my $artist = $schema->resultset("Artist")->create({ name => 'Michael Jackson' });
+my @artworks;
+
 foreach my $year (1975..1985) {
-  $artist->create_related('cds', { year => $year, title => 'Compilation from ' . $year });
+  my $cd = $artist->create_related('cds', { year => $year, title => 'Compilation from ' . $year });
+  push @artworks, $cd->create_related('artwork', {});
 }
 
-my $artist2 = $schema->resultset("Artist")->create({ name => 'Chico Buarque' }) ;
 foreach my $year (1975..1995) {
-  $artist2->create_related('cds', { year => $year, title => 'Compilation from ' . $year });
+  my $cd = $artist2->create_related('cds', { year => $year, title => 'Compilation from ' . $year });
+  push @artworks, $cd->create_related('artwork', {});
+}
+
+foreach my $artwork (@artworks) {
+  $artwork->create_related('artwork_to_artist', { artist => $_ }) for ($artist3, $artist4);
 }
 
 my @cds_80s = $artist->cds_80s;
@@ -97,5 +107,39 @@ is_deeply (
   [ grep { $_ } @last_track_ids ],
   'last group-entry via self-join works',
 );
+
+my $artwork = $schema->resultset('Artwork')->search({},{ order_by => 'cd_id' })->first;
+my @artists = $artwork->artists->all;
+is(scalar @artists, 2, 'the two artists are associated');
+
+my @artwork_artists = $artwork->artwork_to_artist->all;
+foreach (@artwork_artists) {
+  lives_ok {
+    my $artista = $_->artist;
+    my $artistb = $_->artist_test_m2m;
+    ok($artista->rank < 10 ? $artistb : 1, 'belongs_to with custom rel works.');
+    my $artistc = $_->artist_test_m2m_noopt;
+    ok($artista->rank < 10 ? $artistc : 1, 'belongs_to with custom rel works even in non-simplified.');
+  } 'belongs_to works with custom rels';
+}
+
+@artists = ();
+lives_ok {
+  @artists = $artwork->artists_test_m2m2->all;
+} 'manytomany with extended rels in the has many works';
+is(scalar @artists, 2, 'two artists');
+
+@artists = ();
+lives_ok {
+  @artists = $artwork->artists_test_m2m->all;
+} 'can fetch many to many with optimized version';
+is(scalar @artists, 1, 'only one artist is associated');
+
+@artists = ();
+lives_ok {
+  @artists = $artwork->artists_test_m2m_noopt->all;
+} 'can fetch many to many with non-optimized version';
+is(scalar @artists, 1, 'only one artist is associated');
+
 
 done_testing;
