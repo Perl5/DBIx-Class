@@ -116,7 +116,7 @@ MyDB/Schema/Result/CD.pm:
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'MyDB::Schema::Artist', 'artistid');
+  __PACKAGE__->belongs_to(artist => 'MyDB::Schema::Result::Artist', 'artistid');
 
   1;
 
