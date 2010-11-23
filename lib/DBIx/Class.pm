@@ -61,6 +61,8 @@ The community can be found via:
 
 =over
 
+=item * Web Site: L<http://www.dbix-class.org/>
+
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
