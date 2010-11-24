@@ -26,6 +26,7 @@ Revision history for DBIx::Class
         - Fix infinite loops on old perls with a recent Try::Tiny
         - Improve "fork()" on Win32 by reimplementing a more robust DBIC
           thread support (still problematic, pending a DBI fix)
+        - Properly quote table name on INSERT with no values
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable
