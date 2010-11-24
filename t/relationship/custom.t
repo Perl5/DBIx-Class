@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -29,13 +30,37 @@ foreach my $artwork (@artworks) {
   $artwork->create_related('artwork_to_artist', { artist => $_ }) for ($artist3, $artist4);
 }
 
-my @cds_80s = $artist->cds_80s;
+my $cds_80s_rs = $artist->cds_80s;
+is_same_sql_bind($cds_80s_rs->as_query,
+                 '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me'.
+                 ' WHERE ( ( me.artist = ? AND ( me.year < ? AND me.year > ? ) ) ))',
+                 [
+                  [ 'me.artist' => 4    ],
+                  [ 'me.year'   => 1990 ],
+                  [ 'me.year'   => 1979 ],
+                 ]);
+my @cds_80s = $cds_80s_rs->all;
 is(@cds_80s, 6, '6 80s cds found (1980 - 1985)');
 map { ok($_->year < 1990 && $_->year > 1979) } @cds_80s;
 
-my @cds_90s = $artist2->cds_90s;
+my $cds_90s_rs = $artist2->cds_90s;
+is_same_sql_bind($cds_90s_rs->as_query,
+                 '(SELECT cds_90s.cdid, cds_90s.artist, cds_90s.title, cds_90s.year, cds_90s.genreid,'.
+                 'cds_90s.single_track FROM artist me JOIN cd cds_90s ON ( cds_90s.artist = me.artistid'.
+                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( artistid = ? ))',
+                 [
+                  [ 'cds_90s.year' => 2000 ],
+                  [ 'cds_90s.year' => 1989 ],
+                  [ 'artistid'     => 5    ],
+                 ]);
+
+my @cds_90s = $cds_90s_rs->all;
 is(@cds_90s, 6, '6 90s cds found (1990 - 1995) even with non-optimized search');
 map { ok($_->year < 2000 && $_->year > 1989) } @cds_90s;
+
+my @cds_90s_95 = $artist2->cds_90s->search({ 'year' => 1995 });
+is(@cds_90s_95, 1, '1 90s (95) cds found even with non-optimized search');
+map { ok($_->year == 1995) } @cds_90s_95;
 
 # search for all artists prefetching published cds in the 80s...
 #####

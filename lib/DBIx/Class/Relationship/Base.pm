@@ -447,57 +447,48 @@ sub related_resultset {
       }
     }
 
-    # this is where we're going to check if we have an extended
-    # rel. In that case, we need to: 1) If there's a second
-    # condition, we use that instead.  2) If there is only one
-    # condition, we need to join the current resultsource and have
-    # additional conditions.
-    if (ref $rel_info->{cond} eq 'CODE') {
-      # this is an extended relationship.
-      if ($extended_cond) {
+    if (ref $rel_info->{cond} eq 'CODE' && !$extended_cond) {
+      # since we don't have the extended condition, we need to step
+      # back, get a resultset for the current row and do a
+      # search_related there.
+      my $row_srcname = $source->source_name;
+      my %identity = map { ( $_ => $self->get_column($_) ) } $source->primary_columns;
+      my $row_rs = $source->schema->resultset($row_srcname)->search(\%identity);
+
+      $row_rs->search_related($rel, $query, $attrs);
+
+    } else {
+      # when we have the extended condition or we have a simple
+      # relationship declaration, it can optimize the JOIN away by
+      # simply adding the identity in WHERE.
+
+      if (ref $rel_info->{cond} eq 'CODE' && $extended_cond) {
         $cond = $extended_cond;
-
-      } else {
-
-        # it's a bit hard to find out what to do with other joins
-        $self->throw_exception('Extended relationship '.$rel.' with additional join requires optimized declaration')
-          if exists $attrs->{join} && $attrs->{join};
-
-        # aliases get a bit more complicated, so we won't accept additional queries
-        $self->throw_exception('Extended relationship '.$rel.' with additional query requires optimized declaration')
-          if $query;
-
-        $attrs->{from} =
-          [ { $rel => $self->result_source->from },
-            [ { 'me' => $self->result_source->related_source($rel)->from }, { 1 => 1 } ] ];
-
-        $cond->{"${rel}.${_}"} = $self->get_column($_) for $self->result_source->primary_columns;
       }
-    }
 
-    if (ref $cond eq 'ARRAY') {
-      $cond = [ map {
-        if (ref $_ eq 'HASH') {
-          my $hash;
-          foreach my $key (keys %$_) {
-            my $newkey = $key !~ /\./ ? "me.$key" : $key;
-            $hash->{$newkey} = $_->{$key};
+      if (ref $cond eq 'ARRAY') {
+        $cond = [ map {
+          if (ref $_ eq 'HASH') {
+            my $hash;
+            foreach my $key (keys %$_) {
+              my $newkey = $key !~ /\./ ? "me.$key" : $key;
+              $hash->{$newkey} = $_->{$key};
+            }
+            $hash;
+          } else {
+            $_;
           }
-          $hash;
-        } else {
-          $_;
+        } @$cond ];
+      } elsif (ref $cond eq 'HASH') {
+        foreach my $key (grep { ! /\./ } keys %$cond) {
+          $cond->{"me.$key"} = delete $cond->{$key};
         }
-      } @$cond ];
-    } elsif (ref $cond eq 'HASH') {
-      foreach my $key (grep { ! /\./ } keys %$cond) {
-        $cond->{"me.$key"} = delete $cond->{$key};
       }
-    }
 
-    $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-    $self->result_source->related_source($rel)->resultset->search(
-      $query, $attrs
-    );
+      $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
+      $self->result_source->related_source($rel)->resultset->search(
+        $query, $attrs);
+    }
   };
 }
 
