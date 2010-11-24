@@ -567,6 +567,20 @@ in L<DBIx::Class::ResultSet> for details.
 sub create_related {
   my $self = shift;
   my $rel = shift;
+
+  # we need to stop and check if this is at all possible. If this is
+  # an extended relationship with an incomplete definition, we should
+  # just forbid it right now.
+  my $rel_info = $self->result_source->relationship_info($rel);
+  if (ref $rel_info->{cond} eq 'CODE') {
+    my ($cond, $ext) = $rel_info->{cond}->({ self_alias => 'me',
+                                             foreign_alias => 'other',
+                                             self_rowobj => $self
+                                           });
+    $self->throw_exception("unable to set_from_related - no simplified condition available for '${rel}'")
+      unless $ext;
+  }
+
   my $obj = $self->search_related($rel)->create(@_);
   delete $self->{related_resultsets}->{$rel};
   return $obj;
