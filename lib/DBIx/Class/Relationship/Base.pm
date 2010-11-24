@@ -570,6 +570,9 @@ sub create_related {
   my $self = shift;
   my $rel = shift;
 
+  $self->throw_exception("Can't call *_related as class methods")
+    unless ref $self;
+
   # we need to stop and check if this is at all possible. If this is
   # an extended relationship with an incomplete definition, we should
   # just forbid it right now.
