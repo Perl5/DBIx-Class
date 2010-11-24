@@ -2347,12 +2347,6 @@ sub _merge_with_rscond {
         if (keys(%$value) && (keys %$value)[0] eq '=') {
           $new_data{$col} = $value->{'='};
         }
-        # in a complex condition, set_from_related needs to override
-        # the columns that are involved.
-        elsif (!exists $data->{$col} &&
-               !exists $data->{"$alias.$col"}) {
-          $self->throw_exception("unable to set_from_related via complex condition on column(s): '$col'");
-        }
       }
       elsif( !$vref or $vref eq 'SCALAR' or blessed($value) ) {
         $new_data{$col} = $value;

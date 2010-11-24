@@ -452,8 +452,10 @@ sub related_resultset {
       # back, get a resultset for the current row and do a
       # search_related there.
       my $row_srcname = $source->source_name;
-      my %identity = map { ( $_ => $self->get_column($_) ) } $source->primary_columns;
-      my $row_rs = $source->schema->resultset($row_srcname)->search(\%identity);
+      my $base_rs = $source->schema->resultset($row_srcname);
+      my $alias = $base_rs->current_source_alias;
+      my %identity = map { ( "${alias}.${_}" => $self->get_column($_) ) } $source->primary_columns;
+      my $row_rs = $base_rs->search(\%identity);
 
       $row_rs->search_related($rel, $query, $attrs);
 
@@ -574,11 +576,25 @@ sub create_related {
   my $rel_info = $self->result_source->relationship_info($rel);
   if (ref $rel_info->{cond} eq 'CODE') {
     my ($cond, $ext) = $rel_info->{cond}->({ self_alias => 'me',
-                                             foreign_alias => 'other',
+                                             foreign_alias => $rel,
                                              self_rowobj => $self
                                            });
     $self->throw_exception("unable to set_from_related - no simplified condition available for '${rel}'")
       unless $ext;
+
+    # now we need to make sure all non-identity relationship
+    # definitions are overriden.
+    my ($argref) = @_;
+    while ( my($col, $value) = each %$ext ) {
+      $col =~ s/^$rel\.//;
+      my $vref = ref $value;
+      if ($vref eq 'HASH') {
+        if (keys(%$value) && (keys %$value)[0] ne '=' &&
+            !exists $argref->{$col}) {
+          $self->throw_exception("unable to set_from_related via complex '${rel}' condition on column(s): '${col}'")
+        }
+      }
+    }
   }
 
   my $obj = $self->search_related($rel)->create(@_);

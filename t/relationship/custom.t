@@ -47,11 +47,11 @@ my $cds_90s_rs = $artist2->cds_90s;
 is_same_sql_bind($cds_90s_rs->as_query,
                  '(SELECT cds_90s.cdid, cds_90s.artist, cds_90s.title, cds_90s.year, cds_90s.genreid,'.
                  'cds_90s.single_track FROM artist me JOIN cd cds_90s ON ( cds_90s.artist = me.artistid'.
-                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( artistid = ? ))',
+                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( me.artistid = ? ))',
                  [
                   [ 'cds_90s.year' => 2000 ],
                   [ 'cds_90s.year' => 1989 ],
-                  [ 'artistid'     => 5    ],
+                  [ 'me.artistid'  => 5    ],
                  ]);
 
 my @cds_90s = $cds_90s_rs->all;
