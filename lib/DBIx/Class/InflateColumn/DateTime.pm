@@ -112,21 +112,22 @@ sub register_column {
 
   $self->next::method($column, $info, @rest);
 
-  return unless defined($info->{data_type});
-
   my $requested_type;
-  for (qw/date datetime timestamp/) {
+  for (qw/datetime timestamp date/) {
     my $key = "inflate_${_}";
+    if (exists $info->{$key}) {
 
-    next unless exists $info->{$key};
+      # this bailout is intentional
+      return unless $info->{$key};
 
-    return if ! $info->{$key};
-
-    $requested_type = $_;
-    last;
+      $requested_type = $_;
+      last;
+    }
   }
 
-  my $data_type = lc($info->{data_type} || '');
+  return if (!$requested_type and !$info->{data_type});
+
+  my $data_type = lc( $info->{data_type} || '' );
 
   # _ic_dt_method will follow whatever the registration requests
   # thus = instead of ||=
@@ -142,11 +143,12 @@ sub register_column {
   elsif ($data_type =~ /^ (?: date | datetime | timestamp ) $/x) {
     $info->{_ic_dt_method} = $data_type;
   }
-  else {
+  elsif ($requested_type) {
     $info->{_ic_dt_method} = $requested_type;
   }
-
-  return unless $info->{_ic_dt_method};
+  else {
+    return;
+  }
 
   if ($info->{extra}) {
     for my $slot (qw/timezone locale floating_tz_ok/) {
