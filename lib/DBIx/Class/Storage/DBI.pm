@@ -206,6 +206,12 @@ sub DESTROY {
   # some databases spew warnings on implicit disconnect
   local $SIG{__WARN__} = sub {};
   $self->_dbh(undef);
+
+  # this op is necessary, since the very last perl runtime statement
+  # triggers a global destruction shootout, and the $SIG localization
+  # may very well be destroyed before perl actually gets to do the
+  # $dbh undef
+  1;
 }
 
 # handle pid changes correctly - do not destroy parent's connection

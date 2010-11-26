@@ -27,6 +27,7 @@ Revision history for DBIx::Class
         - Improve "fork()" on Win32 by reimplementing a more robust DBIC
           thread support (still problematic, pending a DBI fix)
         - Properly quote table name on INSERT with no values
+        - Work around possible Storage destruction warnings
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable
