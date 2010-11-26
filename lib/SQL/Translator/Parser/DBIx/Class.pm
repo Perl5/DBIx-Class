@@ -45,12 +45,8 @@ sub parse {
 
     croak 'No DBIx::Class::Schema' unless ($dbicschema);
     if (!ref $dbicschema) {
-      try {
-        eval "require $dbicschema;"
-      }
-      catch {
-        croak "Can't load $dbicschema ($_)";
-      }
+      eval "require $dbicschema"
+        or croak "Can't load $dbicschema: $@";
     }
 
     my $schema      = $tr->schema;
@@ -154,7 +150,11 @@ sub parse {
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $relsource = $source->related_source($rel);
+            my $relsource = try { $source->related_source($rel) };
+            unless ($relsource) {
+              warn "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              next;
+            };
 
             # related sources might be excluded via a {sources} filter or might be views
             next unless exists $table_monikers{$relsource->source_name};
@@ -284,7 +284,7 @@ sub parse {
 
       # the hook might have already removed the table
       if ($schema->get_table($table) && $table =~ /^ \s* \( \s* SELECT \s+/ix) {
-        warn <<'EOW';
+        carp <<'EOW';
 
 Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, for more details see
 "Arbitrary SQL through a custom ResultSource" in DBIx::Class::Manual::Cookbook

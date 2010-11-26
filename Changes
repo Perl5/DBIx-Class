@@ -14,6 +14,8 @@ Revision history for DBIx::Class
         - Fix incorrect error detection during populate() on Oracle
         - Better handling of result_source-less row objects by
           auto-calling result_source_instance when necessary
+        - Fix reverse_relationship_info and sqlt deploy on partially
+          loaded schemas (relationships point to non-existent sources)
 
 0.08126_01 2011-01-14 14:00 (UTC)
     * New Features / Changes

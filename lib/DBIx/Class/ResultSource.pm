@@ -1345,11 +1345,14 @@ sub reverse_relationship_info {
   my @otherrels = $othertable->relationships();
   my $otherrelationship;
   foreach my $otherrel (@otherrels) {
-    my $otherrel_info = $othertable->relationship_info($otherrel);
+    # this may be a partial schema with the related source not being
+    # available at all
+    my $back = try { $othertable->related_source($otherrel) } or next;
 
-    my $back = $othertable->related_source($otherrel);
+    # did we get back to ourselves?
     next unless $back->source_name eq $self->source_name;
 
+    my $otherrel_info = $othertable->relationship_info($otherrel);
     my @othertestconds;
 
     if (ref $otherrel_info->{cond} eq 'HASH') {
