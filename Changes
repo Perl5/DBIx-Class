@@ -32,6 +32,7 @@ Revision history for DBIx::Class
         - Switch all serialization to use Storable::nfreeze for portable
           architecture independent ice
         - Fix the bogus META.yml dependency injection issue for good
+        - Refactor DBIx::Class::Storage::Statistics::debugfh() to be lazy
 
 0.08124 2010-10-28 14:23 (UTC)
     * New Features / Changes
