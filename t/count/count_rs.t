@@ -8,8 +8,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
 
-plan tests => 10;
-
 my $schema = DBICTest->init_schema();
 
 # non-collapsing prefetch (no multi prefetches)
@@ -115,3 +113,38 @@ my $schema = DBICTest->init_schema();
     'count_rs db-side limit applied',
   );
 }
+
+# count with a having clause 
+{
+  my $rs = $schema->resultset("Artist")->search(
+    {},
+    {
+      join      => 'cds',
+      group_by  => 'me.artistid',
+      '+select' => [ { max => 'cds.year', -as => 'newest_cd_year' } ],
+      '+as'     => ['newest_cd_year'],
+      having    => { 'newest_cd_year' => '2001' }
+    }
+  );
+
+  my $crs = $rs->count_rs;
+
+  is_same_sql_bind (
+    $crs->as_query,
+    '(SELECT COUNT( * )
+      FROM (
+        SELECT me.artistid, MAX( cds.year ) AS newest_cd_year 
+          FROM artist me 
+          LEFT JOIN cd cds ON cds.artist = me.artistid 
+        GROUP BY me.artistid 
+        HAVING newest_cd_year = ?
+      ) me
+    )',
+    [ [ 'newest_cd_year' => '2001' ],],
+    'count with having clause keeps sql as alias',
+  );
+
+  is ($crs->next, 2, 'Correct artist count (each with one 2001 cd)');
+}
+
+done_testing;

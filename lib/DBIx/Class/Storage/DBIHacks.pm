@@ -259,7 +259,9 @@ sub _resolve_aliastypes_from_select_args {
   local $sql_maker->{name_sep} = $sql_maker->{name_sep};
 
   unless (defined $sql_maker->{quote_char} and length $sql_maker->{quote_char}) {
-    $sql_maker->{quote_char} = "\x00";
+    $sql_maker->{quote_char} = ["\x00", "\xFF"];
+    # if we don't unset it we screw up retarded but unfortunately working
+    # 'MAX(foo.bar)' => { '>', 3 }
     $sql_maker->{name_sep} = '';
   }
 

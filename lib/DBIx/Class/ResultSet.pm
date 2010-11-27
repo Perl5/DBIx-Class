@@ -1306,10 +1306,42 @@ sub _count_subq_rs {
         if (ref $sel eq 'HASH' and $sel->{-as});
     }
 
-    for my $g_part (@$g) {
-      my $colpiece = $sel_index->{$g_part} || $g_part;
+    # anything from the original select mentioned on the group-by needs to make it to the inner selector
+    # also look for named aggregates referred in the having clause
+    # having often contains scalarrefs - thus parse it out entirely
+    my @parts = @$g;
+    if ($attrs->{having}) {
+      local $sql_maker->{having_bind};
+      local $sql_maker->{quote_char} = $sql_maker->{quote_char};
+      local $sql_maker->{name_sep} = $sql_maker->{name_sep};
+      unless (defined $sql_maker->{quote_char} and length $sql_maker->{quote_char}) {
+        $sql_maker->{quote_char} = [ "\x00", "\xFF" ];
+        # if we don't unset it we screw up retarded but unfortunately working
+        # 'MAX(foo.bar)' => { '>', 3 }
+        $sql_maker->{name_sep} = '';
+      }
 
-      # disqualify join-based group_by's. Arcane but possible query
+      my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
+
+      my $sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
+
+      # search for both a proper quoted qualified string, for a naive unquoted scalarref
+      # and if all fails for an utterly naive quoted scalar-with-function
+      while ($sql =~ /
+        $rquote $sep $lquote (.+?) $rquote
+          |
+        [\s,] \w+ \. (\w+) [\s,]
+          |
+        [\s,] $lquote (.+?) $rquote [\s,]
+      /gx) {
+        push @parts, ($1 || $2 || $3);  # one of them matched if we got here
+      }
+    }
+
+    for (@parts) {
+      my $colpiece = $sel_index->{$_} || $_;
+
+      # unqualify join-based group_by's. Arcane but possible query
       # also horrible horrible hack to alias a column (not a func.)
       # (probably need to introduce SQLA syntax)
       if ($colpiece =~ /\./ && $colpiece !~ /^$attrs->{alias}\./) {

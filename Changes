@@ -28,6 +28,7 @@ Revision history for DBIx::Class
           thread support (still problematic, pending a DBI fix)
         - Properly quote table name on INSERT with no values
         - Work around possible Storage destruction warnings
+        - Fix count of grouped resultsets using HAVING with aliases
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable
