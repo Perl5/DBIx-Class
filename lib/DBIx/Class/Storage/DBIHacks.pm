@@ -276,8 +276,8 @@ sub _resolve_aliastypes_from_select_args {
       }),
     ],
     selecting => [
-      $self->_extract_order_columns ($attrs->{order_by}, $sql_maker),
       $sql_maker->_recurse_fields ($select),
+      ( map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker) ),
     ],
   };
 
@@ -336,6 +336,7 @@ sub _resolve_aliastypes_from_select_args {
   return $aliases_by_type;
 }
 
+# This is the engine behind { distinct => 1 }
 sub _group_over_selection {
   my ($self, $from, $select, $order_by) = @_;
 
@@ -356,11 +357,12 @@ sub _group_over_selection {
 
   # add any order_by parts that are not already present in the group_by
   # we need to be careful not to add any named functions/aggregates
-  # i.e. select => [ ... { count => 'foo', -as 'foocount' } ... ]
-  for my $chunk ($self->_extract_order_columns($order_by)) {
+  # i.e. order_by => [ ... { count => 'foo' } ... ]
+  for ($self->_extract_order_criteria($order_by)) {
     # only consider real columns (for functions the user got to do an explicit group_by)
-    my $colinfo = $rs_column_list->{$chunk}
-      or next;
+    next if @$_ != 1;
+    my $chunk = $_->[0];
+    my $colinfo = $rs_column_list->{$chunk} or next;
 
     $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
     push @group_by, $chunk unless $group_index{$chunk}++;
@@ -588,7 +590,7 @@ sub _strip_cond_qualifiers {
   return $cond;
 }
 
-sub _extract_order_columns {
+sub _extract_order_criteria {
   my ($self, $order_by, $sql_maker) = @_;
 
   my $parser = sub {
@@ -598,8 +600,9 @@ sub _extract_order_columns {
       unless wantarray;
 
     my @chunks;
-    for my $chunk (map { ref $_ ? @$_ : $_ } ($sql_maker->_order_by_chunks ($order_by) ) ) {
-      $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+    for ($sql_maker->_order_by_chunks ($order_by) ) {
+      my $chunk = ref $_ ? $_ : [ $_ ];
+      $chunk->[0] =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
       push @chunks, $chunk;
     }
 

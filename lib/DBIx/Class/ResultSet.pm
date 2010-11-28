@@ -2745,7 +2745,7 @@ sub is_paged {
 
 sub is_ordered {
   my ($self) = @_;
-  return scalar $self->result_source->storage->_extract_order_columns($self->{attrs}{order_by});
+  return scalar $self->result_source->storage->_extract_order_criteria($self->{attrs}{order_by});
 }
 
 =head2 related_resultset

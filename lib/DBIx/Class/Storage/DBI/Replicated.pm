@@ -355,7 +355,6 @@ has 'write_handler' => (
     _resolve_column_info
     _prune_unused_joins
     _strip_cond_qualifiers
-    _extract_order_columns
     _resolve_aliastypes_from_select_args
     _execute
     _do_query
@@ -379,6 +378,7 @@ my @unimplemented = qw(
   _inner_join_to_node
   _group_over_selection
   _prefetch_autovalues
+  _extract_order_criteria
 );
 
 # the capability framework
