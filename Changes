@@ -29,6 +29,8 @@ Revision history for DBIx::Class
         - Properly quote table name on INSERT with no values
         - Work around possible Storage destruction warnings
         - Fix count of grouped resultsets using HAVING with aliases
+        - Setting belongs_to columns/relationships no longer leaves the
+          FK value and related object out of sync
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable

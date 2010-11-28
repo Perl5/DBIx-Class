@@ -43,11 +43,8 @@ sub belongs_to {
       "$fk is not a column of $class"
     ) unless $class->has_column($fk);
 
-    my $acc_type = $class->has_column($rel) ? 'filter' : 'single';
-    $class->add_relationship($rel, $f_class,
-      { "foreign.${pri}" => "self.${fk}" },
-      { accessor => $acc_type, %{$attrs || {}} }
-    );
+    $cond = { "foreign.${pri}" => "self.${fk}" };
+
   }
   # explicit join condition
   elsif (ref $cond) {
@@ -62,22 +59,37 @@ sub belongs_to {
       }
       $cond = $cond_rel;
     }
-    my $acc_type = ((ref $cond eq 'HASH')
-                       && keys %$cond == 1
-                       && $class->has_column($rel))
-                     ? 'filter'
-                     : 'single';
-    $class->add_relationship($rel, $f_class,
-      $cond,
-      { accessor => $acc_type, %{$attrs || {}} }
-    );
   }
+  # dunno
   else {
     $class->throw_exception(
       'third argument for belongs_to must be undef, a column name, '.
       'or a join condition'
     );
   }
+
+  my $acc_type = (
+    ref $cond eq 'HASH'
+      and
+    keys %$cond == 1
+      and
+    $class->has_column($rel)
+  ) ? 'filter' : 'single';
+
+  my $fk_columns = ($acc_type eq 'single' and ref $cond eq 'HASH')
+    ? { map { $_ =~ /^self\.(.+)/ ? ( $1 => 1 ) : () } (values %$cond ) }
+    : undef
+  ;
+
+  $class->add_relationship($rel, $f_class,
+    $cond,
+    {
+      accessor => $acc_type,
+      $fk_columns ? ( fk_columns => $fk_columns ) : (),
+      %{$attrs || {}}
+    }
+  );
+
   return 1;
 }
 

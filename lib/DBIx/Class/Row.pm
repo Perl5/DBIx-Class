@@ -880,11 +880,31 @@ sub set_column {
       : 1
   ;
 
-  # FIXME sadly the update code just checks for keys, not for their value
-  $self->{_dirty_columns}{$column} = 1 if $dirty;
+  if ($dirty) {
+    # FIXME sadly the update code just checks for keys, not for their value
+    $self->{_dirty_columns}{$column} = 1;
 
-  # XXX clear out the relation cache for this column
-  delete $self->{related_resultsets}{$column};
+    # Clear out the relation/inflation cache related to this column
+    #
+    # FIXME - this is a quick *largely incorrect* hack, pending a more
+    # serious rework during the merge of single and filter rels
+    my $rels = $self->result_source->{_relationships};
+    for my $rel (keys %$rels) {
+
+      my $acc = $rels->{$rel}{attrs}{accessor} || '';
+
+      if ( $acc eq 'single' and $rels->{$rel}{attrs}{fk_columns}{$column} ) {
+        delete $self->{related_resultsets}{$rel};
+        delete $self->{_relationship_data}{$rel};
+        #delete $self->{_inflated_column}{$rel};
+      }
+      elsif ( $acc eq 'filter' and $rel eq $column) {
+        delete $self->{related_resultsets}{$rel};
+        #delete $self->{_relationship_data}{$rel};
+        delete $self->{_inflated_column}{$rel};
+      }
+    }
+  }
 
   return $new_value;
 }

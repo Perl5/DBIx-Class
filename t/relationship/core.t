@@ -89,13 +89,10 @@ $track->set_from_related( cd => undef );
 
 ok( !defined($track->cd), 'set_from_related with undef ok');
 
-TODO: {
-    local $TODO = 'accessing $object->rel and set_from_related';
-    my $track = $schema->resultset("Track")->new( {} );
-    $track->cd;
-    $track->set_from_related( cd => $cd ); 
-    ok ($track->cd, 'set_from_related ok after using the accessor' );
-};
+$track = $schema->resultset("Track")->new( {} );
+$track->cd;
+$track->set_from_related( cd => $cd ); 
+ok ($track->cd, 'set_from_related ok after using the accessor' );
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
 $track = $schema->resultset("Track")->create( {
