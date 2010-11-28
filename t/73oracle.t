@@ -44,9 +44,7 @@ my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/
 # optional:
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_ORA_EXTRAUSER_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
-  'Warning: This test drops and creates tables called \'artist\', \'cd\', \'track\' and \'sequence_test\''.
-  ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
+plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
   unless ($dsn && $user && $pass);
 
 DBICTest::Schema->load_classes('ArtistFQN');
@@ -57,23 +55,6 @@ note "Oracle Version: " . $schema->storage->_server_info->{dbms_version};
 my $dbh = $schema->storage->dbh;
 
 do_creates($dbh);
-
-{
-    # Swiped from t/bindtype_columns.t to avoid creating my own Resultset.
-
-    local $SIG{__WARN__} = sub {};
-    eval { $dbh->do('DROP TABLE bindtype_test') };
-
-    $dbh->do(qq[
-        CREATE TABLE bindtype_test
-        (
-            id              integer      NOT NULL   PRIMARY KEY,
-            bytea           integer      NULL,
-            blob            blob         NULL,
-            clob            clob         NULL
-        )
-    ],{ RaiseError => 1, PrintError => 1 });
-}
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
@@ -247,6 +228,7 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
+# test BLOBs
 SKIP: {
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
   $binstr{'large'} = $binstr{'small'} x 1024;
@@ -284,440 +266,14 @@ SKIP: {
   $schema->storage->debug ($orig_debug);
 }
 
-
-### test hierarchical queries
-if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
-    my $source = $schema->source('Artist');
-
-    $source->add_column( 'parentid' );
-
-    $source->add_relationship('children', 'DBICTest::Schema::Artist',
-        { 'foreign.parentid' => 'self.artistid' },
-        {
-            accessor => 'multi',
-            join_type => 'LEFT',
-            cascade_delete => 1,
-            cascade_copy => 1,
-        } );
-    $source->add_relationship('parent', 'DBICTest::Schema::Artist',
-        { 'foreign.artistid' => 'self.parentid' },
-        { accessor => 'single' } );
-    DBICTest::Schema::Artist->add_column( 'parentid' );
-    DBICTest::Schema::Artist->has_many(
-        children => 'DBICTest::Schema::Artist',
-        { 'foreign.parentid' => 'self.artistid' }
-    );
-    DBICTest::Schema::Artist->belongs_to(
-        parent => 'DBICTest::Schema::Artist',
-        { 'foreign.artistid' => 'self.parentid' }
-    );
-
-    $schema->resultset('Artist')->create ({
-        name => 'root',
-        rank => 1,
-        cds => [],
-        children => [
-            {
-                name => 'child1',
-                rank => 2,
-                children => [
-                    {
-                        name => 'grandchild',
-                        rank => 3,
-                        cds => [
-                            {
-                                title => "grandchilds's cd" ,
-                                year => '2008',
-                                tracks => [
-                                    {
-                                        position => 1,
-                                        title => 'Track 1 grandchild',
-                                    }
-                                ],
-                            }
-                        ],
-                        children => [
-                            {
-                                name => 'greatgrandchild',
-                                rank => 3,
-                            }
-                        ],
-                    }
-                ],
-            },
-            {
-                name => 'child2',
-                rank => 3,
-            },
-        ],
-    });
-
-    $schema->resultset('Artist')->create(
-        {
-            name     => 'cycle-root',
-            children => [
-                {
-                    name     => 'cycle-child1',
-                    children => [ { name => 'cycle-grandchild' } ],
-                },
-                { name => 'cycle-child2' },
-            ],
-        }
-    );
-
-    $schema->resultset('Artist')->find({ name => 'cycle-root' })
-      ->update({ parentid => { -ident => 'artistid' } });
-
-    # select the whole tree
-    {
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-            FROM artist me
-          START WITH name = ?
-          CONNECT BY parentid = PRIOR artistid 
-        )',
-        [ [ name => 'root'] ],
-      );
-      is_deeply (
-        [ $rs->get_column ('name')->all ],
-        [ qw/root child1 grandchild greatgrandchild child2/ ],
-        'got artist tree',
-      );
-
-
-      is_same_sql_bind (
-        $rs->count_rs->as_query,
-        '(
-          SELECT COUNT( * )
-            FROM artist me
-          START WITH name = ?
-          CONNECT BY parentid = PRIOR artistid 
-        )',
-        [ [ name => 'root'] ],
-      );
-
-      is( $rs->count, 5, 'Connect By count ok' );
-    }
-
-    # use order siblings by statement
-    SKIP: {
-      # http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a85397/state21b.htm#2066123
-      skip q{Oracle8i doesn't support ORDER SIBLINGS BY}, 1
-        if $schema->storage->_server_info->{normalized_dbms_version} < 9;
-
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident =>  'artistid' } } },
-        order_siblings_by => { -desc => 'name' },
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-            FROM artist me
-          START WITH name = ?
-          CONNECT BY parentid = PRIOR artistid 
-          ORDER SIBLINGS BY name DESC
-        )',
-        [ [ name => 'root'] ],
-      );
-
-      is_deeply (
-        [ $rs->get_column ('name')->all ],
-        [ qw/root child2 child1 grandchild greatgrandchild/ ],
-        'Order Siblings By ok',
-      );
-    }
-
-    # get the root node
-    {
-      my $rs = $schema->resultset('Artist')->search({ parentid => undef }, {
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-            FROM artist me
-          WHERE ( parentid IS NULL )
-          START WITH name = ?
-          CONNECT BY parentid = PRIOR artistid 
-        )',
-        [ [ name => 'root'] ],
-      );
-
-      is_deeply(
-        [ $rs->get_column('name')->all ],
-        [ 'root' ],
-        'found root node',
-      );
-    }
-
-    # combine a connect by with a join
-    SKIP: {
-      # http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a85397/state21b.htm#2066123
-      skip q{Oracle8i doesn't support connect by with join}, 1
-        if $schema->storage->_server_info->{normalized_dbms_version} < 9;
-
-      my $rs = $schema->resultset('Artist')->search(
-        {'cds.title' => { -like => '%cd'} },
-        {
-          join => 'cds',
-          start_with => { 'me.name' => 'root' },
-          connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-        }
-      );
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-            FROM artist me
-            LEFT JOIN cd cds ON cds.artist = me.artistid
-          WHERE ( cds.title LIKE ? )
-          START WITH me.name = ?
-          CONNECT BY parentid = PRIOR artistid 
-        )',
-        [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
-      );
-
-      is_deeply(
-        [ $rs->get_column('name')->all ],
-        [ 'grandchild' ],
-        'Connect By with a join result name ok'
-      );
-
-
-      is_same_sql_bind (
-        $rs->count_rs->as_query,
-        '(
-          SELECT COUNT( * )
-            FROM artist me
-            LEFT JOIN cd cds ON cds.artist = me.artistid
-          WHERE ( cds.title LIKE ? )
-          START WITH me.name = ?
-          CONNECT BY parentid = PRIOR artistid 
-        )',
-        [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
-      );
-
-      is( $rs->count, 1, 'Connect By with a join; count ok' );
-    }
-
-    # combine a connect by with order_by
-    {
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-        order_by => { -asc => [ 'LEVEL', 'name' ] },
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-          START WITH name = ?
-          CONNECT BY parentid = PRIOR artistid 
-          ORDER BY LEVEL ASC, name ASC
-        )',
-        [ [ name => 'root' ] ],
-      );
-
-
-      # Don't use "$rs->get_column ('name')->all" they build a query arround the $rs.
-      #   If $rs has a order by, the order by is in the subquery and this doesn't work with Oracle 8i.
-      # TODO: write extra test and fix order by handling on Oracle 8i
-      is_deeply (
-        [ map { $_->[1] } $rs->cursor->all ],
-        [ qw/root child1 child2 grandchild greatgrandchild/ ],
-        'Connect By with a order_by - result name ok (without get_column)'
-      );
-
-      SKIP: {
-          skip q{Connect By with a order_by - result name ok (with get_column), Oracle8i doesn't support order by in a subquery},1
-            if $schema->storage->_server_info->{normalized_dbms_version} < 9;
-          is_deeply (
-            [  $rs->get_column ('name')->all ],
-            [ qw/root child1 child2 grandchild greatgrandchild/ ],
-            'Connect By with a order_by - result name ok (with get_column)'
-          );
-      }
-    }
-
-
-    # limit a connect by
-    SKIP: {
-      skip q{Oracle8i doesn't support order by in a subquery}, 1
-        if $schema->storage->_server_info->{normalized_dbms_version} < 9;
-
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-        order_by => { -asc => 'name' },
-        rows => 2,
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-            SELECT artistid, name, rank, charfield, parentid FROM (
-              SELECT
-                  me.artistid,
-                  me.name,
-                  me.rank,
-                  me.charfield,
-                  me.parentid
-                FROM artist me
-              START WITH name = ?
-              CONNECT BY parentid = PRIOR artistid
-              ORDER BY name ASC 
-            ) me
-            WHERE ROWNUM <= 2
-        )',
-        [ [ name => 'root' ] ],
-      );
-
-      is_deeply (
-        [ $rs->get_column ('name')->all ],
-        [qw/child1 child2/],
-        'LIMIT a Connect By query - correct names'
-      );
-
-      is_same_sql_bind (
-        $rs->count_rs->as_query,
-        '(
-          SELECT COUNT( * ) FROM (
-            SELECT artistid
-              FROM (
-                SELECT
-                  me.artistid
-                FROM artist me 
-                START WITH name = ? 
-                CONNECT BY parentid = PRIOR artistid
-              ) me
-            WHERE ROWNUM <= 2
-          ) me
-        )',
-        [ [ name => 'root' ] ],
-      );
-
-      is( $rs->count, 2, 'Connect By; LIMIT count ok' );
-    }
-
-    # combine a connect_by with group_by and having
-    {
-      my $rs = $schema->resultset('Artist')->search({}, {
-        select => { count => 'rank', -as => 'cnt' },
-        start_with => { name => 'root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-        group_by => ['rank'],
-        having => \[ 'count(rank) < ?', [ cnt => 2 ] ],
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-            SELECT COUNT(rank) AS cnt
-            FROM artist me
-            START WITH name = ?
-            CONNECT BY parentid = PRIOR artistid
-            GROUP BY rank HAVING count(rank) < ?
-        )',
-        [ [ name => 'root' ], [ cnt => 2 ] ],
-      );
-
-      is_deeply (
-        [ $rs->get_column ('cnt')->all ],
-        [1, 1],
-        'Group By a Connect By query - correct values'
-      );
-    }
-
-
-    # select the whole cycle tree without nocylce
-    {
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'cycle-root' },
-        connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      });
-      eval { $rs->get_column ('name')->all };
-      if ( $@ =~ /ORA-01436/ ){ # ORA-01436:  CONNECT BY loop in user data
-        pass "connect by initify loop detection without nocycle";
-      }else{
-        fail "connect by initify loop detection without nocycle, not detected by oracle";
-      }
-    }
-
-    # select the whole cycle tree with nocylce
-    SKIP: {
-      # http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a85397/expressi.htm#1023748
-      skip q{Oracle8i doesn't support connect by nocycle}, 1
-        if $schema->storage->_server_info->{normalized_dbms_version} < 9;
-
-      my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'cycle-root' },
-        '+select'  => \ 'CONNECT_BY_ISCYCLE',
-        '+as'      => [ 'connector' ],
-        connect_by_nocycle => { parentid => { -prior => { -ident => 'artistid' } } },
-      });
-
-      is_same_sql_bind (
-        $rs->as_query,
-        '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid, CONNECT_BY_ISCYCLE
-            FROM artist me
-          START WITH name = ?
-          CONNECT BY NOCYCLE parentid = PRIOR artistid 
-        )',
-        [ [ name => 'cycle-root'] ],
-      );
-      is_deeply (
-        [ $rs->get_column ('name')->all ],
-        [ qw/cycle-root cycle-child1 cycle-grandchild cycle-child2/ ],
-        'got artist tree with nocycle (name)',
-      );
-      is_deeply (
-        [ $rs->get_column ('connector')->all ],
-        [ qw/1 0 0 0/ ],
-        'got artist tree with nocycle (CONNECT_BY_ISCYCLE)',
-      );
-
-
-      is_same_sql_bind (
-        $rs->count_rs->as_query,
-        '(
-          SELECT COUNT( * )
-            FROM artist me
-          START WITH name = ?
-          CONNECT BY NOCYCLE parentid = PRIOR artistid 
-        )',
-        [ [ name => 'cycle-root'] ],
-      );
-
-      is( $rs->count, 4, 'Connect By Nocycle count ok' );
-    }
-}
-
-my $schema2;
-
 # test sequence detection from a different schema
+my $schema2;
 SKIP: {
 TODO: {
   skip ((join '',
-'Set DBICTEST_ORA_EXTRAUSER_DSN, _USER and _PASS to a *DIFFERENT* Oracle user',
-' to run the cross-schema autoincrement test.'),
-    1) unless $dsn2 && $user2 && $user2 ne $user;
+    'Set DBICTEST_ORA_EXTRAUSER_DSN, _USER and _PASS to a *DIFFERENT* Oracle user',
+    ' to run the cross-schema autoincrement test.'
+  ), 1) unless $dsn2 && $user2 && $user2 ne $user;
 
   # Oracle8i Reference Release 2 (8.1.6) 
   #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
@@ -797,7 +353,7 @@ sub do_creates {
   $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
   $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
 
-  $dbh->do("CREATE TABLE artist (artistid NUMBER(12), parentid NUMBER(12), name VARCHAR(255), autoinc_col NUMBER(12), rank NUMBER(38), charfield VARCHAR2(10))");
+  $dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255), autoinc_col NUMBER(12), rank NUMBER(38), charfield VARCHAR2(10))");
   $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
 
   $dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
@@ -808,6 +364,8 @@ sub do_creates {
 
   $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12) REFERENCES cd(cdid) DEFERRABLE, position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
   $dbh->do("ALTER TABLE track ADD (CONSTRAINT track_pk PRIMARY KEY (trackid))");
+
+  $dbh->do("CREATE TABLE bindtype_test (id integer NOT NULL PRIMARY KEY, bytea integer NULL, blob blob NULL, clob clob NULL)");
 
   $dbh->do(qq{
     CREATE OR REPLACE TRIGGER artist_insert_trg_auto
