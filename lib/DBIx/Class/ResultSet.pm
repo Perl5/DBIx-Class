@@ -271,11 +271,10 @@ sub search {
   my $self = shift;
   my $rs = $self->search_rs( @_ );
 
-  my $want = wantarray;
-  if ($want) {
+  if (wantarray) {
     return $rs->all;
   }
-  elsif (defined $want) {
+  elsif (defined wantarray) {
     return $rs;
   }
   else {

@@ -628,11 +628,10 @@ sub update {
         }
 
         my @res;
-        my $want = wantarray();
-        if (not defined $want) {
+        if (not defined wantarray) {
             $self->next::method( \%upd, @_ );
         }
-        elsif ($want) {
+        elsif (wantarray) {
             @res = $self->next::method( \%upd, @_ );
         }
         else {
@@ -640,7 +639,7 @@ sub update {
         }
 
         $guard->commit;
-        return $want ? @res : $res[0];
+        return wantarray ? @res : $res[0];
     }
 }
 
@@ -660,11 +659,10 @@ sub delete {
     $self->move_last;
 
     my @res;
-    my $want = wantarray();
-    if (not defined $want) {
+    if (not defined wantarray) {
         $self->next::method( @_ );
     }
-    elsif ($want) {
+    elsif (wantarray) {
         @res = $self->next::method( @_ );
     }
     else {
@@ -672,7 +670,7 @@ sub delete {
     }
 
     $guard->commit;
-    return $want ? @res : $res[0];
+    return wantarray ? @res : $res[0];
 }
 
 =head1 METHODS FOR EXTENDING ORDERED

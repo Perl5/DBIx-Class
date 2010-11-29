@@ -229,7 +229,7 @@ sub txn_do {
     $self->throw_exception($error); # txn failed but rollback succeeded
   };
 
-  return $wantarray ? @return_values : $return_value;
+  return wantarray ? @return_values : $return_value;
 }
 
 =head2 txn_begin

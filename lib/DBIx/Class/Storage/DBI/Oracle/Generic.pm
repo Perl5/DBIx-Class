@@ -257,16 +257,16 @@ sub _dbh_execute {
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
   my (@res, $tried);
-  my $wantarray = wantarray();
+  my $want = wantarray;
   my $next = $self->next::can;
   do {
     try {
       my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
 
-      if (!defined $wantarray) {
+      if (!defined $want) {
         $exec->();
       }
-      elsif (! $wantarray) {
+      elsif (! $want) {
         $res[0] = $exec->();
       }
       else {
@@ -288,7 +288,7 @@ sub _dbh_execute {
     };
   } while (! $tried++);
 
-  return $wantarray ? @res : $res[0];
+  return wantarray ? @res : $res[0];
 }
 
 =head2 get_autoinc_seq

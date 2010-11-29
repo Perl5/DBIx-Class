@@ -436,8 +436,6 @@ sub update {
   my $self = shift;
   my ($source, $fields, $where, @rest) = @_;
 
-  my $wantarray = wantarray;
-
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
   my $table = $source->name;
@@ -475,10 +473,10 @@ sub update {
 
   my @res;
   if (%$fields) {
-    if ($wantarray) {
+    if (wantarray) {
       @res    = $self->next::method(@_);
     }
-    elsif (defined $wantarray) {
+    elsif (defined wantarray) {
       $res[0] = $self->next::method(@_);
     }
     else {
@@ -488,7 +486,7 @@ sub update {
 
   $guard->commit;
 
-  return $wantarray ? @res : $res[0];
+  return wantarray ? @res : $res[0];
 }
 
 sub insert_bulk {

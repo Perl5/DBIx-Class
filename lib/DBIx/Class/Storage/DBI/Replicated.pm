@@ -408,8 +408,6 @@ C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 around connect_info => sub {
   my ($next, $self, $info, @extra) = @_;
 
-  my $wantarray = wantarray;
-
   my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 
   my %opts;
@@ -446,11 +444,11 @@ around connect_info => sub {
 
   $self->_master_connect_info_opts(\%opts);
 
-  my (@res, $res);
-  if ($wantarray) {
+  my @res;
+  if (wantarray) {
     @res = $self->$next($info, @extra);
   } else {
-    $res = $self->$next($info, @extra);
+    $res[0] = $self->$next($info, @extra);
   }
 
   # Make sure master is blessed into the correct class and apply role to it.
@@ -463,7 +461,7 @@ around connect_info => sub {
   # link pool back to master
   $self->pool->master($master);
 
-  $wantarray ? @res : $res;
+  wantarray ? @res : $res[0];
 };
 
 =head1 METHODS
@@ -678,7 +676,7 @@ sub execute_reliably {
     $self->read_handler($current);
   };
 
-  return $want_array ? @result : $result[0];
+  return wantarray ? @result : $result[0];
 }
 
 =head2 set_reliable_storage
