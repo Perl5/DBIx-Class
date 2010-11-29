@@ -659,15 +659,12 @@ EOF
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 
   if ($exception =~ /-Y option/) {
-    carp <<"EOF";
+    my $w = 'Sybase bulk API operation failed due to character set incompatibility, '
+          . 'reverting to regular array inserts. Try unsetting the LANG environment variable'
+    ;
+    $w .= "\n$exception" if $self->debug;
+    carp $w;
 
-Sybase bulk API operation failed due to character set incompatibility, reverting
-to regular array inserts:
-
-*** Try unsetting the LANG environment variable.
-
-$exception
-EOF
     $self->_bulk_storage(undef);
     unshift @_, $self;
     goto \&insert_bulk;
