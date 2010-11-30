@@ -451,13 +451,21 @@ sub related_resultset {
       # since we don't have the extended condition, we need to step
       # back, get a resultset for the current row and do a
       # search_related there.
+
       my $row_srcname = $source->source_name;
-      my $base_rs = $source->schema->resultset($row_srcname);
+      my $base_rs_class = $source->resultset_class;
+      my $base_rs_attr  = $source->resultset_attributes;
+      my $base_rs = $base_rs_class->new
+        ($source,
+         {
+          %$base_rs_attr,
+          alias => $source->storage->relname_to_table_alias(lc($row_srcname).'__row',1)
+         });
       my $alias = $base_rs->current_source_alias;
       my %identity = map { ( "${alias}.${_}" => $self->get_column($_) ) } $source->primary_columns;
       my $row_rs = $base_rs->search(\%identity);
-
-      $row_rs->search_related($rel, $query, $attrs);
+      my $related = $row_rs->related_resultset($rel, { %$attrs, alias => 'me' });
+      $related->search($query);
 
     } else {
       # when we have the extended condition or we have a simple

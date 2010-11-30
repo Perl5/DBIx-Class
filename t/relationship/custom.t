@@ -43,17 +43,31 @@ my @cds_80s = $cds_80s_rs->all;
 is(@cds_80s, 6, '6 80s cds found (1980 - 1985)');
 map { ok($_->year < 1990 && $_->year > 1979) } @cds_80s;
 
+# this is the current version, enhanced version below.
 my $cds_90s_rs = $artist2->cds_90s;
 is_same_sql_bind($cds_90s_rs->as_query,
                  '(SELECT cds_90s.cdid, cds_90s.artist, cds_90s.title, cds_90s.year, cds_90s.genreid,'.
-                 'cds_90s.single_track FROM artist me JOIN cd cds_90s ON ( cds_90s.artist = me.artistid'.
-                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( me.artistid = ? ))',
+                 ' cds_90s.single_track FROM artist artist__row JOIN cd cds_90s ON ( cds_90s.artist = artist__row.artistid'.
+                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( artist__row.artistid = ? ))',
                  [
                   [ 'cds_90s.year' => 2000 ],
                   [ 'cds_90s.year' => 1989 ],
-                  [ 'me.artistid'  => 5    ],
+                  [ 'artist__row.artistid'  => 5    ],
                  ]);
 
+TODO: {
+  local $TODO = 'enhanced aliasing in search_related';
+  my $cds_90s_rs = $artist2->cds_90s;
+  is_same_sql_bind($cds_90s_rs->as_query,
+                   '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid,'.
+                   ' me.single_track FROM artist artist__row JOIN cd me ON ( me.artist = artist__row.artistid'.
+                   ' AND ( me.year < ? AND me.year > ? ) ) WHERE ( artist__row.artistid = ? ))',
+                   [
+                    [ 'me.year' => 2000 ],
+                    [ 'me.year' => 1989 ],
+                    [ 'artist__row.artistid'  => 5    ],
+                   ]);
+}
 my @cds_90s = $cds_90s_rs->all;
 is(@cds_90s, 6, '6 90s cds found (1990 - 1995) even with non-optimized search');
 map { ok($_->year < 2000 && $_->year > 1989) } @cds_90s;
