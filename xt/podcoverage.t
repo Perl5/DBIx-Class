@@ -119,6 +119,7 @@ my $exceptions = {
     'DBIx::Class::Relationship::*'                  => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                   => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                => { skip => 1 },
+    'DBIx::Class::ResultSource::*'                  => { skip => 1 },
     'DBIx::Class::Storage::Statistics'              => { skip => 1 },
     'DBIx::Class::Storage::DBI::Replicated::Types'  => { skip => 1 },
 
