@@ -278,7 +278,15 @@ sub search {
     return $rs;
   }
   else {
-    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense');
+    # we can be called by a relationship helper, which in
+    # turn may be called in void context due to some braindead
+    # overload or whatever else the user decided to be clever
+    # at this particular day. Thus limit the exception to
+    # external code calls only
+    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
+      if (caller)[0] !~ /^\QDBIx::Class::/;
+
+    return ();
   }
 }
 
