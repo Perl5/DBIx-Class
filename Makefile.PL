@@ -43,6 +43,7 @@ perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 my $build_requires = {
+  # needed for testing only, not for operation
   'DBD::SQLite'              => '1.29',
 };
 
@@ -56,26 +57,32 @@ my $test_requires = {
 
 my $runtime_requires = {
   'Carp::Clan'               => '6.0',
-  'Class::Accessor::Grouped' => '0.09008',
+  'Class::Accessor::Grouped' => '0.10000',
   'Class::C3::Componentised' => '1.0005',
   'Class::Inspector'         => '1.24',
+  'Config::Any'              => '0.20',
+  'Context::Preserve'        => '0.01',
+  'Data::Dumper::Concise'    => '1.000',
   'Data::Page'               => '2.00',
-  'DBI'                      => '1.609',
-  'File::Path'               => '2.07',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
+  'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.71',
+  'Try::Tiny'                => '0.04',
+
+  # XS (or XS-dependent) libs
+  'DBI'                      => '1.609',
+  'namespace::clean'         => '0.14',
   'Sub::Name'                => '0.04',
   'Variable::Magic'          => '0.44',
-  'Data::Dumper::Concise'    => '1.000',
-  'Scope::Guard'             => '0.03',
-  'Context::Preserve'        => '0.01',
-  'Try::Tiny'                => '0.04',
-  'namespace::clean'         => '0.14',
+
+  # corelibs needing a specific bugfixed version
+  'File::Path'               => '2.07',
+
+  # Oracle-only optionals
   'Math::BigInt'             => '1.89',
   'Math::Base36'             => '0.07',
-  'Config::Any'              => '0.20',
 };
 
 # this is so we can order requires alphabetically
