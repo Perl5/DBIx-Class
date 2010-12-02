@@ -26,6 +26,8 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * The -ident operator
 
+=item * The -value operator
+
 =back
 
 =cut
@@ -84,13 +86,14 @@ sub __max_int { 0xFFFFFFFF };
 sub new {
   my $self = shift->next::method(@_);
 
-  # use the same coderef, it is prepared to handle both cases
-  push @{$self->{special_ops}}, {
-    regex => qr/^ ident $/xi, handler => '_where_op_IDENT',
-  };
-  push @{$self->{unary_ops}}, {
-    regex => qr/^ ident $/xi, handler => '_where_op_IDENT',
-  };
+  # use the same coderefs, they are prepared to handle both cases
+  my @extra_dbic_syntax = (
+    { regex => qr/^ ident $/xi, handler => '_where_op_IDENT' },
+    { regex => qr/^ value $/xi, handler => '_where_op_VALUE' },
+  );
+
+  push @{$self->{special_ops}}, @extra_dbic_syntax;
+  push @{$self->{unary_ops}}, @extra_dbic_syntax;
 
   $self;
 }
@@ -102,7 +105,7 @@ sub _where_op_IDENT {
     croak "-$op takes a single scalar argument (a quotable identifier)";
   }
 
-  # in case we are called as a top level special op
+  # in case we are called as a top level special op (no '=')
   my $lhs = shift;
 
   $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
@@ -110,6 +113,30 @@ sub _where_op_IDENT {
   return $lhs
     ? "$lhs = $rhs"
     : $rhs
+  ;
+}
+
+sub _where_op_VALUE {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+
+  # in case we are called as a top level special op (no '=')
+  my $lhs = shift;
+
+  my @bind = [
+    ($lhs || $self->{_nested_func_lhs} || croak "Unable to find bindtype for -value $rhs"),
+    $rhs
+  ];
+
+  return $lhs
+    ? (
+      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
+      @bind
+    )
+    : (
+      $self->_convert('?'),
+      @bind,
+    )
   ;
 }
 

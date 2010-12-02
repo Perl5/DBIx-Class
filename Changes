@@ -8,6 +8,8 @@ Revision history for DBIx::Class
         - Deprecate legacy $rs->search( %condition ) syntax
         - NULL is now supplied unquoted to all debug-objects, in order to
           differentiate between a real NULL and the string 'NULL'
+        - New search() condition operator -value used to pass complex bind
+          values to DBI: search({ array_col => { -value => [1,2,3] }})
         - +columns now behaves just like columns by not stripping a
           fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
 

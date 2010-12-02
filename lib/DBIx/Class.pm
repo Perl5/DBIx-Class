@@ -318,6 +318,8 @@ jon: Jon Schutz <jjschutz@cpan.org>
 
 jshirley: J. Shirley <jshirley@gmail.com>
 
+kaare: Kaare Rasmussen
+
 konobi: Scott McWhirter
 
 lukes: Luke Saunders <luke.saunders@gmail.com>

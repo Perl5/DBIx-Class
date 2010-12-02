@@ -198,7 +198,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
     use strict;
     use warnings;
-    use base 'DBIx::Class::Core';
+    use base 'DBICTest::BaseResult';
 
     __PACKAGE__->table('dbic_t_schema.array_test');
     __PACKAGE__->add_columns(qw/id arrayfield/);
@@ -209,42 +209,88 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   SKIP: {
     skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
 
+    my $arr_rs = $schema->resultset('ArrayTest');
+
     lives_ok {
-      $schema->resultset('ArrayTest')->create({
+      $arr_rs->create({
         arrayfield => [1, 2],
       });
     } 'inserting arrayref as pg array data';
 
     lives_ok {
-      $schema->resultset('ArrayTest')->update({
+      $arr_rs->update({
         arrayfield => [3, 4],
       });
     } 'updating arrayref as pg array data';
 
-    $schema->resultset('ArrayTest')->create({
+    $arr_rs->create({
       arrayfield => [5, 6],
     });
 
-    my $afield_rs = $schema->resultset('ArrayTest')->search({
-      arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #Todo anything less ugly than this?
-    });
-
-    my $count;
+    # Search using arrays
     lives_ok {
-      $count = $afield_rs->count
-    } 'comparing arrayref to pg array data does not blow up';
-    is($count, 1, 'comparing arrayref to pg array data gives correct result');
+      is_deeply (
+        $arr_rs->search({ arrayfield => { -value => [3,4] } })->first->arrayfield,
+        [3,4],
+        'Array value matches'
+      );
+    } 'searching by arrayref';
 
-    TODO: {
-      local $TODO = 'No introspection of scalarref conditions :(';
-      my $row = $afield_rs->create({});
+    lives_ok {
+      is_deeply (
+        $arr_rs->search({ arrayfield => { '=' => { -value => [3,4] }} })->first->arrayfield,
+        [3,4],,
+        'Array value matches explicit equal'
+      );
+    } 'searching by arrayref (explicit equal sign)';
+
+    lives_ok {
+      is_deeply (
+        $arr_rs->search({ arrayfield => { '>' => { -value => [3,1] }} })->first->arrayfield,
+        [3,4],
+        'Array value matches greater than'
+      );
+    } 'searching by arrayref (greater than)';
+
+    lives_ok {
+      is (
+        $arr_rs->search({ arrayfield => { '>' => { -value => [3,7] }} })->count,
+        1,
+        'Greater than search found [5,6]',
+      );
+    } 'searching by arrayref (greater than)';
+
+    # Find using arrays
+    lives_ok {
+      is_deeply (
+        $arr_rs->find({ arrayfield => { -value => [3,4] } })->arrayfield,
+        [3,4],
+        'Array value matches implicit equal'
+      );
+    } 'find by arrayref';
+
+    lives_ok {
+      is_deeply (
+        $arr_rs->find({ arrayfield => { '=' => { -value => [3,4] }} })->arrayfield,
+        [3,4],
+        'Array value matches explicit equal'
+      );
+    } 'find by arrayref (equal)';
+
+    # test inferred condition for creation
+    TODO: for my $cond (
+      { -value => [3,4] },
+      \[ '= ?' => [arrayfield => [3, 4]] ],
+    ) {
+      local $TODO = 'No introspection of complex conditions :(';
+      my $arr_rs_cond = $arr_rs->search({ arrayfield => $cond });
+
+      my $row = $arr_rs_cond->create({});
       is_deeply ($row->arrayfield, [3,4], 'Array value taken from $rs condition');
       $row->discard_changes;
       is_deeply ($row->arrayfield, [3,4], 'Array value made it to storage');
     }
   }
-
-
 
 ########## Case check
 
