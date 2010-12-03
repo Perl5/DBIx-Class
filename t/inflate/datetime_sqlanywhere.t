@@ -7,12 +7,12 @@ use Scope::Guard ();
 use lib qw(t/lib);
 use DBICTest;
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SYBASE_ASA_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SYBASE_ASA_ODBC_${_}" } qw/DSN USER PASS/};
+my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
 
 if (not ($dsn || $dsn2)) {
   plan skip_all => <<'EOF';
-Set $ENV{DBICTEST_SYBASE_ASA_DSN} and/or $ENV{DBICTEST_SYBASE_ASA_ODBC_DSN}
+Set $ENV{DBICTEST_SQLANYWHERE_DSN} and/or $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN}
 _USER and _PASS to run this test'.
 Warning: This test drops and creates a table called 'track'";
 EOF
