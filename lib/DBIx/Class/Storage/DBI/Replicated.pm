@@ -380,6 +380,7 @@ my @unimplemented = qw(
   _prefetch_autovalues
   _extract_order_criteria
   _max_column_bytesize
+  _is_lob_type
 );
 
 # the capability framework

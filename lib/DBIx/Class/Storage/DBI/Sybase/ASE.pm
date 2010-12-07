@@ -233,12 +233,6 @@ sub connect_call_blob_setup {
     if exists $args{log_on_update};
 }
 
-sub _is_lob_type {
-  my $self = shift;
-  my $type = shift;
-  $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
-}
-
 sub _is_lob_column {
   my ($self, $source, $column) = @_;
 

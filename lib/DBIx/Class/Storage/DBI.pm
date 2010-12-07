@@ -2822,11 +2822,7 @@ sub _max_column_bytesize {
         $max_size = $inf->{size} * 4 if $inf->{size};
       }
       # Blob types
-      elsif ($data_type =~ /(?:blob|clob|bfile|text|image|bytea)/
-          || $data_type =~ /^long(?:\s*(?:raw|bit\s*varying|varbit|binary
-                                        |varchar|character\s*varying|nvarchar
-                                        |national\s*character\s*varying))?$/
-      ) {
+      elsif ($self->_is_lob_type($data_type)) {
         # default to longreadlen
       }
       else {
@@ -2836,6 +2832,15 @@ sub _max_column_bytesize {
 
     $max_size ||= $self->_get_dbh->{LongReadLen} || 8000;
   };
+}
+
+# Determine if a data_type is some type of BLOB
+sub _is_lob_type {
+  my ($self, $data_type) = @_;
+  $data_type && ($data_type =~ /(?:lob|bfile|text|image|bytea|memo)/i
+    || $data_type =~ /^long(?:\s*(?:raw|bit\s*varying|varbit|binary
+                                  |varchar|character\s*varying|nvarchar
+                                  |national\s*character\s*varying))?$/xi);
 }
 
 1;
