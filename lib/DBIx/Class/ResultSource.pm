@@ -1554,26 +1554,14 @@ sub _resolve_condition {
   my ($self, $cond, $as, $for, $rel) = @_;
   if (ref $cond eq 'CODE') {
 
-    # heuristic for the actual relname
-    if (! defined $rel) {
-      if (!ref $as) {
-        $rel = $as;
-      }
-      elsif (!ref $for) {
-        $rel = $for;
-      }
-    }
-
-    if (! defined $rel) {
-      $self->throw_exception ('Unable to determine relationship name for condition resolution');
-    }
+    my $obj_rel = !!ref $for;
 
     return $cond->({
-      self_alias => ref $for ? $as : $for,
-      foreign_alias => ref $for ? $self->related_source($rel)->resultset->current_source_alias : $as,
+      self_alias => $obj_rel ? $as : $for,
+      foreign_alias => $obj_rel ? 'me' : $as,
       self_resultsource => $self,
-      foreign_relname => $rel,
-      self_rowobj => ref $for ? $for : undef
+      foreign_relname => $rel || ($obj_rel ? $as : $for),
+      self_rowobj => $obj_rel ? $for : undef
     });
 
   } elsif (ref $cond eq 'HASH') {

@@ -35,50 +35,49 @@ foreach my $artwork (@artworks) {
 
 
 my $cds_80s_rs = $artist->cds_80s;
-is_same_sql_bind($cds_80s_rs->as_query,
-                 '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me'.
-                 ' WHERE ( ( me.artist = ? AND ( me.year < ? AND me.year > ? ) ) ))',
-                 [
-                  [ 'me.artist' => 4    ],
-                  [ 'me.year'   => 1990 ],
-                  [ 'me.year'   => 1979 ],
-                 ]);
+is_same_sql_bind(
+  $cds_80s_rs->as_query,
+  '(
+    SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+      FROM cd me
+    WHERE ( ( me.artist = ? AND ( me.year < ? AND me.year > ? ) ) )
+  )',
+  [
+    [ 'me.artist' => 21   ],
+    [ 'me.year' => 1990 ],
+    [ 'me.year' => 1979 ],
+  ]
+);
 my @cds_80s = $cds_80s_rs->all;
 is(@cds_80s, 6, '6 80s cds found (1980 - 1985)');
 map { ok($_->year < 1990 && $_->year > 1979) } @cds_80s;
 
-# this is the current version, enhanced version below.
-my $cds_90s_rs = $artist2->cds_90s;
-is_same_sql_bind($cds_90s_rs->as_query,
-                 '(SELECT cds_90s.cdid, cds_90s.artist, cds_90s.title, cds_90s.year, cds_90s.genreid,'.
-                 ' cds_90s.single_track FROM artist artist__row JOIN cd cds_90s ON ( cds_90s.artist = artist__row.artistid'.
-                 ' AND ( cds_90s.year < ? AND cds_90s.year > ? ) ) WHERE ( artist__row.artistid = ? ))',
-                 [
-                  [ 'cds_90s.year' => 2000 ],
-                  [ 'cds_90s.year' => 1989 ],
-                  [ 'artist__row.artistid'  => 5    ],
-                 ]);
 
-TODO: {
-  local $TODO = 'enhanced aliasing in search_related';
-  my $cds_90s_rs = $artist2->cds_90s;
-  is_same_sql_bind($cds_90s_rs->as_query,
-                   '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid,'.
-                   ' me.single_track FROM artist artist__row JOIN cd me ON ( me.artist = artist__row.artistid'.
-                   ' AND ( me.year < ? AND me.year > ? ) ) WHERE ( artist__row.artistid = ? ))',
-                   [
-                    [ 'me.year' => 2000 ],
-                    [ 'me.year' => 1989 ],
-                    [ 'artist__row.artistid'  => 5    ],
-                   ]);
-}
+my $cds_90s_rs = $artist2->cds_90s;
+is_same_sql_bind(
+  $cds_90s_rs->as_query,
+  '(
+    SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+      FROM artist artist__row
+      JOIN cd me
+        ON ( me.artist = artist__row.artistid AND ( me.year < ? AND me.year > ? ) )
+      WHERE ( artist__row.artistid = ? )
+  )',
+  [
+    [ 'me.year' => 2000 ],
+    [ 'me.year' => 1989 ],
+    [ 'artist__row.artistid' => 22 ],
+  ]
+);
 my @cds_90s = $cds_90s_rs->all;
 is(@cds_90s, 6, '6 90s cds found (1990 - 1995) even with non-optimized search');
 map { ok($_->year < 2000 && $_->year > 1989) } @cds_90s;
 
-my @cds_90s_95 = $artist2->cds_90s->search({ 'year' => 1995 });
-is(@cds_90s_95, 1, '1 90s (95) cds found even with non-optimized search');
-map { ok($_->year == 1995) } @cds_90s_95;
+lives_ok {
+  my @cds_90s_95 = $artist2->cds_90s->search({ 'me.year' => 1995 });
+  is(@cds_90s_95, 1, '1 90s (95) cds found even with non-optimized search');
+  map { ok($_->year == 1995) } @cds_90s_95;
+} 'should preserve chain-head "me" alias (API-consistency)';
 
 # search for all artists prefetching published cds in the 80s...
 my @all_artists_with_80_cds = $schema->resultset("Artist")->search
