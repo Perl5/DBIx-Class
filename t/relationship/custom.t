@@ -9,10 +9,13 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-my $artist  = $schema->resultset("Artist")->create({ name => 'Michael Jackson', rank => 20 });
-my $artist2 = $schema->resultset("Artist")->create({ name => 'Chico Buarque', rank => 1 }) ;
-my $artist3 = $schema->resultset("Artist")->create({ name => 'Ziraldo', rank => 1 });
-my $artist4 = $schema->resultset("Artist")->create({ name => 'Paulo Caruso', rank => 20 });
+$schema->resultset('Artist')->delete;
+$schema->resultset('CD')->delete;
+
+my $artist  = $schema->resultset("Artist")->create({ artistid => 21, name => 'Michael Jackson', rank => 20 });
+my $artist2 = $schema->resultset("Artist")->create({ artistid => 22, name => 'Chico Buarque', rank => 1 }) ;
+my $artist3 = $schema->resultset("Artist")->create({ artistid => 23, name => 'Ziraldo', rank => 1 });
+my $artist4 = $schema->resultset("Artist")->create({ artistid => 24, name => 'Paulo Caruso', rank => 20 });
 
 my @artworks;
 
@@ -29,6 +32,7 @@ foreach my $year (1975..1995) {
 foreach my $artwork (@artworks) {
   $artwork->create_related('artwork_to_artist', { artist => $_ }) for ($artist3, $artist4);
 }
+
 
 my $cds_80s_rs = $artist->cds_80s;
 is_same_sql_bind($cds_80s_rs->as_query,
@@ -77,21 +81,6 @@ is(@cds_90s_95, 1, '1 90s (95) cds found even with non-optimized search');
 map { ok($_->year == 1995) } @cds_90s_95;
 
 # search for all artists prefetching published cds in the 80s...
-#####
-# the join must be a prefetch, but it can't work until the collapse rewrite is finished
-# (right-side vs left-side order)
-#####
-lives_ok {
-  my @all_artists_with_80_cds = $schema->resultset("Artist")->search
-    ({ 'cds_80s.cdid' => { '!=' => undef } }, { prefetch => 'cds_80s' })->all;
-
-  is_deeply
-    ([ sort ( map { $_->year } map { $_->cds_80s->all } @all_artists_with_80_cds ) ],
-     [ sort (1980..1989, 1980..1985) ],
-     '16 correct cds found'
-    );
-} 'prefetchy-fetchy-fetch';
-
 my @all_artists_with_80_cds = $schema->resultset("Artist")->search
   ({ 'cds_80s.cdid' => { '!=' => undef } }, { join => 'cds_80s', distinct => 1 });
 
@@ -100,6 +89,24 @@ is_deeply(
   [ sort (1980..1989, 1980..1985) ],
   '16 correct cds found'
 );
+
+TODO: {
+local $TODO = 'Prefetch on custom rels can not work until the collapse rewrite is finished '
+  . '(currently collapser requires a right-side (which is indeterministic) order-by)';
+lives_ok {
+
+my @all_artists_with_80_cds_pref = $schema->resultset("Artist")->search
+  ({ 'cds_80s.cdid' => { '!=' => undef } }, { prefetch => 'cds_80s' });
+
+is_deeply(
+  [ sort ( map { $_->year } map { $_->cds_80s->all } @all_artists_with_80_cds_pref ) ],
+  [ sort (1980..1989, 1980..1985) ],
+  '16 correct cds found'
+);
+
+} 'prefetchy-fetchy-fetch';
+} # end of TODO
+
 
 # try to create_related a 80s cd
 throws_ok {
