@@ -1601,7 +1601,7 @@ sub _resolve_condition {
       } elsif (!defined $as) { # undef, i.e. "no reverse object"
         $ret{$v} = undef;
       } else {
-        $ret{"${as}.${k}"} = "${for}.${v}";
+        $ret{"${as}.${k}"} = { -ident => "${for}.${v}" };
       }
     }
     return \%ret;

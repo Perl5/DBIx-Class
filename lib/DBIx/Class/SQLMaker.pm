@@ -1,5 +1,8 @@
 package DBIx::Class::SQLMaker;
 
+use strict;
+use warnings;
+
 =head1 NAME
 
 DBIx::Class::SQLMaker - An SQL::Abstract-based SQL maker class
@@ -38,8 +41,7 @@ use base qw/
   Class::Accessor::Grouped
 /;
 use mro 'c3';
-use strict;
-use warnings;
+
 use Sub::Name 'subname';
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use namespace::clean;
@@ -183,7 +185,7 @@ sub select {
   if ($limit) {
     # this is legacy code-flow from SQLA::Limit, it is not set in stone
 
-    ($sql, @bind) = $self->__overriden_select($table, $fields, $where);
+    ($sql, @bind) = $self->next::method ($table, $fields, $where);
 
     my $limiter =
       $self->can ('emulate_limit')  # also backcompat hook from SQLA::Limit
@@ -199,7 +201,7 @@ sub select {
     $sql = $self->$limiter ($sql, $rs_attrs, $limit, $offset);
   }
   else {
-    ($sql, @bind) = $self->__overriden_select($table, $fields, $where, $rs_attrs);
+    ($sql, @bind) = $self->next::method ($table, $fields, $where, $rs_attrs);
   }
 
   push @{$self->{where_bind}}, @bind;
@@ -211,25 +213,6 @@ sub select {
     if $rs_attrs->{for};
 
   return wantarray ? ($sql, @all_bind) : $sql;
-}
-
-sub __overriden_select {
-  my $self   = shift;
-  my ($table, @bind)  = $self->_table(shift);
-  my $fields = shift || '*';
-  my $where  = shift;
-  my $order  = shift;
-
-  my($where_sql, @morebind) = $self->where($where, $order);
-  push @bind, @morebind;
-
-  my $f = (ref $fields eq 'ARRAY') ? join ', ', map { $self->_quote($_) } @$fields
-                                   : $fields;
-  my $sql = join(' ', $self->_sqlcase('select'), $f,
-                      $self->_sqlcase('from'),   $table)
-          . $where_sql;
-
-  return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub _assemble_binds {
@@ -397,7 +380,7 @@ sub _generate_join_clause {
 
 sub _recurse_from {
   my ($self, $from, @join) = @_;
-  my (@sqlf, @binds);
+  my @sqlf;
   push @sqlf, $self->_from_chunk_to_sql($from);
 
   for (@join) {
@@ -416,17 +399,17 @@ sub _recurse_from {
     push @sqlf, $self->_generate_join_clause( $join_type );
 
     if (ref $to eq 'ARRAY') {
-      my ($sql, @local_bind) = $self->_recurse_from(@$to);
-      push(@sqlf, '(', $sql , ')');
-      push @binds, @local_bind;
+      push(@sqlf, '(', $self->_recurse_from(@$to), ')');
     } else {
       push(@sqlf, $self->_from_chunk_to_sql($to));
     }
-    my ($sql, @local_bind) = $self->_join_condition($on);
+
+    my ($sql, @bind) = $self->_join_condition($on);
     push(@sqlf, ' ON ', $sql);
-    push @binds, @local_bind;
+    push @{$self->{from_bind}}, @bind;
   }
-  return join('', @sqlf), @binds;
+
+  return join('', @sqlf);
 }
 
 sub _from_chunk_to_sql {
@@ -460,21 +443,23 @@ sub _from_chunk_to_sql {
 sub _join_condition {
   my ($self, $cond) = @_;
 
-  if (ref $cond eq 'HASH') {
-    my %j;
-    for (keys %$cond) {
-      my $v = $cond->{$_};
-      if (ref $v) {
-        #croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
-        #    if ref($v) ne 'SCALAR';
-        $j{$_} = $v;
-      }
-      else {
-        my $x = '= '.$self->_quote($v); $j{$_} = \$x;
-      }
-    };
-    return $self->_recurse_where(\%j);
-  } elsif (ref $cond eq 'ARRAY') {
+  # Backcompat for the old days when a plain hashref
+  # { 't1.col1' => 't2.col2' } meant ON t1.col1 = t2.col2
+  # Once things settle we should start warning here so that
+  # folks unroll their hacks
+  if (
+    ref $cond eq 'HASH'
+      and
+    keys %$cond == 1
+      and
+    (keys %$cond)[0] =~ /\./
+      and
+    ! ref ( (values %$cond)[0] )
+  ) {
+    $cond = { keys %$cond => { -ident => values %$cond } }
+  }
+  elsif ( ref $cond eq 'ARRAY' ) {
+    # do our own ORing so that the hashref-shim above is invoked
     my @parts;
     my @binds;
     foreach my $c (@$cond) {
@@ -483,9 +468,9 @@ sub _join_condition {
       push @parts, $sql;
     }
     return join(' OR ', @parts), @binds;
-  } else {
-    croak "Can't handle this yet!";
   }
+
+  return $self->_recurse_where($cond);
 }
 
 1;

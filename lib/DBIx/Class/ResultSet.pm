@@ -2343,10 +2343,14 @@ sub _merge_with_rscond {
 
     while ( my($col, $value) = each %implied ) {
       my $vref = ref $value;
-      if ($vref eq 'HASH') {
-        if (keys(%$value) && (keys %$value)[0] eq '=') {
-          $new_data{$col} = $value->{'='};
-        }
+      if (
+        $vref eq 'HASH'
+          and
+        keys(%$value) == 1
+          and
+        (keys %$value)[0] eq '='
+      ) {
+        $new_data{$col} = $value->{'='};
       }
       elsif( !$vref or $vref eq 'SCALAR' or blessed($value) ) {
         $new_data{$col} = $value;
