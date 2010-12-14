@@ -586,10 +586,13 @@ sub create_related {
   # just forbid it right now.
   my $rel_info = $self->result_source->relationship_info($rel);
   if (ref $rel_info->{cond} eq 'CODE') {
-    my ($cond, $ext) = $rel_info->{cond}->({ self_alias => 'me',
-                                             foreign_alias => $rel,
-                                             self_rowobj => $self
-                                           });
+    my ($cond, $ext) = $rel_info->{cond}->({
+      self_alias => 'me',
+      foreign_alias => $rel,
+      self_rowobj => $self,
+      self_resultsource => $self->result_source,
+      foreign_relname => $rel,
+    });
     $self->throw_exception("unable to set_from_related - no simplified condition available for '${rel}'")
       unless $ext;
 
