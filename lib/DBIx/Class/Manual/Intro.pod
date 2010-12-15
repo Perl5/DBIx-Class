@@ -194,21 +194,31 @@ available relationships and how you can design your own.
 =head2 Using L<DBIx::Class::Schema::Loader>
 
 This is an external module, and not part of the L<DBIx::Class> distribution.
-Like L<Class::DBI::Loader>, it inspects your database, and automatically creates
-classes for all the tables in your database.  Here's a simple setup:
+It inspects your database, and automatically creates classes for all the tables
+in your database.
 
-  package My::Schema;
-  use base qw/DBIx::Class::Schema::Loader/;
+The simplest way to use it is via the L<dbicdump> script from the
+L<DBIx::Class::Schema::Loader> distribution. For example:
 
-  __PACKAGE__->loader_options( relationships => 1 );
+    $ dbicdump -o dump_directory=./lib MyApp::Schema dbi:mysql:mydb user pass
 
-  1;
+If you have a mixed-case database, use the C<preserve_case> option, e.g.:
 
-The actual autoloading process will occur when you create a connected instance
-of your schema below.
+    $ dbicdump -o dump_directory=./lib -o preserve_case=1 MyApp::Schema \
+        dbi:mysql:mydb user pass
 
-See the L<DBIx::Class::Schema::Loader> documentation for more information on its
-many options.
+If you are using L<Catalyst>, then you can use the helper that comes with
+L<Catalyst::Model::DBIC::Schema>:
+
+    $ script/myapp_create.pl model MyDB DBIC::Schema MyDB::Schema \
+        create=static moniker_map='{ foo => "FOO" }' dbi:SQLite:./myapp.db \
+        on_connect_do='PRAGMA foreign_keys=ON' quote_char='"'
+
+See L<Catalyst::Helper::Model::DBIC::Schema> for more information on this
+helper.
+
+See the L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base>
+documentation for more information on the many loader options.
 
 =head2 Connecting
 
