@@ -9,7 +9,7 @@ use DBIx::Class::SQLMaker::Oracle;
 
 #
 #  Offline test for connect_by 
-#  ( without acitve database connection)
+#  ( without active database connection)
 #
 my @handle_tests = (
     {

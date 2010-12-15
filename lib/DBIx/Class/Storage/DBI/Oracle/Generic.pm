@@ -150,9 +150,12 @@ sub _dbh_get_autoinc_seq {
   # disable default bindtype
   local $sql_maker->{bindtype} = 'normal';
 
-
   # look up the correct sequence automatically
   my ( $schema, $table ) = $source_name =~ /( (?:${ql})? \w+ (?:${qr})? ) \. ( (?:${ql})? \w+ (?:${qr})? )/x;
+
+  # if no explicit schema was requested - use the default schema (which in the case of Oracle is the db user)
+  $schema ||= uc( ($self->_dbi_connect_info||[])->[1] || '');
+
   my ($sql, @bind) = $sql_maker->select (
     'ALL_TRIGGERS',
     [qw/TRIGGER_BODY TABLE_OWNER TRIGGER_NAME/],

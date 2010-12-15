@@ -5,9 +5,9 @@
   use base 'DBIx::Class::Core';
 
   __PACKAGE__->table(
-    defined $ENV{DBICTEST_ORA_USER}
+    $ENV{DBICTEST_ORA_USER}
       ? (uc $ENV{DBICTEST_ORA_USER}) . '.artist'
-      : 'artist'
+      : '??_no_user_??'
   );
   __PACKAGE__->add_columns(
     'artistid' => {
@@ -72,7 +72,7 @@ my @tryopt = (
 );
 
 # keep a database handle open for cleanup
-my $dbh;
+my ($dbh, $dbh2);
 
 # test insert returning
 
@@ -376,18 +376,22 @@ sub _run_tests {
       if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
     my $schema2 = $schema->connect($dsn2, $user2, $pass2, $opt);
+    my $dbh2 = $schema2->storage->dbh;
 
-    my $schema1_dbh  = $schema->storage->dbh;
-    $schema1_dbh->do("GRANT INSERT ON ${q}artist${q} TO " . uc $user2);
-    $schema1_dbh->do("GRANT SELECT ON ${q}artist_pk_seq${q} TO " . uc $user2);
-    $schema1_dbh->do("GRANT SELECT ON ${q}artist_autoinc_seq${q} TO " . uc $user2);
+    # create identically named tables/sequences in the other schema
+    do_creates($dbh2, $q);
 
+    # grand select privileges to the 2nd user
+    $dbh->do("GRANT INSERT ON ${q}artist${q} TO " . uc $user2);
+    $dbh->do("GRANT SELECT ON ${q}artist_pk_seq${q} TO " . uc $user2);
+    $dbh->do("GRANT SELECT ON ${q}artist_autoinc_seq${q} TO " . uc $user2);
 
-    my $rs = $schema2->resultset('ArtistFQN');
-    delete $rs->result_source->column_info('artistid')->{sequence};
+    # test with a fully qualified table (user1/schema prepended)
+    my $rs2 = $schema2->resultset('ArtistFQN');
+    delete $rs2->result_source->column_info('artistid')->{sequence};
 
     lives_and {
-      my $row = $rs->create({ name => 'From Different Schema' });
+      my $row = $rs2->create({ name => 'From Different Schema' });
       ok $row->artistid;
     } 'used autoinc sequence across schemas';
 
@@ -396,8 +400,8 @@ sub _run_tests {
       ? '"artist_pk_seq"'
       : '"ARTIST_PK_SEQ"'
     ;
-    delete $rs->result_source->column_info('artistid')->{sequence};
-    $schema1_dbh->do(qq{
+    delete $rs2->result_source->column_info('artistid')->{sequence};
+    $dbh->do(qq{
       CREATE OR REPLACE TRIGGER ${q}artist_insert_trg_pk${q}
       BEFORE INSERT ON ${q}artist${q}
       FOR EACH ROW
@@ -412,15 +416,31 @@ sub _run_tests {
 
 
     lives_and {
-      my $row = $rs->create({ name => 'From Different Schema With Quoted Sequence' });
+      my $row = $rs2->create({ name => 'From Different Schema With Quoted Sequence' });
       ok $row->artistid;
     } 'used quoted autoinc sequence across schemas';
 
-    my $schema_name = uc $user;
-
-    is_deeply $rs->result_source->column_info('artistid')->{sequence},
-      \qq|${schema_name}.$q_seq|,
+    is_deeply $rs2->result_source->column_info('artistid')->{sequence},
+      \( (uc $user) . ".$q_seq"),
       'quoted sequence name correctly extracted';
+
+    # try an insert operation on the default user2 artist
+    my $art1 = $schema->resultset('Artist');
+    my $art2 = $schema2->resultset('Artist');
+    my $art1_count = $art1->count || 0;
+    my $art2_count = $art2->count;
+
+    is( $art2_count, 0, 'No artists created yet in second schema' );
+
+    delete $art2->result_source->column_info('artistid')->{sequence};
+    my $new_art = $art2->create({ name => '2nd best' });
+
+    is ($art1->count, $art1_count, 'No new rows in main schema');
+    is ($art2->count, 1, 'One artist create in 2nd schema');
+
+    is( $new_art->artistid, 1, 'Expected first PK' );
+
+    do_clean ($dbh2);
   }}
 
   do_clean ($dbh);
@@ -549,9 +569,10 @@ sub do_clean {
 }
 
 END {
-  if ($dbh) {
+  for ($dbh, $dbh2) {
+    next unless $_;
     local $SIG{__WARN__} = sub {};
-    do_clean($dbh);
-    $dbh->disconnect;
+    do_clean($_);
+    $_->disconnect;
   }
 }
