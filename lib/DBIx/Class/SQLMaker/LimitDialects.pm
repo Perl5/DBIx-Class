@@ -202,7 +202,6 @@ SELECT $out_sel FROM (
 
 EOS
 
-  $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
 }
 
@@ -307,7 +306,6 @@ EOS
 EOS
   }
 
-  $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
 }
 
@@ -433,7 +431,6 @@ sub _Top {
     $order_by_requested,
   ) if ( ($offset && $order_by_requested) || ($mid_sel ne $out_sel) );
 
-  $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
 }
 
@@ -579,7 +576,6 @@ EOS
     ,
   );
 
-  $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
 }
 

@@ -54,4 +54,20 @@ is_same_sql_bind (
   'Rownum subsel aliasing works correctly'
 );
 
+{
+  $rs = $s->resultset('Artist')->search({}, {
+    columns => 'name',
+    offset => 1,
+    order_by => 'name',
+  });
+  local $rs->result_source->{name} = "weird \n newline/multi \t \t space containing \n table";
+
+  like (
+    ${$rs->as_query}->[0],
+    qr| weird \s \n \s newline/multi \s \t \s \t \s space \s containing \s \n \s table|x,
+    'Newlines/spaces preserved in final sql',
+  );
+}
+
+
 done_testing;

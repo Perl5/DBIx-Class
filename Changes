@@ -37,6 +37,8 @@ Revision history for DBIx::Class
         - Fix count of grouped resultsets using HAVING with aliases
         - Setting belongs_to columns/relationships no longer leaves the
           FK value and related object out of sync
+        - Stop stripping newlines from SQL statements in the limit emulators
+          as it is possible that custom sql with comments was provided
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable
