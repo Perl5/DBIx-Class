@@ -19,6 +19,8 @@ plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missin
 $ENV{NLS_DATE_FORMAT} = 'DD-MON-YY';
 $ENV{NLS_TIMESTAMP_FORMAT} = 'YYYY-MM-DD HH24:MI:SSXFF';
 $ENV{NLS_LANG} = 'AMERICAN_AMERICA.WE8ISO8859P1';
+$ENV{NLS_SORT} = "BINARY";
+$ENV{NLS_COMP} = "BINARY";
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 

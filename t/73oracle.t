@@ -40,6 +40,10 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
+$ENV{NLS_SORT} = "BINARY";
+$ENV{NLS_COMP} = "BINARY";
+$ENV{NLS_LANG} = "AMERICAN";
+
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 
 # optional:
