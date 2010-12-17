@@ -89,8 +89,11 @@ my $reqs = {
   test_requires => { %$test_requires },
 };
 
+my %reqs_for_group = %{DBIx::Class::Optional::Dependencies->req_group_list};
+
+# exclude the rdbms_* groups which are for DBIC users
 my $opt_testdeps = {
-  map { %$_ } (values %{DBIx::Class::Optional::Dependencies->req_group_list})
+  map { %{$reqs_for_group{$_}} } grep { !/^rdbms_/ } keys %reqs_for_group
 };
 
 # require extra modules for testing if we're in a checkout

@@ -43,6 +43,32 @@ my $id_shortener = {
   'Math::Base36'                  => '0.07',
 };
 
+my $rdbms_sqlite = {
+  'DBD::SQLite'                   => '0',
+};
+my $rdbms_pg = {
+  'DBD::Pg'                       => '0',
+};
+my $rdbms_mssql_odbc = {
+  'DBD::ODBC'                     => '0',
+};
+my $rdbms_mssql_sybase = {
+  'DBD::Sybase'                   => '0',
+};
+my $rdbms_mysql = {
+  'DBD::mysql'                    => '0',
+};
+my $rdbms_oracle = {
+  'DBD::Oracle'                   => '0',
+  %$id_shortener,
+};
+my $rdbms_ase = {
+  'DBD::Sybase'                   => '0',
+};
+my $rdbms_db2 = {
+  'DBD::DB2'                      => '0',
+};
+
 my $reqs = {
   dist => {
     #'Module::Install::Pod::Inherit' => '0.01',
@@ -179,10 +205,95 @@ my $reqs = {
     },
   },
 
+  # this is just for completeness as SQLite
+  # is a core dep of DBIC for testing
+  rdbms_sqlite => {
+    req => {
+      %$rdbms_sqlite,
+    },
+    pod => {
+      title => 'SQLite support',
+      desc => 'Modules required to connect to SQLite',
+    },
+  },
+
+  rdbms_pg => {
+    req => {
+      %$rdbms_pg,
+    },
+    pod => {
+      title => 'PostgreSQL support',
+      desc => 'Modules required to connect to PostgreSQL',
+    },
+  },
+
+  rdbms_mssql_odbc => {
+    req => {
+      %$rdbms_mssql_odbc,
+    },
+    pod => {
+      title => 'MSSQL support via DBD::ODBC',
+      desc => 'Modules required to connect to MSSQL via DBD::ODBC',
+    },
+  },
+
+  rdbms_mssql_sybase => {
+    req => {
+      %$rdbms_mssql_sybase,
+    },
+    pod => {
+      title => 'MSSQL support via DBD::Sybase',
+      desc => 'Modules required to connect to MSSQL support via DBD::Sybase',
+    },
+  },
+
+  rdbms_mysql => {
+    req => {
+      %$rdbms_mysql,
+    },
+    pod => {
+      title => 'MySQL support',
+      desc => 'Modules required to connect to MySQL',
+    },
+  },
+
+  rdbms_oracle => {
+    req => {
+      %$rdbms_oracle,
+    },
+    pod => {
+      title => 'Oracle support',
+      desc => 'Modules required to connect to Oracle',
+    },
+  },
+
+  rdbms_ase => {
+    req => {
+      %$rdbms_ase,
+    },
+    pod => {
+      title => 'Sybase ASE support',
+      desc => 'Modules required to connect to Sybase ASE',
+    },
+  },
+
+  rdbms_db2 => {
+    req => {
+      %$rdbms_db2,
+    },
+    pod => {
+      title => 'DB2 support',
+      desc => 'Modules required to connect to DB2',
+    },
+  },
+
+# the order does matter because the rdbms support group might require
+# a different version that the test group
   test_rdbms_pg => {
     req => {
       $ENV{DBICTEST_PG_DSN}
         ? (
+          %$rdbms_pg,
           'Sys::SigAction'        => '0',
           'DBD::Pg'               => '2.009002',
         ) : ()
@@ -193,7 +304,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_MSSQL_ODBC_DSN}
         ? (
-          'DBD::ODBC'             => '0',
+          %$rdbms_mssql_odbc,
         ) : ()
     },
   },
@@ -202,7 +313,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_MSSQL_DSN}
         ? (
-          'DBD::Sybase'           => '0',
+          %$rdbms_mssql_sybase,
         ) : ()
     },
   },
@@ -211,7 +322,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_MYSQL_DSN}
         ? (
-          'DBD::mysql'            => '0',
+          %$rdbms_mysql,
         ) : ()
     },
   },
@@ -220,7 +331,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_ORA_DSN}
         ? (
-          %$id_shortener,
+          %$rdbms_oracle,
           'DateTime::Format::Oracle' => '0',
           'DBD::Oracle'              => '1.24',
         ) : ()
@@ -231,7 +342,8 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_SYBASE_DSN}
         ? (
-          'DateTime::Format::Sybase' => 0,
+          %$rdbms_ase,
+          'DateTime::Format::Sybase' => '0',
         ) : ()
     },
   },
@@ -240,7 +352,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_DB2_DSN}
         ? (
-          'DBD::DB2' => 0,
+          %$rdbms_db2,
         ) : ()
     },
   },
@@ -391,7 +503,7 @@ Somewhere in your build-file (e.g. L<Module::Install>'s Makefile.PL):
 
   require $class;
 
-  my \$deploy_deps = $class->req_list_for ('deploy');
+  my \$deploy_deps = $class->req_list_for('deploy');
 
   for (keys %\$deploy_deps) {
     requires \$_ => \$deploy_deps->{\$_};

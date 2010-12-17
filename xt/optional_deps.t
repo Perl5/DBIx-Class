@@ -3,6 +3,7 @@ use warnings;
 no warnings qw/once/;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use Scalar::Util; # load before we break require()
 use Carp ();   # Carp is not used in the test, but we want to have it loaded for proper %INC comparison
@@ -14,6 +15,13 @@ ok (1);
 # Opt::Dep.
 my $inc_before = [ keys %INC ];
 ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related is yet loaded');
+
+# DBIx::Class::Optional::Dependencies queries $ENV at compile time
+# to build the optional requirements
+BEGIN {
+  $ENV{DBICTEST_PG_DSN} = '1';
+  $ENV{DBICTEST_ORA_DSN} = undef;
+}
 
 use_ok 'DBIx::Class::Optional::Dependencies';
 
@@ -83,5 +91,40 @@ is_deeply (
   {},
   'expected empty errorlist',
 );
+
+# test multiple times to find autovivification bugs
+for (1..2) {
+  throws_ok {
+    DBIx::Class::Optional::Dependencies->req_list_for();
+  } qr/\Qreq_list_for() expects a requirement group name/,
+  "req_list_for without groupname throws exception on run $_";
+
+  throws_ok {
+    DBIx::Class::Optional::Dependencies->req_list_for('');
+  } qr/\Qreq_list_for() expects a requirement group name/,
+  "req_list_for with empty groupname throws exception on run $_";
+
+  throws_ok {
+    DBIx::Class::Optional::Dependencies->req_list_for('invalid_groupname');
+  } qr/Requirement group 'invalid_groupname' does not exist/,
+  "req_list_for with invalid groupname throws exception on run $_";
+}
+
+is_deeply(
+  DBIx::Class::Optional::Dependencies->req_list_for('rdbms_pg'),
+  {
+    'DBD::Pg' => '0',
+  }, 'optional dependencies for deploying to Postgres ok');
+
+is_deeply(
+  DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_pg'),
+  {
+    'Sys::SigAction' => '0',
+    'DBD::Pg'        => '2.009002',
+  }, 'optional dependencies for testing Postgres with ENV var ok');
+
+is_deeply(
+  DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_oracle'),
+  {}, 'optional dependencies for testing Oracle without ENV var ok');
 
 done_testing;

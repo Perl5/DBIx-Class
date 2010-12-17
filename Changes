@@ -42,6 +42,8 @@ Revision history for DBIx::Class
         - Add forgotten attributes to Admin.pm
 
     * Misc
+        - Add extra option groups to DBIC::Optional::Depencencies, to aid
+          users in requesting the prerequisites for a particular RDBMS
         - Switch all serialization to use Storable::nfreeze for portable
           architecture independent ice
         - Fix the bogus META.yml dependency injection issue for good
