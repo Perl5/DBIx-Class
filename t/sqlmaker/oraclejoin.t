@@ -3,14 +3,18 @@ use warnings;
 
 use Test::More;
 
+BEGIN {
+  require DBIx::Class::Optional::Dependencies;
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
+}
+
 use lib qw(t/lib);
 use DBIx::Class::SQLMaker::OracleJoins;
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-my $sa = new DBIx::Class::SQLMaker::OracleJoins;
-
-# search with undefined or empty $cond
+my $sa = DBIx::Class::SQLMaker::OracleJoins->new;
 
 #  my ($self, $table, $fields, $where, $order, @rest) = @_;
 my ($sql, @bind) = $sa->select(

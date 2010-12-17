@@ -7,6 +7,13 @@ use strict;
 use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
+BEGIN {
+  use Carp::Clan qw/^DBIx::Class/;
+  use DBIx::Class::Optional::Dependencies;
+  croak('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') )
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
+}
+
 sub new {
   my $self = shift;
   my %opts = (ref $_[0] eq 'HASH') ? %{$_[0]} : @_;

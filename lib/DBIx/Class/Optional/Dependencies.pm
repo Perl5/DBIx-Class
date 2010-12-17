@@ -38,6 +38,11 @@ my $datetime_basic = {
   'DateTime::Format::Strptime'    => '1.2',
 };
 
+my $id_shortener = {
+  'Math::BigInt'                  => '1.89',
+  'Math::Base36'                  => '0.07',
+};
+
 my $reqs = {
   dist => {
     #'Module::Install::Pod::Inherit' => '0.01',
@@ -88,8 +93,12 @@ my $reqs = {
     },
     pod => {
       title => 'Storage::DBI::deploy()',
-      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deploy> and L<DBIx::Class::Storage::DBI/deploymen_statements>',
+      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deploy> and L<DBIx::Class::Storage::DBI/deployment_statements>',
     },
+  },
+
+  id_shortener => {
+    req => $id_shortener,
   },
 
   test_pod => {
@@ -211,6 +220,7 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_ORA_DSN}
         ? (
+          %$id_shortener,
           'DateTime::Format::Oracle' => '0',
           'DBD::Oracle'              => '1.24',
         ) : ()

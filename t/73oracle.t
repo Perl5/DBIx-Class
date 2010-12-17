@@ -40,6 +40,9 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_oracle')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_oracle');
+
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";

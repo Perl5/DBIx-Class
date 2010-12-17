@@ -77,12 +77,8 @@ my $runtime_requires = {
   'Sub::Name'                => '0.04',
   'Variable::Magic'          => '0.44',
 
-  # corelibs needing a specific bugfixed version
+  # dual-life corelibs needing a specific bugfixed version
   'File::Path'               => '2.07',
-
-  # Oracle-only optionals
-  'Math::BigInt'             => '1.89',
-  'Math::Base36'             => '0.07',
 };
 
 # this is so we can order requires alphabetically
