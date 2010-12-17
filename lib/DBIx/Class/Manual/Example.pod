@@ -128,10 +128,12 @@ MyDatabase/Main/Result/Track.pm:
 
 insertdb.pl
 
-  #!/usr/bin/perl -w
+  #!/usr/bin/perl
+
+  use strict;
+  use warnings;
 
   use MyDatabase::Main;
-  use strict;
 
   my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
 
@@ -192,10 +194,12 @@ insertdb.pl
 
 testdb.pl:
 
-  #!/usr/bin/perl -w
+  #!/usr/bin/perl
+
+  use strict;
+  use warnings;
 
   use MyDatabase::Main;
-  use strict;
 
   my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
   # for other DSNs, e.g. MySQL, see the perldoc for the relevant dbd

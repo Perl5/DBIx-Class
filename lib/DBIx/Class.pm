@@ -392,6 +392,8 @@ solomon: Jared Johnson <jaredj@nmgi.com>
 
 spb: Stephen Bennett <stephen@freenode.net>
 
+Squeeks <squeek@cpan.org>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 teejay : Aaron Trevena <teejay@cpan.org>
