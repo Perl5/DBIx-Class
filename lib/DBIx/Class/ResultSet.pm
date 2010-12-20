@@ -700,7 +700,12 @@ sub find {
         $relinfo->{cond}, $val, $key
       );
       die "Can't handle complex relationship conditions in find" if ref($rel_q) ne 'HASH';
-      @related{keys %$rel_q} = values %$rel_q;
+
+      # an undef coming back from a cond resolution would imply
+      # no resolution is possible, hence ignore it altogether during
+      # the find (probably supplied as part of find_or_create)
+      @related{keys %$rel_q} = values %$rel_q
+        unless grep { ! defined } values %$rel_q;
     }
   }
 

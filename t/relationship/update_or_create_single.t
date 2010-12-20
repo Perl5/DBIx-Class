@@ -7,8 +7,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 9;
-
 my $artist = $schema->resultset ('Artist')->first;
 
 my $genre = $schema->resultset ('Genre')
@@ -95,3 +93,44 @@ is_deeply (
   },
   'CD year column updated correctly without a disambiguator',
 );
+
+# Test multi-level find-or-create functionality.
+# We should be able to find-or-create this twice, with the second time
+# returning the same item and genre as the first..
+my $genre_name = 'Highlander';
+my %cd_details = (
+    year => '2010',
+    title => 'Tasty Treats',
+    genre => { name => $genre_name }
+);
+my $genre2 = $schema->resultset ('Genre')
+            ->create ({ name => $genre_name });
+
+my $found1 = $artist->find_or_create_related('cds', { %cd_details });
+ok($found1->id, "Found (actually created) album in first iteration");
+is($found1->genre->name, $genre_name, ".. with correct genre");
+
+my $found2 = $artist->find_or_create_related('cds', { %cd_details });
+ok($found2->id, "Found album in second iteration");
+is($found2->id, $found1->id, "..and the IDs are the same.");
+is($found2->genre->name, $genre_name, ".. with correct genre");
+
+# Now we repeat the tests, using a sub-level query on one of the critical
+# keys that could be used in the "find" part.
+my $artist_name = 'Peanut and Cashew Mix';
+my %new_cd = (
+    year => '2011',
+    title => 'Various Failures',
+    artist => { name => $artist_name },
+);
+my $found3 = $genre2->find_or_create_related('cds', { %new_cd });
+ok($found3->id, "Found (actually created) album in first iteration");
+is($found3->artist->name, $artist_name, "..with correct artist name");
+
+my $found4 = $genre2->find_or_create_related('cds', { %new_cd });
+ok($found4->id, "Found album in second iteration");
+is($found4->id, $found3->id, "..and the IDs are the same.");
+is($found4->artist->name, $artist_name, ".. with correct artist name");
+is($found4->artist->id, $found3->artist->id, "..matching artist ids");
+
+done_testing;
