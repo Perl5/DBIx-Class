@@ -487,8 +487,7 @@ CREATE TABLE dbic_t_schema.track (
   position int,
   title varchar(255),
   last_updated_on date,
-  last_updated_at date,
-  small_dt date
+  last_updated_at date
 )
 EOS
 

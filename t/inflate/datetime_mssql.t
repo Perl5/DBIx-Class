@@ -4,8 +4,11 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Scope::Guard ();
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
+
+DBICTest::Schema->load_classes('EventSmallDT');
 
 # use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
 BEGIN {
@@ -21,7 +24,7 @@ if (not ($dsn || $dsn2)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_MSSQL_ODBC_DSN} and/or $ENV{DBICTEST_MSSQL_DSN} _USER '
     .'and _PASS to run this test' .
-    "\nWarning: This test drops and creates a table called 'track'";
+    "\nWarning: This test drops and creates a table called 'small_dt'";
 }
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
@@ -55,10 +58,30 @@ for my $connect_info (@connect_info) {
 
   my $guard = Scope::Guard->new(\&cleanup);
 
-# coltype, column, datehash
+  try { $schema->storage->dbh->do("DROP TABLE track") };
+  $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE track (
+ trackid INT IDENTITY PRIMARY KEY,
+ cd INT,
+ position INT,
+ last_updated_at DATETIME,
+)
+SQL
+  try { $schema->storage->dbh->do("DROP TABLE event_small_dt") };
+  $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE event_small_dt (
+ id INT IDENTITY PRIMARY KEY,
+ small_dt SMALLDATETIME,
+)
+SQL
+
+# coltype, column, source, pk, create_extra, datehash
   my @dt_types = (
     ['DATETIME',
      'last_updated_at',
+     'Track',
+     'trackid',
+     { cd => 1 },
      {
       year => 2004,
       month => 8,
@@ -70,6 +93,9 @@ for my $connect_info (@connect_info) {
     }],
     ['SMALLDATETIME', # minute precision
      'small_dt',
+     'EventSmallDT',
+     'id',
+     {},
      {
       year => 2004,
       month => 8,
@@ -80,26 +106,17 @@ for my $connect_info (@connect_info) {
   );
 
   for my $dt_type (@dt_types) {
-    my ($type, $col, $sample_dt) = @$dt_type;
+    my ($type, $col, $source, $pk, $create_extra, $sample_dt) = @$dt_type;
 
-    eval { $schema->storage->dbh->do("DROP TABLE track") };
-    $schema->storage->dbh->do(<<"SQL");
-CREATE TABLE track (
- trackid INT IDENTITY PRIMARY KEY,
- cd INT,
- position INT,
- $col $type,
-)
-SQL
     ok(my $dt = DateTime->new($sample_dt));
 
     my $row;
-    ok( $row = $schema->resultset('Track')->create({
+    ok( $row = $schema->resultset($source)->create({
           $col => $dt,
-          cd => 1,
+          %$create_extra,
         }));
-    ok( $row = $schema->resultset('Track')
-      ->search({ trackid => $row->trackid }, { select => [$col] })
+    ok( $row = $schema->resultset($source)
+      ->search({ $pk => $row->$pk }, { select => [$col] })
       ->first
     );
     is( $row->$col, $dt, "$type roundtrip" );
@@ -116,5 +133,6 @@ done_testing;
 sub cleanup {
   if (my $dbh = eval { $schema->storage->dbh }) {
     $dbh->do('DROP TABLE track');
+    $dbh->do('DROP TABLE event_small_dt');
   }
 }

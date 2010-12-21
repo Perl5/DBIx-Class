@@ -102,7 +102,7 @@ is_same_sql_bind (
   '(
     SELECT
         me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-        tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
+        tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
         artist.artistid, artist.name, artist.rank, artist.charfield
       FROM (
         SELECT

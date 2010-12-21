@@ -112,7 +112,6 @@ my $schema = DBICTest->init_schema();
               last_updated_at => undef,
               last_updated_on => undef,
               position => 1,
-              small_dt => undef,
               title => "$reldir: First track of latest cd",
               trackid => 19
             }

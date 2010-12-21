@@ -3,8 +3,12 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Scope::Guard ();
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
+
+DBICTest::Schema->load_classes('EventSmallDT');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
@@ -30,66 +34,97 @@ for my $storage_type (@storage_types) {
     $schema->storage_type("::$storage_type");
   }
   $schema->connection($dsn, $user, $pass, {
-    AutoCommit => 1,
-    on_connect_call => [ 'datetime_setup' ],
+    on_connect_call => 'datetime_setup',
   });
+
+  my $guard = Scope::Guard->new(\&cleanup);
 
   $schema->storage->ensure_connected;
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
 
-# coltype, col, date
+  eval { $schema->storage->dbh->do("DROP TABLE track") };
+  $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE track (
+    trackid INT IDENTITY PRIMARY KEY,
+    cd INT NULL,
+    position INT NULL,
+    last_updated_at DATETIME NULL
+)
+SQL
+  eval { $schema->storage->dbh->do("DROP TABLE event_small_dt") };
+  $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE event_small_dt (
+    id INT IDENTITY PRIMARY KEY,
+    small_dt SMALLDATETIME NULL,
+)
+SQL
+
+# coltype, column, source, pk, create_extra, datehash
   my @dt_types = (
-    ['DATETIME', 'last_updated_at', '2004-08-21T14:36:48.080Z'],
-# minute precision
-    ['SMALLDATETIME', 'small_dt', '2004-08-21T14:36:00.000Z'],
+    ['DATETIME',
+     'last_updated_at',
+     'Track',
+     'trackid',
+     { cd => 1 },
+     {
+      year => 2004,
+      month => 8,
+      day => 21,
+      hour => 14,
+      minute => 36,
+      second => 48,
+      nanosecond => 500000000,
+    }],
+    ['SMALLDATETIME', # minute precision
+     'small_dt',
+     'EventSmallDT',
+     'id',
+     {},
+     {
+      year => 2004,
+      month => 8,
+      day => 21,
+      hour => 14,
+      minute => 36,
+    }],
   );
 
   for my $dt_type (@dt_types) {
-    my ($type, $col, $sample_dt) = @$dt_type;
+    my ($type, $col, $source, $pk, $create_extra, $sample_dt) = @$dt_type;
 
-    eval { $schema->storage->dbh->do("DROP TABLE track") };
-    $schema->storage->dbh->do(<<"SQL");
-CREATE TABLE track (
-   trackid INT IDENTITY PRIMARY KEY,
-   cd INT NULL,
-   position INT NULL,
-   $col $type NULL
-)
-SQL
-    ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
+    ok(my $dt = DateTime->new($sample_dt));
 
     my $row;
-    ok( $row = $schema->resultset('Track')->create({
+    ok( $row = $schema->resultset($source)->create({
           $col => $dt,
-          cd => 1,
+          %$create_extra,
         }));
-    ok( $row = $schema->resultset('Track')
-      ->search({ trackid => $row->trackid }, { select => [$col] })
+    ok( $row = $schema->resultset($source)
+      ->search({ $pk => $row->$pk }, { select => [$col] })
       ->first
     );
     is( $row->$col, $dt, "$type roundtrip" );
 
-    is( $row->$col->nanosecond, $dt->nanosecond,
-      'fractional DateTime portion roundtrip' )
-      if $dt->nanosecond > 0;
+    cmp_ok( $row->$col->nanosecond, '==', $sample_dt->{nanosecond},
+      'DateTime fractional portion roundtrip' )
+      if exists $sample_dt->{nanosecond};
   }
 
   # test a computed datetime column
   eval { $schema->storage->dbh->do("DROP TABLE track") };
   $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE track (
-   trackid INT IDENTITY PRIMARY KEY,
-   cd INT NULL,
-   position INT NULL,
-   title VARCHAR(100) NULL,
-   last_updated_on DATETIME NULL,
-   last_updated_at AS getdate(),
-   small_dt SMALLDATETIME NULL
+    trackid INT IDENTITY PRIMARY KEY,
+    cd INT NULL,
+    position INT NULL,
+    title VARCHAR(100) NULL,
+    last_updated_on DATETIME NULL,
+    last_updated_at AS getdate(),
 )
 SQL
 
-  my $now     = DateTime->now;
+  my $now = DateTime->now;
   sleep 1;
   my $new_row = $schema->resultset('Track')->create({});
   $new_row->discard_changes;
@@ -102,8 +137,9 @@ SQL
 done_testing;
 
 # clean up our mess
-END {
-  if (my $dbh = eval { $schema->storage->_dbh }) {
+sub cleanup {
+  if (my $dbh = eval { $schema->storage->dbh }) {
     $dbh->do('DROP TABLE track');
+    $dbh->do('DROP TABLE event_small_dt');
   }
 }
