@@ -3994,7 +3994,11 @@ HAVING is a select statement attribute that is applied between GROUP BY and
 ORDER BY. It is applied to the after the grouping calculations have been
 done.
 
-  having => { 'count(employee)' => { '>=', 100 } }
+  having => { 'count_employee' => { '>=', 100 } }
+
+or with an in-place function in which case literal SQL is required:
+
+  having => \[ 'count(employee) >= ?', [ count => 100 ] ]
 
 =head2 distinct
 

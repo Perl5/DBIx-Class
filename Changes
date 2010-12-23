@@ -40,6 +40,7 @@ Revision history for DBIx::Class
         - Stop stripping newlines from SQL statements in the limit emulators
           as it is possible that custom sql with comments was provided
         - Add forgotten attributes to Admin.pm
+        - Fix incorrect 'having' attribute documentation (RT#64129)
 
     * Misc
         - Add extra option groups to DBIC::Optional::Depencencies, to aid
