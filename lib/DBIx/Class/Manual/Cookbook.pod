@@ -413,40 +413,29 @@ Using SQL functions on the left hand side of a comparison is generally not a
 good idea since it requires a scan of the entire table. (Unless your RDBMS
 supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
-it can be accomplished with C<DBIx::Class> when necessary.
-
-Your approach for doing so will depend on whether you have turned
-quoting on via the C<quote_char> and C<name_sep> attributes. If you
-explicitly defined C<quote_char> and C<name_sep> in your
-C<connect_info> (see L<DBIx::Class::Storage::DBI/"connect_info">) then
-you are using quoting, otherwise not.
-
-If you do not have quoting on, simply include the function in your search
-specification as you would any column:
-
-  $rs->search({ 'YEAR(date_of_birth)' => 1979 });
-
-With quoting on, or for a more portable solution, use literal SQL values with
-placeholders:
+it can be accomplished with C<DBIx::Class> when necessary by resorting to
+literal SQL:
 
   $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
-  $rs->search({
+  $rs->search({ -and => [
     name => 'Bob',
-    -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
-  });
+    \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
+  ]});
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
 
 Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
 should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or
-otherwise it's essentially a dummy string currently (use C<plain_value> as a
-habit). It is used by L<DBIx::Class> to handle special column types.
+return value of the function is the same as the type of the column) or in the
+case of a function it's currently treated as a dummy string (it is a good idea
+to use C<plain_value> or something similar to convey intent). The value is
+currently only significant when handling special column types (BLOBs, arrays,
+etc.), but this may change in the future.
 
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.

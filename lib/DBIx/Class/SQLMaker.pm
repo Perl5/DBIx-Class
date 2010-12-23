@@ -140,6 +140,23 @@ sub _where_op_VALUE {
   ;
 }
 
+my $callsites_warned;
+sub _where_op_NEST {
+  # determine callsite obeying Carp::Clan rules (fucking ugly but don't have better ideas)
+  my $callsite = do {
+    my $w;
+    local $SIG{__WARN__} = sub { $w = shift };
+    carp;
+    $w
+  };
+
+  carp ("-nest in search conditions is deprecated, you most probably wanted:\n"
+      .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
+  ) unless $callsites_warned->{$callsite}++;
+
+  shift->next::method(@_);
+}
+
 # Handle limit-dialect selection
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;

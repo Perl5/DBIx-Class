@@ -238,19 +238,18 @@ documentation for details.
 
 =item .. search with an SQL function on the left hand side?
 
-To use an SQL function on the left hand side of a comparison:
+To use an SQL function on the left hand side of a comparison you currently need
+to resort to literal SQL:
 
- ->search({ -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ] });
+ ->search( \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ] );
 
 Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
 should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or
-otherwise it's essentially a dummy string currently (use C<plain_value> as a
-habit). It is used by L<DBIx::Class> to handle special column types.
-
-Or, if you have quoting off:
-
- ->search({ 'YEAR(date_of_birth)' => 1979 });
+return value of the function is the same as the type of the column) or in the
+case of a function it's currently treated as a dummy string (it is a good idea
+to use C<plain_value> or something similar to convey intent). The value is
+currently only significant when handling special column types (BLOBs, arrays,
+etc.), but this may change in the future.
 
 =item .. find more help on constructing searches?
 
@@ -382,7 +381,7 @@ the rows at once.
 =item .. update a column using data from another column?
 
 To stop the column name from being quoted, you'll need to tell DBIC
-that the right hand side is an SQL identity (it will be quoted
+that the right hand side is an SQL identifier (it will be quoted
 properly if you have quoting enabled):
 
  ->update({ somecolumn => { -ident => 'othercolumn' } })

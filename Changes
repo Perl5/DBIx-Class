@@ -13,6 +13,8 @@ Revision history for DBIx::Class
         - +columns now behaves just like columns by not stripping a
           fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
         - Add full INSERT...RETURNING support for Oracle
+        - Deprecate use of -nest in search conditions (warn once per
+          callsite)
 
     * Fixes
         - Fixed read-only attribute set attempt in ::Storage::Replicated
