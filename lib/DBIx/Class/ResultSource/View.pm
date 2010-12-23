@@ -164,6 +164,7 @@ The constructor.
 sub new {
     my ( $self, @args ) = @_;
     my $new = $self->next::method(@args);
+    $new->{resultset_attributes}->{storage}->{use_insert_returning} = 0;
     $new->{deploy_depends_on} =
       { map { $_ => 1 }
           @{ $new->{deploy_depends_on} || [] } }

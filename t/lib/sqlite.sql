@@ -462,3 +462,12 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd ON fourkeys_to_twokeys (t_art
 --
 CREATE VIEW year2000cds AS
     SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";
+
+--
+-- Table: storage_flag_pole 
+--
+CREATE TABLE storage_flag_pole (
+  id timestamp NOT NULL DEFAULT current_timestamp,
+  name varchar(100) NOT NULL,
+  PRIMARY KEY (id)
+);

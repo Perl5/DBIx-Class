@@ -1782,6 +1782,11 @@ sub _prefetch_autovalues {
 
 sub insert {
   my ($self, $source, $to_insert) = @_;
+  
+  my $use_insert_returning =
+      defined $source->resultset_attributes->{storage}->{use_insert_returning}
+      ? $source->resultset_attributes->{storage}->{use_insert_returning}
+      : $self->_use_insert_returning;
 
   my $prefetched_values = $self->_prefetch_autovalues($source, $to_insert);
 
@@ -1797,7 +1802,7 @@ sub insert {
   }
 
   my ($sqla_opts, @ir_container);
-  if ($self->_use_insert_returning) {
+  if ($use_insert_returning) {
 
     # retain order as declared in the resultsource
     for (sort { $fetch_pks{$a} <=> $fetch_pks{$b} } keys %fetch_pks ) {
