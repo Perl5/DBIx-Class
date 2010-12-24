@@ -58,6 +58,7 @@ is_deeply (
 );
 
 my $storage = DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server->new;
+$storage->connect_info(['dbi:SQLite::memory:']); # determine_driver's init() connects for this subclass
 $storage->_determine_driver;
 is (
   $storage->can('sql_limit_dialect'),

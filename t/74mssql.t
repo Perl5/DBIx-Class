@@ -42,6 +42,8 @@ for my $storage_type (@test_storages) {
     $schema->storage->_use_typeless_placeholders (0);
   }
 
+  local $ENV{DBIC_MSSQL_FREETDS_LOWVER_NOWARN} = 1; # disable nobindvars warning
+
   $schema->storage->ensure_connected;
 
   if ($storage_type =~ /NoBindVars\z/) {
@@ -192,6 +194,66 @@ SQL
     $rs->delete;
   }
 
+  # test transaction handling on a disconnected handle
+  my $wrappers = {
+    no_transaction => sub { shift->() },
+    txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
+    txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
+    txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
+  };
+  for my $wrapper (keys %$wrappers) {
+    $rs->delete;
+
+    # a reconnect should trigger on next action
+    $schema->storage->_get_dbh->disconnect;
+
+    lives_and {
+      $wrappers->{$wrapper}->( sub {
+        $rs->create({ amount => 900 + $_ }) for 1..3;
+      });
+      is $rs->count, 3;
+    } "transaction on disconnected handle with $wrapper wrapper";
+  }
+
+  TODO: {
+    local $TODO = 'Transaction handling with multiple active statements will '
+                 .'need eager cursor support.';
+
+    # test transaction handling on a disconnected handle with multiple active
+    # statements
+    my $wrappers = {
+      no_transaction => sub { shift->() },
+      txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
+      txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
+      txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
+    };
+    for my $wrapper (keys %$wrappers) {
+      $rs->reset;
+      $rs->delete;
+      $rs->create({ amount => 1000 + $_ }) for (1..3);
+
+      my $artist_rs = $schema->resultset('Artist')->search({
+        name => { -like => 'Artist %' }
+      });;
+
+      $rs->next;
+
+      my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
+
+      lives_and {
+        my @results;
+
+        $wrappers->{$wrapper}->( sub {
+          while (my $money = $rs->next) {
+            my $artist = $artist_rs->next;
+            push @results, [ $artist->name, $money->amount ];
+          };
+        });
+
+        is_deeply \@results, $map;
+      } "transactions with multiple active statement with $wrapper wrapper";
+    }
+  }
 
   # test RNO detection when version detection fails
   SKIP: {
@@ -230,6 +292,31 @@ lives_ok (sub {
   my $artist = $schema->resultset ('Artist')->search ({}, { order_by => 'artistid' })->next;
   is ($artist->id, 1, 'Artist retrieved successfully');
 }, 'Query-induced autoconnect works');
+
+# test AutoCommit=0
+{
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+  my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
+
+  my $rs = $schema2->resultset('Money');
+
+  $rs->delete;
+  $schema2->txn_commit;
+
+  is $rs->count, 0, 'initially empty'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 3000 });
+  $schema2->txn_rollback;
+
+  is $rs->count, 0, 'rolled back in AutoCommit=0'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 4000 });
+  $schema2->txn_commit;
+
+  cmp_ok $rs->first->amount, '==', 4000, 'committed in AutoCommit=0';
+}
 
 done_testing;
 
