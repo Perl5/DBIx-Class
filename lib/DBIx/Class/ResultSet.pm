@@ -305,6 +305,7 @@ always return a resultset, even in list context.
 
 =cut
 
+my $callsites_warned;
 sub search_rs {
   my $self = shift;
 
@@ -370,8 +371,17 @@ sub search_rs {
 
   } if @_;
 
-  carp 'search( %condition ) is deprecated, use search( \%condition ) instead'
-    if (@_ > 1 and ! $self->result_source->result_class->isa('DBIx::Class::CDBICompat') );
+  if( @_ > 1 and ! $self->result_source->result_class->isa('DBIx::Class::CDBICompat') ) {
+    # determine callsite obeying Carp::Clan rules (fucking ugly but don't have better ideas)
+    my $callsite = do {
+      my $w;
+      local $SIG{__WARN__} = sub { $w = shift };
+      carp;
+      $w
+    };
+    carp 'search( %condition ) is deprecated, use search( \%condition ) instead'
+      unless $callsites_warned->{$callsite}++;
+  }
 
   for ($old_where, $call_cond) {
     if (defined $_) {
