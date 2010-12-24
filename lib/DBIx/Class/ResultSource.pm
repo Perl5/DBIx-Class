@@ -31,18 +31,18 @@ DBIx::Class::ResultSource - Result source object
 
   # Create a table based result source, in a result class.
 
-  package MyDB::Schema::Result::Artist;
+  package MyApp::Schema::Result::Artist;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD');
 
   1;
 
   # Create a query (view) based result source, in a result class
-  package MyDB::Schema::Result::Year2000CDs;
+  package MyApp::Schema::Result::Year2000CDs;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->load_components('InflateColumn::DateTime');

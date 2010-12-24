@@ -20,15 +20,15 @@ DBIx::Class::Relationship - Inter-table relationships
 =head1 SYNOPSIS
 
   ## Creating relationships
-  MyDB::Schema::Actor->has_many('actorroles' => 'MyDB::Schema::ActorRole',
+  MyApp::Schema::Actor->has_many('actorroles' => 'MyApp::Schema::ActorRole',
                                 'actor');
-  MyDB::Schema::Role->has_many('actorroles' => 'MyDB::Schema::ActorRole',
+  MyApp::Schema::Role->has_many('actorroles' => 'MyApp::Schema::ActorRole',
                                 'role');
-  MyDB::Schema::ActorRole->belongs_to('role' => 'MyDB::Schema::Role');
-  MyDB::Schema::ActorRole->belongs_to('actor' => 'MyDB::Schema::Actor');
+  MyApp::Schema::ActorRole->belongs_to('role' => 'MyApp::Schema::Role');
+  MyApp::Schema::ActorRole->belongs_to('actor' => 'MyApp::Schema::Actor');
 
-  MyDB::Schema::Role->many_to_many('actors' => 'actorroles', 'actor');
-  MyDB::Schema::Actor->many_to_many('roles' => 'actorroles', 'role');
+  MyApp::Schema::Role->many_to_many('actors' => 'actorroles', 'actor');
+  MyApp::Schema::Actor->many_to_many('roles' => 'actorroles', 'role');
 
   ## Using relationships
   $schema->resultset('Actor')->find({ id => 1})->roles();

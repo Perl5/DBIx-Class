@@ -16,7 +16,7 @@ DBIx::Class::ResultSource::View - ResultSource object representing a view
 
 =head1 SYNOPSIS
 
-  package MyDB::Schema::Result::Year2000CDs;
+  package MyApp::Schema::Result::Year2000CDs;
 
   use base qw/DBIx::Class::Core/;
 
@@ -63,7 +63,7 @@ case replaces the view name in a FROM clause in a subselect.
 
 =head1 EXAMPLES
 
-Having created the MyDB::Schema::Year2000CDs schema as shown in the SYNOPSIS
+Having created the MyApp::Schema::Year2000CDs schema as shown in the SYNOPSIS
 above, you can then:
 
   $2000_cds = $schema->resultset('Year2000CDs')
@@ -132,7 +132,7 @@ syntaxes.
 =head2 deploy_depends_on 
 
   __PACKAGE__->result_source_instance->deploy_depends_on(
-      ["MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"]
+      ["MyApp::Schema::Result::Year","MyApp::Schema::Result::CD"]
       );
 
 Specify the views (and only the views) that this view depends on.

@@ -124,9 +124,9 @@ The community can be found via:
 
 =head1 SYNOPSIS
 
-Create a schema class called MyDB/Schema.pm:
+Create a schema class called MyApp/Schema.pm:
 
-  package MyDB::Schema;
+  package MyApp::Schema;
   use base qw/DBIx::Class::Schema/;
 
   __PACKAGE__->load_namespaces();
@@ -134,39 +134,39 @@ Create a schema class called MyDB/Schema.pm:
   1;
 
 Create a result class to represent artists, who have many CDs, in
-MyDB/Schema/Result/Artist.pm:
+MyApp/Schema/Result/Artist.pm:
 
 See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
-  package MyDB::Schema::Result::Artist;
+  package MyApp::Schema::Result::Artist;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD');
 
   1;
 
 A result class to represent a CD, which belongs to an artist, in
-MyDB/Schema/Result/CD.pm:
+MyApp/Schema/Result/CD.pm:
 
-  package MyDB::Schema::Result::CD;
+  package MyApp::Schema::Result::CD;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'MyDB::Schema::Result::Artist', 'artistid');
+  __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
 
   1;
 
 Then you can use these classes in your application's code:
 
   # Connect to your database.
-  use MyDB::Schema;
-  my $schema = MyDB::Schema->connect($dbi_dsn, $user, $pass, \%dbi_params);
+  use MyApp::Schema;
+  my $schema = MyApp::Schema->connect($dbi_dsn, $user, $pass, \%dbi_params);
 
   # Query for all artists and put them in an array,
   # or retrieve them as a result set object.
