@@ -45,6 +45,31 @@ sub _rebless {
   }
 }
 
+sub _init {
+  # once the driver is determined see if we need to insert the DBD::Sybase w/ FreeTDS fixups
+  # this is a dirty version of "instance role application", \o/ DO WANT Moo \o/
+  my $self = shift;
+  if (! $self->isa('DBIx::Class::Storage::DBI::Sybase::FreeTDS') and $self->using_freetds) {
+    $self->ensure_class_loaded('DBIx::Class::Storage::DBI::Sybase::FreeTDS');
+
+    my @isa = @{mro::get_linear_isa(ref $self)};
+    my $class = shift @isa; # this is our current ref
+
+    my $trait_class = $class . '::FreeTDS';
+    mro::set_mro ($trait_class, 'c3');
+    no strict 'refs';
+    @{"${trait_class}::ISA"} = ($class, 'DBIx::Class::Storage::DBI::Sybase::FreeTDS', @isa);
+
+    bless ($self, $trait_class);
+
+    Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
+    $self->_init(@_);
+  }
+
+  $self->next::method(@_);
+}
+
 sub _ping {
   my $self = shift;
 
@@ -53,17 +78,25 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
+# FIXME if the main connection goes stale, does opening another for this statement
+# really determine anything?
+
   if ($dbh->{syb_no_child_con}) {
-# if extra connections are not allowed, then ->ping is reliable
-    return try { $dbh->ping } catch { 0; };
+    return try {
+      $self->_connect(@{$self->_dbi_connect_info || [] })
+        ->do('select 1');
+      1;
+    }
+    catch {
+      0;
+    };
   }
 
   return try {
-# XXX if the main connection goes stale, does opening another for this statement
-# really determine anything?
     $dbh->do('select 1');
     1;
-  } catch {
+  }
+  catch {
     0;
   };
 }
@@ -95,33 +128,6 @@ sub using_freetds {
   my $self = shift;
 
   return $self->_get_dbh->{syb_oc_version} =~ /freetds/i;
-}
-
-=head2 set_textsize
-
-When using FreeTDS and/or MSSQL, C<< $dbh->{LongReadLen} >> is not available,
-use this function instead. It does:
-
-  $dbh->do("SET TEXTSIZE $bytes");
-
-Takes the number of bytes, or uses the C<LongReadLen> value from your
-L<connect_info|DBIx::Class::Storage::DBI/connect_info> if omitted, lastly falls
-back to the C<32768> which is the L<DBD::Sybase> default.
-
-=cut
-
-sub set_textsize {
-  my $self = shift;
-  my $text_size =
-    shift
-      ||
-    try { $self->_dbi_connect_info->[-1]->{LongReadLen} }
-      ||
-    32768; # the DBD::Sybase default
-
-  return unless defined $text_size;
-
-  $self->_dbh->do("SET TEXTSIZE $text_size");
 }
 
 1;
