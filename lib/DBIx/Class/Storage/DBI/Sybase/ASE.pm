@@ -29,7 +29,7 @@ __PACKAGE__->mk_group_accessors('simple' =>
 
 my @also_proxy_to_extra_storages = qw/
   connect_call_set_auto_cast auto_cast connect_call_blob_setup
-  connect_call_datetime_setup
+  connect_call_datetime_setup connect_call_enable_utf8
 
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
@@ -223,11 +223,30 @@ L<DBD::Sybase/Handling_IMAGE/TEXT_data_with_syb_ct_get_data()/syb_ct_send_data()
 sub connect_call_blob_setup {
   my $self = shift;
   my %args = @_;
-  my $dbh = $self->_dbh;
+  my $dbh = $self->_get_dbh;
   $dbh->{syb_binary_images} = 1;
 
   $self->_blob_log_on_update($args{log_on_update})
     if exists $args{log_on_update};
+}
+
+=head2 connect_call_enable_utf8
+
+Used as:
+
+  on_connect_call => 'enable_utf8'
+
+Will decode UNIVARCHAR, UNICHAR and UNITEXT data to Perl's internal utf-8
+representation, and cause data sent to Sybase in utf-8 to be handled properly as
+well.
+
+See L<DBD::Sybase/syb_enable_utf8 (bool)>
+
+=cut
+
+sub connect_call_enable_utf8 {
+  my $self = shift;
+  $self->_get_dbh->{syb_enable_utf8} = 1;
 }
 
 sub _is_lob_column {
