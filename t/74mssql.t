@@ -23,6 +23,8 @@ plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test
   ok ($srv_ver, 'Got a test server version on fresh schema: ' . ($srv_ver||'???') );
 }
 
+my $schema;
+
 my $testdb_supports_placeholders = DBICTest::Schema->connect($dsn, $user, $pass)
                                                     ->storage
                                                      ->_supports_typeless_placeholders;
@@ -31,7 +33,6 @@ my @test_storages = (
   'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
 );
 
-my $schema;
 for my $storage_type (@test_storages) {
   $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -42,6 +43,12 @@ for my $storage_type (@test_storages) {
   }
 
   $schema->storage->ensure_connected;
+
+  if ($storage_type =~ /NoBindVars\z/) {
+    is $schema->storage->disable_sth_caching, 1,
+      'prepare_cached disabled for NoBindVars';
+  }
+
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
   SKIP: {
@@ -107,10 +114,9 @@ for my $storage_type (@test_storages) {
      amount MONEY NULL
   )
 SQL
+   });
 
-  });
-
-  my $rs = $schema->resultset('Money');
+   my $rs = $schema->resultset('Money');
 
   my $row;
   lives_ok {
@@ -133,41 +139,59 @@ SQL
   is $rs->find($row->id)->amount,
     undef, 'updated money value to NULL round-trip';
 
-  $rs->create({ amount => 300 }) for (1..3);
-
-  # test multiple active statements
-  lives_ok {
-    my $artist_rs = $schema->resultset('Artist');
-    while (my $row = $rs->next) {
-      my $artist = $artist_rs->next;
-    }
-    $rs->reset;
-  } 'multiple active statements';
-
   $rs->delete;
 
   # test simple transaction with commit
   lives_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs->create({ amount => 300 });
     });
   } 'simple transaction';
 
-  cmp_ok $rs->first->amount, '==', 400, 'committed';
-  $rs->reset;
+  cmp_ok $rs->first->amount, '==', 300, 'committed';
 
+  $rs->reset;
   $rs->delete;
 
   # test rollback
   throws_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs->create({ amount => 700 });
       die 'mtfnpy';
     });
   } qr/mtfnpy/, 'simple failed txn';
 
   is $rs->first, undef, 'rolled back';
+
   $rs->reset;
+  $rs->delete;
+
+  # test multiple active statements
+  {
+    $rs->create({ amount => 800 + $_ }) for 1..3;
+
+    my @map = (
+      [ 'Artist 1', '801.00' ],
+      [ 'Artist 2', '802.00' ],
+      [ 'Artist 3', '803.00' ]
+    );
+
+    my $artist_rs = $schema->resultset('Artist')->search({
+      name => { -like => 'Artist %' }
+    });;
+
+    my $i = 0;
+
+    while (my $money_row = $rs->next) {
+      my $artist_row = $artist_rs->next;
+
+      is_deeply [ $artist_row->name, $money_row->amount ], $map[$i++],
+        'multiple active statements';
+    }
+    $rs->reset;
+    $rs->delete;
+  }
+
 
   # test RNO detection when version detection fails
   SKIP: {

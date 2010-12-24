@@ -11,7 +11,7 @@ __PACKAGE__->table('event');
 __PACKAGE__->add_columns(
   id => { data_type => 'integer', is_auto_increment => 1 },
 
-# this MUST be 'date' for the Firebird tests
+# this MUST be 'date' for the Firebird and SQLAnywhere tests
   starts_at => { data_type => 'date' },
 
   created_on => { data_type => 'timestamp' },
