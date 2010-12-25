@@ -115,12 +115,19 @@ sub _adjust_select_args_for_complex_prefetch {
       group_by => ['dummy'], %$inner_attrs,
     });
 
-    # if a multi-type join was needed in the subquery - add a group_by to simulate the
-    # collapse in the subq
+    my $inner_aliastypes =
+      $self->_resolve_aliastypes_from_select_args( $inner_from, $inner_select, $where, $inner_attrs );
+
+    # if a multi-type non-selecting (only restricting) join was needed in the subquery
+    # add a group_by to simulate the collapse in the subq
     if (
       ! $inner_attrs->{group_by}
         and
-      first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from])
+      first {
+        $inner_aliastypes->{restricting}{$_}
+          and
+        ! $inner_aliastypes->{selecting}{$_}
+      } ( keys %{$inner_aliastypes->{multiplying}||{}} )
     ) {
       $inner_attrs->{group_by} = $self->_group_over_selection (
         $inner_from, $inner_select, $inner_attrs->{order_by}

@@ -34,7 +34,6 @@ is_same_sql_bind(
           JOIN cd cds_unordered
             ON cds_unordered.artist = me.artistid
         WHERE ( me.rank = ? )
-        GROUP BY cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track, me.name, me.artistid
         ORDER BY me.name ASC, me.artistid DESC
         LIMIT 3
         OFFSET 3
