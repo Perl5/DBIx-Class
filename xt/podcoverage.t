@@ -134,6 +134,7 @@ my $exceptions = {
     'SQL::Translator::*'                            => { skip => 1 },
 
 # deprecated / backcompat stuff
+    'DBIx::Class::Serialize::Storable'              => { skip => 1 },
     'DBIx::Class::CDBICompat*'                      => { skip => 1 },
     'DBIx::Class::ResultSetManager'                 => { skip => 1 },
     'DBIx::Class::DB'                               => { skip => 1 },

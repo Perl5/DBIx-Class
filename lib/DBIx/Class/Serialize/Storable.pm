@@ -3,6 +3,13 @@ use strict;
 use warnings;
 use Storable;
 
+use Carp::Clan qw/^DBIx::Class/;
+
+carp 'The Serialize::Storable component is now *DEPRECATED*. It has not '
+    .'been providing any useful functionality for quite a while, and in fact '
+    .'destroys prefetched results in its current implementation. Do not use!';
+
+
 sub STORABLE_freeze {
     my ($self, $cloning) = @_;
     my $to_serialize = { %$self };
@@ -34,6 +41,12 @@ __END__
 =head1 NAME
 
     DBIx::Class::Serialize::Storable - hooks for Storable nfreeze/thaw
+
+=head1 DEPRECATION NOTE
+
+This component is now B<DEPRECATED>. It has not been providing any useful
+functionality for quite a while, and in fact destroys prefetched results
+in its current implementation. Do not use!
 
 =head1 SYNOPSIS
 

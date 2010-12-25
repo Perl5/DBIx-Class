@@ -16,6 +16,8 @@ Revision history for DBIx::Class
         - Add full INSERT...RETURNING support for Oracle
         - Deprecate use of -nest in search conditions (warn once per
           callsite)
+        - Deprecate the completely useless DBIx::Class::Serialize::Storable
+          result component
 
     * Fixes
         - Fixed read-only attribute set attempt in ::Storage::Replicated

@@ -39,10 +39,6 @@ will have a C<$schema> object through their source handle
 Large output when using Data::Dump(er) since this class can be set to
 stringify to almost nothing
 
-=item *
-
-Closer to being able to do a Serialize::Storable that doesn't require class-based connections
-
 =back
 
 =head1 METHODS
