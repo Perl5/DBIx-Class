@@ -336,6 +336,7 @@ for my $dialect (
       {
         prefetch => 'books',
         order_by => { -asc => \['name + ?', [ test => 'xxx' ]] }, # test bindvar propagation
+        group_by => [ map { "me.$_" } $schema->source('Owners')->columns ], # the literal order_by requires an explicit group_by
         rows     => 3,  # 8 results total
         unsafe_subselect_ok => 1,
       },

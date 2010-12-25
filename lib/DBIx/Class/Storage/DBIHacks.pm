@@ -129,9 +129,16 @@ sub _adjust_select_args_for_complex_prefetch {
         ! $inner_aliastypes->{selecting}{$_}
       } ( keys %{$inner_aliastypes->{multiplying}||{}} )
     ) {
-      $inner_attrs->{group_by} = $self->_group_over_selection (
+      my $unprocessed_order_chunks;
+      ($inner_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
         $inner_from, $inner_select, $inner_attrs->{order_by}
       );
+
+      $self->throw_exception (
+        'A required group_by clause could not be constructed automatically due to a complex '
+      . 'order_by criteria. Either order_by columns only (no functions) or construct a suitable '
+      . 'group_by by hand'
+      )  if $unprocessed_order_chunks;
     }
 
     # we already optimized $inner_from above
@@ -367,17 +374,27 @@ sub _group_over_selection {
   # add any order_by parts that are not already present in the group_by
   # we need to be careful not to add any named functions/aggregates
   # i.e. order_by => [ ... { count => 'foo' } ... ]
+  my @leftovers;
   for ($self->_extract_order_criteria($order_by)) {
     # only consider real columns (for functions the user got to do an explicit group_by)
-    next if @$_ != 1;
+    if (@$_ != 1) {
+      push @leftovers, $_;
+      next;
+    }
     my $chunk = $_->[0];
-    my $colinfo = $rs_column_list->{$chunk} or next;
+    my $colinfo = $rs_column_list->{$chunk} or do {
+      push @leftovers, $_;
+      next;
+    };
 
     $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
     push @group_by, $chunk unless $group_index{$chunk}++;
   }
 
-  return \@group_by;
+  return wantarray
+    ? (\@group_by, (@leftovers ? \@leftovers : undef) )
+    : \@group_by
+  ;
 }
 
 sub _resolve_ident_sources {
