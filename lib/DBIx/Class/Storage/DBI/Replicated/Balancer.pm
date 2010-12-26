@@ -127,6 +127,8 @@ or just just forgot to create them :)
 
 =cut
 
+my $on_master;
+
 around 'next_storage' => sub {
   my ($next_storage, $self, @args) = @_;
   my $now = time;
@@ -141,9 +143,13 @@ around 'next_storage' => sub {
 
   ## Get a replicant, or the master if none
   if(my $next = $self->$next_storage(@args)) {
+    $self->master->debugobj->print("Moved back to slave\n") if $on_master;
+    $on_master = 0;
     return $next;
   } else {
-    $self->master->debugobj->print("No Replicants validate, falling back to master reads. ");
+    $self->master->debugobj->print("No Replicants validate, falling back to master reads.\n")
+       unless $on_master++;
+
     return $self->master;
   }
 };

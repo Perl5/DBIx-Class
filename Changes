@@ -43,6 +43,8 @@ Revision history for DBIx::Class
           as it is possible that custom sql with comments was provided
         - Add forgotten attributes to Admin.pm
         - Fix incorrect 'having' attribute documentation (RT#64129)
+        - Improve fallback-to-master/return-to-slave reporting in
+          ::Replicated::Balancer
 
     * Misc
         - Add extra option groups to DBIC::Optional::Depencencies, to aid
