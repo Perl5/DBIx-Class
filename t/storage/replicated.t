@@ -603,7 +603,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
         "got last query from a master: $debug{dsn}";
 
     like $fallback_warning, qr/falling back to master/
-        => 'emits falling back to master warning';
+        => 'emits falling back to master debug';
 
     $replicated->schema->storage->debugfh($oldfh);
 }
@@ -620,11 +620,23 @@ $replicated->schema->storage->pool->validate_replicants;
 
 $replicated->schema->storage->debugobj->silence(0);
 
-ok $replicated->schema->resultset('Artist')->find(2)
-    => 'Returned to replicates';
+{
+    ## catch the fallback to master warning
+    open my $debugfh, '>', \my $return_warning;
+    my $oldfh = $replicated->schema->storage->debugfh;
+    $replicated->schema->storage->debugfh($debugfh);
 
-is $debug{storage_type}, 'REPLICANT',
-    "got last query from a replicant: $debug{dsn}";
+    ok $replicated->schema->resultset('Artist')->find(2)
+        => 'Return to replicants';
+
+    is $debug{storage_type}, 'REPLICANT',
+      "got last query from a replicant: $debug{dsn}";
+
+    like $return_warning, qr/Moved back to slave/
+        => 'emits returning to slave debug';
+
+    $replicated->schema->storage->debugfh($oldfh);
+}
 
 ## Getting slave status tests
 
