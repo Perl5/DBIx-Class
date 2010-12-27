@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08125 2010-12-27 04:30 (UTC)
     * New Features / Changes
         - New method ResultSource columns_info method, returning multiple
           pairs of column name/info at once
