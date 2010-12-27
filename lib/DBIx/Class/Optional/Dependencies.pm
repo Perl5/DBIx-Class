@@ -22,7 +22,6 @@ my $moose_basic = {
 
 my $replicated = {
   %$moose_basic,
-  'Hash::Merge'                   => '0.12',
 };
 
 my $admin_basic = {

@@ -57,13 +57,14 @@ my $test_requires = {
 
 my $runtime_requires = {
   'Carp::Clan'               => '6.0',
-  'Class::Accessor::Grouped' => '0.10000',
+  'Class::Accessor::Grouped' => '0.10002',
   'Class::C3::Componentised' => '1.0005',
   'Class::Inspector'         => '1.24',
   'Config::Any'              => '0.20',
   'Context::Preserve'        => '0.01',
   'Data::Dumper::Concise'    => '1.000',
   'Data::Page'               => '2.00',
+  'Hash::Merge'              => '0.12',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
@@ -277,7 +278,10 @@ if ($Module::Install::AUTHOR && keys %removed_build_requires) {
 }
 
 # test that we really took things away (just in case, happened twice somehow)
-exit 0 unless -f 'META.yml';  # in case bizarro comes around
+if (! -f 'META.yml') {
+  warn "No META.yml generated?! aborting...\n";
+  exit 1;
+}
 my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
 
 # this is safe as there is a fatal check earlier to make sure $opt_testdeps does

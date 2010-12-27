@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Bump forgotten Class::Accessor::Grouped core dependency
+        - Promote forgotten Hash::Merge optdep to a hard requirement
+
 0.08125 2010-12-27 04:30 (UTC)
     * New Features / Changes
         - New method ResultSource columns_info method, returning multiple
