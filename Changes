@@ -55,6 +55,8 @@ Revision history for DBIx::Class
         - Fix incorrect 'having' attribute documentation (RT#64129)
         - Improve fallback-to-master/return-to-slave reporting in
           ::Replicated::Balancer
+        - Adjust txn_scope_guard code/tests to changes in $@ handling on
+          recent blead (RT#64251)
 
     * Misc
         - Add extra option groups to DBIC::Optional::Depencencies, to aid

@@ -104,7 +104,10 @@ use DBICTest;
     #$schema->storage->_dbh( $schema->storage->_dbh->clone );
 
     die 'Deliberate exception';
-  }, qr/Deliberate exception.+Rollback failed/s);
+  }, ($] >= 5.013008 )
+    ? qr/Deliberate exception/s # temporary until we get the generic exception wrapper rolling
+    : qr/Deliberate exception.+Rollback failed/s
+  );
 
   # just to mask off warning since we could not disconnect above
   $schema->storage->_dbh->disconnect;
