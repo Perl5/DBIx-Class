@@ -34,7 +34,11 @@ throws_ok (
 # destruction of everything except the $dbh should use the proper
 # exception fallback:
 
-{
+SKIP: {
+  if (DBICTest::RunMode->peepeeness) {
+    skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
+  }
+
   undef ($schema);
   throws_ok (
     sub {
