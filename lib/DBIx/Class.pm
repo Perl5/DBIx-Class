@@ -286,6 +286,8 @@ dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
+freetime: Bill Moseley <moseley@hank.org>
+
 frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
 
 goraxe: Gordon Irving <goraxe@cpan.org>
