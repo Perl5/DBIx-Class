@@ -5,6 +5,7 @@ Revision history for DBIx::Class
         - Promote forgotten Hash::Merge optdep to a hard requirement
         - Skip t/storage/error.t on smokers with leaking perls
         - Fix t/storage/txn.t deadlocks on slower machines
+        - Do not run on smokers if a trial Package::Stash is found
 
 0.08125 2010-12-27 04:30 (UTC)
     * New Features / Changes
