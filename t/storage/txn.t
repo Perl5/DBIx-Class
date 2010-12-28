@@ -233,6 +233,12 @@ sub _test_forking_action {
   for my $pid (@pids) {
     waitpid ($pid, 0);
     ok (! $?, "Child $pid exit ok (pass $pass)");
+  }
+
+  # it is important to reap all children before checking the final db-state
+  # otherwise a deadlock may occur between the transactions running in the
+  # children and the query of the parent
+  for my $pid (@pids) {
     isa_ok ($schema->resultset ('Artist')->find ({ name => "forking action $pid" }), 'DBIx::Class::Row');
   }
 }
