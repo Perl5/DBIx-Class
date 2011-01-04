@@ -176,9 +176,9 @@ EOF
 
     $schema->storage->dbh_do (sub {
       my ($storage, $dbh) = @_;
-      eval { $dbh->do("DROP TABLE artist") };
+      eval { $dbh->do("DROP TABLE artist_guid") };
       $dbh->do(<<"SQL");
-CREATE TABLE artist (
+CREATE TABLE artist_guid (
    artistid $uuid_type NOT NULL,
    name VARCHAR(100),
    rank INT NOT NULL DEFAULT '13',
@@ -220,5 +220,6 @@ SQL
 done_testing;
 
 sub cleanup {
-  eval { $schema->storage->dbh->do("DROP TABLE $_") } for qw/artist bindtype_test/;
+  eval { $schema->storage->dbh->do("DROP TABLE $_") }
+    for qw/artist artist_guid bindtype_test/;
 }

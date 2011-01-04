@@ -407,9 +407,9 @@ for my $dialect (
 {
   $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
-    eval { $dbh->do("DROP TABLE artist") };
+    eval { $dbh->do("DROP TABLE artist_guid") };
     $dbh->do(<<'SQL');
-CREATE TABLE artist (
+CREATE TABLE artist_guid (
    artistid UNIQUEIDENTIFIER NOT NULL,
    name VARCHAR(100),
    rank INT NOT NULL DEFAULT '13',
@@ -486,14 +486,13 @@ SQL
   is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
 }
 
-
 done_testing;
 
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
-      for qw/artist money_test books owners/;
+      for qw/artist artist_guid money_test books owners/;
   }
 }
 # vim:sw=2 sts=2
