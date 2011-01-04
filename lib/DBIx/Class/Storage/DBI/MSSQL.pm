@@ -10,7 +10,7 @@ use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
-  _identity _identity_method
+  _identity _identity_method _pre_insert_sql _post_insert_sql
 /);
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
@@ -18,31 +18,11 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
 sub _set_identity_insert {
   my ($self, $table) = @_;
 
-  my $sql = sprintf (
-    'SET IDENTITY_INSERT %s ON',
-    $self->sql_maker->_quote ($table),
-  );
+  my $stmt = 'SET IDENTITY_INSERT %s %s';
+  $table   = $self->sql_maker->_quote($table);
 
-  my $dbh = $self->_get_dbh;
-  try { $dbh->do ($sql) }
-  catch {
-    $self->throw_exception (sprintf "Error executing '%s': %s",
-      $sql,
-      $dbh->errstr,
-    );
-  };
-}
-
-sub _unset_identity_insert {
-  my ($self, $table) = @_;
-
-  my $sql = sprintf (
-    'SET IDENTITY_INSERT %s OFF',
-    $self->sql_maker->_quote ($table),
-  );
-
-  my $dbh = $self->_get_dbh;
-  $dbh->do ($sql);
+  $self->_pre_insert_sql (sprintf $stmt, $table, 'ON');
+  $self->_post_insert_sql(sprintf $stmt, $table, 'OFF');
 }
 
 sub insert_bulk {
@@ -60,10 +40,6 @@ sub insert_bulk {
   }
 
   $self->next::method(@_);
-
-  if ($is_identity_insert) {
-     $self->_unset_identity_insert ($source->name);
-  }
 }
 
 sub insert {
@@ -80,10 +56,6 @@ sub insert {
   }
 
   my $updated_cols = $self->next::method(@_);
-
-  if ($is_identity_insert) {
-     $self->_unset_identity_insert ($source->name);
-  }
 
   return $updated_cols;
 }
@@ -114,8 +86,15 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
   if ($op eq 'insert') {
-    $sql .= ';SELECT SCOPE_IDENTITY()';
-
+    if (my $prepend = $self->_pre_insert_sql) {
+      $sql = "${prepend}\n${sql}";
+      $self->_pre_insert_sql(undef);
+    }
+    if (my $append  = $self->_post_insert_sql) {
+      $sql = "${sql}\n${append}";
+      $self->_post_insert_sql(undef);
+    }
+    $sql .= "\nSELECT SCOPE_IDENTITY()";
   }
 
   return ($sql, $bind);

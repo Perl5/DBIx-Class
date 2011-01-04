@@ -6,6 +6,7 @@ use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 use mro 'c3';
 use Scalar::Util 'reftype';
 use Try::Tiny;
+use Carp::Clan qw/^DBIx::Class/;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
@@ -29,7 +30,75 @@ L<DBIx::Class::Storage::DBI::MSSQL>.
 =head1 MULTIPLE ACTIVE STATEMENTS
 
 The following options are alternative ways to enable concurrent executing
-statement support. Each has its own advantages and drawbacks.
+statement support. Each has its own advantages and drawbacks and works on
+different platforms. Read each section carefully.
+
+In order of preference, they are:
+
+=over 8
+
+=item * L</connect_call_use_mars>
+
+=item * L</connect_call_use_dynamic_cursors>
+
+=item * L</connect_call_use_server_cursors>
+
+=back
+
+=head1 METHODS
+
+=head2 connect_call_use_mars
+
+Use as:
+
+  on_connect_call => 'use_mars'
+
+Use to enable a feature of SQL Server 2005 and later, "Multiple Active Result
+Sets". See L<DBD::ODBC::FAQ/Does DBD::ODBC support Multiple Active Statements?>
+for more information.
+
+This does not work on FreeTDS drivers at the time of this writing, and only
+works with the Native Client, later versions of the Windows MS ODBC driver, and
+the Easysoft driver.
+
+=cut
+
+sub connect_call_use_mars {
+  my $self = shift;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  if (ref($dsn) eq 'CODE') {
+    $self->throw_exception('cannot change the DBI DSN on a CODE ref connect_info');
+  }
+
+  if ($dsn !~ /MARS_Connection=/) {
+    if ($self->using_freetds) {
+      $self->throw_exception('FreeTDS does not support MARS at the time of '
+                            .'writing.');
+    }
+
+    if (exists $self->_server_info->{normalized_dbms_version} &&
+               $self->_server_info->{normalized_dbms_version} < 9) {
+      $self->throw_exception('SQL Server 2005 or later required to use MARS.');
+    }
+
+    if (my ($data_source) = $dsn =~ /^dbi:ODBC:([\w-]+)\z/i) { # prefix with DSN
+      warn "Bare DSN in ODBC connect string, rewriting to DSN=$data_source\n";
+      $dsn = "dbi:ODBC:DSN=$data_source";
+    }
+
+    $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
+    $self->disconnect;
+    $self->ensure_connected;
+  }
+}
+
+sub connect_call_use_MARS {
+  carp "'connect_call_use_MARS' has been deprecated, use "
+      ."'connect_call_use_mars' instead.";
+  shift->connect_call_use_mars(@_)
+}
 
 =head2 connect_call_use_dynamic_cursors
 
@@ -66,7 +135,7 @@ sub connect_call_use_dynamic_cursors {
 
   my $dbi_attrs = $self->_dbi_connect_info->[-1];
 
-  unless (ref($dbi_attrs) && reftype $dbi_attrs eq 'HASH') {
+  unless (ref $dbi_attrs eq 'HASH') {
     $dbi_attrs = {};
     push @{ $self->_dbi_connect_info }, $dbi_attrs;
   }
@@ -103,20 +172,18 @@ EOF
 sub _init {
   my $self = shift;
 
-  no warnings qw/uninitialized/;
-
   if (
     ref($self->_dbi_connect_info->[0]) ne 'CODE'
       &&
     ref ($self->_dbi_connect_info->[-1]) eq 'HASH'
       &&
-    $self->_dbi_connect_info->[-1]{odbc_cursortype} == 2
+    ($self->_dbi_connect_info->[-1]{odbc_cursortype} || 0) > 1
   ) {
     $self->_set_dynamic_cursors;
-    return;
   }
-
-  $self->_using_dynamic_cursors(0);
+  else {
+    $self->_using_dynamic_cursors(0);
+  }
 }
 
 =head2 connect_call_use_server_cursors
@@ -134,44 +201,43 @@ C<2>.
 B<WARNING>: this does not work on all versions of SQL Server, and may lock up
 your database!
 
+At the time of writing, this option only works on Microsoft's Windows drivers,
+later versions of the ODBC driver and the Native Client driver.
+
 =cut
 
 sub connect_call_use_server_cursors {
   my $self            = shift;
   my $sql_rowset_size = shift || 2;
 
+  if ($^O !~ /win32|cygwin/i) {
+    $self->throw_exception('Server cursors only work on Windows platforms at '
+                          .'the time of writing.');
+  }
+
   $self->_get_dbh->{odbc_SQL_ROWSET_SIZE} = $sql_rowset_size;
 }
 
-=head2 connect_call_use_MARS
+=head2 using_freetds
 
-Use as:
-
-  on_connect_call => 'use_MARS'
-
-Use to enable a feature of SQL Server 2005 and later, "Multiple Active Result
-Sets". See L<DBD::ODBC::FAQ/Does DBD::ODBC support Multiple Active Statements?>
-for more information.
-
-B<WARNING>: This has implications for the way transactions are handled.
+Tries to determine, to the best of our ability, whether or not you are using the
+FreeTDS driver with L<DBD::ODBC>.
 
 =cut
 
-sub connect_call_use_MARS {
+sub using_freetds {
   my $self = shift;
 
   my $dsn = $self->_dbi_connect_info->[0];
 
-  if (ref($dsn) eq 'CODE') {
-    $self->throw_exception('cannot change the DBI DSN on a CODE ref connect_info');
-  }
+  $dsn = '' if ref $dsn eq 'CODE';
 
-  if ($dsn !~ /MARS_Connection=/) {
-    $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
-    my $was_connected = defined $self->_dbh;
-    $self->disconnect;
-    $self->ensure_connected if $was_connected;
-  }
+  my $dbh = $self->_get_dbh;
+
+  return 1 if $dsn =~ /driver=FreeTDS/i
+              || (try { $dbh->get_info(6) }||'') =~ /tdsodbc/i;
+
+  return 0;
 }
 
 1;

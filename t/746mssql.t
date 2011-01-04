@@ -6,6 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
+use Try::Tiny;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
@@ -44,6 +45,29 @@ lives_ok {
   $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
 } '_ping works';
 
+my %opts = (
+  use_mars =>
+    { on_connect_call => 'use_mars' },
+  use_dynamic_cursors =>
+    { on_connect_call => 'use_dynamic_cursors' },
+  use_server_cursors =>
+    { on_connect_call => 'use_server_cursors' },
+  plain =>
+    {},
+);
+
+for my $opts_name (keys %opts) {
+  SKIP: {
+    my $opts = $opts{$opts_name};
+    $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+
+    try {
+      $schema->storage->ensure_connected
+    }
+    catch {
+      skip "$opts_name not functional in this configuration: $_", 1;
+    };
+
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };
@@ -58,35 +82,43 @@ CREATE TABLE artist (
 SQL
 });
 
-my %seen_id;
-
-my @opts = (
-  { on_connect_call => 'use_dynamic_cursors' },
-  {},
-);
-# test Auto-PK with different options
-for my $opts (@opts) {
-  SKIP: {
-    $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
-
-    eval {
-      $schema->storage->ensure_connected
-    };
-    if ($@ =~ /dynamic cursors/) {
-      skip
-'Dynamic Cursors not functional, tds_version 8.0 or greater required if using'.
-' FreeTDS', 1;
-    }
-
+# test Auto-PK
     $schema->resultset('Artist')->search({ name => 'foo' })->delete;
 
     my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 
-    ok($new->artistid > 0, "Auto-PK worked");
-  }
-}
+    ok(($new->artistid||0) > 0, "Auto-PK worked for $opts_name");
 
+# Test multiple active statements
+    SKIP: {
+      skip 'not a multiple active statements configuration', 1
+        if $opts_name eq 'plain';
 
+      my $artist_rs = $schema->resultset('Artist');
+
+      $artist_rs->delete;
+
+      $artist_rs->create({ name => "Artist$_" }) for (1..3);
+
+      my $forward  = $artist_rs->search({},
+        { order_by => { -asc  => 'artistid' } });
+      my $backward = $artist_rs->search({},
+        { order_by => { -desc => 'artistid' } });
+
+      my @map = (
+        [qw/Artist1 Artist3/], [qw/Artist2 Artist2/], [qw/Artist3 Artist1/]
+      );
+      my @result;
+
+      while (my $forward_row = $forward->next) {
+        my $backward_row = $backward->next;
+        push @result, [$forward_row->name, $backward_row->name];
+      }
+
+      is_deeply \@result, \@map, "multiple active statements in $opts_name";
+
+      $artist_rs->delete;
+    }
 
 # Test populate
 
@@ -114,7 +146,7 @@ SQL
 
   lives_ok ( sub {
     # start a new connection, make sure rebless works
-    my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
     $schema->populate ('Owners', [
       [qw/id  name  /],
       [qw/1   wiggle/],
@@ -139,7 +171,7 @@ SQL
   lives_ok (sub {
     # start a new connection, make sure rebless works
     # test an insert with a supplied identity, followed by one without
-    my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
     for (2, 1) {
       my $id = $_ * 20 ;
       $schema->resultset ('Owners')->create ({ id => $id, name => "troglodoogle $id" });
@@ -151,7 +183,7 @@ SQL
 
   lives_ok ( sub {
     # start a new connection, make sure rebless works
-    my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
     $schema->populate ('BooksInLibrary', [
       [qw/source  owner title   /],
       [qw/Library 1     secrets0/],
@@ -183,6 +215,7 @@ for my $dialect (
 
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
         limit_dialect => $dialect,
+        %$opts,
         $quoted
           ? ( quote_char => [ qw/ [ ] / ], name_sep => '.' )
           : ()
@@ -421,7 +454,7 @@ SQL
   });
 
   # start disconnected to make sure insert works on an un-reblessed storage
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
 
   my $row;
   lives_ok {
@@ -484,6 +517,8 @@ SQL
   } 'updated a money value to NULL';
 
   is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
+}
+}
 }
 
 done_testing;

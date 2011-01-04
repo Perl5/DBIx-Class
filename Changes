@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           Previously (starting with 0.08124) an exception was thrown
 
     * Fixes
+        - A number of improvements/diagnostics of multiple active resultset
+          handling on MSSQL over DBD::ODBC
         - Revert default selection to being lazy again (eagerness introduced
           in 0.08125) - fixes DBIx::Class::Helper::ResultSet::RemoveColumns
         - Fix losing order of columns provided in select/as (regression from
