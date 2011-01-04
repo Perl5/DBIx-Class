@@ -27,6 +27,48 @@ MSSQL back-end.
 Most of the functionality is provided from the superclass
 L<DBIx::Class::Storage::DBI::MSSQL>.
 
+=head1 USAGE NOTES
+
+=head2 Basic Linux Setup (Debian)
+
+  sudo aptitude install tdsodbc libdbd-odbc-perl unixodbc
+
+In case it is not already there put the following in C</etc/odbcinst.ini>:
+
+  [FreeTDS]
+  Description = FreeTDS
+  Driver      = /usr/lib/odbc/libtdsodbc.so
+  Setup       = /usr/lib/odbc/libtdsS.so
+  UsageCount  = 1
+
+Set your C<$dsn> in L<connect_info|DBIx::Class::Storage::DBI/connect_info> as follows:
+
+  dbi:ODBC:server=<my.host.name>;port=1433;driver=FreeTDS;tds_version=8.0
+
+If you use the EasySoft driver (L<http://www.easysoft.com>):
+
+  dbi:ODBC:server=<my.host.name>;port=1433;driver=Easysoft ODBC-SQL Server
+
+=head2 Basic Windows Setup
+
+Use the following C<$dsn> for the Microsoft ODBC driver:
+
+  dbi:ODBC:driver={SQL Server};server=SERVER\SQL_SERVER_INSTANCE_NAME
+
+And for the Native Client:
+
+  dbi:ODBC:driver={SQL Server Native Client 10.0};server=SERVER\SQL_SERVER_INSTANCE_NAME
+
+Go into Control Panel -> System and Security -> Administrative Tools -> Data
+Sources (ODBC) to check driver names and to set up data sources.
+
+Use System DSNs, not User DSNs if you want to use DSNs.
+
+If you set up a DSN, use the following C<$dsn> for
+L<connect_info|DBIx::Class::Storage::DBI/connect_info>:
+
+  dbi:ODBC:dsn=MY_DSN
+
 =head1 MULTIPLE ACTIVE STATEMENTS
 
 The following options are alternative ways to enable concurrent executing
