@@ -84,21 +84,35 @@ while (@chain) {
 }
 
 # Make sure we don't lose bits even with weird selector specs
-$rs = $schema->resultset('CD')->search ({}, {
-  'columns'   => [ 'me.title' ],
-})->search ({}, {
-  '+select'   => \'me.year AS foo',
-})->search ({}, {
-  '+select'   => [ \'me.artistid AS bar' ],
-})->search ({}, {
-  '+select'   => { count => 'artistid', -as => 'baz' },
-});
+# also check that the default selector list is lazy
+$rs = $schema->resultset('CD');
+for my $attr (
+  { '+columns'  => [ 'me.title' ] },    # this one should be de-duplicated but not the select's
+
+  { '+select'   => \'me.year AS foo' },   # duplication of identical select expected (FIXME ?)
+  { '+select'   => \['me.year AS foo'] },
+
+  { '+select'   => [ \'me.artistid AS bar' ] },
+  { '+select'   => { count => 'artistid', -as => 'baz' } },
+) {
+  for (qw/columns select as/) {
+    ok (! exists $rs->{attrs}{$_}, "No eager '$_' attr on fresh resultset" );
+  }
+
+  $rs = $rs->search({}, $attr);
+}
 
 is_same_sql_bind (
   $rs->as_query,
   '( SELECT
+      me.cdid,
+      me.artist,
       me.title,
+      me.year,
+      me.genreid,
+      me.single_track,
       COUNT( artistid ) AS baz,
+      me.year AS foo,
       me.year AS foo,
       me.artistid AS bar
         FROM cd me
