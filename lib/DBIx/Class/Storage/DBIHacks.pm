@@ -262,8 +262,10 @@ sub _resolve_aliastypes_from_select_args {
   my $sql_maker = $self->sql_maker;
 
   # these are throw away results, do not pollute the bind stack
-  local $sql_maker->{having_bind};
   local $sql_maker->{select_bind};
+  local $sql_maker->{where_bind};
+  local $sql_maker->{group_bind};
+  local $sql_maker->{having_bind};
 
   # we can't scan properly without any quoting (\b doesn't cut it
   # everywhere), so unless there is proper quoting set - use our

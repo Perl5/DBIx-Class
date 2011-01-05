@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix proper composition of bind values across all possible
+          SQL areas ( group_by => \[ ... ] now works properly )
+
 0.08126 2010-12-28 18:10 (UTC)
     * Fixes
         - Bump forgotten Class::Accessor::Grouped core dependency

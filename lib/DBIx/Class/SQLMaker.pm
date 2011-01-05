@@ -215,7 +215,7 @@ sub select {
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where having order/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where group having order/);
 }
 
 my $for_syntax = {
@@ -317,8 +317,13 @@ sub _parse_rs_attrs {
 
   my $sql = '';
 
-  if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
-    $sql .= $self->_sqlcase(' group by ') . $g;
+  if ($arg->{group_by}) {
+    # horible horrible, waiting for refactor
+    local $self->{select_bind};
+    if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
+      $sql .= $self->_sqlcase(' group by ') . $g;
+      push @{$self->{group_bind} ||= []}, @{$self->{select_bind}||[]};
+    }
   }
 
   if (defined $arg->{having}) {
