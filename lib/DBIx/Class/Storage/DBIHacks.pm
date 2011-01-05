@@ -60,7 +60,7 @@ sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
   $self->throw_exception ('Nothing to prefetch... how did we get here?!')
-    if not @{$attrs->{_prefetch_select}};
+    if not @{$attrs->{_prefetch_selector_range}};
 
   $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');
@@ -71,7 +71,7 @@ sub _adjust_select_args_for_complex_prefetch {
   delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
   my $inner_attrs = { %$attrs };
-  delete $inner_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
+  delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range _collapse_order_by select as/;
 
 
   # bring over all non-collapse-induced order_by into the inner query (if any)
@@ -88,7 +88,9 @@ sub _adjust_select_args_for_complex_prefetch {
   # on the outside we substitute any function for its alias
   my $outer_select = [ @$select ];
   my $inner_select = [];
-  for my $i (0 .. ( @$outer_select - @{$outer_attrs->{_prefetch_select}} - 1) ) {
+
+  my ($p_start, $p_end) = @{$outer_attrs->{_prefetch_selector_range}};
+  for my $i (0 .. $p_start - 1, $p_end + 1 .. $#$outer_select) {
     my $sel = $outer_select->[$i];
 
     if (ref $sel eq 'HASH' ) {
@@ -197,6 +199,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # also throw in a group_by if restricting to guard against
   # cross-join explosions
   #
+  my $need_outer_group_by;
   while (my $j = shift @$from) {
     my $alias = $j->[0]{-alias};
 
@@ -205,12 +208,27 @@ sub _adjust_select_args_for_complex_prefetch {
     }
     elsif ($outer_aliastypes->{restricting}{$alias}) {
       push @outer_from, $j;
-      $outer_attrs->{group_by} ||= $outer_select unless $j->[0]{-is_single};
+      $need_outer_group_by ||= ! $j->[0]{-is_single};
     }
   }
 
   # demote the outer_from head
   $outer_from[0] = $outer_from[0][0];
+
+  if ($need_outer_group_by and ! $outer_attrs->{group_by}) {
+
+    my $unprocessed_order_chunks;
+    ($outer_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
+      \@outer_from, $outer_select, $outer_attrs->{order_by}
+    );
+
+    $self->throw_exception (
+      'A required group_by clause could not be constructed automatically due to a complex '
+    . 'order_by criteria. Either order_by columns only (no functions) or construct a suitable '
+    . 'group_by by hand'
+    ) if $unprocessed_order_chunks;
+
+  }
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
@@ -362,6 +380,9 @@ sub _group_over_selection {
 
   my (@group_by, %group_index);
 
+  # the logic is: if it is a { func => val } we assume an aggregate,
+  # otherwise if \'...' or \[...] we assume the user knows what is
+  # going on thus group over it
   for (@$select) {
     if (! ref($_) or ref ($_) ne 'HASH' ) {
       push @group_by, $_;

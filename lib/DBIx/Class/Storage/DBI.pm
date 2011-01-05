@@ -2087,9 +2087,7 @@ sub _select_args {
         &&
       @{$attrs->{group_by}}
         &&
-      $attrs->{_prefetch_select}
-        &&
-      @{$attrs->{_prefetch_select}}
+      $attrs->{_prefetch_selector_range}
     )
   ) {
     ($ident, $select, $where, $attrs)

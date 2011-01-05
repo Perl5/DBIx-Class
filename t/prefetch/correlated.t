@@ -19,10 +19,6 @@ my $cd_data = { map {
   },
 } ( $cdrs->all ) };
 
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++; });
-$schema->storage->debug(1);
-
 my $c_rs = $cdrs->search ({}, {
   prefetch => 'tracks',
   '+columns' => { sibling_count => $cdrs->search(
@@ -53,12 +49,20 @@ is_same_sql_bind(
     ORDER BY tracks.cd
   )',
   [
+
+    # subselect
     [ 'siblings.cdid' => 'bogus condition' ],
     [ 'me.artist' => 2 ],
+
+    # outher WHERE
     [ 'me.artist' => 2 ],
   ],
   'Expected SQL on correlated realiased subquery'
 );
+
+my $queries = 0;
+$schema->storage->debugcb(sub { $queries++; });
+$schema->storage->debug(1);
 
 is_deeply (
   { map
@@ -76,5 +80,66 @@ is ($queries, 1, 'Only 1 query fired to retrieve everything');
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugcb(undef);
+
+# try to unbalance the select
+
+# first add a lone non-as-ed select
+# it should be reordered to appear at the end without throwing prefetch/bind off
+$c_rs = $c_rs->search({}, { '+select' => \[ 'me.cdid + ?', [ __add => 1 ] ] });
+
+# now add an unbalanced select/as pair
+$c_rs = $c_rs->search ({}, {
+  '+select' => $cdrs->search(
+    { 'siblings.artist' => { -ident => 'me.artist' } },
+    { alias => 'siblings', columns => [
+      { first_year => { min => 'year' }},
+      { last_year => { max => 'year' }},
+    ]},
+  )->as_query,
+  '+as' => [qw/active_from active_to/],
+});
+
+
+is_same_sql_bind(
+  $c_rs->as_query,
+  '(
+    SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+           (SELECT COUNT( * )
+              FROM cd siblings
+            WHERE siblings.artist = me.artist
+              AND siblings.cdid != me.cdid
+              AND siblings.cdid != ?
+              AND me.artist != ?
+           ),
+           (SELECT MIN( year ), MAX( year )
+              FROM cd siblings
+            WHERE siblings.artist = me.artist
+              AND me.artist != ?
+           ),
+           tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
+           me.cdid + ?
+      FROM cd me
+      LEFT JOIN track tracks
+        ON tracks.cd = me.cdid
+    WHERE me.artist != ?
+    ORDER BY tracks.cd
+  )',
+  [
+
+    # first subselect
+    [ 'siblings.cdid' => 'bogus condition' ],
+    [ 'me.artist' => 2 ],
+
+    # second subselect
+    [ 'me.artist' => 2 ],
+
+    # the addition
+    [ __add => 1 ],
+
+    # outher WHERE
+    [ 'me.artist' => 2 ],
+  ],
+  'Expected SQL on correlated realiased subquery'
+);
 
 done_testing;

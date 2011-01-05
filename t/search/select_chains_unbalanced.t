@@ -34,6 +34,15 @@ my @chain = (
     => [qw/cdid title foo bar/],
 
   {
+    '+select'   => \'unaliased randomness',
+  } => 'SELECT
+          me.cdid,
+          me.title,
+          DISTINCT(foo, bar),
+          unaliased randomness
+        FROM cd me'
+    => [qw/cdid title foo bar/],
+  {
     '+select'   => [ 'genreid', $multicol_rs->as_query ],
     '+as'       => [qw/genreid name rank/],
   } => 'SELECT
@@ -41,7 +50,8 @@ my @chain = (
           me.title,
           DISTINCT(foo, bar),
           me.genreid,
-          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 ))
+          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
+          unaliased randomness
         FROM cd me'
     => [qw/cdid title foo bar genreid name rank/],
 
@@ -55,23 +65,11 @@ my @chain = (
           COUNT( me.cdid ) AS cnt,
           DISTINCT(foo, bar),
           me.genreid,
-          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 ))
-        FROM cd me'
-    => [qw/cdid title len cnt foo bar genreid name rank/],
-
-  {
-    '+select'   => \'unaliased randomness',
-  } => 'SELECT
-          me.cdid,
-          me.title,
-          LENGTH( me.title ),
-          COUNT( me.cdid ) AS cnt,
-          DISTINCT(foo, bar),
-          me.genreid,
           (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
           unaliased randomness
         FROM cd me'
     => [qw/cdid title len cnt foo bar genreid name rank/],
+
 
 );
 
@@ -95,7 +93,7 @@ while (@chain) {
   is_deeply(
     $rs->_resolved_attrs->{as},
     $as,
-    'Correct dbic-side aliasing',
+    "Correct dbic-side aliasing for test $testno",
   );
 
   $testno++;

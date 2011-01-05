@@ -1436,7 +1436,7 @@ sub _count_subq_rs {
 
   my $sub_attrs = { %$attrs };
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
-  delete @{$sub_attrs}{qw/collapse columns as select _prefetch_select _trailing_select order_by for/};
+  delete @{$sub_attrs}{qw/collapse columns as select _prefetch_selector_range _trailing_select order_by for/};
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1650,7 +1650,7 @@ sub _rs_update_delete {
     my $attrs = $self->_resolved_attrs_copy;
 
 
-    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_select as/;
+    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
 
     if ($needs_group_by_subq) {
@@ -3243,9 +3243,6 @@ sub _resolved_attrs {
   push @sel, @{ ref $attrs->{select} eq 'ARRAY' ? $attrs->{select} : [ $attrs->{select} ] }
     if $attrs->{select};
 
-  push @sel, @{$attrs->{_trailing_select}}
-    if $attrs->{_trailing_select};
-
   # assume all unqualified selectors to apply to the current alias (legacy stuff)
   for (@sel) {
     $_ = (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_";
@@ -3331,8 +3328,13 @@ sub _resolved_attrs {
       carp ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
     }
     else {
+      # distinct affects only the main selection part, not what prefetch may
+      # add below. However trailing is not yet a part of the selection as
+      # prefetch must insert before it
       $attrs->{group_by} = $source->storage->_group_over_selection (
-        @{$attrs}{qw/from select order_by/}
+        $attrs->{from},
+        [ @{$attrs->{select}||[]}, @{$attrs->{_trailing_select}||[]} ],
+        $attrs->{order_by},
       );
     }
   }
@@ -3368,14 +3370,21 @@ sub _resolved_attrs {
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
     # we need to somehow mark which columns came from prefetch
-    $attrs->{_prefetch_select} = [ map { $_->[0] } @prefetch ];
+    if (@prefetch) {
+      my $sel_end = $#{$attrs->{select}};
+      $attrs->{_prefetch_selector_range} = [ $sel_end + 1, $sel_end + @prefetch ];
+    }
 
-    push @{ $attrs->{select} }, @{$attrs->{_prefetch_select}};
+    push @{ $attrs->{select} }, (map { $_->[0] } @prefetch);
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
     push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
+
+
+  push @sel, @{$attrs->{_trailing_select}}
+    if $attrs->{_trailing_select};
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has

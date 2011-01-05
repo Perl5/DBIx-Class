@@ -31,6 +31,62 @@ my $use_prefetch = $no_prefetch->search(
   }
 );
 
+# add a floating +select to make sure it does nto throw things off
+# we also expect it to appear in both selectors, as we can not know
+# for sure which part of the query it applies to (may be order_by,
+# maybe something else)
+#
+# we use a reference to the same array in bind vals, because
+# is_deeply picks up this difference too (not sure if bug or
+# feature)
+my $bind_one = [ __add => 1 ];
+$use_prefetch = $use_prefetch->search({}, {
+  '+select' => \[ 'me.artistid + ?', $bind_one ],
+});
+
+is_same_sql_bind (
+  $use_prefetch->as_query,
+  '(
+    SELECT  me.artistid, me.name,
+            cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track,
+            me.artistid + ?
+      FROM (
+        SELECT me.artistid, me.name,
+               me.artistid + ?
+          FROM artist me
+          LEFT JOIN cd cds
+            ON cds.artist = me.artistid
+          LEFT JOIN cd_artwork artwork
+            ON artwork.cd_id = cds.cdid
+          LEFT JOIN track tracks
+            ON tracks.cd = cds.cdid
+        WHERE   artwork.cd_id IS NULL
+             OR tracks.title != ?
+        GROUP BY me.artistid, me.name, me.artistid + ?
+        ORDER BY name DESC LIMIT 3
+      ) me
+      LEFT JOIN cd cds
+        ON cds.artist = me.artistid
+      LEFT JOIN cd_artwork artwork
+        ON artwork.cd_id = cds.cdid
+      LEFT JOIN track tracks
+        ON tracks.cd = cds.cdid
+    WHERE artwork.cd_id IS NULL
+       OR tracks.title != ?
+    GROUP BY me.artistid, me.name, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track, me.artistid + ?
+    ORDER BY name DESC, cds.artist, cds.year ASC
+  )',
+  [
+    $bind_one,  # outer select
+    $bind_one,  # inner select
+    [ 'tracks.title' => 'blah-blah-1234568' ], # inner where
+    $bind_one,  # inner group_by
+    [ 'tracks.title' => 'blah-blah-1234568' ], # outer where
+    $bind_one,  # outer group_by
+  ],
+  'Expected SQL on complex limited prefetch'
+);
+
 is($no_prefetch->count, $use_prefetch->count, '$no_prefetch->count == $use_prefetch->count');
 is(
   scalar ($no_prefetch->all),
