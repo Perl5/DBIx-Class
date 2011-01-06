@@ -1,5 +1,4 @@
-package # Hide from PAUSE
-  DBIx::Class::SQLMaker::OracleJoins;
+package DBIx::Class::SQLMaker::OracleJoins;
 
 use warnings;
 use strict;
