@@ -28,6 +28,8 @@ Revision history for DBIx::Class
     * Misc
         - Fix test warning on win32 - at this point the test suite is
           warning-free on all known OSes
+        - Require newest namespace::clean which in turn depends on new
+          installable Package::Stash
 
 0.08126 2010-12-28 18:10 (UTC)
     * Fixes
