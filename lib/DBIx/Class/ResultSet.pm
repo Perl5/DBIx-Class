@@ -526,7 +526,7 @@ sub _normalize_selection {
       # if balanced - treat as a columns entry
       $attrs->{"${pref}columns"} = $self->_merge_attr(
         $attrs->{"${pref}columns"},
-        { map { $as->[$_] => $sel->[$_] } ( 0 .. $#$as ) }
+        [ map { +{ $as->[$_] => $sel->[$_] } } ( 0 .. $#$as ) ]
       );
     }
     else {
@@ -3235,18 +3235,18 @@ sub _resolved_attrs {
 
   # disassemble columns
   my (@sel, @as);
-  for my $c (@{
-    ref $attrs->{columns} eq 'ARRAY' ? $attrs->{columns} : [ $attrs->{columns} || () ]
-  }) {
-    if (ref $c eq 'HASH') {
-      for my $as (keys %$c) {
-        push @sel, $c->{$as};
-        push @as, $as;
+  if (my $cols = delete $attrs->{columns}) {
+    for my $c (ref $cols eq 'ARRAY' ? @$cols : $cols) {
+      if (ref $c eq 'HASH') {
+        for my $as (keys %$c) {
+          push @sel, $c->{$as};
+          push @as, $as;
+        }
       }
-    }
-    else {
-      push @sel, $c;
-      push @as, $c;
+      else {
+        push @sel, $c;
+        push @as, $c;
+      }
     }
   }
 

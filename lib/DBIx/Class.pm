@@ -386,6 +386,8 @@ robkinyon: Rob Kinyon <rkinyon@cpan.org>
 
 Roman: Roman Filippov <romanf@cpan.org>
 
+Sadrak: Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>
+
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>

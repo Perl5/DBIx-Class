@@ -121,4 +121,20 @@ is_same_sql_bind (
   'Correct chaining before attr resolution'
 );
 
+# Test the order of columns
+$rs = $schema->resultset('CD')->search ({}, {
+  'select'   => [ 'me.cdid', 'me.title' ],
+});
+
+is_same_sql_bind (
+  $rs->as_query,
+  '( SELECT
+      me.cdid,
+      me.title
+      FROM cd me
+  )',
+  [],
+  'Correct order of selected columns'
+);
+
 done_testing;

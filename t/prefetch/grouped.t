@@ -160,11 +160,11 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $most_tracks_rs->as_query,
     '(
-      SELECT  me.maxtr, me.cdid, me.track_count,
+      SELECT  me.cdid, me.track_count, me.maxtr,
               tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
               liner_notes.liner_id, liner_notes.notes
         FROM (
-          SELECT MAX( tracks.trackid ) AS maxtr, me.cdid, COUNT( tracks.trackid ) AS track_count,
+          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )

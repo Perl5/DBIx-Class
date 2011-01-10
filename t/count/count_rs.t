@@ -133,7 +133,7 @@ my $schema = DBICTest->init_schema();
     $crs->as_query,
     '(SELECT COUNT( * )
       FROM (
-        SELECT MAX( cds.year ) AS newest_cd_year, me.artistid
+        SELECT me.artistid, MAX( cds.year ) AS newest_cd_year,
           FROM artist me 
           LEFT JOIN cd cds ON cds.artist = me.artistid 
         GROUP BY me.artistid 
