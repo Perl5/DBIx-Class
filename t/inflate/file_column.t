@@ -70,6 +70,9 @@ $fc = $rs->find({ id => $fc->id });
 is ( $fc->file->{filename}, $new_fname, 'new filname matches' );
 ok ( compare($new_storage, $new_source_file) == 0, 'new content matches' );
 
+if ($^O =~ /win32|cygwin/i) {
+  close $fc->file->{handle}; # can't delete open files on Windows
+}
 $fc->delete;
 
 ok ( ! -e $storage, 'storage deleted' );

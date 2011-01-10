@@ -7,6 +7,10 @@ Revision history for DBIx::Class
         - Fix proper composition of bind values across all possible
           SQL areas ( group_by => \[ ... ] now works properly )
 
+    * Misc
+        - Fix test warning on win32 - at this point the test suite is
+          warning-free on all known OSes
+
 0.08126 2010-12-28 18:10 (UTC)
     * Fixes
         - Bump forgotten Class::Accessor::Grouped core dependency
