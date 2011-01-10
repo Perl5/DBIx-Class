@@ -120,7 +120,7 @@ is_same_sql_bind (
       FROM cd me
   )',
   [],
-  'Corrent order of selected columns'
+  'Correct order of selected columns'
 );
 
 done_testing;
