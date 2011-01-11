@@ -11,6 +11,12 @@ BEGIN {
         if !$Config{useithreads};
 }
 
+BEGIN {
+    plan skip_all => 'Minimum of perl 5.8.3 required for thread tests (DBD::Pg mandated)'
+        if $] < '5.008003';
+}
+
+
 use threads;
 use lib qw(t/lib);
 
