@@ -68,6 +68,8 @@ my $exceptions = {
             resolve_condition
             resolve_join
             resolve_prefetch
+            STORABLE_freeze
+            STORABLE_thaw
         /],
     },
     'DBIx::Class::ResultSet' => {

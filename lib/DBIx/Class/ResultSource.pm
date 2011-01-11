@@ -10,6 +10,8 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
 use List::Util 'first';
+use Scalar::Util qw/weaken isweak/;
+use Storable qw/nfreeze thaw/;
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -1741,6 +1743,56 @@ sub handle {
         source_moniker => $_[0]->source_name
     });
 }
+
+{
+  my $global_phase_destroy;
+
+  END { $global_phase_destroy++ }
+
+  sub DESTROY {
+    return if $global_phase_destroy;
+
+######
+# !!! ACHTUNG !!!!
+######
+#
+# Under no circumstances shall $_[0] be stored anywhere else (like copied to
+# a lexical variable, or shifted, or anything else). Doing so will mess up
+# the refcount of this particular result source, and will allow the $schema
+# we are trying to save to reattach back to the source we are destroying.
+# The relevant code checking refcounts is in ::Schema::DESTROY()
+
+    # if we are not a schema instance holder - we don't matter
+    return if(
+      ! ref $_[0]->{schema}
+        or
+      isweak $_[0]->{schema}
+    );
+
+    # weaken our schema hold forcing the schema to find somewhere else to live
+    weaken $_[0]->{schema};
+
+    # if schema is still there reintroduce ourselves with strong refs back
+    if ($_[0]->{schema}) {
+      my $srcregs = $_[0]->{schema}->source_registrations;
+      for (keys %$srcregs) {
+        $srcregs->{$_} = $_[0] if $srcregs->{$_} == $_[0];
+      }
+    }
+  }
+}
+
+sub STORABLE_freeze {
+  my ($self, $cloning) = @_;
+  nfreeze($self->handle);
+}
+
+sub STORABLE_thaw {
+  my ($self, $cloning, $ice) = @_;
+  %$self = %{ (thaw $ice)->resolve };
+}
+
+
 
 =head2 throw_exception
 

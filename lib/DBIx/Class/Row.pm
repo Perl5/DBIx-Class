@@ -21,7 +21,7 @@ BEGIN {
       : sub () { 0 };
 }
 
-__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
+__PACKAGE__->mk_group_accessors('simple' => [result_source => '_result_source']);
 
 =head1 NAME
 
@@ -64,12 +64,12 @@ this class, you are better off calling it on a
 L<DBIx::Class::ResultSet> object.
 
 When calling it directly, you will not get a complete, usable row
-object until you pass or set the C<source_handle> attribute, to a
+object until you pass or set the C<result_source> attribute, to a
 L<DBIx::Class::ResultSource> instance that is attached to a
 L<DBIx::Class::Schema> with a valid connection.
 
 C<$attrs> is a hashref of column name, value data. It can also contain
-some other attributes such as the C<source_handle>.
+some other attributes such as the C<result_source>.
 
 Passing an object, or an arrayref of objects as a value will call
 L<DBIx::Class::Relationship::Base/set_from_related> for you. When
@@ -160,19 +160,14 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = {
-      _column_data          => {},
-  };
-  bless $new, $class;
+  my $new = bless { _column_data => {} }, $class;
 
-  if (my $handle = delete $attrs->{-source_handle}) {
-    $new->_source_handle($handle);
-  }
-
-  my $source;
-  if ($source = delete $attrs->{-result_source}) {
-    $new->result_source($source);
-  }
+  my $source =
+    delete $attrs->{-result_source}
+      or
+    ( $attrs->{-source_handle} and (delete $attrs->{-source_handle})->resolve )
+  ;
+  $new->result_source($source) if $source;
 
   if (my $related = delete $attrs->{-cols_from_relations}) {
     @{$new->{_ignore_at_insert}={}}{@$related} = ();
@@ -821,9 +816,13 @@ sub _is_column_numeric {
     my $colinfo = $self->column_info ($column);
 
     # cache for speed (the object may *not* have a resultsource instance)
-    if (! defined $colinfo->{is_numeric} && $self->_source_handle) {
+    if (
+      ! defined $colinfo->{is_numeric}
+        and
+      my $storage = try { $self->result_source->schema->storage }
+    ) {
       $colinfo->{is_numeric} =
-        $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
+        $storage->is_datatype_numeric ($colinfo->{data_type})
           ? 1
           : 0
         ;
@@ -1142,20 +1141,13 @@ L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
 
-  my ($source_handle) = $source;
+  $source = $source->resolve
+    if $source->isa('DBIx::Class::ResultSourceHandle');
 
-  if ($source->isa('DBIx::Class::ResultSourceHandle')) {
-    $source = $source_handle->resolve
-  }
-  else {
-    $source_handle = $source->handle
-  }
-
-  my $new = {
-    _source_handle => $source_handle,
-    _column_data => $me,
-  };
-  bless $new, (ref $class || $class);
+  my $new = bless
+    { _column_data => $me, _result_source => $source },
+    ref $class || $class
+  ;
 
   foreach my $pre (keys %{$prefetch||{}}) {
 
@@ -1290,25 +1282,13 @@ sub is_column_changed {
 
 =over
 
-=item Arguments: none
+=item Arguments: $result_source_instance
 
 =item Returns: a ResultSource instance
 
 =back
 
 Accessor to the L<DBIx::Class::ResultSource> this object was created from.
-
-=cut
-
-sub result_source {
-    my $self = shift;
-
-    if (@_) {
-        $self->_source_handle($_[0]->handle);
-    } else {
-        $self->_source_handle->resolve;
-    }
-}
 
 =head2 register_column
 

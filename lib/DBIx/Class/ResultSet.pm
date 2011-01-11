@@ -6,7 +6,6 @@ use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
 use Data::Page;
-use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use Hash::Merge ();
@@ -31,7 +30,7 @@ use overload
         'bool'   => "_bool",
         fallback => 1;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
+__PACKAGE__->mk_group_accessors('simple' => qw/_result_class result_source/);
 
 =head1 NAME
 
@@ -197,8 +196,8 @@ sub new {
   return $class->new_result(@_) if ref $class;
 
   my ($source, $attrs) = @_;
-  $source = $source->handle
-    unless $source->isa('DBIx::Class::ResultSourceHandle');
+  $source = $source->resolve
+    if $source->isa('DBIx::Class::ResultSourceHandle');
   $attrs = { %{$attrs||{}} };
 
   if ($attrs->{page}) {
@@ -210,16 +209,16 @@ sub new {
   # Creation of {} and bless separated to mitigate RH perl bug
   # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
   my $self = {
-    _source_handle => $source,
+    result_source => $source,
     cond => $attrs->{where},
     pager => undef,
-    attrs => $attrs
+    attrs => $attrs,
   };
 
   bless $self, $class;
 
   $self->result_class(
-    $attrs->{result_class} || $source->resolve->result_class
+    $attrs->{result_class} || $source->result_class
   );
 
   return $self;
@@ -2278,7 +2277,6 @@ sub new_result {
     @$cols_from_relations
       ? (-cols_from_relations => $cols_from_relations)
       : (),
-    -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
 
@@ -3615,17 +3613,6 @@ sub _merge_joinpref_attr {
   }
 }
 
-sub result_source {
-    my $self = shift;
-
-    if (@_) {
-        $self->_source_handle($_[0]->handle);
-    } else {
-        $self->_source_handle->resolve;
-    }
-}
-
-
 sub STORABLE_freeze {
   my ($self, $cloning) = @_;
   my $to_serialize = { %$self };
@@ -3655,8 +3642,8 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 sub throw_exception {
   my $self=shift;
 
-  if (ref $self && $self->_source_handle->schema) {
-    $self->_source_handle->schema->throw_exception(@_)
+  if (ref $self and my $rsrc = $self->result_source) {
+    $rsrc->throw_exception(@_)
   }
   else {
     DBIx::Class::Exception->throw(@_);

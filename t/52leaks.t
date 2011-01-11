@@ -1,6 +1,3 @@
-use strict;
-use warnings;
-
 # Do the override as early as possible so that CORE::bless doesn't get compiled away
 # We will replace $bless_override only if we are in author mode
 my $bless_override;
@@ -11,6 +8,8 @@ BEGIN {
   *CORE::GLOBAL::bless = sub { goto $bless_override };
 }
 
+use strict;
+use warnings;
 use Test::More;
 
 use lib qw(t/lib);
@@ -171,11 +170,47 @@ unless (DBICTest::RunMode->is_plain) {
     $weak_registry->{"basic $_"} = { weakref => $base_collection->{$_} };
     weaken $weak_registry->{"basic $_"}{weakref};
   }
-
 }
 
-memory_cycle_ok($weak_registry, 'No cycles in the weakened object collection')
-  if $have_test_cycle;
+# check that "phantom-chaining" works - we never lose track of the original $schema
+# and have access to the entire tree without leaking anything
+{
+  my $phantom;
+  for (
+    sub { DBICTest->init_schema },
+    sub { shift->source('Artist') },
+    sub { shift->resultset },
+    sub { shift->result_source },
+    sub { shift->schema },
+    sub { shift->resultset('Artist') },
+    sub { shift->find_or_create({ name => 'detachable' }) },
+    sub { shift->result_source },
+    sub { shift->schema },
+    sub { shift->clone },
+    sub { shift->resultset('Artist') },
+    sub { shift->next },
+    sub { shift->result_source },
+    sub { shift->resultset },
+    sub { shift->create({ name => 'detached' }) },
+    sub { shift->update({ name => 'reattached' }) },
+    sub { shift->discard_changes },
+    sub { shift->delete },
+    sub { shift->insert },
+  ) {
+    $phantom = $_->($phantom);
+
+    my $slot = (sprintf 'phantom %s=%s(0x%x)', # so we don't trigger stringification
+      ref $phantom,
+      reftype $phantom,
+      refaddr $phantom,
+    );
+    $weak_registry->{$slot} = $phantom;
+    weaken $weak_registry->{$slot};
+  }
+
+  ok( $phantom->in_storage, 'Properly deleted/reinserted' );
+  is( $phantom->name, 'reattached', 'Still correct name' );
+}
 
 # Naturally we have some exceptions
 my $cleared;

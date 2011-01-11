@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Schema/resultsource instances are now crossreferenced via a new
+          system guaranteeing leak-free mutually assuered destruction
+
     * Fixes
         - Revert default selection to being lazy again (eagerness introduced
           in 0.08125) - fixes DBIx::Class::Helper::ResultSet::RemoveColumns

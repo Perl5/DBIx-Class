@@ -11,6 +11,7 @@ use File::Spec;
 use Sub::Name 'subname';
 use Module::Find();
 use Storable();
+use B qw/svref_2object/;
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -1370,6 +1371,29 @@ sub _register_source {
   }
   $map{$rs_class} = $moniker;
   $self->class_mappings(\%map);
+}
+
+{
+  my $global_phase_destroy;
+
+  END { $global_phase_destroy++ }
+
+  sub DESTROY {
+    return if $global_phase_destroy;
+
+    my $self = shift;
+    my $srcs = $self->source_registrations;
+
+    for my $moniker (keys %$srcs) {
+      # find first source that is not about to be GCed (someone other than $self
+      # holds a reference to it) and reattach to it, weakening our own link
+      if (ref $srcs->{$moniker} and svref_2object($srcs->{$moniker})->REFCNT > 1) {
+        $srcs->{$moniker}->schema($self);
+        weaken $srcs->{$moniker};
+        last;
+      }
+    }
+  }
 }
 
 sub _unregister_source {
