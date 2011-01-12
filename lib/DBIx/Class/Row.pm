@@ -1086,28 +1086,12 @@ sub inflate_result {
     if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
       @pre_vals = @{$prefetch->{$pre}};
     }
-    elsif ($accessor eq 'multi') {
-      $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor 'multi'");
-    }
     else {
       @pre_vals = $prefetch->{$pre};
     }
 
     my @pre_objects;
     for my $me_pref (@pre_vals) {
-
-        # FIXME - this should not be necessary
-        # the collapser currently *could* return bogus elements with all
-        # columns set to undef
-        my $has_def;
-        for (values %{$me_pref->[0]}) {
-          if (defined $_) {
-            $has_def++;
-            last;
-          }
-        }
-        next unless $has_def;
-
         push @pre_objects, $pre_source->result_class->inflate_result(
           $pre_source, @$me_pref
         );

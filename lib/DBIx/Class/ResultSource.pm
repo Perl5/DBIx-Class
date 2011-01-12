@@ -1818,7 +1818,8 @@ sub _mk_row_parser {
       map { $_ => "__VALPOS__$my_cols->{$_}__" } (keys %$my_cols)
     };
 
-    my $clps = [
+    my $clps = undef; # funny thing, but this prevents a memory leak, I guess it's Data::Dumper#s fault (mo)
+    $clps = [
       map { "__VALPOS__${_}__" } ( sort { $a <=> $b } (values %{$collapse_on->{-collapse_on}}) )
     ] if $collapse_on->{-collapse_on};
 
@@ -1855,7 +1856,6 @@ sub _mk_row_parser {
     # change the quoted placeholders to unquoted alias-references
     $_ =~ s/ \' __VALPOS__(\d+)__ \' /sprintf ('$_[0][%d]', $1)/gex
       for grep { defined $_ } @rv_list;
-
     return sprintf '[%s]', join (',', @rv_list);
   }
 }

@@ -986,7 +986,6 @@ sub next {
 #
 sub _construct_objects {
   my ($self, @row) = @_;
-
   my $attrs = $self->_resolved_attrs;
   my $keep_collapsing = $attrs->{collapse};
 
@@ -1040,16 +1039,15 @@ sub _construct_objects {
   }
 =cut
 
-  my $mepref_structs = $self->_collapse_result(\@row)
+  my $mepref_structs = $self->_collapse_result($attrs->{as}, \@row, $keep_collapsing)
     or return ();
 
   my $rsrc = $self->result_source;
   my $res_class = $self->result_class;
   my $inflator = $res_class->can ('inflate_result');
 
-  my @objs = map {
-    $res_class->$inflator ($rsrc, @$_)
-  } (@$mepref_structs);
+  my @objs =
+    $res_class->$inflator ($rsrc, @$mepref_structs);
 
   if (my $f = $attrs->{record_filter}) {
     @objs = map { $f->($_) } @objs;
@@ -1057,6 +1055,83 @@ sub _construct_objects {
 
   return @objs;
 }
+
+
+sub _collapse_result {
+  my ( $self, $as_proto, $row_ref, $keep_collapsing ) = @_;
+  my $collapse = $self->_resolved_attrs->{collapse};
+  my $parser   = $self->result_source->_mk_row_parser( $as_proto, $collapse );
+  my $result   = [];
+  my $register = {};
+  my $rel_register = {};
+
+  my @row = @$row_ref;
+  do {
+    my $row = $parser->( \@row );
+
+    # init register
+    $self->_check_register( $register, $row ) unless ( keys %$register );
+
+    $self->_merge_result( $result, $row, $rel_register )
+      if ( !$collapse
+      || ( $collapse = $self->_check_register( $register, $row ) ) );
+
+    } while (
+    $collapse
+    && do { @row = $self->cursor->next; $self->{stashed_row} = \@row if @row; }
+
+  # run this as long as there is a next row and we are not yet done collapsing
+    );
+  return $result;
+}
+
+
+
+# Taubenschlag
+sub _check_register {
+  my ( $self, $register, $obj ) = @_;
+  return undef unless ( ref $obj eq 'ARRAY' && ref $obj->[2] eq 'ARRAY' );
+  my @ids = @{ $obj->[2] };
+  while ( defined( my $id = shift @ids ) ) {
+    return $register->{$id} if ( exists $register->{$id} && !@ids );
+    $register->{$id} = @ids ? {} : $obj unless ( exists $register->{$id} );
+    $register = $register->{$id};
+  }
+  return undef;
+}
+
+
+sub _merge_result {
+  my ( $self, $result, $row, $register ) = @_;
+  return @$result = @$row if ( @$result == 0 );  # initialize with $row
+
+  my ( undef, $rels,   $ids )   = @$result;
+  my ( undef, $new_rels, $new_ids ) = @$row;
+
+  use List::MoreUtils;
+  my @rels = List::MoreUtils::uniq( keys %$rels, keys %$new_rels );
+  foreach my $rel (@rels) {
+    $register = $register->{$rel} ||= {};
+
+    my $new_data = $new_rels->{$rel};
+    my $data   = $rels->{$rel};
+    @$data = [@$data] unless ( ref $data->[0] eq 'ARRAY' );
+
+    $self->_check_register( $register, $data->[0] )
+      unless ( keys %$register );
+
+    if ( my $found = $self->_check_register( $register, $new_data ) ) {
+      $self->_merge_result( $found, $new_data, $register );
+    }
+    else {
+      push( @$data, $new_data );
+    }
+  }
+  return 1;
+}
+
+
+
 
 =begin
 
@@ -1504,7 +1579,7 @@ sub all {
                : $self->cursor->next);
     }
   } else {
-    @objects = map { $self->_construct_objects($_) } $self->cursor->all;
+    @objects = map { $self->_construct_objects(@$_) } $self->cursor->all;
   }
 
   $self->set_cache(\@objects) if $self->{attrs}{cache};
@@ -3172,12 +3247,6 @@ sub _resolved_attrs {
       $attrs->{collapse} = 0;
     }
   }
-
-  # the row parser generates differently depending on whether collapsing is requested
-  # the need to look at {select} is temporary
-  $attrs->{_row_parser} = $source->_mk_row_parser (
-    @{$attrs}{qw/as collapse select/}
-  );
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
