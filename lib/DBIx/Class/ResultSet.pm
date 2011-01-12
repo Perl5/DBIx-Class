@@ -1971,7 +1971,7 @@ sub populate {
     foreach my $item (@$data) {
 
       foreach my $rel (@rels) {
-        next unless $item->{$rel} && ref $item->{$rel} eq "ARRAY";
+        next unless ref $item->{$rel} eq "ARRAY" && @{ $item->{$rel} };
 
         my $parent = $self->find({map { $_ => $item->{$_} } @pks})
      || $self->throw_exception('Cannot find the relating object.');

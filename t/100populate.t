@@ -315,4 +315,10 @@ lives_ok {
    }])
 } 'multicol-PK has_many populate works';
 
+lives_ok ( sub {
+  $schema->populate('CD', [
+    {cdid => 10001, artist => $artist->id, title => 'Pretty Much Empty', year => 2011, tracks => []},
+  ])
+}, 'empty has_many relationship accepted by populate');
+
 done_testing;

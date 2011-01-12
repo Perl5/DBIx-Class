@@ -256,6 +256,8 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+bphillips: Brian Phillips <bphillips@cpan.org>
+
 boghead: Bryan Beeley <cpan@beeley.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
