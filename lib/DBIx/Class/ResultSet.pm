@@ -1908,21 +1908,24 @@ sub populate {
       push(@created, $self->create($item));
     }
     return wantarray ? @created : \@created;
-  } else {
+  } 
+  else {
     my $first = $data->[0];
 
     # if a column is a registered relationship, and is a non-blessed hash/array, consider
     # it relationship data
     my (@rels, @columns);
+    my $rsrc = $self->result_source;
+    my $rels = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
     for (keys %$first) {
       my $ref = ref $first->{$_};
-      $self->result_source->has_relationship($_) && ($ref eq 'ARRAY' or $ref eq 'HASH')
+      $rels->{$_} && ($ref eq 'ARRAY' or $ref eq 'HASH')
         ? push @rels, $_
         : push @columns, $_
       ;
     }
 
-    my @pks = $self->result_source->primary_columns;
+    my @pks = $rsrc->primary_columns;
 
     ## do the belongs_to relationships
     foreach my $index (0..$#$data) {
@@ -1940,9 +1943,9 @@ sub populate {
       foreach my $rel (@rels) {
         next unless ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
-        my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
+        my ($reverse_relname, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(
-          $result->result_source->relationship_info($reverse)->{cond},
+          $reverse_relinfo->{cond},
           $self,
           $result,
         );
@@ -1961,8 +1964,8 @@ sub populate {
     my @inherit_data = values %$rs_data;
 
     ## do bulk insert on current row
-    $self->result_source->storage->insert_bulk(
-      $self->result_source,
+    $rsrc->storage->insert_bulk(
+      $rsrc,
       [@columns, @inherit_cols],
       [ map { [ @$_{@columns}, @inherit_data ] } @$data ],
     );
@@ -1970,18 +1973,19 @@ sub populate {
     ## do the has_many relationships
     foreach my $item (@$data) {
 
+      my $main_row;
+
       foreach my $rel (@rels) {
         next unless ref $item->{$rel} eq "ARRAY" && @{ $item->{$rel} };
 
-        my $parent = $self->find({map { $_ => $item->{$_} } @pks})
-     || $self->throw_exception('Cannot find the relating object.');
+        $main_row ||= $self->new_result({map { $_ => $item->{$_} } @pks});
 
-        my $child = $parent->$rel;
+        my $child = $main_row->$rel;
 
         my $related = $child->result_source->_resolve_condition(
-          $parent->result_source->relationship_info($rel)->{cond},
+          $rels->{$rel}{cond},
           $child,
-          $parent,
+          $main_row,
         );
 
         my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
