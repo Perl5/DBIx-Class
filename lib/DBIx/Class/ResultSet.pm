@@ -206,22 +206,18 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
-  # Creation of {} and bless separated to mitigate RH perl bug
-  # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
-  my $self = {
+  my $self = bless {
     result_source => $source,
     cond => $attrs->{where},
     pager => undef,
     attrs => $attrs,
-  };
-
-  bless $self, $class;
+  }, $class;
 
   $self->result_class(
     $attrs->{result_class} || $source->result_class
   );
 
-  return $self;
+  $self;
 }
 
 =head2 search

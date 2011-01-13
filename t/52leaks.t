@@ -237,8 +237,8 @@ for my $slot (keys %$weak_registry) {
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
   }
   elsif ($slot =~ /^__TxnScopeGuard__FIXUP__/) {
-    die 'The $@ debacle should have been fixed by now!!!' if $] >= 5.013008;
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$slot}
+      if $] > 5.013001 and $] < 5.013008;
   }
 }
 
@@ -260,7 +260,7 @@ $_->result_source_instance(undef) for (
 DBICTest::Schema->source_registrations(undef);
 
 my $tb = Test::More->builder;
-for my $slot (keys %$weak_registry) {
+for my $slot (sort keys %$weak_registry) {
 
   ok (! defined $weak_registry->{$slot}{weakref}, "No leaks of $slot") or do {
     my $diag = '';

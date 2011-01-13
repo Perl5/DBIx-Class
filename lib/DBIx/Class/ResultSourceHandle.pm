@@ -12,8 +12,6 @@ use Try::Tiny;
 use namespace::clean;
 
 use overload
-    # on some RH perls the following line causes serious performance problem
-    # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
     q/""/ => sub { __PACKAGE__ . ":" . shift->source_moniker; },
     fallback => 1;
 
