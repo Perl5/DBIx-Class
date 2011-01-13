@@ -2025,7 +2025,7 @@ sub _select_args {
     from => $ident,
     where => $where,
     $rs_alias && $alias2source->{$rs_alias}
-      ? ( _rsroot_source_handle => $alias2source->{$rs_alias}->handle )
+      ? ( _rsroot_rsrc => $alias2source->{$rs_alias} )
       : ()
     ,
   };

@@ -162,20 +162,20 @@ sub new {
 
   my $new = bless { _column_data => {} }, $class;
 
-  my $source =
-    delete $attrs->{-result_source}
-      or
-    ( $attrs->{-source_handle} and (delete $attrs->{-source_handle})->resolve )
-  ;
-  $new->result_source($source) if $source;
-
-  if (my $related = delete $attrs->{-cols_from_relations}) {
-    @{$new->{_ignore_at_insert}={}}{@$related} = ();
-  }
-
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
+
+    my $source = delete $attrs->{-result_source};
+    if ( my $h = delete $attrs->{-source_handle} ) {
+      $source ||= $h->resolve;
+    }
+
+    $new->result_source($source) if $source;
+
+    if (my $col_from_rel = delete $attrs->{-cols_from_relations}) {
+      @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
+    }
 
     my ($related,$inflated);
 
@@ -1438,8 +1438,8 @@ See L<DBIx::Class::Schema/throw_exception>.
 sub throw_exception {
   my $self=shift;
 
-  if (ref $self && ref $self->result_source && $self->result_source->schema) {
-    $self->result_source->schema->throw_exception(@_)
+  if (ref $self && ref $self->result_source ) {
+    $self->result_source->throw_exception(@_)
   }
   else {
     DBIx::Class::Exception->throw(@_);

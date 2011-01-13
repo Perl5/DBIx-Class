@@ -151,4 +151,42 @@ for my $name (keys %stores) {
     $schema->storage->debugcb(undef);
 }
 
+# test schema-less detached thaw
+{
+  my $artist = $schema->resultset('Artist')->find(1);
+
+  $artist = dclone $artist;
+
+  is( $artist->name, 'Caterwauler McCrae', 'getting column works' );
+
+  ok( $artist->update, 'Non-dirty update noop' );
+
+  ok( $artist->name( 'Beeeeeeees' ), 'setting works' );
+
+  ok( $artist->is_column_changed( 'name' ), 'Column dirtyness works' );
+  ok( $artist->is_changed, 'object dirtyness works' );
+
+  my $rs = $artist->result_source->resultset;
+  $rs->set_cache([ $artist ]);
+
+  is( $rs->count, 1, 'Synthetic resultset count works' );
+
+  my $exc = qr/Unable to perform storage-dependent operations with a detached result source.+use \$schema->thaw/;
+
+  throws_ok { $artist->update }
+    $exc,
+    'Correct exception on row op'
+  ;
+
+  throws_ok { $artist->discard_changes }
+    $exc,
+    'Correct exception on row op'
+  ;
+
+  throws_ok { $rs->find(1) }
+    $exc,
+    'Correct exception on rs op'
+  ;
+}
+
 done_testing;

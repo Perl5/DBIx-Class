@@ -14,10 +14,6 @@ sub STORABLE_freeze {
     my ($self, $cloning) = @_;
     my $to_serialize = { %$self };
 
-    # The source is either derived from _source_handle or is
-    # reattached in the thaw handler below
-    delete $to_serialize->{result_source};
-
     # Dynamic values, easy to recalculate
     delete $to_serialize->{$_} for qw/related_resultsets _inflated_column/;
 
@@ -28,10 +24,6 @@ sub STORABLE_thaw {
     my ($self, $cloning, $serialized) = @_;
 
     %$self = %{ Storable::thaw($serialized) };
-
-    # if the handle went missing somehow, reattach
-    $self->result_source($self->result_source_instance)
-      if !$self->_source_handle && $self->can('result_source_instance');
 }
 
 1;

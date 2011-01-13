@@ -44,6 +44,7 @@ unless (DBICTest::RunMode->is_plain) {
   require Class::Struct;
   require FileHandle;
   require Hash::Merge;
+  require Storable;
 
   no warnings qw/redefine once/;
   no strict qw/refs/;
@@ -142,9 +143,6 @@ unless (DBICTest::RunMode->is_plain) {
   }
 
   my $base_collection = {
-    schema => $schema,
-    storage => $storage,
-
     resultset => $rs,
 
     # twice so that we make sure only one H::M object spawned
@@ -155,13 +153,23 @@ unless (DBICTest::RunMode->is_plain) {
 
     result_source => $rs->result_source,
 
+    result_source_handle => $rs->result_source->handle,
+
     fresh_pager => $rs->page(5)->pager,
     pager => $pager,
     pager_explicit_count => $pager_explicit_count,
 
-    sql_maker => $storage->sql_maker,
-    dbh => $storage->_dbh
   };
+
+  %$base_collection = (
+    %$base_collection,
+    refrozen => Storable::dclone( $base_collection ),
+    rerefrozen => Storable::dclone( Storable::dclone( $base_collection ) ),
+    schema => $schema,
+    storage => $storage,
+    sql_maker => $storage->sql_maker,
+    dbh => $storage->_dbh,
+  );
 
   memory_cycle_ok ($base_collection, 'No cycles in the object collection')
     if $have_test_cycle;

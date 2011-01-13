@@ -519,6 +519,45 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 
 }
 
+# make sure that obsolete handle-based source tracking continues to work for the time being
+{
+  my $handle = $schema->source('Artist')->handle;
+
+  my $rowdata = {
+    artistid => 3,
+    charfield => undef,
+    name => "We Are In Rehab",
+    rank => 13
+  };
+
+  my $rs = DBIx::Class::ResultSet->new($handle);
+  my $rs_result = $rs->next;
+  isa_ok( $rs_result, 'DBICTest::Artist' );
+  is_deeply (
+    { $rs_result->get_columns },
+    $rowdata,
+    'Correct columns retrieved (rset/source link healthy)'
+  );
+
+  my $row = DBICTest::Artist->new({ -source_handle => $handle });
+  is_deeply(
+    { $row->get_columns },
+    {},
+    'No columns yet'
+  );
+
+  # store_column to fool the _orig_ident tracker
+  $row->store_column('artistid', $rowdata->{artistid});
+  $row->in_storage(1);
+
+  $row->discard_changes;
+  is_deeply(
+    { $row->get_columns },
+    $rowdata,
+    'Storage refetch successful'
+  );
+}
+
 # make sure we got rid of the compat shims
 SKIP: {
     skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;

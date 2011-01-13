@@ -156,7 +156,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
     +{
       -alias => $attrs->{alias},
-      -source_handle => $inner_from->[0]{-source_handle},
+      -rsrc => $inner_from->[0]{-rsrc},
       $attrs->{alias} => $subq,
     };
   };
@@ -445,8 +445,8 @@ sub _resolve_ident_sources {
         $tabinfo = $_->[0];
       }
 
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
-        if ($tabinfo->{-source_handle});
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-rsrc}
+        if ($tabinfo->{-rsrc});
     }
   }
 

@@ -347,7 +347,7 @@ sub _Top {
     ? $requested_order
     : [ map
       { "$rs_attrs->{alias}.$_" }
-      ( $rs_attrs->{_rsroot_source_handle}->resolve->_pri_cols )
+      ( $rs_attrs->{_rsroot_rsrc}->_pri_cols )
     ]
   );
 
@@ -481,7 +481,7 @@ Currently used by B<Sybase ASE>, due to lack of any other option.
 sub _GenericSubQ {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
-  my $root_rsrc = $rs_attrs->{_rsroot_source_handle}->resolve;
+  my $root_rsrc = $rs_attrs->{_rsroot_rsrc};
   my $root_tbl_name = $root_rsrc->name;
 
   # mangle the input sql as we will be replacing the selector

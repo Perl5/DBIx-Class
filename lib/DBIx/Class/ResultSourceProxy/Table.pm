@@ -87,11 +87,12 @@ sub table {
     $class->ensure_class_loaded($table_class);
 
     $table = $table_class->new({
-        $class->can('result_source_instance') ?
-          %{$class->result_source_instance||{}} : (),
+        $class->can('result_source_instance')
+          ? %{$class->result_source_instance||{}}
+          : ()
+        ,
         name => $table,
         result_class => $class,
-        source_name => undef,
     });
   }
 

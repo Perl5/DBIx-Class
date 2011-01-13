@@ -3090,8 +3090,8 @@ sub as_subselect_rs {
   return $fresh_rs->search( {}, {
     from => [{
       $attrs->{alias} => $self->as_query,
-      -alias         => $attrs->{alias},
-      -source_handle => $self->result_source->handle,
+      -alias  => $attrs->{alias},
+      -rsrc   => $self->result_source,
     }],
     alias => $attrs->{alias},
   });
@@ -3141,8 +3141,8 @@ sub _chain_relationship {
     );
 
     $from = [{
-      -source_handle => $source->handle,
-      -alias => $attrs->{alias},
+      -rsrc   => $source,
+      -alias  => $attrs->{alias},
       $attrs->{alias} => $rs_copy->as_query,
     }];
     delete @{$attrs}{@force_subq_attrs, qw/where bind/};
@@ -3153,7 +3153,7 @@ sub _chain_relationship {
   }
   else {
     $from = [{
-      -source_handle => $source->handle,
+      -rsrc  => $source,
       -alias => $attrs->{alias},
       $attrs->{alias} => $source->from,
     }];
@@ -3292,8 +3292,8 @@ sub _resolved_attrs {
   $attrs->{as} = \@as;
 
   $attrs->{from} ||= [{
-    -source_handle => $source->handle,
-    -alias => $self->{attrs}{alias},
+    -rsrc   => $source,
+    -alias  => $self->{attrs}{alias},
     $self->{attrs}{alias} => $source->from,
   }];
 
@@ -3620,7 +3620,7 @@ sub STORABLE_freeze {
   # A cursor in progress can't be serialized (and would make little sense anyway)
   delete $to_serialize->{cursor};
 
-  return nfreeze($to_serialize);
+  nfreeze($to_serialize);
 }
 
 # need this hook for symmetry
@@ -3629,7 +3629,7 @@ sub STORABLE_thaw {
 
   %$self = %{ thaw($serialized) };
 
-  return $self;
+  $self;
 }
 
 

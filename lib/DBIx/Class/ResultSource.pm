@@ -18,7 +18,7 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_info
+  from _relationships column_info_from_storage source_info
   source_name sqlt_deploy_callback/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
@@ -367,7 +367,7 @@ sub column_info {
   if ( ! $self->_columns->{$column}{data_type}
        and ! $self->{_columns_info_loaded}
        and $self->column_info_from_storage
-       and $self->schema and my $stor = $self->storage )
+       and my $stor = try { $self->storage } )
   {
     $self->{_columns_info_loaded}++;
 
@@ -445,9 +445,7 @@ sub columns_info {
       and
     $self->column_info_from_storage
       and
-    $self->schema
-      and
-    my $stor = $self->storage
+    my $stor = try { $self->storage }
   ) {
     $self->{_columns_info_loaded}++;
 
@@ -1016,11 +1014,11 @@ sub resultset {
     'call it on the schema instead.'
   ) if scalar @_;
 
-  return $self->resultset_class->new(
+  $self->resultset_class->new(
     $self,
     {
+      try { %{$self->schema->default_resultset_attributes} },
       %{$self->{resultset_attributes}},
-      %{$self->schema->default_resultset_attributes}
     },
   );
 }
@@ -1067,7 +1065,7 @@ clause contents.
 
 =over 4
 
-=item Arguments: None
+=item Arguments: $schema
 
 =item Return value: A schema object
 
@@ -1075,8 +1073,29 @@ clause contents.
 
   my $schema = $source->schema();
 
-Returns the L<DBIx::Class::Schema> object that this result source
-belongs to.
+Sets and/or returns the L<DBIx::Class::Schema> object to which this
+result source instance has been attached to.
+
+=cut
+
+sub schema {
+  if (@_ > 1) {
+    $_[0]->{schema} = $_[1];
+  }
+  else {
+    $_[0]->{schema} || do {
+      my $name = $_[0]->{source_name} || '_unnamed_';
+      my $err = 'Unable to perform storage-dependent operations with a detached result source '
+              . "(source '$name' is not associated with a schema).";
+
+      $err .= ' You need to use $schema->thaw() or manually set'
+            . ' $DBIx::Class::ResultSourceHandle::thaw_schema while thawing.'
+        if $_[0]->{_detached_thaw};
+
+      DBIx::Class::Exception->throw($err);
+    };
+  }
+}
 
 =head2 storage
 
@@ -1458,7 +1477,7 @@ sub _resolve_join {
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
-               -source_handle => $rel_src->handle,
+               -rsrc => $rel_src,
                -join_type => $parent_force_left
                   ? 'left'
                   : $rel_info->{attrs}{join_type}
@@ -1732,16 +1751,31 @@ sub related_class {
 
 =head2 handle
 
-Obtain a new handle to this source. Returns an instance of a
-L<DBIx::Class::ResultSourceHandle>.
+=over 4
+
+=item Arguments: None
+
+=item Return value: $source_handle
+
+=back
+
+Obtain a new L<result source handle instance|DBIx::Class::ResultSourceHandle>
+for this source. Used as a serializable pointer to this resultsource, as it is not
+easy (nor advisable) to serialize CODErefs which may very well be present in e.g.
+relationship definitions.
 
 =cut
 
 sub handle {
-    return DBIx::Class::ResultSourceHandle->new({
-        schema         => $_[0]->schema,
-        source_moniker => $_[0]->source_name
-    });
+  return DBIx::Class::ResultSourceHandle->new({
+    source_moniker => $_[0]->source_name,
+
+    # so that a detached thaw can be re-frozen
+    $_[0]->{_detached_thaw}
+      ? ( _detached_source  => $_[0]          )
+      : ( schema            => $_[0]->schema  )
+    ,
+  });
 }
 
 {
@@ -1782,17 +1816,12 @@ sub handle {
   }
 }
 
-sub STORABLE_freeze {
-  my ($self, $cloning) = @_;
-  nfreeze($self->handle);
-}
+sub STORABLE_freeze { nfreeze($_[0]->handle) }
 
 sub STORABLE_thaw {
   my ($self, $cloning, $ice) = @_;
   %$self = %{ (thaw $ice)->resolve };
 }
-
-
 
 =head2 throw_exception
 
@@ -1803,12 +1832,10 @@ See L<DBIx::Class::Schema/"throw_exception">.
 sub throw_exception {
   my $self = shift;
 
-  if (defined $self->schema) {
-    $self->schema->throw_exception(@_);
-  }
-  else {
-    DBIx::Class::Exception->throw(@_);
-  }
+  $self->{schema}
+    ? $self->{schema}->throw_exception(@_)
+    : DBIx::Class::Exception->throw(@_)
+  ;
 }
 
 =head2 source_info

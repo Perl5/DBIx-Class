@@ -14,6 +14,7 @@ Revision history for DBIx::Class
           SQL areas ( group_by => \[ ... ] now works properly )
         - Allow populate to skip empty has_many relationships which makes
           it easier to pass HashRefInflator data directly to ->populate
+        - Improve freeze/thaw semantics and error messages (RT#62546)
 
     * Misc
         - Fix test warning on win32 - at this point the test suite is
