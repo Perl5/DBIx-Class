@@ -31,4 +31,19 @@ sub _generate_join_clause {
 
     return $self->SUPER::_generate_join_clause( $join_type );
 }
+
+# LOCK IN SHARE MODE
+my $for_syntax = {
+   update => 'FOR UPDATE',
+   shared => 'LOCK IN SHARE MODE'
+};
+
+sub _lock_select {
+   my ($self, $type) = @_;
+
+   my $sql = $for_syntax->{$type} || croak "Unknown SELECT .. FOR type '$type' requested";
+
+   return " $sql";
+}
+
 1;

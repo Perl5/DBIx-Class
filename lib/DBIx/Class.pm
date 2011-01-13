@@ -326,6 +326,8 @@ kaare: Kaare Rasmussen
 
 konobi: Scott McWhirter
 
+littlesavage: Alexey Illarionov <littlesavage@orionet.ru>
+
 lukes: Luke Saunders <luke.saunders@gmail.com>
 
 marcus: Marcus Ramberg <mramberg@cpan.org>

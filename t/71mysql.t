@@ -85,6 +85,16 @@ lives_ok {
   });
 } 'Limited FOR UPDATE select works';
 
+# shared-lock
+lives_ok {
+  $schema->txn_do (sub {
+    isa_ok (
+      $schema->resultset('Artist')->find({artistid => 1}, {for => 'shared'}),
+      'DBICTest::Schema::Artist',
+    );
+  });
+} 'LOCK IN SHARE MODE select works';
+
 my $test_type_info = {
     'artistid' => {
         'data_type' => 'INT',
