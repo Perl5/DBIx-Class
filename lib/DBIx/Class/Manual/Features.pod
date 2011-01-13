@@ -597,7 +597,7 @@ See L<DBIx::Class::ResultSetColumn>
  for (@res) {
     say $_->price . ' ' . $_->genre;
     say $_->get_column('max_price');
-    say $_->get_column('min_price');
+    say $_->get_column('avg_price');
  }
 
 See L<DBIx::Class::ResultSet/select>, L<DBIx::Class::ResultSet/as>, and
