@@ -1,8 +1,9 @@
 Revision history for DBIx::Class
 
+0.08126_01 2011-01-14 14:00 (UTC)
     * New Features / Changes
         - Schema/resultsource instances are now crossreferenced via a new
-          system guaranteeing leak-free mutually assuered destruction
+          system guaranteeing leak-free mutually assured destruction
         - Switch to a warning when find() is invoked with both a 'key'
           argument and a NULL-containing condition to satisfy the named
           constraint. Previously (starting with 0.08124) an exception was
