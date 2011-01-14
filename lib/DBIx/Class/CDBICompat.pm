@@ -3,7 +3,6 @@ package DBIx::Class::CDBICompat;
 use strict;
 use warnings;
 use base qw/DBIx::Class::Core DBIx::Class::DB/;
-use Carp::Clan qw/^DBIx::Class/;
 
 # Modules CDBICompat needs that DBIx::Class does not.
 my @Extra_Modules = qw(
@@ -16,7 +15,7 @@ my @didnt_load;
 for my $module (@Extra_Modules) {
     push @didnt_load, $module unless eval qq{require $module};
 }
-croak("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
+__PACKAGE__->throw_exception("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
     if @didnt_load;
 
 

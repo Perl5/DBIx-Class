@@ -78,7 +78,7 @@ sub _database {
     for ($db_file, "${db_file}-journal") {
       next unless -e $_;
       unlink ($_) or carp (
-        "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!\n"
+        "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!"
       );
     }
 

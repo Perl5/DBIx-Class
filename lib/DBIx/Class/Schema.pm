@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
+use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util 'weaken';
 use Sub::Name 'subname';
@@ -1039,8 +1039,8 @@ sub clone {
 
 =back
 
-Throws an exception. Defaults to using L<Carp::Clan> to report errors from
-user's perspective.  See L</exception_action> for details on overriding
+Throws an exception. Obeys the exemption rules of L<DBIx::Class::Carp> to report
+errors from outer-user's perspective. See L</exception_action> for details on overriding
 this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>'s
 default behavior will provide a detailed stack trace.
 

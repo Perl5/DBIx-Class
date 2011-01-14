@@ -1,10 +1,9 @@
 package DBIx::Class::Serialize::Storable;
 use strict;
 use warnings;
-use Storable;
 
-use Carp::Clan qw/^DBIx::Class/;
-use namespace::clean;
+use Storable();
+use DBIx::Class::Carp;
 
 carp 'The Serialize::Storable component is now *DEPRECATED*. It has not '
     .'been providing any useful functionality for quite a while, and in fact '

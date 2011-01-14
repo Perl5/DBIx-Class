@@ -7,9 +7,8 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBIHacks DBIx::Class::Storage/;
 use mro 'c3';
 
-use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
-use DBI;
-use DBIx::Class::Storage::DBI::Cursor;
+use DBIx::Class::Carp;
+use DBIx::Class::Exception;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
 use Sub::Name 'subname';
@@ -1305,10 +1304,11 @@ sub _connect {
 
   try {
     if(ref $info[0] eq 'CODE') {
-       $dbh = $info[0]->();
+      $dbh = $info[0]->();
     }
     else {
-       $dbh = DBI->connect(@info);
+      require DBI;
+      $dbh = DBI->connect(@info);
     }
 
     if (!$dbh) {
@@ -1354,7 +1354,7 @@ sub _connect {
           else {
             # the handler may be invoked by something totally out of
             # the scope of DBIC
-            croak ("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
+            DBIx::Class::Exception->throw("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
           }
         }, '__DBIC__DBH__ERROR__HANDLER__';
       }->($self, $dbh);

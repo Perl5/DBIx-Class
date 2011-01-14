@@ -3,7 +3,6 @@ package DBIx::Class::SQLMaker::LimitDialects;
 use warnings;
 use strict;
 
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use List::Util 'first';
 use namespace::clean;
 
@@ -54,7 +53,7 @@ use namespace::clean;
       @order = @$order,     last CASE if $ref eq 'ARRAY';
       @order = ( $order ),  last CASE unless $ref;
       @order = ( $$order ), last CASE if $ref eq 'SCALAR';
-      croak __PACKAGE__ . ": Unsupported data struct $ref for ORDER BY";
+      $self->throw_exception(__PACKAGE__ . ": Unsupported data struct $ref for ORDER BY");
     }
 
     my ( $order_by_up, $order_by_down );
@@ -62,11 +61,11 @@ use namespace::clean;
     foreach my $spec ( @order )
     {
         my @spec = split ' ', $spec;
-        croak( "bad column order spec: $spec" ) if @spec > 2;
+        $self->throw_exception("bad column order spec: $spec") if @spec > 2;
         push( @spec, 'ASC' ) unless @spec == 2;
         my ( $col, $up ) = @spec; # or maybe down
         $up = uc( $up );
-        croak( "bad direction: $up" ) unless $up =~ /^(?:ASC|DESC)$/;
+        $self->throw_exception("bad direction: $up") unless $up =~ /^(?:ASC|DESC)$/;
         $order_by_up .= ", $col $up";
         my $down = $up eq 'ASC' ? 'DESC' : 'ASC';
         $order_by_down .= ", $col $down";
@@ -152,7 +151,7 @@ sub _RowNumberOver {
 
   # mangle the input sql as we will be replacing the selector
   $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   # get selectors, and scan the order_by (if any)
   my ($in_sel, $out_sel, $alias_map, $extra_order_sel)
@@ -222,7 +221,7 @@ sub _SkipFirst {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
   $sql =~ s/^ \s* SELECT \s+ //ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   return sprintf ('SELECT %s%s%s%s',
     $offset
@@ -247,7 +246,7 @@ sub _FirstSkip {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
   $sql =~ s/^ \s* SELECT \s+ //ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   return sprintf ('SELECT %s%s%s%s',
     sprintf ('FIRST %u ', $rows),
@@ -276,7 +275,7 @@ sub _RowNum {
 
   # mangle the input sql as we will be replacing the selector
   $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   my ($insel, $outsel) = $self->_subqueried_limit_attrs ($rs_attrs);
 
@@ -332,7 +331,7 @@ sub _Top {
 
   # mangle the input sql as we will be replacing the selector
   $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   # get selectors
   my ($in_sel, $out_sel, $alias_map, $extra_order_sel)
@@ -486,7 +485,7 @@ sub _GenericSubQ {
 
   # mangle the input sql as we will be replacing the selector
   $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
-    or croak "Unrecognizable SELECT: $sql";
+    or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   my ($order_by, @rest) = do {
     local $self->{quote_char};
@@ -503,7 +502,7 @@ sub _GenericSubQ {
       ( ref $order_by eq 'ARRAY' and @$order_by == 1 )
     )
   ) {
-    croak (
+    $self->throw_exception (
       'Generic Subquery Limit does not work on resultsets without an order, or resultsets '
     . 'with complex order criteria (multicolumn and/or functions). Provide a single, '
     . 'unique-column order criteria.'
@@ -521,11 +520,13 @@ sub _GenericSubQ {
     $rs_attrs->{from}, [$order_by, $unq_sort_col]
   );
 
-  my $ord_colinfo = $inf->{$order_by} || croak "Unable to determine source of order-criteria '$order_by'";
+  my $ord_colinfo = $inf->{$order_by} || $self->throw_exception("Unable to determine source of order-criteria '$order_by'");
 
   if ($ord_colinfo->{-result_source}->name ne $root_tbl_name) {
-    croak "Generic Subquery Limit order criteria can be only based on the root-source '"
-        . $root_rsrc->source_name . "' (aliased as '$rs_attrs->{alias}')";
+    $self->throw_exception(sprintf
+      "Generic Subquery Limit order criteria can be only based on the root-source '%s'"
+    . " (aliased as '%s')", $root_rsrc->source_name, $rs_attrs->{alias},
+    );
   }
 
   # make sure order column is qualified
@@ -540,8 +541,9 @@ sub _GenericSubQ {
       last;
     }
   }
-  croak "Generic Subquery Limit order criteria column '$order_by' must be unique (no unique constraint found)"
-    unless $is_u;
+  $self->throw_exception(
+    "Generic Subquery Limit order criteria column '$order_by' must be unique (no unique constraint found)"
+  ) unless $is_u;
 
   my ($in_sel, $out_sel, $alias_map, $extra_order_sel)
     = $self->_subqueried_limit_attrs ($rs_attrs);
@@ -601,8 +603,9 @@ EOS
 sub _subqueried_limit_attrs {
   my ($self, $rs_attrs) = @_;
 
-  croak 'Limit dialect implementation usable only in the context of DBIC (missing $rs_attrs)'
-    unless ref ($rs_attrs) eq 'HASH';
+  $self->throw_exception(
+    'Limit dialect implementation usable only in the context of DBIC (missing $rs_attrs)'
+  ) unless ref ($rs_attrs) eq 'HASH';
 
   my ($re_sep, $re_alias) = map { quotemeta $_ } ( $self->{name_sep}, $rs_attrs->{alias} );
 
@@ -622,7 +625,7 @@ sub _subqueried_limit_attrs {
           ||
         $rs_attrs->{as}[$i]
           ||
-        croak "Select argument $i ($s) without corresponding 'as'"
+        $self->throw_exception("Select argument $i ($s) without corresponding 'as'")
       ,
     };
 

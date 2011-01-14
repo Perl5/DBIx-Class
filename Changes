@@ -35,6 +35,8 @@ Revision history for DBIx::Class
           of SQL::Abstract >= 1.73
 
     * Misc
+        - Rewire all warnings to a new Carp-like implementation internal
+          to DBIx::Class, and remove the Carp::Clan dependency
         - Only load Class::C3 and friends if necessary ($] < 5.010)
         - Greatly reduced loading of non-essential modules to aid startup
           time (mainly benefiting CGI users)

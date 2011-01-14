@@ -3,9 +3,7 @@ package DBIx::Class::Exception;
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
-use Try::Tiny;
-use namespace::clean;
+use DBIx::Class::Carp ();
 
 use overload
     '""' => sub { shift->{msg} },
@@ -19,8 +17,7 @@ DBIx::Class::Exception - Exception objects for DBIx::Class
 
 Exception objects of this class are used internally by
 the default error handling of L<DBIx::Class::Schema/throw_exception>
-to prevent confusing and/or redundant re-application of L<Carp>'s
-stack trace information.
+and derivatives.
 
 These objects stringify to the contained error message, and use
 overload fallback to give natural boolean/numeric values.
@@ -39,8 +36,7 @@ This is meant for internal use by L<DBIx::Class>'s C<throw_exception>
 code, and shouldn't be used directly elsewhere.
 
 Expects a scalar exception message.  The optional argument
-C<$stacktrace> tells it to use L<Carp/longmess> instead of
-L<Carp::Clan/croak>.
+C<$stacktrace> tells it to output a full trace similar to L<Carp/confess>.
 
   DBIx::Class::Exception->throw('Foo');
   try { ... } catch { DBIx::Class::Exception->throw(shift) }
@@ -53,9 +49,18 @@ sub throw {
     # Don't re-encapsulate exception objects of any kind
     die $msg if ref($msg);
 
-    # use Carp::Clan's croak if we're not stack tracing
+    # all exceptions include a caller
+    $msg =~ s/\n$//;
+
     if(!$stacktrace) {
-        try { croak $msg } catch { $msg = shift };
+        # skip all frames that match the original caller, or any of
+        # the dbic-wide classdata patterns
+        my ($ln, $calling) = DBIx::Class::Carp::__find_caller(
+          '^' . caller() . '$',
+          'DBIx::Class',
+        );
+
+        $msg = "${calling}${msg} ${ln}\n";
     }
     else {
         $msg = Carp::longmess($msg);

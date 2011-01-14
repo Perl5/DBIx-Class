@@ -7,7 +7,7 @@ use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Try::Tiny;
 use List::Util 'first';
 use Scalar::Util qw/weaken isweak/;

@@ -5,7 +5,6 @@ use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
 use DBI ();
-use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 use Try::Tiny;

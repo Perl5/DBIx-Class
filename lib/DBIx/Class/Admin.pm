@@ -2,9 +2,8 @@ package DBIx::Class::Admin;
 
 # check deps
 BEGIN {
-  use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class;
-  croak('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
+  die('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
 }
 
@@ -403,7 +402,7 @@ sub install {
     print "return is $ret\n" if (!$self->quiet);
   }
   elsif ($schema->get_db_version() and $self->force ) {
-    carp "Forcing install may not be a good idea";
+    warn "Forcing install may not be a good idea\n";
     if($self->_confirm() ) {
       $self->schema->_set_db_version({ version => $version});
     }

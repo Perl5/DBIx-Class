@@ -8,7 +8,7 @@ use base qw/
     DBIx::Class::Storage::DBI::AutoCast
 /;
 use mro 'c3';
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Scalar::Util 'blessed';
 use List::Util 'first';
 use Sub::Name();
@@ -867,24 +867,20 @@ C<SMALLDATETIME> columns only have minute precision.
 
 =cut
 
-{
-  my $old_dbd_warned = 0;
+sub connect_call_datetime_setup {
+  my $self = shift;
+  my $dbh = $self->_get_dbh;
 
-  sub connect_call_datetime_setup {
-    my $self = shift;
-    my $dbh = $self->_get_dbh;
-
-    if ($dbh->can('syb_date_fmt')) {
-      # amazingly, this works with FreeTDS
-      $dbh->syb_date_fmt('ISO_strict');
-    } elsif (not $old_dbd_warned) {
-      carp "Your DBD::Sybase is too old to support ".
-      "DBIx::Class::InflateColumn::DateTime, please upgrade!";
-      $old_dbd_warned = 1;
-    }
+  if ($dbh->can('syb_date_fmt')) {
+    # amazingly, this works with FreeTDS
+    $dbh->syb_date_fmt('ISO_strict');
+  }
+  else {
+    carp_once
+      'Your DBD::Sybase is too old to support '
+     .'DBIx::Class::InflateColumn::DateTime, please upgrade!';
 
     $dbh->do('SET DATEFORMAT mdy');
-
     1;
   }
 }

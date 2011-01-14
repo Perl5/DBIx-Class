@@ -473,6 +473,7 @@ sub _check_deps {
     if (keys %errors) {
       my $missing = join (', ', map { $deps->{$_} ? "$_ >= $deps->{$_}" : $_ } (sort keys %errors) );
       $missing .= " (see $class for details)" if $reqs->{$group}{pod};
+      $missing .= "\n";
       $res = {
         status => 0,
         errorlist => \%errors,

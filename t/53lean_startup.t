@@ -40,14 +40,12 @@ BEGIN {
     Hash::Merge
 
     DBI
+    SQL::Abstract
 
     Carp
-    Carp::Clan
 
     Class::Accessor::Grouped
     Class::C3::Componentised
-
-    SQL::Abstract
   /, $] < 5.010 ? 'MRO::Compat' : () };
 
   $test_hook = sub {

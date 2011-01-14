@@ -6,7 +6,7 @@ use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 use mro 'c3';
 use Scalar::Util 'reftype';
 use Try::Tiny;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/

@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Sub::Name qw/subname/;
 use Scalar::Util qw/blessed/;
 

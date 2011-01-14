@@ -5,12 +5,10 @@ use warnings;
 use strict;
 
 use base qw( DBIx::Class::SQLMaker );
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
-use namespace::clean;
 
 BEGIN {
   use DBIx::Class::Optional::Dependencies;
-  croak('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') )
+  die('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') . "\n" )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
 }
 
@@ -138,7 +136,7 @@ sub _shorten_identifier {
   return $to_shorten
     if length($to_shorten) <= $max_len;
 
-  croak 'keywords needs to be an arrayref'
+  $self->throw_exception("'keywords' needs to be an arrayref")
     if defined $keywords && ref $keywords ne 'ARRAY';
 
   # if no keywords are passed use the identifier as one
@@ -228,7 +226,7 @@ sub _insert_returning {
   });
 
   my $rc_ref = $options->{returning_container}
-    or croak ('No returning container supplied for IR values');
+    or $self->throw_exception('No returning container supplied for IR values');
 
   @$rc_ref = (undef) x @f_names;
 

@@ -1,9 +1,8 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
 BEGIN {
-  use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class;
-  croak('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') )
+  die('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') . "\n" )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
 }
 
@@ -395,7 +394,8 @@ if (DBIx::Class::_ENV_::DBICTEST) {
 
 for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
-    croak "$method must not be called on ".(blessed shift).' objects';
+    my $self = shift;
+    $self->throw_exception("$method must not be called on ".(blessed $self).' objects');
   });
 }
 

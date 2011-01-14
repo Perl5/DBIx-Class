@@ -4,10 +4,8 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-
+use DBIx::Class::Carp;
 use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class/;
-use namespace::clean;
 
 # not importing first() as it will clash with our own method
 use List::Util ();

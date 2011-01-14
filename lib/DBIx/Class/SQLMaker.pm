@@ -35,13 +35,14 @@ Currently the enhancements to L<SQL::Abstract> are:
 use base qw/
   DBIx::Class::SQLMaker::LimitDialects
   SQL::Abstract
-  Class::Accessor::Grouped
+  DBIx::Class
 /;
 use mro 'c3';
 use strict;
 use warnings;
 use Sub::Name 'subname';
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
+use DBIx::Class::Carp;
+use DBIx::Class::Exception;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
@@ -54,9 +55,13 @@ sub _quote_chars {
   ;
 }
 
+# FIXME when we bring in the storage weaklink, check its schema
+# weaklink and channel through $schema->throw_exception
+sub throw_exception { DBIx::Class::Exception->throw($_[1]) }
+
 BEGIN {
   # reinstall the belch()/puke() functions of SQL::Abstract with custom versions
-  # that use Carp::Clan instead of plain Carp (they do not like each other much)
+  # that use DBIx::Class::Carp/DBIx::Class::Exception instead of plain Carp
   no warnings qw/redefine/;
 
   *SQL::Abstract::belch = subname 'SQL::Abstract::belch' => sub (@) {
@@ -66,7 +71,7 @@ BEGIN {
 
   *SQL::Abstract::puke = subname 'SQL::Abstract::puke' => sub (@) {
     my($func) = (caller(1))[3];
-    croak "[$func] Fatal: ", @_;
+    __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
 
   # Current SQLA pollutes its namespace - clean for the time being
@@ -100,7 +105,7 @@ sub _where_op_IDENT {
   my $self = shift;
   my ($op, $rhs) = splice @_, -2;
   if (ref $rhs) {
-    croak "-$op takes a single scalar argument (a quotable identifier)";
+    $self->throw_exception("-$op takes a single scalar argument (a quotable identifier)");
   }
 
   # in case we are called as a top level special op (no '=')
@@ -122,7 +127,7 @@ sub _where_op_VALUE {
   my $lhs = shift;
 
   my @bind = [
-    ($lhs || $self->{_nested_func_lhs} || croak "Unable to find bindtype for -value $rhs"),
+    ($lhs || $self->{_nested_func_lhs} || $self->throw_exception("Unable to find bindtype for -value $rhs") ),
     $rhs
   ];
 
@@ -138,19 +143,10 @@ sub _where_op_VALUE {
   ;
 }
 
-my $callsites_warned;
 sub _where_op_NEST {
-  # determine callsite obeying Carp::Clan rules (fucking ugly but don't have better ideas)
-  my $callsite = do {
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-    carp;
-    $w
-  };
-
-  carp ("-nest in search conditions is deprecated, you most probably wanted:\n"
+  carp_unique ("-nest in search conditions is deprecated, you most probably wanted:\n"
       .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
-  ) unless $callsites_warned->{$callsite}++;
+  );
 
   shift->next::method(@_);
 }
@@ -163,13 +159,13 @@ sub select {
   $fields = $self->_recurse_fields($fields);
 
   if (defined $offset) {
-    croak ('A supplied offset must be a non-negative integer')
+    $self->throw_exception('A supplied offset must be a non-negative integer')
       if ( $offset =~ /\D/ or $offset < 0 );
   }
   $offset ||= 0;
 
   if (defined $limit) {
-    croak ('A supplied limit must be a positive integer')
+    $self->throw_exception('A supplied limit must be a positive integer')
       if ( $limit =~ /\D/ or $limit <= 0 );
   }
   elsif ($offset) {
@@ -188,9 +184,9 @@ sub select {
         ||
       do {
         my $dialect = $self->limit_dialect
-          or croak "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found";
+          or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found" );
         $self->can ("_$dialect")
-          or croak (__PACKAGE__ . " does not implement the requested dialect '$dialect'");
+          or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
       }
     ;
 
@@ -222,7 +218,7 @@ my $for_syntax = {
 };
 sub _lock_select {
   my ($self, $type) = @_;
-  my $sql = $for_syntax->{$type} || croak "Unknown SELECT .. FOR type '$type' requested";
+  my $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
   return " $sql";
 }
 
@@ -270,11 +266,11 @@ sub _recurse_fields {
 
     # there should be only one pair
     if (@toomany) {
-      croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
+      $self->throw_exception( "Malformed select argument - too many keys in hash: " . join (',', keys %$fields ) );
     }
 
     if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
-      croak (
+      $self->throw_exception (
         'The select => { distinct => ... } syntax is not supported for multiple columns.'
        .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
        .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
@@ -297,7 +293,7 @@ sub _recurse_fields {
     return $$fields->[0];
   }
   else {
-    croak($ref . qq{ unexpected in _recurse_fields()})
+    $self->throw_exception( $ref . qq{ unexpected in _recurse_fields()} );
   }
 }
 
@@ -421,7 +417,7 @@ sub _from_chunk_to_sql {
         ( grep { $_ !~ /^\-/ } keys %$fromspec )
       );
 
-      croak "Only one table/as pair expected in from-spec but an exra '$toomuch' key present"
+      $self->throw_exception( "Only one table/as pair expected in from-spec but an exra '$toomuch' key present" )
         if defined $toomuch;
 
       ($self->_from_chunk_to_sql($table), $self->_quote($as) );
@@ -440,7 +436,7 @@ sub _join_condition {
     for (keys %$cond) {
       my $v = $cond->{$_};
       if (ref $v) {
-        croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+        $self->throw_exception (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
             if ref($v) ne 'SCALAR';
         $j{$_} = $v;
       }
@@ -452,7 +448,7 @@ sub _join_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
-    croak "Can't handle this yet!";
+    die "Can't handle this yet!";
   }
 }
 

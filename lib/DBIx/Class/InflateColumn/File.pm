@@ -6,7 +6,7 @@ use base 'DBIx::Class';
 use File::Path;
 use File::Copy;
 use Path::Class;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use namespace::clean;
 
 carp 'InflateColumn::File has entered a deprecation cycle. This component '

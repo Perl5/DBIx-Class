@@ -42,6 +42,11 @@ my $exceptions = {
             mk_classaccessor
         /]
     },
+    'DBIx::Class::Carp' => {
+        ignore => [qw/
+            unimport
+        /]
+    },
     'DBIx::Class::Row' => {
         ignore => [qw/
             MULTICREATE_DEBUG

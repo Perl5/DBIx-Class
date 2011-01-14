@@ -3,7 +3,7 @@ package DBIx::Class::ResultSet;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use DBIx::Class::Exception;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken/;
@@ -296,7 +296,6 @@ always return a resultset, even in list context.
 
 =cut
 
-my $callsites_warned;
 sub search_rs {
   my $self = shift;
 
@@ -405,15 +404,7 @@ sub search_rs {
   } if @_;
 
   if( @_ > 1 and ! $rsrc->result_class->isa('DBIx::Class::CDBICompat') ) {
-    # determine callsite obeying Carp::Clan rules (fucking ugly but don't have better ideas)
-    my $callsite = do {
-      my $w;
-      local $SIG{__WARN__} = sub { $w = shift };
-      carp;
-      $w
-    };
-    carp 'search( %condition ) is deprecated, use search( \%condition ) instead'
-      unless $callsites_warned->{$callsite}++;
+    carp_unique 'search( %condition ) is deprecated, use search( \%condition ) instead';
   }
 
   for ($old_where, $call_cond) {
@@ -792,7 +783,6 @@ sub _qualify_cond_columns {
   return \%aliased;
 }
 
-my $callsites_warned_ucond;
 sub _build_unique_cond {
   my ($self, $constraint_name, $extra_cond, $croak_on_null) = @_;
 
@@ -829,20 +819,13 @@ sub _build_unique_cond {
       and
     my @undefs = grep { ! defined $final_cond->{$_} } (keys %$final_cond)
   ) {
-    my $callsite = do {
-      my $w;
-      local $SIG{__WARN__} = sub { $w = shift };
-      carp;
-      $w
-    };
-
-    carp ( sprintf (
+    carp_unique ( sprintf (
       "NULL/undef values supplied for requested unique constraint '%s' (NULL "
     . 'values in column(s): %s). This is almost certainly not what you wanted, '
     . 'though you can set DBIC_NULLABLE_KEY_NOWARN to disable this warning.',
       $constraint_name,
       join (', ', map { "'$_'" } @undefs),
-    )) unless $callsites_warned_ucond->{$callsite}++;
+    ));
   }
 
   return $final_cond;
@@ -1071,7 +1054,7 @@ instead. An example conversion is:
 
 sub search_like {
   my $class = shift;
-  carp (
+  carp_unique (
     'search_like() is deprecated and will be removed in DBIC version 0.09.'
    .' Instead use ->search({ x => { -like => "y%" } })'
    .' (note the outer pair of {}s - they are important!)'
@@ -3362,7 +3345,7 @@ sub _resolved_attrs {
   # subquery (since a group_by is present)
   if (delete $attrs->{distinct}) {
     if ($attrs->{group_by}) {
-      carp ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
+      carp_unique ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
     }
     else {
       # distinct affects only the main selection part, not what prefetch may

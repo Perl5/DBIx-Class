@@ -35,6 +35,20 @@ warnings_are (
   'no spurious warnings issued',
 );
 
+warnings_like (
+  sub {
+    package A::Test1Loud;
+    use base 'DBIx::Class::Core';
+    __PACKAGE__->load_components(qw(Core +A::Comp Ordered UTF8Columns));
+    __PACKAGE__->load_components(qw(Ordered +A::SubComp Row UTF8Columns Core));
+    sub store_column { shift->next::method (@_) };
+    1;
+  },
+  [qr/Use of DBIx::Class::UTF8Columns is strongly discouraged/],
+  'issued deprecation warning',
+);
+
+
 my $test1_mro;
 my $idx = 0;
 for (@{mro::get_linear_isa ('A::Test1')} ) {

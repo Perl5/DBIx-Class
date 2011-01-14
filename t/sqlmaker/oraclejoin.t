@@ -10,8 +10,8 @@ BEGIN {
 }
 
 use lib qw(t/lib);
-use DBIx::Class::SQLMaker::OracleJoins;
 use DBICTest;
+use DBIx::Class::SQLMaker::OracleJoins;
 use DBIC::SqlMakerTest;
 
 my $sa = DBIx::Class::SQLMaker::OracleJoins->new;

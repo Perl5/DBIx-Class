@@ -79,12 +79,15 @@ for my $mod (@modules) {
       my $gv = svref_2object($all_method_like{$name})->GV;
       my $origin = $gv->STASH->NAME;
 
-      next if $seen->{"${origin}:${name}"}++;
-
       TODO: {
         local $TODO = 'CAG does not clean its BEGIN constants' if $name =~ /^__CAG_/;
-        is ($gv->NAME, $name, "Properly named $name method at $origin");
+        is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
+          ? ''
+          : " (inherited by $mod)"
+        ));
       }
+
+      next if $seen->{"${origin}:${name}"}++;
 
       if ($origin eq $mod) {
         pass ("$name is a native $mod method");
@@ -106,6 +109,25 @@ for my $mod (@modules) {
         fail ("${mod}::${name} appears to have entered inheritance chain by import into "
             . ($via || 'UNKNOWN')
         );
+      }
+    }
+
+    # some common import names (these should never ever be methods)
+    for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {
+      if ($mod->can($f)) {
+        my $via;
+        for (reverse @{mro::get_linear_isa($mod)} ) {
+          if ( ($_->can($f)||'') eq $all_method_like{$f} ) {
+            $via = $_;
+            last;
+          }
+        }
+        fail ("Import $f leaked into method list of ${mod}, appears to have entered inheritance chain at "
+            . ($via || 'UNKNOWN')
+        );
+      }
+      else {
+        pass ("Import $f not leaked into method list of $mod");
       }
     }
   }

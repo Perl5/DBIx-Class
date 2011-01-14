@@ -3,7 +3,7 @@ package DBIx::Class::InflateColumn::DateTime;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
 

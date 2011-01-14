@@ -56,7 +56,6 @@ my $test_requires = {
 };
 
 my $runtime_requires = {
-  'Carp::Clan'               => '6.0',
   'Class::Accessor::Grouped' => '0.10002',
   'Class::C3::Componentised' => '1.0009',
   'Class::Inspector'         => '1.24',
@@ -253,6 +252,7 @@ no_index directory => $_ for (qw|
 |);
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBIHacks
+  DBIx::Class::Carp
 /);
 
 WriteAll();

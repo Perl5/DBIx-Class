@@ -13,7 +13,6 @@ use warnings;
 use base 'DBIx::Class::Storage';
 use mro 'c3';
 
-use Carp::Clan qw/^DBIx::Class/;
 use List::Util 'first';
 use Scalar::Util 'blessed';
 use namespace::clean;

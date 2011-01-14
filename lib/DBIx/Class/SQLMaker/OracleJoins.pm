@@ -2,8 +2,6 @@ package # Hide from PAUSE
   DBIx::Class::SQLMaker::OracleJoins;
 
 use base qw( DBIx::Class::SQLMaker::Oracle );
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
-use namespace::clean;
 
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
@@ -69,7 +67,7 @@ sub _recurse_oracle_joins {
       #TODO: Support full outer joins -- this would happen much earlier in
       #the sequence since oracle 8's full outer join syntax is best
       #described as INSANE.
-      croak "Can't handle full outer joins in Oracle 8 yet!\n"
+      $self->throw_exception("Can't handle full outer joins in Oracle 8 yet!\n")
         if $to_jt->{-join_type} =~ /full/i;
 
       $left_join  = q{(+)} if $to_jt->{-join_type} =~ /left/i

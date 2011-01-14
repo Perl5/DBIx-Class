@@ -2,10 +2,10 @@ package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::Exception;
+use DBIx::Class::Carp;
 
 # temporary until we fix the $@ issue in core
 # we also need a real appendable, stackable exception object
