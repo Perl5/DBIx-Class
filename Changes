@@ -6,7 +6,10 @@ Revision history for DBIx::Class
         - Switch to a warning when find() is invoked with both a 'key'
           argument and a NULL-containing condition to satisfy the named
           constraint. Previously (starting with 0.08124) an exception was
-          thrown.
+          thrown
+        - Switch to a warning when a commit is attempted with an out-of-sync
+          transaction_depth (someone issued a begin externally to DBIC).
+          Previously (starting with 0.08124) an exception was thrown
 
     * Fixes
         - Revert default selection to being lazy again (eagerness introduced
