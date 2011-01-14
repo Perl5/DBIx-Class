@@ -20,7 +20,7 @@ ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related is ye
 # to build the optional requirements
 BEGIN {
   $ENV{DBICTEST_PG_DSN} = '1';
-  $ENV{DBICTEST_ORA_DSN} = undef;
+  delete $ENV{DBICTEST_ORA_DSN};
 }
 
 use_ok 'DBIx::Class::Optional::Dependencies';
