@@ -739,7 +739,7 @@ sub find {
       }++;
 
       push @unique_queries, try {
-        $self->_build_unique_cond ($c_name, $call_cond)
+        $self->_build_unique_cond ($c_name, $call_cond, 'croak_on_nulls')
       } || ();
     }
 
@@ -797,8 +797,9 @@ sub _qualify_cond_columns {
   return \%aliased;
 }
 
+my $callsites_warned_ucond;
 sub _build_unique_cond {
-  my ($self, $constraint_name, $extra_cond) = @_;
+  my ($self, $constraint_name, $extra_cond, $croak_on_null) = @_;
 
   my @c_cols = $self->result_source->unique_constraint_columns($constraint_name);
 
@@ -810,13 +811,43 @@ sub _build_unique_cond {
   };
 
   # trim out everything not in $columns
-  $final_cond = { map { $_ => $final_cond->{$_} } @c_cols };
+  $final_cond = { map {
+    exists $final_cond->{$_}
+      ? ( $_ => $final_cond->{$_} )
+      : ()
+  } @c_cols };
 
-  if (my @missing = grep { ! defined $final_cond->{$_} } (@c_cols) ) {
+  if (my @missing = grep
+    { ! ($croak_on_null ? defined $final_cond->{$_} : exists $final_cond->{$_}) }
+    (@c_cols)
+  ) {
     $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', no values for column(s): %s",
       $constraint_name,
       join (', ', map { "'$_'" } @missing),
     ) );
+  }
+
+  if (
+    !$croak_on_null
+      and
+    !$ENV{DBIC_NULLABLE_KEY_NOWARN}
+      and
+    my @undefs = grep { ! defined $final_cond->{$_} } (keys %$final_cond)
+  ) {
+    my $callsite = do {
+      my $w;
+      local $SIG{__WARN__} = sub { $w = shift };
+      carp;
+      $w
+    };
+
+    carp ( sprintf (
+      "NULL/undef values supplied for requested unique constraint '%s' (NULL "
+    . 'values in column(s): %s). This is almost certainly not what you wanted, '
+    . 'though you can set DBIC_NULLABLE_KEY_NOWARN to disable this warning.',
+      $constraint_name,
+      join (', ', map { "'$_'" } @undefs),
+    )) unless $callsites_warned_ucond->{$callsite}++;
   }
 
   return $final_cond;
