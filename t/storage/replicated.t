@@ -9,6 +9,15 @@ BEGIN {
       unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
 }
 
+use lib qw(t/lib);
+use DBICTest;
+
+if (DBICTest::RunMode->is_smoker) {
+  my $mver = Moose->VERSION;
+  plan skip_all => "A trial version $mver of Moose detected known to break replication - skipping test known to fail"
+    if ($mver >= 1.99 and $mver <= 1.9902);
+}
+
 use Test::Moose;
 use Test::Exception;
 use List::Util 'first';
@@ -18,9 +27,6 @@ use IO::Handle;
 use Moose();
 use MooseX::Types();
 note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
-
-use lib qw(t/lib);
-use DBICTest;
 
 my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
 
