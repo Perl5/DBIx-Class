@@ -6,6 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class::File ();
+use List::Util qw/shuffle/;
 
 my $schema = DBICTest->init_schema();
 
@@ -18,10 +19,10 @@ my $schema = DBICTest->init_schema();
 #   [ 10000, "ntn" ],
 
 my $start_id = 'populateXaaaaaa';
-my $rows = 10;
+my $rows = 10_000;
 my $offset = 3;
 
-$schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } ( 1 .. $rows ) ] );
+$schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } shuffle ( 1 .. $rows ) ] );
 is (
     $schema->resultset ('Artist')->search ({ name => { -like => 'populateX%' } })->count,
     $rows,
