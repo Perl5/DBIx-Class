@@ -417,13 +417,7 @@ sub related_resultset {
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)
-
-    # if $rel_info->{cond} is a CODE, we might need to join from the
-    # current resultsource instead of just querying the target
-    # resultsource, in that case, the condition might provide an
-    # additional condition in order to avoid an unecessary join if
-    # that is at all possible.
-    my ($cond, $extended_cond) = try {
+    my ($cond, $is_crosstable) = try {
       $source->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
     }
     catch {
@@ -434,49 +428,48 @@ sub related_resultset {
       $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV
     };
 
-    if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
-      my $reverse = $source->reverse_relationship_info($rel);
-      foreach my $rev_rel (keys %$reverse) {
-        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-          $attrs->{related_objects}{$rev_rel} = [ $self ];
-          weaken $attrs->{related_object}{$rev_rel}[0];
-        } else {
-          $attrs->{related_objects}{$rev_rel} = $self;
-          weaken $attrs->{related_object}{$rev_rel};
+    # keep in mind that the following if() block is part of a do{} - no return()s!!!
+    if ($is_crosstable) {
+      $self->throw_exception (
+        "A cross-table relationship condition returned for statically declared '$rel'")
+          unless ref $rel_info->{cond} eq 'CODE';
+
+      # A WHOREIFFIC hack to reinvoke the entire condition resolution
+      # with the correct alias. Another way of doing this involves a
+      # lot of state passing around, and the @_ positions are already
+      # mapped out, making this crap a less icky option.
+      #
+      # The point of this exercise is to retain the spirit of the original
+      # $obj->search_related($rel) where the resulting rset will have the
+      # root alias as 'me', instead of $rel (as opposed to invoking
+      # $rs->search_related)
+
+
+      local $source->{_relationships}{me} = $source->{_relationships}{$rel};  # make the fake 'me' rel
+      my $obj_table_alias = lc($source->source_name) . '__row';
+
+      $source->resultset->search(
+        $self->ident_condition($obj_table_alias),
+        { alias => $obj_table_alias },
+      )->search_related('me', $query, $attrs)
+    }
+    else {
+      # FIXME - this conditional doesn't seem correct - got to figure out
+      # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
+      # business seems shady - we could simply not query *at all*
+      if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+        my $reverse = $source->reverse_relationship_info($rel);
+        foreach my $rev_rel (keys %$reverse) {
+          if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+            $attrs->{related_objects}{$rev_rel} = [ $self ];
+            weaken $attrs->{related_object}{$rev_rel}[0];
+          } else {
+            $attrs->{related_objects}{$rev_rel} = $self;
+            weaken $attrs->{related_object}{$rev_rel};
+          }
         }
       }
-    }
-
-    if (ref $rel_info->{cond} eq 'CODE' && !$extended_cond) {
-      # since we don't have the extended condition, we need to step
-      # back, get a resultset for the current row and do a
-      # search_related there.
-
-      my $row_srcname = $source->source_name;
-      my $base_rs_class = $source->resultset_class;
-      my $base_rs_attr  = $source->resultset_attributes;
-      my $base_rs = $base_rs_class->new
-        ($source,
-         {
-          %$base_rs_attr,
-          alias => $source->storage->relname_to_table_alias(lc($row_srcname).'__row',1)
-         });
-      my $alias = $base_rs->current_source_alias;
-      my %identity = map { ( "${alias}.${_}" => $self->get_column($_) ) } $source->primary_columns;
-      my $row_rs = $base_rs->search(\%identity);
-      my $related = $row_rs->related_resultset($rel, { %$attrs, alias => 'me' });
-      $related->search($query);
-
-    } else {
-      # when we have the extended condition or we have a simple
-      # relationship declaration, it can optimize the JOIN away by
-      # simply adding the identity in WHERE.
-
-      if (ref $rel_info->{cond} eq 'CODE' && $extended_cond) {
-        $cond = $extended_cond;
-      }
-
-      if (ref $cond eq 'ARRAY') {
+      elsif (ref $cond eq 'ARRAY') {
         $cond = [ map {
           if (ref $_ eq 'HASH') {
             my $hash;
@@ -489,15 +482,17 @@ sub related_resultset {
             $_;
           }
         } @$cond ];
-      } elsif (ref $cond eq 'HASH') {
-        foreach my $key (grep { ! /\./ } keys %$cond) {
+      }
+      elsif (ref $cond eq 'HASH') {
+       foreach my $key (grep { ! /\./ } keys %$cond) {
           $cond->{"me.$key"} = delete $cond->{$key};
         }
       }
 
       $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
       $self->result_source->related_source($rel)->resultset->search(
-        $query, $attrs);
+        $query, $attrs
+      );
     }
   };
 }
@@ -697,28 +692,24 @@ set them in the storage.
 
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
-  my $rel_info = $self->relationship_info($rel);
-  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_info;
-  my $cond = $rel_info->{cond};
-  $self->throw_exception(
-    "set_from_related can only handle a hash condition; the ".
-    "condition for $rel is of type ".
-    (ref $cond ? ref $cond : 'plain scalar')
-  ) unless ref $cond eq 'HASH';
+
+  my $rel_info = $self->relationship_info($rel)
+    or $self->throw_exception( "No such relationship ${rel}" );
+
   if (defined $f_obj) {
     my $f_class = $rel_info->{class};
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
       unless blessed $f_obj and $f_obj->isa($f_class);
   }
 
-  # _resolve_condition might return two hashrefs, specially in the
-  # current case, since we know $f_object is an object.
-  my ($condref1, $condref2) = $self->result_source->_resolve_condition
+  my ($cond, $crosstable) = $self->result_source->_resolve_condition
     ($rel_info->{cond}, $f_obj, $rel, $rel);
 
-  # if we get two condrefs, we need to use the second, otherwise we
-  # use the first.
-  $self->set_columns($condref2 ? $condref2 : $condref1);
+  $self->throw_exception(
+    "Custom relationship '$rel' does not resolve to a join-free condition fragment"
+  ) if $crosstable;
+
+  $self->set_columns($cond);
 
   return 1;
 }

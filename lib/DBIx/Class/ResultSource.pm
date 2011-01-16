@@ -10,7 +10,7 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
 use List::Util 'first';
-use Scalar::Util qw/weaken isweak/;
+use Scalar::Util qw/blessed weaken isweak/;
 use Storable qw/nfreeze thaw/;
 use namespace::clean;
 
@@ -1546,26 +1546,63 @@ sub resolve_condition {
   $self->_resolve_condition (@_);
 }
 
-# Resolves the passed condition to a concrete query fragment. If given an alias,
-# returns a join condition; if given an object, inverts that object to produce
-# a related conditional from that object.
 our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 
+# Resolves the passed condition to a concrete query fragment and a flag
+# indicating whether this is a cross-table condition.
 sub _resolve_condition {
   my ($self, $cond, $as, $for, $relname) = @_;
+
+  my $obj_rel = !!blessed $for;
+
   if (ref $cond eq 'CODE') {
+    my $relalias = $obj_rel ? 'me' : $as;
 
-    my $obj_rel = !!ref $for;
-
-    return $cond->({
+    my ($crosstable_cond, $joinfree_cond) = $cond->({
       self_alias => $obj_rel ? $as : $for,
-      foreign_alias => $obj_rel ? 'me' : $as,
+      foreign_alias => $relalias,
       self_resultsource => $self,
       foreign_relname => $relname || ($obj_rel ? $as : $for),
       self_rowobj => $obj_rel ? $for : undef
     });
 
-  } elsif (ref $cond eq 'HASH') {
+    if ($joinfree_cond) {
+
+      # FIXME sanity check until things stabilize, remove at some point
+      $self->throw_exception (
+        "A join-free condition returned for relationship '$relname' whithout a row-object to chain from"
+      ) unless $obj_rel;
+
+      # FIXME another sanity check
+      if (
+        ref $joinfree_cond ne 'HASH'
+          or
+        first { $_ !~ /^\Q$relalias.\E.+/ } keys %$joinfree_cond
+      ) {
+        $self->throw_exception (
+          "The join-free condition returned for relationship '$relname' must be a hash "
+         .'reference with all keys being valid columns on the related result source'
+        );
+      }
+
+      # normalize
+      for (values %$joinfree_cond) {
+        $_ = $_->{'='} if (
+          ref $_ eq 'HASH'
+            and
+          keys %$_ == 1
+            and
+          exists $_->{'='}
+        );
+      }
+
+      return wantarray ? ($joinfree_cond, 0) : $joinfree_cond;
+    }
+    else {
+      return wantarray ? ($crosstable_cond, 1) : $crosstable_cond;
+    }
+  }
+  elsif (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
       my $v = $cond->{$k};
@@ -1605,11 +1642,23 @@ sub _resolve_condition {
         $ret{"${as}.${k}"} = { -ident => "${for}.${v}" };
       }
     }
-    return \%ret;
-  } elsif (ref $cond eq 'ARRAY') {
-    return [ map { $self->_resolve_condition($_, $as, $for, $relname) } @$cond ];
-  } else {
-    $self->throw_exception ("Can't handle condition $cond yet :(");
+
+    return wantarray
+      ? ( \%ret, ($obj_rel || !defined $as || ref $as) ? 0 : 1 )
+      : \%ret
+    ;
+  }
+  elsif (ref $cond eq 'ARRAY') {
+    my (@ret, $crosstable);
+    for (@$cond) {
+      my ($cond, $crosstab) = $self->_resolve_condition($_, $as, $for, $relname);
+      push @ret, $cond;
+      $crosstable ||= $crosstab;
+    }
+    return wantarray ? (\@ret, $crosstable) : \@ret;
+  }
+  else {
+    $self->throw_exception ("Can't handle condition $cond for relationship '$relname' yet :(");
   }
 }
 
