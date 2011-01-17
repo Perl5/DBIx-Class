@@ -697,7 +697,7 @@ sub find {
       next if $keyref eq 'ARRAY'; # has_many for multi_create
 
       my $rel_q = $rsrc->_resolve_condition(
-        $relinfo->{cond}, $val, $key
+        $relinfo->{cond}, $val, $key, $key
       );
       die "Can't handle complex relationship conditions in find" if ref($rel_q) ne 'HASH';
       @related{keys %$rel_q} = values %$rel_q;
@@ -1974,6 +1974,7 @@ sub populate {
           $reverse_relinfo->{cond},
           $self,
           $result,
+          $rel,
         );
 
         delete $data->[$index]->{$rel};
@@ -2012,6 +2013,7 @@ sub populate {
           $rels->{$rel}{cond},
           $child,
           $main_row,
+          $rel,
         );
 
         my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});

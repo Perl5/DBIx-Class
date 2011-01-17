@@ -424,7 +424,7 @@ sub related_resultset {
     # additional condition in order to avoid an unecessary join if
     # that is at all possible.
     my ($cond, $extended_cond) = try {
-      $source->_resolve_condition( $rel_info->{cond}, $rel, $self )
+      $source->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
     }
     catch {
       if ($self->in_storage) {
@@ -714,7 +714,7 @@ sub set_from_related {
   # _resolve_condition might return two hashrefs, specially in the
   # current case, since we know $f_object is an object.
   my ($condref1, $condref2) = $self->result_source->_resolve_condition
-    ($rel_info->{cond}, $f_obj, $rel);
+    ($rel_info->{cond}, $f_obj, $rel, $rel);
 
   # if we get two condrefs, we need to use the second, otherwise we
   # use the first.

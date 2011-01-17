@@ -136,7 +136,7 @@ EOW
       my $link_cond;
       if (ref $cond eq 'CODE') {
         my ($cond_should_join, $cond_optimized) = $rel_source->_resolve_condition
-          ($cond, $obj, $f_rel);
+          ($cond, $obj, $f_rel, $f_rel);
         if ($cond_optimized) {
           $link_cond = $cond_optimized;
         } else {

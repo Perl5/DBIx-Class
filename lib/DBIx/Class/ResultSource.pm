@@ -1493,7 +1493,8 @@ sub _resolve_join {
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
-             $self->_resolve_condition($rel_info->{cond}, $as, $alias, $join) ];
+             $self->_resolve_condition($rel_info->{cond}, $as, $alias, $join)
+          ];
   }
 }
 
@@ -1551,7 +1552,7 @@ sub resolve_condition {
 our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 
 sub _resolve_condition {
-  my ($self, $cond, $as, $for, $rel) = @_;
+  my ($self, $cond, $as, $for, $relname) = @_;
   if (ref $cond eq 'CODE') {
 
     my $obj_rel = !!ref $for;
@@ -1560,7 +1561,7 @@ sub _resolve_condition {
       self_alias => $obj_rel ? $as : $for,
       foreign_alias => $obj_rel ? 'me' : $as,
       self_resultsource => $self,
-      foreign_relname => $rel || ($obj_rel ? $as : $for),
+      foreign_relname => $relname || ($obj_rel ? $as : $for),
       self_rowobj => $obj_rel ? $for : undef
     });
 
@@ -1606,7 +1607,7 @@ sub _resolve_condition {
     }
     return \%ret;
   } elsif (ref $cond eq 'ARRAY') {
-    return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
+    return [ map { $self->_resolve_condition($_, $as, $for, $relname) } @$cond ];
   } else {
     $self->throw_exception ("Can't handle condition $cond yet :(");
   }
