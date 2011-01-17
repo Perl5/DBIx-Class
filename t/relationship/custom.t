@@ -134,22 +134,21 @@ throws_ok {
 } qr/\Qunable to set_from_related - no simplified condition available for 'cds_90s'/, 'Create failed - non-simplified rel';
 
 # Do a self-join last-entry search
-my @last_track_ids;
+my @last_tracks;
 for my $cd ($schema->resultset('CD')->search ({}, { order_by => 'cdid'})->all) {
-  push @last_track_ids, $cd->tracks
-                            ->search ({}, { order_by => { -desc => 'position'} })
-                              ->get_column ('trackid')
-                                ->next;
+  push @last_tracks, $cd->tracks
+                         ->search ({}, { order_by => { -desc => 'position'} })
+                          ->next || ();
 }
 
-my $last_tracks = $schema->resultset('Track')->search (
+my $last_tracks_rs = $schema->resultset('Track')->search (
   {'next_track.trackid' => undef},
   { join => 'next_track', order_by => 'me.cd' },
 );
 
 is_deeply (
-  [$last_tracks->get_column ('trackid')->all],
-  [ grep { $_ } @last_track_ids ],
+  [$last_tracks_rs->get_column ('trackid')->all],
+  [ map { $_->trackid } @last_tracks ],
   'last group-entry via self-join works',
 );
 
@@ -186,5 +185,28 @@ lives_ok {
 } 'can fetch many to many with non-optimized version';
 is(scalar @artists, 1, 'only one artist is associated');
 
+
+# Make a single for each last_track
+my @singles = map {
+  $_->create_related('cd_single', {
+    title => $_->title . ' (the single)',
+    artist => $artist,
+    year => 1999,
+  }) } @last_tracks
+;
+
+# See if chaining works
+is_deeply (
+  [ map { $_->title } $last_tracks_rs->search_related('cd_single')->all ],
+  [ map { $_->title } @singles ],
+  'Retrieved singles in proper order'
+);
+
+# See if prefetch works
+is_deeply (
+  [ map { $_->cd_single->title } $last_tracks_rs->search({}, { prefetch => 'cd_single' })->all ],
+  [ map { $_->title } @singles ],
+  'Prefetched singles in proper order'
+);
 
 done_testing;
