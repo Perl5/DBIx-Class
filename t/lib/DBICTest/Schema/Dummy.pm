@@ -20,4 +20,7 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('id');
 
+# part of a test, do not remove
+__PACKAGE__->sequence('bogus');
+
 1;

@@ -633,12 +633,11 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 sub sequence {
   my ($self,$seq) = @_;
 
-  my $rsrc = $self->result_source;
-  my @pks = $rsrc->primary_columns
+  my @pks = $self->primary_columns
     or next;
 
   $_->{sequence} = $seq
-    for values %{ $rsrc->columns_info (\@pks) };
+    for values %{ $self->columns_info (\@pks) };
 }
 
 

@@ -3,6 +3,8 @@ Revision history for DBIx::Class
     * Fixes
         - Throw comprehensible exception on erroneous $schema->source()
           invocation
+        - Fix sloppy refactor of RSrc::sequence back from 89170201
+          (RT#64839)
 
 0.08126_01 2011-01-14 14:00 (UTC)
     * New Features / Changes
