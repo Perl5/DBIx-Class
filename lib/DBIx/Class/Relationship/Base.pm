@@ -556,7 +556,36 @@ on it.
 
 sub new_related {
   my ($self, $rel, $values, $attrs) = @_;
-  return $self->search_related($rel)->new($values, $attrs);
+
+  # FIXME - this is a bad position for this (also an identical copy in
+  # set_from_related), but I have no saner way to hook, and I absolutely
+  # want this to throw at least for coderefs, instead of the "insert a NULL
+  # when it gets hard" insanity --ribasushi
+  #
+  # sanity check - currently throw when a complex coderef rel is encountered
+  # FIXME - should THROW MOAR!
+
+  if (ref $self) {  # cdbi calls this as a class method, /me vomits
+
+    my $rsrc = $self->result_source;
+    my (undef, $crosstable, $relcols) = $rsrc->_resolve_condition (
+      $rsrc->relationship_info($rel)->{cond}, $rel, $self, $rel
+    );
+
+    $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
+      if $crosstable;
+
+    if (@{$relcols || []} and @$relcols = grep { ! exists $values->{$_} } @$relcols) {
+      $self->throw_exception(sprintf (
+        "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
+        $rel,
+        map { "'$_'" } @$relcols
+      ));
+    }
+  }
+
+  my $row = $self->search_related($rel)->new($values, $attrs);
+  return $row;
 }
 
 =head2 create_related
@@ -572,41 +601,7 @@ in L<DBIx::Class::ResultSet> for details.
 sub create_related {
   my $self = shift;
   my $rel = shift;
-
-  $self->throw_exception("Can't call *_related as class methods")
-    unless ref $self;
-
-  # we need to stop and check if this is at all possible. If this is
-  # an extended relationship with an incomplete definition, we should
-  # just forbid it right now.
-  my $rel_info = $self->result_source->relationship_info($rel);
-  if (ref $rel_info->{cond} eq 'CODE') {
-    my ($cond, $ext) = $rel_info->{cond}->({
-      self_alias => 'me',
-      foreign_alias => $rel,
-      self_rowobj => $self,
-      self_resultsource => $self->result_source,
-      foreign_relname => $rel,
-    });
-    $self->throw_exception("unable to set_from_related - no simplified condition available for '${rel}'")
-      unless $ext;
-
-    # now we need to make sure all non-identity relationship
-    # definitions are overriden.
-    my ($argref) = @_;
-    while ( my($col, $value) = each %$ext ) {
-      $col =~ s/^$rel\.//;
-      my $vref = ref $value;
-      if ($vref eq 'HASH') {
-        if (keys(%$value) && (keys %$value)[0] ne '=' &&
-            !exists $argref->{$col}) {
-          $self->throw_exception("unable to set_from_related via complex '${rel}' condition on column(s): '${col}'")
-        }
-      }
-    }
-  }
-
-  my $obj = $self->search_related($rel)->create(@_);
+  my $obj = $self->new_related($rel, @_)->insert;
   delete $self->{related_resultsets}->{$rel};
   return $obj;
 }
@@ -693,7 +688,8 @@ set them in the storage.
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
 
-  my $rel_info = $self->relationship_info($rel)
+  my $rsrc = $self->result_source;
+  my $rel_info = $rsrc->relationship_info($rel)
     or $self->throw_exception( "No such relationship ${rel}" );
 
   if (defined $f_obj) {
@@ -702,12 +698,24 @@ sub set_from_related {
       unless blessed $f_obj and $f_obj->isa($f_class);
   }
 
-  my ($cond, $crosstable) = $self->result_source->_resolve_condition
-    ($rel_info->{cond}, $f_obj, $rel, $rel);
 
-  $self->throw_exception(
-    "Custom relationship '$rel' does not resolve to a join-free condition fragment"
-  ) if $crosstable;
+  # FIXME - this is a bad position for this (also an identical copy in
+  # new_related), but I have no saner way to hook, and I absolutely
+  # want this to throw at least for coderefs, instead of the "insert a NULL
+  # when it gets hard" insanity --ribasushi
+  #
+  # sanity check - currently throw when a complex coderef rel is encountered
+  # FIXME - should THROW MOAR!
+  my ($cond, $crosstable, $relcols) = $rsrc->_resolve_condition (
+    $rel_info->{cond}, $f_obj, $rel, $rel
+  );
+  $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
+    if $crosstable;
+  $self->throw_exception(sprintf (
+    "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
+    $rel,
+    map { "'$_'" } @$relcols
+  )) if @{$relcols || []};
 
   $self->set_columns($cond);
 

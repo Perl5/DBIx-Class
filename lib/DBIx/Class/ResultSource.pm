@@ -1549,7 +1549,9 @@ sub resolve_condition {
 our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 
 # Resolves the passed condition to a concrete query fragment and a flag
-# indicating whether this is a cross-table condition.
+# indicating whether this is a cross-table condition. Also an optional
+# list of non-triviail values (notmally conditions) returned as a part
+# of a joinfree condition hash
 sub _resolve_condition {
   my ($self, $cond, $as, $for, $relname) = @_;
 
@@ -1566,6 +1568,7 @@ sub _resolve_condition {
       self_rowobj => $obj_rel ? $for : undef
     });
 
+    my $cond_cols;
     if ($joinfree_cond) {
 
       # FIXME sanity check until things stabilize, remove at some point
@@ -1596,7 +1599,30 @@ sub _resolve_condition {
         );
       }
 
-      return wantarray ? ($joinfree_cond, 0) : $joinfree_cond;
+      # see which parts of the joinfree cond are conditionals
+      my $relcol_list = { map { $_ => 1 } $self->related_source($relname)->columns };
+
+      for my $c (keys %$joinfree_cond) {
+        my ($colname) = $c =~ /^ (?: \Q$relalias.\E )? (.+)/x;
+
+        unless ($relcol_list->{$colname}) {
+          push @$cond_cols, $colname;
+          next;
+        }
+
+        if (
+          ref $joinfree_cond->{$c}
+            and
+          ref $joinfree_cond->{$c} ne 'SCALAR'
+            and
+          ref $joinfree_cond->{$c} ne 'REF'
+        ) {
+          push @$cond_cols, $colname;
+          next;
+        }
+      }
+
+      return wantarray ? ($joinfree_cond, 0, $cond_cols) : $joinfree_cond;
     }
     else {
       return wantarray ? ($crosstable_cond, 1) : $crosstable_cond;
@@ -1661,7 +1687,6 @@ sub _resolve_condition {
     $self->throw_exception ("Can't handle condition $cond for relationship '$relname' yet :(");
   }
 }
-
 
 # Accepts one or more relationships for the current source and returns an
 # array of column names for each of those relationships. Column names are
