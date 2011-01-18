@@ -5,6 +5,7 @@ Revision history for DBIx::Class
           invocation
         - Fix sloppy refactor of RSrc::sequence back from 89170201
           (RT#64839)
+        - Fix incorrect error detection during populate() on Oracle
 
 0.08126_01 2011-01-14 14:00 (UTC)
     * New Features / Changes

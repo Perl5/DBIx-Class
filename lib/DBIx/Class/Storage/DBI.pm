@@ -1829,6 +1829,14 @@ sub _execute_array {
     $err = shift;
   };
 
+  # Not all DBDs are create equal. Some throw on error, some return
+  # an undef $rv, and some set $sth->err - try whatever we can
+  $err = ($sth->errstr || 'UNKNOWN ERROR ($sth->errstr is unset)') if (
+    ! defined $err
+      and
+    ( !defined $rv or $sth->err )
+  );
+
   # Statement must finish even if there was an exception.
   try {
     $sth->finish
@@ -1836,9 +1844,6 @@ sub _execute_array {
   catch {
     $err = shift unless defined $err
   };
-
-  $err = $sth->errstr
-    if (! defined $err and $sth->err);
 
   if (defined $err) {
     my $i = 0;

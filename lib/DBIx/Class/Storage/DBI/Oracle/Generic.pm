@@ -308,6 +308,15 @@ sub _dbh_execute {
   return wantarray ? @res : $res[0];
 }
 
+sub _dbh_execute_array {
+  #my ($self, $sth, $tuple_status, @extra) = @_;
+
+  # DBD::Oracle warns loudly on partial execute_array failures
+  local $_[1]->{PrintWarn} = 0;
+
+  shift->next::method(@_);
+}
+
 =head2 get_autoinc_seq
 
 Returns the sequence name for an autoincrement column

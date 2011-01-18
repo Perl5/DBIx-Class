@@ -359,6 +359,57 @@ sub _run_tests {
     $schema->storage->debug ($orig_debug);
   }}
 
+# test populate (identity, success and error handling)
+  my $art_rs = $schema->resultset('Artist');
+
+  my $seq_pos = $art_rs->get_column('artistid')->max;
+  ok($seq_pos, 'Starting with something in the artist table');
+
+
+  my $pop_rs = $schema->resultset('Artist')->search(
+    { name => { -like => 'pop_art_%' } },
+    { order_by => 'artistid' }
+  );
+
+  $art_rs->delete;
+  lives_ok {
+    $pop_rs->populate([
+      map { +{ name => "pop_art_$_" } }
+      (1,2,3)
+    ]);
+
+    is_deeply (
+      [ $pop_rs->get_column('artistid')->all ],
+      [ map { $seq_pos + $_ } (1,2,3) ],
+      'Sequence works after empty-table insertion'
+    );
+  } 'Populate without identity does not throw';
+
+  lives_ok {
+    $pop_rs->populate([
+      map { +{ artistid => $_, name => "pop_art_$_" } }
+      (1,2,3)
+    ]);
+
+    is_deeply (
+      [ $pop_rs->get_column('artistid')->all ],
+      [ 1,2,3, map { $seq_pos + $_ } (1,2,3) ],
+      'Explicit id population works'
+    );
+  } 'Populate with identity does not throw';
+
+  throws_ok {
+    $pop_rs->populate([
+      map { +{ artistid => $_, name => "pop_art_$_" } }
+      (200, 1, 300)
+    ]);
+  } qr/unique constraint.+populate slice.+name => "pop_art_1"/s, 'Partially failed populate throws';
+
+  is_deeply (
+    [ $pop_rs->get_column('artistid')->all ],
+    [ 1,2,3, map { $seq_pos + $_ } (1,2,3) ],
+    'Partially failed populate did not alter table contents'
+  );
 
 # test sequence detection from a different schema
   SKIP: {
