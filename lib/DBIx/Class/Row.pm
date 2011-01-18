@@ -21,8 +21,6 @@ BEGIN {
       : sub () { 0 };
 }
 
-__PACKAGE__->mk_group_accessors('simple' => [result_source => '_result_source']);
-
 =head1 NAME
 
 DBIx::Class::Row - Basic row methods
@@ -268,10 +266,8 @@ sub new {
 =back
 
 Inserts an object previously created by L</new> into the database if
-it isn't already in there. Returns the object itself. Requires the
-object's result source to be set, or the class to have a
-result_source_instance method. To insert an entirely new row into
-the database, use C<create> (see L<DBIx::Class::ResultSet/create>).
+it isn't already in there. Returns the object itself. To insert an
+entirely new row into the database, use L<DBIx::Class::ResultSet/create>.
 
 To fetch an uninserted row object, call
 L<new|DBIx::Class::ResultSet/new> on a resultset.
@@ -285,8 +281,6 @@ sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
   my $source = $self->result_source;
-  $source ||=  $self->result_source($self->result_source_instance)
-    if $self->can('result_source_instance');
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
 
@@ -596,11 +590,12 @@ sub delete {
     $self->in_storage(undef);
   }
   else {
-    $self->throw_exception("Can't do class delete without a ResultSource instance")
-      unless $self->can('result_source_instance');
+    my $rsrc = try { $self->result_source_instance }
+      or $self->throw_exception("Can't do class delete without a ResultSource instance");
+
     my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
     my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
-    $self->result_source_instance->resultset->search(@_)->delete;
+    $rsrc->resultset->search(@_)->delete;
   }
   return $self;
 }
@@ -1289,6 +1284,27 @@ sub is_column_changed {
 =back
 
 Accessor to the L<DBIx::Class::ResultSource> this object was created from.
+
+=cut
+
+sub result_source {
+  $_[0]->throw_exception( 'result_source can be called on instances only' )
+    unless ref $_[0];
+
+  @_ > 1
+    ? $_[0]->{_result_source} = $_[1]
+
+    # note this is a || not a ||=, the difference is important
+    : $_[0]->{_result_source} || do {
+        my $class = ref $_[0];
+        $_[0]->can('result_source_instance')
+          ? $_[0]->result_source_instance
+          : $_[0]->throw_exception(
+            "No result source instance registered for $class, did you forget to call $class->table(...) ?"
+          )
+      }
+  ;
+}
 
 =head2 register_column
 

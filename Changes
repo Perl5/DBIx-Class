@@ -6,6 +6,8 @@ Revision history for DBIx::Class
         - Fix sloppy refactor of RSrc::sequence back from 89170201
           (RT#64839)
         - Fix incorrect error detection during populate() on Oracle
+        - Better handling of result_source-less row objects by
+          auto-calling result_source_instance when necessary
 
 0.08126_01 2011-01-14 14:00 (UTC)
     * New Features / Changes
