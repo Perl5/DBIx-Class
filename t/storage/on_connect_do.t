@@ -1,7 +1,11 @@
 use strict;
 use warnings;
 
+# !!! do not replace this with done_testing - tests reside in the callbacks
+# !!! number of calls is important
 use Test::More tests => 12;
+# !!!
+use Test::Exception;
 
 use lib qw(t/lib);
 use base 'DBICTest';
@@ -46,8 +50,9 @@ is_deeply (
   [ [ 2 ], [ 3 ], [ 7 ] ],
   'on_connect_do() worked'
 );
-eval { $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent'); };
-ok $@, 'Searching for nonexistent table dies';
+dies_ok {
+  $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent');
+} 'Searching for nonexistent table dies';
 
 $schema->storage->disconnect();
 
@@ -75,8 +80,10 @@ sub check_exists {
 
 sub check_dropped {
     my $storage = shift;
-    eval { $storage->dbh->do('SELECT 1 FROM TEST_empty'); };
-    ok $@, 'Reading from dropped table fails';
+
+    dies_ok {
+      $storage->dbh->do('SELECT 1 FROM TEST_empty');
+    } 'Reading from dropped table fails';
     return;
 }
 
