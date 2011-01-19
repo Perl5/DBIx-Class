@@ -65,7 +65,7 @@ __PACKAGE__->has_many(
 );
 __PACKAGE__->many_to_many('artworks', 'artwork_to_artist', 'artwork');
 
-__PACKAGE__->result_source_instance->inject_resultset_components(['+A::Useless']);
+__PACKAGE__->result_source_instance->inject_resultset_components(['+A::Useless', '+A::MoarUseless']);
 
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;

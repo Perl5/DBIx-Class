@@ -1889,7 +1889,7 @@ sub inject_resultset_components {
    my @components = @{shift @_};
 
    # this generation of class bit needs to go into CCC
-   my $class = $self->resultset_class . '::' . rand(100);
+   my $class = $self->resultset_class . "::WITH::" . join ("::", @components);
    Class::C3::Componentised->inject_base($class, $self->resultset_class);
    $self->resultset_class($class);
 
