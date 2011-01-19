@@ -1,5 +1,11 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - DBIx::Class now warns when the user erroneously supplies
+          AutoCommit => 0 to connect()
+        - A warning is also issued before forcing the RaiseError
+          setting of externally supplied DBI handles
+
     * Fixes
         - Throw comprehensible exception on erroneous $schema->source()
           invocation

@@ -140,6 +140,7 @@ my $invocations = {
             AutoCommit => 0,
           },
       ],
+      warn => qr/\QYou provided explicit AutoCommit => 0 in your connection_info/,
   },
   'connect_info ([ \%attr_with_coderef ])' => {
       args => [ {

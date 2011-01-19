@@ -595,8 +595,18 @@ sub connect_info {
 
   my @args = @{ $info->{arguments} };
 
-  $self->_dbi_connect_info([@args,
-    %attrs && !(ref $args[0] eq 'CODE') ? \%attrs : ()]);
+  if (keys %attrs and ref $args[0] ne 'CODE') {
+    carp
+        'You provided explicit AutoCommit => 0 in your connection_info. '
+      . 'This is almost universally a bad idea (see the footnotes of '
+      . 'DBIx::Class::Storage::DBI for more info). If you still want to '
+      . 'do this you can set $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} to disable '
+      . 'this warning.'
+      if ! $attrs{AutoCommit} and ! $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK};
+
+    push @args, \%attrs if keys %attrs;
+  }
+  $self->_dbi_connect_info(\@args);
 
   # FIXME - dirty:
   # save attributes them in a separate accessor so they are always
@@ -666,11 +676,12 @@ sub _normalize_connect_info {
   return \%info;
 }
 
-sub _default_dbi_connect_attributes {
-  return {
+sub _default_dbi_connect_attributes () {
+  +{
     AutoCommit => 1,
-    RaiseError => 1,
     PrintError => 0,
+    RaiseError => 1,
+    ShowErrorStatement => 1,
   };
 }
 
@@ -1257,6 +1268,27 @@ sub _connect {
 
     unless ($self->unsafe) {
 
+      $self->throw_exception(
+        'Refusing clobbering of {HandleError} installed on externally supplied '
+       ."DBI handle $dbh. Either remove the handler or use the 'unsafe' attribute."
+      ) if $dbh->{HandleError} and ref $dbh->{HandleError} ne '__DBIC__DBH__ERROR__HANDLER__';
+
+      # Default via _default_dbi_connect_attributes is 1, hence it was an explicit
+      # request, or an external handle. Complain and set anyway
+      unless ($dbh->{RaiseError}) {
+        carp( ref $info[0] eq 'CODE'
+
+          ? "The 'RaiseError' of the externally supplied DBI handle is set to false. "
+           ."DBIx::Class will toggle it back to true, unless the 'unsafe' connect "
+           .'attribute has been supplied'
+
+          : 'RaiseError => 0 supplied in your connection_info, without an explicit '
+           .'unsafe => 1. Toggling RaiseError back to true'
+        );
+
+        $dbh->{RaiseError} = 1;
+      }
+
       # this odd anonymous coderef dereference is in fact really
       # necessary to avoid the unwanted effect described in perl5
       # RT#75792
@@ -1264,7 +1296,9 @@ sub _connect {
         my $weak_self = $_[0];
         weaken $weak_self;
 
-        $_[1]->{HandleError} = sub {
+        # the coderef is blessed so we can distinguish it from externally
+        # supplied handles (which must be preserved)
+        $_[1]->{HandleError} = bless sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
           }
@@ -1273,12 +1307,8 @@ sub _connect {
             # the scope of DBIC
             croak ("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
           }
-        };
+        }, '__DBIC__DBH__ERROR__HANDLER__';
       }->($self, $dbh);
-
-      $dbh->{ShowErrorStatement} = 1;
-      $dbh->{RaiseError} = 1;
-      $dbh->{PrintError} = 0;
     }
   }
   catch {

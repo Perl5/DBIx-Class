@@ -363,9 +363,10 @@ my $fail_code = sub {
 
 # make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
 warnings_are {
-  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  my $factory = DBICTest->init_schema;
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
+  $dbh->{AutoCommit} = 0;
 
   ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
   my $schema = DBICTest::Schema->connect (sub { $dbh });
@@ -385,13 +386,13 @@ warnings_are {
 
 # make sure AutoCommit => 0 on external handles behaves correctly with txn_do
 warnings_are {
-  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  my $factory = DBICTest->init_schema;
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
+  $dbh->{AutoCommit} = 0;
 
   ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
   my $schema = DBICTest::Schema->connect (sub { $dbh });
-
 
   lives_ok ( sub {
     $schema->txn_do (sub { $schema->resultset ('CD')->delete });

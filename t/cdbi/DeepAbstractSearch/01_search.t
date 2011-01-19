@@ -12,6 +12,10 @@ BEGIN {
 my $DB  = "t/var/cdbi_testdb";
 unlink $DB if -e $DB;
 
+# not usre why this test needs an AutoCommit => 0 and a commit further
+# down - EDONOTCARE
+$ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+
 my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 0 });
 
 package Music::DBI;

@@ -3,8 +3,9 @@ use warnings;
 
 # !!! do not replace this with done_testing - tests reside in the callbacks
 # !!! number of calls is important
-use Test::More tests => 12;
+use Test::More tests => 13;
 # !!!
+use Test::Warn;
 use Test::Exception;
 
 use lib qw(t/lib);
@@ -33,7 +34,7 @@ is_deeply (
 $schema->storage->disconnect;
 
 ok $schema->connection(
-    sub { DBI->connect(DBICTest->_database) },
+    sub { DBI->connect(DBICTest->_database, undef, undef, { AutoCommit => 0 }) },
     {
         on_connect_do       => [
             'CREATE TABLE TEST_empty (id INTEGER)',
@@ -44,6 +45,11 @@ ok $schema->connection(
             [\&check_exists, 'DROP TABLE TEST_empty', \&check_dropped],
     },
 ), 'connection()';
+
+warnings_exist {
+  $schema->storage->ensure_connected
+} qr/The 'RaiseError' of the externally supplied DBI handle is set to false/,
+'Warning on clobbered AutoCommit => 0 fired';
 
 is_deeply (
   $schema->storage->dbh->selectall_arrayref('SELECT * FROM TEST_empty'),
