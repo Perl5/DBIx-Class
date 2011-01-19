@@ -126,8 +126,9 @@ sub connect_call_use_mars {
     }
 
     if (my ($data_source) = $dsn =~ /^dbi:ODBC:([\w-]+)\z/i) { # prefix with DSN
-      warn "Bare DSN in ODBC connect string, rewriting to DSN=$data_source\n";
-      $dsn = "dbi:ODBC:DSN=$data_source";
+      warn "Bare DSN in ODBC connect string, rewriting as 'dsn=$data_source'"
+          ." for MARS\n";
+      $dsn = "dbi:ODBC:dsn=$data_source";
     }
 
     $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
