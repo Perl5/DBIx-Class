@@ -11,7 +11,7 @@ my $schema = DBICTest->init_schema;
 isa_ok $schema->resultset('Artist'), 'A::Useless', 'Artist RS';
 ok !$schema->resultset('CD')->isa('A::Useless'), 'CD RS is not A::Useless';
 
-my @classes = ('DBICTest::BaseResultSet::WITH::+A::Useless::+A::MoarUseless',
+my @classes = ('DBICTest::BaseResultSet::WITH::_A__Useless::_A__MoarUseless',
                'A::Useless',
                'A::MoarUseless',
                'DBICTest::BaseResultSet',
@@ -20,7 +20,6 @@ my @classes = ('DBICTest::BaseResultSet::WITH::+A::Useless::+A::MoarUseless',
                'DBIx::Class::Componentised',
                'Class::C3::Componentised',
                'Class::Accessor::Grouped');
-warn "classes: " . Dumper \@classes;
 
 is_deeply(mro::get_linear_isa(ref $schema->resultset('Artist')), \@classes, 'Proper ISA Stack Order');
 
