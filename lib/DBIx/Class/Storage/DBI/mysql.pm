@@ -33,6 +33,24 @@ sub _dbh_last_insert_id {
   $dbh->{mysql_insertid};
 }
 
+# here may seem like an odd place to override, but this is the first
+# method called after we are connected *and* the driver is determined
+# ($self is reblessed). See code flow in ::Storage::DBI::_populate_dbh
+sub _run_connection_actions {
+  my $self = shift;
+
+  # default mysql_auto_reconnect to off unless explicitly set
+  if (
+    $self->_dbh->{mysql_auto_reconnect}
+      and
+    ! exists $self->_dbic_connect_attributes->{mysql_auto_reconnect}
+  ) {
+    $self->_dbh->{mysql_auto_reconnect} = 0;
+  }
+
+  $self->next::method(@_);
+}
+
 # we need to figure out what mysql version we're running
 sub sql_maker {
   my $self = shift;

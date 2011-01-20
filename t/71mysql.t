@@ -344,13 +344,21 @@ ZEROINSEARCH: {
   );
 }
 
-## If find() is the first query after connect()
-## DBI::Storage::sql_maker() will be called before
-## _determine_driver() and so the ::SQLHacks class for MySQL
-## will not be used
+# make sure find hooks determine driver
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema->resultset("Artist")->find(4);
+  isa_ok($schema->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
+}
 
-my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-$schema2->resultset("Artist")->find(4);
-isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
+# make sure the mysql_auto_reconnect buggery is avoided
+{
+  local $ENV{MOD_PERL} = 'boogiewoogie';
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  ok (! $schema->storage->_get_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect unset regardless of ENV' );
+
+  my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
+  ok ($schema2->storage->_get_dbh->{mysql_auto_reconnect}, 'but is properly set if explicitly requested mysql_auto_reconnect' );
+}
 
 done_testing;

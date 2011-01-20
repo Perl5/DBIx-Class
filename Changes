@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Disable mysql_auto_reconnect for MySQL - depending on the ENV
+          it sometimes defaults to on and causes major borkage on older
+          DBD::mysql versions
+
 0.08127 2011-01-19 16:40 (UTC)
     * New Features / Changes
         - Schema/resultsource instances are now crossreferenced via a new
