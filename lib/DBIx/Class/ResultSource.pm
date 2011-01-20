@@ -1890,8 +1890,8 @@ sub inject_resultset_components {
 
    # this generation of class bit needs to go into CCC
    my @normalized = @components; 
-   $_ =~ s/\W/_/g for @normalized;  
-   my $class = $self->resultset_class . "::WITH::" . join ("::", @normalized);
+   $_ =~ s/[\W_]+/_/g for @normalized;  
+   my $class = $self->resultset_class . "::+::" . join ("::", @normalized);
    Class::C3::Componentised->inject_base($class, $self->resultset_class);
    $self->resultset_class($class);
 

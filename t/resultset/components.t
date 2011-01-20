@@ -11,7 +11,7 @@ my $schema = DBICTest->init_schema;
 isa_ok $schema->resultset('Artist'), 'A::Useless', 'Artist RS';
 ok !$schema->resultset('CD')->isa('A::Useless'), 'CD RS is not A::Useless';
 
-my @classes = ('DBICTest::BaseResultSet::WITH::_A__Useless::_A__MoarUseless',
+my @classes = ('DBICTest::BaseResultSet::+::_A_Useless::_A_MoarUseless',
                'A::Useless',
                'A::MoarUseless',
                'DBICTest::BaseResultSet',
