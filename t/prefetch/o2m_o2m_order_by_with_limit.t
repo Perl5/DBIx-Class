@@ -6,6 +6,12 @@ use Test::More;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 use DBICTest;
+use DBIx::Class::SQLMaker::LimitDialects;
+
+my ($ROWS, $OFFSET) = (
+   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
+   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+);
 
 my $schema = DBICTest->init_schema();
 
@@ -35,8 +41,8 @@ is_same_sql_bind(
             ON cds_unordered.artist = me.artistid
         WHERE ( me.rank = ? )
         ORDER BY me.name ASC, me.artistid DESC
-        LIMIT 3
-        OFFSET 3
+        LIMIT ?
+        OFFSET ?
       ) cds_unordered
         ON cds_unordered.artist = me.artistid
       LEFT JOIN track tracks
@@ -44,8 +50,11 @@ is_same_sql_bind(
     WHERE ( me.rank = ? )
     ORDER BY me.name ASC, me.artistid DESC, tracks.cd
   )},
-  [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' }
-            => 13 ] } (1,2)
+  [
+    [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
+    [ $ROWS => 3 ],
+    [ $OFFSET => 3 ],
+    [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
   ],
   'correct SQL on limited prefetch over search_related ordered by root',
 );

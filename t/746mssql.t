@@ -8,6 +8,10 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 use Try::Tiny;
 
+use DBIx::Class::SQLMaker::LimitDialects;
+my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
+my $TOTAL  = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype;
+
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
@@ -378,13 +382,16 @@ SQL
         is_same_bind (
           \@bind,
           [
-            $dialect eq 'Top' ? [ { dbic_colname => 'test' } => 'xxx' ] : (), # the extra re-order bind
-            (map {
-              [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
-                => 'somebogusstring' ],
-              [ { dbic_colname => 'test' }
-                => 'xxx' ],
-            } (1,2)), # double because of the prefetch subq
+            ($dialect eq 'Top' ? [ { dbic_colname => 'test' } => 'xxx' ] : ()), # the extra re-order bind
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
+              => 'somebogusstring' ],
+            [ { dbic_colname => 'test' }
+              => 'xxx' ],
+            ($dialect ne 'Top' ? ( [ $OFFSET => 7 ], [ $TOTAL => 9 ] ) : ()), # parameterised RNO
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
+              => 'somebogusstring' ],
+            [ { dbic_colname => 'test' }
+              => 'xxx' ],
           ],
         );
 
@@ -429,6 +436,8 @@ SQL
             [ { dbic_colname => 'test' }
               => '1' ],
 
+            # rno(?)
+            $dialect ne 'Top' ? ( [ $OFFSET => 5 ], [ $TOTAL => 6 ] ) : (),
             # outer
             [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
               => 'wiggle' ],

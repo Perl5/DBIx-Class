@@ -5,6 +5,12 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
+use DBIx::Class::SQLMaker::LimitDialects;
+
+my ($TOTAL, $OFFSET) = (
+   DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
+   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+);
 
 my $schema = DBICTest->init_schema;
 
@@ -34,10 +40,13 @@ is_same_sql_bind(
             WHERE ( source = ? )
           ) me
       ) me
-    WHERE rno__row__index BETWEEN 1 AND 1
+    WHERE rno__row__index >= ? AND rno__row__index <= ?
   )',
-  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
-    => 'Library' ] ],
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $OFFSET => 1 ],
+    [ $TOTAL => 1 ],
+  ],
 );
 
 $schema->storage->_sql_maker->quote_char ([qw/ [ ] /]);
@@ -67,10 +76,13 @@ is_same_sql_bind(
             WHERE ( [source] = ? )
           ) [me]
       ) [me]
-    WHERE [rno__row__index] BETWEEN 1 AND 1
+    WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
   )',
-  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
-    => 'Library' ] ],
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $OFFSET => 1 ],
+    [ $TOTAL => 1 ],
+  ],
 );
 
 {

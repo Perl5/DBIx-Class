@@ -6,6 +6,17 @@ use strict;
 use List::Util 'first';
 use namespace::clean;
 
+# constants are used not only here, but also in comparison tests
+sub __rows_bindtype () {
+  +{ sqlt_datatype => 'integer' }
+}
+sub __offset_bindtype () {
+  +{ sqlt_datatype => 'integer' }
+}
+sub __total_bindtype () {
+  +{ sqlt_datatype => 'integer' }
+}
+
 =head1 NAME
 
 DBIx::Class::SQLMaker::LimitDialects - SQL::Abstract::Limit-like functionality for DBIx::Class::SQLMaker
@@ -30,8 +41,6 @@ names.
 
 Currently the provided dialects are:
 
-=cut
-
 =head2 LimitOffset
 
  SELECT ... LIMIT $limit OFFSET $offset
@@ -40,9 +49,13 @@ Supported by B<PostgreSQL> and B<SQLite>
 
 =cut
 sub _LimitOffset {
-    my ( $self, $sql, $order, $rows, $offset ) = @_;
-    $sql .= $self->_order_by( $order ) . " LIMIT $rows";
-    $sql .= " OFFSET $offset" if +$offset;
+    my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
+    $sql .= $self->_parse_rs_attrs( $rs_attrs ) . " LIMIT ?";
+    push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+    if ($offset) {
+      $sql .= " OFFSET ?";
+      push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset ];
+    }
     return $sql;
 }
 
@@ -54,10 +67,15 @@ Supported by B<MySQL> and any L<SQL::Statement> based DBD
 
 =cut
 sub _LimitXY {
-    my ( $self, $sql, $order, $rows, $offset ) = @_;
-    $sql .= $self->_order_by( $order ) . " LIMIT ";
-    $sql .= "$offset, " if +$offset;
-    $sql .= $rows;
+    my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
+    $sql .= $self->_parse_rs_attrs( $rs_attrs ) . " LIMIT ";
+    if ($offset) {
+      $sql .= '?, ';
+      push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset ];
+    }
+    $sql .= '?';
+    push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+
     return $sql;
 }
 
@@ -119,15 +137,16 @@ sub _RowNumberOver {
   my $qalias = $self->_quote ($rs_attrs->{alias});
   my $idx_name = $self->_quote ('rno__row__index');
 
-  $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
+  $sql = <<EOS;
 
 SELECT $out_sel FROM (
   SELECT $mid_sel, ROW_NUMBER() OVER( $rno_ord ) AS $idx_name FROM (
     SELECT $in_sel ${sql}${group_having}
   ) $qalias
-) $qalias WHERE $idx_name BETWEEN %u AND %u
+) $qalias WHERE $idx_name >= ? AND $idx_name <= ?
 
 EOS
+   push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset + 1], [ $self->__total_bindtype => $offset + $rows ];
 
   return $sql;
 }
@@ -153,10 +172,16 @@ sub _SkipFirst {
 
   return sprintf ('SELECT %s%s%s%s',
     $offset
-      ? sprintf ('SKIP %u ', $offset)
+      ? do {
+         push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset];
+         'SKIP ? '
+      }
       : ''
     ,
-    sprintf ('FIRST %u ', $rows),
+    do {
+       push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+       'FIRST ? '
+    },
     $sql,
     $self->_parse_rs_attrs ($rs_attrs),
   );
@@ -177,9 +202,15 @@ sub _FirstSkip {
     or $self->throw_exception("Unrecognizable SELECT: $sql");
 
   return sprintf ('SELECT %s%s%s%s',
-    sprintf ('FIRST %u ', $rows),
+    do {
+       push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+       'FIRST ? '
+    },
     $offset
-      ? sprintf ('SKIP %u ', $offset)
+      ? do {
+         push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset];
+         'SKIP ? '
+      }
       : ''
     ,
     $sql,
@@ -213,23 +244,21 @@ sub _RowNum {
 
   if ($offset) {
 
-    $sql = sprintf (<<EOS, $offset + $rows, $offset + 1 );
-
+    push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
+    $sql =<<"EOS";
 SELECT $outsel FROM (
   SELECT $outsel, ROWNUM $idx_name FROM (
     SELECT $insel ${sql}${order_group_having}
-  ) $qalias WHERE ROWNUM <= %u
-) $qalias WHERE $idx_name >= %u
-
+  ) $qalias WHERE ROWNUM <= ?
+) $qalias WHERE $idx_name >= ?
 EOS
   }
   else {
-    $sql = sprintf (<<EOS, $rows );
-
+    push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+    $sql =<<"EOS";
   SELECT $outsel FROM (
     SELECT $insel ${sql}${order_group_having}
-  ) $qalias WHERE ROWNUM <= %u
-
+  ) $qalias WHERE ROWNUM <= ?
 EOS
   }
 
@@ -566,8 +595,15 @@ EOS
       $order_by,
     )),
     $offset
-      ? sprintf ('BETWEEN %u AND %u', $offset, $offset + $rows - 1)
-      : sprintf ('< %u', $rows )
+      ? do {
+         push @{$self->{limit_bind}},
+            [ $self->__offset_bindtype => $offset ], [ $self->__total_bindtype => $offset + $rows - 1];
+         'BETWEEN ? AND ?';
+        }
+      : do {
+         push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+         '< ?';
+         }
     ,
   );
 

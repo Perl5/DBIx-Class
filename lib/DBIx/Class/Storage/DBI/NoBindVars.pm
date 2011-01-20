@@ -6,7 +6,12 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-=head1 NAME 
+use DBIx::Class::SQLMaker::LimitDialects;
+use List::Util qw/first/;
+
+use namespace::clean;
+
+=head1 NAME
 
 DBIx::Class::Storage::DBI::NoBindVars - Sometime DBDs have poor to no support for bind variables
 
@@ -76,7 +81,8 @@ are the current column data type and the actual bind value. The return
 value is interpreted as: true - do not quote, false - do quote. You should
 override this in you Storage::DBI::<database> subclass, if your RDBMS
 does not like quotes around certain datatypes (e.g. Sybase and integer
-columns). The default method always returns false (do quote).
+columns). The default method returns false, except for integer datatypes
+paired with values containing nothing but digits.
 
  WARNING!!!
 
@@ -87,6 +93,17 @@ columns). The default method always returns false (do quote).
 
 sub interpolate_unquoted {
   #my ($self, $datatype, $value) = @_;
+
+  return 1 if (
+    defined $_[2]
+      and
+    $_[1]
+      and
+    $_[2] !~ /\D/
+      and
+    $_[1] =~ /int(?:eger)? | (?:tiny|small|medium|big)int/ix
+  );
+
   return 0;
 }
 

@@ -3,6 +3,9 @@ Revision history for DBIx::Class
     * New Features / Changes
         - Add quote_names connection option. When set to true automatically
           sets quote_char and name_sep appropriate for your RDBMS
+        - All limit dialects (except for the older Top and FetchFirst) are
+          now using bind parameters for the limits/offsets, making DBI's
+          prepare_cached useful across paged resutsets
         - Support for MS Access databases via DBD::ODBC and DBD::ADO (only
           Win32 support currently tested)
         - IC::DateTime support for MSSQL over DBD::ADO

@@ -81,12 +81,17 @@ BEGIN {
 }
 
 # the "oh noes offset/top without limit" constant
-# limited to 32 bits for sanity (and consistency,
-# since it is ultimately handed to sprintf %u)
+# limited to 31 bits for sanity (and consistency,
+# since it may be handed to the like of sprintf %u)
+#
+# Also *some* builds of SQLite fail the test
+#   some_column BETWEEN ? AND ?: 1, 4294967295
+# with the proper integer bind attrs
+#
 # Implemented as a method, since ::Storage::DBI also
 # refers to it (i.e. for the case of software_limit or
 # as the value to abuse with MSSQL ordered subqueries)
-sub __max_int { 0xFFFFFFFF };
+sub __max_int () { 0x7FFFFFFF };
 
 sub new {
   my $self = shift->next::method(@_);
@@ -211,7 +216,7 @@ sub select {
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where group having order/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where group having order limit/);
 }
 
 my $for_syntax = {

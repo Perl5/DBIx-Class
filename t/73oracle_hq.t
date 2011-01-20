@@ -7,6 +7,10 @@ use Test::More;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
+use DBIx::Class::SQLMaker::LimitDialects;
+my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
+my $TOTAL = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
+
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";
@@ -114,7 +118,7 @@ do_creates($dbh);
         SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
           FROM artist me
         START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
       )',
       [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
             => 'root'] ],
@@ -131,7 +135,7 @@ do_creates($dbh);
         SELECT COUNT( * )
           FROM artist me
         START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
       )',
       [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
             => 'root'] ],
@@ -158,7 +162,7 @@ do_creates($dbh);
         SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
           FROM artist me
         START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
         ORDER SIBLINGS BY name DESC
       )',
       [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
@@ -186,7 +190,7 @@ do_creates($dbh);
           FROM artist me
         WHERE ( parentid IS NULL )
         START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
       )',
       [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
             => 'root'] ],
@@ -222,7 +226,7 @@ do_creates($dbh);
           LEFT JOIN cd cds ON cds.artist = me.artistid
         WHERE ( cds.title LIKE ? )
         START WITH me.name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'cds.title', 'sqlt_size' => 100 }
@@ -246,7 +250,7 @@ do_creates($dbh);
           LEFT JOIN cd cds ON cds.artist = me.artistid
         WHERE ( cds.title LIKE ? )
         START WITH me.name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'cds.title', 'sqlt_size' => 100 }
@@ -273,7 +277,7 @@ do_creates($dbh);
         SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
           FROM artist me
         START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
+        CONNECT BY parentid = PRIOR artistid
         ORDER BY LEVEL ASC, name ASC
       )',
       [
@@ -327,11 +331,11 @@ do_creates($dbh);
             CONNECT BY parentid = PRIOR artistid
             ORDER BY name ASC
           ) me
-        WHERE ROWNUM <= 2
+        WHERE ROWNUM <= ?
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
-            => 'root'],
+            => 'root'], [ $ROWS => 2 ],
       ],
     );
 
@@ -353,12 +357,12 @@ do_creates($dbh);
                 START WITH name = ?
                 CONNECT BY parentid = PRIOR artistid
               ) me
-            WHERE ROWNUM <= 2
+            WHERE ROWNUM <= ?
           ) me
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
-            => 'root'],
+            => 'root'], [ $ROWS => 2 ] ,
       ],
     );
 
@@ -436,7 +440,7 @@ do_creates($dbh);
         SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid, CONNECT_BY_ISCYCLE
           FROM artist me
         START WITH name = ?
-        CONNECT BY NOCYCLE parentid = PRIOR artistid 
+        CONNECT BY NOCYCLE parentid = PRIOR artistid
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
@@ -460,7 +464,7 @@ do_creates($dbh);
         SELECT COUNT( * )
           FROM artist me
         START WITH name = ?
-        CONNECT BY NOCYCLE parentid = PRIOR artistid 
+        CONNECT BY NOCYCLE parentid = PRIOR artistid
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
