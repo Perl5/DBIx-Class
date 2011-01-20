@@ -1,7 +1,9 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Track;
 
 use base qw/DBICTest::BaseResult/;
+use Carp qw/confess/;
+
 __PACKAGE__->load_components(qw/InflateColumn::DateTime Ordered/);
 
 __PACKAGE__->table('track');
@@ -61,6 +63,31 @@ __PACKAGE__->belongs_to(
     "DBICTest::Schema::Year2000CDs",
     { "foreign.cdid" => "self.cd" },
     { join_type => 'left' },
+);
+
+__PACKAGE__->might_have (
+  next_track => __PACKAGE__,
+  sub {
+    my $args = shift;
+
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my @missing_args = grep { ! defined $args->{$_} }
+      qw/self_alias foreign_alias self_resultsource foreign_relname/;
+    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
+      if @missing_args;
+
+    return (
+      { "$args->{foreign_alias}.cd"       => { -ident => "$args->{self_alias}.cd" },
+        "$args->{foreign_alias}.position" => { '>' => { -ident => "$args->{self_alias}.position" } },
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.cd"       => $args->{self_rowobj}->cd,
+        "$args->{foreign_alias}.position" => { '>' => $args->{self_rowobj}->position },
+      }
+    )
+  }
 );
 
 1;

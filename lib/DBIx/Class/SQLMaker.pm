@@ -1,5 +1,8 @@
 package DBIx::Class::SQLMaker;
 
+use strict;
+use warnings;
+
 =head1 NAME
 
 DBIx::Class::SQLMaker - An SQL::Abstract-based SQL maker class
@@ -38,8 +41,7 @@ use base qw/
   Class::Accessor::Grouped
 /;
 use mro 'c3';
-use strict;
-use warnings;
+
 use Sub::Name 'subname';
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use namespace::clean;
@@ -401,8 +403,12 @@ sub _recurse_from {
     } else {
       push(@sqlf, $self->_from_chunk_to_sql($to));
     }
-    push(@sqlf, ' ON ', $self->_join_condition($on));
+
+    my ($sql, @bind) = $self->_join_condition($on);
+    push(@sqlf, ' ON ', $sql);
+    push @{$self->{from_bind}}, @bind;
   }
+
   return join('', @sqlf);
 }
 
@@ -437,25 +443,34 @@ sub _from_chunk_to_sql {
 sub _join_condition {
   my ($self, $cond) = @_;
 
-  if (ref $cond eq 'HASH') {
-    my %j;
-    for (keys %$cond) {
-      my $v = $cond->{$_};
-      if (ref $v) {
-        croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
-            if ref($v) ne 'SCALAR';
-        $j{$_} = $v;
-      }
-      else {
-        my $x = '= '.$self->_quote($v); $j{$_} = \$x;
-      }
-    };
-    return scalar($self->_recurse_where(\%j));
-  } elsif (ref $cond eq 'ARRAY') {
-    return join(' OR ', map { $self->_join_condition($_) } @$cond);
-  } else {
-    croak "Can't handle this yet!";
+  # Backcompat for the old days when a plain hashref
+  # { 't1.col1' => 't2.col2' } meant ON t1.col1 = t2.col2
+  # Once things settle we should start warning here so that
+  # folks unroll their hacks
+  if (
+    ref $cond eq 'HASH'
+      and
+    keys %$cond == 1
+      and
+    (keys %$cond)[0] =~ /\./
+      and
+    ! ref ( (values %$cond)[0] )
+  ) {
+    $cond = { keys %$cond => { -ident => values %$cond } }
   }
+  elsif ( ref $cond eq 'ARRAY' ) {
+    # do our own ORing so that the hashref-shim above is invoked
+    my @parts;
+    my @binds;
+    foreach my $c (@$cond) {
+      my ($sql, @bind) = $self->_join_condition($c);
+      push @binds, @bind;
+      push @parts, $sql;
+    }
+    return join(' OR ', @parts), @binds;
+  }
+
+  return $self->_recurse_where($cond);
 }
 
 1;

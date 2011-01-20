@@ -1062,7 +1062,7 @@ sub copy {
     next unless $rel_info->{attrs}{cascade_copy};
 
     my $resolved = $self->result_source->_resolve_condition(
-      $rel_info->{cond}, $rel, $new
+      $rel_info->{cond}, $rel, $new, $rel
     );
 
     my $copied = $rels_copied->{ $rel_info->{source} } ||= {};

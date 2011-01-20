@@ -32,7 +32,7 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{$rel};
       } else {
         my $cond = $self->result_source->_resolve_condition(
-          $rel_info->{cond}, $rel, $self
+          $rel_info->{cond}, $rel, $self, $rel
         );
         if ($rel_info->{attrs}->{undef_on_null_fk}){
           return undef unless ref($cond) eq 'HASH';
