@@ -1,0 +1,375 @@
+package DBIx::Class::Manual::Dev::TODO;
+
+=head1 NAME
+
+DBIx::Class::Manual::Dev::TODO - TODO list of S through XXL tasks for eager
+young minds
+
+=head1 DESCRIPTION
+
+This document attempts to centralize the collective knowledge about various
+L<DBIx::Class> C<TODO> tasks, ranging from sketches of mundane bugfixes to
+minutes of heated design discussions.
+
+You can L<jump straight to the "small" LIST OF OUTSTANDING TASKS|/TODOs>.
+If, however, you plan to edit this document, please read the
+L</HOW TO EDIT THIS DOCUMENT> section first, as parts of this POD double as
+B<machine parseable> L<metadata|/Metadata>.
+
+=head2 Note for GitHub Users
+
+If you are visiting the DBIx-Class project on GitHub you may be surprised to
+find this unorthodox "README". What you are seeing is GitHb rendering a
+symlink pointing to the latest revision of
+L<DBIx::Class::Manual::Dev::TODO> in the currently selected git branch
+(normally C<master>). Fork this, hack away, and send us a pull request :)
+
+=head1 TODOs
+
+=for comment WHEN IN A BRANCH USE THIS BLOCK TO INDICATE MERGE REQUIREMENTS
+=head2 Branch Merge Requirements
+=head3 Reason 1
+=head3 Reason 2
+=head3 ...
+Delete the C<=for comment> line above, and replace this text with C<=head3>
+paragraphs detailing the reasons for this branch to exist.
+
+=head2 Extensions / New Features
+
+=head3 DateTime Manipulation DSL
+
+=over
+
+DEP:L</-op and -func SQLA operators>
+
+DEP:L</Blead/Maint separation>
+
+BL:0.08400
+
+=back
+
+Very sound design, tested on/supports enough databases to be releaseable.
+Currently contains some nasty hacks (e.g. inclusion of a C<$storage> object
+reference in the C<$sql_maker> object), but the API is solid and doesn't
+contain obvious WTFs. Unfortunately it very heavily relies on the C<-op>
+functionality which does suffer from multiple inconsistencies, which make it
+unfit for a general release (see the linked C<DEP>). We could potentially
+release this as a part of the C<blead> cycle without addressing the other
+issues, however an official release can not happen before the ambiguity of
+the fundamentals is resolved.
+
+=head3 -op and -func SQLA operators
+
+=over
+
+NS
+
+=back
+
+These are currently present in several forms in both the SQLA and the DBIC
+trees (neither of the branches has been merged yet). Frew is the author of
+pretty much all of this, and was supposed to clean things up leaving only
+one branch in the SQLA repo.
+
+The actual obstacle to merging this is the ambiguity of what happens on
+bindtype information clashes, and how does the bindtype propagate further
+down the callstack in case the C<-op/-func> are not the only thing in a RHS
+chain. So far it seems that the L<Data::Query's|/Data::Query migration>
+architecture is capable of sidestepping this issue entirely, but nobody has
+investigated this yet.
+
+=head3 Relationship arguments
+
+=over
+
+DEP:L</Cleanup/rewrite DBI::Class::ResultSet::_merge_joinpref_attr()>
+
+=back
+
+Allow passing of relationship arguments for individual
+L<search|DBIx::Class::ResultSet/search> invocations. Currently proposed
+syntax is something like:
+
+  $cd_rs->search({}, {
+    join => [
+      {
+        artist => { -alias => 'ar', -join_type => 'left',
+          cds => {
+            tracks => { -alias => 'tr' },
+          },
+          paintings => {},
+        },
+        tracks => { -join_type => 'inner',
+          # example custom coderef relspec, args passed to it determine threshold
+          # of "platinum" to be reflected in the ON clause
+          # the -rel_args key does not yet exist (due to no way of passing it)
+          platinum_single_cd => { -rel_args => [...] }, 
+        },
+      },
+      { genre => { -alias => 'g' } },
+    ],
+  };
+
+The goal is to be able to modify any part of a join condition on the fly,
+allowing for much better flexibility. It will solve two of the most commonly
+requested issues "how do I change left to inner" (the current answer is
+"register a new relationship") and "how do I change the resulting alias"
+(there is currently no answer to this at all). Also will allow for a common
+infrastructure to pass options to custom relationship coderefs (the current
+practice is to have a pesky global somewhere that is local()ised to a
+certain value before the query takes place). Lastly it will allow explicit
+overriding of join conditions to take place on long nested left-join chains.
+The current (API consistent) behavior is to switch any join to left after a
+left join is encountered in the chain. This is done so that merely adding
+join/prefetch attributes will not affect the contents of the "left part" of
+the resultset.
+
+
+=head2 Refactoring / Cleanup / Architectural improvements
+
+=head3 Data::Query migration
+
+Thanks to mst Data::Query is now much closer to reality than it may seem. In
+fact it fully passes the entire original SQLA test suite and is ready for an
+attempt of porting DBIC to the new architecture. The only really burning
+outstanding issue is how to encode the concept of "dialect" in an instance
+of D::Q. The approach attempted by Frew in the L</DateTime_Manipulation_DSL>
+branch turns out way too ugly and entangled.
+
+What needs to be done to get this project moving further is getting a
+checkout of the C<dq> branch of the SQL::Abstract repo and attempting to run
+the DBIC test suite against it. L<DBIx::Class::SQLMaker> hooks many of the
+internals of SQL::Abstract which are gone in that branch, so a lot of
+rewriting will need to take place. An upside is that our test coverage of
+these codepaths is beyond excellent, so as long as all tests pass you can be
+98% sure the job is all done.
+
+=head3 Cleanup/rewrite DBI::Class::ResultSet::_merge_joinpref_attr()
+
+This code is well tested (it even has a dedicated test file to just test its
+output, F<t/91merge_joinpref_attr.t>), however it is very weirdly written
+and hence hard to maintain. It will also need to learn about dash-prefxed
+hash keys being names in order to support L</Relationship arguments>.
+
+=begin NOT_PROPERLY_DESCRIBED_YET
+
+=head3 Dynamic storage flag specification
+
+=head3 UNION-ized M+N prefetch
+
+Once we can assemble out-of-order has_many prefetches, it should become
+trivial to parse back the result of something like:
+
+  SELECT ....
+
+=head3 Proper multiupdate
+
+=head2 Warts / Cleanups / Deprecations
+
+=head3 Switch DBIx::Class::Admin and the dbicadmin utility to Moo
+
+Moose is slow. *Really* slow for CLI. We can do better.
+
+=head3 Replicated cleanup and Moo migration
+
+=head3 Nested from rs-attribute
+
+=over
+
+RG:0.08115
+
+BL:0.08200
+
+=back
+
+The ability to nest sources in {from} was lost somewhere around 0.08115. The
+goal is to be able to express things like
+
+ FROM foo LEFT JOIN ( bar JOIN baz ON bar-baz_cond ) ON foo-(bar/baz)_cond
+
+This kind of construct was apparently popular at one point, as it is seen a
+lot in the wild, 
+
+do backwards comp of Old style nested from, blocks 0.08200, only backcompat, no futher
+dev. Will be supplanted by joinargs-like nest specs (probably even with
+-nest for name or something)
+
+=head3 prefetch/inflate
+
+=head3 replicated multidb
+
+=head3 pg_cursors
+
+=head3 prepare cached flag
+
+=head3 select/group_by/order_by clarify semantics
+
+=head3 subqueried prefetch without double where
+
+=head3 group_by fix
+
+=head3 remove try-tiny
+
+=head3 async / poe / easydbi
+
+=head3 txn_do opts/ dbh_do
+
+=head3 storage Moo + Roles
+
+=head3 find_or_create claify (RT)
+
+=head3 sql-side ident-filter
+
+=head3 subq realias
+
+=head3 jifty dbi
+
+=head3 DBD::CSV
+
+=head3 schema-diff
+
+=head3 enable_utf8
+
+=head3 resultset lazy role composition
+
+=head3 prettyprint
+
+=end NOT_PROPERLY_DESCRIBED_YET
+
+=head1 HOW TO EDIT THIS DOCUMENT
+
+Anyone (developer or not) is welcome and encouraged to extend and/or change
+this document. No idea is too small or too big, even a standalone C<=head3>
+is appreciated as it can serve as a seed for further discussion/writeup. The
+idea is to have a wiki-like process without the headaches of maintaining an
+actual wiki, and more importantly having the contents of said "wiki" always
+usable offline. If you are adding/modifying entries in this document, please
+try to follow the style of already existing TODOs. Also fill in as much
+information as possible, and don't hesitate to be overly technical - after
+all this document is intended for developers, and is expected to be quite
+large and in places quite complex. More info is always better than less.
+
+No attempt has been made yet to sort individual tasks in each TODO
+section, though ideas on how to do this for better readability are more
+than welcome.
+
+=head2 Todo section
+
+=head3 Branching and subsequent merging
+
+The L<TODO POD section|/Todo section> of the C<master> branch contains a
+commented-out C<=head2> titled I<Branch Merge Requirements> (it is the
+first C<=head2> following the L</TODOs> C<=head1>). When a branch is
+made, authors and/or reviewers should uncomment this heading and add
+notes on what work is still necessary before merging back to mainline.
+It is possible that after a merge the heading will not be reverted to
+its original form, however there is a sanity-check implemented by
+F<maint/dbic_todo> (and invoked bu the C<make dist> target) which will
+catch this to prevent CPAN dissemination (perhaps this particular bit
+warrants a git pre-commit hook protecting master?)
+
+=head2 Metadata
+
+To stay in the perl-mandated laziness framework, this document doubles as a
+holder of metadata on the significance of individual issues. The
+F<maint/dbic_todo> script executed as part of C<make dist> will stop the
+dist-building process if it detects any unresolved issues as indicated
+below.
+
+Flags for each C<=head3> paragraph are declared as individual elements
+within an C<=over> / C<=back> block immediately following the C<=head3>.
+No POD markup is permitted for the flag-lines (no intermediate C<=item>
+elements). However each line is still separate by double-space (C<\n\n>)
+as required by the POD specification.
+
+The flags are simple key/value pairs with C<:> separating each key from its
+value. All flags supplied have their values aggregated in an arrayref. Both
+the value and the separator C<:> are optional. If a flag value is not
+supplied its value will be an empty arrayref. Each flag has a short name in
+addition to its canonical one.
+
+To put it in perl-speek each TODO and its flags are parsed by:
+
+  my $todos;
+
+  while( $todo_pod =~ /
+    ^=head3 \s+ ( [^\n]+ ) \n \n              # description as head3
+    (?: ^=over \s+ (.+?) \s+ ^=back \n \n )?  # possible flags
+  /xmsg) {
+
+    die "Duplicate TODO $1\n" if $todos->{$1};
+
+    $todos->{$1} = [
+      defined $2
+        ? split /\s*\n+\s*/, $2
+        : ()
+    ];
+  }
+
+Currently recognized flags (and their short names) are:
+
+=over
+
+=item * Blocker (BL)
+
+This is the most important flag. The value is the version at which the
+blocker goes in effect. If no value is specified, a "full blocker" is
+assumed - i.e. any release is blocked until this issue is resolved. The
+version is specified as a perl decimal only - e.g. C<0.08200>, without
+leading C<v> or other characters.  The distmaker aborts the creation of a
+tarball if a blocker is found for the version being currently packaged. The
+idea is to make it dead easy to answer the annoying question "Is master
+ready to release?".
+
+=item * Regression (RG)
+
+Indicates the issue is a known regression. Optionally indicates in which
+version the regression was first introduced. It is always preferred to
+have no known regressions, but in the real world drinking beer trumps chasing
+bugs, so some known regressions may remain unfixed for some (extended period
+of) time.
+
+=item * Depends (DEP)
+
+The fix for this issue depends on something else. You can use
+C<LE<lt>/[relevant issue head3 title]E<gt>> constructs to link to the proper
+issue if it is listed in this document.
+
+=item * RT_Entry (RT)
+
+The described TODO is a result of (or is independently described by) the RT
+ticket with the specified number. This flag serves only as a reminder for
+the maintainers to close the corresponding tickets when the issue is
+resolved.
+
+=item * Needs_Specification (NS)
+
+Indicates that this is just a floating idea that still needs an actual
+specification. Ideally such specification comes in the form of a branch,
+containing a set of failing tests indicating what things should eventually
+look like.
+
+=item * Request_For_Comments (RFC)
+
+Indicates the presence of a proof of concept (ideally some code with a
+passing/failing test demonstrating intended behavior), for which the
+original author is soliciting discussion from other developers before
+delving into cleaning this idea up for eventual merging.
+
+=item * Signed_Off (SIG)
+
+Indicates which core developers have signed-off on a particular idea/plan
+
+=item * ...
+
+If a (sensible) need arises for more flags - just add them :) Note that you
+will need to adjust the flag list in F<maint/dbic_todo> as well.
+
+=back
+
+It is important to note that this is a novel experiment in POD semantic
+overloading abuse, and as such the declaration, format and meaning of
+individual flags can and probably will be changed down the road. However,
+if this is to happen the body of text existing at the time will be
+properly recoded into the newly agreed upon style, and this instruction
+section will be updated as well.

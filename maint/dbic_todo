@@ -1,0 +1,56 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use FindBin;
+use Getopt::Long ();
+use Data::Dumper::Concise;
+
+my $todo_file = 'lib/DBIx/Class/Manual/Dev/TODO.pod';
+
+my $getopt = Getopt::Long::Parser->new(
+  config => [qw/gnu_getopt bundling_override no_ignore_case pass_through/]
+);
+my $args = {
+  check_blockers => undef,
+};
+$getopt->getoptions($args, qw/
+  check_blockers|check-blockers
+/);
+if (@ARGV) {
+  warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
+}
+
+
+my $pod = do { local(@ARGV, $/) = ("$FindBin::Bin/../$todo_file"); <> };
+
+my ($todo_pod) = $pod =~ /^=head1 \s+ TODOs \n \n (.+?) (?= ^=head1 | \z )/xsmg
+  or die "Malformed POD in $todo_file - no TODOs heading\n";
+
+my $todos;
+my $flag_parser = 
+while( $todo_pod =~ /
+  ^=head3 \s+ ( [^\n]+ ) \n \n              # description as head3
+  (?: ^=over \s+ (.+?) \s+ ^=back \n \n )?  # possible flags
+/xmsg) {
+  die "Duplicate TODO $1\n" if $todos->{$1};
+
+  $todos->{$1} = do {
+    my %flags;
+    for my $flag ( defined $2
+      ? split /\s*\n+\s*/, $2
+      : ()
+    ) {
+      my ($f, $v) = split /\:/, $flag, 2;
+      push @{$flags{$f}}, $v;
+    }
+    \%flags;
+  };
+}
+
+die "Malformed $todo_file - no TODOs extracted\n"
+  unless $todos;
+
+warn Dumper $todos;
+
+exit 0;

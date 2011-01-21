@@ -1,0 +1,12 @@
+# our (excellent) Oracle hierarchical query support
+https://metacpan.org/module/DBIx::Class::Storage::DBI::Oracle::Generic#ATTRIBUTES
+
+# tests for the same
+https://metacpan.org/source/ARODLAND/DBIx-Class-0.08196/t/73oracle_hq.t#L50
+
+# a patch by the same author for Pg's WITH
+https://rt.cpan.org/Public/Bug/Display.html?id=39121#txn-783358
+
+# the reason I did not accept it at the time (and what work is needed)
+# (2nd paragapraph on)
+https://rt.cpan.org/Public/Bug/Display.html?id=39121#txn-784658
