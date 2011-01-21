@@ -79,11 +79,11 @@ In order of preference, they are:
 
 =over 8
 
-=item * L</connect_call_use_mars>
+=item * L<mars|/connect_call_use_mars>
 
-=item * L</connect_call_use_dynamic_cursors>
+=item * L<dynamic_cursors|/connect_call_use_dynamic_cursors>
 
-=item * L</connect_call_use_server_cursors>
+=item * L<server_cursors|/connect_call_use_server_cursors>
 
 =back
 
@@ -94,6 +94,15 @@ In order of preference, they are:
 Use as:
 
   on_connect_call => 'use_mars'
+
+in your connection info, or alternatively specify it directly:
+
+  Your::Schema->connect (
+    $original_dsn . '; MARS_Connection=Yes',
+    $user,
+    $pass,
+    \%attrs,
+  )
 
 Use to enable a feature of SQL Server 2005 and later, "Multiple Active Result
 Sets". See L<DBD::ODBC::FAQ/Does DBD::ODBC support Multiple Active Statements?>
@@ -149,84 +158,86 @@ Use as:
 
   on_connect_call => 'use_dynamic_cursors'
 
-in your L<connect_info|DBIx::Class::Storage::DBI/connect_info> as one way to enable multiple
-concurrent statements.
+Which will add C<< odbc_cursortype => 2 >> to your DBI connection
+attributes, or alternatively specify the necessary flag directly:
 
-Will add C<< odbc_cursortype => 2 >> to your DBI connection attributes. See
-L<DBD::ODBC/odbc_cursortype> for more information.
+  Your::Schema->connect (@dsn, { ... odbc_cursortype => 2 })
 
-Alternatively, you can add it yourself and dynamic cursor support will be
-automatically enabled.
+See L<DBD::ODBC/odbc_cursortype> for more information.
 
 If you're using FreeTDS, C<tds_version> must be set to at least C<8.0>.
 
 This will not work with CODE ref connect_info's.
 
-B<WARNING:> this will break C<SCOPE_IDENTITY()>, and C<SELECT @@IDENTITY> will
-be used instead, which on SQL Server 2005 and later will return erroneous
-results on tables which have an on insert trigger that inserts into another
-table with an C<IDENTITY> column.
+B<WARNING:> on FreeTDS (and maybe some other drivers) this will break
+C<SCOPE_IDENTITY()>, and C<SELECT @@IDENTITY> will be used instead, which on SQL
+Server 2005 and later will return erroneous results on tables which have an on
+insert trigger that inserts into another table with an C<IDENTITY> column.
 
 =cut
 
 sub connect_call_use_dynamic_cursors {
   my $self = shift;
 
-  if (ref($self->_dbi_connect_info->[0]) eq 'CODE') {
+  my $conn_info = $self->_dbi_connect_info;
+
+  if (ref($conn_info->[0]) eq 'CODE') {
     $self->throw_exception ('Cannot set DBI attributes on a CODE ref connect_info');
   }
 
-  my $dbi_attrs = $self->_dbi_connect_info->[-1];
-
-  unless (ref $dbi_attrs eq 'HASH') {
-    $dbi_attrs = {};
-    push @{ $self->_dbi_connect_info }, $dbi_attrs;
-  }
-
-  if (not exists $dbi_attrs->{odbc_cursortype}) {
-    # turn on support for multiple concurrent statements, unless overridden
-    $dbi_attrs->{odbc_cursortype} = 2;
+  if (
+    ref($conn_info->[-1]) ne 'HASH'
+      or
+    ($conn_info->[-1]{odbc_cursortype}||0) < 2
+  ) {
+    # reenter connection information with the attribute re-set
+    $self->connect_info(
+      @{$conn_info}[0,1,2],
+      { %{$self->_dbix_connect_attributes}, odbc_cursortype => 2 },
+    );
     $self->disconnect; # resetting dbi attrs, so have to reconnect
     $self->ensure_connected;
-    $self->_set_dynamic_cursors;
   }
 }
 
-sub _set_dynamic_cursors {
-  my $self = shift;
-  my $dbh  = $self->_get_dbh;
-
-  try {
-    local $dbh->{RaiseError} = 1;
-    local $dbh->{PrintError} = 0;
-    $dbh->do('SELECT @@IDENTITY');
-  } catch {
-    $self->throw_exception (<<'EOF');
-
-Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2),
-if you're using FreeTDS, make sure to set tds_version to 8.0 or greater.
-EOF
-  };
-
-  $self->_using_dynamic_cursors(1);
-  $self->_identity_method('@@identity');
-}
-
-sub _init {
+sub _run_connection_actions {
   my $self = shift;
 
+  # keep the dynamic_cursors_support and driver-state in sync
+  # on every reconnect
+  my $use_dyncursors = ($self->_dbic_connect_attributes->{odbc_cursortype} || 0) > 1;
   if (
-    ref($self->_dbi_connect_info->[0]) ne 'CODE'
-      &&
-    ref ($self->_dbi_connect_info->[-1]) eq 'HASH'
-      &&
-    ($self->_dbi_connect_info->[-1]{odbc_cursortype} || 0) > 1
+    $use_dyncursors
+      xor
+    !!$self->_using_dynamic_cursors
   ) {
-    $self->_set_dynamic_cursors;
+    if ($use_dyncursors) {
+      try {
+        my $dbh = $self->_dbh;
+        local $dbh->{RaiseError} = 1;
+        local $dbh->{PrintError} = 0;
+        $dbh->do('SELECT @@IDENTITY');
+      } catch {
+        $self->throw_exception (
+          'Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2).'
+         . (
+          $self->using_freetds
+            ? ' If you are using FreeTDS, make sure to set tds_version to 8.0 or greater.'
+            : ''
+          )
+        );
+      };
+
+      $self->_using_dynamic_cursors(1);
+      $self->_identity_method('@@identity');
+    }
+    else {
+      $self->_using_dynamic_cursors(0);
+      $self->_identity_method(undef);
+    }
   }
-  else {
-    $self->_using_dynamic_cursors(0);
-  }
+
+  $self->next::method (@_);
 }
 
 =head2 connect_call_use_server_cursors
