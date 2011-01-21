@@ -15,4 +15,9 @@ eval {
 my $source_mro_order = DBICNSTest->source('MROOrder');
 isa_ok($source_mro_order , 'DBIx::Class::ResultSource::Table');
 
+my $schema = DBICNSTest->connect("dbi:SQLite::memory:", "", "");
+$schema->deploy;
+use Data::Dumper;
+
+warn "linear: " . Dumper mro::get_linear_isa(ref $schema->resultset('MROOrder'));
 done_testing();
