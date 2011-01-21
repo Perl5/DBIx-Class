@@ -562,12 +562,12 @@ sub drop_test_schema {
 
         for my $stat (
                       'DROP SCHEMA dbic_t_schema_5 CASCADE',
-                      'DROP SEQUENCE public.artist_artistid_seq',
+                      'DROP SEQUENCE public.artist_artistid_seq CASCADE',
                       'DROP SCHEMA dbic_t_schema_4 CASCADE',
                       'DROP SCHEMA dbic_t_schema CASCADE',
-                      'DROP SEQUENCE pkid1_seq',
-                      'DROP SEQUENCE pkid2_seq',
-                      'DROP SEQUENCE nonpkid_seq',
+                      'DROP SEQUENCE pkid1_seq CASCADE',
+                      'DROP SEQUENCE pkid2_seq CASCADE',
+                      'DROP SEQUENCE nonpkid_seq CASCADE',
                       'DROP SCHEMA dbic_t_schema_2 CASCADE',
                       'DROP SCHEMA dbic_t_schema_3 CASCADE',
                      ) {
