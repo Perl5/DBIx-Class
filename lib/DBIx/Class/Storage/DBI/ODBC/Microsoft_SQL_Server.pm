@@ -286,10 +286,8 @@ sub using_freetds {
 
   $dsn = '' if ref $dsn eq 'CODE';
 
-  my $dbh = $self->_get_dbh;
-
   return 1 if $dsn =~ /driver=FreeTDS/i
-              || (try { $dbh->get_info(6) }||'') =~ /tdsodbc/i;
+              || ($self->_dbh_get_info(6)||'') =~ /tdsodbc/i;
 
   return 0;
 }

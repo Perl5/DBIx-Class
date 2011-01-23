@@ -28,7 +28,7 @@ sub _dbh_last_insert_id {
     # get the schema/table separator:
     #    '.' when SQL naming is active
     #    '/' when system naming is active
-    my $sep = $dbh->get_info(41);
+    my $sep = $self->_dbh_get_info(41);
     my $sth = $dbh->prepare_cached(
         "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
     $sth->execute();
@@ -46,7 +46,7 @@ sub _sql_maker_opts {
 
         return {
             limit_dialect => 'FetchFirst',
-            name_sep => $dbh->get_info(41)
+            name_sep => $self->_dbh_get_info(41)
         };
     });
 }

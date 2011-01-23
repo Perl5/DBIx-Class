@@ -372,6 +372,7 @@ my @unimplemented = qw(
   get_dbms_capability
   set_dbms_capability
   _dbh_details
+  _dbh_get_info
 
   sql_limit_dialect
   sql_quote_char
@@ -379,8 +380,10 @@ my @unimplemented = qw(
 
   _inner_join_to_node
   _group_over_selection
-  _prefetch_autovalues
   _extract_order_criteria
+
+  _prefetch_autovalues
+
   _max_column_bytesize
   _is_lob_type
 );

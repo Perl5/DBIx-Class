@@ -1161,7 +1161,13 @@ sub _server_info {
 }
 
 sub _get_server_version {
-  shift->_get_dbh->get_info(18);
+  shift->_dbh_get_info(18);
+}
+
+sub _dbh_get_info {
+  my ($self, $info) = @_;
+
+  return try { $self->_get_dbh->get_info($info) } || undef;
 }
 
 sub _determine_driver {
