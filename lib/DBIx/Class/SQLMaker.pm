@@ -369,17 +369,26 @@ sub _table {
 sub _generate_join_clause {
     my ($self, $join_type) = @_;
 
+    $join_type = $self->{_default_jointype}
+      if ! defined $join_type;
+
     return sprintf ('%s JOIN ',
-      $join_type ?  ' ' . $self->_sqlcase($join_type) : ''
+      $join_type ?  $self->_sqlcase($join_type) : ''
     );
 }
 
 sub _recurse_from {
-  my ($self, $from, @join) = @_;
-  my @sqlf;
-  push @sqlf, $self->_from_chunk_to_sql($from);
+  my $self = shift;
 
-  for (@join) {
+  return join (' ', $self->_gen_from_blocks(@_) );
+}
+
+sub _gen_from_blocks {
+  my ($self, $from, @joins) = @_;
+
+  my @fchunks = $self->_from_chunk_to_sql($from);
+
+  for (@joins) {
     my ($to, $on) = @$_;
 
     # check whether a join type exists
@@ -390,18 +399,21 @@ sub _recurse_from {
       $join_type =~ s/^\s+ | \s+$//xg;
     }
 
-    $join_type = $self->{_default_jointype} if not defined $join_type;
-
-    push @sqlf, $self->_generate_join_clause( $join_type );
+    my @j = $self->_generate_join_clause( $join_type );
 
     if (ref $to eq 'ARRAY') {
-      push(@sqlf, '(', $self->_recurse_from(@$to), ')');
-    } else {
-      push(@sqlf, $self->_from_chunk_to_sql($to));
+      push(@j, '(', $self->_recurse_from(@$to), ')');
     }
-    push(@sqlf, ' ON ', $self->_join_condition($on));
+    else {
+      push(@j, $self->_from_chunk_to_sql($to));
+    }
+
+    push(@j, ' ON ', $self->_join_condition($on));
+
+    push @fchunks, join '', @j;
   }
-  return join('', @sqlf);
+
+  return @fchunks;
 }
 
 sub _from_chunk_to_sql {

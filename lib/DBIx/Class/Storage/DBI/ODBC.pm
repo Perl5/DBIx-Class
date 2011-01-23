@@ -12,7 +12,9 @@ sub _rebless {
     $dbtype =~ s/\W/_/gi;
     my $subclass = "DBIx::Class::Storage::DBI::ODBC::${dbtype}";
 
-    if ($self->load_optional_class($subclass) && !$self->isa($subclass)) {
+    return if $self->isa($subclass);
+
+    if ($self->load_optional_class($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
     }

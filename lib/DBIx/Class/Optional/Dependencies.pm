@@ -57,6 +57,12 @@ my $rdbms_mssql_sybase = {
 my $rdbms_mssql_ado = {
   'DBD::ADO'                      => '0',
 };
+my $rdbms_msaccess_odbc = {
+  'DBD::ODBC'                     => '0',
+};
+my $rdbms_msaccess_ado = {
+  'DBD::ADO'                      => '0',
+};
 my $rdbms_mysql = {
   'DBD::mysql'                    => '0',
 };
@@ -268,6 +274,26 @@ my $reqs = {
     },
   },
 
+  rdbms_msaccess_odbc => {
+    req => {
+      %$rdbms_msaccess_odbc,
+    },
+    pod => {
+      title => 'MS Access support via DBD::ODBC',
+      desc => 'Modules required to connect to MS Access via DBD::ODBC',
+    },
+  },
+
+  rdbms_msaccess_ado => {
+    req => {
+      %$rdbms_msaccess_ado,
+    },
+    pod => {
+      title => 'MS Access support via DBD::ADO (Windows only)',
+      desc => 'Modules required to connect to MS Access via DBD::ADO. This particular DBD is available on Windows only',
+    },
+  },
+
   rdbms_mysql => {
     req => {
       %$rdbms_mysql,
@@ -344,6 +370,28 @@ my $reqs = {
       $ENV{DBICTEST_MSSQL_DSN}
         ? (
           %$rdbms_mssql_sybase,
+        ) : ()
+    },
+  },
+
+  test_rdbms_msaccess_odbc => {
+    req => {
+      $ENV{DBICTEST_MSACCESS_ODBC_DSN}
+        ? (
+          %$rdbms_msaccess_odbc,
+          %$datetime_basic,
+          'Data::GUID' => '0',
+        ) : ()
+    },
+  },
+
+  test_rdbms_msaccess_ado => {
+    req => {
+      $ENV{DBICTEST_MSACCESS_ADO_DSN}
+        ? (
+          %$rdbms_msaccess_ado,
+          %$datetime_basic,
+          'Data::GUID' => 0,
         ) : ()
     },
   },

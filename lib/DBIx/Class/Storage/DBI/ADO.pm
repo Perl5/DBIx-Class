@@ -32,7 +32,9 @@ sub _rebless {
 
   my $subclass = "DBIx::Class::Storage::DBI::ADO::${dbtype}";
 
-  if ($self->load_optional_class($subclass) && !$self->isa($subclass)) {
+  return if $self->isa($subclass);
+
+  if ($self->load_optional_class($subclass)) {
     bless $self, $subclass;
     $self->_rebless;
   }
