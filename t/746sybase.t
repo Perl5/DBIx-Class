@@ -346,10 +346,11 @@ SQL
       $dbh->do(qq[
         CREATE TABLE bindtype_test 
         (
-          id    INT   IDENTITY PRIMARY KEY,
-          bytea IMAGE NULL,
-          blob  IMAGE NULL,
-          clob  TEXT  NULL
+          id     INT   IDENTITY PRIMARY KEY,
+          bytea  IMAGE NULL,
+          blob   IMAGE NULL,
+          clob   TEXT  NULL,
+          a_memo IMAGE NULL
         )
       ],{ RaiseError => 1, PrintError => 0 });
     }
@@ -441,11 +442,13 @@ SQL
           bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
+          a_memo => 2,
         },
         {
           bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
+          a_memo => 2,
         },
       ]);
     } 'insert_bulk with blobs does not die';
@@ -471,12 +474,14 @@ SQL
             bytea => 1,
             blob => $binstr{large},
             clob => $new_str,
+            a_memo => 2,
           },
           {
             id => 2,
             bytea => 1,
             blob => $binstr{large},
             clob => $new_str,
+            a_memo => 2,
           },
         ]);
       } 'insert_bulk with blobs and explicit identity does NOT die';

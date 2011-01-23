@@ -134,10 +134,11 @@ EOF
   $dbh->do(qq[
   CREATE TABLE bindtype_test
   (
-    id    INT          NOT NULL PRIMARY KEY,
-    bytea INT          NULL,
-    blob  LONG BINARY  NULL,
-    clob  LONG VARCHAR NULL
+    id     INT          NOT NULL PRIMARY KEY,
+    bytea  INT          NULL,
+    blob   LONG BINARY  NULL,
+    clob   LONG VARCHAR NULL,
+    a_memo INT          NULL
   )
   ],{ RaiseError => 1, PrintError => 1 });
 

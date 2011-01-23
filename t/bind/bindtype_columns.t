@@ -20,12 +20,13 @@ my $dbh = $schema->storage->dbh;
 
     # the blob/clob are for reference only, will be useful when we switch to SQLT and can test Oracle along the way
     $dbh->do(qq[
-        CREATE TABLE bindtype_test 
+        CREATE TABLE bindtype_test
         (
             id              serial       NOT NULL   PRIMARY KEY,
             bytea           bytea        NULL,
             blob            bytea        NULL,
-            clob            text         NULL
+            clob            text         NULL,
+            a_memo          text         NULL
         );
     ],{ RaiseError => 1, PrintError => 1 });
 }

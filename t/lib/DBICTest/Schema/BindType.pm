@@ -22,6 +22,10 @@ __PACKAGE__->add_columns(
     data_type => 'clob',
     is_nullable => 1,
   },
+  'a_memo' => {
+    data_type => 'memo',
+    is_nullable => 1,
+  },
 );
 
 __PACKAGE__->set_primary_key('id');

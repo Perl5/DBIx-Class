@@ -531,7 +531,7 @@ sub do_creates {
   $dbh->do("CREATE TABLE ${q}track${q} (${q}trackid${q} NUMBER(12), ${q}cd${q} NUMBER(12) REFERENCES CD(${q}cdid${q}) DEFERRABLE, ${q}position${q} NUMBER(12), ${q}title${q} VARCHAR(255), ${q}last_updated_on${q} DATE, ${q}last_updated_at${q} DATE)");
   $dbh->do("ALTER TABLE ${q}track${q} ADD (CONSTRAINT ${q}track_pk${q} PRIMARY KEY (${q}trackid${q}))");
 
-  $dbh->do("CREATE TABLE ${q}bindtype_test${q} (${q}id${q} integer NOT NULL PRIMARY KEY, ${q}bytea${q} integer NULL, ${q}blob${q} blob NULL, ${q}clob${q} clob NULL)");
+  $dbh->do("CREATE TABLE ${q}bindtype_test${q} (${q}id${q} integer NOT NULL PRIMARY KEY, ${q}bytea${q} integer NULL, ${q}blob${q} blob NULL, ${q}clob${q} clob NULL, ${q}a_memo${q} integer NULL)");
 
   $dbh->do(qq{
     CREATE OR REPLACE TRIGGER ${q}artist_insert_trg_auto${q}

@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Nov 18 08:18:15 2010
+-- Created on Mon Feb 21 12:10:04 2011
 -- 
 
 --
@@ -26,7 +26,8 @@ CREATE TABLE bindtype_test (
   id INTEGER PRIMARY KEY NOT NULL,
   bytea blob,
   blob blob,
-  clob clob
+  clob clob,
+  a_memo memo
 );
 
 --
