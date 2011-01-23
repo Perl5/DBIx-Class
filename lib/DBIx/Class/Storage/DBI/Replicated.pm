@@ -386,6 +386,8 @@ my @unimplemented = qw(
 
   _max_column_bytesize
   _is_lob_type
+  _is_binary_lob_type
+  _is_text_lob_type
 );
 
 # the capability framework

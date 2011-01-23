@@ -410,15 +410,14 @@ sub source_bind_attributes
   my $self = shift;
   my($source) = @_;
 
-  my %bind_attributes;
+  my %bind_attributes = %{ $self->next::method(@_) };
 
   foreach my $column ($source->columns) {
-    my $data_type = $source->column_info($column)->{data_type}
-      or next;
+    my %column_bind_attrs = %{ $bind_attributes{$column} || {} };
 
-    my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
+    my $data_type = $source->column_info($column)->{data_type};
 
-    if ($data_type =~ /^[BC]LOB$/i) {
+    if ($self->_is_lob_type($data_type)) {
       if ($DBD::Oracle::VERSION eq '1.23') {
         $self->throw_exception(
 "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
@@ -426,7 +425,7 @@ sub source_bind_attributes
         );
       }
 
-      $column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB'
+      $column_bind_attrs{'ora_type'} = $self->_is_text_lob_type($data_type)
         ? DBD::Oracle::ORA_CLOB()
         : DBD::Oracle::ORA_BLOB()
       ;
