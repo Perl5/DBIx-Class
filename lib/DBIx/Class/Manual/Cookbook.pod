@@ -1370,14 +1370,21 @@ retry if the server goes away mid-operations, unlike C<txn_do>.
 L<DBIx::Class::Schema::Loader> will connect to a database and create a
 L<DBIx::Class::Schema> and associated sources by examining the database.
 
-The recommend way of achieving this is to use the
+The recommend way of achieving this is to use the L<dbicdump> utility or the
+L<Catalyst> helper, as described in
+L<Manual::Intro|DBIx::Class::Manual::Intro/Using DBIx::Class::Schema::Loader>.
+
+Alternatively, use the
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> method:
 
   perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib \
-    -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
+    -e 'make_schema_at("My::Schema", \
+    { db_schema => 'myschema', components => ["InflateColumn::DateTime"] }, \
+    [ "dbi:Pg:dbname=foo", "username", "password" ])'
 
-This will create a tree of files rooted at C<./lib/My/Schema/> containing
-source definitions for all the tables found in the C<foo> database.
+This will create a tree of files rooted at C<./lib/My/Schema/> containing source
+definitions for all the tables found in the C<myschema> schema in the C<foo>
+database.
 
 =head2 Creating DDL SQL
 

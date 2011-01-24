@@ -74,7 +74,8 @@ L<DBIx::Class::Row> objects.
 Let's look at how you can set and use your first native L<DBIx::Class> tree.
 
 First we'll see how you can set up your classes yourself.  If you want them to
-be auto-discovered, just skip to the next section, which shows you how to use
+be auto-discovered, just skip to the L<next section|/Using
+DBIx::Class::Schema::Loader>, which shows you how to use
 L<DBIx::Class::Schema::Loader>.
 
 =head2 Setting it up manually
@@ -191,28 +192,31 @@ foreign key:
 See L<DBIx::Class::Relationship> for more information about the various types of
 available relationships and how you can design your own.
 
-=head2 Using L<DBIx::Class::Schema::Loader>
+=head2 Using DBIx::Class::Schema::Loader
 
-This is an external module, and not part of the L<DBIx::Class> distribution.
-It inspects your database, and automatically creates classes for all the tables
-in your database.
+This module (L<DBIx::Class::Schema::Loader>) is an external module, and not part
+of the L<DBIx::Class> distribution. It inspects your database, and automatically
+creates classes for all the tables in your schema.
 
 The simplest way to use it is via the L<dbicdump> script from the
 L<DBIx::Class::Schema::Loader> distribution. For example:
 
-    $ dbicdump -o dump_directory=./lib MyApp::Schema dbi:mysql:mydb user pass
+    $ dbicdump -o dump_directory=./lib \
+        -o components='["InflateColumn::DateTime"]' \
+        MyApp::Schema dbi:mysql:mydb user pass
 
 If you have a mixed-case database, use the C<preserve_case> option, e.g.:
 
-    $ dbicdump -o dump_directory=./lib -o preserve_case=1 MyApp::Schema \
-        dbi:mysql:mydb user pass
+    $ dbicdump -o dump_directory=./lib -o preserve_case=1 \
+        -o components='["InflateColumn::DateTime"]' \
+        MyApp::Schema dbi:mysql:mydb user pass
 
 If you are using L<Catalyst>, then you can use the helper that comes with
 L<Catalyst::Model::DBIC::Schema>:
 
     $ script/myapp_create.pl model MyDB DBIC::Schema MyDB::Schema \
         create=static moniker_map='{ foo => "FOO" }' dbi:SQLite:./myapp.db \
-        on_connect_do='PRAGMA foreign_keys=ON' quote_char='"'
+        on_connect_do='PRAGMA foreign_keys=ON' quote_char='"' name_sep='.'
 
 See L<Catalyst::Helper::Model::DBIC::Schema> for more information on this
 helper.
