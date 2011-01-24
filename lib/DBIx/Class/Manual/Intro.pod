@@ -216,7 +216,7 @@ L<Catalyst::Model::DBIC::Schema>:
 
     $ script/myapp_create.pl model MyDB DBIC::Schema MyDB::Schema \
         create=static moniker_map='{ foo => "FOO" }' dbi:SQLite:./myapp.db \
-        on_connect_do='PRAGMA foreign_keys=ON' quote_char='"' name_sep='.'
+        on_connect_do='PRAGMA foreign_keys=ON' quote_char='"'
 
 See L<Catalyst::Helper::Model::DBIC::Schema> for more information on this
 helper.
