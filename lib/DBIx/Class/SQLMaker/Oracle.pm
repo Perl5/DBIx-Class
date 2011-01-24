@@ -27,7 +27,7 @@ sub new {
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where oracle_connect_by having order/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where oracle_connect_by group having order/);
 }
 
 

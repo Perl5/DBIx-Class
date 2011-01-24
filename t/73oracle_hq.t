@@ -343,30 +343,37 @@ do_creates($dbh);
   }
 
   # combine a connect_by with group_by and having
+  # add some bindvals to make sure things still work
   {
     my $rs = $schema->resultset('Artist')->search({}, {
-      select => { count => 'rank', -as => 'cnt' },
+      select => \[ 'COUNT(rank) + ?', [ __cbind => 3 ] ],
+      as => 'cnt',
       start_with => { name => 'root' },
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      group_by => ['rank'],
+      group_by => \[ 'rank + ? ', [ __gbind =>  1] ],
       having => \[ 'count(rank) < ?', [ cnt => 2 ] ],
     });
 
     is_same_sql_bind (
       $rs->as_query,
       '(
-        SELECT COUNT(rank) AS cnt
+        SELECT COUNT(rank) + ?
           FROM artist me
         START WITH name = ?
         CONNECT BY parentid = PRIOR artistid
-        GROUP BY rank HAVING count(rank) < ?
+        GROUP BY( rank + ? ) HAVING count(rank) < ?
       )',
-      [ [ name => 'root' ], [ cnt => 2 ] ],
+      [
+        [ __cbind => 3 ],
+        [ name => 'root' ],
+        [ __gbind => 1 ],
+        [ cnt => 2 ]
+      ],
     );
 
     is_deeply (
       [ $rs->get_column ('cnt')->all ],
-      [1, 1],
+      [4, 4],
       'Group By a Connect By query - correct values'
     );
   }
