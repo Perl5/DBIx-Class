@@ -1,5 +1,11 @@
 Revision history for DBIx::Class
 
+0.08190-TRIAL 2011-01-24 15:35 (UTC)
+
+    * New Features / Changes
+        - Support for completely arbitrary SQL::Abstract-based conditions
+          in all types of relationships
+
 0.08127 2011-01-19 16:40 (UTC)
     * New Features / Changes
         - Schema/resultsource instances are now crossreferenced via a new
