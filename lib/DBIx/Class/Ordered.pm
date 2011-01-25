@@ -759,11 +759,11 @@ sub _next_position_value {
 Shifts all siblings with B<positions values> in the range @between
 (inclusive) by one position as specified by $direction (left if < 0,
  right if > 0). By default simply increments/decrements each
-L<position_column> value by 1, doing so in a way as to not violate
+L</position_column> value by 1, doing so in a way as to not violate
 any existing constraints.
 
 Note that if you override this method and have unique constraints
-including the L<position_column> the shift is not a trivial task.
+including the L</position_column> the shift is not a trivial task.
 Refer to the implementation source of the default method for more
 information.
 

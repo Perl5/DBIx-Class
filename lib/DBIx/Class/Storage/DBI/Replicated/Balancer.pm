@@ -27,9 +27,10 @@ This class defines the following attributes.
 
 =head2 auto_validate_every ($seconds)
 
-If auto_validate has some sort of value, run the L<validate_replicants> every
-$seconds.  Be careful with this, because if you set it to 0 you will end up
-validating every query.
+If auto_validate has some sort of value, run
+L<DBIx::Class::Storage::DBI::Replicated::Pool/validate_replicants>
+every $seconds.  Be careful with this, because if you set it to 0 you
+will end up validating every query.
 
 =cut
 

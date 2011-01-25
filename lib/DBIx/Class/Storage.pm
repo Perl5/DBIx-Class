@@ -338,8 +338,8 @@ sub sql_maker { die "Virtual method!" }
 
 =head2 debug
 
-Causes trace information to be emitted on the C<debugobj> object.
-(or C<STDERR> if C<debugobj> has not specifically been set).
+Causes trace information to be emitted on the L</debugobj> object.
+(or C<STDERR> if L</debugobj> has not specifically been set).
 
 This is the equivalent to setting L</DBIC_TRACE> in your
 shell environment.
@@ -410,7 +410,7 @@ Sets a callback to be executed each time a statement is run; takes a sub
 reference.  Callback is executed as $sub->($op, $info) where $op is
 SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
 
-See L<debugobj> for a better way.
+See L</debugobj> for a better way.
 
 =cut
 
@@ -507,7 +507,7 @@ sub columns_info_for { die "Virtual method!" }
 =head2 DBIC_TRACE
 
 If C<DBIC_TRACE> is set then trace information
-is produced (as when the L<debug> method is set).
+is produced (as when the L</debug> method is set).
 
 If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.

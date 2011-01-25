@@ -408,6 +408,8 @@ sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 talexb: Alex Beamish <talexb@gmail.com>
 
+tamias: Ronald J Kimball <rkimball@pangeamedia.com>
+
 teejay : Aaron Trevena <teejay@cpan.org>
 
 Todd Lipcon
