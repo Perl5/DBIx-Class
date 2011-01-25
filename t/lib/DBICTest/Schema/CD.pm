@@ -93,4 +93,37 @@ __PACKAGE__->belongs_to('genre_inefficient', 'DBICTest::Schema::Genre',
     },
 );
 
+
+# This is insane. Don't ever do anything like that
+# This is for testing purposes only!
+
+# mst: mo: DBIC is an "object relational mapper"
+# mst: mo: not an "object relational hider-because-mo-doesn't-understand-databases
+# ribasushi: mo: try it with a subselect nevertheless, I'd love to be proven wrong
+# ribasushi: mo: does sqlite actually take this?
+# ribasushi: an order in a correlated subquery is insane - how long does it take you on real data?
+
+__PACKAGE__->might_have(
+    'last_track',
+    'DBICTest::Schema::Track',
+    sub {
+        my $args = shift;
+        return (
+            {
+                "$args->{foreign_alias}.trackid" => { '=' =>
+                    $args->{self_resultsource}->schema->resultset('Track')->search(
+                       { 'correlated_tracks.cd' => { -ident => "$args->{self_alias}.cdid" } },
+                       {
+                          order_by => { -desc => 'position' },
+                          rows     => 1,
+                          alias    => 'correlated_tracks',
+                          columns  => ['trackid']
+                       },
+                    )->as_query
+                }
+            }
+        );
+    },
+);
+
 1;

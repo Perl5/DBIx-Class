@@ -171,6 +171,18 @@ is_deeply (
   'last group-entry via self-join works',
 );
 
+is_deeply (
+  [map { $_->last_track->id } grep { $_->last_track } $schema->resultset('CD')->search ({}, { order_by => 'cdid', prefetch => 'last_track'})->all],
+  [ map { $_->trackid } @last_tracks ],
+  'last_track via insane subquery condition works',
+);
+
+is_deeply (
+  [map { $_->last_track->id } grep { $_->last_track } $schema->resultset('CD')->search ({}, { order_by => 'cdid'})->all],
+  [ map { $_->trackid } @last_tracks ],
+  'last_track via insane subquery condition works, even without prefetch',
+);
+
 my $artwork = $schema->resultset('Artwork')->search({},{ order_by => 'cd_id' })->first;
 my @artists = $artwork->artists->all;
 is(scalar @artists, 2, 'the two artists are associated');
