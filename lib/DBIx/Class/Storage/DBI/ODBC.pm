@@ -10,8 +10,7 @@ use namespace::clean;
 sub _rebless {
   my ($self) = @_;
 
-  try {
-    my $dbtype = $self->_get_dbh->get_info(17);
+  if (my $dbtype = try { $self->_get_dbh->get_info(17) }) {
 
     # Translate the backend name into a perl identifier
     $dbtype =~ s/\W/_/gi;
@@ -21,7 +20,7 @@ sub _rebless {
       bless $self, $subclass;
       $self->_rebless;
     }
-  };
+  }
 }
 
 1;
