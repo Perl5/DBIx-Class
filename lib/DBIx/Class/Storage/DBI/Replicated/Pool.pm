@@ -363,7 +363,7 @@ This does a check to see if 1) each replicate is connected (or reconnectable),
 defined by L</maximum_lag>.  Replicants that fail any of these tests are set to
 inactive, and thus removed from the replication pool.
 
-This tests L<all_replicants>, since a replicant that has been previous marked
+This tests L</all_replicants>, since a replicant that has been previous marked
 as inactive can be reactivated should it start to pass the validation tests again.
 
 See L<DBIx::Class::Storage::DBI> for more about checking if a replicating

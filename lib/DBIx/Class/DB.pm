@@ -203,19 +203,19 @@ sub result_source_instance {
 
 ****DEPRECATED****
 
-See L<class_resolver>
+See L</class_resolver>
 
 =head2 dbi_commit
 
 ****DEPRECATED****
 
-Alias for L<txn_commit>
+Alias for L</txn_commit>
 
 =head2 dbi_rollback
 
 ****DEPRECATED****
 
-Alias for L<txn_rollback>
+Alias for L</txn_rollback>
 
 =end HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
 
