@@ -375,11 +375,16 @@ SQL
         );
 
         my ($sql, @bind) = @${$owners->page(3)->as_query};
-        is_deeply (
+        is_same_bind (
           \@bind,
           [
-            $dialect eq 'Top' ? [ test => 'xxx' ] : (),                 # the extra re-order bind
-            ([ 'me.name' => 'somebogusstring' ], [ test => 'xxx' ]) x 2 # double because of the prefetch subq
+            $dialect eq 'Top' ? [ { dbic_colname => 'test' } => 'xxx' ] : (), # the extra re-order bind
+            (map {
+              [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
+                => 'somebogusstring' ],
+              [ { dbic_colname => 'test' }
+                => 'xxx' ],
+            } (1,2)), # double because of the prefetch subq
           ],
         );
 
@@ -411,13 +416,26 @@ SQL
         );
 
         ($sql, @bind) = @${$books->page(3)->as_query};
-        is_deeply (
+        is_same_bind (
           \@bind,
           [
             # inner
-            [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ], [ test => '1' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
+              => 'wiggle' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
+              => 'woggle' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+              => 'Library' ],
+            [ { dbic_colname => 'test' }
+              => '1' ],
+
             # outer
-            [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
+              => 'wiggle' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
+              => 'woggle' ],
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+              => 'Library' ],
           ],
         );
 

@@ -16,8 +16,7 @@ sub insert {
     my $self = shift;
     my ( $source, $to_insert ) = @_;
 
-    my $bind_attributes = $self->source_bind_attributes( $source );
-    my ( undef, $sth ) = $self->_execute( 'insert' => [], $source, $bind_attributes, $to_insert );
+    my ( undef, $sth ) = $self->_execute( 'insert', $source, $to_insert );
 
     #store the identity here since @@IDENTITY is connection global and this prevents
     #possibility that another insert to a different table overwrites it for this resultsource

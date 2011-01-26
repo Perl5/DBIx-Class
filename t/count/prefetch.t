@@ -33,7 +33,7 @@ my $schema = DBICTest->init_schema();
           GROUP BY cds.cdid
         ) cds
     )',
-    [ map { [ 'tracks.position' => $_ ] } (1, 2) ],
+    [ map { [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' } => $_ ] } (1, 2) ],
   );
 }
 
@@ -65,7 +65,9 @@ my $schema = DBICTest->init_schema();
         )
       genre
     )',
-    [ [ 'genre.name' => 'emo' ] ],
+    [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname =>  'genre.name' }
+        => 'emo' ]
+    ],
   );
 }
 
@@ -91,7 +93,7 @@ my $schema = DBICTest->init_schema();
         LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid
       WHERE lyrics.lyric_id IS NULL AND (position = ? OR position = ?)
     )',
-    [ map { [ position => $_ ] } (1, 2) ],
+    [ map { [ { sqlt_datatype => 'int', dbic_colname => 'position' } => $_ ] } (1, 2) ],
   );
 }
 

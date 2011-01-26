@@ -37,7 +37,8 @@ is_same_sql_bind(
       ) < 2
     ORDER BY me.title
   )',
-  [  [ 'source', 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+    => 'Library' ] ],
 );
 
 is_deeply (
@@ -78,7 +79,8 @@ is_same_sql_bind(
       ) BETWEEN 1 AND 3
     ORDER BY "title" DESC
   )',
-  [ [ 'source', 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+    => 'Library' ] ],
 );
 
 is_deeply (
@@ -113,7 +115,8 @@ is_same_sql_bind(
       ) BETWEEN 1 AND 4294967295
     ORDER BY "title"
   )',
-  [ [ 'source', 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+    => 'Library' ] ],
 );
 
 is_deeply (

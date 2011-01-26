@@ -37,11 +37,14 @@ sub test_order {
           ORDER BY $args->{order_req}
         )",
         [
-            [qw(foo bar)],
-            [qw(read_count 5)],
-            [qw(read_count 8)],
+            [ { sqlt_datatype => 'integer', dbic_colname => 'foo' }
+                => 'bar' ],
+            [ { sqlt_datatype => 'int', dbic_colname => 'read_count' }
+                => 5 ],
+            [ { sqlt_datatype => 'int', dbic_colname => 'read_count' }
+                => 8 ],
             $args->{bind}
-              ? @{ $args->{bind} }
+              ? map { [ { dbic_colname => $_->[0] } => $_->[1] ] } @{ $args->{bind} }
               : ()
         ],
       ) || diag Dumper $args->{order_by};

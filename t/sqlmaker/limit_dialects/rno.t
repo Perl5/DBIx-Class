@@ -36,7 +36,8 @@ is_same_sql_bind(
       ) me
     WHERE rno__row__index BETWEEN 1 AND 1
   )',
-  [  [ 'source', 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+    => 'Library' ] ],
 );
 
 $schema->storage->_sql_maker->quote_char ([qw/ [ ] /]);
@@ -68,7 +69,8 @@ is_same_sql_bind(
       ) [me]
     WHERE [rno__row__index] BETWEEN 1 AND 1
   )',
-  [ [ 'source', 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+    => 'Library' ] ],
 );
 
 {

@@ -280,26 +280,26 @@ my $method_dispatch = {
     svp_release
     relname_to_table_alias
     _dbh_last_insert_id
-    _fix_bind_params
     _default_dbi_connect_attributes
     _dbi_connect_info
     _dbic_connect_attributes
     auto_savepoint
+    _query_start
     _query_end
+    _format_for_trace
+    _dbi_attrs_for_bind
     bind_attribute_by_data_type
     transaction_depth
     _dbh
     _select_args
     _dbh_execute_array
     _sql_maker
-    _query_start
     _per_row_update_delete
     _dbh_begin_work
     _dbh_execute_inserts_with_no_binds
     _select_args_to_query
     _svp_generate_name
     _multipk_update_delete
-    source_bind_attributes
     _normalize_connect_info
     _parse_connect_do
     _dbh_commit
@@ -335,6 +335,8 @@ my $method_dispatch = {
   unimplemented => [qw/
     _arm_global_destructor
     _verify_pid
+
+    source_bind_attributes
 
     get_use_dbms_capability
     set_use_dbms_capability

@@ -71,7 +71,7 @@ sub insert {
 
 sub _prep_for_execute {
   my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
+  my ($op, $ident, $args) = @_;
 
 # cast MONEY values properly
   if ($op eq 'insert' || $op eq 'update') {
@@ -113,7 +113,7 @@ sub _execute {
   my $self = shift;
   my ($op) = @_;
 
-  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+  my ($rv, $sth, @bind) = $self->next::method(@_);
 
   if ($op eq 'insert') {
 

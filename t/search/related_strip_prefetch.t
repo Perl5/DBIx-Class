@@ -11,7 +11,7 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 
 my $rs = $schema->resultset('CD')->search (
-  { 'tracks.id' => { '!=', 666 }},
+  { 'tracks.trackid' => { '!=', 666 }},
   { join => 'artist', prefetch => 'tracks', rows => 2 }
 );
 
@@ -26,7 +26,7 @@ is_same_sql_bind (
           FROM cd me
           JOIN artist artist ON artist.artistid = me.artist
           LEFT JOIN track tracks ON tracks.cd = me.cdid 
-        WHERE ( tracks.id != ? )
+        WHERE ( tracks.trackid != ? )
         LIMIT 2
       ) me
       JOIN artist artist ON artist.artistid = me.artist
@@ -35,7 +35,9 @@ is_same_sql_bind (
     GROUP BY tags.tagid, tags.cd, tags.tag
   )',
 
-  [ [ 'tracks.id' => 666 ] ],
+  [ [ { sqlt_datatype => 'integer', dbic_colname => 'tracks.trackid' }
+      => 666 ]
+  ],
   'Prefetch spec successfully stripped on search_related'
 );
 

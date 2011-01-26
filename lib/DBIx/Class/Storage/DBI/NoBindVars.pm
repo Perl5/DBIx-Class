@@ -43,31 +43,30 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method(@_);
 
   # stringify bind args, quote via $dbh, and manually insert
-  #my ($op, $extra_bind, $ident, $args) = @_;
-  my $ident = $_[2];
+  #my ($op, $ident, $args) = @_;
+  my $ident = $_[1];
 
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
-  my $col_info = $self->_resolve_column_info($ident, [ map $_->[0], @$bind ]);
+  my $col_info = $self->_resolve_column_info(
+    $ident, [ map { $_->[0]{dbic_colname} || () } @$bind ]
+  );
 
-  foreach my $bound (@$bind) {
-    my $col = shift @$bound;
+  for (@$bind) {
+    my $datatype = $col_info->{ $_->[0]{dbic_colname}||'' }{data_type};
 
-    my $datatype = $col_info->{$col}{data_type};
+    my $data = (ref $_->[1]) ? "$_->[1]" : $_->[1]; # always stringify
 
-    foreach my $data (@$bound) {
-      $data = ''.$data if ref $data;
+    $data = $self->_prep_interpolated_value($datatype, $data)
+      if $datatype;
 
-      $data = $self->_prep_interpolated_value($datatype, $data)
-        if $datatype;
+    $data = $self->_get_dbh->quote($data)
+      unless $self->interpolate_unquoted($datatype, $data);
 
-      $data = $self->_dbh->quote($data)
-        unless $self->interpolate_unquoted($datatype, $data);
-
-      $new_sql .= shift(@sql_part) . $data;
-    }
+    $new_sql .= shift(@sql_part) . $data;
   }
+
   $new_sql .= join '', @sql_part;
 
   return ($new_sql, []);

@@ -66,17 +66,16 @@ sub _rebless {
   $self->_identity_method('@@identity');
 }
 
-sub source_bind_attributes {
-  my $self = shift;
-  my ($source) = @_;
+# work around a bug in the ADO driver - use the max VARCHAR size for all
+# binds that do not specify one via bind_attributes_by_data_type()
+sub _dbi_attrs_for_bind {
+  my $attrs = shift->next::method(@_);
 
-  my $bind_attributes = $self->next::method(@_);
-
-  foreach my $column ($source->columns) {
-    $bind_attributes->{$column}{ado_size} ||= 8000; # max VARCHAR
+  for (@$attrs) {
+    $_->{ado_size} ||= 8000 if $_;
   }
 
-  return $bind_attributes;
+  $attrs;
 }
 
 sub bind_attribute_by_data_type {

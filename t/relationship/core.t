@@ -271,7 +271,8 @@ is_same_sql_bind (
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',
-  [[artistid => 1]],
+  [[ { sqlt_datatype => 'integer', dbic_colname => 'artistid' }
+      => 1 ]],
   'expected join sql produced',
 );
 

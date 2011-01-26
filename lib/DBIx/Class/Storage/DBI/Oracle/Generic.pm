@@ -272,15 +272,14 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  my $self = shift;
-  my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  my ($self, $dbh, $sql, @args) = @_;
 
   my (@res, $tried);
   my $want = wantarray;
   my $next = $self->next::can;
   do {
     try {
-      my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
+      my $exec = sub { $self->$next($dbh, $sql, @args) };
 
       if (!defined $want) {
         $exec->();
@@ -298,7 +297,6 @@ sub _dbh_execute {
       if (! $tried and $_ =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
-        my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
         delete $dbh->{CachedKids}{$sql};
       }
       else {
@@ -384,55 +382,57 @@ sub connect_call_datetime_setup {
   );
 }
 
-=head2 source_bind_attributes
+### Note originally by Ron "Quinn" Straight <quinnfazigu@gmail.org>
+### http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=commitdiff;h=5db2758de644d53e07cd3e05f0e9037bf40116fc
+#
+# Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
+# with the driver assuming your input is the deprecated LONG type if you
+# encode it as a hex string.  That ain't gonna fly at larger values, where
+# you'll discover you have to do what this does.
+#
+# This method had to be overridden because we need to set ora_field to the
+# actual column, and that isn't passed to the call (provided by Storage) to
+# bind_attribute_by_data_type.
+#
+# According to L<DBD::Oracle>, the ora_field isn't always necessary, but
+# adding it doesn't hurt, and will save your bacon if you're modifying a
+# table with more than one LOB column.
+#
+sub _dbi_attrs_for_bind {
+  my ($self, $ident, $bind) = @_;
+  my $attrs = $self->next::method($ident, $bind);
 
-Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
-with the driver assuming your input is the deprecated LONG type if you
-encode it as a hex string.  That ain't gonna fly at larger values, where
-you'll discover you have to do what this does.
-
-This method had to be overridden because we need to set ora_field to the
-actual column, and that isn't passed to the call (provided by Storage) to
-bind_attribute_by_data_type.
-
-According to L<DBD::Oracle>, the ora_field isn't always necessary, but
-adding it doesn't hurt, and will save your bacon if you're modifying a
-table with more than one LOB column.
-
-=cut
-
-sub source_bind_attributes
-{
-  require DBD::Oracle;
-  my $self = shift;
-  my($source) = @_;
-
-  my %bind_attributes = %{ $self->next::method(@_) };
-
-  foreach my $column ($source->columns) {
-    my %column_bind_attrs = %{ $bind_attributes{$column} || {} };
-
-    my $data_type = $source->column_info($column)->{data_type};
-
-    if ($self->_is_lob_type($data_type)) {
-      if ($DBD::Oracle::VERSION eq '1.23') {
-        $self->throw_exception(
-"BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
-"version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
-        );
-      }
-
-      $column_bind_attrs{'ora_type'} = $self->_is_text_lob_type($data_type)
-        ? DBD::Oracle::ORA_CLOB()
-        : DBD::Oracle::ORA_BLOB()
-      ;
-      $column_bind_attrs{'ora_field'} = $column;
+  for my $i (0 .. $#$attrs) {
+    if (keys %{$attrs->[$i]||{}} and my $col = $bind->[$i][0]{dbic_colname}) {
+      $attrs->[$i]{ora_field} = $col;
     }
-
-    $bind_attributes{$column} = \%column_bind_attrs;
   }
 
-  return \%bind_attributes;
+  $attrs;
+}
+
+my $dbd_loaded;
+sub bind_attribute_by_data_type {
+  my ($self, $dt) = @_;
+
+  $dbd_loaded ||= do {
+    require DBD::Oracle;
+    if ($DBD::Oracle::VERSION eq '1.23') {
+      $self->throw_exception(
+        "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
+        "version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
+      );
+    }
+    1;
+  };
+
+  if ($self->_is_lob_type($dt)) {
+    return {
+      ora_type => $self->_is_text_lob_type($dt)
+        ? DBD::Oracle::ORA_CLOB()
+        : DBD::Oracle::ORA_BLOB()
+    };
+  }
 }
 
 sub _svp_begin {

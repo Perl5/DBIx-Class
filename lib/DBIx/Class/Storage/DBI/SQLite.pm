@@ -64,6 +64,13 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
+sub bind_attribute_by_data_type {
+  $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium|big)int ) $/ix
+    ? do { require DBI; DBI::SQL_INTEGER() }
+    : undef
+  ;
+}
+
 =head2 connect_call_use_foreign_keys
 
 Used as:

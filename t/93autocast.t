@@ -33,14 +33,18 @@ my $rs = $schema->resultset ('CD')->search ({
   'tracks.last_updated_at' => { '!=', undef },
   'tracks.last_updated_on' => { '<', 2009 },
   'tracks.position' => 4,
-  'tracks.single_track' => \[ '= ?', [ single_track => [1, 2, 3 ] ] ],
+  'me.single_track' => \[ '= ?', [ single_track => [1, 2, 3 ] ] ],
 }, { join => 'tracks' });
 
 my $bind = [
-  [ cdid => 5 ],
-  [ 'tracks.last_updated_on' => 2009 ],
-  [ 'tracks.position' => 4 ],
-  [ 'single_track' => [ 1, 2, 3] ],
+  [ { sqlt_datatype => 'integer', dbic_colname => 'cdid' }
+    => 5 ],
+  [ { sqlt_datatype => 'integer', dbic_colname => 'single_track' }
+    => [ 1, 2, 3] ],
+  [ { sqlt_datatype => 'datetime', dbic_colname => 'tracks.last_updated_on' }
+    => 2009 ],
+  [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+    => 4 ],
 ];
 
 is_same_sql_bind (
@@ -51,10 +55,10 @@ is_same_sql_bind (
       LEFT JOIN track tracks ON tracks.cd = me.cdid
     WHERE
           cdid > ?
+      AND me.single_track = ?
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < ?
       AND tracks.position = ?
-      AND tracks.single_track = ?
   )',
   $bind,
   'expected sql with casting off',
@@ -70,10 +74,10 @@ is_same_sql_bind (
       LEFT JOIN track tracks ON tracks.cd = me.cdid
     WHERE
           cdid > CAST(? AS INT)
+      AND me.single_track = CAST(? AS INT)
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < CAST (? AS DateTime)
       AND tracks.position = ?
-      AND tracks.single_track = CAST(? AS INT)
   )',
   $bind,
   'expected sql with casting on',

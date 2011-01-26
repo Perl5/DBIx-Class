@@ -8,10 +8,9 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-my $ne_bind = [ _ne => 'bar' ];
 my $rs = $schema->resultset('CD')->search({ -and => [
-  'me.artist' => { '!=', 'foo' },
-  'me.artist' => { '!=', \[ '?', $ne_bind ] },
+  'me.artist' => { '!=', '666' },
+  'me.artist' => { '!=', \[ '?', [ _ne => 'bar' ] ] },
 ]});
 
 # bogus sql query to make sure bind composition happens properly
@@ -40,14 +39,16 @@ for (1,2) {
       LIMIT 1 OFFSET 2
     )',
     [
-      [ 'me.artist' => 'foo' ],
-      $ne_bind,
-      [ _add => 1 ],
-      [ 'me.artist' => 'foo' ],
-      $ne_bind,
-      [ _sub => 2 ],
-      [ _lt => 3 ],
-      [ _mu => 4 ],
+      [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
+        => 666 ],
+      [ { dbic_colname => '_ne' } => 'bar' ],
+      [ { dbic_colname => '_add' } => 1 ],
+      [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
+        => 666 ],
+      [ { dbic_colname => '_ne' } => 'bar' ],
+      [ { dbic_colname => '_sub' } => 2 ],
+      [ { dbic_colname => '_lt' } => 3 ],
+      [ { dbic_colname => '_mu' } => 4 ],
     ],
     'Correct crazy sql',
   );

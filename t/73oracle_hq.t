@@ -116,7 +116,8 @@ do_creates($dbh);
         START WITH name = ?
         CONNECT BY parentid = PRIOR artistid 
       )',
-      [ [ name => 'root'] ],
+      [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'] ],
     );
     is_deeply (
       [ $rs->get_column ('name')->all ],
@@ -132,7 +133,8 @@ do_creates($dbh);
         START WITH name = ?
         CONNECT BY parentid = PRIOR artistid 
       )',
-      [ [ name => 'root'] ],
+      [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'] ],
     );
 
     is( $rs->count, 5, 'Connect By count ok' );
@@ -159,7 +161,8 @@ do_creates($dbh);
         CONNECT BY parentid = PRIOR artistid 
         ORDER SIBLINGS BY name DESC
       )',
-      [ [ name => 'root'] ],
+      [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'] ],
     );
 
     is_deeply (
@@ -185,7 +188,8 @@ do_creates($dbh);
         START WITH name = ?
         CONNECT BY parentid = PRIOR artistid 
       )',
-      [ [ name => 'root'] ],
+      [ [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'] ],
     );
 
     is_deeply(
@@ -220,7 +224,12 @@ do_creates($dbh);
         START WITH me.name = ?
         CONNECT BY parentid = PRIOR artistid 
       )',
-      [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'cds.title', 'sqlt_size' => 100 }
+            => '%cd'],
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'me.name', 'sqlt_size' => 100 }
+            => 'root'],
+      ],
     );
 
     is_deeply(
@@ -239,7 +248,12 @@ do_creates($dbh);
         START WITH me.name = ?
         CONNECT BY parentid = PRIOR artistid 
       )',
-      [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'cds.title', 'sqlt_size' => 100 }
+            => '%cd'],
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'me.name', 'sqlt_size' => 100 }
+            => 'root'],
+      ],
     );
 
     is( $rs->count, 1, 'Connect By with a join; count ok' );
@@ -262,7 +276,10 @@ do_creates($dbh);
         CONNECT BY parentid = PRIOR artistid 
         ORDER BY LEVEL ASC, name ASC
       )',
-      [ [ name => 'root' ] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'],
+      ],
     );
 
 
@@ -312,7 +329,10 @@ do_creates($dbh);
           ) me
         WHERE ROWNUM <= 2
       )',
-      [ [ name => 'root' ] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'],
+      ],
     );
 
     is_deeply (
@@ -336,7 +356,10 @@ do_creates($dbh);
             WHERE ROWNUM <= 2
           ) me
       )',
-      [ [ name => 'root' ] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'],
+      ],
     );
 
     is( $rs->count, 2, 'Connect By; LIMIT count ok' );
@@ -364,10 +387,14 @@ do_creates($dbh);
         GROUP BY( rank + ? ) HAVING count(rank) < ?
       )',
       [
-        [ __cbind => 3 ],
-        [ name => 'root' ],
-        [ __gbind => 1 ],
-        [ cnt => 2 ]
+        [ { dbic_colname => '__cbind' }
+            => 3 ],
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'root'],
+        [ { dbic_colname => '__gbind' }
+            => 1 ],
+        [ { dbic_colname => 'cnt' }
+            => 2 ],
       ],
     );
 
@@ -411,7 +438,10 @@ do_creates($dbh);
         START WITH name = ?
         CONNECT BY NOCYCLE parentid = PRIOR artistid 
       )',
-      [ [ name => 'cycle-root'] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'cycle-root'],
+      ],
     );
     is_deeply (
       [ $rs->get_column ('name')->all ],
@@ -432,7 +462,10 @@ do_creates($dbh);
         START WITH name = ?
         CONNECT BY NOCYCLE parentid = PRIOR artistid 
       )',
-      [ [ name => 'cycle-root'] ],
+      [
+        [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
+            => 'cycle-root'],
+      ],
     );
 
     is( $rs->count, 4, 'Connect By Nocycle count ok' );

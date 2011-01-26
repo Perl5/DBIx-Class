@@ -243,14 +243,14 @@ sub _is_lob_column {
 
 sub _prep_for_execute {
   my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
+  my ($op, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method (@_);
 
   my $table = blessed $ident ? $ident->from : $ident;
 
   my $bind_info = $self->_resolve_column_info(
-    $ident, [map $_->[0], @{$bind}]
+    $ident, [map { $_->[0]{dbic_colname} || () } @{$bind}]
   );
   my $bound_identity_col =
     first { $bind_info->{$_}{is_auto_increment} }
@@ -333,7 +333,7 @@ sub _execute {
   my $self = shift;
   my ($op) = @_;
 
-  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+  my ($rv, $sth, @bind) = $self->next::method(@_);
 
   if ($op eq 'insert') {
     $self->_identity($sth->fetchrow_array);
@@ -634,10 +634,7 @@ EOF
       }
     );
 
-    my @bind = do {
-      my $idx = 0;
-      map [ $_, $idx++ ], @source_columns;
-    };
+    my @bind = map { [ $source_columns[$_] => $_ ] } (0 .. $#source_columns);
 
     $self->_execute_array(
       $source, $sth, \@bind, \@source_columns, \@new_data, sub {

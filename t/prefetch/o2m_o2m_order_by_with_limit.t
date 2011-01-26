@@ -44,7 +44,9 @@ is_same_sql_bind(
     WHERE ( me.rank = ? )
     ORDER BY me.name ASC, me.artistid DESC, tracks.cd
   )},
-  [ [ 'me.rank' => 13 ], [ 'me.rank' => 13 ] ],
+  [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' }
+            => 13 ] } (1,2)
+  ],
   'correct SQL on limited prefetch over search_related ordered by root',
 );
 

@@ -35,7 +35,8 @@ is_same_sql_bind (
         WHERE ( source = ? )
       ) me
   )',
-  [ [ source => 'Library' ] ],
+  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+      => 'Library' ] ],
   'Resultset-class attributes do not seep outside of the subselect',
 );
 

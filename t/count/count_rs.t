@@ -54,7 +54,12 @@ my $schema = DBICTest->init_schema();
         LIMIT 3 OFFSET 8
        ) tracks
     )',
-    [ [ position => 1 ], [ position => 2 ] ],
+    [
+      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+        => 1 ],
+      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+        => 2 ],
+    ],
     'count_rs db-side limit applied',
   );
 }
@@ -109,7 +114,12 @@ my $schema = DBICTest->init_schema();
         LIMIT 3 OFFSET 4
       ) cds
     )',
-    [ [ 'tracks.position' => 1 ], [ 'tracks.position' => 2 ] ],
+    [
+      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+        => 1 ],
+      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+        => 2 ],
+    ],
     'count_rs db-side limit applied',
   );
 }
@@ -140,7 +150,8 @@ my $schema = DBICTest->init_schema();
         HAVING newest_cd_year = ?
       ) me
     )',
-    [ [ 'newest_cd_year' => '2001' ],],
+    [ [ { dbic_colname => 'newest_cd_year' }
+          => '2001' ] ],
     'count with having clause keeps sql as alias',
   );
 

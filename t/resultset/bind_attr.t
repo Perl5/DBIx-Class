@@ -71,8 +71,8 @@ TODO: {
     $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
-      [ '!!dummy' => '1999' ], 
-      [ '!!dummy' => 'Spoon%' ]
+      [ {} => '1999' ], 
+      [ {} => 'Spoon%' ]
     ],
     'got correct SQL'
   );
@@ -100,8 +100,8 @@ TODO: {
     $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
-      [ '!!dummy' => '1999' ], 
-      [ '!!dummy' => 'Spoon%' ]
+      [ {} => '1999' ], 
+      [ {} => 'Spoon%' ]
     ],
     'got correct SQL (cookbook arbitrary SQL, in separate file)'
   );

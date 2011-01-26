@@ -148,10 +148,11 @@ $rs = $schema->resultset("CD")->search(
 
 cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
-$rs = $schema->resultset("Artist")->search(
-  {},
-      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=> \'< 5' } }
-);
+$rs = $schema->resultset("Artist")->search({}, {
+  join => [qw/ cds /],
+  group_by => [qw/ me.name /],
+  having => \[ 'MAX(cds.cdid) < ?', [ \'int' => 5 ] ],
+});
 
 cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
 

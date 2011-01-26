@@ -22,21 +22,31 @@ my $cdrs = $schema->resultset('CD');
 
 $art_rs = $art_rs->search({ name => 'Billy Joel' });
 
+my $name_resolved_bind = [
+  { sqlt_datatype => 'varchar', sqlt_size  => 100, dbic_colname => 'name' }
+    => 'Billy Joel'
+];
+
 {
   is_same_sql_bind(
     $art_rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( name = ? ))",
-    [ [ name => 'Billy Joel' ] ],
+    [ $name_resolved_bind ],
   );
 }
 
 $art_rs = $art_rs->search({ rank => 2 });
 
+my $rank_resolved_bind = [
+  { sqlt_datatype => 'integer', dbic_colname => 'rank' }
+    => 2
+];
+
 {
   is_same_sql_bind(
     $art_rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
-    [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
+    [ $rank_resolved_bind, $name_resolved_bind ],
   );
 }
 
@@ -46,7 +56,7 @@ my $rscol = $art_rs->get_column( 'charfield' );
   is_same_sql_bind(
     $rscol->as_query,
     "(SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
-    [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
+    [ $rank_resolved_bind, $name_resolved_bind ],
   );
 }
 

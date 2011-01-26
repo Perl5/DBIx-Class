@@ -78,7 +78,8 @@ for ($cd_rs->all) {
         )
       me
     )',
-    [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
+    [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
+      => $_ ] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',
   );
 
@@ -96,7 +97,8 @@ for ($cd_rs->all) {
         JOIN cd cd ON cd.cdid = me.cd
       WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
     )',
-    [ map { [ 'me.cd' => $_] } ( ($cd_rs->get_column ('cdid')->all) x 2 ) ],
+    [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
+      => $_ ] } ( ($cd_rs->get_column ('cdid')->all) x 2 ) ],
     'next() query generated expected SQL',
   );
 
@@ -264,7 +266,8 @@ for ($cd_rs->all) {
         )
       me
     )',
-    [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
+    [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
+      => $_ ] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',
   );
 }
@@ -323,7 +326,9 @@ for ($cd_rs->all) {
         GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
                  artist.artistid, artist.name, artist.rank, artist.charfield
       )',
-      [ map { [ 'tracks.title' => 'ugabuganoexist' ] } (1 .. 2) ],
+      [ map { [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'tracks.title' }
+            => 'ugabuganoexist' ] } (1,2)
+      ],
     );
 }
 

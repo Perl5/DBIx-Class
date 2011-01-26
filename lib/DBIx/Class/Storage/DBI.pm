@@ -1280,9 +1280,9 @@ sub _do_query {
     my $attrs = shift @do_args;
     my @bind = map { [ undef, $_ ] } @do_args;
 
-    $self->_query_start($sql, @bind);
+    $self->_query_start($sql, \@bind);
     $self->_get_dbh->do($sql, $attrs, @do_args);
-    $self->_query_end($sql, @bind);
+    $self->_query_end($sql, \@bind);
   }
 
   return $self;
@@ -1581,93 +1581,163 @@ sub _dbh_rollback {
 #  easier to override in NoBindVars without duping the rest.  It takes up
 #  all of _execute's args, and emits $sql, @bind.
 sub _prep_for_execute {
-  my ($self, $op, $extra_bind, $ident, $args) = @_;
+  my ($self, $op, $ident, $args) = @_;
 
-  if( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
-    $ident = $ident->from();
+  my ($sql, @bind) = $self->sql_maker->$op(
+    blessed($ident) ? $ident->from : $ident,
+    @$args,
+  );
+
+  my (@final_bind, $colinfos);
+  my $resolve_bindinfo = sub {
+    $colinfos ||= $self->_resolve_column_info($ident);
+    if (my $col = $_[1]->{dbic_colname}) {
+      $_[1]->{sqlt_datatype} ||= $colinfos->{$col}{data_type}
+        if $colinfos->{$col}{data_type};
+      $_[1]->{sqlt_size} ||= $colinfos->{$col}{size}
+        if $colinfos->{$col}{size};
+    }
+    $_[1];
+  };
+
+  for my $e (@{$args->[2]{bind}||[]}, @bind) {
+    push @final_bind, [ do {
+      if (ref $e ne 'ARRAY') {
+        ({}, $e)
+      }
+      elsif (! defined $e->[0]) {
+        ({}, $e->[1])
+      }
+      elsif (ref $e->[0] eq 'HASH') {
+        (
+          (first { $e->[0]{$_} } qw/dbd_attrs sqlt_datatype/) ? $e->[0] : $self->$resolve_bindinfo($e->[0]),
+          $e->[1]
+        )
+      }
+      elsif (ref $e->[0] eq 'SCALAR') {
+        ( { sqlt_datatype => ${$e->[0]} }, $e->[1] )
+      }
+      else {
+        ( $self->$resolve_bindinfo({ dbic_colname => $e->[0] }), $e->[1] )
+      }
+    }];
   }
 
-  my ($sql, @bind) = $self->sql_maker->$op($ident, @$args);
-
-  unshift(@bind,
-    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
-      if $extra_bind;
-  return ($sql, \@bind);
+  ($sql, \@final_bind);
 }
 
+sub _format_for_trace {
+  #my ($self, $bind) = @_;
 
-sub _fix_bind_params {
-    my ($self, @bind) = @_;
+  ### Turn @bind from something like this:
+  ###   ( [ "artist", 1 ], [ \%attrs, 3 ] )
+  ### to this:
+  ###   ( "'1'", "'3'" )
 
-    ### Turn @bind from something like this:
-    ###   ( [ "artist", 1 ], [ "cdid", 1, 3 ] )
-    ### to this:
-    ###   ( "'1'", "'1'", "'3'" )
-    return
-        map {
-            if ( defined( $_ && $_->[1] ) ) {
-                map { qq{'$_'}; } @{$_}[ 1 .. $#$_ ];
-            }
-            else { q{NULL}; }
-        } @bind;
+  map {
+    defined( $_ && $_->[1] )
+      ? qq{'$_->[1]'}
+      : q{NULL}
+  } @{$_[1] || []};
 }
 
 sub _query_start {
-    my ( $self, $sql, @bind ) = @_;
+  my ( $self, $sql, $bind ) = @_;
 
-    if ( $self->debug ) {
-        @bind = $self->_fix_bind_params(@bind);
-
-        $self->debugobj->query_start( $sql, @bind );
-    }
+  $self->debugobj->query_start( $sql, $self->_format_for_trace($bind) )
+    if $self->debug;
 }
 
 sub _query_end {
-    my ( $self, $sql, @bind ) = @_;
+  my ( $self, $sql, $bind ) = @_;
 
-    if ( $self->debug ) {
-        @bind = $self->_fix_bind_params(@bind);
-        $self->debugobj->query_end( $sql, @bind );
+  $self->debugobj->query_end( $sql, $self->_format_for_trace($bind) )
+    if $self->debug;
+}
+
+my $sba_compat;
+sub _dbi_attrs_for_bind {
+  my ($self, $ident, $bind) = @_;
+
+  if (! defined $sba_compat) {
+    $self->_determine_driver;
+    $sba_compat = $self->can('source_bind_attributes') == \&source_bind_attributes
+      ? 0
+      : 1
+    ;
+  }
+
+  my $sba_attrs;
+  if ($sba_compat) {
+    my $class = ref $self;
+    carp_unique (
+      "The source_bind_attributes() override in $class relies on a deprecated codepath. "
+     .'You are strongly advised to switch your code to override bind_attribute_by_datatype() '
+     .'instead. This legacy compat shim will also disappear some time before DBIC 0.09'
+    );
+
+    my $sba_attrs = $self->source_bind_attributes
+  }
+
+  my @attrs;
+
+  for (map { $_->[0] } @$bind) {
+    push @attrs, do {
+      if ($_->{dbd_attrs}) {
+        $_->{dbd_attrs}
+      }
+      elsif($_->{sqlt_datatype}) {
+        $self->bind_attribute_by_data_type($_->{sqlt_datatype}) || undef;
+      }
+      elsif ($sba_attrs and $_->{dbic_colname}) {
+        $sba_attrs->{$_->{dbic_colname}} || undef;
+      }
+      else {
+        undef;  # always push something at this position
+      }
     }
+  }
+
+  return \@attrs;
+}
+
+sub _execute {
+  my ($self, $op, $ident, @args) = @_;
+
+  my ($sql, $bind) = $self->_prep_for_execute($op, $ident, \@args);
+
+  shift->dbh_do(    # retry over disconnects
+    '_dbh_execute',
+    $sql,
+    $bind,
+    $self->_dbi_attrs_for_bind($ident, $bind)
+  );
 }
 
 sub _dbh_execute {
-  my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  my ($self, undef, $sql, $bind, $bind_attrs) = @_;
 
-  my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+  $self->_query_start( $sql, $bind );
+  my $sth = $self->_sth($sql);
 
-  $self->_query_start( $sql, @$bind );
-
-  my $sth = $self->_sth($sql,$op);
-
-  my $placeholder_index = 1;
-
-  foreach my $bound (@$bind) {
-    my $attributes = {};
-    my($column_name, @data) = @$bound;
-
-    if ($bind_attributes) {
-      $attributes = $bind_attributes->{$column_name}
-      if defined $bind_attributes->{$column_name};
+  for my $i (0 .. $#$bind) {
+    if (ref $bind->[$i][1] eq 'SCALAR') {  # any scalarrefs are assumed to be bind_inouts
+      $sth->bind_param_inout(
+        $i + 1, # bind params counts are 1-based
+        $bind->[$i][1],
+        $bind->[$i][0]{dbd_size} || $self->_max_column_bytesize($bind->[$i][0]), # size
+        $bind_attrs->[$i],
+      );
     }
-
-    foreach my $data (@data) {
-      my $ref = ref $data;
-
-      if ($ref and overload::Method($data, '""') ) {
-        $data = "$data";
-      }
-      elsif ($ref eq 'SCALAR') {  # any scalarrefs are assumed to be bind_inouts
-        $sth->bind_param_inout(
-          $placeholder_index++,
-          $data,
-          $self->_max_column_bytesize($ident, $column_name),
-          $attributes
-        );
-        next;
-      }
-
-      $sth->bind_param($placeholder_index++, $data, $attributes);
+    else {
+      $sth->bind_param(
+        $i + 1,
+        (ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""'))
+          ? "$bind->[$i][1]"
+          : $bind->[$i][1]
+        ,
+        $bind_attrs->[$i],
+      );
     }
   }
 
@@ -1677,14 +1747,9 @@ sub _dbh_execute {
     $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
   ) if !$rv;
 
-  $self->_query_end( $sql, @$bind );
+  $self->_query_end( $sql, $bind );
 
   return (wantarray ? ($rv, $sth, @$bind) : $rv);
-}
-
-sub _execute {
-    my $self = shift;
-    $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
 sub _prefetch_autovalues {
@@ -1742,9 +1807,7 @@ sub insert {
     }
   }
 
-  my $bind_attributes = $self->source_bind_attributes($source);
-
-  my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $sqla_opts);
+  my ($rv, $sth) = $self->_execute('insert', $source, $to_insert, $sqla_opts);
 
   my %returned_cols;
 
@@ -1830,7 +1893,7 @@ sub insert_bulk {
   }
 
   my ($sql, $bind) = $self->_prep_for_execute (
-    'insert', undef, $source, [\%colvalues]
+    'insert', $source, [\%colvalues]
   );
 
   if (! @$bind) {
@@ -1848,7 +1911,7 @@ sub insert_bulk {
   # scope guard
   my $guard = $self->txn_scope_guard;
 
-  $self->_query_start( $sql, @$bind ? [ dummy => '__BULK_INSERT__' ] : () );
+  $self->_query_start( $sql, @$bind ? [[undef => '__BULK_INSERT__' ]] : () );
   my $sth = $self->_sth($sql);
   my $rv = do {
     if (@$bind) {
@@ -1861,7 +1924,7 @@ sub insert_bulk {
     }
   };
 
-  $self->_query_end( $sql, @$bind ? [ dummy => '__BULK_INSERT__' ] : () );
+  $self->_query_end( $sql, @$bind ? [[ undef => '__BULK_INSERT__' ]] : () );
 
   $guard->commit;
 
@@ -1874,30 +1937,18 @@ sub _execute_array {
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
 
-  ## Get the bind_attributes, if any exist
-  my $bind_attributes = $self->source_bind_attributes($source);
+  # $bind contains colnames as keys and dbic-col-index as values
+  my $bind_attrs = $self->_dbi_attrs_for_bind($source, $bind);
 
-  ## Bind the values and execute
-  my $placeholder_index = 1;
-
-  foreach my $bound (@$bind) {
-
-    my $attributes = {};
-    my ($column_name, $data_index) = @$bound;
-
-    if( $bind_attributes ) {
-      $attributes = $bind_attributes->{$column_name}
-      if defined $bind_attributes->{$column_name};
-    }
-
-    my @data = map { $_->[$data_index] } @$data;
+  # Bind the values by column slices
+  for my $i (0 .. $#$bind) {
+    my $dbic_data_index = $bind->[$i][1];
 
     $sth->bind_param_array(
-      $placeholder_index,
-      [@data],
-      (%$attributes ?  $attributes : ()),
+      $i+1, # DBI bind indexes are 1-based
+      [ map { $_->[$dbic_data_index] } @$data ],
+      defined $bind_attrs->[$i] ? $bind_attrs->[$i] : (), # some DBDs throw up when given an undef
     );
-    $placeholder_index++;
   }
 
   my ($rv, $err);
@@ -1976,20 +2027,14 @@ sub _dbh_execute_inserts_with_no_binds {
 }
 
 sub update {
-  my ($self, $source, @args) = @_;
-
-  my $bind_attrs = $self->source_bind_attributes($source);
-
-  return $self->_execute('update' => [], $source, $bind_attrs, @args);
+  #my ($self, $source, @args) = @_;
+  shift->_execute('update', @_);
 }
 
 
 sub delete {
-  my ($self, $source, @args) = @_;
-
-  my $bind_attrs = $self->source_bind_attributes($source);
-
-  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
+  #my ($self, $source, @args) = @_;
+  shift->_execute('delete', @_);
 }
 
 # We were sent here because the $rs contains a complex search
@@ -2097,17 +2142,17 @@ sub _select {
 sub _select_args_to_query {
   my $self = shift;
 
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $rs_attrs, $rows, $offset)
+  # my ($op, $ident, $select, $cond, $rs_attrs, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
-  my ($op, $bind, $ident, $bind_attrs, @args) =
+  my ($op, $ident, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
-  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
+  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $ident, \@args);
   $prepared_bind ||= [];
 
   return wantarray
-    ? ($sql, $prepared_bind, $bind_attrs)
+    ? ($sql, $prepared_bind)
     : \[ "($sql)", @$prepared_bind ]
   ;
 }
@@ -2129,40 +2174,12 @@ sub _select_args {
     ,
   };
 
-  # calculate bind_attrs before possible $ident mangling
-  my $bind_attrs = {};
-  for my $alias (keys %$alias2source) {
-    my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
-    for my $col (keys %$bindtypes) {
-
-      my $fqcn = join ('.', $alias, $col);
-      $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
-
-      # Unqialified column names are nice, but at the same time can be
-      # rather ambiguous. What we do here is basically go along with
-      # the loop, adding an unqualified column slot to $bind_attrs,
-      # alongside the fully qualified name. As soon as we encounter
-      # another column by that name (which would imply another table)
-      # we unset the unqualified slot and never add any info to it
-      # to avoid erroneous type binding. If this happens the users
-      # only choice will be to fully qualify his column name
-
-      if (exists $bind_attrs->{$col}) {
-        $bind_attrs->{$col} = {};
-      }
-      else {
-        $bind_attrs->{$col} = $bind_attrs->{$fqcn};
-      }
-    }
-  }
-
   # Sanity check the attributes (SQLMaker does it too, but
   # in case of a software_limit we'll never reach there)
   if (defined $attrs->{offset}) {
     $self->throw_exception('A supplied offset attribute must be a non-negative integer')
       if ( $attrs->{offset} =~ /\D/ or $attrs->{offset} < 0 );
   }
-  $attrs->{offset} ||= 0;
 
   if (defined $attrs->{rows}) {
     $self->throw_exception("The rows attribute must be a positive integer if present")
@@ -2193,7 +2210,10 @@ sub _select_args {
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
   elsif (! $attrs->{software_limit} ) {
-    push @limit, $attrs->{rows}, $attrs->{offset};
+    push @limit, (
+      $attrs->{rows} || (),
+      $attrs->{offset} || (),
+    );
   }
 
   # try to simplify the joinmap further (prune unreferenced type-single joins)
@@ -2209,7 +2229,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $attrs, @limit);
+  return ('select', $ident, $select, $where, $attrs, @limit);
 }
 
 # Returns a counting SELECT for a simple count
@@ -2221,21 +2241,13 @@ sub _count_select {
   return { count => '*' };
 }
 
-
 sub source_bind_attributes {
-  my ($self, $source) = @_;
-
-  my $bind_attributes;
-
-  my $colinfo = $source->columns_info;
-
-  for my $col (keys %$colinfo) {
-    if (my $dt = $colinfo->{$col}{data_type} ) {
-      $bind_attributes->{$col} = $self->bind_attribute_by_data_type($dt)
-    }
-  }
-
-  return $bind_attributes;
+  shift->throw_exception(
+    'source_bind_attributes() was never meant to be a callable public method - '
+   .'please contact the DBIC dev-team and describe your use case so that a reasonable '
+   .'solution can be provided'
+   ."\nhttp://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT"
+  );
 }
 
 =head2 select
@@ -2513,11 +2525,11 @@ be performed instead of the usual C<eq>.
 =cut
 
 sub is_datatype_numeric {
-  my ($self, $dt) = @_;
+  #my ($self, $dt) = @_;
 
-  return 0 unless $dt;
+  return 0 unless $_[1];
 
-  return $dt =~ /^ (?:
+  $_[1] =~ /^ (?:
     numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
   ) $/ix;
 }
@@ -2909,45 +2921,50 @@ sub relname_to_table_alias {
 # version and it may be necessary to amend or override it for a specific storage
 # if such binds are necessary.
 sub _max_column_bytesize {
-  my ($self, $source, $col) = @_;
+  my ($self, $attr) = @_;
 
-  my $inf = $source->column_info($col);
-  return $inf->{_max_bytesize} ||= do {
+  my $max_size;
 
-    my $max_size;
+  if ($attr->{sqlt_datatype}) {
+    my $data_type = lc($attr->{sqlt_datatype});
 
-    if (my $data_type = $inf->{data_type}) {
-      $data_type = lc($data_type);
+    if ($attr->{sqlt_size}) {
 
       # String/sized-binary types
-      if ($data_type =~ /^(?:l?(?:var)?char(?:acter)?(?:\s*varying)?
-                             |(?:var)?binary(?:\s*varying)?|raw)\b/x
+      if ($data_type =~ /^(?:
+          l? (?:var)? char(?:acter)? (?:\s*varying)?
+            |
+          (?:var)? binary (?:\s*varying)? 
+            |
+          raw
+        )\b/x
       ) {
-        $max_size = $inf->{size};
+        $max_size = $attr->{sqlt_size};
       }
       # Other charset/unicode types, assume scale of 4
-      elsif ($data_type =~ /^(?:national\s*character(?:\s*varying)?|nchar
-                              |univarchar
-                              |nvarchar)\b/x
+      elsif ($data_type =~ /^(?:
+          national \s* character (?:\s*varying)?
+            |
+          nchar
+            |
+          univarchar
+            |
+          nvarchar
+        )\b/x
       ) {
-        $max_size = $inf->{size} * 4 if $inf->{size};
-      }
-      # Blob types
-      elsif ($self->_is_lob_type($data_type)) {
-        # default to longreadlen
-      }
-      else {
-        $max_size = 100;  # for all other (numeric?) datatypes
+        $max_size = $attr->{sqlt_size} * 4;
       }
     }
 
-    $max_size ||= $self->_get_dbh->{LongReadLen} || 8000;
-  };
+    if (!$max_size and !$self->_is_lob_type($data_type)) {
+      $max_size = 100 # for all other (numeric?) datatypes
+    }
+  }
+
+  $max_size || $self->_dbic_connect_attributes->{LongReadLen} || $self->_get_dbh->{LongReadLen} || 8000;
 }
 
 # Determine if a data_type is some type of BLOB
-# FIXME: these regexes are expensive, result of these checks should be cached in
-# the column_info .
 sub _is_lob_type {
   my ($self, $data_type) = @_;
   $data_type && ($data_type =~ /lob|bfile|text|image|bytea|memo/i

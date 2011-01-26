@@ -38,7 +38,8 @@ for my $null_order (
           ) me
         ORDER BY me.id DESC
        )',
-    [ [ source => 'Library' ] ],
+    [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+        => 'Library' ] ],
   );
 }
 
@@ -141,7 +142,8 @@ for my $ord_set (
         ) me
       ORDER BY $ord_set->{order_req}
     )",
-    [ [ source => 'Library' ] ],
+    [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+        => 'Library' ] ],
   );
 }
 
@@ -171,7 +173,10 @@ is_same_sql_bind (
     WHERE ( source = ? )
     ORDER BY title
   )',
-  [ [ source => 'Library' ], [ source => 'Library' ] ],
+  [ map { [
+    { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+      => 'Library' ]
+  } (1,2) ],
 );
 
 # test deprecated column mixing over join boundaries
@@ -190,8 +195,9 @@ is_same_sql_bind( $rs_selectas_top->search({})->as_query,
                     JOIN owners owner ON owner.id = me.owner
                     WHERE ( source = ? )
                     ORDER BY me.id
-                   )',
-                   [ [ 'source', 'Library' ] ],
+                  )',
+                  [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+                    => 'Library' ] ],
                 );
 
 {
