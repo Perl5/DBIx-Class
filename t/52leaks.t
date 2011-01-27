@@ -247,17 +247,21 @@ for my $slot (keys %$weak_registry) {
 # For reasons I can not yet fully understand the table() god-method (located in
 # ::ResultSourceProxy::Table) attaches an actual source instance to each class
 # as virtually *immortal* class-data. 
-# For now just blow away these instances manually but there got to be a saner way
-$_->result_source_instance(undef) for (
+# For now just ignore these instances manually but there got to be a saner way
+for ( map { $_->result_source_instance } (
   'DBICTest::BaseResult',
   map { DBICTest::Schema->class ($_) } DBICTest::Schema->sources
-);
+)) {
+  delete $weak_registry->{$_};
+}
 
 # FIXME
 # same problem goes for the schema - its classdata contains live result source
 # objects, which to add insult to the injury are *different* instances from the
-# ones we destroyed above
-DBICTest::Schema->source_registrations(undef);
+# ones we ignored above
+for ( values %{DBICTest::Schema->source_registrations || {}} ) {
+  delete $weak_registry->{$_};
+}
 
 my $tb = Test::More->builder;
 for my $slot (sort keys %$weak_registry) {
