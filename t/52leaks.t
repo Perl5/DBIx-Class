@@ -1,3 +1,12 @@
+# work around brain damage in PPerl (yes, it has to be a global)
+$SIG{__WARN__} = sub {
+  warn @_ unless $_[0] =~ /\QUse of "goto" to jump into a construct is deprecated/
+} if ($ENV{DBICTEST_IN_PERSISTENT_ENV});
+
+# the persistent environments run with this flag first to see if
+# we will run at all (e.g. it will fail if $^X doesn't match)
+exit 0 if $ENV{DBICTEST_PERSISTENT_ENV_BAIL_EARLY};
+
 # Do the override as early as possible so that CORE::bless doesn't get compiled away
 # We will replace $bless_override only if we are in author mode
 my $bless_override;
@@ -11,6 +20,18 @@ BEGIN {
 use strict;
 use warnings;
 use Test::More;
+
+my $TB = Test::More->builder;
+if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
+  # without this explicit close ->reset below warns
+  close ($TB->$_) for qw/output failure_output/;
+
+  # so done_testing can work
+  $TB->reset;
+
+  # this simulates a subtest
+  $TB->_indent(' ' x 4);
+}
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
@@ -35,7 +56,6 @@ my $weak_registry = {};
 
 # Skip the heavy-duty leak tracing when just doing an install
 unless (DBICTest::RunMode->is_plain) {
-
   # Some modules are known to install singletons on-load
   # Load them before we swap out $bless_override
   require DBI;
@@ -89,7 +109,7 @@ unless (DBICTest::RunMode->is_plain) {
 }
 
 {
-  require DBICTest;
+  use_ok ('DBICTest');
 
   my $schema = DBICTest->init_schema;
   my $rs = $schema->resultset ('Artist');
@@ -263,14 +283,13 @@ for ( values %{DBICTest::Schema->source_registrations || {}} ) {
   delete $weak_registry->{$_};
 }
 
-my $tb = Test::More->builder;
 for my $slot (sort keys %$weak_registry) {
 
   ok (! defined $weak_registry->{$slot}{weakref}, "No leaks of $slot") or do {
     my $diag = '';
 
     $diag .= Devel::FindRef::track ($weak_registry->{$slot}{weakref}, 20) . "\n"
-      if ( $ENV{TEST_VERBOSE} && try { require Devel::FindRef });
+      if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
 
     if (my $stack = $weak_registry->{$slot}{strace}) {
       $diag .= "    Reference first seen$stack";
@@ -280,4 +299,87 @@ for my $slot (sort keys %$weak_registry) {
   };
 }
 
+
+# we got so far without a failure - this is a good thing
+# now let's try to rerun this script under a "persistent" environment
+# this is ugly and dirty but we do not yet have a Test::Embedded or
+# similar
+
+my @pperl_cmd = (qw/pperl --prefork=1/, __FILE__);
+my @pperl_term_cmd = @pperl_cmd;
+splice @pperl_term_cmd, 1, 0, '--kill';
+
+# scgi is smart and will auto-reap after -t amount of seconds
+my @scgi_cmd = (qw/speedy -- -t5/, __FILE__);
+
+SKIP: {
+  skip 'Test already in a persistent loop', 1
+    if $ENV{DBICTEST_IN_PERSISTENT_ENV};
+
+  skip 'Persistence test disabled on regular installs', 1
+    if DBICTest::RunMode->is_plain;
+
+  skip 'Main test failed - skipping persistent env tests', 1
+    unless $TB->is_passing;
+
+  # set up -I
+  require Config;
+  local $ENV{PERL5LIB} = join ($Config::Config{path_sep}, @INC);
+
+  local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
+
+  # try with pperl
+  SKIP: {
+    skip 'PPerl persistent environment tests require PPerl', 1
+      unless eval { require PPerl };
+
+    # since PPerl is racy and sucks - just prime the "server"
+    {
+      local $ENV{DBICTEST_PERSISTENT_ENV_BAIL_EARLY} = 1;
+      system(@pperl_cmd);
+      sleep 1;
+
+      # see if it actually runs - if not might as well bail now
+      skip "Something is wrong with pperl ($!)", 1
+        if system(@pperl_cmd);
+    }
+
+    for (1,2,3) {
+      system(@pperl_cmd);
+      ok (!$?, "Run in persistent env (PPerl pass $_): exit $?");
+    }
+
+    ok (! system (@pperl_term_cmd), 'killed pperl instance');
+  }
+
+  # try with speedy-cgi
+  SKIP: {
+    skip 'SPeedyCGI persistent environment tests require CGI::SpeedyCGI', 1
+      unless eval { require CGI::SpeedyCGI };
+
+    {
+      local $ENV{DBICTEST_PERSISTENT_ENV_BAIL_EARLY} = 1;
+      skip "Something is wrong with speedy ($!)", 1
+        if system(@scgi_cmd);
+      sleep 1;
+    }
+
+    for (1,2,3) {
+      system(@scgi_cmd);
+      ok (!$?, "Run in persistent env (SpeedyCGI pass $_): exit $?");
+    }
+  }
+}
+
 done_testing;
+
+# just an extra precaution in case we blew away from the SKIP - since there are no
+# PID files to go by (man does pperl really suck :(
+END {
+  unless ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
+    close STDOUT;
+    close STDERR;
+    local $?; # otherwise test will inherit $? of the system()
+    system (@pperl_term_cmd);
+  }
+}

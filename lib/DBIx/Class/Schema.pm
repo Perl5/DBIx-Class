@@ -1382,7 +1382,10 @@ sub _register_source {
 {
   my $global_phase_destroy;
 
-  END { $global_phase_destroy++ }
+  # SpeedyCGI runs END blocks every cycle but keeps object instances
+  # hence we have to disable the globaldestroy hatch, and rely on the
+  # eval trap below (which appears to work, but is risky done so late)
+  END { $global_phase_destroy = 1 unless $CGI::SpeedyCGI::i_am_speedy }
 
   sub DESTROY {
     return if $global_phase_destroy;
@@ -1393,8 +1396,19 @@ sub _register_source {
     for my $moniker (keys %$srcs) {
       # find first source that is not about to be GCed (someone other than $self
       # holds a reference to it) and reattach to it, weakening our own link
+      #
+      # during global destruction (if we have not yet bailed out) this will throw
+      # which will serve as a signal to not try doing anything else
       if (ref $srcs->{$moniker} and svref_2object($srcs->{$moniker})->REFCNT > 1) {
-        $srcs->{$moniker}->schema($self);
+        local $@;
+        eval {
+          $srcs->{$moniker}->schema($self);
+          1;
+        } or do {
+          $global_phase_destroy = 1;
+          last;
+        };
+
         weaken $srcs->{$moniker};
         last;
       }

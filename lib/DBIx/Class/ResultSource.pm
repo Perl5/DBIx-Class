@@ -1783,7 +1783,10 @@ sub handle {
 {
   my $global_phase_destroy;
 
-  END { $global_phase_destroy++ }
+  # SpeedyCGI runs END blocks every cycle but keeps object instances
+  # hence we have to disable the globaldestroy hatch, and rely on the
+  # eval trap below (which appears to work, but is risky done so late)
+  END { $global_phase_destroy = 1 unless $CGI::SpeedyCGI::i_am_speedy }
 
   sub DESTROY {
     return if $global_phase_destroy;
@@ -1806,12 +1809,23 @@ sub handle {
     );
 
     # weaken our schema hold forcing the schema to find somewhere else to live
-    weaken $_[0]->{schema};
+    # during global destruction (if we have not yet bailed out) this will throw
+    # which will serve as a signal to not try doing anything else
+    local $@;
+    eval {
+      weaken $_[0]->{schema};
+      1;
+    } or do {
+      $global_phase_destroy = 1;
+      return;
+    };
 
-    # if schema is still there reintroduce ourselves with strong refs back
+
+    # if schema is still there reintroduce ourselves with strong refs back to us
     if ($_[0]->{schema}) {
       my $srcregs = $_[0]->{schema}->source_registrations;
       for (keys %$srcregs) {
+        next unless $srcregs->{$_};
         $srcregs->{$_} = $_[0] if $srcregs->{$_} == $_[0];
       }
     }
