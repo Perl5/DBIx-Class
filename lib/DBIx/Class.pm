@@ -408,7 +408,7 @@ sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 talexb: Alex Beamish <talexb@gmail.com>
 
-tamias: Ronald J Kimball <rkimball@pangeamedia.com>
+tamias: Ronald J Kimball <rjk@tamias.net>
 
 teejay : Aaron Trevena <teejay@cpan.org>
 
