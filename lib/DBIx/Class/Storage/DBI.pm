@@ -987,6 +987,7 @@ sub sql_maker {
       limit_dialect => $dialect,
       ($quote_char ? (quote_char => $quote_char) : ()),
       name_sep => ($name_sep || '.'),
+      datetime_parser => $self->datetime_parser,
       %opts,
     ));
   }
