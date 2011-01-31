@@ -17,8 +17,11 @@ sub _rno_default_order {
      year         => 'yyyy',
   );
 
+  my %diff_part_map = %part_map;
+  $diff_part_map{day} = delete $diff_part_map{day_of_month};
+
   sub _datetime_sql { "DATEPART('$part_map{$_[1]}', $_[2])" }
-  sub _datetime_diff_sql { "DATEDIFF('$part_map{$_[1]}', $_[2], $_[3])" }
+  sub _datetime_diff_sql { "DATEDIFF('$diff_part_map{$_[1]}', $_[2], $_[3])" }
 }
 
 
