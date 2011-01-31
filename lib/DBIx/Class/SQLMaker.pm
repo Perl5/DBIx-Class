@@ -194,24 +194,9 @@ sub _where_op_CONVERT_DATETIME {
   ;
 }
 
-{
-  my %part_map = (
-     month        => 'm',
-     day_of_month => 'd',
-     year         => 'Y',
-  );
+sub _datetime_sql { die 'date part extraction not implemented for this database' }
 
-  sub _datetime_sql { "STRFTIME('$part_map{$_[1]}', $_[2])" }
-}
-
-sub _datetime_diff_sql {
-   my ($self, $part, $left, $right) = @_;
-   '(' .
-      $self->_datetime_sql($part, $left)
-       . ' - ' .
-      $self->_datetime_sql($part, $right)
-   . ')'
-}
+sub _datetime_diff_sql { die 'date diffing not implemented for this database' }
 
 sub _where_op_GET_DATETIME {
   my ($self) = @_;
