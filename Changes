@@ -11,6 +11,7 @@ Revision history for DBIx::Class
         - Fix dropped bind values in select/group_by on Oracle (omission
           from 0542ec57 and 4c2b30d6)
         - Fix problems with M.A.D. under CGI::SpeedyCGI (RT#65131)
+        - Better error handling when prepare() fails silently
 
 0.08127 2011-01-19 16:40 (UTC)
     * New Features / Changes

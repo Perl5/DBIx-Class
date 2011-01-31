@@ -2280,7 +2280,18 @@ sub _dbh_sth {
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(
-  $self->throw_exception($dbh->errstr) if !$sth;
+  $self->throw_exception(
+    $dbh->errstr
+      ||
+    sprintf( "\$dbh->prepare() of '%s' through %s failed *silently* without "
+            .'an exception and/or setting $dbh->errstr',
+      length ($sql) > 20
+        ? substr($sql, 0, 20) . '...'
+        : $sql
+      ,
+      'DBD::' . $dbh->{Driver}{Name},
+    )
+  ) if !$sth;
 
   $sth;
 }
