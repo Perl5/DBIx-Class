@@ -245,4 +245,24 @@ sub _insert_returning {
   );
 }
 
+
+{
+  my %part_map = (
+     month        => 'MONTH',
+     day_of_month => 'DAYOFMONTH',
+     year         => 'YEAR',
+  );
+
+  sub _datetime_sql { "$part_map{$_[1]}($_[2])" }
+}
+
+{
+  my %part_map = (
+     month => 'SQL_TSI_MONTH',
+     day   => 'SQL_TSI_DAY',
+     year  => 'SQL_TSI_YEAR',
+  );
+
+  sub _datetime_diff_sql { "TIMESTAMPDIFF($part_map{$_[1]}, $_[2], $_[3])" }
+}
 1;
