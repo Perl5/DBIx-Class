@@ -3,7 +3,17 @@ package DBIx::Class;
 use strict;
 use warnings;
 
-use MRO::Compat;
+BEGIN {
+  if ($] < 5.009_005) {
+    require MRO::Compat;
+    *DBIx::Class::_ENV_::OLD_MRO = sub () { 1 };
+  }
+  else {
+    require mro;
+    *DBIx::Class::_ENV_::OLD_MRO = sub () { 0 };
+  }
+}
+
 use mro 'c3';
 
 use DBIx::Class::Optional::Dependencies;

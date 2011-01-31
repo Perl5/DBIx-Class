@@ -92,7 +92,9 @@ use DBICTest;
 
   no strict 'refs';
   no warnings 'redefine';
+
   local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
   throws_ok (sub {
     my $guard = $schema->txn_scope_guard;
@@ -120,6 +122,7 @@ use DBICTest;
   no strict 'refs';
   no warnings 'redefine';
   local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
 #The warn from within a DESTROY callback freaks out Test::Warn, do it old-school
 =begin

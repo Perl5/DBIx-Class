@@ -240,9 +240,9 @@ sub load_namespaces {
 
   my @to_register;
   {
-    no warnings 'redefine';
-    local *Class::C3::reinitialize = sub { };
-    use warnings 'redefine';
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
 
     # ensure classes are loaded and attached in inheritance order
     for my $res (values %results) {
@@ -295,7 +295,8 @@ sub load_namespaces {
       . 'corresponding Result class';
   }
 
-  Class::C3->reinitialize;
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
+
   $class->register_class(@$_) for (@to_register);
 
   return;
@@ -378,7 +379,9 @@ sub load_classes {
   my @to_register;
   {
     no warnings qw/redefine/;
-    local *Class::C3::reinitialize = sub { };
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
+
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
@@ -395,7 +398,7 @@ sub load_classes {
       }
     }
   }
-  Class::C3->reinitialize;
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   foreach my $to (@to_register) {
     $class->register_class(@$to);
@@ -907,8 +910,10 @@ sub compose_namespace {
   my $schema = $self->clone;
   {
     no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
+
     no strict qw/refs/;
-#    local *Class::C3::reinitialize = sub { };
     foreach my $moniker ($schema->sources) {
       my $source = $schema->source($moniker);
       my $target_class = "${target}::${moniker}";
@@ -927,7 +932,7 @@ sub compose_namespace {
      $schema->register_source($moniker, $source);
     }
   }
-#  Class::C3->reinitialize();
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
   {
     no strict 'refs';
     no warnings 'redefine';

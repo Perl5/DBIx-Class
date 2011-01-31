@@ -10,9 +10,6 @@ use base qw/
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 
-# Temporary fix for mysterious MRO fail on 5.8 perls
-Class::C3::reinitialize if $] < '5.01';
-
 sub _rebless {
   my $self = shift;
   my $dbh  = $self->_get_dbh;

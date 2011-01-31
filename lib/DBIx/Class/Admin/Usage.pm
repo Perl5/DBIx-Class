@@ -6,8 +6,6 @@ use base 'Getopt::Long::Descriptive::Usage';
 
 use base 'Class::Accessor::Grouped';
 
-use Class::C3;
-
 __PACKAGE__->mk_group_accessors('simple', 'synopsis', 'short_description');
 
 sub prog_name {

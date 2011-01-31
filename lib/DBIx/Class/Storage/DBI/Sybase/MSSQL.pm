@@ -37,11 +37,6 @@ This subclass supports MSSQL connected via L<DBD::Sybase>.
   $schema->storage_type('::DBI::Sybase::MSSQL');
   $schema->connect_info('dbi:Sybase:....', ...);
 
-=head1 BUGS
-
-Currently, this doesn't work right unless you call C<Class::C3::reinitialize()>
-after connecting.
-
 =head1 AUTHORS
 
 Brandon L Black <blblack@gmail.com>

@@ -1211,6 +1211,8 @@ sub _determine_driver {
 
     $self->_driver_determined(1);
 
+    Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
     $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
