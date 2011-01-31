@@ -14,6 +14,7 @@ use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
 
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Pg');
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
