@@ -54,6 +54,9 @@ BEGIN {
 # this is what holds all weakened refs to be checked for leakage
 my $weak_registry = {};
 
+# whether or to invoke IC::DT
+my $has_dt;
+
 # Skip the heavy-duty leak tracing when just doing an install
 unless (DBICTest::RunMode->is_plain) {
   # Some modules are known to install singletons on-load
@@ -65,6 +68,9 @@ unless (DBICTest::RunMode->is_plain) {
   require FileHandle;
   require Hash::Merge;
   require Storable;
+
+  # this loads the DT armada as well
+  $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
 
   no warnings qw/redefine once/;
   no strict qw/refs/;
@@ -191,6 +197,21 @@ unless (DBICTest::RunMode->is_plain) {
     dbh => $storage->_dbh,
   );
 
+  if ($has_dt) {
+    my $rs = $base_collection->{icdt_rs} = $schema->resultset('Event');
+
+    my $now = DateTime->now;
+    for (1..5) {
+      $base_collection->{"icdt_row_$_"} = $rs->create({
+        created_on => DateTime->new(year => 2011, month => 1, day => $_, time_zone => "-0${_}00" ),
+        starts_at => $now->clone->add(days => $_),
+      });
+    }
+
+    # re-search
+    my @dummy = $rs->all;
+  }
+
   memory_cycle_ok ($base_collection, 'No cycles in the object collection')
     if $have_test_cycle;
 
@@ -243,15 +264,15 @@ unless (DBICTest::RunMode->is_plain) {
 # Naturally we have some exceptions
 my $cleared;
 for my $slot (keys %$weak_registry) {
-  if ($slot =~ /^\QTest::Builder/) {
+  if ($slot =~ /^Test::Builder/) {
     # T::B 2.0 has result objects and other fancyness
     delete $weak_registry->{$slot};
   }
-  elsif ($slot =~ /^\QSQL::Translator/) {
+  elsif ($slot =~ /^SQL::Translator/) {
     # SQLT is a piece of shit, leaks all over
     delete $weak_registry->{$slot};
   }
-  elsif ($slot =~ /^\QHash::Merge/) {
+  elsif ($slot =~ /^Hash::Merge/) {
     # only clear one object of a specific behavior - more would indicate trouble
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
