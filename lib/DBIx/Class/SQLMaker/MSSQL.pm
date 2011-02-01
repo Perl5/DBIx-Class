@@ -12,13 +12,23 @@ sub _rno_default_order {
 
 {
   my %part_map = (
-     month        => 'mm',
-     day_of_month => 'dd',
-     year         => 'yyyy',
+     year         => 'year',
+     quarter      => 'quarter',
+     month        => 'month',
+     day_of_year  => 'dayofyear',
+     day_of_month => 'day',
+     week         => 'week',
+     day_of_week  => 'weekday',
+     hour         => 'hour',
+     minute       => 'minute',
+     second       => 'second',
+     millisecond  => 'millisecond',
   );
 
   my %diff_part_map = %part_map;
-  $diff_part_map{day} = delete $diff_part_map{day_of_month};
+  $diff_part_map{day} = delete $diff_part_map{day_of_year};
+  delete $diff_part_map{day_of_month};
+  delete $diff_part_map{day_of_week};
 
   sub _datetime_sql { "DATEPART('$part_map{$_[1]}', $_[2])" }
   sub _datetime_diff_sql { "DATEDIFF('$diff_part_map{$_[1]}', $_[2], $_[3])" }

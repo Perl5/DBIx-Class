@@ -46,9 +46,27 @@ sub _lock_select {
 
 {
   my %part_map = (
-     month        => 'MONTH',
-     day_of_month => 'DAY',
-     year         => 'YEAR',
+    microsecond        => 'MICROSECOND',
+    second             => 'SECOND',
+    minute             => 'MINUTE',
+    hour               => 'HOUR',
+    day_of_month       => 'DAY',
+    week               => 'WEEK',
+    month              => 'MONTH',
+    quarter            => 'QUARTER',
+    year               => 'YEAR',
+    # should we support these or what?
+    second_microsecond => 'SECOND_MICROSECOND',
+    minute_microsecond => 'MINUTE_MICROSECOND',
+    minute_second      => 'MINUTE_SECOND',
+    hour_microsecond   => 'HOUR_MICROSECOND',
+    hour_second        => 'HOUR_SECOND',
+    hour_minute        => 'HOUR_MINUTE',
+    day_microsecond    => 'DAY_MICROSECOND',
+    day_second         => 'DAY_SECOND',
+    day_minute         => 'DAY_MINUTE',
+    day_hour           => 'DAY_HOUR',
+    year_month         => 'YEAR_MONTH',
   );
 
   my %diff_part_map = %part_map;

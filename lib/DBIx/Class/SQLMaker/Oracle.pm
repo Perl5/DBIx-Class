@@ -248,9 +248,18 @@ sub _insert_returning {
 
 {
   my %part_map = (
-     month        => 'MONTH',
-     day_of_month => 'DAYOFMONTH',
-     year         => 'YEAR',
+     month            => 'MONTH',
+     day_of_month     => 'DAYOFMONTH',
+     day_of_year      => 'DAYOFYEAR',
+     day_of_quarter   => 'DAY_OF_QUARTER',
+     quarter          => 'QUARTER_OF_YEAR',
+     month_of_quarter => 'MONTH_OF_QUARTER',
+     year             => 'YEAR',
+     hour             => 'HOUR',
+     minute           => 'MINUTE',
+     second           => 'SECOND',
+     week_of_quarter  => 'WEEK_OF_QUARTER',
+     week_of_year     => 'WEEK_OF_YEAR',
   );
 
   sub _datetime_sql { "$part_map{$_[1]}($_[2])" }
@@ -258,9 +267,14 @@ sub _insert_returning {
 
 {
   my %part_map = (
-     month => 'SQL_TSI_MONTH',
-     day   => 'SQL_TSI_DAY',
-     year  => 'SQL_TSI_YEAR',
+     second      => 'SQL_TSI_SECOND',
+     minute      => 'SQL_TSI_MINUTE',
+     hour        => 'SQL_TSI_HOUR',
+     week        => 'SQL_TSI_WEEK',
+     quarter     => 'SQL_TSI_QUARTER',
+     month       => 'SQL_TSI_MONTH',
+     day_of_year => 'SQL_TSI_DAY',
+     year        => 'SQL_TSI_YEAR',
   );
 
   sub _datetime_diff_sql { "TIMESTAMPDIFF($part_map{$_[1]}, $_[2], $_[3])" }
