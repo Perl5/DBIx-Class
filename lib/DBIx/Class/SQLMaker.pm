@@ -195,11 +195,11 @@ sub _where_op_CONVERT_DATETIME {
 }
 
 sub _unsupported_date_extraction {
-   "date part extraction not supported for part $_[1] with database $_[2]"
+   "date part extraction not supported for part \"$_[1]\" with database \"$_[2]\""
 }
 
 sub _unsupported_date_diff {
-   "date diff not supported for part $_[1] with database $_[2]"
+   "date diff not supported for part \"$_[1]\" with database \"$_[2]\""
 }
 
 sub _datetime_sql { die 'date part extraction not implemented for this database' }

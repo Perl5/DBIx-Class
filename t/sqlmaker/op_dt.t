@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Fatal;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
@@ -31,6 +32,7 @@ is_same_sql_bind (
     WHERE artist.when_began = ?
   ",
   [['artist.when_began', '2010-12-14 12:12:12']],
+  '-dt works'
 );
 
 is_same_sql_bind (
@@ -46,6 +48,7 @@ is_same_sql_bind (
    ['artist.when_began', '2010-12-14 12:12:12'],
    ['artist.when_ended', '2010-12-16 12:12:12'],
   ],
+  '-dt works'
 );
 
 is_same_sql_bind (
@@ -54,7 +57,8 @@ is_same_sql_bind (
        { -op => [ '=', 12, { -dt_month => { -ident => 'artist.when_began' } } ] },
        { -op => [ '=', 2010, { -dt_get => [year => \'artist.when_began'] } ] },
        { -op => [ '=', 14, { -dt_get => [day_of_month => \'artist.when_began'] } ] },
-       { -op => [ '=', 10, { -dt_diff => [second => { -ident => 'artist.when_began' }, \'artist.when_ended'] } ] },
+       { -op => [ '=', 100, { -dt_diff => [second => { -ident => 'artist.when_began' }, \'artist.when_ended'] } ] },
+       { -op => [ '=', 10, { -dt_diff => [day => { -ident => 'artist.when_played_last' }, \'artist.when_ended'] } ] },
     ]
   } ) ],
   "SELECT *
@@ -63,15 +67,20 @@ is_same_sql_bind (
        ( ? = STRFTIME('%m', artist.when_began) ) AND
        ( ? = STRFTIME('%Y', artist.when_began) ) AND
        ( ? = STRFTIME('%d', artist.when_began) ) AND
-       ( ? = ( STRFTIME('%s', artist.when_began) - STRFTIME('%s', artist.when_ended)))
+       ( ? = ( STRFTIME('%s', artist.when_began) - STRFTIME('%s', artist.when_ended))) AND
+       ( ? = ( JULIANDAY(artist.when_played_last) - JULIANDAY(artist.when_ended)))
      ) )
   ",
   [
    ['', 12],
    ['', 2010],
    ['', 14],
+   ['', 100],
    ['', 10],
   ],
+  '-dt_month, -dt_get, and -dt_diff work'
 );
+
+like exception { $sql_maker->select('foo', '*', { -dt_diff => [year => \'artist.lololol', \'artist.fail'] }) }, qr/date diff not supported for part "year" with database "SQLite"/, 'SQLite does not support year diff';
 
 done_testing;

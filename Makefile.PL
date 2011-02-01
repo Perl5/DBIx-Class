@@ -34,6 +34,7 @@ my $test_requires = {
   'File::Temp'               => '0.22',
   'Test::Builder'            => '0.33',
   'Test::Exception'          => '0.31',
+  'Test::Fatal'              => '0.003',
   'Test::More'               => '0.92',
   'Test::Warn'               => '0.21',
 
