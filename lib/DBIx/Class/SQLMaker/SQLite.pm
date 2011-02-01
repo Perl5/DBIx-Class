@@ -27,7 +27,11 @@ sub _lock_select () { '' };
      fractional_seconds  => 'f',
   );
 
-  sub _datetime_sql { "STRFTIME('%$part_map{$_[1]}', $_[2])" }
+  sub _datetime_sql {
+    die $_[0]->_unsupported_date_extraction($_[1], 'SQLite')
+       unless exists $part_map{$_[1]};
+    "STRFTIME('%$part_map{$_[1]}', $_[2])"
+  }
 }
 
 sub _datetime_diff_sql {
@@ -37,7 +41,7 @@ sub _datetime_diff_sql {
    } elsif ($part eq 'second') {
       return "(STRFTIME('%s',$left) - STRFTIME('%s',$right))"
    } else {
-      die "part $part is not supported by SQLite"
+      die $_[0]->_unsupported_date_diff($_[1], 'SQLite')
    }
 }
 
