@@ -3,9 +3,12 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+
+use DBI::Const::GetInfoType;
+use Scalar::Util qw/weaken/;
+
 use lib qw(t/lib);
 use DBICTest;
-use DBI::Const::GetInfoType;
 use DBIC::SqlMakerTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
@@ -357,8 +360,55 @@ ZEROINSEARCH: {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   ok (! $schema->storage->_get_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect unset regardless of ENV' );
 
-  my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
-  ok ($schema2->storage->_get_dbh->{mysql_auto_reconnect}, 'but is properly set if explicitly requested mysql_auto_reconnect' );
+  # Make sure hardcore forking action still works even if mysql_auto_reconnect
+  # is true (test inspired by ether)
+
+  my $schema_autorecon = DBICTest::Schema->connect($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
+  my $orig_dbh = $schema_autorecon->storage->_get_dbh;
+  weaken $orig_dbh;
+
+  ok ($orig_dbh, 'Got weak $dbh ref');
+  ok ($orig_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect is properly set if explicitly requested' );
+
+  my $rs = $schema_autorecon->resultset('Artist');
+
+  my $pid = fork();
+  if (! defined $pid ) {
+    die "fork() failed: $!"
+  }
+  elsif ($pid) {
+    # sanity check
+    $schema_autorecon->storage->dbh_do(sub {
+      is ($_[1], $orig_dbh, 'Storage holds correct $dbh in parent');
+    });
+
+    # kill our $dbh
+    $schema_autorecon->storage->_dbh(undef);
+    ok (! defined $orig_dbh, 'Parent $dbh handle is gone');
+  }
+  else {
+    # wait for parent to kill its $dbh
+    sleep 1;
+
+    #simulate a  subtest to not confuse the parent TAP emission
+    Test::More->builder->reset;
+    Test::More->builder->plan('no_plan');
+    Test::More->builder->_indent(' ' x 4);
+
+    ok ($orig_dbh, 'Now dead $dbh is still there for the child');
+
+    # try to do something dbic-esque
+    $rs->create({ name => "Hardcore Forker $$" });
+
+    ok (! defined $orig_dbh, 'DBIC operation triggered reconnect - old $dbh is gone');
+
+    exit 0;
+  }
+
+  wait;
+  ok(!$?, 'Child subtests passed');
+
+  ok ($rs->find({ name => "Hardcore Forker $pid" }), 'Expected row created');
 }
 
 done_testing;
