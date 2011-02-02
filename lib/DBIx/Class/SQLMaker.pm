@@ -297,13 +297,20 @@ sub insert {
 }
 
 sub _recurse_fields {
-  my ($self, $fields) = @_;
+  my ($self, $fields, $depth) = @_;
+  $depth ||= 0;
   my $ref = ref $fields;
   return $self->_quote($fields) unless $ref;
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+    return join(', ', map { $self->_recurse_fields($_, $depth + 1) } @$fields)
+      if $depth != 1;
+
+    my ($sql, @bind) = $self->_recurse_where({@$fields});
+
+    push @{$self->{select_bind}}, @bind;
+    return $sql;
   }
   elsif ($ref eq 'HASH') {
     my %hash = %$fields;  # shallow copy
@@ -327,7 +334,7 @@ sub _recurse_fields {
 
     my $select = sprintf ('%s( %s )%s',
       $self->_sqlcase($func),
-      $self->_recurse_fields($args),
+      $self->_recurse_fields($args, $depth + 1),
       $as
         ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
         : ''
