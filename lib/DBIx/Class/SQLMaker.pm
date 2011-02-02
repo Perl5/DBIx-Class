@@ -195,7 +195,7 @@ sub new {
     { regex => qr/^ dt_get $/xi, handler => '_where_op_GET_DATETIME' },
     { regex => qr/^ dt_diff $/xi, handler => '_where_op_DIFF_DATETIME' },
     map +{ regex => qr/^ dt_$_ $/xi, handler => '_where_op_GET_DATETIME_'.uc($_) },
-      qw(year month day)
+      qw(year month day hour minute second)
   );
 
   push @{$self->{special_ops}}, @extra_dbic_syntax;
@@ -303,7 +303,7 @@ sub _where_op_GET_DATETIME {
   return $self->_datetime_sql($part, $sql), @bind;
 }
 
-for my $part (qw(month day year)) {
+for my $part (qw(month day year hour minute second)) {
    no strict 'refs';
    my $name = '_where_op_GET_DATETIME_' . uc($part);
    *{$name} = subname "DBIx::Class::SQLMaker::$name", sub {
