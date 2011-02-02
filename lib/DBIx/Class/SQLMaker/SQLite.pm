@@ -21,7 +21,6 @@ sub _lock_select () { '' };
      day_of_week         => 'w',
      week                => 'W',
      year                => 'Y',
-     # should we support these or what?
      julian_day          => 'J',
      seconds_since_epoch => 's',
      fractional_seconds  => 'f',
@@ -44,5 +43,30 @@ sub _datetime_diff_sql {
       die $_[0]->_unsupported_date_diff($_[1], 'SQLite')
    }
 }
+
+=head1 DATE FUNCTION IMPLEMENTATION
+
+The function used to extract date information is C<STRFTIME>, which supports
+
+ month
+ day_of_month
+ year
+ hour
+ day_of_year
+ minute
+ seconds
+ day_of_week
+ week
+ year
+ julian_day
+ seconds_since_epoch
+ fractional_seconds
+
+The function used to diff dates differs and only supports
+
+ day
+ second
+
+=cut
 
 1;

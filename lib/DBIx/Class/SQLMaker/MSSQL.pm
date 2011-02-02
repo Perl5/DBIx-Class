@@ -42,5 +42,34 @@ sub _rno_default_order {
   }
 }
 
+=head1 DATE FUNCTION IMPLEMENTATION
+
+The function used to extract date information is C<DATEPART>, which supports
+
+ year
+ quarter
+ month
+ day_of_year
+ day_of_month
+ week
+ day_of_week
+ hour
+ minute
+ second
+ millisecond
+
+The function used to diff dates is C<DATEDIFF>, which supports
+
+ year
+ quarter
+ month
+ day
+ week
+ hour
+ minute
+ second
+ millisecond
+
+=cut
 
 1;

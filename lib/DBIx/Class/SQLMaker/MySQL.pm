@@ -55,7 +55,6 @@ sub _lock_select {
     month              => 'MONTH',
     quarter            => 'QUARTER',
     year               => 'YEAR',
-    # should we support these or what?
     second_microsecond => 'SECOND_MICROSECOND',
     minute_microsecond => 'MINUTE_MICROSECOND',
     minute_second      => 'MINUTE_SECOND',
@@ -83,5 +82,57 @@ sub _lock_select {
     "TIMESTAMPDIFF($diff_part_map{$_[1]}, $_[2], $_[3])"
   }
 }
+
+=head1 DATE FUNCTION IMPLEMENTATION
+
+=head1 DATE FUNCTION IMPLEMENTATION
+
+The function used to extract date information is C<DATEPART>, which supports
+
+ microsecond
+ second
+ minute
+ hour
+ day_of_month
+ week
+ month
+ quarter
+ year
+ second_microsecond
+ minute_microsecond
+ minute_second
+ hour_microsecond
+ hour_second
+ hour_minute
+ day_microsecond
+ day_second
+ day_minute
+ day_hour
+ year_month
+
+The function used to diff dates is C<TIMESTAMPDIFF>, which supports
+
+ microsecond
+ second
+ minute
+ hour
+ day
+ week
+ month
+ quarter
+ year
+ second_microsecond
+ minute_microsecond
+ minute_second
+ hour_microsecond
+ hour_second
+ hour_minute
+ day_microsecond
+ day_second
+ day_minute
+ day_hour
+ year_month
+
+=cut
 
 1;

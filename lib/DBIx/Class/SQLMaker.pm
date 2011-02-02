@@ -31,6 +31,61 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * The L</-value> operator
 
+=item * Date Functions:
+
+Note that for the following functions use different functions for different
+RDBMS'.  See the SQLMaker docs for your database to see what functions are
+used.
+
+=over
+
+=item * -dt => $date_time_obj
+
+This function will convert the passed datetime to whatever format the current
+database prefers
+
+=item * -dt_diff => [$unit, \'foo.date_from', \'foo.date_to']
+
+This function will diff two dates and return the units requested. Note that
+it correctly recurses if you pass it something like a function or a date value.
+Also note that not all RDBMS' are equal; some units supported on some databases
+and some are supported on others.  See the documentation for the SQLMaker class
+for your database.
+
+=item * -dt_get => [$part, \'foo.date_col']
+
+This function will extract the passed part from the passed column.  Note that
+it correctly recurses if you pass it something like a function or a date value.
+Also note that not all RDBMS' are equal; some parts supported on some databases
+and some are supported on others.  See the documentation for the SQLMaker class
+for your database.
+
+=item * -dt_year => \'foo.date_col'
+
+A shortcut for -dt_get => [year => ...]
+
+=item * -dt_month => \'foo.date_col'
+
+A shortcut for -dt_get => [month => ...]
+
+=item * -dt_day => \'foo.date_col'
+
+A shortcut for -dt_get => [day_of_month => ...]
+
+=item * -dt_hour => \'foo.date_col'
+
+A shortcut for -dt_get => [hour => ...]
+
+=item * -dt_minute => \'foo.date_col'
+
+A shortcut for -dt_get => [minute => ...]
+
+=item * -dt_second => \'foo.date_col'
+
+A shortcut for -dt_get => [second => ...]
+
+=back
+
 =back
 
 Another operator is C<-func> that allows you to call SQL functions with

@@ -43,4 +43,55 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
   }
 }
 
+=head1 DATE FUNCTION IMPLEMENTATION
+
+The function used to extract date information is C<EXTRACT>, which supports
+
+ century
+ decade
+ day_of_month
+ day_of_week
+ day_of_year
+ seconds_since_epoch
+ hour
+ iso_day_of_week
+ iso_year
+ microsecond
+ millenium
+ millisecond
+ minute
+ month
+ quarter
+ second
+ timezone
+ timezone_hour
+ timezone_minute
+ week
+ year
+
+The function used to diff dates is subtraction and C<EXTRACT>, which supports
+
+ century
+ decade
+ day
+ seconds_since_epoch
+ hour
+ iso_day_of_week
+ iso_year
+ microsecond
+ millenium
+ millisecond
+ minute
+ month
+ quarter
+ second
+ timezone
+ timezone_hour
+ timezone_minute
+ week
+ year
+
+=cut
+
+
 1;

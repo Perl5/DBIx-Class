@@ -287,4 +287,36 @@ sub _insert_returning {
     "TIMESTAMPDIFF($part_map{$_[1]}, $_[2], $_[3])"
   }
 }
+
+=head1 DATE FUNCTION IMPLEMENTATION
+
+A separate function is used for each extraction type in Oracle.  The types
+supported are:
+
+ month
+ day_of_month
+ day_of_year
+ day_of_quarter
+ quarter
+ month_of_quarter
+ year
+ hour
+ minute
+ second
+ week_of_quarter
+ week_of_year
+
+The function used to diff dates is C<TIMESTAMPDIFF>, which supports
+
+ second
+ minute
+ hour
+ week
+ quarter
+ month
+ day_of_year
+ year
+
+=cut
+
 1;
