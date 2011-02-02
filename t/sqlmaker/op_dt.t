@@ -29,8 +29,8 @@ use Devel::Dwarn;
 
 Dwarn [$schema->resultset('Artist')->search(undef, {
    select => [
-      { -date_diff => [second => { -dt => $date }, { -dt => $date2 }] },
-      { -date_diff => [day    => { -dt => $date }, { -dt => $date2 }] },
+      [ -dt_diff => [second => { -dt => $date }, { -dt => $date2 }] ],
+      [ -dt_diff => [day    => { -dt => $date }, { -dt => $date2 }] ],
    ],
    as => [qw(seconds days)],
    result_class => 'DBIx::Class::ResultClass::HashRefInflator',

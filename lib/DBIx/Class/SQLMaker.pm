@@ -233,7 +233,7 @@ sub _where_op_CONVERT_DATETIME {
   $rhs = $self->datetime_parser->format_datetime($rhs);
 
   my @bind = [
-    ($lhs || $self->{_nested_func_lhs} || croak "Unable to find bindtype for -value $rhs"),
+    ($lhs || $self->{_nested_func_lhs} || undef),
     $rhs
   ];
 
