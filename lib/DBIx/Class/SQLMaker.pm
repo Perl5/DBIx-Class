@@ -33,6 +33,32 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =back
 
+Another operator is C<-func> that allows you to call SQL functions with
+arguments. It receives an array reference containing the function name
+as the 0th argument and the other arguments being its parameters. For example:
+
+    my %where = {
+      -func => ['substr', 'Hello', 50, 5],
+    };
+
+Would give you:
+
+   $stmt = "WHERE (substr(?,?,?))";
+   @bind = ("Hello", 50, 5);
+
+Yet another operator is C<-op> that allows you to use SQL operators. It
+receives an array reference containing the operator 0th argument and the other
+arguments being its operands. For example:
+
+    my %where = {
+      foo => { -op => ['+', \'bar', 50, 5] },
+    };
+
+Would give you:
+
+   $stmt = "WHERE (foo = bar + ? + ?)";
+   @bind = (50, 5);
+
 =cut
 
 use base qw/
@@ -108,6 +134,8 @@ sub new {
   my @extra_dbic_syntax = (
     { regex => qr/^ ident $/xi, handler => '_where_op_IDENT' },
     { regex => qr/^ value $/xi, handler => '_where_op_VALUE' },
+    { regex => qr/^ func  $/ix, handler => '_where_op_FUNC'  },
+    { regex => qr/^ op    $/ix, handler => '_where_op_OP'    },
   );
 
   push @{$self->{special_ops}}, @extra_dbic_syntax;
@@ -395,6 +423,114 @@ sub _generate_join_clause {
     return sprintf ('%s JOIN ',
       $join_type ?  $self->_sqlcase($join_type) : ''
     );
+}
+
+sub _where_op_FUNC {
+  my ($self) = @_;
+
+  my ($k, $vals);
+
+  if (@_ == 3) {
+     # $_[1] gets set to "op"
+     $vals = $_[2];
+     $k = '';
+  } elsif (@_ == 4) {
+     $k = $_[1];
+     # $_[2] gets set to "op"
+     $vals = $_[3];
+  }
+
+  my $label       = $self->_convert($self->_quote($k));
+  my $placeholder = $self->_convert('?');
+
+  croak '-func must be an array' unless ref $vals eq 'ARRAY';
+  croak 'first arg for -func must be a scalar' unless !ref $vals->[0];
+
+  my ($func,@rest_of_vals) = @$vals;
+
+  $self->_assert_pass_injection_guard($func);
+
+  my (@all_sql, @all_bind);
+  foreach my $val (@rest_of_vals) {
+    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+       SCALAR => sub {
+         return ($placeholder, $self->_bindtype($k, $val) );
+       },
+       SCALARREF => sub {
+         return $$val;
+       },
+       ARRAYREFREF => sub {
+         my ($sql, @bind) = @$$val;
+         $self->_assert_bindval_matches_bindtype(@bind);
+         return ($sql, @bind);
+       },
+       HASHREF => sub {
+         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+         $self->$method('', $val);
+       }
+    });
+    push @all_sql, $sql;
+    push @all_bind, @bind;
+  }
+
+  my ($clause, @bind) = ("$func(" . (join ",", @all_sql) . ")", @all_bind);
+
+  my $sql = $k ? "( $label = $clause )" : "( $clause )";
+  return ($sql, @bind)
+}
+
+sub _where_op_OP {
+  my ($self) = @_;
+
+  my ($k, $vals);
+
+  if (@_ == 3) {
+     # $_[1] gets set to "op"
+     $vals = $_[2];
+     $k = '';
+  } elsif (@_ == 4) {
+     $k = $_[1];
+     # $_[2] gets set to "op"
+     $vals = $_[3];
+  }
+
+  my $label       = $self->_convert($self->_quote($k));
+  my $placeholder = $self->_convert('?');
+
+  croak 'argument to -op must be an arrayref' unless ref $vals eq 'ARRAY';
+  croak 'first arg for -op must be a scalar' unless !ref $vals->[0];
+
+  my ($op, @rest_of_vals) = @$vals;
+
+  $self->_assert_pass_injection_guard($op);
+
+  my (@all_sql, @all_bind);
+  foreach my $val (@rest_of_vals) {
+    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+       SCALAR => sub {
+         return ($placeholder, $self->_bindtype($k, $val) );
+       },
+       SCALARREF => sub {
+         return $$val;
+       },
+       ARRAYREFREF => sub {
+         my ($sql, @bind) = @$$val;
+         $self->_assert_bindval_matches_bindtype(@bind);
+         return ($sql, @bind);
+       },
+       HASHREF => sub {
+         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+         $self->$method('', $val);
+       }
+    });
+    push @all_sql, $sql;
+    push @all_bind, @bind;
+  }
+
+  my ($clause, @bind) = ((join " $op ", @all_sql), @all_bind);
+
+  my $sql = $k ? "( $label = $clause )" : "( $clause )";
+  return ($sql, @bind)
 }
 
 sub _recurse_from {
