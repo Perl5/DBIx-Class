@@ -25,6 +25,18 @@ my $date = DateTime->new(
 
 my $date2 = $date->clone->set_day(16);
 
+use Devel::Dwarn;
+
+Dwarn [$schema->resultset('Artist')->search(undef, {
+   select => [
+      { -date_diff => [second => { -dt => $date }, { -dt => $date2 }] },
+      { -date_diff => [day    => { -dt => $date }, { -dt => $date2 }] },
+   ],
+   as => [qw(seconds days)],
+   result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+   rows => 1,
+})->all];
+
 is_same_sql_bind (
   \[ $sql_maker->select ('artist', '*', { 'artist.when_began' => { -dt => $date } } ) ],
   "SELECT *
