@@ -10,6 +10,7 @@ use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
+__PACKAGE__->sql_quote_char ('"');
 
 =head1 NAME
 

@@ -14,6 +14,7 @@ use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
+__PACKAGE__->sql_quote_char ('"');
 
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"

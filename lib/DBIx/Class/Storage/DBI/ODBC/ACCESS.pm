@@ -10,6 +10,7 @@ use DBI;
 my $ERR_MSG_START = __PACKAGE__ . ' failed: ';
 
 __PACKAGE__->sql_limit_dialect ('Top');
+__PACKAGE__->sql_quote_char ([qw/[ ]/]);
 
 sub insert {
     my $self = shift;

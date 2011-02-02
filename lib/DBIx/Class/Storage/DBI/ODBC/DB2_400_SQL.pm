@@ -14,6 +14,8 @@ warn 'Major advances took place in the DBIC codebase since this driver'
   ."\n"
 ;
 
+__PACKAGE__->sql_quote_char('"');
+
 # FIXME
 # Most likely all of this code is redundant and unnecessary. We should
 # be able to simply use base qw/DBIx::Class::Storage::DBI::DB2/;

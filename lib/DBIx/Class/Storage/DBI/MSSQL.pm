@@ -15,6 +15,8 @@ __PACKAGE__->mk_group_accessors(simple => qw/
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
 
+__PACKAGE__->sql_quote_char([qw/[ ]/]);
+
 sub _set_identity_insert {
   my ($self, $table) = @_;
 

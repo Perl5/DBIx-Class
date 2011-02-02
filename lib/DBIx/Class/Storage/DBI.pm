@@ -23,7 +23,12 @@ use namespace::clean;
 # default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class sql_limit_dialect/);
+__PACKAGE__->mk_group_accessors('inherited' => qw/
+  sql_maker_class sql_limit_dialect sql_quote_char sql_name_sep
+/);
+
+__PACKAGE__->sql_name_sep('.');
+
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
@@ -449,6 +454,12 @@ Sets a specific SQL::Abstract::Limit-style limit dialect, overriding the
 default L</sql_limit_dialect> setting of the storage (if any). For a list
 of available limit dialects see L<DBIx::Class::SQLMaker::LimitDialects>.
 
+=item quote_names
+
+When true automatically sets L</quote_char> and L</name_sep> to the characters
+appropriate for your particular RDBMS. This option is preferred over specifying
+L</quote_char> directly.
+
 =item quote_char
 
 Specifies what characters to use to quote table and column names.
@@ -666,7 +677,7 @@ sub _normalize_connect_info {
     delete @attrs{@storage_opts} if @storage_opts;
 
   my @sql_maker_opts = grep exists $attrs{$_},
-    qw/limit_dialect quote_char name_sep/;
+    qw/limit_dialect quote_char name_sep quote_names/;
 
   @{ $info{sql_maker_options} }{@sql_maker_opts} =
     delete @attrs{@sql_maker_opts} if @sql_maker_opts;
@@ -998,18 +1009,39 @@ sub sql_maker {
           "Your storage class ($s_class) does not set sql_limit_dialect and you "
         . 'have not supplied an explicit limit_dialect in your connection_info. '
         . 'DBIC will attempt to use the GenericSubQ dialect, which works on most '
-        . 'databases but can be (and often is) painfully slow.'
+        . 'databases but can be (and often is) painfully slow. '
+        . "Please file an RT ticket against '$s_class' ."
         );
 
         'GenericSubQ';
       }
     ;
 
+    my ($quote_char, $name_sep);
+
+    if ($opts{quote_names}) {
+      $quote_char = (delete $opts{quote_char}) || $self->sql_quote_char || do {
+        my $s_class = (ref $self) || $self;
+        carp (
+          "You requested 'quote_names' but your storage class ($s_class) does "
+        . 'not explicitly define a default sql_quote_char and you have not '
+        . 'supplied a quote_char as part of your connection_info. DBIC will '
+        .q{default to the ANSI SQL standard quote '"', which works most of }
+        . "the time. Please file an RT ticket against '$s_class'."
+        );
+
+        '"'; # RV
+      };
+
+      $name_sep = (delete $opts{name_sep}) || $self->sql_name_sep;
+    }
+
     $self->_sql_maker($sql_maker_class->new(
       bindtype=>'columns',
       array_datatypes => 1,
       limit_dialect => $dialect,
-      name_sep => '.',
+      ($quote_char ? (quote_char => $quote_char) : ()),
+      name_sep => ($name_sep || '.'),
       %opts,
     ));
   }

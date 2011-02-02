@@ -8,6 +8,7 @@ use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
+__PACKAGE__->sql_quote_char ('"');
 
 sub backup {
 

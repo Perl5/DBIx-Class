@@ -8,6 +8,7 @@ use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
+__PACKAGE__->sql_quote_char ('"');
 
 =head1 NAME
 

@@ -11,6 +11,7 @@ use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
+__PACKAGE__->sql_quote_char ('`');
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;

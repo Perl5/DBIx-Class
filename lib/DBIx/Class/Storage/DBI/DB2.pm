@@ -7,6 +7,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
+__PACKAGE__->sql_quote_char ('"');
 
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;

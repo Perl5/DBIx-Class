@@ -10,6 +10,7 @@ use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('SkipFirst');
+__PACKAGE__->sql_quote_char ('"');
 
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 

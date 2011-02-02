@@ -34,6 +34,7 @@ L</connect_call_datetime_setup>.
 # set default
 __PACKAGE__->_use_insert_returning (1);
 __PACKAGE__->sql_limit_dialect ('FirstSkip');
+__PACKAGE__->sql_quote_char ('"');
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;

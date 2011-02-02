@@ -17,6 +17,7 @@ use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowCountOrGenericSubQ');
+__PACKAGE__->sql_quote_char ([qw/[ ]/]);
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
