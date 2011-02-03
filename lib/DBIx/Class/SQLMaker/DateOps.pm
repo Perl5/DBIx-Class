@@ -93,7 +93,7 @@ sub _where_op_GET_DATETIME {
   return $self->_datetime_sql($part, $sql), @bind;
 }
 
-for my $part (qw(month day year hour minute second)) {
+for my $part (qw(month year hour minute second)) {
    no strict 'refs';
    my $name = '_where_op_GET_DATETIME_' . uc($part);
    *{$name} = subname "DBIx::Class::SQLMaker::DateOps::$name", sub {
@@ -104,6 +104,15 @@ for my $part (qw(month day year hour minute second)) {
 
      return $self->_where_op_GET_DATETIME($op, $lhs, [$part, $rhs])
    }
+}
+
+sub _where_op_GET_DATETIME_DAY {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+
+  my $lhs = shift;
+
+  return $self->_where_op_GET_DATETIME($op, $lhs, [day_of_month => $rhs])
 }
 
 sub _where_op_DATETIME_NOW {
