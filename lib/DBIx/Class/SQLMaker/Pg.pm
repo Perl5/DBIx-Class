@@ -3,6 +3,9 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+
+sub _datetime_now_sql { 'NOW()' }
+
 {
   my %part_map = (
      century             => 'CENTURY',
@@ -40,6 +43,21 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
     die $_[0]->_unsupported_date_diff($_[1], 'PostgreSQL')
        unless exists $diff_part_map{$_[1]};
     "EXTRACT($diff_part_map{$_[1]} FROM ($_[2] - $_[3]))"
+  }
+
+  sub _reorder_add_datetime_vars {
+     my ($self, $amount, $date) = @_;
+
+     return ($date, $amount);
+  }
+
+  sub _datetime_add_sql {
+    my ($self, $part, $date, $amount) = @_;
+
+    die $self->_unsupported_date_adding($part, 'PostgreSQL')
+      unless exists $diff_part_map{$part};
+
+    return "($date + $amount || ' $part_map{$part}'))"
   }
 }
 
