@@ -44,6 +44,7 @@ sub _lock_select {
    return " $sql";
 }
 
+sub _datetime_now_sql { 'NOW()' }
 {
   my %part_map = (
     microsecond        => 'MICROSECOND',
@@ -75,6 +76,11 @@ sub _lock_select {
     die $_[0]->_unsupported_date_extraction($_[1], 'MySQL')
        unless exists $part_map{$_[1]};
     "EXTRACT($part_map{$_[1]} FROM $_[2])"
+  }
+  sub _datetime_add_sql {
+    die $_[0]->_unsupported_date_adding($_[1], 'MySQL')
+       unless exists $diff_part_map{$_[1]};
+    "DATE_ADD($_[2], INTERVAL $_[3] $diff_part_map{$_[1]})"
   }
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'MySQL')
