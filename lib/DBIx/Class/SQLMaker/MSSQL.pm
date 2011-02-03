@@ -10,6 +10,8 @@ sub _rno_default_order {
   return \ '(SELECT(1))';
 }
 
+sub _datetime_now_sql { 'NOW()' }
+
 {
   my %part_map = (
      year         => 'year',
@@ -23,6 +25,7 @@ sub _rno_default_order {
      minute       => 'minute',
      second       => 'second',
      millisecond  => 'millisecond',
+     nanosecond   => 'nanosecond',
   );
 
   my %diff_part_map = %part_map;
@@ -33,12 +36,28 @@ sub _rno_default_order {
   sub _datetime_sql {
     die $_[0]->_unsupported_date_extraction($_[1], 'Microsoft SQL Server')
        unless exists $part_map{$_[1]};
-    "DATEPART('$part_map{$_[1]}', $_[2])"
+    "DATEPART($part_map{$_[1]}, $_[2])"
   }
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'Microsoft SQL Server')
        unless exists $diff_part_map{$_[1]};
-    "DATEDIFF('$diff_part_map{$_[1]}', $_[2], $_[3])"
+    "DATEDIFF($diff_part_map{$_[1]}, $_[2], $_[3])"
+  }
+
+  sub _reorder_diff_datetime_vars {
+    my ($self, $d1, $d2) = @_;
+
+    return ($d2, $d1);
+  }
+
+  sub _datetime_add_sql {
+    my ($self, $part, $amount, $date) = @_;
+
+    die $self->_unsupported_date_adding($part, 'Microsoft SQL Server')
+      unless exists $diff_part_map{$part};
+
+    my $placeholder = $self->_convert('?');
+    return "(DATEADD($diff_part_map{$part}, $amount, $date))"
   }
 }
 

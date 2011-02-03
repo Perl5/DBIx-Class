@@ -196,6 +196,12 @@ sub _where_op_ADD_DATETIME {
   return $self->_datetime_add_sql($part, $all_sql[0], $all_sql[1]), @all_bind
 }
 
+sub _reorder_diff_datetime_vars {
+   my ($self, $d1, $d2) = @_;
+
+   return ($d1, $d2);
+}
+
 sub _where_op_DIFF_DATETIME {
   my ($self) = @_;
 
@@ -218,6 +224,7 @@ sub _where_op_DIFF_DATETIME {
   my ($part, @val) = @$vals;
   my $placeholder = $self->_convert('?');
 
+  @val = $self->_reorder_diff_datetime_vars(@val);
   my (@all_sql, @all_bind);
   foreach my $val (@val) {
     my ($sql, @bind) = $self->_SWITCH_refkind($val, {
