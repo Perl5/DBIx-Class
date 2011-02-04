@@ -17,6 +17,8 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
 
 __PACKAGE__->sql_quote_char([qw/[ ]/]);
 
+__PACKAGE__->new_guid('NEWID()');
+
 sub _set_identity_insert {
   my ($self, $table) = @_;
 

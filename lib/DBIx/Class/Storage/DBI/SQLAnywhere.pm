@@ -12,6 +12,8 @@ __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
 __PACKAGE__->sql_quote_char ('"');
 
+__PACKAGE__->new_guid('UUIDTOSTR(NEWID())');
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::SQLAnywhere - Driver for Sybase SQL Anywhere
@@ -35,8 +37,6 @@ Recommended L<connect_info|DBIx::Class::Storage::DBI/connect_info> settings:
 =cut
 
 sub last_insert_id { shift->_identity }
-
-sub _new_uuid { 'UUIDTOSTR(NEWID())' }
 
 sub _prefetch_autovalues {
   my $self = shift;
