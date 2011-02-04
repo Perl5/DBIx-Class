@@ -64,8 +64,6 @@ $rs{mssql}->populate([
  ['2010-12-12', '2011-12-14 12:12:12.000', '2011-12-12 12:12:12.000'],
 ]) if $schema{mssql}->storage->connected;
 
-#my %sql_maker = map { $_ => $schema{$_}->storage->sql_maker } keys %schema;
-
 my $date = DateTime->new(
    year => 2010,
    month => 12,
@@ -120,6 +118,25 @@ my @tests = (
       hri    => [{ year => 2010 }],
     },
     msg    => '-dt_year works',
+  },
+
+  {
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_get => [[qw(year month)], { -ident => 'me.created_on' }] ] ],
+    as     => [ qw(year month) ],
+    mssql => {
+      select => "DATEPART(year, me.created_on), DATEPART(month, me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010, month => 12 }],
+    },
+    sqlite => {
+      select => "STRFTIME('%Y', me.created_on), STRFTIME('%m', me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010, month => 12 }],
+    },
+    msg    => '-dt_get (year, month) works',
   },
 
   {

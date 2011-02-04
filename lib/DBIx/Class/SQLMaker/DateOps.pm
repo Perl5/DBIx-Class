@@ -67,7 +67,7 @@ sub _where_op_GET_DATETIME {
   }
 
   croak 'args to -dt_get must be an arrayref' unless ref $vals eq 'ARRAY';
-  croak 'first arg to -dt_get must be a scalar' unless !ref $vals->[0];
+  croak 'first arg to -dt_get must be a scalar or ARRAY ref' unless !ref $vals->[0] || ref $vals->[0] eq 'ARRAY';
 
   my $part = $vals->[0];
   my $val  = $vals->[1];
@@ -90,7 +90,11 @@ sub _where_op_GET_DATETIME {
      }
   });
 
-  return $self->_datetime_sql($part, $sql), @bind;
+  if (!ref $part) {
+    return $self->_datetime_sql($part, $sql), @bind;
+  } elsif (ref $part eq 'ARRAY' ) {
+    return ( join ', ', map { $self->_datetime_sql($_, $sql) } @$part ), (@bind) x @$part;
+  }
 }
 
 for my $part (qw(month year hour minute second)) {
