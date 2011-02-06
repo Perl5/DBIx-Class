@@ -17,6 +17,18 @@ Anywhere through ODBC
 All functionality is provided by L<DBIx::Class::Storage::DBI::SQLAnywhere>, see
 that module for details.
 
+=head1 CAVEATS
+
+=head2 uniqueidentifierstr data type
+
+If you use the C<uniqueidentifierstr> type with this driver, your queries may
+fail with: 
+
+  Data truncated (SQL-01004)
+
+B<WORKAROUND:> use the C<uniqueidentifier> type instead, it is more efficient
+anyway.
+
 =head1 AUTHOR
 
 See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.

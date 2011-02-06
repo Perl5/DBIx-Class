@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Scope::Guard ();
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -167,7 +168,8 @@ EOF
  
   my @uuid_types = qw/uniqueidentifier uniqueidentifierstr/;
 
-# test uniqueidentifiers
+# test uniqueidentifiers (and the cursor_class).
+
   for my $uuid_type (@uuid_types) {
     local $schema->source('ArtistGUID')->column_info('artistid')->{data_type}
       = $uuid_type;
@@ -190,6 +192,9 @@ CREATE TABLE artist_guid (
 SQL
     });
 
+    local $TODO = 'something wrong with uniqueidentifierstr over ODBC'
+      if $dsn =~ /:ODBC:/ && $uuid_type eq 'uniqueidentifierstr';
+
     my $row;
     lives_ok {
       $row = $schema->resultset('ArtistGUID')->create({ name => 'mtfnpy' })
@@ -207,14 +212,35 @@ SQL
     );
     diag $@ if $@;
 
-    my $row_from_db = $schema->resultset('ArtistGUID')
-      ->search({ name => 'mtfnpy' })->first;
+    my $row_from_db = try { $schema->resultset('ArtistGUID')
+      ->search({ name => 'mtfnpy' })->first }
+      catch { diag $_ };
 
-    is $row_from_db->artistid, $row->artistid,
-      'PK GUID round trip';
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->search->next)';
 
-    is $row_from_db->a_guid, $row->a_guid,
-      'NON-PK GUID round trip';
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->search->next)';
+
+    $row_from_db = try { $schema->resultset('ArtistGUID')
+      ->find($row->artistid) }
+      catch { diag $_ };
+
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->find)';
+
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->find)';
+
+    ($row_from_db) = try { $schema->resultset('ArtistGUID')
+      ->search({ name => 'mtfnpy' })->all }
+      catch { diag $_ };
+
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->search->all)';
+
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->search->all)';
   }
 }
 

@@ -6,6 +6,7 @@ use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use List::Util 'first';
 use Try::Tiny;
+use DBIx::Class::Storage::DBI::SQLAnywhere::Cursor ();
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
@@ -14,14 +15,19 @@ __PACKAGE__->sql_quote_char ('"');
 
 __PACKAGE__->new_guid('UUIDTOSTR(NEWID())');
 
+# default to the UUID decoding cursor, overridable by the user
+__PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::SQLAnywhere::Cursor');
+
 =head1 NAME
 
-DBIx::Class::Storage::DBI::SQLAnywhere - Driver for Sybase SQL Anywhere
+DBIx::Class::Storage::DBI::SQLAnywhere - Driver for SQL Anywhere
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Sybase SQL Anywhere and provides
-L<DBIx::Class::InflateColumn::DateTime> support.
+This class implements autoincrements for SQL Anywhere and provides
+L<DBIx::Class::InflateColumn::DateTime> support and support for the
+C<uniqueidentifier> type (via
+L<DBIx::Class::Storage::DBI::SQLAnywhere::Cursor>.)
 
 You need the C<DBD::SQLAnywhere> driver that comes with the SQL Anywhere
 distribution, B<NOT> the one on CPAN. It is usually under a path such as:
@@ -83,9 +89,28 @@ sub _prefetch_autovalues {
   return $values;
 }
 
-# convert UUIDs to strings in selects
-sub _select_args {
+sub _uuid_to_str {
+  my ($self, $data) = @_;
+
+  $data = unpack 'H*', $data;
+
+  for my $pos (8, 13, 18, 23) {
+    substr($data, $pos, 0) = '-';
+  }
+
+  return $data;
+}
+
+# select_single does not invoke a cursor object at all, hence UUID decoding happens
+# here if the proper cursor class is set
+sub select_single {
   my $self = shift;
+
+  my @row = $self->next::method(@_);
+
+  return @row
+    unless $self->cursor_class->isa('DBIx::Class::Storage::DBI::SQLAnywhere::Cursor');
+
   my ($ident, $select) = @_;
 
   my $col_info = $self->_resolve_column_info($ident);
@@ -95,14 +120,19 @@ sub _select_args {
 
     next if ref $selected;
 
-    my $data_type = $col_info->{$selected}{data_type};
+    my $data_type = $col_info->{$selected}{data_type}
+      or next;
 
-    if ($data_type && lc($data_type) eq 'uniqueidentifier') {
-      $select->[$select_idx] = { UUIDTOSTR => $selected };
+    if ($self->_is_guid_type($data_type)) {
+      my $returned = $row[$select_idx];
+
+      if (length $returned == 16) {
+        $row[$select_idx] = $self->_uuid_to_str($returned);
+      }
     }
   }
 
-  return $self->next::method(@_);
+  return @row;
 }
 
 # this sub stolen from MSSQL

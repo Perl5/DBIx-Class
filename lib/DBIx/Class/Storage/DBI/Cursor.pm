@@ -9,7 +9,7 @@ use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/sth/
+    qw/sth storage args pos attrs _dbh_gen/
 );
 
 =head1 NAME
