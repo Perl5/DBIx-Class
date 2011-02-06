@@ -6,6 +6,9 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
+# Example DSN (from frew):
+# dbi:ADO:PROVIDER=sqlncli10;SERVER=tcp:172.24.2.10;MARS Connection=True;Initial Catalog=CIS;UID=cis_web;PWD=...;DataTypeCompatibility=80;
+
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ADO_DSN}, _USER and _PASS to run this test'
@@ -16,9 +19,16 @@ $schema->storage->ensure_connected;
 
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server' );
 
+my $ver = $schema->storage->_server_info->{normalized_dbms_version};
+
+ok $ver, 'can introspect DBMS version';
+
+is $schema->storage->sql_limit_dialect, ($ver >= 9 ? 'RowNumberOver' : 'Top'),
+  'correct limit dialect detected';
+
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
-    eval { $dbh->do("DROP TABLE artist") };
+    eval { local $^W = 0; $dbh->do("DROP TABLE artist") };
     $dbh->do(<<'SQL');
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
@@ -39,8 +49,8 @@ is $found->artistid, $new->artistid, 'search works';
 
 # test large column list in select
 $found = $schema->resultset('Artist')->search({ name => 'foo' }, {
-  select => ['artistid', 'name', map "'foo' foo_$_", 0..50],
-  as     => ['artistid', 'name', map       "foo_$_", 0..50],
+  select => ['artistid', 'name', map \"'foo' foo_$_", 0..50],
+  as     => ['artistid', 'name', map        "foo_$_", 0..50],
 })->first;
 is $found->artistid, $new->artistid, 'select with big column list';
 is $found->get_column('foo_50'), 'foo', 'last item in big column list';
@@ -71,6 +81,10 @@ done_testing;
 
 # clean up our mess
 END {
+  my $warn_handler = $SIG{__WARN__} || sub { warn @_ };
+  local $SIG{__WARN__} = sub {
+    $warn_handler->(@_) unless $_[0] =~ /Not a Win32::OLE object/
+  };
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist/;

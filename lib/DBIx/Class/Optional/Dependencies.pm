@@ -54,6 +54,9 @@ my $rdbms_mssql_odbc = {
 my $rdbms_mssql_sybase = {
   'DBD::Sybase'                   => '0',
 };
+my $rdbms_mssql_ado = {
+  'DBD::ADO'                      => '0',
+};
 my $rdbms_mysql = {
   'DBD::mysql'                    => '0',
 };
@@ -242,7 +245,17 @@ my $reqs = {
     },
     pod => {
       title => 'MSSQL support via DBD::Sybase',
-      desc => 'Modules required to connect to MSSQL support via DBD::Sybase',
+      desc => 'Modules required to connect to MSSQL via DBD::Sybase',
+    },
+  },
+
+  rdbms_mssql_ado => {
+    req => {
+      %$rdbms_mssql_ado,
+    },
+    pod => {
+      title => 'MSSQL support via DBD::ADO (Windows only)',
+      desc => 'Modules required to connect to MSSQL via DBD::ADO. This particular DBD is available on Windows only',
     },
   },
 
@@ -304,6 +317,15 @@ my $reqs = {
       $ENV{DBICTEST_MSSQL_ODBC_DSN}
         ? (
           %$rdbms_mssql_odbc,
+        ) : ()
+    },
+  },
+
+  test_rdbms_mssql_ado => {
+    req => {
+      $ENV{DBICTEST_MSSQL_ADO_DSN}
+        ? (
+          %$rdbms_mssql_ado,
         ) : ()
     },
   },

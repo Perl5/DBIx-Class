@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * New Features / Changes
         - Add quote_names connection option. When set to true automatically
           sets quote_char and name_sep appropriate for your RDBMS
+        - IC::DateTime support for MSSQL over DBD::ADO
 
     * Fixes
         - Disable mysql_auto_reconnect for MySQL - depending on the ENV
