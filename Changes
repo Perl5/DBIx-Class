@@ -66,6 +66,8 @@ Revision history for DBIx::Class
           a multi relationship ( x -> might_have y -> has_many z )
         - Fix object-derived custom-relationship resultsets to resultsources
           with multilevel monikers (e.g. $schema->source('Foo::Bar') )
+        - Fix incorrect signature of the default sqlt_deploy_hook - it now
+          matches the documentation of passing in the result source object
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

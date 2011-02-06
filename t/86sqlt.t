@@ -5,6 +5,8 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+use Scalar::Util 'blessed';
+
 BEGIN {
   require DBIx::Class;
   plan skip_all =>
@@ -26,7 +28,6 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 # Check deployment statements ctx sensitivity
 {
   my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
-
 
   my $statements = $schema->deployment_statements;
   like (
@@ -50,10 +51,37 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
   );
 }
 
+{
+  # use our own throw-away schema, since we'll be deploying twice
+  my $schema = DBICTest->init_schema (no_deploy => 1);
 
+  my $deploy_hook_called = 0;
+  $custom_deployment_statements_called = 0;
+
+  # add a temporary sqlt_deploy_hook to a source
+  no warnings 'once';
+  local *DBICTest::Track::sqlt_deploy_hook = sub {
+    my ($self, $sqlt_table) = @_;
+
+    $deploy_hook_called = 1;
+
+    is (blessed ($self), 'DBIx::Class::ResultSource::Table', 'Source object passed to plain hook');
+
+    is (
+      $sqlt_table->schema->translator->producer_type,
+      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      'Production type passed to translator object',
+    );
+  };
+
+  $schema->deploy; # do not remove, this fires the is() test in the callback above
+  ok($deploy_hook_called, 'deploy hook got called');
+  ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
+}
 
 {
   my $deploy_hook_called = 0;
+  $custom_deployment_statements_called = 0;
 
   # replace the sqlt calback with a custom version ading an index
   $schema->source('Track')->sqlt_deploy_callback(sub {
