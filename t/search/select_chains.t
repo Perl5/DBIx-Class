@@ -109,13 +109,14 @@ is_same_sql_bind (
 
 # Test the order of columns
 $rs = $schema->resultset('CD')->search ({}, {
-  'select'   => [ 'me.cdid', 'me.title' ],
+  'select'   => [ 'me.cdid', \'SUBSTR(me.title FROM 2)', 'me.title' ],
 });
 
 is_same_sql_bind (
   $rs->as_query,
   '( SELECT
       me.cdid,
+      SUBSTR(me.title FROM 2),
       me.title
       FROM cd me
   )',
