@@ -42,7 +42,14 @@ sub _datetime_now_sql { 'NOW()' }
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'PostgreSQL')
        unless exists $diff_part_map{$_[1]};
-    "EXTRACT($diff_part_map{$_[1]} FROM ($_[2] - $_[3]))"
+    my $field_to_extract;
+    if ( $diff_part_map{$_[1]} eq 'SECOND' ) {
+       $field_to_extract = "EPOCH" ;
+    } else {
+        $field_to_extract = $diff_part_map{$_[1]};
+    }
+    ## adjusting this HERE as second will be needed elsewhere
+    "EXTRACT($field_to_extract FROM ($_[2]::timestamp with time zone - $_[3]::timestamp with time zone))"
   }
 
   sub _reorder_add_datetime_vars {

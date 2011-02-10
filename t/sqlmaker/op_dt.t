@@ -13,8 +13,9 @@ use Try::Tiny;
 use DBICTest;
 
 my %dbs_to_test = (
-   sqlite => 1,
-   mssql  => 0,
+   sqlite   => 1,
+   mssql    => 0,
+   postgres => 1,
 );
 
 my %schema = (
@@ -48,6 +49,34 @@ $s;
          DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::MSSQL' )
       }
    },
+   ## copypasta'd for great justice
+   postgres =>  do {
+      my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_POSTGRES_${_}" } qw/DSN USER PASS/};
+      if ($dsn && $user) {
+         my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+         try { $s->storage->ensure_connected };
+
+         $s->storage->dbh_do (sub {
+             my ($storage, $dbh) = @_;
+             eval { $dbh->do("DROP TABLE event") };
+             $dbh->do(<<'SQL');
+CREATE TABLE event (
+   id SERIAL NOT NULL PRIMARY KEY,
+   starts_at DATE NOT NULL,
+   created_on TIMESTAMP NOT NULL,
+   varchar_date VARCHAR(20),
+   varchar_datetime VARCHAR(20),
+   skip_inflation TIMESTAMP,
+   ts_without_tz TIMESTAMP WITHOUT TIME ZONE
+)
+SQL
+        $dbs_to_test{postgres} = 1;
+});
+$s;
+      } else {
+         DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::Pg' )
+      }
+   }
 );
 
 my %rs = map { $_ => $schema{$_}->resultset('Event') } keys %schema;
@@ -63,6 +92,13 @@ $rs{mssql}->populate([
  ['2010-12-12', '2010-12-14 12:12:12.000', '2019-12-12 12:12:12.000'],
  ['2010-12-12', '2011-12-14 12:12:12.000', '2011-12-12 12:12:12.000'],
 ]) if $schema{mssql}->storage->connected;
+
+$rs{postgres}->populate([
+ [qw(starts_at created_on skip_inflation)],
+ ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
+ ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
+]) if $schema{postgres}->storage->connected;
+
 
 my $date = DateTime->new(
    year => 2010,
@@ -83,7 +119,11 @@ sub hri_thing {
 
 my $date2 = $date->clone->set_day(16);
 
+## test format:
+##   search => { dbic_search_code/params }
+##   rdbms_name => literal_sql
 my @tests = (
+## -dt-now tests
   {
     search => { 'me.created_on' => { -dt => $date } },
     sqlite => {
@@ -98,9 +138,15 @@ my @tests = (
       bind   => [[ 'me.created_on', '2010-12-14 12:12:12.000' ]],
       hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12.000', '2019-12-12 12:12:12.000')],
     },
+    postgres => {
+      select => 'me.starts_at, me.created_on, me.skip_inflation',
+      where  => 'me.created_on = ?',
+      bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
+      hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12')],
+    },
     msg => '-dt_now works',
   },
-
+## -dt_year tests
   {
     search => { 'me.id' => 1 },
     select => [ [ -dt_year => { -ident => 'me.created_on' } ] ],
@@ -117,9 +163,15 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ year => 2010 }],
     },
+    postgres => {
+      select => "EXTRACT(year FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
     msg    => '-dt_year works',
   },
-
+## -dt_get(year, month) tests
   {
     search => { 'me.id' => 1 },
     select => [ [ -dt_get => [[qw(year month)], { -ident => 'me.created_on' }] ] ],
@@ -136,9 +188,15 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
+    postgres => {
+      select => "EXTRACT(year FROM me.created_on), EXTRACT(month FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010, month => 12 }],
+    },
     msg    => '-dt_get (year, month) works',
   },
-
+## -dt_month tests
   {
     search => { 'me.id' => 1 },
     select   => [ [ -dt_month => { -ident => 'me.created_on' } ] ],
@@ -155,9 +213,16 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ month => 12 }],
     },
+    postgres => {
+      select => "EXTRACT(month FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ month => 12 }],
+
+    },
     msg    => '-dt_month works',
   },
-
+## -dt_day tests
   {
     search => { 'me.id' => 1 },
     select   => [ [ -dt_day => { -ident => 'me.created_on' } ] ],
@@ -174,9 +239,16 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ day => 14 }],
     },
+    postgres => {
+      select => "EXTRACT(day FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ day => 14 }],
+
+    },
     msg    => '-dt_day works',
   },
-
+## -dt_hour tests
   {
     search => { 'me.id' => 1 },
     select   => [ [ -dt_hour => { -ident => 'me.created_on' } ] ],
@@ -193,9 +265,15 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ hour => 12 }],
     },
+    postgres => {
+      select => "EXTRACT(hour FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ hour => 12 }],
+    },
     msg    => '-dt_hour works',
   },
-
+## -dt_minute tests
   {
     search => { 'me.id' => 1 },
     select   => [ [ -dt_minute => { -ident => 'me.created_on' } ] ],
@@ -212,9 +290,15 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ minute => 12 }],
     },
+    postgres => {
+      select => "EXTRACT(minute FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ minute => 12 }],
+    },
     msg    => '-dt_minute works',
   },
-
+## -dt_second tests
   {
     search => { 'me.id' => 1 },
     select   => [ [ -dt_second => { -ident => 'me.created_on' } ] ],
@@ -231,9 +315,16 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ second => 12 }],
     },
+    postgres => {
+      select => "EXTRACT(second FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ second => 12 }],
+
+    },
     msg    => '-dt_second works',
   },
-
+## -dt_diff(second) tests
   {
     search => { 'me.id' => 2 },
     select   => [ [ -dt_diff => [second => { -ident => 'me.created_on' }, \'me.skip_inflation' ] ] ],
@@ -250,9 +341,16 @@ my @tests = (
       bind   => [['me.id' => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
     },
+    postgres => {
+      select   => "EXTRACT(epoch FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
+      where => "me.id = ?",
+      bind   => [['me.id' => 2 ]],
+      hri => [{ sec_diff => 2*24*60*60 }],
+    },
     msg    => '-dt_diff (second) works',
   },
 
+# -dt_diff(day) tests
   {
     search => { 'me.id' => 2 },
     select   => [ [ -dt_diff => [day => { -ident => 'me.created_on' }, \'me.skip_inflation' ] ] ],
@@ -269,6 +367,13 @@ my @tests = (
       bind   => [['me.id' => 2 ]],
       hri => [{ day_diff => 2 }],
     },
+    postgres => {
+      select   => "EXTRACT(DAY FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
+      where => "me.id = ?",
+      bind   => [['me.id' => 2 ]],
+      hri => [{ day_diff => 2 }],
+    },
+
     msg    => '-dt_diff (day) works',
   },
 
