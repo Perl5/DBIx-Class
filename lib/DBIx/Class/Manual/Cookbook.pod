@@ -1921,7 +1921,7 @@ L<Class::Method::Modifiers>:
     $self->$orig(@_);
   }
 
-Note that the hard work is done by the call to C<next::method>, which
+Note that the hard work is done by the call to C<< $self->$orig >>, which
 redispatches your call to store_column in the superclass(es).
 
 Generally, if this is a calculation your database can easily do, try
