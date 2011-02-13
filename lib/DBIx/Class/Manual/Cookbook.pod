@@ -1918,7 +1918,7 @@ L<Class::Method::Modifiers>:
       $self->squared( $value * $value );
     }
 
-    $self->next::method(@_);
+    $self->$orig(@_);
   }
 
 Note that the hard work is done by the call to C<next::method>, which
