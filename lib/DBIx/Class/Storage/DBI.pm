@@ -2730,6 +2730,7 @@ sub deployment_statements {
   my $filename = $schema->ddl_filename($type, $version, $dir);
   if(-f $filename)
   {
+      # FIXME replace this block when a proper sane sql parser is available
       my $file;
       open($file, "<$filename")
         or $self->throw_exception("Can't open $filename ($!)");
@@ -2768,12 +2769,14 @@ sub deployment_statements {
   return wantarray ? @ret : $ret[0];
 }
 
+# FIXME deploy() currently does not accurately report sql errors
+# Will always return true while errors are warned
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
   my $deploy = sub {
     my $line = shift;
-    return if($line =~ /^--/);
     return if(!$line);
+    return if($line =~ /^--/);
     # next if($line =~ /^DROP/m);
     return if($line =~ /^BEGIN TRANSACTION/m);
     return if($line =~ /^COMMIT/m);
@@ -2795,7 +2798,8 @@ sub deploy {
     }
   }
   elsif (@statements == 1) {
-    foreach my $line ( split(";\n", $statements[0])) {
+    # split on single line comments and end of statements
+    foreach my $line ( split(/\s*--.*\n|;\n/, $statements[0])) {
       $deploy->( $line );
     }
   }

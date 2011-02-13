@@ -338,6 +338,8 @@ mattlaw: Matt Lawrence
 
 michaelr: Michael Reddick <michael.reddick@gmail.com>
 
+milki: Jonathan Chu <milki@rescomp.berkeley.edu>
+
 ned: Neil de Carteret
 
 nigel: Nigel Metheringham <nigelm@cpan.org>
