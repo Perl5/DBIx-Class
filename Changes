@@ -18,6 +18,8 @@ Revision history for DBIx::Class
         - Better error handling when prepare() fails silently
         - Fixes skipped lines when a comment is followed by a statement
           when deploying a schema via sql file
+        - Fix reverse_relationship_info on prototypical result sources
+          (sources not yet registered with a schema)
 
 0.08127 2011-01-19 16:40 (UTC)
     * New Features / Changes
