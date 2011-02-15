@@ -5,6 +5,8 @@ Revision history for DBIx::Class
           sets quote_char and name_sep appropriate for your RDBMS
         - Add retrieve_on_insert column info flag, allowing to retrieve any
           column value instead of just autoinc primary keys
+        - Bring back strict ordering of selectors in complex search chains
+          (an ill-fated attempt was made in 0.08127 to order intelligently)
         - All limit dialects (except for the older Top and FetchFirst) are
           now using bind parameters for the limits/offsets, making DBI's
           prepare_cached useful across paged resutsets

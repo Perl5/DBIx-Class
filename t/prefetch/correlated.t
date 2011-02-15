@@ -85,12 +85,6 @@ is ($queries, 1, 'Only 1 query fired to retrieve everything');
 $schema->storage->debug($orig_debug);
 $schema->storage->debugcb(undef);
 
-# try to unbalance the select
-
-# first add a lone non-as-ed select
-# it should be reordered to appear at the end without throwing prefetch/bind off
-$c_rs = $c_rs->search({}, { '+select' => \[ 'me.cdid + ?', [ \ 'inTEger' => 1 ] ] });
-
 # now add an unbalanced select/as pair
 $c_rs = $c_rs->search ({}, {
   '+select' => $cdrs->search(
@@ -102,7 +96,6 @@ $c_rs = $c_rs->search ({}, {
   )->as_query,
   '+as' => [qw/active_from active_to/],
 });
-
 
 is_same_sql_bind(
   $c_rs->as_query,
@@ -120,8 +113,7 @@ is_same_sql_bind(
             WHERE siblings.artist = me.artist
               AND me.artist != ?
            ),
-           tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
-           me.cdid + ?
+           tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
       FROM cd me
       LEFT JOIN track tracks
         ON tracks.cd = me.cdid
@@ -140,10 +132,6 @@ is_same_sql_bind(
     # second subselect
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
       => 2 ],
-
-    # the addition
-    [ { sqlt_datatype => 'inTEger' }
-      => 1 ],
 
     # outher WHERE
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }

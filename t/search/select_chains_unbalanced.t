@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
@@ -14,63 +15,77 @@ my $multicol_rs = $schema->resultset('Artist')->search({ artistid => \'1' }, { c
 
 my @chain = (
   {
-    select      => 'title',
-    as          => 'title',
-    columns     => [ 'cdid' ],
+    select      => 'cdid',
+    as          => 'cd_id',
+    columns     => [ 'title' ],
   } => 'SELECT
-          me.cdid,
-          me.title
+          me.title,
+          me.cdid
         FROM cd me'
-    => [qw/cdid title/],
+    => [qw/title cd_id/],
 
   {
     '+select'   => \ 'DISTINCT(foo, bar)',
     '+as'       => [qw/foo bar/],
   } => 'SELECT
-          me.cdid,
           me.title,
+          me.cdid,
           DISTINCT(foo, bar)
         FROM cd me'
-    => [qw/cdid title foo bar/],
+    => [qw/title cd_id foo bar/],
 
-  {
-    '+select'   => \'unaliased randomness',
-  } => 'SELECT
-          me.cdid,
-          me.title,
-          DISTINCT(foo, bar),
-          unaliased randomness
-        FROM cd me'
-    => [qw/cdid title foo bar/],
   {
     '+select'   => [ 'genreid', $multicol_rs->as_query ],
     '+as'       => [qw/genreid name rank/],
   } => 'SELECT
-          me.cdid,
           me.title,
+          me.cdid,
           DISTINCT(foo, bar),
           me.genreid,
           (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
-          unaliased randomness
         FROM cd me'
-    => [qw/cdid title foo bar genreid name rank/],
+    => [qw/title cd_id foo bar genreid name rank/],
 
   {
     '+select'   => { count => 'me.cdid', -as => 'cnt' },  # lack of 'as' infers from '-as'
     '+columns'  => { len => { length => 'me.title' } },
   } => 'SELECT
-          me.cdid,
           me.title,
           LENGTH( me.title ),
-          COUNT( me.cdid ) AS cnt,
+          me.cdid,
           DISTINCT(foo, bar),
           me.genreid,
           (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
+          COUNT( me.cdid ) AS cnt,
+        FROM cd me'
+    => [qw/title len cd_id foo bar genreid name rank cnt/],
+  {
+    '+select'   => \'unaliased randomness',
+  } => 'SELECT
+          me.title,
+          LENGTH( me.title ),
+          me.cdid,
+          DISTINCT(foo, bar),
+          me.genreid,
+          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
+          COUNT( me.cdid ) AS cnt,
           unaliased randomness
         FROM cd me'
-    => [qw/cdid title len cnt foo bar genreid name rank/],
-
-
+    => [qw/title len cd_id foo bar genreid name rank cnt/],
+  {
+    '+select'   => \'MOAR unaliased randomness',
+  } => 'SELECT
+          me.title,
+          LENGTH( me.title ),
+          me.cdid,
+          DISTINCT(foo, bar),
+          me.genreid,
+          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
+          COUNT( me.cdid ) AS cnt,
+          unaliased randomness,
+          MOAR unaliased randomness
+        FROM cd me'
+    => [qw/title len cd_id foo bar genreid name rank cnt/],
 );
 
 my $rs = $schema->resultset('CD');
@@ -98,5 +113,27 @@ while (@chain) {
 
   $testno++;
 }
+
+# make sure proper exceptions are thrown on unbalanced use
+{
+  my $rs = $schema->resultset('CD')->search({}, { select => \'count(me.cdid)'});
+
+  lives_ok(sub {
+    $rs->search({}, { '+select' => 'me.cdid' })->next
+  }, 'Two dark selectors are ok');
+
+  throws_ok(sub {
+    $rs->search({}, { '+select' => 'me.cdid', '+as' => 'cdid' })->next
+  }, qr/resultset contains an unnamed selector/, 'Unnamed followed by named is not');
+
+  throws_ok(sub {
+    $rs->search_rs({}, { prefetch => 'tracks' })->next
+  }, qr/resultset contains an unnamed selector/, 'Throw on unaliased selector followed by prefetch');
+
+  throws_ok(sub {
+    $rs->search_rs({}, { '+select' => 'me.title', '+as' => 'title'  })->next
+  }, qr/resultset contains an unnamed selector/, 'Throw on unaliased selector followed by +select/+as');
+}
+
 
 done_testing;

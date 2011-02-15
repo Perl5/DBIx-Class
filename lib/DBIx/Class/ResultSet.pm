@@ -208,6 +208,12 @@ sub new {
     attrs => $attrs,
   }, $class;
 
+  # if there is a dark selector, this means we are already in a
+  # chain and the cleanup/sanification was taken care of by
+  # _search_rs already
+  $self->_normalize_selection($attrs)
+    unless $attrs->{_dark_selector};
+
   $self->result_class(
     $attrs->{result_class} || $source->result_class
   );
@@ -342,24 +348,23 @@ sub search_rs {
   # take care of call attrs (only if anything is changing)
   if (keys %$call_attrs) {
 
-    $self->throw_exception ('_trailing_select is not a public attribute - do not use it in search()')
-      if ( exists $call_attrs->{_trailing_select} or exists $call_attrs->{'+_trailing_select'} );
+    my @selector_attrs = qw/select as columns cols +select +as +columns include_columns/;
 
-    my @selector_attrs = qw/select as columns cols +select +as +columns include_columns _trailing_select +_trailing_select/;
+    # reset the current selector list if new selectors are supplied
+    if (List::Util::first { exists $call_attrs->{$_} } qw/columns cols select as/) {
+      delete @{$old_attrs}{(@selector_attrs, '_dark_selector')};
+    }
 
-    # Normalize the selector list (operates on the passed-in attr structure)
+    # Normalize the new selector list (operates on the passed-in attr structure)
     # Need to do it on every chain instead of only once on _resolved_attrs, in
-    # order to separate 'as'-ed from blind 'select's
+    # order to allow detection of empty vs partial 'as'
+    $call_attrs->{_dark_selector} = $old_attrs->{_dark_selector}
+      if $old_attrs->{_dark_selector};
     $self->_normalize_selection ($call_attrs);
 
     # start with blind overwriting merge, exclude selector attrs
     $new_attrs = { %{$old_attrs}, %{$call_attrs} };
     delete @{$new_attrs}{@selector_attrs};
-
-    # reset the current selector list if new selectors are supplied
-    if (List::Util::first { exists $call_attrs->{$_} } qw/columns cols select as/) {
-      delete @{$old_attrs}{@selector_attrs};
-    }
 
     for (@selector_attrs) {
       $new_attrs->{$_} = $self->_merge_attr($old_attrs->{$_}, $call_attrs->{$_})
@@ -431,12 +436,15 @@ sub search_rs {
   return $rs;
 }
 
+my $dark_sel_dumper;
 sub _normalize_selection {
   my ($self, $attrs) = @_;
 
   # legacy syntax
   $attrs->{'+columns'} = $self->_merge_attr($attrs->{'+columns'}, delete $attrs->{include_columns})
     if exists $attrs->{include_columns};
+
+  # columns are always placed first, however 
 
   # Keep the X vs +X separation until _resolved_attrs time - this allows to
   # delay the decision on whether to use a default select list ($rsrc->columns)
@@ -448,9 +456,7 @@ sub _normalize_selection {
   # supplied at all) - try to infer the alias, either from the -as parameter
   # of the selector spec, or use the parameter whole if it looks like a column
   # name (ugly legacy heuristic). If all fails - leave the selector bare (which
-  # is ok as well), but transport it over a separate attribute to make sure it is
-  # the last thing in the select list, thus unable to throw off the corresponding
-  # 'as' chain
+  # is ok as well), but make sure no more additions to the 'as' chain take place
   for my $pref ('', '+') {
 
     my ($sel, $as) = map {
@@ -473,53 +479,51 @@ sub _normalize_selection {
       );
     }
     elsif( ! @$as ) {
-      # no as part supplied at all - try to deduce
+      # no as part supplied at all - try to deduce (unless explicit end of named selection is declared)
       # if any @$as has been supplied we assume the user knows what (s)he is doing
       # and blindly keep stacking up pieces
-      my (@new_sel, @new_trailing);
-      for (@$sel) {
-        if ( ref $_ eq 'HASH' and exists $_->{-as} ) {
-          push @$as, $_->{-as};
-          push @new_sel, $_;
-        }
-        # assume any plain no-space, no-parenthesis string to be a column spec
-        # FIXME - this is retarded but is necessary to support shit like 'count(foo)'
-        elsif ( ! ref $_ and $_ =~ /^ [^\s\(\)]+ $/x) {
-          push @$as, $_;
-          push @new_sel, $_;
-        }
-        # if all else fails - shove the selection to the trailing stack and move on
-        else {
-          push @new_trailing, $_;
+      unless ($attrs->{_dark_selector}) {
+        SELECTOR:
+        for (@$sel) {
+          if ( ref $_ eq 'HASH' and exists $_->{-as} ) {
+            push @$as, $_->{-as};
+          }
+          # assume any plain no-space, no-parenthesis string to be a column spec
+          # FIXME - this is retarded but is necessary to support shit like 'count(foo)'
+          elsif ( ! ref $_ and $_ =~ /^ [^\s\(\)]+ $/x) {
+            push @$as, $_;
+          }
+          # if all else fails - raise a flag that no more aliasing will be allowed
+          else {
+            $attrs->{_dark_selector} = {
+              plus_stage => $pref,
+              string => ($dark_sel_dumper ||= do {
+                  require Data::Dumper::Concise;
+                  Data::Dumper::Concise::DumperObject()->Indent(0);
+                })->Values([$_])->Dump
+              ,
+            };
+            last SELECTOR;
+          }
         }
       }
-
-      @$sel = @new_sel;
-      $attrs->{"${pref}_trailing_select"} = $self->_merge_attr($attrs->{"${pref}_trailing_select"}, \@new_trailing)
-        if @new_trailing;
     }
     elsif (@$as < @$sel) {
       $self->throw_exception(
         "Unable to handle an ${pref}as specification (@$as) with less elements than the corresponding ${pref}select"
       );
     }
-
-    # now see what the result for this pair looks like:
-    if (@$as == @$sel) {
-
-      # if balanced - treat as a columns entry
-      $attrs->{"${pref}columns"} = $self->_merge_attr(
-        $attrs->{"${pref}columns"},
-        [ map { +{ $as->[$_] => $sel->[$_] } } ( 0 .. $#$as ) ]
+    elsif ($pref and $attrs->{_dark_selector}) {
+      $self->throw_exception(
+        "Unable to process named '+select', resultset contains an unnamed selector $attrs->{_dark_selector}{string}"
       );
     }
-    else {
-      # unbalanced - shove in select/as, not subject to deduplication in _resolved_attrs
-      $attrs->{"${pref}select"} = $self->_merge_attr($attrs->{"${pref}select"}, $sel);
-      $attrs->{"${pref}as"} = $self->_merge_attr($attrs->{"${pref}as"}, $as);
-    }
-  }
 
+
+    # merge result
+    $attrs->{"${pref}select"} = $self->_merge_attr($attrs->{"${pref}select"}, $sel);
+    $attrs->{"${pref}as"} = $self->_merge_attr($attrs->{"${pref}as"}, $as);
+  }
 }
 
 sub _stack_cond {
@@ -1432,7 +1436,7 @@ sub _count_rs {
   # overwrite the selector (supplied by the storage)
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
   $tmp_attrs->{as} = 'count';
-  delete @{$tmp_attrs}{qw/columns _trailing_select/};
+  delete @{$tmp_attrs}{qw/columns/};
 
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
@@ -1450,7 +1454,7 @@ sub _count_subq_rs {
 
   my $sub_attrs = { %$attrs };
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
-  delete @{$sub_attrs}{qw/collapse columns as select _prefetch_selector_range _trailing_select order_by for/};
+  delete @{$sub_attrs}{qw/collapse columns as select _prefetch_selector_range order_by for/};
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -3235,16 +3239,13 @@ sub _resolved_attrs {
   my $source = $self->result_source;
   my $alias  = $attrs->{alias};
 
-  # one last pass of normalization
-  $self->_normalize_selection($attrs);
-
   # default selection list
   $attrs->{columns} = [ $source->columns ]
-    unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as _trailing_select/;
+    unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;
 
   # merge selectors together
-  for (qw/columns select as _trailing_select/) {
-    $attrs->{$_} = $self->_merge_attr($attrs->{$_}, $attrs->{"+$_"})
+  for (qw/columns select as/) {
+    $attrs->{$_} = $self->_merge_attr($attrs->{$_}, delete $attrs->{"+$_"})
       if $attrs->{$_} or $attrs->{"+$_"};
   }
 
@@ -3360,11 +3361,10 @@ sub _resolved_attrs {
     }
     else {
       # distinct affects only the main selection part, not what prefetch may
-      # add below. However trailing is not yet a part of the selection as
-      # prefetch must insert before it
+      # add below.
       $attrs->{group_by} = $source->storage->_group_over_selection (
         $attrs->{from},
-        [ @{$attrs->{select}||[]}, @{$attrs->{_trailing_select}||[]} ],
+        $attrs->{select},
         $attrs->{order_by},
       );
     }
@@ -3372,6 +3372,10 @@ sub _resolved_attrs {
 
   $attrs->{collapse} ||= {};
   if ($attrs->{prefetch}) {
+
+    $self->throw_exception("Unable to prefetch, resultset contains an unnamed selector $attrs->{_dark_selector}{string}")
+      if $attrs->{_dark_selector};
+
     my $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} );
 
     my $prefetch_ordering = [];
@@ -3413,9 +3417,6 @@ sub _resolved_attrs {
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
 
-
-  push @{ $attrs->{select} }, @{$attrs->{_trailing_select}}
-    if $attrs->{_trailing_select};
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has

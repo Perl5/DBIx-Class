@@ -34,7 +34,7 @@ my $use_prefetch = $no_prefetch->search(
   }
 );
 
-# add a floating +select to make sure it does not throw things off
+# add an extra +select to make sure it does not throw things off
 # we also expect it to appear in both selectors, as we can not know
 # for sure which part of the query it applies to (may be order_by,
 # maybe something else)
@@ -43,7 +43,7 @@ my $use_prefetch = $no_prefetch->search(
 # is_deeply picks up this difference too (not sure if bug or
 # feature)
 $use_prefetch = $use_prefetch->search({}, {
-  '+select' => \[ 'me.artistid + ?', [ \ 'inTEger' => 1 ] ],
+  '+columns' => { monkeywrench => \[ 'me.artistid + ?', [ \ 'inTEger' => 1 ] ] },
 });
 
 my $bind_int_resolved = sub { [ { sqlt_datatype => 'inTEger' } => 1 ] };
@@ -54,12 +54,12 @@ my $bind_vc_resolved = sub { [
 is_same_sql_bind (
   $use_prefetch->as_query,
   '(
-    SELECT  me.artistid, me.name,
-            cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track,
-            me.artistid + ?
+    SELECT  me.artistid + ?,
+            me.artistid, me.name,
+            cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
       FROM (
-        SELECT me.artistid, me.name,
-               me.artistid + ?
+        SELECT me.artistid + ?,
+               me.artistid, me.name
           FROM artist me
           LEFT JOIN cd cds
             ON cds.artist = me.artistid
@@ -69,7 +69,7 @@ is_same_sql_bind (
             ON tracks.cd = cds.cdid
         WHERE   artwork.cd_id IS NULL
              OR tracks.title != ?
-        GROUP BY me.artistid, me.name, me.artistid + ?
+        GROUP BY me.artistid + ?, me.artistid, me.name
         ORDER BY name DESC LIMIT ?
       ) me
       LEFT JOIN cd cds
@@ -80,7 +80,7 @@ is_same_sql_bind (
         ON tracks.cd = cds.cdid
     WHERE artwork.cd_id IS NULL
        OR tracks.title != ?
-    GROUP BY me.artistid, me.name, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track, me.artistid + ?
+    GROUP BY me.artistid + ?, me.artistid, me.name, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
     ORDER BY name DESC, cds.artist, cds.year ASC
   )',
   [
