@@ -374,6 +374,8 @@ my @unimplemented = qw(
   _dbh_details
 
   sql_limit_dialect
+  sql_quote_char
+  sql_name_sep
 
   _inner_join_to_node
   _group_over_selection
