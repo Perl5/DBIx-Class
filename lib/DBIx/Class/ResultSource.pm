@@ -1353,26 +1353,15 @@ sub reverse_relationship_info {
     next unless $back->source_name eq $self->source_name;
 
     my $otherrel_info = $othertable->relationship_info($otherrel);
-    my @othertestconds;
 
-    if (ref $otherrel_info->{cond} eq 'HASH') {
-      @othertestconds = ($otherrel_info->{cond});
-    }
-    elsif (ref $otherrel_info->{cond} eq 'ARRAY') {
-      @othertestconds = @{$otherrel_info->{cond}};
-    }
-    else {
-      next;
-    }
+    next unless ref $otherrel_info->{cond} eq 'HASH';
 
-    foreach my $othercond (@othertestconds) {
-      my @other_cond = keys(%$othercond);
-      my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
-      my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
-      next if (!$self->_compare_relationship_keys(\@refkeys, \@other_keys) ||
-               !$self->_compare_relationship_keys(\@other_refkeys, \@keys));
-      $ret->{$otherrel} =  $otherrel_info;
-    }
+    my @other_cond = keys(%{$otherrel_info->{cond}});
+    my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
+    my @other_keys = map {$otherrel_info->{cond}{$_} =~ /^\w+\.(\w+)$/} @other_cond;
+    next if (!$self->_compare_relationship_keys(\@refkeys, \@other_keys) ||
+             !$self->_compare_relationship_keys(\@other_refkeys, \@keys));
+    $ret->{$otherrel} =  $otherrel_info;
   }
   return $ret;
 }
@@ -1385,36 +1374,12 @@ sub compare_relationship_keys {
 
 # Returns true if both sets of keynames are the same, false otherwise.
 sub _compare_relationship_keys {
-  my ($self, $keys1, $keys2) = @_;
-
-  # Make sure every keys1 is in keys2
-  my $found;
-  foreach my $key (@$keys1) {
-    $found = 0;
-    foreach my $prim (@$keys2) {
-      if ($prim eq $key) {
-        $found = 1;
-        last;
-      }
-    }
-    last unless $found;
-  }
-
-  # Make sure every key2 is in key1
-  if ($found) {
-    foreach my $prim (@$keys2) {
-      $found = 0;
-      foreach my $key (@$keys1) {
-        if ($prim eq $key) {
-          $found = 1;
-          last;
-        }
-      }
-      last unless $found;
-    }
-  }
-
-  return $found;
+#  my ($self, $keys1, $keys2) = @_;
+  return
+    join ("\x00", sort @{$_[1]})
+      eq
+    join ("\x00", sort @{$_[2]})
+  ;
 }
 
 # Returns the {from} structure used to express JOIN conditions
