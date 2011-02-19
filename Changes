@@ -4,6 +4,9 @@ Revision history for DBIx::Class
         - Add quote_names connection option. When set to true automatically
           sets quote_char and name_sep appropriate for your RDBMS
         - IC::DateTime support for MSSQL over DBD::ADO
+        - Both the ::ODBC and ::ADO dispatchers now warn if a rdbms-specific
+          driver is not found for this connection before falling back to
+          plain ::Storage::DBI
 
     * Fixes
         - Disable mysql_auto_reconnect for MySQL - depending on the ENV
