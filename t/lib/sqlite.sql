@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Feb 21 12:10:04 2011
+-- Created on Tue Feb 22 18:42:16 2011
 -- 
 
 --
@@ -57,14 +57,6 @@ CREATE TABLE event (
   varchar_datetime varchar(20),
   skip_inflation datetime,
   ts_without_tz datetime
-);
-
---
--- Table: file_columns
---
-CREATE TABLE file_columns (
-  id INTEGER PRIMARY KEY NOT NULL,
-  file varchar(255) NOT NULL
 );
 
 --

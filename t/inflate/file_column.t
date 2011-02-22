@@ -4,17 +4,39 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 
-# inject IC::File into the result baseclass for testing
-BEGIN {
-  $ENV{DBIC_IC_FILE_NOWARN} = 1;
-  require DBICTest::BaseResult;
-  DBICTest::BaseResult->load_components (qw/InflateColumn::File/);
-}
-
 
 use DBICTest;
+use DBICTest::Schema;
 use File::Compare;
 use Path::Class qw/file/;
+
+{
+  local $ENV{DBIC_IC_FILE_NOWARN} = 1;
+
+  package DBICTest::Schema::FileColumn;
+
+  use strict;
+  use warnings;
+  use base qw/DBICTest::BaseResult/;
+
+  use File::Temp qw/tempdir/;
+
+  __PACKAGE__->load_components (qw/InflateColumn::File/);
+  __PACKAGE__->table('file_columns');
+
+  __PACKAGE__->add_columns(
+    id => { data_type => 'integer', is_auto_increment => 1 },
+    file => {
+      data_type        => 'varchar',
+      is_file_column   => 1,
+      file_column_path => tempdir(CLEANUP => 1),
+      size             => 255
+    }
+  );
+
+  __PACKAGE__->set_primary_key('id');
+}
+DBICTest::Schema->load_classes('FileColumn');
 
 my $schema = DBICTest->init_schema;
 

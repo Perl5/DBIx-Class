@@ -11,7 +11,6 @@ __PACKAGE__->load_classes(qw/
   BindType
   Employee
   CD
-  FileColumn
   Genre
   Bookmark
   Link
