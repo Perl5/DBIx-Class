@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-use Storable qw/nfreeze thaw/;
 use DBIx::Class::Exception;
 use Try::Tiny;
 
@@ -93,7 +92,7 @@ sub STORABLE_freeze {
     : $self->{_detached_source}->result_class
   ;
 
-  nfreeze($to_serialize);
+  Storable::nfreeze($to_serialize);
 }
 
 =head2 STORABLE_thaw
@@ -106,7 +105,7 @@ C<< $schema->thaw($ice) >> which handles this for you.
 
 sub STORABLE_thaw {
   my ($self, $cloning, $ice) = @_;
-  %$self = %{ thaw($ice) };
+  %$self = %{ Storable::thaw($ice) };
 
   my $from_class = delete $self->{_frozen_from_class};
 

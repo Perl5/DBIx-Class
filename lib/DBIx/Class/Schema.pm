@@ -7,11 +7,8 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use Try::Tiny;
 use Scalar::Util 'weaken';
-use File::Spec;
 use Sub::Name 'subname';
-use Module::Find();
-use Storable();
-use B qw/svref_2object/;
+use B 'svref_2object';
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -169,6 +166,7 @@ sub _findallmod {
   my $proto = shift;
   my $ns = shift || ref $proto || $proto;
 
+  require Module::Find;
   my @mods = Module::Find::findallmod($ns);
 
   # try to untaint module names. mods where this fails
@@ -1189,6 +1187,8 @@ format.
 sub ddl_filename {
   my ($self, $type, $version, $dir, $preversion) = @_;
 
+  require File::Spec;
+
   my $filename = ref($self);
   $filename =~ s/::/-/g;
   $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
@@ -1208,6 +1208,7 @@ reference to any schema, so are rather useless.
 sub thaw {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  require Storable;
   return Storable::thaw($obj);
 }
 
@@ -1219,6 +1220,7 @@ provided here for symmetry.
 =cut
 
 sub freeze {
+  require Storable;
   return Storable::nfreeze($_[1]);
 }
 
@@ -1241,6 +1243,7 @@ objects so their references to the schema object
 sub dclone {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  require Storable;
   return Storable::dclone($obj);
 }
 

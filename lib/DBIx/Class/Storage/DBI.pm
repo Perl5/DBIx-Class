@@ -12,10 +12,8 @@ use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
-use Data::Dumper::Concise 'Dumper';
 use Sub::Name 'subname';
 use Try::Tiny;
-use File::Path 'make_path';
 use overload ();
 use namespace::clean;
 
@@ -1778,10 +1776,11 @@ sub insert_bulk {
       $msg,
       $cols->[$col_idx],
       do {
+        require Data::Dumper::Concise;
         local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
-        Dumper {
+        Data::Dumper::Concise::Dumper ({
           map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
-        },
+        }),
       }
     );
   };
@@ -1922,9 +1921,10 @@ sub _execute_array {
     $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
+    require Data::Dumper::Concise;
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      Dumper { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) },
+      Data::Dumper::Concise::Dumper( { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) } ),
     );
   }
 
@@ -2574,10 +2574,10 @@ sub create_ddl_dir {
   } else {
       -d $dir
         or
-      make_path ("$dir")  # make_path does not like objects (i.e. Path::Class::Dir)
+      (require File::Path and File::Path::make_path ("$dir"))  # make_path does not like objects (i.e. Path::Class::Dir)
         or
       $self->throw_exception(
-        "Failed to create '$dir': " . ($! || $@ || 'error unknow')
+        "Failed to create '$dir': " . ($! || $@ || 'error unknown')
       );
   }
 

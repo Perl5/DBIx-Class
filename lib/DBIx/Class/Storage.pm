@@ -8,7 +8,6 @@ use mro 'c3';
 
 use DBIx::Class::Exception;
 use Scalar::Util 'weaken';
-use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
 use namespace::clean;

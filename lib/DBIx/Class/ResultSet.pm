@@ -5,13 +5,9 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
-use Data::Page;
 use DBIx::Class::ResultSetColumn;
-use DBIx::Class::ResultSourceHandle;
-use Hash::Merge ();
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
-use Storable qw/nfreeze thaw/;
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -2194,6 +2190,7 @@ sub pager {
 ### necessary for future development of DBIx::DS. Do *NOT* change this code
 ### before talking to ribasushi/mst
 
+  require Data::Page;
   my $pager = Data::Page->new(
     0,  #start with an empty set
     $attrs->{rows},
@@ -3558,6 +3555,7 @@ sub _merge_joinpref_attr {
 
   sub _merge_attr {
     $hm ||= do {
+      require Hash::Merge;
       my $hm = Hash::Merge->new;
 
       $hm->specify_behavior({
@@ -3647,14 +3645,14 @@ sub STORABLE_freeze {
   # A cursor in progress can't be serialized (and would make little sense anyway)
   delete $to_serialize->{cursor};
 
-  nfreeze($to_serialize);
+  Storable::nfreeze($to_serialize);
 }
 
 # need this hook for symmetry
 sub STORABLE_thaw {
   my ($self, $cloning, $serialized) = @_;
 
-  %$self = %{ thaw($serialized) };
+  %$self = %{ Storable::thaw($serialized) };
 
   $self;
 }

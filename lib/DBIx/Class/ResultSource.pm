@@ -11,7 +11,6 @@ use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
 use List::Util 'first';
 use Scalar::Util qw/weaken isweak/;
-use Storable qw/nfreeze thaw/;
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -1837,11 +1836,11 @@ sub handle {
   }
 }
 
-sub STORABLE_freeze { nfreeze($_[0]->handle) }
+sub STORABLE_freeze { Storable::nfreeze($_[0]->handle) }
 
 sub STORABLE_thaw {
   my ($self, $cloning, $ice) = @_;
-  %$self = %{ (thaw $ice)->resolve };
+  %$self = %{ (Storable::thaw($ice))->resolve };
 }
 
 =head2 throw_exception
