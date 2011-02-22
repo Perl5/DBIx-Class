@@ -326,10 +326,10 @@ You can write subqueries relatively easily in DBIC.
   });
 
   my $rs = $schema->resultset('CD')->search({
-    artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
+    artist_id => { -in => $inside_rs->get_column('id')->as_query },
   });
 
-The usual operators ( =, !=, IN, NOT IN, etc.) are supported.
+The usual operators ( '=', '!=', -in, -not_in, etc.) are supported.
 
 B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
