@@ -49,10 +49,12 @@ my %expected = (
     { quote_char => [ '[', ']' ], name_sep => '.' },
 );
 
-while (my ($class, $mapping) = each %expected) {
+for my $class (keys %expected) { SKIP: {
+  eval "require ${class}"
+    or skip "Skipping test of quotes for $class due to missing dependencies", 1;
+
+  my $mapping = $expected{$class};
   my ($quote_char, $name_sep) = @$mapping{qw/quote_char name_sep/};
-  eval "require ${class};";
-  die $@ if $@;
   my $instance = $class->new;
 
   my $quote_char_text = dumper($quote_char);
@@ -64,7 +66,7 @@ while (my ($class, $mapping) = each %expected) {
 
   is $instance->sql_name_sep, $name_sep,
     "sql_name_sep for $class is '$name_sep'";
-}
+}}
 
 # Try quote_names with available DBs.
 
