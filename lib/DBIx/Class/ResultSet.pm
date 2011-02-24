@@ -3766,6 +3766,10 @@ passed to object inflation. Note that the 'artist' is the name of the
 column (or relationship) accessor, and 'name' is the name of the column
 accessor in the related table.
 
+B<NOTE:> You need to explicitly quote '+columns' when defining the attribute.
+Not doing so causes Perl to incorrectly interpret +columns as a bareword with a 
+unary plus operator before it.
+
 =head2 include_columns
 
 =over 4
@@ -3805,6 +3809,10 @@ Also note that the L</as> attribute has nothing to do with the SQL-side 'AS'
 identifier aliasing. You can however alias a function, so you can use it in
 e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
 attribute> supplied as shown in the example above.
+
+B<NOTE:> You need to explicitly quote '+select'/'+as' when defining the attributes.
+Not doing so causes Perl to incorrectly interpret them as a bareword with a 
+unary plus operator before it.
 
 =head2 +select
 
