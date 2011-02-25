@@ -12,7 +12,7 @@ support.
 
 =head2 Active Community
 
-Currently (June 9, 2010) 6 active branches (commited to
+Currently (June 9, 2010) 6 active branches (committed to
 in the last two weeks) in git.  Last release (0.08122)
 had 14 new features, and 16 bug fixes.  Of course that
 L<ebbs and flows|http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=blob;f=Changes>.)
@@ -495,7 +495,7 @@ See: L<DBIx::Class::ResultSet/related_resultset>, L<DBIx::ClassResultSet/search_
 
 See L<DBIx::Class::Relationship::Base/create_related> and L<DBIx::Class::Relationship::Base/add_to_$rel>
 
-Note that it automaticaly fills in foreign key for you
+Note that it automatically fills in foreign key for you
 
 =head2 Excellent Transaction Support
 
@@ -646,7 +646,7 @@ See L<DBIx::Class::ResultSet/result_class> and L<DBIx::Class::ResultClass::HashR
      artist_id => { -in => $inner_query },
  });
 
-See L<DBIx::Class::Manual::Cookbook#Subqueries>
+See L<DBIx::Class::Manual::Cookbook/Subqueries>
 
 =head2 Bare SQL w/ Placeholders
 
@@ -661,5 +661,5 @@ Better:
     price => \['price + ?', [inc => $inc]],
  });
 
-See L<SQL::Abstract#Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
+See L<SQL::Abstract/Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
 

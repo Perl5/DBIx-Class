@@ -427,7 +427,7 @@ sub columns {
   my $columns_info = $source->columns_info;
 
 Like L</column_info> but returns information for the requested columns. If
-the optional column-list arrayref is ommitted it returns info on all columns
+the optional column-list arrayref is omitted it returns info on all columns
 currently defined on the ResultSource via L</add_columns>.
 
 =cut

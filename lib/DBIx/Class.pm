@@ -318,6 +318,8 @@ ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
 initself: Mike Baas <mike@initselftech.com>
 
+jawnsy: Jonathan Yu <jawnsy@cpan.org>
+
 jasonmay: Jason May <jason.a.may@gmail.com>
 
 jesper: Jesper Krogh

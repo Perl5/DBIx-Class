@@ -2262,7 +2262,7 @@ sub select_single {
 =head2 sql_limit_dialect
 
 This is an accessor for the default SQL limit dialect used by a particular
-storage driver. Can be overriden by supplying an explicit L</limit_dialect>
+storage driver. Can be overridden by supplying an explicit L</limit_dialect>
 to L<DBIx::Class::Schema/connect>. For a list of available limit dialects
 see L<DBIx::Class::SQLMaker::LimitDialects>.
 
