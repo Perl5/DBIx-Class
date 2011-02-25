@@ -8,6 +8,7 @@ Revision history for DBIx::Class
         - All limit dialects (except for the older Top and FetchFirst) are
           now using bind parameters for the limits/offsets, making DBI's
           prepare_cached useful across paged resutsets
+        - Support for savepoints for SQLite
         - Support for MS Access databases via DBD::ODBC and DBD::ADO (only
           Win32 support currently tested)
         - Support for the Firebird RDBMS over the new DBD::Firebird driver

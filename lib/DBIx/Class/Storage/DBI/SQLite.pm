@@ -47,6 +47,28 @@ sub backup {
   return $backupfile;
 }
 
+sub _exec_svp_begin {
+  my ($self, $name) = @_;
+
+  $self->_dbh->do("SAVEPOINT $name");
+}
+
+sub _exec_svp_release {
+  my ($self, $name) = @_;
+
+  $self->_dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub _exec_svp_rollback {
+  my ($self, $name) = @_;
+
+  # For some reason this statement changes the value of $dbh->{AutoCommit}, so
+  # we localize it here to preserve the original value.
+  local $self->_dbh->{AutoCommit} = $self->_dbh->{AutoCommit};
+
+  $self->_dbh->do("ROLLBACK TRANSACTION TO SAVEPOINT $name");
+}
+
 sub deployment_statements {
   my $self = shift;
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
