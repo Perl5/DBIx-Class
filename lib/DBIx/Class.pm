@@ -346,6 +346,8 @@ marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
 
+mattp: Matt Phillips <mattp@cpan.org>
+
 michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
