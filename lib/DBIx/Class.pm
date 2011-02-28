@@ -19,7 +19,7 @@ use mro 'c3';
 use DBIx::Class::Optional::Dependencies;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
+use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
 
 sub mk_classdata {

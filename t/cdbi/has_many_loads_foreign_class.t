@@ -1,6 +1,6 @@
 use strict;
 use Test::More;
-
+use Class::Inspector ();
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";

@@ -5,6 +5,21 @@ use warnings;
 
 use base qw/Class::Accessor::Grouped/;
 
+our %successfully_loaded_components;
+
+sub get_component_class {
+  my $class = $_[0]->get_inherited($_[1]);
+  if (defined $class and ! $successfully_loaded_components{$class}) {
+    $_[0]->ensure_class_loaded($class);
+    $successfully_loaded_components{$class}++; # only increment if the load succeeded
+  }
+  $class;
+};
+
+sub set_component_class {
+  shift->set_inherited(@_);
+}
+
 1;
 
 =head1 NAME

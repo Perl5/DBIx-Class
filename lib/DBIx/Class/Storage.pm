@@ -13,7 +13,7 @@ use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug schema/);
-__PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
+__PACKAGE__->mk_group_accessors('component_class' => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 

@@ -51,6 +51,7 @@ is_deeply (
     DBIx::Class
     DBIx::Class::Componentised
     Class::C3::Componentised
+    DBIx::Class::AccessorGroup
     Class::Accessor::Grouped
   /],
   'Correctly ordered ISA of DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server'
