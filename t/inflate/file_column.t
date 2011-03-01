@@ -42,6 +42,15 @@ my $schema = DBICTest->init_schema;
 
 plan tests => 10;
 
+if (not $ENV{DBICTEST_SQLT_DEPLOY}) {
+  $schema->storage->dbh->do(<<'EOF');
+  CREATE TABLE file_columns (
+    id INTEGER PRIMARY KEY,
+    file VARCHAR(255)
+  )
+EOF
+}
+
 my $rs = $schema->resultset('FileColumn');
 my $source_file = file(__FILE__);
 my $fname = $source_file->basename;
