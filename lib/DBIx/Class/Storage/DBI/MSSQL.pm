@@ -17,6 +17,11 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
 
 __PACKAGE__->sql_quote_char([qw/[ ]/]);
 
+__PACKAGE__->datetime_parser_type (
+  'DBIx::Class::Storage::DBI::MSSQL::DateTime::Format'
+);
+
+
 __PACKAGE__->new_guid('NEWID()');
 
 sub _set_identity_insert {
@@ -178,10 +183,6 @@ sub _svp_rollback {
   my ($self, $name) = @_;
 
   $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
-}
-
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::MSSQL::DateTime::Format'
 }
 
 sub sqlt_type { 'SQLServer' }

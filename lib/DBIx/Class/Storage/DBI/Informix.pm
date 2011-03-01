@@ -11,6 +11,10 @@ use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('SkipFirst');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type (
+  'DBIx::Class::Storage::DBI::Informix::DateTime::Format'
+);
+
 
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 
@@ -115,10 +119,6 @@ sub connect_call_datetime_setup {
 
   $ENV{GL_DATE}     = "%m/%d/%Y";
   $ENV{GL_DATETIME} = "%Y-%m-%d %H:%M:%S%F5";
-}
-
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::Informix::DateTime::Format'
 }
 
 package # hide from PAUSE

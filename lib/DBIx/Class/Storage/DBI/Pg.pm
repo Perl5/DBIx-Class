@@ -15,6 +15,7 @@ use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
 
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
@@ -165,8 +166,6 @@ EOS
 sub sqlt_type {
   return 'PostgreSQL';
 }
-
-sub datetime_parser_type { return "DateTime::Format::Pg"; }
 
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;

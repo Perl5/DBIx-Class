@@ -35,6 +35,9 @@ L</connect_call_datetime_setup>.
 __PACKAGE__->_use_insert_returning (1);
 __PACKAGE__->sql_limit_dialect ('FirstSkip');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type(
+  'DBIx::Class::Storage::DBI::InterBase::DateTime::Format'
+);
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -222,9 +225,6 @@ sub connect_call_datetime_setup {
   $self->_get_dbh->{ib_time_all} = 'ISO';
 }
 
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::InterBase::DateTime::Format'
-}
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::InterBase::DateTime::Format;

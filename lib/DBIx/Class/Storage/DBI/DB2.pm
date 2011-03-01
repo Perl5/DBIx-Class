@@ -8,6 +8,7 @@ use mro 'c3';
 
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type('DateTime::Format::DB2');
 
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
@@ -20,7 +21,6 @@ sub _dbh_last_insert_id {
     return @res ? $res[0] : undef;
 }
 
-sub datetime_parser_type { "DateTime::Format::DB2"; }
 
 1;
 

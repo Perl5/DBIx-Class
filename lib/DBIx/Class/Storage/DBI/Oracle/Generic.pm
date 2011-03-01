@@ -80,6 +80,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
+__PACKAGE__->datetime_parser_type('DateTime::Format::Oracle');
 
 sub _determine_supports_insert_returning {
   my $self = shift;
@@ -334,10 +335,6 @@ sub get_autoinc_seq {
 
 This sets the proper DateTime::Format module for use with
 L<DBIx::Class::InflateColumn::DateTime>.
-
-=cut
-
-sub datetime_parser_type { return "DateTime::Format::Oracle"; }
 
 =head2 connect_call_datetime_setup
 

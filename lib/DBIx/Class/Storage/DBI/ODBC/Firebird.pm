@@ -26,6 +26,8 @@ under L<Catalyst>.
 
 =cut
 
+__PACKAGE__->datetime_parser_type ('DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format');
+
 # XXX seemingly no equivalent to ib_time_all from DBD::InterBase via ODBC
 sub connect_call_datetime_setup { 1 }
 
@@ -37,10 +39,6 @@ sub _set_sql_dialect { 1 }
 
 # releasing savepoints doesn't work, but that shouldn't matter
 sub _svp_release { 1 }
-
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format'
-}
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format;

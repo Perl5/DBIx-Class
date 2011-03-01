@@ -57,6 +57,10 @@ currently supported, datetimes are truncated at the second.
 
 =cut
 
+__PACKAGE__->datetime_parser_type (
+  'DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server::DateTime::Format'
+);
+
 sub _rebless {
   my $self = shift;
   $self->_identity_method('@@identity');
@@ -140,10 +144,6 @@ sub _mssql_max_data_type_representation_size_in_bytes {
     blob => $blob_max,
     clob => $blob_max,
   }
-}
-
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server::DateTime::Format'
 }
 
 package # hide from PAUSE

@@ -10,6 +10,10 @@ use base qw/
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 
+__PACKAGE__->datetime_parser_type(
+  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format'
+);
+
 sub _rebless {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
@@ -105,9 +109,6 @@ C<SMALLDATETIME> columns only have minute precision.
   }
 }
 
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format'
-} 
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format;

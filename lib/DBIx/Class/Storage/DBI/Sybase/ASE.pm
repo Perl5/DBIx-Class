@@ -18,6 +18,7 @@ use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowCountOrGenericSubQ');
 __PACKAGE__->sql_quote_char ([qw/[ ]/]);
+__PACKAGE__->datetime_parser_type('DateTime::Format::Sybase');
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
@@ -888,7 +889,6 @@ C<SMALLDATETIME> columns only have minute precision.
   }
 }
 
-sub datetime_parser_type { "DateTime::Format::Sybase" }
 
 # ->begin_work and such have no effect with FreeTDS but we run them anyway to
 # let the DBD keep any state it needs to.

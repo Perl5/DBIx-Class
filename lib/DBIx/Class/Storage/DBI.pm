@@ -22,12 +22,15 @@ use namespace::clean;
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/
-  sql_maker_class sql_limit_dialect sql_quote_char sql_name_sep
+  sql_limit_dialect sql_quote_char sql_name_sep
 /);
 
-__PACKAGE__->sql_name_sep('.');
+__PACKAGE__->mk_group_accessors('component_class' => qw/sql_maker_class datetime_parser_type/);
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker');
+__PACKAGE__->datetime_parser_type('DateTime::Format::MySQL'); # historic default
+
+__PACKAGE__->sql_name_sep('.');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
@@ -107,7 +110,15 @@ for my $meth (@rdbms_specific_methods) {
   no strict qw/refs/;
   no warnings qw/redefine/;
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
-    if (not $_[0]->_driver_determined and not $_[0]->{_in_determine_driver}) {
+    if (
+      # only fire when invoked on an instance, a valid class-based invocation
+      # would e.g. be setting a default for an inherited accessor
+      ref $_[0]
+        and
+      ! $_[0]->_driver_determined
+        and
+      ! $_[0]->{_in_determine_driver}
+    ) {
       $_[0]->_determine_driver;
 
       # This for some reason crashes and burns on perl 5.8.1
@@ -117,6 +128,7 @@ for my $meth (@rdbms_specific_methods) {
       my $cref = $_[0]->can ($meth);
       goto $cref;
     }
+
     goto $orig;
   };
 }
@@ -993,7 +1005,6 @@ sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
-    $self->ensure_class_loaded ($sql_maker_class);
 
     my %opts = %{$self->_sql_maker_opts||{}};
     my $dialect =
@@ -2822,12 +2833,7 @@ sub datetime_parser {
 
 =head2 datetime_parser_type
 
-Defines (returns) the datetime parser class - currently hardwired to
-L<DateTime::Format::MySQL>
-
-=cut
-
-sub datetime_parser_type { "DateTime::Format::MySQL"; }
+Defines the datetime parser class - currently defaults to L<DateTime::Format::MySQL>
 
 =head2 build_datetime_parser
 
@@ -2838,7 +2844,6 @@ See L</datetime_parser>
 sub build_datetime_parser {
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
-  $self->ensure_class_loaded ($type);
   return $type;
 }
 
