@@ -23,6 +23,7 @@ Revision history for DBIx::Class
           (sources not yet registered with a schema)
         - Automatically require the requested cursor class before use
           (RT#64795)
+        - Work around a Firebird ODBC driver bug exposed by DBD::ODBC 1.29
 
     * Misc
         - Only load Class::C3 and friends if necessary ($] < 5.010)

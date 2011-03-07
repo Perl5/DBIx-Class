@@ -96,21 +96,21 @@ EOF
 }
 
 sub _svp_begin {
-    my ($self, $name) = @_;
+  my ($self, $name) = @_;
 
-    $self->_get_dbh->do("SAVEPOINT $name");
+  $self->_dbh->do("SAVEPOINT $name");
 }
 
 sub _svp_release {
-    my ($self, $name) = @_;
+  my ($self, $name) = @_;
 
-    $self->_get_dbh->do("RELEASE SAVEPOINT $name");
+  $self->_dbh->do("RELEASE SAVEPOINT $name");
 }
 
 sub _svp_rollback {
-    my ($self, $name) = @_;
+  my ($self, $name) = @_;
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+  $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub _ping {
@@ -312,3 +312,4 @@ See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim:sts=2 sw=2:

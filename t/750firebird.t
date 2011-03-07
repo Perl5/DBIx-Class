@@ -100,6 +100,17 @@ EOF
   my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
   is($st->pkid1, 55, "Firebird Auto-PK without trigger: First primary key set manually");
 
+# test transaction commit
+  $schema->txn_do(sub {
+    $ars->create({ name => 'in_transaction' });
+  });
+  ok (($ars->search({ name => 'in_transaction' })->first),
+    'transaction committed');
+  is $schema->storage->_dbh->{AutoCommit}, 1,
+    '$dbh->{AutoCommit} is correct after transaction commit';
+
+  $ars->search({ name => 'in_transaction' })->delete;
+
 # test savepoints
   throws_ok {
     $schema->txn_do(sub {
@@ -116,6 +127,9 @@ EOF
     });
   } qr/rolling back outer txn/,
     'correct exception for rollback';
+
+  is $schema->storage->_dbh->{AutoCommit}, 1,
+    '$dbh->{AutoCommit} is correct after transaction rollback';
 
   ok ((not $ars->search({ name => 'in_outer_txn' })->first),
     'outer txn rolled back');

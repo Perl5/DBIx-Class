@@ -70,6 +70,9 @@ my $rdbms_ase = {
 my $rdbms_db2 = {
   'DBD::DB2'                      => '0',
 };
+my $rdbms_firebird_odbc = {
+  'DBD::ODBC'                     => '0',
+};
 
 my $reqs = {
   dist => {
@@ -374,6 +377,15 @@ my $reqs = {
       $ENV{DBICTEST_DB2_DSN}
         ? (
           %$rdbms_db2,
+        ) : ()
+    },
+  },
+
+  test_rdbms_firebird_odbc => {
+    req => {
+      $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
+        ? (
+          %$rdbms_firebird_odbc,
         ) : ()
     },
   },
