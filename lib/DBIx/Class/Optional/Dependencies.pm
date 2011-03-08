@@ -132,6 +132,12 @@ my $reqs = {
     req => $id_shortener,
   },
 
+  test_component_accessor => {
+    req => {
+      'Class::Unload'             => '0.07',
+    },
+  },
+
   test_pod => {
     req => {
       'Test::Pod'                 => '1.41',
