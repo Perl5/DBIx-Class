@@ -220,6 +220,49 @@ sub _run_tests {
     is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
   } 'query with rel name over 30 chars survived and worked';
 
+# test rel names over the 30 char limit using group_by and join
+  {
+    my @group_cols = ( 'me.name' );
+    my $query = $schema->resultset('Artist')->search({
+      artistid => 1
+    }, {
+      select => \@group_cols,
+      as => [map { /^\w+\.(\w+)$/ } @group_cols],
+      join => [qw( cds_very_very_very_long_relationship_name )],
+      group_by => \@group_cols,
+    });
+
+    lives_and {
+      my @got = $query->get_column('name')->all();
+      is_deeply \@got, [$new_artist->name];
+    } 'query with rel name over 30 chars worked on join, group_by for me col';
+
+    lives_and {
+      is $query->count(), 1
+    } 'query with rel name over 30 chars worked on join, group_by, count for me col';
+  }
+  {
+    local $TODO = 'group_by on rel longer than 30 chars for long rel cols';
+    my @group_cols = ( 'cds_very_very_very_long_relationship_name.title' );
+    my $query = $schema->resultset('Artist')->search({
+      artistid => 1
+    }, {
+      select => \@group_cols,
+      as => [map { /^\w+\.(\w+)$/ } @group_cols],
+      join => [qw( cds_very_very_very_long_relationship_name )],
+      group_by => \@group_cols,
+    });
+
+    lives_and {
+      my @got = $query->get_column('title')->all();
+      is_deeply \@got, [$new_cd->title];
+    } 'query with rel name over 30 chars worked on join, group_by for long rel col';
+
+    lives_and {
+      is $query->count(), 1
+    } 'query with rel name over 30 chars worked on join, group_by, count for long rel col';
+  }
+
   # rel name over 30 char limit with user condition
   # This requires walking the SQLA data structure.
   {
