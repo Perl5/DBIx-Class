@@ -44,6 +44,7 @@ Revision history for DBIx::Class
         - Change SQLMaker carp-monkeypatch to be compatible with versions
           of SQL::Abstract >= 1.73
         - Fix using \[] literals in the from resultset attribute
+        - Fix populate() with \[], arrays (datatype) and other exotic values
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

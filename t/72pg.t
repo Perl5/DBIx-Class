@@ -227,6 +227,13 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       arrayfield => [5, 6],
     });
 
+    lives_ok {
+      $schema->populate('ArrayTest', [
+        [ qw/arrayfield/ ],
+        [ [0,0]          ],
+      ]);
+    } 'inserting arrayref using void ctx populate';
+
     # Search using arrays
     lives_ok {
       is_deeply (

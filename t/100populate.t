@@ -45,7 +45,7 @@ throws_ok ( sub {
       }
     } ('Huey', 'Dewey', $ex_title, 'Louie')
   ])
-}, qr/columns .+ are not unique for populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
+}, qr/\Qexecute_array() aborted with 'constraint failed\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
 
 ## make sure populate honors fields/orders in list context
 ## schema order
@@ -171,7 +171,7 @@ throws_ok {
             name => 'foo3',
         },
     ]);
-} qr/slice/, 'bad slice';
+} qr/\Qexecute_array() aborted with 'datatype mismatch'/, 'bad slice';
 
 is($rs->count, 0, 'populate is atomic');
 
@@ -189,7 +189,7 @@ throws_ok {
       name => \"'foo'",
     }
   ]);
-} qr/bind expected/, 'literal sql where bind expected throws';
+} qr/Literal SQL found where a plain bind value is expected/, 'literal sql where bind expected throws';
 
 # ... and vice-versa.
 
@@ -204,7 +204,7 @@ throws_ok {
       name => \"'foo'",
     }
   ]);
-} qr/literal SQL expected/i, 'bind where literal sql expected throws';
+} qr/\QIncorrect value (expecting SCALAR-ref/, 'bind where literal sql expected throws';
 
 throws_ok {
   $rs->populate([
@@ -217,7 +217,7 @@ throws_ok {
       name => \"'bar'",
     }
   ]);
-} qr/inconsistent/, 'literal sql must be the same in all slices';
+} qr/Inconsistent literal SQL value/, 'literal sql must be the same in all slices';
 
 # the stringification has nothing to do with the artist name
 # this is solely for testing consistency
