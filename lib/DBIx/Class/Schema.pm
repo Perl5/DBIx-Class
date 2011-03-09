@@ -76,20 +76,32 @@ particular which module inherits off which.
   __PACKAGE__->load_namespaces();
 
   __PACKAGE__->load_namespaces(
-   result_namespace => 'Res',
-   resultset_namespace => 'RSet',
-   default_resultset_class => '+MyDB::Othernamespace::RSet',
- );
+     result_namespace => 'Res',
+     resultset_namespace => 'RSet',
+     default_resultset_class => '+MyDB::Othernamespace::RSet',
+  );
 
-With no arguments, this method uses L<Module::Find> to load all your
-Result classes from a sub-namespace F<Result> under your Schema class'
-namespace, i.e. with a Schema of I<MyDB::Schema> all files in
-I<MyDB::Schema::Result> are assumed to be Result classes.
+With no arguments, this method uses L<Module::Find> to load all of the
+Result and ResultSet classes under the namespace of the schema from
+which it is called.  For example, C<My::Schema> will by default find
+and load Result classes named C<My::Schema::Result::*> and ResultSet
+classes named C<My::Schema::ResultSet::*>.
 
-It also finds all ResultSet classes in the namespace F<ResultSet> and
-loads them into the appropriate Result classes using for you. The
-matching is done by assuming the package name of the ResultSet class
-is the same as that of the Result class.
+ResultSet classes are associated with Result class of the same name.
+For example, C<My::Schema::Result::CD> will get the ResultSet class
+C<My::Schema::ResultSet::CD> if it is present.
+
+Both Result and ResultSet namespaces are configurable via the
+C<result_namespace> and C<resultset_namespace> options.
+
+Another option, C<default_resultset_class> specifies a custom default
+ResultSet class for Result classes with no corresponding ResultSet.
+
+All of the namespace and classname options are by default relative to
+the schema classname.  To specify a fully-qualified name, prefix it
+with a literal C<+>.  For example, C<+Other::NameSpace::Result>.
+
+=head3 Warnings
 
 You will be warned if ResultSet classes are discovered for which there
 are no matching Result classes like this:
@@ -102,19 +114,7 @@ L</resultset_class> to some other class, you will be warned like this:
   We found ResultSet class '$rs_class' for '$result', but it seems
   that you had already set '$result' to use '$rs_set' instead
 
-Both of the sub-namespaces are configurable if you don't like the defaults,
-via the options C<result_namespace> and C<resultset_namespace>.
-
-If (and only if) you specify the option C<default_resultset_class>, any found
-Result classes for which we do not find a corresponding
-ResultSet class will have their C<resultset_class> set to
-C<default_resultset_class>.
-
-All of the namespace and classname options to this method are relative to
-the schema classname by default.  To specify a fully-qualified name, prefix
-it with a literal C<+>.
-
-Examples:
+=head3 Examples
 
   # load My::Schema::Result::CD, My::Schema::Result::Artist,
   #    My::Schema::ResultSet::CD, etc...
@@ -136,10 +136,10 @@ Examples:
     resultset_namespace => '+Another::Place::RSets',
   );
 
-If you'd like to use multiple namespaces of each type, simply use an arrayref
-of namespaces for that option.  In the case that the same result
-(or resultset) class exists in multiple namespaces, the latter entries in
-your list of namespaces will override earlier ones.
+To search multiple namespaces for either Result or ResultSet classes,
+use an arrayref of namespaces for that option.  In the case that the
+same result (or resultset) class exists in multiple namespaces, later
+entries in the list of namespaces will override earlier ones.
 
   My::Schema->load_namespaces(
     # My::Schema::Results_C::Foo takes precedence over My::Schema::Results_B::Foo :
