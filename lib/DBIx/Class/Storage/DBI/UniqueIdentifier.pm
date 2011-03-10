@@ -56,7 +56,7 @@ sub _is_guid_type {
   return $data_type =~ $GUID_TYPE;
 }
 
-sub insert {
+sub _prefetch_autovalues  {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
@@ -64,8 +64,8 @@ sub insert {
 
   my %guid_cols;
   my @pk_cols = $source->primary_columns;
-  my %pk_cols;
-  @pk_cols{@pk_cols} = ();
+  my %pk_col_idx;
+  @pk_col_idx{@pk_cols} = ();
 
   my @pk_guids = grep {
     $col_info->{$_}{data_type}
@@ -79,12 +79,10 @@ sub insert {
     $col_info->{$_}{data_type} =~ $GUID_TYPE
     &&
     $col_info->{$_}{auto_nextval}
-  } grep { not exists $pk_cols{$_} } $source->columns;
+  } grep { not exists $pk_col_idx{$_} } $source->columns;
 
   my @get_guids_for =
     grep { not exists $to_insert->{$_} } (@pk_guids, @auto_guids);
-
-  my $updated_cols = {};
 
   for my $guid_col (@get_guids_for) {
     my $new_guid;
@@ -99,18 +97,14 @@ sub insert {
     }
 
     if (ref $guid_method eq 'CODE') {
-      $new_guid = $guid_method->();
+      $to_insert->{$guid_col} = $guid_method->();
     }
     else {
-      ($new_guid) = $self->_get_dbh->selectrow_array("SELECT $guid_method");
+      ($to_insert->{$guid_col}) = $self->_get_dbh->selectrow_array("SELECT $guid_method");
     }
-
-    $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
   }
 
-  $updated_cols = { %$updated_cols, %{ $self->next::method(@_) } };
-
-  return $updated_cols;
+  return $self->next::method(@_);
 }
 
 =head1 AUTHOR

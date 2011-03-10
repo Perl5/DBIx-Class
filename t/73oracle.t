@@ -49,6 +49,12 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
       data_type         => 'integer',
       is_auto_increment => 1,
     },
+    'default_value_col' => {
+      data_type           => 'varchar',
+      size                => 100,
+      is_nullable         => 0,
+      retrieve_on_insert  => 1,
+    }
   );
   __PACKAGE__->set_primary_key(qw/ artistid autoinc_col /);
 
@@ -171,6 +177,12 @@ sub _run_tests {
 
   is( $new->artistid, 3, "Oracle Auto-PK worked with fully-qualified tablename" );
   is( $new->autoinc_col, 1000, "Oracle Auto-Inc overruled with fully-qualified tablename");
+
+
+  is( $new->default_value_col, 'default_value', $schema->storage->_use_insert_returning
+    ? 'Check retrieve_on_insert on default_value_col with INSERT ... RETURNING'
+    : 'Check retrieve_on_insert on default_value_col without INSERT ... RETURNING'
+  );
 
   SKIP: {
     skip 'not detecting sequences when using INSERT ... RETURNING', 1
@@ -337,7 +349,7 @@ sub _run_tests {
   } 'with_deferred_fk_checks code survived';
 
   is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
-    'code in with_deferred_fk_checks worked'; 
+    'code in with_deferred_fk_checks worked';
 
   throws_ok {
     $schema->resultset('Track')->create({
@@ -504,7 +516,7 @@ sub _run_tests {
     skip 'not detecting cross-schema sequence name when using INSERT ... RETURNING', 1
       if $schema->storage->_use_insert_returning;
 
-    # Oracle8i Reference Release 2 (8.1.6) 
+    # Oracle8i Reference Release 2 (8.1.6)
     #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
     # Oracle Database Reference 10g Release 2 (10.2)
     #   http://download.oracle.com/docs/cd/B19306_01/server.102/b14237/statviews_2107.htm#sthref1297
@@ -519,6 +531,7 @@ sub _run_tests {
 
     # grand select privileges to the 2nd user
     $dbh->do("GRANT INSERT ON ${q}artist${q} TO " . uc $user2);
+    $dbh->do("GRANT SELECT ON ${q}artist${q} TO " . uc $user2);
     $dbh->do("GRANT SELECT ON ${q}artist_pk_seq${q} TO " . uc $user2);
     $dbh->do("GRANT SELECT ON ${q}artist_autoinc_seq${q} TO " . uc $user2);
 
@@ -600,7 +613,7 @@ sub do_creates {
   # this one is always unquoted as per manually specified sequence =>
   $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
 
-  $dbh->do("CREATE TABLE ${q}artist${q} (${q}artistid${q} NUMBER(12), ${q}name${q} VARCHAR(255), ${q}autoinc_col${q} NUMBER(12), ${q}rank${q} NUMBER(38), ${q}charfield${q} VARCHAR2(10))");
+  $dbh->do("CREATE TABLE ${q}artist${q} (${q}artistid${q} NUMBER(12), ${q}name${q} VARCHAR(255),${q}default_value_col${q} VARCHAR(255) DEFAULT 'default_value', ${q}autoinc_col${q} NUMBER(12), ${q}rank${q} NUMBER(38), ${q}charfield${q} VARCHAR2(10))");
   $dbh->do("ALTER TABLE ${q}artist${q} ADD (CONSTRAINT ${q}artist_pk${q} PRIMARY KEY (${q}artistid${q}))");
 
   $dbh->do("CREATE TABLE ${q}sequence_test${q} (${q}pkid1${q} NUMBER(12), ${q}pkid2${q} NUMBER(12), ${q}nonpkid${q} NUMBER(12), ${q}name${q} VARCHAR(255))");

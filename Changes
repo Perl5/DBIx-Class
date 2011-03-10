@@ -3,6 +3,8 @@ Revision history for DBIx::Class
     * New Features / Changes
         - Add quote_names connection option. When set to true automatically
           sets quote_char and name_sep appropriate for your RDBMS
+        - Add retrieve_on_insert column info flag, allowing to retrieve any
+          column value instead of just autoinc primary keys
         - All limit dialects (except for the older Top and FetchFirst) are
           now using bind parameters for the limits/offsets, making DBI's
           prepare_cached useful across paged resutsets

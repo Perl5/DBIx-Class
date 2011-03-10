@@ -343,40 +343,23 @@ sub insert {
     warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
   };
 
+  # perform the insert - the storage will return everything it is asked to
+  # (autoinc primary columns and any retrieve_on_insert columns)
   my %current_rowdata = $self->get_columns;
-
-  # perform the insert - the storage may return some stuff for us right there
-  #
   my $returned_cols = $storage->insert(
     $source,
-    \%current_rowdata,
+    { %current_rowdata }, # what to insert, copy because the storage *will* change it
   );
 
   for (keys %$returned_cols) {
-    $self->store_column(
-      $_,
-      ( $current_rowdata{$_} = $returned_cols->{$_} )
-    );
-  }
-
-  # see if any of the pcols still need filling (or re-querying in case of scalarrefs)
-  my @missing_pri = grep
-    { ! defined $current_rowdata{$_} or ref $current_rowdata{$_} eq 'SCALAR' }
-    $self->primary_columns
-  ;
-
-  if (@missing_pri) {
-    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @missing_pri )."\n";
-
-    $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
-      unless $storage->can('last_insert_id');
-
-    my @pri_values = $storage->last_insert_id($self->result_source, @missing_pri);
-
-    $self->throw_exception( "Can't get last insert id" )
-      unless (@pri_values == @missing_pri);
-
-    $self->store_column($missing_pri[$_] => $pri_values[$_]) for 0 .. $#missing_pri;
+    $self->store_column($_, $returned_cols->{$_})
+      # this ensures we fire store_column only once
+      # (some asshats like overriding it)
+      if (
+        (! defined $current_rowdata{$_})
+          or
+        ( $current_rowdata{$_} ne $returned_cols->{$_})
+      );
   }
 
   $self->{_dirty_columns} = {};

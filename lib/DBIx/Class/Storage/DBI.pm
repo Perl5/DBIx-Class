@@ -1766,6 +1766,8 @@ sub _prefetch_autovalues {
         ! exists $to_insert->{$col}
           or
         ref $to_insert->{$col} eq 'SCALAR'
+          or
+        (ref $to_insert->{$col} eq 'REF' and ref ${$to_insert->{$col}} eq 'ARRAY')
       )
     ) {
       $values{$col} = $self->_sequence_fetch(
@@ -1785,33 +1787,43 @@ sub insert {
 
   my $prefetched_values = $self->_prefetch_autovalues($source, $to_insert);
 
-  # fuse the values
+  # fuse the values, but keep a separate list of prefetched_values so that
+  # they can be fused once again with the final return
   $to_insert = { %$to_insert, %$prefetched_values };
 
-  # list of primary keys we try to fetch from the database
-  # both not-exsists and scalarrefs are considered
-  my %fetch_pks;
-  for ($source->primary_columns) {
-    $fetch_pks{$_} = scalar keys %fetch_pks  # so we can preserve order for prettyness
-      if ! exists $to_insert->{$_} or ref $to_insert->{$_} eq 'SCALAR';
-  }
+  my $col_infos = $source->columns_info;
+  my %pcols = map { $_ => 1 } $source->primary_columns;
+  my %retrieve_cols;
+  for my $col ($source->columns) {
+    # nothing to retrieve when explicit values are supplied
+    next if (defined $to_insert->{$col} and ! (
+      ref $to_insert->{$col} eq 'SCALAR'
+        or
+      (ref $to_insert->{$col} eq 'REF' and ref ${$to_insert->{$col}} eq 'ARRAY')
+    ));
+
+    # the 'scalar keys' is a trick to preserve the ->columns declaration order
+    $retrieve_cols{$col} = scalar keys %retrieve_cols if (
+      $pcols{$col}
+        or
+      $col_infos->{$col}{retrieve_on_insert}
+    );
+  };
 
   my ($sqla_opts, @ir_container);
-  if ($self->_use_insert_returning) {
+  if (%retrieve_cols and $self->_use_insert_returning) {
+    $sqla_opts->{returning_container} = \@ir_container
+      if $self->_use_insert_returning_bound;
 
-    # retain order as declared in the resultsource
-    for (sort { $fetch_pks{$a} <=> $fetch_pks{$b} } keys %fetch_pks ) {
-      push @{$sqla_opts->{returning}}, $_;
-      $sqla_opts->{returning_container} = \@ir_container
-        if $self->_use_insert_returning_bound;
-    }
+    $sqla_opts->{returning} = [
+      sort { $retrieve_cols{$a} <=> $retrieve_cols{$b} } keys %retrieve_cols
+    ];
   }
 
   my ($rv, $sth) = $self->_execute('insert', $source, $to_insert, $sqla_opts);
 
-  my %returned_cols;
-
-  if (my $retlist = $sqla_opts->{returning}) {
+  my %returned_cols = %$to_insert;
+  if (my $retlist = $sqla_opts->{returning}) {  # if IR is supported - we will get everything in one set
     @ir_container = try {
       local $SIG{__WARN__} = sub {};
       my @r = $sth->fetchrow_array;
@@ -1821,10 +1833,44 @@ sub insert {
 
     @returned_cols{@$retlist} = @ir_container if @ir_container;
   }
+  else {
+    # pull in PK if needed and then everything else
+    if (my @missing_pri = grep { $pcols{$_} } keys %retrieve_cols) {
+
+      $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
+        unless $self->can('last_insert_id');
+
+      my @pri_values = $self->last_insert_id($source, @missing_pri);
+
+      $self->throw_exception( "Can't get last insert id" )
+        unless (@pri_values == @missing_pri);
+
+      @returned_cols{@missing_pri} = @pri_values;
+      delete $retrieve_cols{$_} for @missing_pri;
+    }
+
+    # if there is more left to pull
+    if (%retrieve_cols) {
+      $self->throw_exception(
+        'Unable to retrieve additional columns without a Primary Key on ' . $source->source_name
+      ) unless %pcols;
+
+      my @left_to_fetch = sort { $retrieve_cols{$a} <=> $retrieve_cols{$b} } keys %retrieve_cols;
+
+      my $cur = DBIx::Class::ResultSet->new($source, {
+        where => { map { $_ => $returned_cols{$_} } (keys %pcols) },
+        select => \@left_to_fetch,
+      })->cursor;
+
+      @returned_cols{@left_to_fetch} = $cur->next;
+
+      $self->throw_exception('Duplicate row returned for PK-search after fresh insert')
+        if scalar $cur->next;
+    }
+  }
 
   return { %$prefetched_values, %returned_cols };
 }
-
 
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;

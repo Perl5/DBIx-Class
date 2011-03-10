@@ -253,7 +253,19 @@ generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
 
+=item retrieve_on_insert
+
+  { retrieve_on_insert => 1 }
+
+For every column where this is set to true, DBIC will retrieve the RDBMS-side
+value upon a new row insertion (normally only the autoincrement PK is
+retrieved on insert). C<INSERT ... RETURNING> is used automatically if
+supported by the underlying storage, otherwise an extra SELECT statement is
+executed to retrieve the missing data.
+
 =item auto_nextval
+
+   { auto_nextval => 1 }
 
 Set this to a true value for a column whose value is retrieved automatically
 from a sequence or function (if supported by your Storage driver.) For a
