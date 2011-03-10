@@ -63,7 +63,7 @@ recommended.
 #
 
 # This coderef is a simple recursive function
-# Arguments: ($me, $prefetch) from inflate_result() below
+# Arguments: ($me, $prefetch, $is_root) from inflate_result() below
 my $mk_hash;
 $mk_hash = sub {
     if (ref $_[0] eq 'ARRAY') {     # multi relationship
@@ -80,10 +80,13 @@ $mk_hash = sub {
                 ( $_[1] ? (keys %{$_[1]}) : () )
         };
 
-        # if there is at least one defined column consider the resultset real
-        # (and not an emtpy has_many rel containing one empty hashref)
+        # if there is at least one defined column *OR* we are at the root of
+        # the resultset - consider the result real (and not an emtpy has_many
+        # rel containing one empty hashref)
         # an empty arrayref is an empty multi-sub-prefetch - don't consider
         # those either
+        return $hash if $_[2];
+
         for (values %$hash) {
             if (ref $_ eq 'ARRAY') {
               return $hash if @$_;
@@ -109,7 +112,8 @@ Inflates the result and prefetched data into a hash-ref (invoked by L<DBIx::Clas
 # inflate_result is invoked as:
 # HRI->inflate_result ($resultsource_instance, $main_data_hashref, $prefetch_data_hashref)
 sub inflate_result {
-    return $mk_hash->($_[2], $_[3]);
+    return $mk_hash->($_[2], $_[3], 'is_root');
+
 }
 
 

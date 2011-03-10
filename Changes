@@ -58,6 +58,8 @@ Revision history for DBIx::Class
         - Fix populate() with \[], arrays (datatype) and other exotic values
         - Fix complex limits (RNO/RowNum/FetchFirst/Top/GenSubq) with
           sub-selects in the selectors list (correlated subqueries)
+        - Fix inconsistency between $rs->next with and without HRI when all
+          the "root" columns are in fact injected from the right rs side
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal
