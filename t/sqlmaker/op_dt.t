@@ -17,6 +17,7 @@ my %dbs_to_test = (
    sqlite   => 1,
    mssql    => 0,
    postgres => 1,
+   oracle   => 1,
 );
 
 my %schema = (
@@ -77,7 +78,50 @@ $s;
       } else {
          DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::Pg' )
       }
-   }
+   },
+   oracle =>  do {
+      my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
+      if ($dsn && $user) {
+         my $s = DBICTest::Schema->connect($dsn, $user, $pass, { on_connect_call => 'datetime_setup' });
+         try { $s->storage->ensure_connected };
+
+         $s->storage->dbh_do (sub {
+             my ($storage, $dbh) = @_;
+             eval { $dbh->do("DROP TRIGGER trq_event_id") };
+             eval { $dbh->do("DROP SEQUENCE sq_event_id") };
+             eval { $dbh->do("DROP TABLE event") };
+             $dbh->do('CREATE SEQUENCE sq_event_id');
+             $dbh->do(<<'SQL');
+CREATE TABLE event (
+   id NUMBER NOT NULL,
+   starts_at DATE NOT NULL,
+   created_on TIMESTAMP NOT NULL,
+   varchar_date VARCHAR(20),
+   varchar_datetime VARCHAR(20),
+   skip_inflation TIMESTAMP,
+   ts_without_tz TIMESTAMP,
+   CONSTRAINT PK_EVENT PRIMARY KEY (id)
+)
+SQL
+             $dbh->do(<<'SQL');
+CREATE TRIGGER trg_event_id
+BEFORE INSERT ON event
+FOR EACH ROW WHEN (
+  new.id IS NULL OR new.id = 0
+)
+BEGIN
+  SELECT sq_event_id.nextval
+  INTO :new.id
+  FROM dual;
+  END;
+SQL
+        $dbs_to_test{oracle} = 1;
+});
+$s;
+      } else {
+         DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::Oracle', on_connect_call => 'datetime_setup' )
+      }
+   },
 );
 
 my %rs = map { $_ => $schema{$_}->resultset('Event') } keys %schema;
@@ -100,6 +144,11 @@ $rs{postgres}->populate([
  ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
 ]) if $schema{postgres}->storage->connected;
 
+$rs{oracle}->populate([
+ [qw(starts_at created_on skip_inflation)],
+ ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
+ ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
+]) if $schema{oracle}->storage->connected;
 
 my $date = DateTime->new(
    year => 2010,
@@ -145,6 +194,12 @@ my @tests = (
       bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
       hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12')],
     },
+    oracle => {
+      select => 'me.starts_at, me.created_on, me.skip_inflation',
+      where  => 'me.created_on = ?',
+      bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
+      hri    => [hri_thing('2010-12-12 00:00:00', '2010-12-14 12:12:12.000000', '2019-12-12 12:12:12.000000')],
+    },
     msg => '-dt_now works',
   },
 ## -dt_year tests
@@ -165,6 +220,12 @@ my @tests = (
       hri    => [{ year => 2010 }],
     },
     postgres => {
+      select => "EXTRACT(year FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
+    oracle => {
       select => "EXTRACT(year FROM me.created_on)",
       where => "me.id = ?",
       bind   => [['me.id' => 1 ]],
@@ -195,6 +256,12 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
+    oracle => {
+      select => "EXTRACT(year FROM me.created_on), EXTRACT(month FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ year => 2010, month => 12 }],
+    },
     msg    => '-dt_get (year, month) works',
   },
 ## -dt_month tests
@@ -219,7 +286,12 @@ my @tests = (
       where => "me.id = ?",
       bind   => [['me.id' => 1 ]],
       hri    => [{ month => 12 }],
-
+    },
+    oracle => {
+      select => "EXTRACT(month FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ month => 12 }],
     },
     msg    => '-dt_month works',
   },
@@ -245,7 +317,12 @@ my @tests = (
       where => "me.id = ?",
       bind   => [['me.id' => 1 ]],
       hri    => [{ day => 14 }],
-
+    },
+    oracle => {
+      select => "EXTRACT(day FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ day => 14 }],
     },
     msg    => '-dt_day works',
   },
@@ -267,6 +344,12 @@ my @tests = (
       hri    => [{ hour => 12 }],
     },
     postgres => {
+      select => "EXTRACT(hour FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ hour => 12 }],
+    },
+    oracle => {
       select => "EXTRACT(hour FROM me.created_on)",
       where => "me.id = ?",
       bind   => [['me.id' => 1 ]],
@@ -297,6 +380,12 @@ my @tests = (
       bind   => [['me.id' => 1 ]],
       hri    => [{ minute => 12 }],
     },
+    oracle => {
+      select => "EXTRACT(minute FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ minute => 12 }],
+    },
     msg    => '-dt_minute works',
   },
 ## -dt_second tests
@@ -321,7 +410,12 @@ my @tests = (
       where => "me.id = ?",
       bind   => [['me.id' => 1 ]],
       hri    => [{ second => 12 }],
-
+    },
+    oracle => {
+      select => "EXTRACT(second FROM me.created_on)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 1 ]],
+      hri    => [{ second => 12 }],
     },
     msg    => '-dt_second works',
   },
@@ -344,6 +438,12 @@ my @tests = (
     },
     postgres => {
       select   => "EXTRACT(epoch FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
+      where => "me.id = ?",
+      bind   => [['me.id' => 2 ]],
+      hri => [{ sec_diff => 2*24*60*60 }],
+    },
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(me.created_on, me.skip_inflation) * 31 * 24 * 60 * 60)",
       where => "me.id = ?",
       bind   => [['me.id' => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
@@ -374,11 +474,17 @@ my @tests = (
       bind   => [['me.id' => 2 ]],
       hri => [{ day_diff => 2 }],
     },
-
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(me.created_on, me.skip_inflation) * 31)",
+      where => "me.id = ?",
+      bind   => [['me.id' => 2 ]],
+      hri => [{ day_diff => 2 }],
+    },
     msg    => '-dt_diff (day) works',
   },
 
   {
+    msg    => '-dt_add (year) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [year => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -395,10 +501,16 @@ my @tests = (
       hri    => [{ date => '2014-12-14 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (year) works',
+    oracle => {
+      select => "(me.created_on + NUMTOYMINTERVAL(?, 'year'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2014-12-14 12:12:12.000000000' }],
+    },
   },
 
   {
+    msg    => '-dt_add (month) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [month => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -415,10 +527,16 @@ my @tests = (
       hri    => [{ date => '2012-03-14 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (month) works',
+    oracle => {
+      select => "(me.created_on + NUMTOYMINTERVAL(?, 'month'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2012-03-14 12:12:12.000000000' }],
+    },
   },
 
   {
+    msg    => '-dt_add (day) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [day => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -435,10 +553,16 @@ my @tests = (
       hri    => [{ date => '2011-12-17 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (day) works',
+    oracle => {
+      select => "(me.created_on + NUMTODSINTERVAL(?, 'day'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2011-12-17 12:12:12.000000000' }],
+    },
   },
 
   {
+    msg    => '-dt_add (hour) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [hour => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -455,10 +579,16 @@ my @tests = (
       hri    => [{ date => '2011-12-14 15:12:12.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (hour) works',
+    oracle => {
+      select => "(me.created_on + NUMTODSINTERVAL(?, 'hour'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2011-12-14 15:12:12.000000000' }],
+    },
   },
 
   {
+    msg    => '-dt_add (minute) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [minute => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -475,10 +605,16 @@ my @tests = (
       hri    => [{ date => '2011-12-14 12:15:12.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (minute) works',
+    oracle => {
+      select => "(me.created_on + NUMTODSINTERVAL(?, 'minute'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2011-12-14 12:15:12.000000000' }],
+    },
   },
 
   {
+    msg    => '-dt_add (second) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [second => 3, { -ident => 'me.created_on' } ] ] ],
     as   => [ 'date' ],
@@ -495,10 +631,16 @@ my @tests = (
       hri    => [{ date => '2011-12-14 12:12:15.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => '-dt_add (second) works',
+    oracle => {
+      select => "(me.created_on + NUMTODSINTERVAL(?, 'second'))",
+      where => "me.id = ?",
+      bind   => [['', 3], ['me.id' => 2 ]],
+      hri    => [{ date => '2011-12-14 12:12:15.000000000' }],
+    },
   },
 
   {
+    msg    => 'nested -dt_add works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [second => 3, { -dt_add => [ day => 1, { -ident => 'me.created_on' } ] } ] ] ],
     as       => [ 'date' ],
@@ -515,10 +657,16 @@ my @tests = (
       hri    => [{ date => '2011-12-15 12:12:15.000' }],
       skip   => 'need working bindtypes',
     },
-    msg    => 'nested -dt_add works',
+    oracle => {
+      select => "((me.created_on + NUMTODSINTERVAL(?, 'day')) + NUMTODSINTERVAL(?, 'second'))",
+      where => "me.id = ?",
+      bind   => [['', 1], [ '', 3 ], ['me.id', 2]],
+      hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
+    },
   },
 
   {
+    msg => '-dt_diff (year) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_diff => [year => \'me.starts_at', { -ident => 'me.created_on' } ] ] ],
     as       => [ 'year' ],
@@ -531,7 +679,12 @@ my @tests = (
       bind   => [['me.id', 2]],
       hri    => [{ year => -1 }],
     },
-    msg => '-dt_diff (year) works',
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
+      where => "me.id = ?",
+      bind   => [['me.id', 2]],
+      hri    => [{ year => -1 }],
+    },
   },
 );
 

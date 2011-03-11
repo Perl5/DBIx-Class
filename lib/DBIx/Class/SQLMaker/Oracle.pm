@@ -248,73 +248,88 @@ sub _insert_returning {
 
 {
   my %part_map = (
-     month            => 'MONTH',
-     day_of_month     => 'DAYOFMONTH',
-     day_of_year      => 'DAYOFYEAR',
-     day_of_quarter   => 'DAY_OF_QUARTER',
-     quarter          => 'QUARTER_OF_YEAR',
-     month_of_quarter => 'MONTH_OF_QUARTER',
-     year             => 'YEAR',
-     hour             => 'HOUR',
-     minute           => 'MINUTE',
-     second           => 'SECOND',
-     week_of_quarter  => 'WEEK_OF_QUARTER',
-     week_of_year     => 'WEEK_OF_YEAR',
+    second       => 'SECOND',
+    minute       => 'MINUTE',
+    hour         => 'HOUR',
+    day_of_month => 'DAY',
+    month        => 'MONTH',
+    year         => 'YEAR',
   );
 
   sub _datetime_sql {
     die $_[0]->_unsupported_date_extraction($_[1], 'Oracle')
        unless exists $part_map{$_[1]};
-    "$part_map{$_[1]}($_[2])"
+    "EXTRACT($part_map{$_[1]} FROM $_[2])"
   }
 }
 
 {
   my %part_map = (
-     second      => 'SQL_TSI_SECOND',
-     minute      => 'SQL_TSI_MINUTE',
-     hour        => 'SQL_TSI_HOUR',
-     week        => 'SQL_TSI_WEEK',
-     quarter     => 'SQL_TSI_QUARTER',
-     month       => 'SQL_TSI_MONTH',
-     day_of_year => 'SQL_TSI_DAY',
-     year        => 'SQL_TSI_YEAR',
+    second       => '* 31 * 24 * 60 * 60',
+    minute       => '* 31 * 24 * 60',
+    hour         => '* 31 * 24',
+    day          => '* 31',
+    month        => undef,
+    year         => '/ 12',
   );
 
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'Oracle')
        unless exists $part_map{$_[1]};
-    "TIMESTAMPDIFF($part_map{$_[1]}, $_[2], $_[3])"
+    my $sql = "MONTHS_BETWEEN($_[2], $_[3])";
+    $sql .= " $part_map{$_[1]}"
+      if defined $part_map{$_[1]};
+    $sql = "TRUNC($sql)";
+    return $sql;
   }
+}
+
+{
+  my %part_map = (
+    second       => 'NUMTODSINTERVAL',
+    minute       => 'NUMTODSINTERVAL',
+    hour         => 'NUMTODSINTERVAL',
+    day          => 'NUMTODSINTERVAL',
+    month        => 'NUMTOYMINTERVAL',
+    year         => 'NUMTOYMINTERVAL',
+  );
+
+  sub _datetime_add_sql {
+    my ($self, $part, $date, $amount) = @_;
+
+    die $self->_unsupported_date_adding($part, 'Oracle')
+      unless exists $part_map{$part};
+
+    return "($date + $part_map{$part}($amount, '$part'))";
+  }
+}
+
+sub _reorder_add_datetime_vars {
+   my ($self, $amount, $date) = @_;
+
+   return ($date, $amount);
 }
 
 =head1 DATE FUNCTION IMPLEMENTATION
 
-A separate function is used for each extraction type in Oracle.  The types
-supported are:
+The function used to extract date information is C<EXTRACT>, which supports
 
- month
+ second
+ minute
+ hour
  day_of_month
- day_of_year
- day_of_quarter
- quarter
- month_of_quarter
- year
- hour
- minute
- second
- week_of_quarter
- week_of_year
-
-The function used to diff dates is C<TIMESTAMPDIFF>, which supports
-
- second
- minute
- hour
- week
- quarter
  month
- day_of_year
+ year
+
+The function used to diff dates is C<MONTHS_BETWEEN> with
+multiplication/division to the requested format.
+The valid formats are:
+
+ second
+ minute
+ hour
+ day
+ month
  year
 
 =cut
