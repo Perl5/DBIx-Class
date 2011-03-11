@@ -633,7 +633,7 @@ sub sequence {
   my ($self,$seq) = @_;
 
   my @pks = $self->primary_columns
-    or next;
+    or return;
 
   $_->{sequence} = $seq
     for values %{ $self->columns_info (\@pks) };

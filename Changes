@@ -9,6 +9,7 @@ Revision history for DBIx::Class
           plain ::Storage::DBI
 
     * Fixes
+        - Fix exiting via next warnings from ResultSource
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls
         - Disable mysql_auto_reconnect for MySQL - depending on the ENV
           it sometimes defaults to on and causes major borkage on older
