@@ -116,6 +116,8 @@ sub _where_op_GET_DATETIME_DAY {
 
   my $lhs = shift;
 
+  # we use day_of_month instead of plain day internally
+  # because some databases also support day_of_week and day_of_year
   return $self->_where_op_GET_DATETIME($op, $lhs, [day_of_month => $rhs])
 }
 
