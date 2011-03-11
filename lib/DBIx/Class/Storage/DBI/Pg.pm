@@ -8,7 +8,6 @@ use base qw/
 /;
 use mro 'c3';
 
-use DBD::Pg qw(:pg_types);
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use namespace::clean;
@@ -16,10 +15,6 @@ use namespace::clean;
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
-
-# Ask for a DBD::Pg with array support
-warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
-  if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
 sub _determine_supports_insert_returning {
   return shift->_server_info->{normalized_dbms_version} >= 8.002
@@ -167,12 +162,20 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
+my $bind_attributes;
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
-  my $bind_attributes = {
-    bytea => { pg_type => DBD::Pg::PG_BYTEA },
-    blob  => { pg_type => DBD::Pg::PG_BYTEA },
+  $bind_attributes ||= do {
+    require DBD::Pg;
+
+    # Ask for a DBD::Pg with array support
+    warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
+      if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
+    {
+      bytea => { pg_type => DBD::Pg::PG_BYTEA() },
+      blob  => { pg_type => DBD::Pg::PG_BYTEA() },
+    };
   };
 
   if( defined $bind_attributes->{$data_type} ) {
