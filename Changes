@@ -9,7 +9,6 @@ Revision history for DBIx::Class
           plain ::Storage::DBI
 
     * Fixes
-        - Fix exiting via next warnings from ResultSource
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls
         - Disable mysql_auto_reconnect for MySQL - depending on the ENV
           it sometimes defaults to on and causes major borkage on older
@@ -22,9 +21,12 @@ Revision history for DBIx::Class
           when deploying a schema via sql file
         - Fix reverse_relationship_info on prototypical result sources
           (sources not yet registered with a schema)
+        - Warn and skip relationships missing from a partial schema during
+          dbic cascade_delete
         - Automatically require the requested cursor class before use
           (RT#64795)
         - Work around a Firebird ODBC driver bug exposed by DBD::ODBC 1.29
+        - Fix exiting via next warnings in ResultSource::sequence()
 
     * Misc
         - Only load Class::C3 and friends if necessary ($] < 5.010)

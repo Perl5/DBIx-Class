@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 
 our %_pod_inherit_config = 
   (
@@ -26,7 +27,12 @@ sub delete {
     my $ret = $self->next::method(@rest);
 
     foreach my $rel (@cascade) {
-      $self->search_related($rel)->delete_all;
+      if( my $rel_rs = eval{ $self->search_related($rel) } ) {
+        $rel_rs->delete_all;
+      } else {
+        carp "Skipping cascade delete on relationship '$rel' - related resultsource '$rels{$rel}{class}' is not registered with this schema";
+        next;
+      }
     }
 
     $guard->commit;

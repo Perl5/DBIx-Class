@@ -523,12 +523,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 {
   my $handle = $schema->source('Artist')->handle;
 
-  my $rowdata = {
-    artistid => 3,
-    charfield => undef,
-    name => "We Are In Rehab",
-    rank => 13
-  };
+  my $rowdata = { $schema->resultset('Artist')->next->get_columns };
 
   my $rs = DBIx::Class::ResultSet->new($handle);
   my $rs_result = $rs->next;
