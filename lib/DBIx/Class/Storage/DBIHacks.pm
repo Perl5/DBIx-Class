@@ -107,7 +107,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # the fake group_by is so that the pruner throws away all non-selecting, non-restricting
   # multijoins (since we def. do not care about those inside the subquery)
 
-  my $subq_joinspec = do {
+  my $inner_subq = do {
 
     # must use it here regardless of user requests
     local $self->{_use_join_optimizer} = 1;
@@ -146,18 +146,12 @@ sub _adjust_select_args_for_complex_prefetch {
     local $self->{_use_join_optimizer} = 0;
 
     # generate the subquery
-    my $subq = $self->_select_args_to_query (
+    $self->_select_args_to_query (
       $inner_from,
       $inner_select,
       $where,
       $inner_attrs,
     );
-
-    +{
-      -alias => $attrs->{alias},
-      -rsrc => $inner_from->[0]{-rsrc},
-      $attrs->{alias} => $subq,
-    };
   };
 
   # Generate the outer from - this is relatively easy (really just replace
@@ -178,8 +172,13 @@ sub _adjust_select_args_for_complex_prefetch {
     $j = [ $j ] unless ref $j eq 'ARRAY'; # promote the head-from to an AoH
 
     if ($j->[0]{-alias} eq $attrs->{alias}) { # time to swap
+
       push @outer_from, [
-        $subq_joinspec,
+        {
+          -alias => $attrs->{alias},
+          -rsrc => $j->[0]{-rsrc},
+          $attrs->{alias} => $inner_subq,
+        },
         @{$j}[1 .. $#$j],
       ];
       last; # we'll take care of what's left in $from below
@@ -494,7 +493,13 @@ sub _resolve_column_info {
       or next;
 
     $return{$col} = {
-      %{ ( $colinfos->{$source_alias} ||= $rsrc->columns_info )->{$colname} },
+      %{
+          ( $colinfos->{$source_alias} ||= $rsrc->columns_info )->{$colname}
+            ||
+          $self->throw_exception(
+            "No such column '$colname' on source " . $rsrc->source_name
+          );
+      },
       -result_source => $rsrc,
       -source_alias => $source_alias,
     };
