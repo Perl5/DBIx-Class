@@ -240,39 +240,10 @@ has 'master' => (
 The following methods are delegated all the methods required for the
 L<DBIx::Class::Storage::DBI> interface.
 
-=head2 read_handler
-
-Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
-
 =cut
 
-has 'read_handler' => (
-  is=>'rw',
-  isa=>Object,
-  lazy_build=>1,
-  handles=>[qw/
-    select
-    select_single
-    columns_info_for
-    _dbh_columns_info_for
-    _select
-  /],
-);
-
-=head2 write_handler
-
-Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
-as well as methods that don't write or read that can be called on only one
-storage, methods that return a C<$dbh>, and any methods that don't make sense to
-run on a replicant.
-
-=cut
-
-has 'write_handler' => (
-  is=>'ro',
-  isa=>Object,
-  lazy_build=>1,
-  handles=>[qw/
+my $method_dispatch = {
+  writer => [qw/
     on_connect_do
     on_disconnect_do
     on_connect_call
@@ -302,11 +273,7 @@ has 'write_handler' => (
     deploy
     with_deferred_fk_checks
     dbh_do
-    reload_row
-    with_deferred_fk_checks
     _prep_for_execute
-
-    backup
     is_datatype_numeric
     _count_select
     _subq_update_delete
@@ -320,7 +287,6 @@ has 'write_handler' => (
     _dbi_connect_info
     _dbic_connect_attributes
     auto_savepoint
-    _sqlt_version_ok
     _query_end
     bind_attribute_by_data_type
     transaction_depth
@@ -329,7 +295,6 @@ has 'write_handler' => (
     _dbh_execute_array
     _sql_maker
     _query_start
-    _sqlt_version_error
     _per_row_update_delete
     _dbh_begin_work
     _dbh_execute_inserts_with_no_binds
@@ -342,7 +307,6 @@ has 'write_handler' => (
     _dbh_commit
     _execute_array
     savepoints
-    _sqlt_minimum_version
     _sql_maker_opts
     _conn_pid
     _dbh_autocommit
@@ -362,47 +326,109 @@ has 'write_handler' => (
     _dbh_sth
     _dbh_execute
   /],
-);
+  reader => [qw/
+    select
+    select_single
+    columns_info_for
+    _dbh_columns_info_for
+    _select
+  /],
+  unimplemented => [qw/
+    _arm_global_destructor
+    _verify_pid
 
-my @unimplemented = qw(
-  _arm_global_destructor
-  _verify_pid
+    get_use_dbms_capability
+    set_use_dbms_capability
+    get_dbms_capability
+    set_dbms_capability
+    _dbh_details
+    _dbh_get_info
 
-  get_use_dbms_capability
-  set_use_dbms_capability
-  get_dbms_capability
-  set_dbms_capability
-  _dbh_details
-  _dbh_get_info
+    sql_limit_dialect
+    sql_quote_char
+    sql_name_sep
 
-  sql_limit_dialect
-  sql_quote_char
-  sql_name_sep
+    _inner_join_to_node
+    _group_over_selection
+    _extract_order_criteria
 
-  _inner_join_to_node
-  _group_over_selection
-  _extract_order_criteria
+    _prefetch_autovalues
 
-  _prefetch_autovalues
+    _max_column_bytesize
+    _is_lob_type
+    _is_binary_lob_type
+    _is_text_lob_type
+  /,(
+    # the capability framework
+    # not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
+    grep
+      { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
+      ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
+  )],
+};
 
-  _max_column_bytesize
-  _is_lob_type
-  _is_binary_lob_type
-  _is_text_lob_type
-);
+if (DBIx::Class::_ENV_::DBICTEST) {
 
-# the capability framework
-# not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
-push @unimplemented, ( grep
-  { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
-  ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
-);
+  my $seen;
+  for my $type (keys %$method_dispatch) {
+    for (@{$method_dispatch->{$type}}) {
+      push @{$seen->{$_}}, $type;
+    }
+  }
 
-for my $method (@unimplemented) {
+  if (my @dupes = grep { @{$seen->{$_}} > 1 } keys %$seen) {
+    die(join "\n", '',
+      'The following methods show up multiple times in ::Storage::DBI::Replicated handlers:',
+      (map { "$_: " . (join ', ', @{$seen->{$_}}) } sort @dupes),
+      '',
+    );
+  }
+
+  if (my @cant = grep { ! DBIx::Class::Storage::DBI->can($_) } keys %$seen) {
+    die(join "\n", '',
+      '::Storage::DBI::Replicated specifies handling of the following *NON EXISTING* ::Storage::DBI methods:',
+      @cant,
+      '',
+    );
+  }
+}
+
+for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
     croak "$method must not be called on ".(blessed shift).' objects';
   });
 }
+
+=head2 read_handler
+
+Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
+
+=cut
+
+has 'read_handler' => (
+  is=>'rw',
+  isa=>Object,
+  lazy_build=>1,
+  handles=>$method_dispatch->{reader},
+);
+
+=head2 write_handler
+
+Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
+as well as methods that don't write or read that can be called on only one
+storage, methods that return a C<$dbh>, and any methods that don't make sense to
+run on a replicant.
+
+=cut
+
+has 'write_handler' => (
+  is=>'ro',
+  isa=>Object,
+  lazy_build=>1,
+  handles=>$method_dispatch->{writer},
+);
+
+
 
 has _master_connect_info_opts =>
   (is => 'rw', isa => HashRef, default => sub { {} });

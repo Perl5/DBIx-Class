@@ -5,6 +5,11 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
+use Path::Class;
+
+use lib qw(t/lib);
+use DBICTest;
+
 BEGIN {
     require DBIx::Class;
     plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin')
@@ -14,13 +19,7 @@ BEGIN {
       unless DBIx::Class::Optional::Dependencies->req_ok_for('deploy');
 }
 
-use lib qw(t/lib);
-use DBICTest;
-
-use Path::Class;
-
 use_ok 'DBIx::Class::Admin';
-
 
 my $sql_dir = dir(qw/t var/);
 my @connect_info = DBICTest->_database(

@@ -5,6 +5,13 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
+use Path::Class;
+use File::Copy;
+use Time::HiRes qw/time sleep/;
+
+use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
+
 my ($dsn, $user, $pass);
 
 BEGIN {
@@ -18,13 +25,6 @@ BEGIN {
       'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
-
-use Path::Class;
-use File::Copy;
-use Time::HiRes qw/time sleep/;
-
-use lib qw(t/lib);
-use DBICTest; # do not remove even though it is not used
 
 use_ok('DBICVersion_v1');
 

@@ -2,6 +2,9 @@ use strict;
 use warnings;
 use Test::More;
 
+use lib qw(t/lib);
+use DBICTest;
+
 BEGIN {
   eval "use DBIx::Class::CDBICompat; use DateTime 0.55; use Clone;";
   plan skip_all => "Clone, DateTime 0.55, Class::Trigger and DBIx::ContextualFetch required"
@@ -9,9 +12,6 @@ BEGIN {
 }
 
 plan tests => 6;
-
-use lib qw(t/lib);
-use DBICTest;
 
 my $schema = DBICTest->init_schema();
 

@@ -12,6 +12,12 @@ BEGIN {
     require mro;
     *DBIx::Class::_ENV_::OLD_MRO = sub () { 0 };
   }
+
+  # ::Runmode would only be loaded by DBICTest, which in turn implies t/
+  *DBIx::Class::_ENV_::DBICTEST = eval { DBICTest::RunMode->is_author }
+    ? sub () { 1 }
+    : sub () { 0 }
+  ;
 }
 
 use mro 'c3';

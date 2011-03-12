@@ -3,18 +3,17 @@ use warnings;
 
 use Test::More;
 
+use lib 't/lib';
+use DBICTest;
+
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
     next;
   }
-  plan tests => 10;
+  plan tests => 9;
 }
-
-use lib 't/lib';
-
-use_ok('DBICTest');
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat CDBICompat::Pager/);
 

@@ -1,3 +1,11 @@
+use warnings;
+use strict;
+
+use Test::More;
+
+use lib qw(t/lib);
+use DBICTest;
+
 package My::Schema::Result::User;
 
 use strict;
@@ -58,12 +66,6 @@ My::Schema->register_class( User  => 'My::Schema::Result::User' );
 1;
 
 package main;
-
-use lib qw(t/lib);
-use DBICTest;
-
-use Test::More;
-
 my $user_data = {
     email    => 'someguy@place.com',
     password => 'pass1',

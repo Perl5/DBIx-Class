@@ -5,16 +5,15 @@ use Test::More;
 use Test::Exception;
 use Scalar::Util ();
 
+use lib qw(t/lib);
+use DBICTest;
+
 BEGIN {
   require DBIx::Class;
   plan skip_all =>
       'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
-
-use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Schema;
 
 # Test for SQLT-related leaks
 {

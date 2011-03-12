@@ -1,6 +1,10 @@
 use strict;
 use warnings;
 
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
 #
 # The test must be performed on non-registered result classes
 #
@@ -28,11 +32,6 @@ use warnings;
   __PACKAGE__->belongs_to(thing => 'DBICTest::Thing', 'thing_id');
   __PACKAGE__->belongs_to(thing2 => 'DBICTest::Thing', 'thing_id', { join_type => 'left' } );
 }
-
-
-use Test::More;
-use lib qw(t/lib);
-use DBICTest;
 
 my $schema = DBICTest->init_schema;
 

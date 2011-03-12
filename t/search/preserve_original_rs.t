@@ -5,9 +5,9 @@ use Test::More;
 use Test::Exception;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
-use DBICTest;
 
 # use Data::Dumper comparisons to avoid mesing with coderefs
 use Data::Dumper;

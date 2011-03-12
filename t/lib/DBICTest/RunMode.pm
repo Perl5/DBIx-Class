@@ -1,8 +1,19 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::RunMode;
 
 use strict;
 use warnings;
+
+BEGIN {
+  if ($INC{'DBIx/Class.pm'}) {
+    my ($fr, @frame) = 1;
+    while (@frame = caller($fr++)) {
+      last if $frame[1] !~ m|^t/lib/DBICTest|;
+    }
+
+    die __PACKAGE__ . " must be loaded before DBIx::Class (or modules using DBIx::Class) at $frame[1] line $frame[2]\n";
+  }
+}
 
 use Path::Class qw/file dir/;
 
