@@ -308,6 +308,8 @@ goraxe: Gordon Irving <goraxe@cpan.org>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
+Grant Street Group L<http://www.grantstreet.com/>
+
 groditi: Guillermo Roditi <groditi@cpan.org>
 
 Haarg: Graham Knop <haarg@haarg.org>

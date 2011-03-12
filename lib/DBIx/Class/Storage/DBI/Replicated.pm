@@ -355,6 +355,7 @@ has 'write_handler' => (
     _resolve_column_info
     _prune_unused_joins
     _strip_cond_qualifiers
+    _strip_cond_qualifiers_from_array
     _resolve_aliastypes_from_select_args
     _execute
     _do_query

@@ -579,6 +579,26 @@ sub _inner_join_to_node {
 # at all. What this code tries to do (badly) is introspect the condition
 # and remove all column qualifiers. If it bails out early (returns undef)
 # the calling code should try another approach (e.g. a subquery)
+
+sub _strip_cond_qualifiers_from_array {
+  my ($self, $where) = @_;
+  my @cond;
+  for (my $i = 0; $i < @$where; $i++) {
+    my $entry = $where->[$i];
+    my $hash;
+    my $ref = ref $entry;
+    if ($ref eq 'HASH' or $ref eq 'ARRAY') {
+      $hash = $self->_strip_cond_qualifiers($entry);
+    }
+    elsif (! $ref) {
+      $entry =~ /([^.]+)$/;
+      $hash->{$1} = $where->[++$i];
+    }
+    push @cond, $hash;
+  }
+  return \@cond;
+}
+
 sub _strip_cond_qualifiers {
   my ($self, $where) = @_;
 
@@ -588,37 +608,12 @@ sub _strip_cond_qualifiers {
   return $cond unless $where;
 
   if (ref $where eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @$where
-    ];
+    $cond = $self->_strip_cond_qualifiers_from_array($where);
   }
   elsif (ref $where eq 'HASH') {
     if ( (keys %$where) == 1 && ( (keys %{$where})[0] eq '-and' )) {
-      $cond->{-and} = [];
-      my @cond = @{$where->{-and}};
-       for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-        my $hash;
-        my $ref = ref $entry;
-        if ($ref eq 'HASH' or $ref eq 'ARRAY') {
-          $hash = $self->_strip_cond_qualifiers($entry);
-        }
-        elsif (! $ref) {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
-        }
-        else {
-          $self->throw_exception ("_strip_cond_qualifiers() is unable to handle a condition reftype $ref");
-        }
-        push @{$cond->{-and}}, $hash;
-      }
+      $cond->{-and} =
+        $self->_strip_cond_qualifiers_from_array($where->{-and});
     }
     else {
       foreach my $key (keys %$where) {

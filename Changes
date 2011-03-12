@@ -27,6 +27,8 @@ Revision history for DBIx::Class
           (RT#64795)
         - Work around a Firebird ODBC driver bug exposed by DBD::ODBC 1.29
         - Fix exiting via next warnings in ResultSource::sequence()
+        - Fix stripping of table qualifiers in update/delete in arrayref
+          condition elements
 
     * Misc
         - Only load Class::C3 and friends if necessary ($] < 5.010)
