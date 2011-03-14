@@ -484,6 +484,28 @@ my @tests = (
   },
 
   {
+    msg => '-dt_diff (year) works',
+    search => { 'me.id' => 2 },
+    select   => [ [ -dt_diff => [year => \'me.starts_at', { -ident => 'me.created_on' } ] ] ],
+    as       => [ 'year' ],
+    sqlite => {
+      exception_like => qr/date diff not supported for part "year" with database "SQLite"/,
+    },
+    mssql => {
+      select   => "DATEDIFF(year, me.created_on, me.starts_at)",
+      where => "me.id = ?",
+      bind   => [['me.id', 2]],
+      hri    => [{ year => -1 }],
+    },
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
+      where => "me.id = ?",
+      bind   => [['me.id', 2]],
+      hri    => [{ year => -1 }],
+    },
+  },
+
+  {
     msg    => '-dt_add (year) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_add => [year => 3, { -ident => 'me.created_on' } ] ] ],
@@ -662,28 +684,6 @@ my @tests = (
       where => "me.id = ?",
       bind   => [['', 1], [ '', 3 ], ['me.id', 2]],
       hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
-    },
-  },
-
-  {
-    msg => '-dt_diff (year) works',
-    search => { 'me.id' => 2 },
-    select   => [ [ -dt_diff => [year => \'me.starts_at', { -ident => 'me.created_on' } ] ] ],
-    as       => [ 'year' ],
-    sqlite => {
-      exception_like => qr/date diff not supported for part "year" with database "SQLite"/,
-    },
-    mssql => {
-      select   => "DATEDIFF(year, me.created_on, me.starts_at)",
-      where => "me.id = ?",
-      bind   => [['me.id', 2]],
-      hri    => [{ year => -1 }],
-    },
-    oracle => {
-      select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
-      where => "me.id = ?",
-      bind   => [['me.id', 2]],
-      hri    => [{ year => -1 }],
     },
   },
 );
