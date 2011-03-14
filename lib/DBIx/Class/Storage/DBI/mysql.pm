@@ -121,6 +121,16 @@ sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
 }
 
+sub _insert_bulk {
+  my ($self, $source, $cols, $colvalues, $data) = @_;
+
+  my $bind_attrs = $self->source_bind_attributes($source);
+
+  return $self->_execute(
+    'insert_bulk' => [], $source, $bind_attrs, $data, $cols,
+  );
+}
+
 1;
 
 =head1 NAME

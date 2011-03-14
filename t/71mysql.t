@@ -411,4 +411,32 @@ ZEROINSEARCH: {
   ok ($rs->find({ name => "Hardcore Forker $pid" }), 'Expected row created');
 }
 
+# Verify that populate in void context uses INSERT INTO foo VALUES (), (), ()
+# instead of 3 distinct SQL statements as other databases may require.
+{
+  my $rsrc = $schema->resultset('Artist')->result_source;
+  my ($rv, $sth, @bind) = $schema->storage->insert_bulk(
+    $rsrc,
+    [qw/ artistid name rank charfield /],
+    [
+      [ 100, 'John', 200, 'Smith' ],
+      [ 101, 'Joan', 201, 'Snith' ],
+    ],
+  );
+
+  is_same_sql_bind(
+    $sth->{Statement},
+    \@bind,
+    q{INSERT INTO artist ( artistid, name, rank, charfield ) VALUES ( ?, ?, ?, ? ), ( ?, ?, ?, ? )},
+    [
+      map { [ dummy => $_ ] } (
+        100, 'John', 200, 'Smith',
+        101, 'Joan', 201, 'Snith',
+      ),
+    ],
+  );
+
+  is( $schema->resultset('Artist')->find( 100 )->name, 'John' );
+}
+
 done_testing;

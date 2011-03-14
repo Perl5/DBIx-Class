@@ -21,6 +21,30 @@ sub insert {
   return $self->SUPER::insert (@_);
 }
 
+sub insert_bulk {
+  my ($self, $table, $data, $cols) = @_;
+
+  my $sql = sprintf(
+    'INSERT INTO %s ( ', $self->_quote($table),
+  );
+  $sql .= join( ', ', map { $self->_quote($_) } @$cols );
+  $sql .= ' ) VALUES ';
+
+  my @bind;
+  my @sql;
+  foreach my $datum ( @$data ) {
+    push @sql, '('
+      . join( ', ', ('?') x @$datum )
+      . ')';
+    push @bind, map { [ dummy => $_ ] } @$datum;
+  }
+
+  return (
+    $sql . join(',', @sql),
+    @bind
+  );
+}
+
 # Allow STRAIGHT_JOIN's
 sub _generate_join_clause {
     my ($self, $join_type) = @_;

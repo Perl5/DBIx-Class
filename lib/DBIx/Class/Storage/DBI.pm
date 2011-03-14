@@ -1830,8 +1830,17 @@ sub insert_bulk {
     }
   }
 
+  return $self->_insert_bulk(
+    $source, $cols, \%colvalues, $data,
+  );
+}
+
+# Broken out so that it can be overridden in Storage/DBI/mysql.pm
+sub _insert_bulk {
+  my ($self, $source, $cols, $colvalues, $data) = @_;
+
   my ($sql, $bind) = $self->_prep_for_execute (
-    'insert', undef, $source, [\%colvalues]
+    'insert', undef, $source, [$colvalues]
   );
 
   if (! @$bind) {
@@ -1841,7 +1850,7 @@ sub insert_bulk {
     # directly into the SQL. This obviosly can't be good for multi-inserts
 
     $self->throw_exception('Cannot insert_bulk without support for placeholders')
-      if first { ref $_ ne 'SCALAR' } values %colvalues;
+      if first { ref $_ ne 'SCALAR' } values %$colvalues;
   }
 
   # neither _execute_array, nor _execute_inserts_with_no_binds are
