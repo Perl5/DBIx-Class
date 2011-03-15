@@ -121,11 +121,21 @@ sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
 }
 
+my $INSERT_BULK_SIZE = 80;
 sub _insert_bulk {
   my ($self, $source, $cols, $colvalues, $data) = @_;
 
   my $bind_attrs = $self->source_bind_attributes($source);
 
+  # Organize this way to make context sensitivity easier to code up.
+  while ( @$data > $INSERT_BULK_SIZE ) {
+    my @this_data = splice @$data, 0, $INSERT_BULK_SIZE;
+    $self->_execute(
+      'insert_bulk' => [], $source, $bind_attrs, \@this_data, $cols,
+    );
+  }
+
+  # Don't put this in the while-loop above.
   return $self->_execute(
     'insert_bulk' => [], $source, $bind_attrs, $data, $cols,
   );

@@ -360,6 +360,7 @@ has 'write_handler' => (
     _do_query
     _dbh_sth
     _dbh_execute
+    _insert_bulk
   /],
 );
 

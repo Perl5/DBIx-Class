@@ -439,4 +439,32 @@ ZEROINSEARCH: {
   is( $schema->resultset('Artist')->find( 100 )->name, 'John' );
 }
 
+# Verify that 600 rows ends up with the return SQL having only 40 entries
+# because they were inserted 80 rows at a time other than the last group
+# of 40 rows. But, all 600 rows are inserted.
+{
+  my $rsrc = $schema->resultset('Artist')->result_source;
+  my ($rv, $sth, @bind) = $schema->storage->insert_bulk(
+    $rsrc,
+    [qw/ artistid name rank charfield /],
+    [
+      (map { [ 1000 + $_, "X $_", $_ + 1000, "Y $_" ] } 1 .. 600),
+    ],
+  );
+
+  is_same_sql_bind(
+    $sth->{Statement},
+    \@bind,
+    q{INSERT INTO artist ( artistid, name, rank, charfield ) VALUES } . join(', ', ('( ?, ?, ?, ? )') x 40 ),
+    [
+      map { [ dummy => $_ ] } (
+        map { 1000 + $_, "X $_", $_ + 1000, "Y $_" } 561 .. 600
+      ),
+    ],
+  );
+
+  is( $schema->resultset('Artist')->find( 1001 )->name, 'X 1' );
+  cmp_ok( $schema->resultset('Artist')->search({ artistid => { '>' => 1000 }})->count, '==', 600 );
+}
+
 done_testing;
