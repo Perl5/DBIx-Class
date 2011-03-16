@@ -12,6 +12,15 @@ my $orig_debug = $schema->storage->debug;
 
 my $cdrs = $schema->resultset('CD')->search({ 'me.artist' => { '!=', 2 }});
 
+is_same_sql_bind(
+    $cdrs
+       ->related_resultset('artwork')
+       ->search(undef, { alias => 'frewmbot' })
+       ->as_query,
+
+  '(SELECT frewmbot.cd_id FROM cd me JOIN cd_artwork frewmbot ON artwork.cd_id = me.cdid WHERE ( me.artist != ? ))',
+  [ [ 'me.artist' => 2 ] ]
+);
 my $cd_data = { map {
   $_->cdid => {
     siblings => $cdrs->search ({ artist => $_->get_column('artist') })->count - 1,
