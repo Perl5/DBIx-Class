@@ -94,7 +94,7 @@ another.
       year => $request->param('year'),
     });
 
-    $self->apply_security_policy( $cd_rs );
+    $cd_rs = $self->apply_security_policy( $cd_rs );
 
     return $cd_rs->all();
   }
