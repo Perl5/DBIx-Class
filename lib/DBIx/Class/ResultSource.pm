@@ -1424,7 +1424,9 @@ sub _compare_relationship_keys {
 
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
-  my ($self, $join, $alias, $seen, $jpath, $parent_force_left) = @_;
+  my ($self, $join, $alias, $seen, $jpath, $parent_force_left, $opt) = @_;
+
+  $opt ||= {};
 
   # we need a supplied one, because we do in-place modifications, no returns
   $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
@@ -1460,10 +1462,23 @@ sub _resolve_join {
         $rel, ($seen->{$rel} && $seen->{$rel} + 1)
       );
 
+      my $val = $join->{$rel};
+      my $opt;
+      if (ref $val && ref $val eq 'HASH') {
+         $opt = {
+            alias => delete $val->{-alias},
+            join_type => delete $val->{-join_type},
+         };
+
+         if (my $fail = first { defined && /^-/ } keys %$val) {
+            die "$fail is not a join argument"
+         }
+      }
+
       push @ret, (
-        $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left),
+        $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left, $opt),
         $self->related_source($rel)->_resolve_join(
-          $join->{$rel}, $as, $seen, [@$jpath, { $rel => $as }], $force_left
+          $val, $as, $seen, [@$jpath, { $rel => $as }], $force_left
         )
       );
     }
@@ -1475,7 +1490,7 @@ sub _resolve_join {
   }
   else {
     my $count = ++$seen->{$join};
-    my $as = $self->storage->relname_to_table_alias(
+    my $as = $opt->{alias} || $self->storage->relname_to_table_alias(
       $join, ($count > 1 && $count)
     );
 
@@ -1485,9 +1500,9 @@ sub _resolve_join {
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
                -rsrc => $rel_src,
-               -join_type => $parent_force_left
+               -join_type => $opt->{join_type} || ($parent_force_left
                   ? 'left'
-                  : $rel_info->{attrs}{join_type}
+                  : $rel_info->{attrs}{join_type})
                 ,
                -join_path => [@$jpath, { $join => $as } ],
                -is_single => (

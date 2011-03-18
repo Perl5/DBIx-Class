@@ -3866,7 +3866,7 @@ L<DBIx::Class::Manual::Cookbook> for details.
 
 =over 4
 
-=item Value: ($rel_name | \@rel_names | \%rel_names)
+=item Value: ($rel_name | \@rel_names | \%rel_names_and_join_opts)
 
 =back
 
@@ -3879,7 +3879,8 @@ example:
     { join => 'artist' }
   );
 
-Can also contain a hash reference to refer to the other relation's relations.
+Can also contain a hash reference to refer to the other relation's relations,
+as well as various built in options for a relationship.
 For example:
 
   package MyApp::Schema::Track;
@@ -3898,6 +3899,35 @@ For example:
       order_by => 'artist.name',
     }
   );
+
+=head3 relationship options
+
+Currently there are two relationship options that are supported:
+
+=over 6
+
+=item C<-join_type>
+
+This allows you to override the join type
+
+=item C<-alias>
+
+This allows you to override the join name, presumably for joining the same
+relationship more than once.
+
+=back
+
+For example, one might want to do the following with the listed options:
+
+ my $rs = $rs->search({
+    'friends.like' => 1,
+    'enemies.like' => 0,
+ }, {
+   join => [
+      { relationships => { -alias => 'friends' },
+      { relationships => { -alias => 'enemies', -join_type => 'left },
+   ],
+ });
 
 You need to use the relationship (not the table) name in  conditions,
 because they are aliased as such. The current table is aliased as "me", so
