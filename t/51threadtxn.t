@@ -25,10 +25,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
       . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
 
 
-my $num_children = $ENV{DBICTEST_THREAD_STRESS};
-plan skip_all => 'Set $ENV{DBICTEST_THREAD_STRESS} to run this test'
-    unless $num_children;
-
+my $num_children = $ENV{DBICTEST_THREAD_STRESS} || 1;
 if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
