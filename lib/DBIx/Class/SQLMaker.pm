@@ -55,24 +55,19 @@ sub _quote_chars {
 }
 
 BEGIN {
-  # reinstall the carp()/croak() functions imported into SQL::Abstract
-  # as Carp and Carp::Clan do not like each other much
+  # reinstall the belch()/puke() functions of SQL::Abstract with custom versions
+  # that use Carp::Clan instead of plain Carp (they do not like each other much)
   no warnings qw/redefine/;
-  no strict qw/refs/;
-  for my $f (qw/carp croak/) {
 
-    my $orig = \&{"SQL::Abstract::$f"};
-    my $clan_import = \&{$f};
-    *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
-      sub {
-        if (Carp::longmess() =~ /DBIx::Class::SQLMaker::[\w]+ .+? called \s at/x) {
-          goto $clan_import;
-        }
-        else {
-          goto $orig;
-        }
-      };
-  }
+  *SQL::Abstract::belch = subname 'SQL::Abstract::belch' => sub (@) {
+    my($func) = (caller(1))[3];
+    carp "[$func] Warning: ", @_;
+  };
+
+  *SQL::Abstract::puke = subname 'SQL::Abstract::puke' => sub (@) {
+    my($func) = (caller(1))[3];
+    croak "[$func] Fatal: ", @_;
+  };
 
   # Current SQLA pollutes its namespace - clean for the time being
   namespace::clean->clean_subroutines(qw/SQL::Abstract carp croak confess/);

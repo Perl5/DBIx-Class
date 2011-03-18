@@ -29,6 +29,8 @@ Revision history for DBIx::Class
         - Fix exiting via next warnings in ResultSource::sequence()
         - Fix stripping of table qualifiers in update/delete in arrayref
           condition elements
+        - Change SQLMaker carp-monkeypatch to be compatible with versions
+          of SQL::Abstract >= 1.73
 
     * Misc
         - Only load Class::C3 and friends if necessary ($] < 5.010)
