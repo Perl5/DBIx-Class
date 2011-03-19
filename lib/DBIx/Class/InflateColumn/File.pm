@@ -6,8 +6,9 @@ use base 'DBIx::Class';
 use File::Path;
 use File::Copy;
 use Path::Class;
-
 use Carp::Clan qw/^DBIx::Class/;
+use namespace::clean;
+
 carp 'InflateColumn::File has entered a deprecation cycle. This component '
     .'has a number of architectural deficiencies that can quickly drive '
     .'your filesystem and database out of sync and is not recommended '
@@ -17,6 +18,8 @@ carp 'InflateColumn::File has entered a deprecation cycle. This component '
     .'DBIx::Class::InflateColumn::FS. You can set the environment variable '
     .'DBIC_IC_FILE_NOWARN to a true value to disable  this warning.'
 unless $ENV{DBIC_IC_FILE_NOWARN};
+
+
 
 __PACKAGE__->load_components(qw/InflateColumn/);
 

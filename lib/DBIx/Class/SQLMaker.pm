@@ -73,6 +73,9 @@ BEGIN {
         }
       };
   }
+
+  # Current SQLA pollutes its namespace - clean for the time being
+  namespace::clean->clean_subroutines(qw/SQL::Abstract carp croak confess/);
 }
 
 # the "oh noes offset/top without limit" constant

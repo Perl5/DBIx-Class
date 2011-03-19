@@ -34,6 +34,7 @@ Revision history for DBIx::Class
         - Only load Class::C3 and friends if necessary ($] < 5.010)
         - Greatly reduced loading of non-essential modules to aid startup
           time (mainly benefiting CGI users)
+        - Make sure all namespaces are clean of rogue imports
 
 0.08127 2011-01-19 16:40 (UTC)
     * New Features / Changes

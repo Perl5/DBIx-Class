@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
+use namespace::clean;
 
 carp 'Setting of storage_type is redundant as connections through DBD::Sybase'
     .' are now properly recognized and reblessed into the appropriate subclass'

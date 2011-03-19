@@ -8,7 +8,6 @@ use base qw/DBIx::Class/;
 use DBIx::Class::Exception;
 use Scalar::Util 'blessed';
 use Try::Tiny;
-use namespace::clean;
 
 ###
 ### Internal method
@@ -20,6 +19,8 @@ BEGIN {
       ? sub () { 1 }
       : sub () { 0 };
 }
+
+use namespace::clean;
 
 =head1 NAME
 

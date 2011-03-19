@@ -6,7 +6,6 @@ use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::Exception;
-use namespace::clean;
 
 # temporary until we fix the $@ issue in core
 # we also need a real appendable, stackable exception object
@@ -19,6 +18,8 @@ BEGIN {
     *IS_BROKEN_PERL = sub () { 0 };
   }
 }
+
+use namespace::clean;
 
 my ($guards_count, $compat_handler, $foreign_handler);
 

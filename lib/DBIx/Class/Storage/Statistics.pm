@@ -4,6 +4,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use IO::File;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh silence/);
 

@@ -17,13 +17,9 @@ unless ($INC{"DBIx/Class/CDBICompat.pm"}) {
 
 __PACKAGE__->load_components(qw/ResultSetProxy/);
 
-{
-    no warnings 'once';
-    *dbi_commit = \&txn_commit;
-    *dbi_rollback = \&txn_rollback;
-}
-
 sub storage { shift->schema_instance(@_)->storage; }
+sub dbi_commit { shift->txn_commit(@_) }
+sub dbi_rollback { shift->txn_rollback(@_) }
 
 =head1 NAME
 

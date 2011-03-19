@@ -3,6 +3,7 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker::Oracle );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+use namespace::clean;
 
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;

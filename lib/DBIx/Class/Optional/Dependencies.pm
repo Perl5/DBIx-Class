@@ -3,7 +3,7 @@ package DBIx::Class::Optional::Dependencies;
 use warnings;
 use strict;
 
-use Carp;
+use Carp ();
 
 # NO EXTERNAL NON-5.8.1 CORE DEPENDENCIES EVER (e.g. C::A::G)
 # This module is to be loaded by Makefile.PM on a pristine system
@@ -411,11 +411,11 @@ my $reqs = {
 sub req_list_for {
   my ($class, $group) = @_;
 
-  croak "req_list_for() expects a requirement group name"
+  Carp::croak "req_list_for() expects a requirement group name"
     unless $group;
 
   my $deps = $reqs->{$group}{req}
-    or croak "Requirement group '$group' does not exist";
+    or Carp::croak "Requirement group '$group' does not exist";
 
   return { %$deps };
 }
@@ -425,7 +425,7 @@ our %req_availability_cache;
 sub req_ok_for {
   my ($class, $group) = @_;
 
-  croak "req_ok_for() expects a requirement group name"
+  Carp::croak "req_ok_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{status};
@@ -434,7 +434,7 @@ sub req_ok_for {
 sub req_missing_for {
   my ($class, $group) = @_;
 
-  croak "req_missing_for() expects a requirement group name"
+  Carp::croak "req_missing_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{missing};
@@ -443,7 +443,7 @@ sub req_missing_for {
 sub req_errorlist_for {
   my ($class, $group) = @_;
 
-  croak "req_errorlist_for() expects a requirement group name"
+  Carp::croak "req_errorlist_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{errorlist};
@@ -661,7 +661,7 @@ EOD
     'You may distribute this code under the same terms as Perl itself',
   );
 
-  open (my $fh, '>', $podfn) or croak "Unable to write to $podfn: $!";
+  open (my $fh, '>', $podfn) or Carp::croak "Unable to write to $podfn: $!";
   print $fh join ("\n\n", @chunks);
   close ($fh);
 }

@@ -4,6 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
+use namespace::clean;
 
 our %_pod_inherit_config = 
   (

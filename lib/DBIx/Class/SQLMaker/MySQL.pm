@@ -3,6 +3,7 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+use namespace::clean;
 
 #
 # MySQL does not understand the standard INSERT INTO $table DEFAULT VALUES

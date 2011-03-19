@@ -5,8 +5,11 @@ use strict;
 use warnings;
 
 use base 'Class::C3::Componentised';
-use Carp::Clan qw/^DBIx::Class|^Class::C3::Componentised/;
 use mro 'c3';
+
+use Carp::Clan qw/^DBIx::Class|^Class::C3::Componentised/;
+use namespace::clean;
+
 
 my $warned;
 

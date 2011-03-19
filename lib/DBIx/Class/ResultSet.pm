@@ -12,14 +12,13 @@ use Try::Tiny;
 # not importing first() as it will clash with our own method
 use List::Util ();
 
-use namespace::clean;
-
-
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
   # (the merger is used for other things that ought not to be de-duped)
   *__HM_DEDUP = sub () { 0 };
 }
+
+use namespace::clean;
 
 use overload
         '0+'     => "count",

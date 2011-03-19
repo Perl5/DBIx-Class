@@ -8,7 +8,9 @@ use base qw/
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
+
 use Carp::Clan qw/^DBIx::Class/;
+use namespace::clean;
 
 __PACKAGE__->datetime_parser_type(
   'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format'
