@@ -1078,7 +1078,7 @@ If you want to get a filtered result set, you can just add add to $attr as follo
 
  __PACKAGE__->has_many('pages' => 'Page', 'book', { where => { scrap => 0 } } );
 
-=head2 Many-to-many relationships
+=head2 Many-to-many relationship bridges
 
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
