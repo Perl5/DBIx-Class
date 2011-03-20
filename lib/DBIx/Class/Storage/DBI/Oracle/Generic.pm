@@ -468,7 +468,9 @@ sub relname_to_table_alias {
 
   my $alias = $self->next::method(@_);
 
-  return $self->sql_maker->_shorten_identifier($alias, [$relname]);
+  # we need to shorten here in addition to the shortening in SQLA itself,
+  # since the final relnames are a crucial for the join optimizer
+  return $self->sql_maker->_shorten_identifier($alias);
 }
 
 =head2 with_deferred_fk_checks

@@ -109,6 +109,19 @@ sub _where_field_PRIOR {
   return ($sql, @bind);
 }
 
+# use this codepath to hook all identifiers and mangle them if necessary
+# this is invoked regardless of quoting being on or off
+sub _quote {
+  my ($self, $label) = @_;
+
+  return '' unless defined $label;
+  return ${$label} if ref($label) eq 'SCALAR';
+
+  $label =~ s/ ( [^\.]{31,} ) /$self->_shorten_identifier($1)/gxe;
+
+  $self->next::method($label);
+}
+
 # this takes an identifier and shortens it if necessary
 # optionally keywords can be passed as an arrayref to generate useful
 # identifiers
