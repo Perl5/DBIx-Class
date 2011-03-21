@@ -9,6 +9,7 @@ use DBIC::SqlMakerTest;
 use DateTime;
 use DBIx::Class::SQLMaker::MSSQL;
 use Try::Tiny;
+use Data::Dumper::Concise;
 
 use DBICTest;
 
@@ -585,7 +586,12 @@ for my $t (@tests) {
 
           my $msg = ($t->{msg} ? "$t->{msg} ($db actually pulls expected data)" : '');
           try {
-             is_deeply [ $my_rs->hri_dump->all ], $hri, $msg;
+             my $got = [ $my_rs->hri_dump->all ];
+             my $success = is_deeply $got, $hri, $msg;
+             unless ($success) {
+                warn "$db: $t->{msg} got:      " . Dumper $got;
+                warn "$db: $t->{msg} expected: " . Dumper $hri;
+             }
           } catch {
              ok 0, $msg . " $_";
           }
