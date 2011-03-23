@@ -13,11 +13,13 @@ use Data::Dumper::Concise;
 
 use DBICTest;
 
+sub unknown_col { +{ dbic_colname => '' } }
+
 my %dbs_to_test = (
    sqlite   => 1,
    mssql    => 0,
-   postgres => 1,
-   oracle   => 1,
+   postgres => 0,
+   oracle   => 0,
 );
 
 my %schema = (
@@ -119,7 +121,7 @@ SQL
 });
 $s;
       } else {
-         DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::Oracle', on_connect_call => 'datetime_setup' )
+         DBICTest->init_schema( no_deploy=> 1, storage_type => '::DBI::Oracle::Generic', on_connect_call => 'datetime_setup' )
       }
    },
 );
@@ -179,25 +181,25 @@ my @tests = (
     sqlite => {
       select => 'me.starts_at, me.created_on, me.skip_inflation',
       where  => 'me.created_on = ?',
-      bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
+      bind   => [[{ dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12' ]],
       hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12')],
     },
     mssql => {
       select => 'me.starts_at, me.created_on, me.skip_inflation',
       where  => 'me.created_on = ?',
-      bind   => [[ 'me.created_on', '2010-12-14 12:12:12.000' ]],
+      bind   => [[{ dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12.000' ]],
       hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12.000', '2019-12-12 12:12:12.000')],
     },
     postgres => {
       select => 'me.starts_at, me.created_on, me.skip_inflation',
       where  => 'me.created_on = ?',
-      bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
+      bind   => [[{ dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12' ]],
       hri    => [hri_thing('2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12')],
     },
     oracle => {
       select => 'me.starts_at, me.created_on, me.skip_inflation',
       where  => 'me.created_on = ?',
-      bind   => [[ 'me.created_on', '2010-12-14 12:12:12' ]],
+      bind   => [[{ dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12' ]],
       hri    => [hri_thing('2010-12-12 00:00:00', '2010-12-14 12:12:12.000000', '2019-12-12 12:12:12.000000')],
     },
     msg => '-dt_now works',
@@ -210,277 +212,276 @@ my @tests = (
     mssql => {
       select => "DATEPART(year, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
     },
     sqlite => {
       select => "STRFTIME('%Y', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
     },
     postgres => {
       select => "EXTRACT(year FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
     },
     oracle => {
       select => "EXTRACT(year FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
     },
     msg    => '-dt_year works',
   },
-## -dt_get(year, month) tests
+
   {
+    msg    => '-dt_get (year, month) works',
     search => { 'me.id' => 1 },
     select => [ [ -dt_get => [[qw(year month)], { -ident => 'me.created_on' }] ] ],
     as     => [ qw(year month) ],
     mssql => {
       select => "DATEPART(year, me.created_on), DATEPART(month, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
     sqlite => {
       select => "STRFTIME('%Y', me.created_on), STRFTIME('%m', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
     postgres => {
       select => "EXTRACT(year FROM me.created_on), EXTRACT(month FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
     oracle => {
       select => "EXTRACT(year FROM me.created_on), EXTRACT(month FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
     },
-    msg    => '-dt_get (year, month) works',
   },
-## -dt_month tests
+
   {
+    msg    => '-dt_month works',
     search => { 'me.id' => 1 },
     select   => [ [ -dt_month => { -ident => 'me.created_on' } ] ],
     as       => [ 'month' ],
     sqlite => {
       select   => "STRFTIME('%m', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ month => 12 }],
     },
     mssql => {
       select => "DATEPART(month, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ month => 12 }],
     },
     postgres => {
       select => "EXTRACT(month FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ month => 12 }],
     },
     oracle => {
       select => "EXTRACT(month FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ month => 12 }],
     },
-    msg    => '-dt_month works',
   },
-## -dt_day tests
+
   {
+    msg    => '-dt_day works',
     search => { 'me.id' => 1 },
     select   => [ [ -dt_day => { -ident => 'me.created_on' } ] ],
     as       => [ 'day' ],
     sqlite => {
       select   => "STRFTIME('%d', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ day => 14 }],
     },
     mssql => {
       select => "DATEPART(day, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ day => 14 }],
     },
     postgres => {
       select => "EXTRACT(day FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ day => 14 }],
     },
     oracle => {
       select => "EXTRACT(day FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ day => 14 }],
     },
-    msg    => '-dt_day works',
   },
-## -dt_hour tests
+
   {
+    msg    => '-dt_hour works',
     search => { 'me.id' => 1 },
     select   => [ [ -dt_hour => { -ident => 'me.created_on' } ] ],
     as       => [ 'hour' ],
     sqlite => {
       select   => "STRFTIME('%H', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ hour => 12 }],
     },
     mssql => {
       select => "DATEPART(hour, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ hour => 12 }],
     },
     postgres => {
       select => "EXTRACT(hour FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ hour => 12 }],
     },
     oracle => {
       select => "EXTRACT(hour FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ hour => 12 }],
     },
-    msg    => '-dt_hour works',
   },
-## -dt_minute tests
+
   {
+    msg    => '-dt_minute works',
     search => { 'me.id' => 1 },
     select   => [ [ -dt_minute => { -ident => 'me.created_on' } ] ],
     as       => [ 'minute' ],
     sqlite => {
       select   => "STRFTIME('%M', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ minute => 12 }],
     },
     mssql => {
       select => "DATEPART(minute, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ minute => 12 }],
     },
     postgres => {
       select => "EXTRACT(minute FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ minute => 12 }],
     },
     oracle => {
       select => "EXTRACT(minute FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ minute => 12 }],
     },
-    msg    => '-dt_minute works',
   },
-## -dt_second tests
+
   {
+    msg    => '-dt_second works',
     search => { 'me.id' => 1 },
     select   => [ [ -dt_second => { -ident => 'me.created_on' } ] ],
     as       => [ 'second' ],
     sqlite => {
       select   => "STRFTIME('%S', me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ second => 12 }],
     },
     mssql => {
       select => "DATEPART(second, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ second => 12 }],
     },
     postgres => {
       select => "EXTRACT(second FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ second => 12 }],
     },
     oracle => {
       select => "EXTRACT(second FROM me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 1 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ second => 12 }],
     },
-    msg    => '-dt_second works',
   },
-## -dt_diff(second) tests
+
   {
+    msg    => '-dt_diff (second) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_diff => [second => { -ident => 'me.created_on' }, \'me.skip_inflation' ] ] ],
     as => [ 'sec_diff' ],
     sqlite => {
       select   => "(STRFTIME('%s', me.created_on) - STRFTIME('%s', me.skip_inflation))",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
     },
     mssql => {
       select   => "DATEDIFF(second, me.skip_inflation, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
     },
     postgres => {
       select   => "EXTRACT(epoch FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
     },
     oracle => {
       select   => "TRUNC(MONTHS_BETWEEN(me.created_on, me.skip_inflation) * 31 * 24 * 60 * 60)",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
     },
-    msg    => '-dt_diff (second) works',
   },
 
-# -dt_diff(day) tests
   {
+    msg    => '-dt_diff (day) works',
     search => { 'me.id' => 2 },
     select   => [ [ -dt_diff => [day => { -ident => 'me.created_on' }, \'me.skip_inflation' ] ] ],
     as => [ 'day_diff' ],
     sqlite => {
       select   => "(JULIANDAY(me.created_on) - JULIANDAY(me.skip_inflation))",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ day_diff => 2 }],
     },
     mssql => {
       select   => "DATEDIFF(dayofyear, me.skip_inflation, me.created_on)",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ day_diff => 2 }],
     },
     postgres => {
       select   => "EXTRACT(DAY FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ day_diff => 2 }],
     },
     oracle => {
       select   => "TRUNC(MONTHS_BETWEEN(me.created_on, me.skip_inflation) * 31)",
       where => "me.id = ?",
-      bind   => [['me.id' => 2 ]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ day_diff => 2 }],
     },
-    msg    => '-dt_diff (day) works',
   },
 
   {
@@ -494,13 +495,13 @@ my @tests = (
     mssql => {
       select   => "DATEDIFF(year, me.created_on, me.starts_at)",
       where => "me.id = ?",
-      bind   => [['me.id', 2]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ year => -1 }],
     },
     oracle => {
       select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
       where => "me.id = ?",
-      bind   => [['me.id', 2]],
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ year => -1 }],
     },
   },
@@ -513,20 +514,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' years'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2014-12-14 12:12:12' }],
     },
     mssql => {
       select => "(DATEADD(year, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2014-12-14 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTOYMINTERVAL(?, 'year'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2014-12-14 12:12:12.000000000' }],
     },
   },
@@ -539,20 +540,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' months'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2012-03-14 12:12:12' }],
     },
     mssql => {
       select => "(DATEADD(month, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2012-03-14 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTOYMINTERVAL(?, 'month'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2012-03-14 12:12:12.000000000' }],
     },
   },
@@ -565,20 +566,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' days'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-17 12:12:12' }],
     },
     mssql => {
       select => "(DATEADD(dayofyear, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-17 12:12:12.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'day'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-17 12:12:12.000000000' }],
     },
   },
@@ -591,20 +592,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' hours'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 15:12:12' }],
     },
     mssql => {
       select => "(DATEADD(hour, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 15:12:12.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'hour'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 15:12:12.000000000' }],
     },
   },
@@ -617,20 +618,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' minutes'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:15:12' }],
     },
     mssql => {
       select => "(DATEADD(minute, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:15:12.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'minute'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:15:12.000000000' }],
     },
   },
@@ -643,20 +644,20 @@ my @tests = (
     sqlite => {
       select => "(datetime(me.created_on, ? || ' seconds'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:12:15' }],
     },
     mssql => {
       select => "(DATEADD(second, ?, me.created_on))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:12:15.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'second'))",
       where => "me.id = ?",
-      bind   => [['', 3], ['me.id' => 2 ]],
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:12:15.000000000' }],
     },
   },
@@ -669,20 +670,20 @@ my @tests = (
     sqlite => {
       select   => "(datetime((datetime(me.created_on, ? || ' days')), ? || ' seconds'))",
       where => "me.id = ?",
-      bind   => [['', 1], [ '', 3 ], ['me.id', 2]],
+      bind   => [[unknown_col, 1], [unknown_col, 3 ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]],
       hri    => [{ date => '2011-12-15 12:12:15' }],
     },
     mssql => {
       select => "(DATEADD(second, ?, (DATEADD(dayofyear, ?, me.created_on))))",
       where => "me.id = ?",
-      bind   => [['', 3], [ '', 1 ], ['me.id', 2]],
+      bind   => [[unknown_col, 3 ], [unknown_col, 1], [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]],
       hri    => [{ date => '2011-12-15 12:12:15.000' }],
       skip   => 'need working bindtypes',
     },
     oracle => {
       select => "((me.created_on + NUMTODSINTERVAL(?, 'day')) + NUMTODSINTERVAL(?, 'second'))",
       where => "me.id = ?",
-      bind   => [['', 1], [ '', 3 ], ['me.id', 2]],
+      bind   => [[unknown_col, 1], [unknown_col, 3 ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]],
       hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
     },
   },
