@@ -18,7 +18,7 @@ my @modules = grep {
 
   # not all modules are loadable at all times
   eval "require $mod" ? $mod : do {
-    SKIP: { skip "Failed require of $mod: $@", 1 }A
+    SKIP: { skip "Failed require of $mod: $@", 1 };
     ();
   };
 
