@@ -3,8 +3,6 @@ use warnings;
 
 use Test::More;
 
-plan ( tests => 5 );
-
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -68,3 +66,28 @@ my $rscol = $art_rs->get_column( 'charfield' );
   my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $rs->get_column('cdid')->as_query } } );
   is($subsel_rs->count, $rs->count, 'Subselect on PK got the same row count');
 }
+
+
+is_same_sql_bind($schema->resultset('Artist')->search({
+   rank => 1,
+}, {
+   from => $schema->resultset('Artist')->search({ 'name' => 'frew'})->as_query,
+})->as_query,
+   '(SELECT me.artistid, me.name, me.rank, me.charfield FROM (
+     SELECT me.artistid, me.name, me.rank, me.charfield FROM
+       artist me
+       WHERE (
+         ( name = ? )
+       )
+     ) WHERE (
+       ( rank = ? )
+     )
+   )',
+   [
+      [{ dbic_colname => 'name', sqlt_datatype => 'varchar', sqlt_size => 100 }, 'frew'],
+      [{ dbic_colname => 'rank' }, 1],
+   ],
+   'from => ...->as_query works'
+);
+
+done_testing;

@@ -39,6 +39,7 @@ Revision history for DBIx::Class
           condition elements
         - Change SQLMaker carp-monkeypatch to be compatible with versions
           of SQL::Abstract >= 1.73
+        - Fix using \[] literals in the from resultset attribute
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

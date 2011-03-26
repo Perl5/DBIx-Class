@@ -357,8 +357,12 @@ sub _table {
     elsif ($ref eq 'HASH') {
       return $_[0]->_recurse_from($_[1]);
     }
+    elsif ($ref eq 'REF' && ref ${$_[1]} eq 'ARRAY') {
+      my ($sql, @bind) = @{ ${$_[1]} };
+      push @{$_[0]->{from_bind}}, @bind;
+      return $sql
+    }
   }
-
   return $_[0]->next::method ($_[1]);
 }
 
