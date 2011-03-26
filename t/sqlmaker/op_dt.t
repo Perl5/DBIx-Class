@@ -55,7 +55,7 @@ $s;
    },
    ## copypasta'd for great justice
    postgres =>  do {
-      my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_POSTGRES_${_}" } qw/DSN USER PASS/};
+      my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
       if ($dsn && $user) {
          my $s = DBICTest::Schema->connect($dsn, $user, $pass);
          try { $s->storage->ensure_connected };
