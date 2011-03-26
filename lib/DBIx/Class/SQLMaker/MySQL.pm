@@ -77,11 +77,22 @@ sub _datetime_now_sql { 'NOW()' }
        unless exists $part_map{$_[1]};
     "EXTRACT($part_map{$_[1]} FROM $_[2])"
   }
+  sub _reorder_add_datetime_vars {
+     my ($self, $amount, $date) = @_;
+
+     return ($date, $amount);
+  }
   sub _datetime_add_sql {
     die $_[0]->_unsupported_date_adding($_[1], 'MySQL')
        unless exists $diff_part_map{$_[1]};
     "DATE_ADD($_[2], INTERVAL $_[3] $diff_part_map{$_[1]})"
   }
+  sub _reorder_diff_datetime_vars {
+    my ($self, $d1, $d2) = @_;
+
+    return ($d2, $d1);
+  }
+
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'MySQL')
        unless exists $diff_part_map{$_[1]};
