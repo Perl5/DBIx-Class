@@ -225,6 +225,12 @@ sub _ping {
   };
 }
 
+sub bind_attribute_by_data_type {
+  shift->is_datatype_numeric(shift)
+    ? do { require DBI; DBI::SQL_INTEGER() }
+    : {}
+}
+
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::MSSQL::DateTime::Format;
 

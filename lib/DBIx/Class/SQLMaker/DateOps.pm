@@ -4,13 +4,12 @@ use base qw/
   Class::Accessor::Grouped
 /;
 __PACKAGE__->mk_group_accessors (simple => qw/datetime_parser/);
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use Sub::Name 'subname';
 
 sub _where_op_CONVERT_DATETIME {
   my $self = shift;
   my ($op, $rhs) = splice @_, -2;
-  croak "-$op takes a DateTime only" unless ref $rhs  && $rhs->isa('DateTime');
+  $self->throw_exception("-$op takes a DateTime only") unless ref $rhs && $rhs->isa('DateTime');
 
   # in case we are called as a top level special op (no '=')
   my $lhs = shift;
@@ -66,8 +65,8 @@ sub _where_op_GET_DATETIME {
      $vals = $_[3];
   }
 
-  croak 'args to -dt_get must be an arrayref' unless ref $vals eq 'ARRAY';
-  croak 'first arg to -dt_get must be a scalar or ARRAY ref' unless !ref $vals->[0] || ref $vals->[0] eq 'ARRAY';
+  $self->throw_exception('args to -dt_get must be an arrayref') unless ref $vals eq 'ARRAY';
+  $self->throw_exception('first arg to -dt_get must be a scalar or ARRAY ref') unless !ref $vals->[0] || ref $vals->[0] eq 'ARRAY';
 
   my $part = $vals->[0];
   my $val  = $vals->[1];
@@ -136,14 +135,14 @@ sub _where_op_DATETIME_NOW {
      $vals = $_[3];
   }
 
-  croak "args to -$op must be an arrayref" unless ref $vals eq 'ARRAY';
+  $self->throw_exception("args to -$op must be an arrayref") unless ref $vals eq 'ARRAY';
   if (!exists $vals->[0]) {
      return $self->_datetime_now_sql()
   } elsif ($vals->[0] eq 'system') {
      require DateTime;
      return $self->_where_op_CONVERT_DATETIME('dt', DateTime->now);
   } else {
-     croak "first arg to -$op must be a 'system' or non-existant"
+     $self->throw_exception("first arg to -$op must be a 'system' or non-existant")
   }
 }
 
@@ -152,6 +151,30 @@ sub _reorder_add_datetime_vars {
 
    return ($amount, $date);
 }
+
+sub _dt_arg_transform {
+  my ($self, $k, $val) = @_;
+  my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+     SCALAR => sub {
+       return ($self->_convert('?'), $self->_bindtype($k, $val) );
+     },
+     SCALARREF => sub {
+       return $$val;
+     },
+     ARRAYREFREF => sub {
+       my ($sql, @bind) = @$$val;
+       $self->_assert_bindval_matches_bindtype(@bind);
+       return ($sql, @bind);
+     },
+     HASHREF => sub {
+       my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+       $self->$method('', $val);
+     }
+  });
+  return ($sql, @bind);
+}
+
+sub _where_op_ADD_DATETIME_transform_args { $_[0]->_dt_arg_transform($_[2], $_[3]) }
 
 sub _where_op_ADD_DATETIME {
   my ($self) = @_;
@@ -168,35 +191,19 @@ sub _where_op_ADD_DATETIME {
      $vals = $_[3];
   }
 
-  croak "args to -$op must be an arrayref" unless ref $vals eq 'ARRAY';
-  croak "first arg to -$op must be a scalar" unless !ref $vals->[0];
-  croak "-$op must have two more arguments" unless scalar @$vals == 3;
+  $self->throw_exception("args to -$op must be an arrayref") unless ref $vals eq 'ARRAY';
+  $self->throw_exception("first arg to -$op must be a scalar") unless !ref $vals->[0];
+  $self->throw_exception("-$op must have two more arguments") unless scalar @$vals == 3;
 
   my ($part, @rest) = @$vals;
 
-  my $placeholder = $self->_convert('?');
-
   my (@all_sql, @all_bind);
+  my $i = 0;
   foreach my $val ($self->_reorder_add_datetime_vars(@rest)) {
-    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-       SCALAR => sub {
-         return ($placeholder, $self->_bindtype($k, $val) );
-       },
-       SCALARREF => sub {
-         return $$val;
-       },
-       ARRAYREFREF => sub {
-         my ($sql, @bind) = @$$val;
-         $self->_assert_bindval_matches_bindtype(@bind);
-         return ($sql, @bind);
-       },
-       HASHREF => sub {
-         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
-         $self->$method('', $val);
-       }
-    });
+    my ($sql, @bind) = $self->_where_op_ADD_DATETIME_transform_args($i, $k, $val);
     push @all_sql, $sql;
     push @all_bind, @bind;
+    $i++;
   }
 
   return $self->_datetime_add_sql($part, $all_sql[0], $all_sql[1]), @all_bind
@@ -223,9 +230,9 @@ sub _where_op_DIFF_DATETIME {
      $vals = $_[3];
   }
 
-  croak 'args to -dt_diff must be an arrayref' unless ref $vals eq 'ARRAY';
-  croak 'first arg to -dt_diff must be a scalar' unless !ref $vals->[0];
-  croak '-dt_diff must have two more arguments' unless scalar @$vals == 3;
+  $self->throw_exception('args to -dt_diff must be an arrayref') unless ref $vals eq 'ARRAY';
+  $self->throw_exception('first arg to -dt_diff must be a scalar') unless !ref $vals->[0];
+  $self->throw_exception('-dt_diff must have two more arguments') unless scalar @$vals == 3;
 
   my ($part, @val) = @$vals;
   my $placeholder = $self->_convert('?');
@@ -233,23 +240,7 @@ sub _where_op_DIFF_DATETIME {
   @val = $self->_reorder_diff_datetime_vars(@val);
   my (@all_sql, @all_bind);
   foreach my $val (@val) {
-    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-       SCALAR => sub {
-         return ($placeholder, $self->_bindtype($k, $val) );
-       },
-       SCALARREF => sub {
-         return $$val;
-       },
-       ARRAYREFREF => sub {
-         my ($sql, @bind) = @$$val;
-         $self->_assert_bindval_matches_bindtype(@bind);
-         return ($sql, @bind);
-       },
-       HASHREF => sub {
-         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
-         $self->$method('', $val);
-       }
-    });
+    my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
     push @all_sql, $sql;
     push @all_bind, @bind;
   }

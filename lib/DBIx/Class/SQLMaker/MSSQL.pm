@@ -56,8 +56,9 @@ sub _datetime_now_sql { 'NOW()' }
     die $self->_unsupported_date_adding($part, 'Microsoft SQL Server')
       unless exists $diff_part_map{$part};
 
-    my $placeholder = $self->_convert('?');
-    return "(DATEADD($diff_part_map{$part}, $amount, $date))"
+    return "(DATEADD($diff_part_map{$part}, " .
+      ($self->using_freetds && $amount eq '?' ? "CAST($amount AS INTEGER)" : $amount )
+      . ", $date))"
   }
 }
 
@@ -90,5 +91,15 @@ The function used to diff dates is C<DATEDIFF>, which supports
  millisecond
 
 =cut
+
+sub _where_op_ADD_DATETIME_transform_args {
+   my ($self, $i, $k, $val) = @_;
+
+   if ($i == 0 && !ref $val) {
+      return $self->_convert('?'), [\'integer' => $val ]
+   } else {
+      return $self->next::method($i, $k, $val)
+   }
+}
 
 1;

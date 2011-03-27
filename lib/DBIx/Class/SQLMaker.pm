@@ -513,8 +513,8 @@ sub _where_op_FUNC {
   my $label       = $self->_convert($self->_quote($k));
   my $placeholder = $self->_convert('?');
 
-  croak '-func must be an array' unless ref $vals eq 'ARRAY';
-  croak 'first arg for -func must be a scalar' unless !ref $vals->[0];
+  $self->throw_exception('-func must be an array') unless ref $vals eq 'ARRAY';
+  $self->throw_exception('first arg for -func must be a scalar') unless !ref $vals->[0];
 
   my ($func,@rest_of_vals) = @$vals;
 
@@ -567,8 +567,8 @@ sub _where_op_OP {
   my $label       = $self->_convert($self->_quote($k));
   my $placeholder = $self->_convert('?');
 
-  croak 'argument to -op must be an arrayref' unless ref $vals eq 'ARRAY';
-  croak 'first arg for -op must be a scalar' unless !ref $vals->[0];
+  $self->throw_exception('argument to -op must be an arrayref') unless ref $vals eq 'ARRAY';
+  $self->throw_exception('first arg for -op must be a scalar') unless !ref $vals->[0];
 
   my ($op, @rest_of_vals) = @$vals;
 
