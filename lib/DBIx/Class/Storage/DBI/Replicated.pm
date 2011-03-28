@@ -268,7 +268,6 @@ my $method_dispatch = {
     txn_commit
     txn_rollback
     txn_scope_guard
-    sth
     deploy
     with_deferred_fk_checks
     dbh_do
@@ -322,6 +321,7 @@ my $method_dispatch = {
     _resolve_aliastypes_from_select_args
     _execute
     _do_query
+    _sth
     _dbh_sth
     _dbh_execute
   /],
@@ -357,6 +357,8 @@ my $method_dispatch = {
     _is_lob_type
     _is_binary_lob_type
     _is_text_lob_type
+
+    sth
   /,(
     # the capability framework
     # not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem

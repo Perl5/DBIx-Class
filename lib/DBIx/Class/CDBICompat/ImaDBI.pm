@@ -86,7 +86,7 @@ sub set_sql {
     sub {
       my $sql = $sql;
       my $class = shift;
-      return $class->storage->sth($class->transform_sql($sql, @_));
+      return $class->storage->_sth($class->transform_sql($sql, @_));
     };
   if ($sql =~ /select/i) {
     my $search_name = "search_${name}";

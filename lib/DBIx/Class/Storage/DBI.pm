@@ -16,7 +16,6 @@ use Try::Tiny;
 use overload ();
 use namespace::clean;
 
-
 # default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
@@ -799,7 +798,7 @@ sub dbh_do {
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
 # It also informs dbh_do to bypass itself while under the direction of txn_do,
-#  via $self->{_in_dbh_do} (this saves some redundant eval and errorcheck, etc)
+# via $self->{_in_dbh_do} (this saves some redundant eval and errorcheck, etc)
 sub txn_do {
   my $self = shift;
   my $coderef = shift;
@@ -1639,7 +1638,7 @@ sub _dbh_execute {
 
   $self->_query_start( $sql, @$bind );
 
-  my $sth = $self->sth($sql,$op);
+  my $sth = $self->_sth($sql,$op);
 
   my $placeholder_index = 1;
 
@@ -1850,7 +1849,7 @@ sub insert_bulk {
   my $guard = $self->txn_scope_guard;
 
   $self->_query_start( $sql, @$bind ? [ dummy => '__BULK_INSERT__' ] : () );
-  my $sth = $self->sth($sql);
+  my $sth = $self->_sth($sql);
   my $rv = do {
     if (@$bind) {
       #@bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
@@ -2316,6 +2315,11 @@ sub _dbh_sth {
 }
 
 sub sth {
+  carp_unique 'sth was mistakenly marked/documented as public, stop calling it (will be removed before DBIC v0.09)';
+  shift->_sth(@_);
+}
+
+sub _sth {
   my ($self, $sql) = @_;
   $self->dbh_do('_dbh_sth', $sql);  # retry over disconnects
 }

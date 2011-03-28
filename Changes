@@ -7,6 +7,8 @@ Revision history for DBIx::Class
         - Both the ::ODBC and ::ADO dispatchers now warn if a rdbms-specific
           driver is not found for this connection before falling back to
           plain ::Storage::DBI
+        - ::Storage::DBI::sth was mistakenly marked/documented as public,
+          privatize and warn on deprecated use
 
     * Fixes
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls
