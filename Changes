@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           privatize and warn on deprecated use
         - Massive overhaul of bind values/attributes handling - slightly
           changes the output of as_query (should not cause compat issues)
+        - Support ancient DB2 versions (5.4 and older), with proper limit
+          dialect
 
     * Fixes
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls

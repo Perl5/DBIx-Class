@@ -5,45 +5,81 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+use Try::Tiny;
+use namespace::clean;
 
-__PACKAGE__->sql_limit_dialect ('RowNumberOver');
-__PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type('DateTime::Format::DB2');
+__PACKAGE__->sql_quote_char ('"');
 
-sub _dbh_last_insert_id {
-    my ($self, $dbh, $source, $col) = @_;
+# lazy-default kind of thing
+sub sql_name_sep {
+  my $self = shift;
 
-    my $sth = $dbh->prepare_cached('VALUES(IDENTITY_VAL_LOCAL())', {}, 3);
-    $sth->execute();
+  my $v = $self->next::method(@_);
 
-    my @res = $sth->fetchrow_array();
+  if (! defined $v and ! @_) {
+    $v = $self->next::method($self->_dbh_get_info(41) || '.');
+  }
 
-    return @res ? $res[0] : undef;
+  return $v;
 }
 
+sub sql_limit_dialect {
+  my $self = shift;
+
+  my $v = $self->next::method(@_);
+
+  if (! defined $v and ! @_) {
+    $v = $self->next::method(
+      ($self->_server_info->{normalized_dbms_version}||0) >= 5.004
+        ? 'RowNumberOver'
+        : 'FetchFirst'
+    );
+  }
+
+  return $v;
+}
+
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $source, $col) = @_;
+
+  my $name_sep = $self->sql_name_sep;
+
+  my $sth = $dbh->prepare_cached(
+    # An older equivalent of 'VALUES(IDENTITY_VAL_LOCAL())', for compat
+    # with ancient DB2 versions. Should work on modern DB2's as well:
+    # http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.ibm.db2.udb.doc/admin/r0002369.htm?resultof=%22%73%79%73%64%75%6d%6d%79%31%22%20
+    "SELECT IDENTITY_VAL_LOCAL() FROM sysibm${name_sep}sysdummy1",
+    {},
+    3
+  );
+  $sth->execute();
+
+  my @res = $sth->fetchrow_array();
+
+  return @res ? $res[0] : undef;
+}
 
 1;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::DB2 - Automatic primary key class for DB2
-
-=head1 SYNOPSIS
-
-  # In your table classes
-  use base 'DBIx::Class::Core';
-  __PACKAGE__->set_primary_key('id');
+DBIx::Class::Storage::DBI::DB2 - IBM DB2 support for DBIx::Class
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for DB2.
+This class implements autoincrements for DB2, sets the limit dialect to
+RowNumberOver over FetchFirst depending on the availability of support for
+RowNumberOver, queries the server name_sep from L<DBI> and sets the L<DateTime>
+parser to L<DateTime::Format::DB2>.
 
-=head1 AUTHORS
+=head1 AUTHOR
 
-Jess Robinson
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim:sts=2 sw=2:

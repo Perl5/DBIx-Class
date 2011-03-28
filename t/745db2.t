@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -16,6 +17,23 @@ plan skip_all => 'Set $ENV{DBICTEST_DB2_DSN}, _USER and _PASS to run this test'
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
+
+# test RNO and name_sep detection
+my $name_sep = $dbh->get_info(41);
+
+is $schema->storage->sql_maker->name_sep, $name_sep,
+  'name_sep detection';
+
+my $have_rno = try {
+  $dbh->selectrow_array(
+"SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
+  );
+  1;
+};
+
+is $schema->storage->sql_maker->limit_dialect,
+  ($have_rno ? 'RowNumberOver' : 'FetchFirst'),
+  'limit_dialect detection';
 
 eval { $dbh->do("DROP TABLE artist") };
 
@@ -85,6 +103,25 @@ is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
+# test FetchFirst limit dialect syntax
+{
+  local $schema->storage->sql_maker->{limit_dialect} = 'FetchFirst';
+
+  my $lim = $ars->search({}, {
+    rows => 3,
+    offset => 2,
+    order_by => 'artistid',
+  });
+
+  is $lim->count, 3, 'fetch first limit count ok';
+
+  is $lim->all, 3, 'fetch first number of ->all objects matches count';
+
+  is $lim->next->artistid, 3, 'iterator->next ok';
+  is $lim->next->artistid, 66, 'iterator->next ok';
+  is $lim->next->artistid, 101, 'iterator->next ok';
+  is $lim->next, undef, 'iterator->next past end of resultset ok';
+}
 
 my $test_type_info = {
     'artistid' => {
