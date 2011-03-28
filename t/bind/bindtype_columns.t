@@ -41,13 +41,13 @@ my $new;
   $new = $schema->resultset('BindType')->create({ bytea => $big_long_string });
 
   ok($new->id, "Created a bytea row");
-  is($new->bytea, $big_long_string, "Set the blob correctly.");
+  ok($new->bytea eq $big_long_string, "Set the blob correctly.");
 }
 
 # test retrieval of the bytea column
 {
   my $row = $schema->resultset('BindType')->find({ id => $new->id });
-  is($row->get_column('bytea'), $big_long_string, "Created the blob correctly.");
+  ok($row->get_column('bytea') eq $big_long_string, "Created the blob correctly.");
 }
 
 {
@@ -65,7 +65,7 @@ my $new;
     $schema->txn_do(sub {
       $rs->update({ bytea => $new_big_long_string });
       my $row = $schema->resultset('BindType')->find({ id => $new->id });
-      is($row ? $row->get_column('bytea') : undef, $new_big_long_string,
+      ok( ($row ? $row->get_column('bytea') : '') eq $new_big_long_string,
         "Updated the row correctly (searching on the bytea column)."
       );
       $schema->txn_rollback;
@@ -84,9 +84,9 @@ my $new;
 
   # create with blob from $rs
   $new = $rs->create({});
-  is($new->bytea, $big_long_string, 'Object has bytea value from $rs');
+  ok($new->bytea eq $big_long_string, 'Object has bytea value from $rs');
   $new->discard_changes;
-  is($new->bytea, $big_long_string, 'bytea value made it to db');
+  ok($new->bytea eq $big_long_string, 'bytea value made it to db');
 }
 
 done_testing;
