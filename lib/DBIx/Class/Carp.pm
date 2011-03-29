@@ -44,6 +44,13 @@ my $warn = sub {
   );
 };
 
+# FIXME - see below
+BEGIN {
+  *__BROKEN_NC = ($] < 5.008003)
+    ? sub () { 1 }
+    : sub () { 0 }
+  ;
+}
 sub import {
   my (undef, $skip_pattern) = @_;
   my $into = caller;
@@ -91,7 +98,11 @@ sub import {
   };
 
   # cleanup after ourselves
-  namespace::clean->import(-cleanee => $into, qw/carp carp_once carp_unique/);
+  namespace::clean->import(-cleanee => $into, qw/carp carp_once carp_unique/)
+    ## FIXME FIXME FIXME - something is tripping up V::M on 5.8.1, leading
+    # to segfaults. When n::c/B::H::EndOfScope is rewritten in terms of tie()
+    # see if this starts working
+    unless __BROKEN_NC();
 }
 
 sub unimport {

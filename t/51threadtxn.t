@@ -12,8 +12,8 @@ BEGIN {
 }
 
 BEGIN {
-    plan skip_all => 'Minimum of perl 5.8.3 required for thread tests (DBD::Pg mandated)'
-        if $] < '5.008003';
+    plan skip_all => 'Minimum of perl 5.8.5 required for thread tests (DBD::Pg mandated)'
+        if $] < '5.008005';
 }
 
 
@@ -31,9 +31,6 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
 }
 
 use_ok('DBICTest::Schema');
-
-diag "\n\nIt is ok if you see series of 'Attempt to free unreferenced scalar: ...' warnings during this test\n "
-  if $] < '5.008005';
 
 my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 

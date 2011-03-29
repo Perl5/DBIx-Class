@@ -6,9 +6,11 @@ use Test::More;
 use File::Find;
 use File::Spec;
 use B qw/svref_2object/;
+use Package::Stash;
 
 # makes sure we can load at least something
 use DBIx::Class;
+use DBIx::Class::Carp;
 
 my @modules = grep {
   my $mod = $_;
@@ -38,6 +40,9 @@ my $skip_idx = { map { $_ => 1 } (
   # G::L::D is unclean, but we never inherit from it
   'DBIx::Class::Admin::Descriptive',
   'DBIx::Class::Admin::Usage',
+
+  # exempt due to the __BROKEN_NC constant
+  'DBIx::Class::Carp',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
@@ -52,15 +57,10 @@ for my $mod (@modules) {
   SKIP: {
     skip "$mod exempt from namespace checks",1 if $skip_idx->{$mod};
 
-    my %all_method_like = do {
-      no strict 'refs';
-      map {
-        my $m = $_;
-        map
-          { *{"${m}::$_"}{CODE} ? ( $_ => *{"${m}::$_"}{CODE} ) : () }
-          keys %{"${m}::"}
-      } (reverse @{mro::get_linear_isa($mod)});
-    };
+    my %all_method_like = (map
+      { %{Package::Stash->new($_)->get_all_symbols('CODE')} }
+      (reverse @{mro::get_linear_isa($mod)})
+    );
 
     my %parents = map { $_ => 1 } @{mro::get_linear_isa($mod)};
 
@@ -72,6 +72,8 @@ for my $mod (@modules) {
     }
 
     for my $name (keys %all_method_like) {
+
+      next if ( DBIx::Class::Carp::__BROKEN_NC() and $name =~ /^carp(?:_unique|_once)?$/ );
 
       # overload is a funky thing - it is neither cleaned, and its imports are named funny
       next if $name =~ /^\(/;
@@ -111,6 +113,8 @@ for my $mod (@modules) {
         );
       }
     }
+
+    next if DBIx::Class::Carp::__BROKEN_NC();
 
     # some common import names (these should never ever be methods)
     for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {

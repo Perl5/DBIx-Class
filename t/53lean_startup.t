@@ -15,8 +15,6 @@ use strict;
 use warnings;
 use Test::More;
 
-use Carp;
-
 BEGIN {
   my $core_modules = { map { $_ => 1 } qw/
     strict

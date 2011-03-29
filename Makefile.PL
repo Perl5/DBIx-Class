@@ -53,6 +53,10 @@ my $test_requires = {
   'Test::Exception'          => '0.31',
   'Test::More'               => '0.92',
   'Test::Warn'               => '0.21',
+
+  # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
+  # remove and do a manual glob-collection if n::c is no longer a dep
+  'Package::Stash'           => '0.28',
 };
 
 my $runtime_requires = {
