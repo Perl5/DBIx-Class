@@ -504,6 +504,8 @@ victori: Victor Igumnov <victori@cpan.org>
 
 wdh: Will Hawes
 
+wesm: Wes Malone <wes@mitsi.com>
+
 willert: Sebastian Willert <willert@cpan.org>
 
 wreis: Wallace Reis <wreis@cpan.org>
