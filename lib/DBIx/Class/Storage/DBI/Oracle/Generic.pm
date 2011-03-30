@@ -70,7 +70,7 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 This class implements base Oracle support. The subclass
 L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> is for C<(+)> joins in Oracle
-versions before 9.
+versions before 9.0.
 
 =head1 METHODS
 

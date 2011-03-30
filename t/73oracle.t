@@ -73,10 +73,13 @@ my $v = do {
   sprintf('%d.%03d', $1, $2);
 };
 
+# while 8i (8.1) does not document support for ansi joins, and the the drivers do not use
+# them because performance sucks, there is strong evidence they are in fact supported
+# means we can test 'em :)
 my $test_server_supports_only_orajoins = $v < 8.001;
 
 # TODO find out which version supports the RETURNING syntax
-# 8i has it and earlier docs are a 404 on oracle.com
+# 8i (8.1) has it and earlier docs are a 404 on oracle.com
 my $test_server_supports_insert_returning = $v >= 8.001;
 
 is (
@@ -383,6 +386,7 @@ sub _run_tests {
     $schema->storage->debug (0);
 
     local $TODO = 'Something is confusing column bindtype assignment when quotes are active'
+                . ': https://rt.cpan.org/Ticket/Display.html?id=64206'
       if $q;
 
     foreach my $type (qw( blob clob )) {
