@@ -23,6 +23,8 @@ Revision history for DBIx::Class
           from 0542ec57 and 4c2b30d6)
         - Fix remaining errors with Oracle and identifiers longer than the
           Oracle-imposed maximum of 30 characters (RT#66390)
+        - Fix older oracle-specific "WhereJoins" to work properly with
+          name quoting
         - Fix problems with M.A.D. under CGI::SpeedyCGI (RT#65131)
         - Better error handling when prepare() fails silently
         - Fixes skipped lines when a comment is followed by a statement

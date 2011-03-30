@@ -64,6 +64,27 @@ DBICTest::Schema::CD->load_components('PK::Auto::Oracle');
 DBICTest::Schema::Track->load_components('PK::Auto::Oracle');
 
 
+# check if we indeed do support stuff
+my $v = do {
+  my $v = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_dbh_get_info(18);
+  $v =~ /^(\d+)\.(\d+)/
+    or die "Unparseable Oracle server version: $v\n";
+
+  sprintf('%d.%03d', $1, $2);
+};
+
+my $test_server_supports_only_orajoins = $v < 8.001;
+
+# TODO find out which version supports the RETURNING syntax
+# 8i has it and earlier docs are a 404 on oracle.com
+my $test_server_supports_insert_returning = $v >= 8.001;
+
+is (
+  DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
+  $test_server_supports_insert_returning,
+  'insert returning capability guessed correctly'
+);
+
 ##########
 # recyclebin sometimes comes in the way
 my $on_connect_sql = ["ALTER SESSION SET recyclebin = OFF"];
@@ -71,60 +92,39 @@ my $on_connect_sql = ["ALTER SESSION SET recyclebin = OFF"];
 # iterate all tests on following options
 my @tryopt = (
   { on_connect_do => $on_connect_sql },
-  { quote_char => '"', on_connect_do => $on_connect_sql, },
+  { quote_char => '"', on_connect_do => $on_connect_sql },
 );
 
 # keep a database handle open for cleanup
 my ($dbh, $dbh2);
 
-# test insert returning
-
-# check if we indeed do support stuff
-my $test_server_supports_insert_returning = do {
-  my $v = DBICTest::Schema->connect($dsn, $user, $pass)
-                   ->storage
-                    ->_get_dbh
-                     ->get_info(18);
-  $v =~ /^(\d+)\.(\d+)/
-    or die "Unparseable Oracle server version: $v\n";
-
-# TODO find out which version supports the RETURNING syntax
-# 8i has it and earlier docs are a 404 on oracle.com
-  ( $1 > 8 || ($1 == 8 && $2 >= 1) ) ? 1 : 0;
-};
-is (
-  DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
-  $test_server_supports_insert_returning,
-  'insert returning capability guessed correctly'
-);
-
 my $schema;
-for my $use_insert_returning ($test_server_supports_insert_returning
-  ? (1,0)
-  : (0)
-) {
+for my $use_insert_returning ($test_server_supports_insert_returning ? (1,0) : (0) ) {
+  for my $force_ora_joins ($test_server_supports_only_orajoins ? (0) : (0,1) ) {
 
-  no warnings qw/once/;
-  local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
-    my $s = shift->next::method (@_);
-    $s->storage->_use_insert_returning ($use_insert_returning);
-    $s;
-  };
+    no warnings qw/once/;
+    local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+      my $s = shift->next::method (@_);
+      $s->storage->_use_insert_returning ($use_insert_returning);
+      $s->storage->sql_maker_class('DBIx::Class::SQLMaker::OracleJoins') if $force_ora_joins;
+      $s;
+    };
 
-  for my $opt (@tryopt) {
-    # clean all cached sequences from previous run
-    for (map { values %{DBICTest::Schema->source($_)->columns_info} } (qw/Artist CD Track/) ) {
-      delete $_->{sequence};
+    for my $opt (@tryopt) {
+      # clean all cached sequences from previous run
+      for (map { values %{DBICTest::Schema->source($_)->columns_info} } (qw/Artist CD Track/) ) {
+        delete $_->{sequence};
+      }
+
+      my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opt);
+
+      $dbh = $schema->storage->dbh;
+      my $q = $schema->storage->sql_maker->quote_char || '';
+
+      do_creates($dbh, $q);
+
+      _run_tests($schema, $opt);
     }
-
-    my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opt);
-
-    $dbh = $schema->storage->dbh;
-    my $q = $schema->storage->sql_maker->quote_char || '';
-
-    do_creates($dbh, $q);
-
-    _run_tests($schema, $opt);
   }
 }
 
@@ -196,7 +196,6 @@ sub _run_tests {
   is( $it->next->name, "Artist 5", "iterator->next ok" );
   is( $it->next->name, "Artist 6", "iterator->next ok" );
   is( $it->next, undef, "next past end of resultset ok" );
-
 
 # test identifiers over the 30 char limit
   lives_ok {
@@ -450,6 +449,48 @@ sub _run_tests {
     [ 1,2,3, map { $seq_pos + $_ } (1,2,3) ],
     'Partially failed populate did not alter table contents'
   );
+
+# test complex join (exercise orajoins)
+  lives_ok {
+    my @hri = $schema->resultset('CD')->search(
+      { 'artist.name' => 'pop_art_1', 'me.cdid' => { '!=', 999} },
+      { join => 'artist', prefetch => 'tracks', rows => 4, order_by => 'tracks.trackid' }
+    )->hri_dump->all;
+
+    my $expect = [{
+      artist => 1,
+      cdid => 1,
+      genreid => undef,
+      single_track => undef,
+      title => "EP C",
+      tracks => [
+        {
+          cd => 1,
+          last_updated_at => undef,
+          last_updated_on => undef,
+          position => 1,
+          title => "Track1",
+          trackid => 1
+        },
+        {
+          cd => 1,
+          last_updated_at => undef,
+          last_updated_on => undef,
+          position => 1,
+          title => "Track2",
+          trackid => 2
+        },
+      ],
+      year => 2003
+    }];
+
+    is_deeply (
+      \@hri,
+      $expect,
+      'Correct set of data prefetched',
+    );
+
+  } 'complex prefetch ok';
 
 # test sequence detection from a different schema
   SKIP: {
