@@ -10,6 +10,7 @@ sub _datetime_now_sql { 'NOW()' }
   my %part_map = (
      century             => 'CENTURY',
      decade              => 'DECADE',
+     day                 => 'DAY',
      day_of_month        => 'DAY',
      day_of_week         => 'DOW',
      day_of_year         => 'DOY',
@@ -32,12 +33,11 @@ sub _datetime_now_sql { 'NOW()' }
   );
 
   my %diff_part_map = %part_map;
-  $diff_part_map{day} = delete $diff_part_map{day_of_month};
 
   sub _datetime_sql {
     die $_[0]->_unsupported_date_extraction($_[1], 'PostgreSQL')
        unless exists $part_map{$_[1]};
-    "EXTRACT($part_map{$_[1]} FROM $_[2])"
+    "date_part('$part_map{$_[1]}',  $_[2])"
   }
   sub _datetime_diff_sql {
     die $_[0]->_unsupported_date_diff($_[1], 'PostgreSQL')
@@ -49,7 +49,7 @@ sub _datetime_now_sql { 'NOW()' }
         $field_to_extract = $diff_part_map{$_[1]};
     }
     ## adjusting this HERE as second will be needed elsewhere
-    "EXTRACT($field_to_extract FROM ($_[2]::timestamp with time zone - $_[3]::timestamp with time zone))"
+    "date_part('$field_to_extract', $_[2]) - date_part('$field_to_extract', $_[3])"
   }
 
   sub _reorder_add_datetime_vars {
@@ -64,7 +64,7 @@ sub _datetime_now_sql { 'NOW()' }
     die $self->_unsupported_date_adding($part, 'PostgreSQL')
       unless exists $diff_part_map{$part};
 
-    return "($date + $amount || ' $part_map{$part}'))"
+    return "($date + $amount * interval '1 $part_map{$part}')"
   }
 }
 

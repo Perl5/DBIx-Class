@@ -270,7 +270,7 @@ my @tests = (
       hri    => [{ year => 2010 }],
     },
     postgres => {
-      select => "EXTRACT(year FROM me.created_on)",
+      select => "date_part('year', me.created_on)",
       where => "me.id = ?",
       bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
@@ -308,7 +308,7 @@ my @tests = (
       hri    => [{ year => 2010, month => 12 }],
     },
     postgres => {
-      select => "EXTRACT(year FROM me.created_on), EXTRACT(month FROM me.created_on)",
+      select => "date_part('year', me.created_on), date_part('month', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ year => 2010, month => 12 }],
@@ -345,7 +345,7 @@ my @tests = (
       hri    => [{ month => 12 }],
     },
     postgres => {
-      select => "EXTRACT(month FROM me.created_on)",
+      select => "date_part('month', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ month => 12 }],
@@ -382,7 +382,7 @@ my @tests = (
       hri    => [{ day => 14 }],
     },
     postgres => {
-      select => "EXTRACT(day FROM me.created_on)",
+      select => "date_part('day', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ day => 14 }],
@@ -419,7 +419,7 @@ my @tests = (
       hri    => [{ hour => 12 }],
     },
     postgres => {
-      select => "EXTRACT(hour FROM me.created_on)",
+      select => "date_part('hour', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ hour => 12 }],
@@ -456,7 +456,7 @@ my @tests = (
       hri    => [{ minute => 12 }],
     },
     postgres => {
-      select => "EXTRACT(minute FROM me.created_on)",
+      select => "date_part('minute', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ minute => 12 }],
@@ -493,7 +493,7 @@ my @tests = (
       hri    => [{ second => 12 }],
     },
     postgres => {
-      select => "EXTRACT(second FROM me.created_on)",
+      select => "date_part('second', me.created_on)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
       hri    => [{ second => 12 }],
@@ -530,7 +530,7 @@ my @tests = (
       hri => [{ sec_diff => 2*24*60*60 }],
     },
     postgres => {
-      select   => "EXTRACT(epoch FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
+      select   => "date_part('EPOCH', me.created_on) - date_part('EPOCH', me.skip_inflation)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ sec_diff => 2*24*60*60 }],
@@ -567,7 +567,7 @@ my @tests = (
       hri => [{ day_diff => 2 }],
     },
     postgres => {
-      select   => "EXTRACT(DAY FROM (me.created_on::timestamp with time zone - me.skip_inflation::timestamp with time zone))",
+      select   => "date_part('DAY', me.created_on) - date_part('DAY', me.skip_inflation)",
       where => "me.id = ?",
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ day_diff => 2 }],
@@ -600,6 +600,12 @@ my @tests = (
       bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri => [{ year => -1 }],
     },
+    postgres => {
+      select   => "date_part('YEAR', me.starts_at) - date_part('YEAR', me.created_on)",
+      where => "me.id = ?",
+      bind   => [[{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ year => -1 }],
+    },
     oracle => {
       select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
       where => "me.id = ?",
@@ -631,6 +637,13 @@ my @tests = (
       bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2014-12-14 12:12:12' }],
     },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 YEAR')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2014-12-14 12:12:12' }],
+
+    },
     oracle => {
       select => "(me.created_on + NUMTOYMINTERVAL(?, 'year'))",
       where => "me.id = ?",
@@ -656,6 +669,13 @@ my @tests = (
       bind   => [[{sqlt_datatype => 'integer'}, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2012-03-14 12:12:12.000' }],
     },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 MONTH')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2012-03-14 12:12:12' }],
+    },
+
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? MONTH)",
       where => "me.id = ?",
@@ -687,6 +707,13 @@ my @tests = (
       bind   => [[{sqlt_datatype => 'integer'}, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-17 12:12:12.000' }],
     },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 DAY')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2011-12-17 12:12:12' }],
+    },
+
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? DAY)",
       where => "me.id = ?",
@@ -717,6 +744,12 @@ my @tests = (
       where => "me.id = ?",
       bind   => [[{sqlt_datatype => 'integer'}, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 15:12:12.000' }],
+    },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 HOUR')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2011-12-14 15:12:12' }],
     },
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? HOUR)",
@@ -749,6 +782,12 @@ my @tests = (
       bind   => [[{sqlt_datatype => 'integer'}, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:15:12.000' }],
     },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 MINUTE')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2011-12-14 12:15:12' }],
+    },
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? MINUTE)",
       where => "me.id = ?",
@@ -780,6 +819,12 @@ my @tests = (
       bind   => [[{sqlt_datatype => 'integer'}, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
       hri    => [{ date => '2011-12-14 12:12:15.000' }],
     },
+    postgres => {
+      select => "(me.created_on + ? * interval '1 SECOND')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2011-12-14 12:12:15' }],
+    },
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? SECOND)",
       where => "me.id = ?",
@@ -810,6 +855,12 @@ my @tests = (
       where => "me.id = ?",
       bind   => [[{sqlt_datatype => 'integer'}, 3 ], [{sqlt_datatype => 'integer'}, 1], [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]],
       hri    => [{ date => '2011-12-15 12:12:15.000' }],
+    },
+     postgres => {
+      select => "((me.created_on + ? * interval '1 DAY') + ? * interval '1 SECOND')",
+      where => "me.id = ?",
+      bind   => [[unknown_col, 1], [unknown_col, 3], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]],
+      hri    => [{ date => '2011-12-15 12:12:15' }],
     },
     mysql => {
       select => "DATE_ADD(DATE_ADD(me.created_on, INTERVAL ? DAY), INTERVAL ? SECOND)",
