@@ -335,6 +335,8 @@ debolaz: Anders Nor Berle <berle@cpan.org>
 
 dew: Dan Thomas <dan@godders.org>
 
+dhoss: Devin Austin <dhoss@cpan.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>

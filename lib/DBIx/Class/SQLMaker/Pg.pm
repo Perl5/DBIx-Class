@@ -118,5 +118,10 @@ The function used to diff dates is subtraction and C<EXTRACT>, which supports
 
 =cut
 
+=head2 CONTRIBUTORS
+
+Devin Austin (dhoss) <dhoss@cpan.org>
+
+=cut
 
 1;
