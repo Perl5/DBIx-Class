@@ -226,6 +226,7 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_year works',
     search => { 'me.id' => 1 },
     select => [ [ -dt_year => { -ident => 'me.created_on' } ] ],
     as     => [ 'year' ],
@@ -259,7 +260,43 @@ my @tests = (
       bind   => [[{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
       hri    => [{ year => 2010 }],
     },
-    msg    => '-dt_year works',
+  },
+
+  {
+    msg    => '-dt_year works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_year => $date ] ],
+    as     => [ 'year' ],
+    mssql => {
+      select => "DATEPART(year, ?)",
+      where => "me.id = ?",
+      bind   => [[{ sqlt_datatype => 'timestamp' } => '2010-12-14 12:12:12.000' ], [{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
+    mysql => {
+      select => "EXTRACT(YEAR FROM ?)",
+      where => "me.id = ?",
+      bind   => [[{ sqlt_datatype => 'timestamp' } => '2010-12-14 12:12:12' ], [{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
+    sqlite => {
+      select => "STRFTIME('%Y', ?)",
+      where => "me.id = ?",
+      bind   => [[{ sqlt_datatype => 'timestamp' } => '2010-12-14 12:12:12' ], [{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
+    postgres => {
+      select => "date_part('year', ?)",
+      where => "me.id = ?",
+      bind   => [[{ sqlt_datatype => 'timestamp' } => '2010-12-14 12:12:12' ], [{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
+    oracle => {
+      select => "EXTRACT(year FROM ?)",
+      where => "me.id = ?",
+      bind   => [[{ sqlt_datatype => 'timestamp' } => '2010-12-14 12:12:12' ], [{ dbic_colname => 'me.id', sqlt_datatype => 'integer' } => 1 ]],
+      hri    => [{ year => 2010 }],
+    },
   },
 
   {

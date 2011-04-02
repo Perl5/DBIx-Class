@@ -8,6 +8,7 @@ use base qw/
 /;
 __PACKAGE__->mk_group_accessors (simple => qw/datetime_parser/);
 use Sub::Name 'subname';
+use Scalar::Util 'blessed';
 
 sub _where_op_CONVERT_DATETIME {
   my $self = shift;
@@ -74,23 +75,7 @@ sub _where_op_GET_DATETIME {
   my $part = $vals->[0];
   my $val  = $vals->[1];
 
-  my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-     SCALAR => sub {
-       return ($self->_convert('?'), $self->_bindtype($k, $val) );
-     },
-     SCALARREF => sub {
-       return $$val;
-     },
-     ARRAYREFREF => sub {
-       my ($sql, @bind) = @$$val;
-       $self->_assert_bindval_matches_bindtype(@bind);
-       return ($sql, @bind);
-     },
-     HASHREF => sub {
-       my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
-       $self->$method('', $val);
-     }
-  });
+  my ($sql, @bind) = $self->_dt_arg_transform('', $val);
 
   if (!ref $part) {
     return $self->_datetime_sql($part, $sql), @bind;
@@ -156,7 +141,26 @@ sub _reorder_add_datetime_vars {
 }
 
 sub _dt_arg_transform {
+   my $self = shift;
+
+   my ($k, $val) = @_;
+
+   if (blessed $val && $val->isa('DateTime')) {
+     return (
+       $self->_convert('?'),
+       [
+         \'timestamp',
+         $self->datetime_parser->format_datetime($val)
+       ]
+     )
+   }
+
+   $self->_dt_arg_non_date_transform(@_);
+}
+
+sub _dt_arg_non_date_transform {
   my ($self, $k, $val) = @_;
+
   my ($sql, @bind) = $self->_SWITCH_refkind($val, {
      SCALAR => sub {
        return ($self->_convert('?'), $self->_bindtype($k, $val) );
@@ -177,7 +181,7 @@ sub _dt_arg_transform {
   return ($sql, @bind);
 }
 
-sub _where_op_ADD_DATETIME_transform_args { $_[0]->_dt_arg_transform($_[2], $_[3]) }
+sub _where_op_ADD_DATETIME_transform_args { $_[0]->_dt_arg_non_date_transform($_[2], $_[3]) }
 
 sub _where_op_ADD_DATETIME {
   my ($self) = @_;
@@ -243,7 +247,7 @@ sub _where_op_DIFF_DATETIME {
   @val = $self->_reorder_diff_datetime_vars(@val);
   my (@all_sql, @all_bind);
   foreach my $val (@val) {
-    my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
+    my ($sql, @bind) = $self->_dt_arg_non_date_transform($k, $val);
     push @all_sql, $sql;
     push @all_bind, @bind;
   }
@@ -266,7 +270,7 @@ sub _where_op_CIRCA_DATETIME {
      $val = $_[3];
   }
 
-  my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
+  my ($sql, @bind) = $self->_dt_arg_non_date_transform($k, $val);
 
   my ($equal, $before, $after) = $op =~ /dt_(on_or_)?(before)?(after)?/;
   my $sym = $before
