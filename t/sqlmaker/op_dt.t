@@ -185,6 +185,21 @@ sub hri_thing {
 
 my $date2 = $date->clone->set_day(16);
 
+my $date3 = DateTime->new(
+   year => 2011,
+   month => 12,
+   day   => 14,
+   hour  => 12,
+   minute => 12,
+   second => 12,
+);
+
+my $date4 = DateTime->new(
+   year => 2010,
+   month => 12,
+   day   => 12,
+);
+
 ## test format:
 ##   search => { dbic_search_code/params }
 ##   rdbms_name => literal_sql
@@ -285,6 +300,40 @@ my @tests = (
     },
   },
 
+{
+    msg    => '-dt_get (year, month) works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_get => [[qw(year month)], $date ] ] ],
+    as     => [ qw(year month) ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]
+    ],
+    hri    => [{ year => 2010, month => 12 }],
+    mssql => {
+      select => "DATEPART(year, ?), DATEPART(month, ?)",
+       bind   => [
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]
+       ],
+    },
+    mysql => {
+      select => "EXTRACT(YEAR FROM ?), EXTRACT(MONTH FROM ?)",
+    },
+    sqlite => {
+      select => "STRFTIME('%Y', ?), STRFTIME('%m', ?)",
+    },
+    postgres => {
+      select => "date_part('year', ?), date_part('month', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(year FROM ?), EXTRACT(month FROM ?)",
+    },
+  },
+
   {
     msg    => '-dt_month works',
     search => { 'me.id' => 1 },
@@ -307,6 +356,32 @@ my @tests = (
     },
     oracle => {
       select => "EXTRACT(month FROM me.created_on)",
+    },
+  },
+
+  {
+    msg    => '-dt_month works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_month => $date ] ],
+    as     => [ 'month' ],
+    where  => "me.id = ?",
+    bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    hri    => [{ month => 12 }],
+    sqlite => {
+      select   => "STRFTIME('%m', ?)",
+    },
+    mssql => {
+      bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+      select => "DATEPART(month, ?)",
+    },
+    mysql => {
+      select => "EXTRACT(MONTH FROM ?)",
+    },
+    postgres => {
+      select => "date_part('month', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(month FROM ?)",
     },
   },
 
@@ -336,6 +411,32 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_day works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_day => $date ] ],
+    as     => [ 'day' ],
+    where  => "me.id = ?",
+    bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    hri    => [{ day => 14 }],
+    sqlite => {
+      select   => "STRFTIME('%d', ?)",
+    },
+    mssql => {
+      select => "DATEPART(day, ?)",
+      bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    },
+    mysql => {
+      select => "EXTRACT(DAY FROM ?)",
+    },
+    postgres => {
+      select => "date_part('day', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(day FROM ?)",
+    },
+  },
+
+  {
     msg    => '-dt_hour works',
     search => { 'me.id' => 1 },
     select => [ [ -dt_hour => { -ident => 'me.created_on' } ] ],
@@ -357,6 +458,32 @@ my @tests = (
     },
     oracle => {
       select => "EXTRACT(hour FROM me.created_on)",
+    },
+  },
+
+  {
+    msg    => '-dt_hour works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_hour => $date ] ],
+    as     => [ 'hour' ],
+    where  => "me.id = ?",
+    bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    hri    => [{ hour => 12 }],
+    sqlite => {
+      select   => "STRFTIME('%H', ?)",
+    },
+    mssql => {
+      select => "DATEPART(hour, ?)",
+      bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    },
+    mysql => {
+      select => "EXTRACT(HOUR FROM ?)",
+    },
+    postgres => {
+      select => "date_part('hour', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(hour FROM ?)",
     },
   },
 
@@ -386,6 +513,32 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_minute works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_minute => $date ] ],
+    as     => [ 'minute' ],
+    where  => "me.id = ?",
+    bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    hri    => [{ minute => 12 }],
+    sqlite => {
+      select   => "STRFTIME('%M', ?)",
+    },
+    mssql => {
+      select => "DATEPART(minute, ?)",
+      bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    },
+    mysql => {
+      select => "EXTRACT(MINUTE FROM ?)",
+    },
+    postgres => {
+      select => "date_part('minute', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(minute FROM ?)",
+    },
+  },
+
+  {
     msg    => '-dt_second works',
     search => { 'me.id' => 1 },
     select => [ [ -dt_second => { -ident => 'me.created_on' } ] ],
@@ -407,6 +560,32 @@ my @tests = (
     },
     oracle => {
       select => "EXTRACT(second FROM me.created_on)",
+    },
+  },
+
+  {
+    msg    => '-dt_second works with DateTime obj',
+    search => { 'me.id' => 1 },
+    select => [ [ -dt_second => $date ] ],
+    as     => [ 'second' ],
+    where  => "me.id = ?",
+    bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    hri    => [{ second => 12 }],
+    sqlite => {
+      select   => "STRFTIME('%S', ?)",
+    },
+    mssql => {
+      select => "DATEPART(second, ?)",
+      bind   => [[{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ], [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 1 ]],
+    },
+    mysql => {
+      select => "EXTRACT(SECOND FROM ?)",
+    },
+    postgres => {
+      select => "date_part('second', ?)",
+    },
+    oracle => {
+      select => "EXTRACT(second FROM ?)",
     },
   },
 
@@ -436,6 +615,45 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_diff (second) works with DateTime objs',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_diff => [second => $date2, $date ] ] ],
+    as     => [ 'sec_diff' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12' ],
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ sec_diff => 2*24*60*60 }],
+    sqlite => {
+      select   => "(STRFTIME('%s', ?) - STRFTIME('%s', ?))",
+    },
+    mssql => {
+      select   => "DATEDIFF(second, ?, ?)",
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12.000' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+    },
+    mysql => {
+      select   => "TIMESTAMPDIFF(SECOND, ?, ?)",
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+    },
+    postgres => {
+      select   => "date_part('EPOCH', ?) - date_part('EPOCH', ?)",
+    },
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(?, ?) * 31 * 24 * 60 * 60)",
+    },
+  },
+
+  {
     msg    => '-dt_diff (day) works',
     search => { 'me.id' => 2 },
     select => [ [ -dt_diff => [day => { -ident => 'me.created_on' }, \'me.skip_inflation' ] ] ],
@@ -461,6 +679,45 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_diff (day) works with DateTime objs',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_diff => [day => $date2, $date ] ] ],
+    as     => [ 'day_diff' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12' ],
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ day_diff => 2 }],
+    sqlite => {
+      select   => "(JULIANDAY(?) - JULIANDAY(?))",
+    },
+    mssql => {
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12.000' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      select   => "DATEDIFF(dayofyear, ?, ?)",
+    },
+    mysql => {
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-16 12:12:12' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      select   => "TIMESTAMPDIFF(DAY, ?, ?)",
+    },
+    postgres => {
+      select   => "date_part('DAY', ?) - date_part('DAY', ?)",
+    },
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(?, ?) * 31)",
+    },
+  },
+
+  {
     msg    => '-dt_diff (year) works',
     search => { 'me.id' => 2 },
     select => [ [ -dt_diff => [year => \'me.starts_at', { -ident => 'me.created_on' } ] ] ],
@@ -482,6 +739,45 @@ my @tests = (
     },
     oracle => {
       select   => "TRUNC(MONTHS_BETWEEN(me.starts_at, me.created_on) / 12)",
+    },
+  },
+
+  {
+    msg    => '-dt_diff (year) works with DateTime objs',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_diff => [year => $date4, $date3 ] ] ],
+    as     => [ 'year' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-12 00:00:00' ],
+      [{sqlt_datatype => 'timestamp'} => '2011-12-14 12:12:12' ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ year => -1 }],
+    sqlite => {
+      exception_like => qr/date diff not supported for part "year" with database "SQLite"/,
+    },
+    mssql => {
+      select   => "DATEDIFF(year, ?, ?)",
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2011-12-14 12:12:12.000' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-12 00:00:00.000' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+    },
+    mysql => {
+      select   => "TIMESTAMPDIFF(YEAR, ?, ?)",
+      bind   => [
+        [{sqlt_datatype => 'timestamp'} => '2011-12-14 12:12:12' ],
+        [{sqlt_datatype => 'timestamp'} => '2010-12-12 00:00:00' ],
+        [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+    },
+    postgres => {
+      select   => "date_part('YEAR', ?) - date_part('YEAR', ?)",
+    },
+    oracle => {
+      select   => "TRUNC(MONTHS_BETWEEN(?, ?) / 12)",
     },
   },
 
@@ -514,6 +810,42 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_add (year) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [year => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2013-12-14 12:12:12' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' years'))",
+    },
+    mssql => {
+      select => "(DATEADD(year, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2013-12-14 12:12:12.000' }],
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? YEAR)",
+    },
+    postgres => {
+      select => "(? + ? * interval '1 YEAR')",
+    },
+    oracle => {
+      select => "(? + NUMTOYMINTERVAL(?, 'year'))",
+      hri    => [{ date => '2014-12-14 12:12:12.000000000' }],
+    },
+  },
+
+  {
     msg    => '-dt_add (month) works',
     search => { 'me.id' => 2 },
     select => [ [ -dt_add => [month => 3, { -ident => 'me.created_on' } ] ] ],
@@ -532,12 +864,47 @@ my @tests = (
     postgres => {
       select => "(me.created_on + ? * interval '1 MONTH')",
     },
-
     mysql => {
       select => "DATE_ADD(me.created_on, INTERVAL ? MONTH)",
     },
     oracle => {
       select => "(me.created_on + NUMTOYMINTERVAL(?, 'month'))",
+      hri    => [{ date => '2012-03-14 12:12:12.000000000' }],
+    },
+  },
+
+  {
+    msg    => '-dt_add (month) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [month => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2011-03-14 12:12:12' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' months'))",
+    },
+    mssql => {
+      select => "(DATEADD(month, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2011-03-14 12:12:12.000' }],
+    },
+    postgres => {
+      select => "(? + ? * interval '1 MONTH')",
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? MONTH)",
+    },
+    oracle => {
+      select => "(? + NUMTOYMINTERVAL(?, 'month'))",
       hri    => [{ date => '2012-03-14 12:12:12.000000000' }],
     },
   },
@@ -571,6 +938,42 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_add (day) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [day => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2010-12-17 12:12:12' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' days'))",
+    },
+    mssql => {
+      select => "(DATEADD(dayofyear, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2010-12-17 12:12:12.000' }],
+    },
+    postgres => {
+      select => "(? + ? * interval '1 DAY')",
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? DAY)",
+    },
+    oracle => {
+      select => "(? + NUMTODSINTERVAL(?, 'day'))",
+      hri    => [{ date => '2011-12-17 12:12:12.000000000' }],
+    },
+  },
+
+  {
     msg    => '-dt_add (hour) works',
     search => { 'me.id' => 2 },
     select => [ [ -dt_add => [hour => 3, { -ident => 'me.created_on' } ] ] ],
@@ -594,6 +997,42 @@ my @tests = (
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'hour'))",
+      hri    => [{ date => '2011-12-14 15:12:12.000000000' }],
+    },
+  },
+
+  {
+    msg    => '-dt_add (hour) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [hour => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2010-12-14 15:12:12' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' hours'))",
+    },
+    mssql => {
+      select => "(DATEADD(hour, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2010-12-14 15:12:12.000' }],
+    },
+    postgres => {
+      select => "(? + ? * interval '1 HOUR')",
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? HOUR)",
+    },
+    oracle => {
+      select => "(? + NUMTODSINTERVAL(?, 'hour'))",
       hri    => [{ date => '2011-12-14 15:12:12.000000000' }],
     },
   },
@@ -627,6 +1066,42 @@ my @tests = (
   },
 
   {
+    msg    => '-dt_add (minute) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [minute => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2010-12-14 12:15:12' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' minutes'))",
+    },
+    mssql => {
+      select => "(DATEADD(minute, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2010-12-14 12:15:12.000' }],
+    },
+    postgres => {
+      select => "(? + ? * interval '1 MINUTE')",
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? MINUTE)",
+    },
+    oracle => {
+      select => "(? + NUMTODSINTERVAL(?, 'minute'))",
+      hri    => [{ date => '2011-12-14 12:15:12.000000000' }],
+    },
+  },
+
+  {
     msg    => '-dt_add (second) works',
     search => { 'me.id' => 2 },
     select => [ [ -dt_add => [second => 3, { -ident => 'me.created_on' } ] ] ],
@@ -650,6 +1125,42 @@ my @tests = (
     },
     oracle => {
       select => "(me.created_on + NUMTODSINTERVAL(?, 'second'))",
+      hri    => [{ date => '2011-12-14 12:12:15.000000000' }],
+    },
+  },
+
+  {
+    msg    => '-dt_add (second) works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [second => 3, $date ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 3],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+    ],
+    hri    => [{ date => '2010-12-14 12:12:15' }],
+    sqlite => {
+      select => "(datetime(?, ? || ' seconds'))",
+    },
+    mssql => {
+      select => "(DATEADD(second, CAST(? AS INTEGER), ?))",
+      bind   => [
+         [{sqlt_datatype => 'integer'}, 3],
+         [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+         [{dbic_colname => 'me.id', sqlt_datatype => 'integer'} => 2 ]
+      ],
+      hri    => [{ date => '2010-12-14 12:12:15.000' }],
+    },
+    postgres => {
+      select => "(? + ? * interval '1 SECOND')",
+    },
+    mysql => {
+      select => "DATE_ADD(?, INTERVAL ? SECOND)",
+    },
+    oracle => {
+      select => "(? + NUMTODSINTERVAL(?, 'second'))",
       hri    => [{ date => '2011-12-14 12:12:15.000000000' }],
     },
   },
@@ -683,6 +1194,44 @@ my @tests = (
   },
 
   {
+    msg    => 'nested -dt_add works with DateTime obj',
+    search => { 'me.id' => 2 },
+    select => [ [ -dt_add => [second => 3, { -dt_add => [ day => 1, $date ] } ] ] ],
+    as     => [ 'date' ],
+    where  => "me.id = ?",
+    hri    => [{ date => '2010-12-15 12:12:15' }],
+    bind   => [
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12' ],
+      [unknown_col, 1],
+      [unknown_col, 3 ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]
+    ],
+    sqlite => {
+      select   => "(datetime((datetime(?, ? || ' days')), ? || ' seconds'))",
+    },
+    mssql => {
+      select => "(DATEADD(second, CAST(? AS INTEGER), (DATEADD(dayofyear, CAST(? AS INTEGER), ?))))",
+    bind   => [
+      [{sqlt_datatype => 'integer'}, 3 ],
+      [{sqlt_datatype => 'integer'}, 1],
+      [{sqlt_datatype => 'timestamp'} => '2010-12-14 12:12:12.000' ],
+      [{dbic_colname => 'me.id', sqlt_datatype => 'integer' }, 2]
+    ],
+      hri    => [{ date => '2010-12-15 12:12:15.000' }],
+    },
+     postgres => {
+      select => "((? + ? * interval '1 DAY') + ? * interval '1 SECOND')",
+    },
+    mysql => {
+      select => "DATE_ADD(DATE_ADD(?, INTERVAL ? DAY), INTERVAL ? SECOND)",
+    },
+    oracle => {
+      select => "((? + NUMTODSINTERVAL(?, 'day')) + NUMTODSINTERVAL(?, 'second'))",
+      hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
+    },
+  },
+
+  {
     msg      => '-dt_before works',
     search   => { 'me.created_on' => { -dt_before => '2011-12-14 12:12:12' } },
     select   => [ [ -ident => 'me.created_on' ] ],
@@ -696,6 +1245,27 @@ my @tests = (
     mysql    => { },
     mssql    => {
       hri => [{ date => '2010-12-14 12:12:12.000' }],
+    },
+    oracle   => {
+      hri => [{ date => '2010-12-14 12:12:12.000000' }],
+    },
+  },
+
+  {
+    msg      => '-dt_before works with DateTime obj',
+    search   => { 'me.created_on' => { -dt_before => $date3 } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    select_sql   => "me.created_on",
+    where    => "me.created_on < ?",
+    bind     => [[{sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+    hri      => [{ date => '2010-12-14 12:12:12' }],
+    sqlite   => { },
+    postgres => { },
+    mysql    => { },
+    mssql    => {
+      hri => [{ date => '2010-12-14 12:12:12.000' }],
+      bind => [[{sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12.000']],
     },
     oracle   => {
       hri => [{ date => '2010-12-14 12:12:12.000000' }],
@@ -723,6 +1293,27 @@ my @tests = (
   },
 
   {
+    msg      => '-dt_on_or_before works with DateTime obj',
+    search   => { 'me.created_on' => { -dt_on_or_before => $date3 } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    select_sql   => "me.created_on",
+    where    => "me.created_on <= ?",
+    bind     => [[{sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+    hri      => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    sqlite   => { },
+    postgres => { },
+    mysql    => { },
+    mssql    => {
+      hri => [{ date => '2010-12-14 12:12:12.000' }, { date => '2011-12-14 12:12:12.000' }],
+      bind => [[{sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12.000']],
+    },
+    oracle   => {
+      hri => [{ date => '2010-12-14 12:12:12.000000' }, { date => '2011-12-14 12:12:12.000000' }],
+    },
+  },
+
+  {
     msg      => '-dt_after works',
     search   => { 'me.created_on' => { -dt_after => '2010-12-14 12:12:12' } },
     select   => [ [ -ident => 'me.created_on' ] ],
@@ -743,6 +1334,27 @@ my @tests = (
   },
 
   {
+    msg      => '-dt_after works with DateTime obj',
+    search   => { 'me.created_on' => { -dt_after => $date } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    select_sql => "me.created_on",
+    where    => "me.created_on > ?",
+    bind     => [[{sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+    hri      => [{ date => '2011-12-14 12:12:12' }],
+    sqlite   => { },
+    postgres => { },
+    mysql    => { },
+    mssql    => {
+      hri => [{ date => '2011-12-14 12:12:12.000' }],
+      bind     => [[{sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12.000']],
+    },
+    oracle   => {
+      hri => [{ date => '2011-12-14 12:12:12.000000' }],
+    },
+  },
+
+  {
     msg      => '-dt_on_or_after works',
     search   => { 'me.created_on' => { -dt_on_or_after => '2010-12-14 12:12:12' } },
     select   => [ [ -ident => 'me.created_on' ] ],
@@ -756,6 +1368,27 @@ my @tests = (
     mysql    => { },
     mssql    => {
       hri => [{ date => '2010-12-14 12:12:12.000' }, { date => '2011-12-14 12:12:12.000' }],
+    },
+    oracle   => {
+      hri => [{ date => '2010-12-14 12:12:12.000000' }, { date => '2011-12-14 12:12:12.000000' }],
+    },
+  },
+
+  {
+    msg      => '-dt_on_or_after works with DateTime obj',
+    search   => { 'me.created_on' => { -dt_on_or_after => $date } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    select_sql => "me.created_on",
+    where    => "me.created_on >= ?",
+    bind     => [[{sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+    hri      => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    sqlite   => { },
+    postgres => { },
+    mysql    => { },
+    mssql    => {
+      hri => [{ date => '2010-12-14 12:12:12.000' }, { date => '2011-12-14 12:12:12.000' }],
+      bind => [[{sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12.000']],
     },
     oracle   => {
       hri => [{ date => '2010-12-14 12:12:12.000000' }, { date => '2011-12-14 12:12:12.000000' }],

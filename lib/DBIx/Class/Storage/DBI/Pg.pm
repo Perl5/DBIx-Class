@@ -183,6 +183,15 @@ sub bind_attribute_by_data_type {
     carp_once( __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended'
       . "for BYTEA column support.\n" );
   }
+  my $bind_attributes = {
+    bytea => { pg_type => DBD::Pg::PG_BYTEA() },
+    blob  => { pg_type => DBD::Pg::PG_BYTEA() },
+    timestamp  => { pg_type => DBD::Pg::PG_TIMESTAMP() },
+  };
+
+  if( defined $bind_attributes->{$data_type} ) {
+    return $bind_attributes->{$data_type};
+  }
 
   # cache the result of _is_binary_lob_type
   if (!exists $type_cache->{$data_type}) {

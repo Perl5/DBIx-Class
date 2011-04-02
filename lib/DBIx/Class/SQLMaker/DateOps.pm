@@ -181,7 +181,13 @@ sub _dt_arg_non_date_transform {
   return ($sql, @bind);
 }
 
-sub _where_op_ADD_DATETIME_transform_args { $_[0]->_dt_arg_non_date_transform($_[2], $_[3]) }
+sub _where_op_ADD_DATETIME_transform_args {
+  if ($_[1] == 0) {
+     $_[0]->_dt_arg_non_date_transform($_[2], $_[3])
+  } else {
+     $_[0]->_dt_arg_transform($_[2], $_[3])
+  }
+}
 
 sub _where_op_ADD_DATETIME {
   my ($self) = @_;
@@ -206,11 +212,10 @@ sub _where_op_ADD_DATETIME {
 
   my (@all_sql, @all_bind);
   my $i = 0;
-  foreach my $val ($self->_reorder_add_datetime_vars(@rest)) {
-    my ($sql, @bind) = $self->_where_op_ADD_DATETIME_transform_args($i, $k, $val);
+  foreach my $val ($self->_reorder_add_datetime_vars(map [ $i++, $_ ], @rest)) {
+    my ($sql, @bind) = $self->_where_op_ADD_DATETIME_transform_args($val->[0], $k, $val->[1]);
     push @all_sql, $sql;
     push @all_bind, @bind;
-    $i++;
   }
 
   return $self->_datetime_add_sql($part, $all_sql[0], $all_sql[1]), @all_bind
@@ -247,7 +252,7 @@ sub _where_op_DIFF_DATETIME {
   @val = $self->_reorder_diff_datetime_vars(@val);
   my (@all_sql, @all_bind);
   foreach my $val (@val) {
-    my ($sql, @bind) = $self->_dt_arg_non_date_transform($k, $val);
+    my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
     push @all_sql, $sql;
     push @all_bind, @bind;
   }
@@ -270,7 +275,7 @@ sub _where_op_CIRCA_DATETIME {
      $val = $_[3];
   }
 
-  my ($sql, @bind) = $self->_dt_arg_non_date_transform($k, $val);
+  my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
 
   my ($equal, $before, $after) = $op =~ /dt_(on_or_)?(before)?(after)?/;
   my $sym = $before
