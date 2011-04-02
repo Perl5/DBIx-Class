@@ -197,6 +197,7 @@ sub new {
     { regex => qr/^ dt_diff $/xi, handler => '_where_op_DIFF_DATETIME' },
     { regex => qr/^ dt_add  $/xi, handler => '_where_op_ADD_DATETIME' },
     { regex => qr/^ dt_now  $/xi, handler => '_where_op_DATETIME_NOW' },
+    { regex => qr/^ dt_(:?on_or_)?(:?before|after)  $/xi, handler => '_where_op_CIRCA_DATETIME' },
     map +{ regex => qr/^ dt_$_ $/xi, handler => '_where_op_GET_DATETIME_'.uc($_) },
       qw(year month day hour minute second)
   );

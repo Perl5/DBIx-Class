@@ -251,4 +251,34 @@ sub _where_op_DIFF_DATETIME {
   return $self->_datetime_diff_sql($part, $all_sql[0], $all_sql[1]), @all_bind
 }
 
+sub _where_op_CIRCA_DATETIME {
+  my ($self) = @_;
+
+  my ($k, $op, $val);
+
+  if (@_ == 3) {
+     $op = $_[1];
+     $val = $_[2];
+     $k = '';
+  } elsif (@_ == 4) {
+     $k = $_[1];
+     $op = $_[2];
+     $val = $_[3];
+  }
+
+  my ($sql, @bind) = $self->_dt_arg_transform($k, $val);
+
+  my ($equal, $before, $after) = $op =~ /dt_(on_or_)?(before)?(after)?/;
+  my $sym = $before
+   ? '<'
+   : '>'
+  ;
+
+  $sym .= $equal
+   ? '='
+   : ''
+  ;
+  return "$k $sym $sql", @bind;
+}
+
 1;

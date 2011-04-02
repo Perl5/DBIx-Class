@@ -853,6 +853,155 @@ my @tests = (
       hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
     },
   },
+
+  {
+    msg    => '-dt_before works',
+    search => { 'me.created_on' => { -dt_before => '2011-12-14 12:12:12' } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    sqlite => {
+      select   => "me.created_on",
+      where => "me.created_on < ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }],
+    },
+    postgres => {
+      select   => "me.created_on",
+      where => "me.created_on < ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }],
+    },
+    mysql => {
+      select   => "me.created_on",
+      where => "me.created_on < ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }],
+    },
+    mssql => {
+      select   => "me.created_on",
+      where => "me.created_on < ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }],
+    },
+    oracle => {
+      select   => "me.created_on",
+      where => "me.created_on < ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }],
+    },
+  },
+
+  {
+    msg    => '-dt_on_or_before works',
+    search => { 'me.created_on' => { -dt_on_or_before => '2011-12-14 12:12:12' } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    sqlite => {
+      select   => "me.created_on",
+      where => "me.created_on <= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    postgres => {
+      select   => "me.created_on",
+      where => "me.created_on <= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    mysql => {
+      select   => "me.created_on",
+      where => "me.created_on <= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    mssql => {
+      select   => "me.created_on",
+      where => "me.created_on <= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    oracle => {
+      select   => "me.created_on",
+      where => "me.created_on <= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2011-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+  },
+
+  {
+    msg    => '-dt_after works',
+    search => { 'me.created_on' => { -dt_after => '2010-12-14 12:12:12' } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    sqlite => {
+      select   => "me.created_on",
+      where => "me.created_on > ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2011-12-14 12:12:12' }],
+    },
+    postgres => {
+      select   => "me.created_on",
+      where => "me.created_on > ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2011-12-14 12:12:12' }],
+    },
+    mysql => {
+      select   => "me.created_on",
+      where => "me.created_on > ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2011-12-14 12:12:12' }],
+    },
+    mssql => {
+      select   => "me.created_on",
+      where => "me.created_on > ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2011-12-14 12:12:12' }],
+    },
+    oracle => {
+      select   => "me.created_on",
+      where => "me.created_on > ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2011-12-14 12:12:12' }],
+    },
+  },
+
+  {
+    msg    => '-dt_on_or_after works',
+    search => { 'me.created_on' => { -dt_on_or_after => '2010-12-14 12:12:12' } },
+    select   => [ [ -ident => 'me.created_on' ] ],
+    as       => [ 'date' ],
+    sqlite => {
+      select   => "me.created_on",
+      where => "me.created_on >= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    postgres => {
+      select   => "me.created_on",
+      where => "me.created_on >= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    mysql => {
+      select   => "me.created_on",
+      where => "me.created_on >= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    mssql => {
+      select   => "me.created_on",
+      where => "me.created_on >= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+    oracle => {
+      select   => "me.created_on",
+      where => "me.created_on >= ?",
+      bind   => [[{dbic_colname => 'me.created_on', sqlt_datatype => 'timestamp' }, '2010-12-14 12:12:12']],
+      hri    => [{ date => '2010-12-14 12:12:12' }, { date => '2011-12-14 12:12:12' }],
+    },
+  },
+
 );
 
 for my $t (@tests) {
