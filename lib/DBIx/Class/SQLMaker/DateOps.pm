@@ -1,5 +1,8 @@
 package DBIx::Class::SQLMaker::DateOps;
 
+use strict;
+use warnings;
+
 use base qw/
   Class::Accessor::Grouped
 /;

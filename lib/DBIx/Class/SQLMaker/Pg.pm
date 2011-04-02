@@ -1,6 +1,9 @@
 package # Hide from PAUSE
   DBIx::Class::SQLMaker::Pg;
 
+use warnings;
+use strict;
+
 use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
