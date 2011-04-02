@@ -158,35 +158,13 @@ $s;
 
 my %rs = map { $_ => $schema{$_}->resultset('Event') } keys %schema;
 
-$rs{sqlite}->populate([
- [qw(starts_at created_on skip_inflation)],
- ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
- ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
-]);
-
-$rs{mssql}->populate([
- [qw(starts_at created_on skip_inflation)],
- ['2010-12-12', '2010-12-14 12:12:12.000', '2019-12-12 12:12:12.000'],
- ['2010-12-12', '2011-12-14 12:12:12.000', '2011-12-12 12:12:12.000'],
-]) if $schema{mssql}->storage->connected;
-
-$rs{mysql}->populate([
- [qw(starts_at created_on skip_inflation)],
- ['2010-12-12', '2010-12-14 12:12:12.000', '2019-12-12 12:12:12.000'],
- ['2010-12-12', '2011-12-14 12:12:12.000', '2011-12-12 12:12:12.000'],
-]) if $schema{mysql}->storage->connected;
-
-$rs{postgres}->populate([
- [qw(starts_at created_on skip_inflation)],
- ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
- ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
-]) if $schema{postgres}->storage->connected;
-
-$rs{oracle}->populate([
- [qw(starts_at created_on skip_inflation)],
- ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
- ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
-]) if $schema{oracle}->storage->connected;
+for (grep { $schema{$_}->storage->connected } keys %rs) {
+   $rs{$_}->populate([
+     [qw(starts_at created_on skip_inflation)],
+     ['2010-12-12', '2010-12-14 12:12:12', '2019-12-12 12:12:12'],
+     ['2010-12-12', '2011-12-14 12:12:12', '2011-12-12 12:12:12'],
+   ])
+}
 
 my $date = DateTime->new(
    year => 2010,
