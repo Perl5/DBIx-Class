@@ -35,9 +35,10 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
+use DBIx::Class;
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
-    if DBICTest::RunMode->peepeeness;
+    if DBIx::Class::_ENV_::PEEPEENESS();
 }
 
 use Scalar::Util qw/refaddr reftype weaken/;

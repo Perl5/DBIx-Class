@@ -3,6 +3,17 @@ package DBIx::Class::Carp;
 use strict;
 use warnings;
 
+# This is here instead of DBIx::Class because of load-order issues
+BEGIN {
+  ## FIXME FIXME FIXME - something is tripping up V::M on 5.8.1, leading
+  # to segfaults. When n::c/B::H::EndOfScope is rewritten in terms of tie()
+  # see if this starts working
+  *DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN = ($] < 5.008005)
+    ? sub () { 1 }
+    : sub () { 0 }
+  ;
+}
+
 use Carp ();
 use namespace::clean ();
 
@@ -44,13 +55,6 @@ my $warn = sub {
   );
 };
 
-# FIXME - see below
-BEGIN {
-  *__BROKEN_NC = ($] < 5.008003)
-    ? sub () { 1 }
-    : sub () { 0 }
-  ;
-}
 sub import {
   my (undef, $skip_pattern) = @_;
   my $into = caller;
@@ -102,7 +106,7 @@ sub import {
     ## FIXME FIXME FIXME - something is tripping up V::M on 5.8.1, leading
     # to segfaults. When n::c/B::H::EndOfScope is rewritten in terms of tie()
     # see if this starts working
-    unless __BROKEN_NC();
+    unless DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN();
 }
 
 sub unimport {

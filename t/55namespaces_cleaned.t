@@ -40,9 +40,6 @@ my $skip_idx = { map { $_ => 1 } (
   # G::L::D is unclean, but we never inherit from it
   'DBIx::Class::Admin::Descriptive',
   'DBIx::Class::Admin::Usage',
-
-  # exempt due to the __BROKEN_NC constant
-  'DBIx::Class::Carp',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
@@ -73,7 +70,7 @@ for my $mod (@modules) {
 
     for my $name (keys %all_method_like) {
 
-      next if ( DBIx::Class::Carp::__BROKEN_NC() and $name =~ /^carp(?:_unique|_once)?$/ );
+      next if ( DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN() and $name =~ /^carp(?:_unique|_once)?$/ );
 
       # overload is a funky thing - it is neither cleaned, and its imports are named funny
       next if $name =~ /^\(/;
@@ -114,7 +111,7 @@ for my $mod (@modules) {
       }
     }
 
-    next if DBIx::Class::Carp::__BROKEN_NC();
+    next if DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN();
 
     # some common import names (these should never ever be methods)
     for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {

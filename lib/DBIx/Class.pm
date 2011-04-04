@@ -4,20 +4,43 @@ use strict;
 use warnings;
 
 BEGIN {
+  package DBIx::Class::_ENV_;
+
   if ($] < 5.009_005) {
     require MRO::Compat;
-    *DBIx::Class::_ENV_::OLD_MRO = sub () { 1 };
+    *OLD_MRO = sub () { 1 };
   }
   else {
     require mro;
-    *DBIx::Class::_ENV_::OLD_MRO = sub () { 0 };
+    *OLD_MRO = sub () { 0 };
   }
 
   # ::Runmode would only be loaded by DBICTest, which in turn implies t/
-  *DBIx::Class::_ENV_::DBICTEST = eval { DBICTest::RunMode->is_author }
+  *DBICTEST = eval { DBICTest::RunMode->is_author }
     ? sub () { 1 }
     : sub () { 0 }
   ;
+
+  # During 5.13 dev cycle HELEMs started to leak on copy
+  *PEEPEENESS = (defined $ENV{DBICTEST_ALL_LEAKS}
+    # request for all tests would force "non-leaky" illusion and vice-versa
+    ? ! $ENV{DBICTEST_ALL_LEAKS}
+
+    # otherwise confess that this perl is busted ONLY on smokers
+    : do {
+      if (eval { DBICTest::RunMode->is_smoker }) {
+
+        # leaky 5.13.6 (fixed in blead/cefd5c7c)
+        if ($] == '5.013006') { 1 }
+
+        # not sure why this one leaks, but disable anyway - ANDK seems to make it weep
+        elsif ($] == '5.013005') { 1 }
+
+        else { 0 }
+      }
+      else { 0 }
+    }
+  ) ? sub () { 1 } : sub () { 0 };
 }
 
 use mro 'c3';
