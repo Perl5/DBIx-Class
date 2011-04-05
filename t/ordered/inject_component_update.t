@@ -3,6 +3,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
+use Data::Dumper;
 use DBICTest;    # do not remove even though it is not used
 
 #15:01 <@ribasushi> dhoss: you are complicating your life
@@ -34,12 +35,13 @@ my $cd = $schema->resultset('CD')->create(
 
 lives_ok( sub { $cd->delete },
   "Cascade delete on ordered has_many doesn't bomb" );
-
 is_deeply(
   mro::get_linear_isa( ref $schema->resultset("Track") ),
   [
     qw(
+    DBICTest::BaseResultSet::+::_DBIx_Class_Ordered_ResultSet 
     DBIx::Class::Ordered::ResultSet
+    DBICTest::BaseResultSet
     DBIx::Class::ResultSet
     DBIx::Class
     DBIx::Class::Componentised

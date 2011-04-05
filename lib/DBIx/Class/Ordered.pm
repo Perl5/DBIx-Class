@@ -2,6 +2,7 @@ package DBIx::Class::Ordered;
 use strict;
 use warnings;
 use base qw( DBIx::Class );
+use Class::C3::Componentised::LoadActions;
 
 =head1 NAME
 
@@ -97,6 +98,8 @@ move a record it always causes other records in the list to be updated.
 
 =head1 METHODS
 
+
+
 =head2 position_column
 
   __PACKAGE__->position_column('position');
@@ -107,6 +110,9 @@ positional value of each record.  Defaults to "position".
 =cut
 
 __PACKAGE__->mk_classdata( 'position_column' => 'position' );
+
+## this is private
+AFTER_APPLY { $_[0]->result_source_instance->inject_resultset_components(['+DBIx::Class::Ordered::ResultSet']) };
 
 =head2 grouping_column
 
@@ -972,22 +978,6 @@ sub _ordered_internal_update {
   return $self->update(@_);
 }
 
-=head2 table
-
-Overridden to provide a resultset class to override delete and update methods.
-
-Shamelessly stolen from InflateColumn::FS
-
-=cut
-
-sub table {
-  my $self = shift;
-  warn "**INSIDE Ordered->table**";
-  my $ret = $self->next::method(@_);
-  $self->result_source_instance->resultset_class(
-    'DBIx::Class::Ordered::ResultSet');
-  return $ret;
-}
 
 1;
 
