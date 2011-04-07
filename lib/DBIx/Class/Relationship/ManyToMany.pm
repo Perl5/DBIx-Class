@@ -133,9 +133,15 @@ EOW
         unless blessed ($obj);
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->_resolve_condition(
-        $cond, $obj, $f_rel
+      my ($link_cond, $crosstable) = $rel_source->_resolve_condition(
+        $cond, $obj, $f_rel, $f_rel
       );
+
+      $self->throw_exception(
+        "Custom relationship '$rel' does not resolve to a join-free condition, "
+       ."unable to use with the ManyToMany helper '$f_rel'"
+      ) if $crosstable;
+
       $self->search_related($rel, $link_cond)->delete;
     };
 

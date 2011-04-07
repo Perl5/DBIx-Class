@@ -2,6 +2,7 @@ package # hide from PAUSE
     DBICTest::Schema::Artist;
 
 use base qw/DBICTest::BaseResult/;
+use Carp qw/confess/;
 
 __PACKAGE__->table('artist');
 __PACKAGE__->source_info({
@@ -44,6 +45,82 @@ __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
     { order_by => { -asc => 'year'} },
 );
+
+
+__PACKAGE__->has_many(
+  cds_80s => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my @missing_args = grep { ! defined $args->{$_} }
+      qw/self_alias foreign_alias self_resultsource foreign_relname/;
+    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
+      if @missing_args;
+
+    return (
+      { "$args->{foreign_alias}.artist" => { '=' => { -ident => "$args->{self_alias}.artistid"} },
+        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
+      }
+    );
+  },
+);
+
+
+__PACKAGE__->has_many(
+  cds_84 => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my @missing_args = grep { ! defined $args->{$_} }
+      qw/self_alias foreign_alias self_resultsource foreign_relname/;
+    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
+      if @missing_args;
+
+    return (
+      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => 1984,
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.year"   => 1984,
+      }
+    );
+  }
+);
+
+
+__PACKAGE__->has_many(
+  cds_90s => 'DBICTest::Schema::CD',
+  sub {
+    my $args = shift;
+
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my @missing_args = grep { ! defined $args->{$_} }
+      qw/self_alias foreign_alias self_resultsource foreign_relname/;
+    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
+      if @missing_args;
+
+    return (
+      { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+        "$args->{foreign_alias}.year"   => { '>' => 1989, '<' => 2000 },
+      }
+    );
+  }
+);
+
+
 __PACKAGE__->has_many(
     cds_unordered => 'DBICTest::Schema::CD'
 );

@@ -81,10 +81,11 @@ sub _recurse_oracle_joins {
         && $jt !~ /inner/i;
     }
 
+    # sadly SQLA treats where($scalar) as literal, so we need to jump some hoops
     push @where, map { \sprintf ('%s%s = %s%s',
-      $self->_quote($_),
+      ref $_ ? $self->_recurse_where($_) : $self->_quote($_),
       $left_join,
-      $self->_quote($on->{$_}),
+      ref $on->{$_} ? $self->_recurse_where($on->{$_}) : $self->_quote($on->{$_}),
       $right_join,
     )} keys %$on;
   }
