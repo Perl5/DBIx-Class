@@ -86,6 +86,86 @@ is_same_sql_bind(
 );
 
 {
+my $subq = $schema->resultset('Owners')->search({
+   'count.id' => { -ident => 'owner.id' },
+   'count.name' => 'fail', # no one would do this in real life
+}, { alias => 'owner' })->count_rs;
+
+my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search ({}, {
+  columns => [
+     { owner_name => 'owner.name' },
+     { owner_books => $subq->as_query },
+  ],
+  join => 'owner',
+  rows => 1,
+});
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(
+    SELECT [owner_name], [owner_books]
+      FROM (
+        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ) AS [rno__row__index]
+          FROM (
+            SELECT  [owner].[name] AS [owner_name],
+              ( SELECT COUNT( * ) FROM [owners] [owner]
+                WHERE [count].[id] = [owner].[id] and [count].[name] = ? ) AS [owner_books]
+              FROM [books] [me]
+              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+            WHERE ( [source] = ? )
+          ) [me]
+      ) [me]
+    WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
+  )',
+  [
+    [ { dbic_colname => 'count.name' } => 'fail' ],
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $OFFSET => 1 ],
+    [ $TOTAL => 1 ],
+  ],
+);
+
+}{
+my $subq = $schema->resultset('Owners')->search({
+   'count.id' => { -ident => 'owner.id' },
+}, { alias => 'owner' })->count_rs;
+
+my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search ({}, {
+  columns => [
+     { owner_name => 'owner.name' },
+     { owner_books => $subq->as_query },
+  ],
+  join => 'owner',
+  rows => 1,
+});
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(
+    SELECT [owner_name], [owner_books]
+      FROM (
+        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ) AS [rno__row__index]
+          FROM (
+            SELECT  [owner].[name] AS [owner_name],
+              ( SELECT COUNT( * ) FROM [owners] [owner] WHERE [count].[id] = [owner].[id] ) AS [owner_books]
+              FROM [books] [me]
+              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+            WHERE ( [source] = ? )
+          ) [me]
+      ) [me]
+    WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
+  )',
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+      => 'Library' ],
+    [ $OFFSET => 1 ],
+    [ $TOTAL => 1 ],
+  ],
+);
+
+}
+
+{
   my $rs = $schema->resultset('Artist')->search({}, {
     columns => 'name',
     offset => 1,

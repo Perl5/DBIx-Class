@@ -67,6 +67,50 @@ is_same_sql_bind (
 );
 
 {
+my $subq = $s->resultset('Owners')->search({
+   'count.id' => { -ident => 'owner.id' },
+}, { alias => 'owner' })->count_rs;
+
+my $rs_selectas_rel = $s->resultset('BooksInLibrary')->search ({}, {
+  columns => [
+     { owner_name => 'owner.name' },
+     { owner_books => $subq->as_query },
+  ],
+  join => 'owner',
+  rows => 2,
+  offset => 3,
+});
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(
+    SELECT owner_name, owner_books
+      FROM (
+        SELECT owner_name, owner_books, ROWNUM rownum__index
+          FROM (
+            SELECT  owner.name AS owner_name,
+              ( SELECT COUNT( * ) FROM owners owner WHERE (count.id = owner.id)) AS owner_books
+              FROM books me
+              JOIN owners owner ON owner.id = me.owner
+            WHERE ( source = ? )
+          ) me
+        WHERE ROWNUM <= ?
+      ) me
+    WHERE rownum__index >= ?
+  )',
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
+      => 'Library' ],
+    [ $TOTAL => 5 ],
+    [ $OFFSET => 4 ],
+  ],
+
+  'pagination with subquery works'
+);
+
+}
+
+{
   $rs = $s->resultset('Artist')->search({}, {
     columns => 'name',
     offset => 1,

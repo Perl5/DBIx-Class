@@ -51,6 +51,8 @@ Revision history for DBIx::Class
           of SQL::Abstract >= 1.73
         - Fix using \[] literals in the from resultset attribute
         - Fix populate() with \[], arrays (datatype) and other exotic values
+        - Fix complex limits (RNO/RowNum/FetchFirst/Top/GenSubq) with
+          sub-selects in the selectors list (correlated subqueries)
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal
