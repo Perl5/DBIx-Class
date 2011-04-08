@@ -22,6 +22,8 @@ Revision history for DBIx::Class
         - Support ancient DB2 versions (5.4 and older), with proper limit
           dialect
         - Support sub-second precision for TIMESTAMPs for Firebird over ODBC
+        - Support BLOBs and CLOBs in WHERE clauses for Oracle, including LIKE
+          queries for CLOBs.
 
     * Fixes
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls

@@ -5,6 +5,7 @@ use warnings;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
+use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -81,6 +82,8 @@ use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
 __PACKAGE__->datetime_parser_type('DateTime::Format::Oracle');
+
+sub __cache_queries_with_max_lob_parts { 2 }
 
 sub _determine_supports_insert_returning {
   my $self = shift;
@@ -279,7 +282,16 @@ sub _dbh_execute {
   my $next = $self->next::can;
   do {
     try {
-      my $exec = sub { $self->$next($dbh, $sql, @args) };
+      my $exec = sub {
+        # Turn off sth caching for multi-part LOBs. See _prep_for_execute above.
+        local $self->{disable_sth_caching} = 1
+          if first {
+            ($_->[0]{_ora_lob_autosplit_part}||0)
+              > (__cache_queries_with_max_lob_parts-1)
+          } @{ $args[0] };
+
+        $self->$next($dbh, $sql, @args)
+      };
 
       if (!defined $want) {
         $exec->();
@@ -400,6 +412,7 @@ sub connect_call_datetime_setup {
 #
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
+
   my $attrs = $self->next::method($ident, $bind);
 
   for my $i (0 .. $#$attrs) {
@@ -434,6 +447,110 @@ sub bind_attribute_by_data_type {
     };
   }
 }
+
+# Handle blob columns in WHERE.
+#
+# For equality comparisons:
+#
+# We split data intended for comparing to a LOB into 2000 character chunks and
+# compare them using dbms_lob.substr on the LOB column.
+#
+# We turn off DBD::Oracle LOB binds for these partial LOB comparisons by passing
+# dbd_attrs => undef, because these are regular varchar2 comparisons and
+# otherwise the query will fail.
+#
+# Since the most common comparison size is likely to be under 4000 characters
+# (TEXT comparisons previously deployed to other RDBMSes) we disable
+# prepare_cached for queries with more than two part comparisons to a LOB
+# column. This is done in _dbh_execute (above) which was previously overridden
+# to gracefully recover from an Oracle error. This is to be careful to not
+# exhaust your application's open cursor limit.
+#
+# See:
+# http://itcareershift.com/blog1/2011/02/21/oracle-max-number-of-open-cursors-complete-reference-for-the-new-oracle-dba/
+# on the open_cursor limit.
+#
+# For everything else:
+#
+# We assume that everything that is not a LOB comparison, will most likely be a
+# LIKE query or some sort of function invocation. This may prove to be a naive
+# assumption in the future, but for now it should cover the two most likely
+# things users would want to do with a BLOB or CLOB, an equality test or a LIKE
+# query (on a CLOB.)
+#
+# For these expressions, the bind must NOT have the attributes of a LOB bind for
+# DBD::Oracle, otherwise the query will fail. This is done by passing
+# dbd_attrs => undef.
+
+sub _prep_for_execute {
+  my $self = shift;
+  my ($op) = @_;
+
+  my ($sql, $bind) = $self->next::method(@_);
+
+  return ($sql, $bind) if $op ne 'select';
+
+  my @sql_part = split /\?/, $sql;
+  my ($new_sql, @new_binds);
+
+  foreach my $bound (@$bind) {
+    my $data_type = $bound->[0]{sqlt_datatype}||'';
+
+    if ($self->_is_lob_type($data_type)) {
+      if (my ($col, $eq) = $sql_part[0] =~ /(?<=\s)([\w."]+)(\s*=\s*)$/) {
+        my $data = $bound->[1];
+
+        $data = "$data" if ref $data;
+
+        my @parts = unpack '(a2000)*', $data;
+
+        my @sql_frag;
+
+        for my $idx (0..$#parts) {
+          push @sql_frag,
+"UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR($col, 2000, ".($idx*2000+1)."))) = ?";
+        }
+
+        my $sql_frag = '( ' . (join ' AND ', @sql_frag) . ' )';
+
+        $sql_part[0] =~ s/(?<=\s)([\w."]+)(\s*=\s*)$/$sql_frag/;
+
+        $new_sql .= shift @sql_part;
+
+        for my $idx (0..$#parts) {
+          push @new_binds, [
+            {
+              %{ $bound->[0] },
+              _ora_lob_autosplit_part => $idx,
+              dbd_attrs => undef,
+            },
+            $parts[$idx]
+          ];
+        }
+      }
+      else {
+        $new_sql .= shift(@sql_part) . '?';
+
+        push @new_binds, [
+          {
+            %{ $bound->[0] },
+            dbd_attrs => undef,
+          },
+          $bound->[1],
+        ];
+      }
+    }
+    else {
+      $new_sql .= shift(@sql_part) . '?';
+      push @new_binds, $bound;
+    }
+  }
+  $new_sql .= join '', @sql_part;
+
+  return ($new_sql, \@new_binds);
+}
+
+# Savepoints stuff.
 
 sub _svp_begin {
   my ($self, $name) = @_;
@@ -588,7 +705,7 @@ It uses the same syntax as L<DBIx::Class::ResultSet/order_by>
 
 =head1 AUTHOR
 
-See L<DBIx::Class/CONTRIBUTORS>.
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
@@ -597,3 +714,4 @@ You may distribute this code under the same terms as Perl itself.
 =cut
 
 1;
+# vim:sts=2 sw=2:

@@ -1683,7 +1683,7 @@ sub _dbi_attrs_for_bind {
 
   for (map { $_->[0] } @$bind) {
     push @attrs, do {
-      if ($_->{dbd_attrs}) {
+      if (exists $_->{dbd_attrs}) {
         $_->{dbd_attrs}
       }
       elsif($_->{sqlt_datatype}) {

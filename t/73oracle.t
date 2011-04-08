@@ -4,6 +4,7 @@ use warnings;
 use Test::Exception;
 use Test::More;
 use Sub::Name;
+use Try::Tiny;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -375,19 +376,18 @@ sub _run_tests {
     my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
     $binstr{'large'} = $binstr{'small'} x 1024;
 
-    my $maxloblen = length $binstr{'large'};
+    my $maxloblen = (length $binstr{'large'}) + 5;
     note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
     local $dbh->{'LongReadLen'} = $maxloblen;
 
     my $rs = $schema->resultset('BindType');
-    my $id = 0;
 
     if ($DBD::Oracle::VERSION eq '1.23') {
       throws_ok { $rs->create({ id => 1, blob => $binstr{large} }) }
         qr/broken/,
         'throws on blob insert with DBD::Oracle == 1.23';
 
-      skip 'buggy BLOB support in DBD::Oracle 1.23', 7;
+      skip 'buggy BLOB support in DBD::Oracle 1.23', 1;
     }
 
     # disable BLOB mega-output
@@ -398,14 +398,36 @@ sub _run_tests {
                 . ': https://rt.cpan.org/Ticket/Display.html?id=64206'
       if $q;
 
-    foreach my $type (qw( blob clob )) {
-      foreach my $size (qw( small large )) {
-        $id++;
+    my $id;
+    foreach my $size (qw( small large )) {
+      $id++;
 
-        lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
-        "inserted $size $type without dying";
-        ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
+      my $str = $binstr{$size};
+      lives_ok {
+        $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str" } )
+      } "inserted $size without dying";
+
+      my @objs = $rs->search({ blob => "blob:$str", clob => "clob:$str" })->all;
+      is (@objs, 1, 'One row found matching on both LOBs');
+      ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
+      ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
+
+      if ($size eq 'large') { # check that prepare_cached was NOT used
+        my $sql = ${ $rs->search({ blob => "blob:$str", clob => "clob:$str" })
+          ->as_query }->[0];
+
+        ok((not exists $schema->storage->_dbh->{CachedKids}{$sql}),
+          'multi-part LOB equality query was not cached');
       }
+
+      @objs = $rs->search({ clob => { -like => 'clob:%' } })->all;
+      ok (@objs, 'rows found matching CLOB with a LIKE query');
+
+      ok(my $subq = $rs->search({ blob => "blob:$str", clob => "clob:$str" })
+        ->get_column('id')->as_query);
+
+      @objs = $rs->search({ id => { -in => $subq } })->all;
+      is (@objs, 1, 'One row found matching on both LOBs as a subquery');
     }
 
     $schema->storage->debug ($orig_debug);
