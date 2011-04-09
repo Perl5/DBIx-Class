@@ -214,8 +214,7 @@ Timestamp columns can be declared with either C<datetime> or C<timestamp>.
 
 You will need the L<DateTime::Format::Strptime> module for inflation to work.
 
-For L<DBIx::Class::Storage::DBI::ODBC::Firebird>, this is a noop and sub-second
-precision is not currently available.
+For L<DBIx::Class::Storage::DBI::ODBC::Firebird>, this is a noop.
 
 =cut
 
@@ -295,11 +294,6 @@ Alternately, use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
 C<last_insert_id> support by default only works for Firebird versions 2 or
 greater, L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> however should
 work with earlier versions.
-
-=item *
-
-Sub-second precision for TIMESTAMPs is not currently available when using the
-L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
 
 =back
 

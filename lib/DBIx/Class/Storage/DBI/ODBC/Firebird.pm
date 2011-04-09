@@ -22,9 +22,9 @@ To build the ODBC driver for Firebird on Linux for unixODBC, see:
 L<http://www.firebirdnews.org/?p=1324>
 
 This driver does not suffer from the nested statement handles across commits
-issue that the L<DBD::InterBase|DBIx::Class::Storage::DBI::InterBase> based
-driver does. This makes it more suitable for long running processes such as
-under L<Catalyst>.
+issue that the L<DBD::InterBase|DBIx::Class::Storage::DBI::InterBase> or the
+L<DBD::Firebird|DBIx::Class::Storage::DBI::Firebird> based driver does. This
+makes it more suitable for long running processes such as under L<Catalyst>.
 
 =cut
 
@@ -62,7 +62,7 @@ package # hide from PAUSE
 # inherit parse/format date
 our @ISA = 'DBIx::Class::Storage::DBI::InterBase::DateTime::Format';
 
-my $timestamp_format = '%Y-%m-%d %H:%M:%S'; # %F %T, no fractional part
+my $timestamp_format = '%Y-%m-%d %H:%M:%S.%4N'; # %F %T
 my $timestamp_parser;
 
 sub parse_datetime {
@@ -86,17 +86,6 @@ sub format_datetime {
 }
 
 1;
-
-=head1 CAVEATS
-
-=over 4
-
-=item *
-
-This driver (unlike L<DBD::InterBase>) does not currently support reading or
-writing C<TIMESTAMP> values with sub-second precision.
-
-=back
 
 =head1 AUTHOR
 

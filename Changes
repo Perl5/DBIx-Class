@@ -19,6 +19,7 @@ Revision history for DBIx::Class
           changes the output of as_query (should not cause compat issues)
         - Support ancient DB2 versions (5.4 and older), with proper limit
           dialect
+        - Support sub-second precision for TIMESTAMPs for Firebird over ODBC
 
     * Fixes
         - Fix ::Storage::DBI::* MRO problems on 5.8.x perls

@@ -185,7 +185,6 @@ EOF
   my ($updated) = $schema->resultset('Artist')->search({name => 'foo'});
   is eval { $updated->rank }, 4, 'and the update made it to the database';
 
-
 # test LIMIT support
   my $lim = $ars->search( {},
     {

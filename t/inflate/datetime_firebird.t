@@ -49,10 +49,10 @@ foreach my $conn_idx (0..$#info) {
     "created_on" TIMESTAMP
   )
 SQL
-  my $rs   = $schema->resultset('Event');
+  my $rs = $schema->resultset('Event');
 
   my $dt = DateTime->now;
-  $dt->set_nanosecond($dsn =~ /odbc/i ? 0 : 555600000);
+  $dt->set_nanosecond(555600000);
 
   my $date_only = DateTime->new(
     year => $dt->year, month => $dt->month, day => $dt->day
@@ -70,7 +70,7 @@ SQL
   is $row->created_on, $dt, 'TIMESTAMP as DateTime roundtrip';
 
   cmp_ok $row->created_on->nanosecond, '==', $dt->nanosecond,
-    'fractional part of a second survived' if 0+$dt->nanosecond;
+    'fractional part of a second survived';
 
   is $row->starts_at, $date_only, 'DATE as DateTime roundtrip';
 }
