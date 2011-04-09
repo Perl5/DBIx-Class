@@ -49,20 +49,16 @@ sub _prep_for_execute {
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
-  my $col_info = $self->_resolve_column_info(
-    $ident, [ map { $_->[0]{dbic_colname} || () } @$bind ]
-  );
-
   for (@$bind) {
-    my $datatype = $col_info->{ $_->[0]{dbic_colname}||'' }{data_type};
+    my $data = (ref $_->[1]) ? "$_->[1]" : $_->[1]; # always stringify, array types are currently not supported
 
-    my $data = (ref $_->[1]) ? "$_->[1]" : $_->[1]; # always stringify
+    my $datatype = $_->[0]{sqlt_datatype};
 
     $data = $self->_prep_interpolated_value($datatype, $data)
       if $datatype;
 
     $data = $self->_get_dbh->quote($data)
-      unless $self->interpolate_unquoted($datatype, $data);
+      unless ($datatype and $self->interpolate_unquoted($datatype, $data) );
 
     $new_sql .= shift(@sql_part) . $data;
   }
