@@ -12,6 +12,13 @@ use Scope::Guard ();
 my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
 
+# Example DSNs:
+# dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
+# dbi:Firebird:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
+
+# Example ODBC DSN:
+# dbi:ODBC:Driver=Firebird;Dbname=/var/lib/firebird/2.5/data/hlaghdb.fdb
+
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
 _USER and _PASS to run these tests.
