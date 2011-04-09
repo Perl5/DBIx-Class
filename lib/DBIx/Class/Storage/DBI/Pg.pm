@@ -10,6 +10,7 @@ use mro 'c3';
 
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
+use DBIx::Class::Carp;
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
@@ -162,28 +163,25 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
-my $bind_attributes;
+my $type_cache;
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
-  $bind_attributes ||= do {
-    require DBD::Pg;
-
-    # Ask for a DBD::Pg with array support
-    warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
-      if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
-    {
-      bytea => { pg_type => DBD::Pg::PG_BYTEA() },
-      blob  => { pg_type => DBD::Pg::PG_BYTEA() },
-    };
-  };
-
-  if( defined $bind_attributes->{$data_type} ) {
-    return $bind_attributes->{$data_type};
+  # Ask for a DBD::Pg with array support
+  # pg uses (used?) version::qv()
+  require DBD::Pg;
+  if ($DBD::Pg::VERSION < 2.009002) {
+    carp_once( __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n" );
   }
-  else {
-    return;
+
+  # cache the result of _is_binary_lob_type
+  if (!exists $type_cache->{$data_type}) {
+    $type_cache->{$data_type} = $self->_is_binary_lob_type($data_type)
+      ? +{ pg_type => DBD::Pg::PG_BYTEA() }
+      : undef
   }
+
+  $type_cache->{$data_type};
 }
 
 sub _svp_begin {
