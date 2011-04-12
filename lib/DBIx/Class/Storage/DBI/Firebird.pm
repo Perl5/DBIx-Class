@@ -2,7 +2,13 @@ package DBIx::Class::Storage::DBI::Firebird;
 
 use strict;
 use warnings;
+
+# Because DBD::Firebird is more or less a copy of
+# DBD::Interbase, inherit all the workarounds contained
+# in ::Storage::DBI::InterBase as opposed to inheriting
+# directly from ::Storage::DBI::Firebird::Common
 use base qw/DBIx::Class::Storage::DBI::InterBase/;
+
 use mro 'c3';
 
 =head1 NAME

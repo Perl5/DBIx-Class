@@ -2,7 +2,7 @@ package DBIx::Class::Storage::DBI::ODBC::Firebird;
 
 use strict;
 use warnings;
-use base 'DBIx::Class::Storage::DBI::InterBase';
+use base 'DBIx::Class::Storage::DBI::Firebird::Common';
 use mro 'c3';
 use Try::Tiny;
 use namespace::clean;
@@ -14,8 +14,8 @@ through ODBC
 
 =head1 DESCRIPTION
 
-Most functionality is provided by L<DBIx::Class::Storage::DBI::Interbase>, see
-that module for details.
+Most functionality is provided by
+L<DBIx::Class::Storage::DBI::Firebird::Common>, see that driver for details.
 
 To build the ODBC driver for Firebird on Linux for unixODBC, see:
 
@@ -29,15 +29,6 @@ makes it more suitable for long running processes such as under L<Catalyst>.
 =cut
 
 __PACKAGE__->datetime_parser_type ('DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format');
-
-# XXX seemingly no equivalent to ib_time_all from DBD::InterBase via ODBC
-sub connect_call_datetime_setup { 1 }
-
-# we don't need DBD::InterBase-specific initialization
-sub _init { 1 }
-
-# ODBC uses dialect 3 by default, good
-sub _set_sql_dialect { 1 }
 
 # releasing savepoints doesn't work for some reason, but that shouldn't matter
 sub _svp_release { 1 }

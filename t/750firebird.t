@@ -44,7 +44,7 @@ foreach my $conn_idx (0..$#info) {
     auto_savepoint  => 1,
     quote_char      => q["],
     name_sep        => q[.],
-    on_connect_call => 'use_softcommit',
+    ($dsn !~ /ODBC/ ? (on_connect_call => 'use_softcommit') : ()),
   });
   my $dbh = $schema->storage->dbh;
 
