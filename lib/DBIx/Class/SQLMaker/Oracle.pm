@@ -245,6 +245,19 @@ sub _insert_returning {
   );
 }
 
+# this is needed because DBD::Oracle doesn't support specifying
+# the data type of a bind var as ORA_DATE
+sub _modify_datetime_for_bind {
+  my $date = shift;
+
+  # from the Oracle extract function docs:
+  # EXTRACT interprets expr as an ANSI datetime datatype.
+  # For example, EXTRACT treats DATE not as legacy Oracle DATE but as
+  # ANSI DATE, without time elements.
+  # Therefore, you can extract only YEAR, MONTH, and DAY from a DATE value.
+
+  return $date eq '?' ? "TO_TIMESTAMP($date)" : $date;
+}
 
 {
   my %part_map = (
@@ -262,7 +275,7 @@ sub _insert_returning {
     die $self->_unsupported_date_extraction($part, 'Oracle')
        unless exists $part_map{$part};
 
-    my $rhs = $date eq '?' ? "TO_TIMESTAMP($date)" : $date;
+    my $rhs = _modify_datetime_for_bind($date);
 
     return "EXTRACT($part_map{$_[1]} FROM $rhs)";
   }
@@ -305,7 +318,7 @@ sub _insert_returning {
     die $self->_unsupported_date_adding($part, 'Oracle')
       unless exists $part_map{$part};
 
-    my $rhs = $date eq '?' ? "TO_TIMESTAMP($date)" : $date;
+    my $rhs = _modify_datetime_for_bind($date);
 
     return "($rhs + $part_map{$part}($amount, '$part'))";
   }
