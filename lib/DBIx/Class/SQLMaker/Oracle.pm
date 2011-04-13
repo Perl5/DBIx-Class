@@ -257,9 +257,14 @@ sub _insert_returning {
   );
 
   sub _datetime_sql {
-    die $_[0]->_unsupported_date_extraction($_[1], 'Oracle')
-       unless exists $part_map{$_[1]};
-    "EXTRACT($part_map{$_[1]} FROM $_[2])"
+    my ($self, $part, $date) = @_;
+
+    die $self->_unsupported_date_extraction($part, 'Oracle')
+       unless exists $part_map{$part};
+
+    my $rhs = $date eq '?' ? "TO_TIMESTAMP($date)" : $date;
+
+    return "EXTRACT($part_map{$_[1]} FROM $rhs)";
   }
 }
 
@@ -300,7 +305,9 @@ sub _insert_returning {
     die $self->_unsupported_date_adding($part, 'Oracle')
       unless exists $part_map{$part};
 
-    return "($date + $part_map{$part}($amount, '$part'))";
+    my $rhs = $date eq '?' ? "TO_TIMESTAMP($date)" : $date;
+
+    return "($rhs + $part_map{$part}($amount, '$part'))";
   }
 }
 

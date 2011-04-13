@@ -271,7 +271,7 @@ my @tests = (
       select => "date_part('year', ?)",
     },
     oracle => {
-      select => "EXTRACT(year FROM ?)",
+      select => "EXTRACT(year FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -330,7 +330,7 @@ my @tests = (
       select => "date_part('year', ?), date_part('month', ?)",
     },
     oracle => {
-      select => "EXTRACT(year FROM ?), EXTRACT(month FROM ?)",
+      select => "EXTRACT(year FROM TO_TIMESTAMP(?)), EXTRACT(month FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -381,7 +381,7 @@ my @tests = (
       select => "date_part('month', ?)",
     },
     oracle => {
-      select => "EXTRACT(month FROM ?)",
+      select => "EXTRACT(month FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -432,7 +432,7 @@ my @tests = (
       select => "date_part('day', ?)",
     },
     oracle => {
-      select => "EXTRACT(day FROM ?)",
+      select => "EXTRACT(day FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -483,7 +483,7 @@ my @tests = (
       select => "date_part('hour', ?)",
     },
     oracle => {
-      select => "EXTRACT(hour FROM ?)",
+      select => "EXTRACT(hour FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -534,7 +534,7 @@ my @tests = (
       select => "date_part('minute', ?)",
     },
     oracle => {
-      select => "EXTRACT(minute FROM ?)",
+      select => "EXTRACT(minute FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -585,7 +585,7 @@ my @tests = (
       select => "date_part('second', ?)",
     },
     oracle => {
-      select => "EXTRACT(second FROM ?)",
+      select => "EXTRACT(second FROM TO_TIMESTAMP(?))",
     },
   },
 
@@ -840,8 +840,8 @@ my @tests = (
       select => "(? + ? * interval '1 YEAR')",
     },
     oracle => {
-      select => "(? + NUMTOYMINTERVAL(?, 'year'))",
-      hri    => [{ date => '2014-12-14 12:12:12.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTOYMINTERVAL(?, 'year'))",
+      hri    => [{ date => '2013-12-14 12:12:12.000000000' }],
     },
   },
 
@@ -904,8 +904,8 @@ my @tests = (
       select => "DATE_ADD(?, INTERVAL ? MONTH)",
     },
     oracle => {
-      select => "(? + NUMTOYMINTERVAL(?, 'month'))",
-      hri    => [{ date => '2012-03-14 12:12:12.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTOYMINTERVAL(?, 'month'))",
+      hri    => [{ date => '2011-03-14 12:12:12.000000000' }],
     },
   },
 
@@ -968,8 +968,8 @@ my @tests = (
       select => "DATE_ADD(?, INTERVAL ? DAY)",
     },
     oracle => {
-      select => "(? + NUMTODSINTERVAL(?, 'day'))",
-      hri    => [{ date => '2011-12-17 12:12:12.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTODSINTERVAL(?, 'day'))",
+      hri    => [{ date => '2010-12-17 12:12:12.000000000' }],
     },
   },
 
@@ -1032,8 +1032,8 @@ my @tests = (
       select => "DATE_ADD(?, INTERVAL ? HOUR)",
     },
     oracle => {
-      select => "(? + NUMTODSINTERVAL(?, 'hour'))",
-      hri    => [{ date => '2011-12-14 15:12:12.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTODSINTERVAL(?, 'hour'))",
+      hri    => [{ date => '2010-12-14 15:12:12.000000000' }],
     },
   },
 
@@ -1096,8 +1096,8 @@ my @tests = (
       select => "DATE_ADD(?, INTERVAL ? MINUTE)",
     },
     oracle => {
-      select => "(? + NUMTODSINTERVAL(?, 'minute'))",
-      hri    => [{ date => '2011-12-14 12:15:12.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTODSINTERVAL(?, 'minute'))",
+      hri    => [{ date => '2010-12-14 12:15:12.000000000' }],
     },
   },
 
@@ -1160,8 +1160,8 @@ my @tests = (
       select => "DATE_ADD(?, INTERVAL ? SECOND)",
     },
     oracle => {
-      select => "(? + NUMTODSINTERVAL(?, 'second'))",
-      hri    => [{ date => '2011-12-14 12:12:15.000000000' }],
+      select => "(TO_TIMESTAMP(?) + NUMTODSINTERVAL(?, 'second'))",
+      hri    => [{ date => '2010-12-14 12:12:15.000000000' }],
     },
   },
 
@@ -1226,8 +1226,8 @@ my @tests = (
       select => "DATE_ADD(DATE_ADD(?, INTERVAL ? DAY), INTERVAL ? SECOND)",
     },
     oracle => {
-      select => "((? + NUMTODSINTERVAL(?, 'day')) + NUMTODSINTERVAL(?, 'second'))",
-      hri    => [{ date => '2011-12-15 12:12:15.000000000' }],
+      select => "((TO_TIMESTAMP(?) + NUMTODSINTERVAL(?, 'day')) + NUMTODSINTERVAL(?, 'second'))",
+      hri    => [{ date => '2010-12-15 12:12:15.000000000' }],
     },
   },
 
