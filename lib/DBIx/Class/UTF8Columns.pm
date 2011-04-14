@@ -32,7 +32,7 @@ stored and de-serialised to unicode strings on retrieval.
   STRONGLY DISCOURAGED, PLEASE READ THE WARNINGS BELOW FOR AN EXPLANATION.
 
 If you want to continue using this module and do not want to receive
-further warnings set the environmane variable C<DBIC_UTF8COLUMNS_OK>
+further warnings set the environment variable C<DBIC_UTF8COLUMNS_OK>
 to a true value.
 
 =head2 Warning - Module does not function properly on create/insert

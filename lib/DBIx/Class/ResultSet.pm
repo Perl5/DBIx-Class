@@ -1837,7 +1837,7 @@ sub delete_all {
 
 Accepts either an arrayref of hashrefs or alternatively an arrayref of arrayrefs.
 For the arrayref of hashrefs style each hashref should be a structure suitable
-forsubmitting to a $resultset->create(...) method.
+for submitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a faster method.

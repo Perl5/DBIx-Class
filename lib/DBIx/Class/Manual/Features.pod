@@ -171,7 +171,7 @@ See L<DBIx::Class::Row/delete>
 
 =back
 
-=head2 OO Overidability
+=head2 OO Overridability
 
 =over 1
 

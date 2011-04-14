@@ -50,7 +50,7 @@ my ($opts, $usage) = describe_options(
     ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
     ['config-stanza:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
     ['config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-    ['connect-info:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
+    ['connect-info:s%' => 'Supply the connect info as additional options ie -I dsn=<dsn> user=<user> password=<pass> '],
     ['connect:s' => 'Supply the connect info as a json string' ],
     ['sql-dir:s' => 'The directory where sql diffs will be created'],
     ['sql-type:s' => 'The RDBMs flavour you wish to use'],

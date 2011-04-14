@@ -20,7 +20,7 @@ How Do I:
 
 =item .. create a database to use?
 
-First, choose a database. For testing/experimenting, we reccommend
+First, choose a database. For testing/experimenting, we recommend
 L<DBD::SQLite>, which is a self-contained small database (i.e. all you
 need to do is to install L<DBD::SQLite> from CPAN, and it works).
 

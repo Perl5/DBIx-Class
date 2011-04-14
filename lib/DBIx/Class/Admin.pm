@@ -133,7 +133,7 @@ has 'set' => (
 
 =head2 attrs
 
-a hash ref or json string to be used for passing additonal info to the ->search call
+a hash ref or json string to be used for passing additional info to the ->search call
 
 =cut
 
@@ -180,7 +180,7 @@ has config_file => (
 
 =head2 config_stanza
 
-config_stanza for use with config_file should be a '::' deliminated 'path' to the connection information
+config_stanza for use with config_file should be a '::' delimited 'path' to the connection information
 designed for use with catalyst config files
 
 =cut
@@ -256,7 +256,7 @@ has version => (
 
 =head2 preversion
 
-Previouse version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
+Previous version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
 
 =cut
 
