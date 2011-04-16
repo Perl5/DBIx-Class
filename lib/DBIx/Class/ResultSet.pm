@@ -3322,6 +3322,9 @@ sub _resolved_attrs {
       $join = $self->_merge_joinpref_attr( $join, $attrs->{prefetch} );
     }
 
+    use Data::Dumper;
+    die Dumper $join;
+
     $attrs->{from} =    # have to copy here to avoid corrupting the original
       [
         @{ $attrs->{from} },
