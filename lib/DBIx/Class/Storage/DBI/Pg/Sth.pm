@@ -112,7 +112,7 @@ sub _prepare_cursor_sth {
 
     return if $self->cursor_sth;
 
-    $self->cursor_sth($self->storage->sth($self->cursor_sql));
+    $self->cursor_sth($self->storage->_sth($self->cursor_sql));
 }
 
 sub _cleanup_sth {
@@ -191,7 +191,7 @@ sub _run_fetch_sth {
     }
 
     $self->fetch_sth->finish if $self->fetch_sth;
-    $self->fetch_sth($self->storage->sth($self->fetch_sql));
+    $self->fetch_sth($self->storage->_sth($self->fetch_sql));
     $self->fetch_sth->execute;
 }
 

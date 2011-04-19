@@ -47,11 +47,14 @@ $schema->storage->set_use_dbms_capability('server_cursors',1);
 drop_test_schema($schema);create_test_schema($schema);
 
 my ($called,$page_size)=(0,0);
-my $old_sth_new=\&DBIx::Class::Storage::DBI::Pg::Sth::new;
-*DBIx::Class::Storage::DBI::Pg::Sth::new=sub {
-    ++$called;$page_size=$_[4];
-    goto &$old_sth_new;
-};
+{
+  no warnings 'redefine';
+  my $old_sth_new=\&DBIx::Class::Storage::DBI::Pg::Sth::new;
+  *DBIx::Class::Storage::DBI::Pg::Sth::new=sub {
+      ++$called;$page_size=$_[4];
+      goto &$old_sth_new;
+  };
+}
 
 END {
     return unless $schema;
