@@ -76,7 +76,7 @@ my $runtime_requires = {
   'Try::Tiny'                => '0.04',
 
   # XS (or XS-dependent) libs
-  'DBI'                      => '1.609',
+  'DBI'                      => '1.57',
   'namespace::clean'         => '0.20',
   'Sub::Name'                => '0.04',
   'Variable::Magic'          => '0.44',
