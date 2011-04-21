@@ -3966,28 +3966,122 @@ case.
 Simple prefetches will be joined automatically, so there is no need
 for a C<join> attribute in the above search.
 
-C<prefetch> can be used with the following relationship types: C<belongs_to>,
-C<has_one> (or if you're using C<add_relationship>, any relationship declared
-with an accessor type of 'single' or 'filter'). A more complex example that
-prefetches an artists cds, the tracks on those cds, and the tags associated
-with that artist is given below (assuming many-to-many from artists to tags):
+L</prefetch> can be used with the any of the relationship types and
+multiple prefetches can be specified together. Below is a more complex
+example that prefetches a CD's artist, its liner notes (if present),
+the cover image, the tracks on that cd, and the guests on those
+tracks.
 
- my $rs = $schema->resultset('Artist')->search(
+ # Assuming:
+ My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
+ My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
+ My::Schema::CD->has_one(    cover_image => 'My::Schema::Artwork'    );
+ My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
+
+ My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
+
+ My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
+
+
+ my $rs = $schema->resultset('CD')->search(
    undef,
    {
      prefetch => [
-       { cds => 'tracks' },
-       { artist_tags => 'tags' }
+       { artist => 'record_label'},  # belongs_to => belongs_to
+       'liner_note',                 # might_have
+       'cover_image',                # has_one
+       { tracks => 'guests' },       # has_many => has_many
      ]
    }
  );
 
+This will produce SQL like the following:
 
-B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
-attributes will be ignored.
+ SELECT cd.*, artist.*, record_label.*, liner_note.*, cover_image.*,
+        tracks.*, guests.*
+   FROM cd me
+   JOIN artist artist
+     ON artist.artistid = me.artistid
+   JOIN record_label record_label
+     ON record_label.labelid = artist.labelid
+   LEFT JOIN track tracks
+     ON tracks.cdid = me.cdid
+   LEFT JOIN guest guests
+     ON guests.trackid = track.trackid
+   LEFT JOIN liner_notes liner_note
+     ON liner_note.cdid = me.cdid
+   JOIN cd_artwork cover_image
+     ON cover_image.cdid = me.cdid
+ ORDER BY tracks.cd
 
-B<CAVEATs>: Prefetch does a lot of deep magic. As such, it may not behave
-exactly as you might expect.
+Now the C<artist>, C<record_label>, C<liner_note>, C<cover_image>,
+C<tracks>, and C<guests> of the CD will all be available through the
+relationship accessors without the need for additional queries to the
+database.
+
+However, there is one caveat to be observed: it can be dangerous to
+prefetch more than one L<has_many|DBIx::Class::Relationship/has_many>
+relationship on a given level. e.g.:
+
+ my $rs = $schema->resultset('CD')->search(
+   undef,
+   {
+     prefetch => [
+       'tracks',                         # has_many
+       { cd_to_producer => 'producer' }, # has_many => belongs_to (i.e. m2m)
+     ]
+   }
+ );
+
+In fact, C<DBIx::Class> will emit the following warning:
+
+ Prefetching multiple has_many rels tracks and cd_to_producer at top
+ level will explode the number of row objects retrievable via ->next
+ or ->all. Use at your own risk.
+
+The collapser currently can't identify duplicate tuples for multiple
+L<has_many|DBIx::Class::Relationship/has_many> relationships and as a
+result the second L<has_many|DBIx::Class::Relationship/has_many>
+relation could contain redundant objects.
+
+=head3 Using L</prefetch> with L</join>
+
+L</prefetch> implies a L</join> with the equivalent argument, and is
+properly merged with any existing L</join> specification. So the
+following:
+
+  my $rs = $schema->resultset('CD')->search(
+   {'record_label.name' => 'Music Product Ltd.'},
+   {
+     join     => {artist => 'record_label'},
+     prefetch => 'artist',
+   }
+ );
+
+... will work, searching on the record label's name, but only
+prefetching the C<artist>.
+
+=head3 Using L</prefetch> with L</select> / L</+select> / L</as> / L</+as>
+
+L</prefetch> implies a L</+select>/L</+as> with the fields of the
+prefetched relations.  So given:
+
+  my $rs = $schema->resultset('CD')->search(
+   undef,
+   {
+     select   => ['cd.title'],
+     as       => ['cd_title'],
+     prefetch => 'artist',
+   }
+ );
+
+The L</select> becomes: C<'cd.title', 'artist.*'> and the L</as>
+becomes: C<'cd_title', 'artist.*'>.
+
+=head3 CAVEATS
+
+Prefetch does a lot of deep magic. As such, it may not behave exactly
+as you might expect.
 
 =over 4
 

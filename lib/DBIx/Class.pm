@@ -334,6 +334,8 @@ dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
+felliott: Fitz Elliott <fitz.elliott@gmail.com>
+
 freetime: Bill Moseley <moseley@hank.org>
 
 frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
