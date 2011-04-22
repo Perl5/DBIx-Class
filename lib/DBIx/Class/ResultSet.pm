@@ -221,7 +221,7 @@ sub new {
 
 =item Arguments: $cond, \%attrs?
 
-=item Return Value: $resultset (scalar context), @row_objs (list context)
+=item Return Value: $resultset (scalar context) ||  @row_objs (list context)
 
 =back
 
@@ -230,6 +230,9 @@ sub new {
 
   my $new_rs = $cd_rs->search([ { year => 2005 }, { year => 2004 } ]);
                  # year = 2005 OR year = 2004
+
+In list context, C<< ->all() >> is called implicitly on the resultset, thus
+returning a list of row objects instead. To avoid that, use L</search_rs>.
 
 If you need to pass in additional attributes but no additional condition,
 call it as C<search(undef, \%attrs)>.
@@ -540,7 +543,7 @@ sub _stack_cond {
 
 =item Arguments: $sql_fragment, @bind_values
 
-=item Return Value: $resultset (scalar context), @row_objs (list context)
+=item Return Value: $resultset (scalar context) || @row_objs (list context)
 
 =back
 
@@ -837,7 +840,7 @@ sub _build_unique_cond {
 
 =item Arguments: $rel, $cond, \%attrs?
 
-=item Return Value: $new_resultset
+=item Return Value: $new_resultset (scalar context) || @row_objs (list context)
 
 =back
 
@@ -847,6 +850,11 @@ sub _build_unique_cond {
 
 Searches the specified relationship, optionally specifying a condition and
 attributes for matching records. See L</ATTRIBUTES> for more information.
+
+In list context, C<< ->all() >> is called implicitly on the resultset, thus
+returning a list of row objects instead. To avoid that, use L</search_related_rs>.
+
+See also L</search_related_rs>.
 
 =cut
 
@@ -1028,7 +1036,7 @@ sub get_column {
 
 =item Arguments: $cond, \%attrs?
 
-=item Return Value: $resultset (scalar context), @row_objs (list context)
+=item Return Value: $resultset (scalar context) || @row_objs (list context)
 
 =back
 
@@ -1071,7 +1079,7 @@ sub search_like {
 
 =item Arguments: $first, $last
 
-=item Return Value: $resultset (scalar context), @row_objs (list context)
+=item Return Value: $resultset (scalar context) || @row_objs (list context)
 
 =back
 
@@ -1551,8 +1559,7 @@ sub count_literal { shift->search_literal(@_)->count; }
 
 =back
 
-Returns all elements in the resultset. Called implicitly if the resultset
-is returned in list context.
+Returns all elements in the resultset.
 
 =cut
 
