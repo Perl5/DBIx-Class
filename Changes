@@ -60,6 +60,8 @@ Revision history for DBIx::Class
           sub-selects in the selectors list (correlated subqueries)
         - Fix inconsistency between $rs->next with and without HRI when all
           the "root" columns are in fact injected from the right rs side
+        - Fix the join optimizer to correctly preserve the non-multi path to
+          a multi relationship ( x -> might_have y -> has_many z )
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

@@ -154,4 +154,28 @@ lives_ok ( sub {
   ok (defined $rs->count);
 });
 
+# make sure multiplying endpoints do not lose heir join-path
+lives_ok (sub {
+  my $rs = $schema->resultset('CD')->search (
+    { },
+    { join => { artwork => 'images' } },
+  )->get_column('cdid');
+
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT me.cdid
+        FROM cd me
+        LEFT JOIN cd_artwork artwork
+          ON artwork.cd_id = me.cdid
+        LEFT JOIN images images
+          ON images.artwork_id = artwork.cd_id
+    )',
+    [],
+  );
+
+  # execution
+  $rs->next;
+});
+
 done_testing;
