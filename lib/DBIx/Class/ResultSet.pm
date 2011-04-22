@@ -229,6 +229,9 @@ sub new {
   my $new_rs = $cd_rs->search([ { year => 2005 }, { year => 2004 } ]);
                  # year = 2005 OR year = 2004
 
+In list context, C<< ->call() >> is called implicitly on the resultset, thus
+returning a list of row objects instead. To avoid that, use L</search_rs>.
+
 If you need to pass in additional attributes but no additional condition,
 call it as C<search(undef, \%attrs)>.
 
@@ -243,6 +246,8 @@ L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
 documentation for the first argument, see L<SQL::Abstract>.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
+
+See also L</search_rs>.
 
 =cut
 
@@ -623,7 +628,7 @@ sub _build_unique_query {
 
 =item Arguments: $rel, $cond, \%attrs?
 
-=item Return Value: $new_resultset
+=item Return Value: $new_resultset (scalar context), @row_objs (list context)
 
 =back
 
@@ -633,6 +638,11 @@ sub _build_unique_query {
 
 Searches the specified relationship, optionally specifying a condition and
 attributes for matching records. See L</ATTRIBUTES> for more information.
+
+In list context, C<< ->call() >> is called implicitly on the resultset, thus
+returning a list of row objects instead. To avoid that, use L</search_related_rs>.
+
+See also L</search_related_rs>.
 
 =cut
 
@@ -1342,8 +1352,7 @@ sub count_literal { shift->search_literal(@_)->count; }
 
 =back
 
-Returns all elements in the resultset. Called implicitly if the resultset
-is returned in list context.
+Returns all elements in the resultset.
 
 =cut
 
