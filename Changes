@@ -62,6 +62,8 @@ Revision history for DBIx::Class
           the "root" columns are in fact injected from the right rs side
         - Fix the join optimizer to correctly preserve the non-multi path to
           a multi relationship ( x -> might_have y -> has_many z )
+        - Fix object-derived custom-relationship resultsets to resultsources
+          with multilevel monikers (e.g. $schema->source('Foo::Bar') )
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

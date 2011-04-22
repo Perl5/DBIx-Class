@@ -444,9 +444,9 @@ sub related_resultset {
       # root alias as 'me', instead of $rel (as opposed to invoking
       # $rs->search_related)
 
-
       local $source->{_relationships}{me} = $source->{_relationships}{$rel};  # make the fake 'me' rel
       my $obj_table_alias = lc($source->source_name) . '__row';
+      $obj_table_alias =~ s/\W+/_/g;
 
       $source->resultset->search(
         $self->ident_condition($obj_table_alias),

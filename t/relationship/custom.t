@@ -86,6 +86,39 @@ is_same_sql_bind(
     ],
   ]
 );
+
+# re-test with ::-containing moniker name
+# (we don't have any currently, so fudge it with lots of local() )
+{
+  local $schema->source('Artist')->{source_name} = 'Ar::Tist';
+  local $artist2->{related_resultsets};
+
+  is_same_sql_bind(
+    $artist2->cds_90s->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+        FROM artist ar_tist__row
+        JOIN cd me
+          ON ( me.artist = ar_tist__row.artistid AND ( me.year < ? AND me.year > ? ) )
+        WHERE ( ar_tist__row.artistid = ? )
+    )',
+    [
+      [
+        { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.year' }
+          => 2000
+      ],
+      [
+      { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.year' }
+          => 1989
+      ],
+      [ { sqlt_datatype => 'integer', dbic_colname => 'ar_tist__row.artistid' }
+          => 22
+      ],
+    ]
+  );
+}
+
+
 my @cds_90s = $cds_90s_rs->all;
 is(@cds_90s, 6, '6 90s cds found (1990 - 1995) even with non-optimized search');
 map { ok($_->year < 2000 && $_->year > 1989) } @cds_90s;
