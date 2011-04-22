@@ -229,7 +229,7 @@ sub new {
   my $new_rs = $cd_rs->search([ { year => 2005 }, { year => 2004 } ]);
                  # year = 2005 OR year = 2004
 
-In list context, C<< ->call() >> is called implicitly on the resultset, thus
+In list context, C<< ->all() >> is called implicitly on the resultset, thus
 returning a list of row objects instead. To avoid that, use L</search_rs>.
 
 If you need to pass in additional attributes but no additional condition,
@@ -639,7 +639,7 @@ sub _build_unique_query {
 Searches the specified relationship, optionally specifying a condition and
 attributes for matching records. See L</ATTRIBUTES> for more information.
 
-In list context, C<< ->call() >> is called implicitly on the resultset, thus
+In list context, C<< ->all() >> is called implicitly on the resultset, thus
 returning a list of row objects instead. To avoid that, use L</search_related_rs>.
 
 See also L</search_related_rs>.
