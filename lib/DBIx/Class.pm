@@ -356,6 +356,8 @@ ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
 initself: Mike Baas <mike@initselftech.com>
 
+ironcamel: Naveed Massjouni <naveedm9@gmail.com>
+
 jawnsy: Jonathan Yu <jawnsy@cpan.org>
 
 jasonmay: Jason May <jason.a.may@gmail.com>

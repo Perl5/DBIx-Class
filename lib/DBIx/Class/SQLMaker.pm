@@ -27,9 +27,9 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
-=item * The -ident operator
+=item * The L</-ident> operator
 
-=item * The -value operator
+=item * The L</-value> operator
 
 =back
 
@@ -495,6 +495,41 @@ sub _join_condition {
 }
 
 1;
+
+=head1 OPERATORS
+
+=head2 -ident
+
+Used to explicitly specify an SQL identifier. Takes a plain string as value
+which is then invariably treated as a column name (and is being properly
+quoted if quoting has been requested). Most useful for comparison of two
+columns:
+
+    my %where = (
+        priority => { '<', 2 },
+        requestor => { -ident => 'submitter' }
+    );
+
+which results in:
+
+    $stmt = 'WHERE "priority" < ? AND "requestor" = "submitter"';
+    @bind = ('2');
+
+=head2 -value
+
+The -value operator signals that the argument to the right is a raw bind value.
+It will be passed straight to DBI, without invoking any of the SQL::Abstract
+condition-parsing logic. This allows you to, for example, pass an array as a
+column value for databases that support array datatypes, e.g.:
+
+    my %where = (
+        array => { -value => [1, 2, 3] }
+    );
+
+which results in:
+
+    $stmt = 'WHERE array = ?';
+    @bind = ([1, 2, 3]);
 
 =head1 AUTHORS
 

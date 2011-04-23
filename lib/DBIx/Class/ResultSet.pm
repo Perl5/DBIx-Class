@@ -251,7 +251,8 @@ call it as C<search(undef, \%attrs)>.
 For a list of attributes that can be passed to C<search>, see
 L</ATTRIBUTES>. For more examples of using this function, see
 L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
-documentation for the first argument, see L<SQL::Abstract>.
+documentation for the first argument, see L<SQL::Abstract>
+and its extension L<DBIx::Class::SQLMaker>.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
