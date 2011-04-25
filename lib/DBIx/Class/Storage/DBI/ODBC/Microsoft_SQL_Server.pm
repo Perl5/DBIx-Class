@@ -174,27 +174,27 @@ C<SCOPE_IDENTITY()>, and C<SELECT @@IDENTITY> will be used instead, which on SQL
 Server 2005 and later will return erroneous results on tables which have an on
 insert trigger that inserts into another table with an C<IDENTITY> column.
 
+B<WARNING:> on FreeTDS, changes made in one statement (e.g. an insert) may not
+be visible from a following statement (e.g. a select.)
+
 =cut
 
 sub connect_call_use_dynamic_cursors {
   my $self = shift;
 
-  my $conn_info = $self->_dbi_connect_info;
+  if (($self->_dbic_connect_attributes->{odbc_cursortype} || 0) < 2) {
 
-  if (ref($conn_info->[0]) eq 'CODE') {
-    $self->throw_exception ('Cannot set DBI attributes on a CODE ref connect_info');
-  }
+    my $dbi_inf = $self->_dbi_connect_info;
 
-  if (
-    ref($conn_info->[-1]) ne 'HASH'
-      or
-    ($conn_info->[-1]{odbc_cursortype}||0) < 2
-  ) {
+    $self->throw_exception ('Cannot set DBI attributes on a CODE ref connect_info')
+      if ref($dbi_inf->[0]) eq 'CODE';
+
     # reenter connection information with the attribute re-set
-    $self->connect_info(
-      @{$conn_info}[0,1,2],
-      { %{$self->_dbix_connect_attributes}, odbc_cursortype => 2 },
-    );
+    $dbi_inf->[3] = {} if @$dbi_inf <= 3;
+    $dbi_inf->[3]{odbc_cursortype} = 2;
+
+    $self->_dbi_connect_info($dbi_inf);
+
     $self->disconnect; # resetting dbi attrs, so have to reconnect
     $self->ensure_connected;
   }
@@ -296,11 +296,11 @@ sub using_freetds {
 
 =head1 AUTHOR
 
-See L<DBIx::Class/CONTRIBUTORS>.
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-# vim: sw=2 sts=2
+# vim:sw=2 sts=2 et

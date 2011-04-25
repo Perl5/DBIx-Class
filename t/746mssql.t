@@ -51,25 +51,32 @@ lives_ok {
 
 my %opts = (
   use_mars =>
-    { on_connect_call => 'use_mars' },
+    { opts => { on_connect_call => 'use_mars' } },
   use_dynamic_cursors =>
-    { on_connect_call => 'use_dynamic_cursors' },
+    { opts => { on_connect_call => 'use_dynamic_cursors' }, required => 1 },
   use_server_cursors =>
-    { on_connect_call => 'use_server_cursors' },
-  plain =>
-    {},
+    { opts => { on_connect_call => 'use_server_cursors' } },
+  NO_OPTION =>
+    { opts => {}, required => 1 },
 );
 
 for my $opts_name (keys %opts) {
   SKIP: {
-    my $opts = $opts{$opts_name};
+    my $opts = $opts{$opts_name}{opts};
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
 
     try {
       $schema->storage->ensure_connected
     }
     catch {
-      skip "$opts_name not functional in this configuration: $_", 1;
+      if ($opts{$opts_name}{required}) {
+        BAIL_OUT "on_connect_call option '$opts_name' is not functional: $_";
+      }
+      else {
+        skip
+"on_connect_call option '$opts_name' not functional in this configuration: $_",
+1;
+      }
     };
 
     $schema->storage->dbh_do (sub {
@@ -522,27 +529,36 @@ CREATE TABLE money_test (
 SQL
       });
 
-      my $rs = $schema->resultset('Money');
-      my $row;
+      TODO: {
+        local $TODO =
+'these tests fail on freetds with dynamic cursors for some reason'
+          if $opts_name eq 'use_dynamic_cursors'
+             && $schema->storage->using_freetds;
 
-      lives_ok {
-        $row = $rs->create({ amount => 100 });
-      } 'inserted a money value';
+        my $rs = $schema->resultset('Money');
+        my $row;
 
-      cmp_ok $rs->find($row->id)->amount, '==', 100, 'money value round-trip';
+        lives_ok {
+          $row = $rs->create({ amount => 100 });
+        } 'inserted a money value';
 
-      lives_ok {
-        $row->update({ amount => 200 });
-      } 'updated a money value';
+        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 100,
+          'money value round-trip');
 
-      cmp_ok $rs->find($row->id)->amount, '==', 200,
-        'updated money value round-trip';
+        lives_ok {
+          $row->update({ amount => 200 });
+        } 'updated a money value';
 
-      lives_ok {
-        $row->update({ amount => undef });
-      } 'updated a money value to NULL';
+        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 200,
+          'updated money value round-trip');
 
-      is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
+        lives_ok {
+          $row->update({ amount => undef });
+        } 'updated a money value to NULL';
+
+        is try { $rs->find($row->id)->amount }, undef,
+          'updated money value to NULL round-trip';
+      }
     }
   }
 }
