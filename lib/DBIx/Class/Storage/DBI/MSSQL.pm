@@ -170,19 +170,19 @@ sub _select_args_to_query {
 
 # savepoint syntax is the same as in Sybase ASE
 
-sub _svp_begin {
+sub _exec_svp_begin {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("SAVE TRANSACTION $name");
+  $self->_dbh->do("SAVE TRANSACTION $name");
 }
 
 # A new SAVE TRANSACTION with the same name releases the previous one.
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
+  $self->_dbh->do("ROLLBACK TRANSACTION $name");
 }
 
 sub sqlt_type { 'SQLServer' }

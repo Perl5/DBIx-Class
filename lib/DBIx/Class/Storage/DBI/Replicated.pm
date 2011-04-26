@@ -268,6 +268,9 @@ my $method_dispatch = {
     txn_commit
     txn_rollback
     txn_scope_guard
+    _exec_txn_rollback
+    _exec_txn_begin
+    _exec_txn_commit
     deploy
     with_deferred_fk_checks
     dbh_do
@@ -295,14 +298,12 @@ my $method_dispatch = {
     _dbh_execute_array
     _sql_maker
     _per_row_update_delete
-    _dbh_begin_work
     _dbh_execute_inserts_with_no_binds
     _select_args_to_query
     _svp_generate_name
     _multipk_update_delete
     _normalize_connect_info
     _parse_connect_do
-    _dbh_commit
     _execute_array
     savepoints
     _sql_maker_opts
@@ -311,7 +312,6 @@ my $method_dispatch = {
     _native_data_type
     _get_dbh
     sql_maker_class
-    _dbh_rollback
     _adjust_select_args_for_complex_prefetch
     _resolve_ident_sources
     _resolve_column_info

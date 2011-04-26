@@ -88,22 +88,22 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
-sub _svp_begin {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("SAVEPOINT $name");
+    $self->_dbh->do("SAVEPOINT $name");
 }
 
-sub _svp_release {
+sub _exec_svp_release {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("RELEASE SAVEPOINT $name");
+    $self->_dbh->do("RELEASE SAVEPOINT $name");
 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub is_replicating {

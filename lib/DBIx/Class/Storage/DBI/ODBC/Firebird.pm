@@ -31,9 +31,9 @@ makes it more suitable for long running processes such as under L<Catalyst>.
 __PACKAGE__->datetime_parser_type ('DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format');
 
 # releasing savepoints doesn't work for some reason, but that shouldn't matter
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
   try {

@@ -56,6 +56,7 @@ Revision history for DBIx::Class
           of SQL::Abstract >= 1.73
         - Fix using \[] literals in the from resultset attribute
         - Fix populate() with \[], arrays (datatype) and other exotic values
+        - Fix handling of rollbacks in nested transactions
         - Fix complex limits (RNO/RowNum/FetchFirst/Top/GenSubq) with
           sub-selects in the selectors list (correlated subqueries)
         - Fix inconsistency between $rs->next with and without HRI when all

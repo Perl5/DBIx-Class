@@ -74,10 +74,10 @@ sub set_textsize {
   $self->_dbh->do("SET TEXTSIZE $text_size");
 }
 
-sub _dbh_begin_work {
+sub _exec_txn_begin {
   my $self = shift;
 
-  if ($self->{_in_dbh_do}) {
+  if ($self->{_in_do_block}) {
     $self->_dbh->do('BEGIN TRAN');
   }
   else {
@@ -85,7 +85,7 @@ sub _dbh_begin_work {
   }
 }
 
-sub _dbh_commit {
+sub _exec_txn_commit {
   my $self = shift;
 
   my $dbh = $self->_dbh
@@ -94,7 +94,7 @@ sub _dbh_commit {
   $dbh->do('COMMIT');
 }
 
-sub _dbh_rollback {
+sub _exec_txn_rollback {
   my $self = shift;
 
   my $dbh  = $self->_dbh

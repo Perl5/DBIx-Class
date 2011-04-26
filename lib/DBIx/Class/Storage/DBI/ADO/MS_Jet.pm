@@ -78,14 +78,14 @@ sub _run_connection_actions {
 # (probably because of my nested transaction hacks in ACCESS.pm) fix it up
 # here.
 
-sub _dbh_commit {
+sub _exec_txn_commit {
   my $self = shift;
   $self->next::method(@_);
   $self->_dbh->{AutoCommit} = $self->_dbh_autocommit
     if $self->{transaction_depth} == 1;
 }
 
-sub _dbh_rollback {
+sub _exec_txn_rollback {
   my $self = shift;
   $self->next::method(@_);
   $self->_dbh->{AutoCommit} = $self->_dbh_autocommit

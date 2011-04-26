@@ -122,7 +122,11 @@ sub DESTROY {
     try { $storage->_seems_connected && $storage->txn_rollback }
     catch { $rollback_exception = shift };
 
-    if (defined $rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
+    if ( $rollback_exception and (
+      ! defined blessed $rollback_exception
+          or
+      ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
+    ) ) {
       # append our text - THIS IS A TEMPORARY FIXUP!
       # a real stackable exception object is in the works
       if (ref $exception eq 'DBIx::Class::Exception') {

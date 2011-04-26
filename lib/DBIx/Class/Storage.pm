@@ -6,33 +6,24 @@ use warnings;
 use base qw/DBIx::Class/;
 use mro 'c3';
 
-use DBIx::Class::Exception;
-use Scalar::Util 'weaken';
+{
+  package # Hide from PAUSE
+    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
+  use base 'DBIx::Class::Exception';
+}
+
+use DBIx::Class::Carp;
+use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/debug schema/);
-__PACKAGE__->mk_group_accessors('component_class' => 'cursor_class');
+__PACKAGE__->mk_group_accessors(simple => qw/debug schema transaction_depth auto_savepoint savepoints/);
+__PACKAGE__->mk_group_accessors(component_class => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 
 sub cursor { shift->cursor_class(@_); }
-
-package # Hide from PAUSE
-    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
-
-use overload '"' => sub {
-  'DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION'
-};
-
-sub new {
-  my $class = shift;
-  my $self = {};
-  return bless $self, $class;
-}
-
-package DBIx::Class::Storage;
 
 =head1 NAME
 
@@ -58,8 +49,10 @@ sub new {
 
   $self = ref $self if ref $self;
 
-  my $new = {};
-  bless $new, $self;
+  my $new = bless( {
+    transaction_depth => 0,
+    savepoints => [],
+  }, $self);
 
   $new->set_schema($schema);
   $new->debug(1)
@@ -158,7 +151,7 @@ For example,
   } catch {
     my $error = shift;
     # Transaction failed
-    die "something terrible has happened!"   #
+    die "something terrible has happened!"
       if ($error =~ /Rollback failed/);          # Rollback failed
 
     deal_with_failed_transaction();
@@ -186,49 +179,83 @@ sub txn_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  my (@return_values, $return_value);
+  my $abort_txn = sub {
+    my ($self, $exception) = @_;
 
-  $self->txn_begin; # If this throws an exception, no rollback is needed
+    my $rollback_exception = try { $self->txn_rollback; undef } catch { shift };
 
-  my $wantarray = wantarray; # Need to save this since the context
-                             # inside the try{} block is independent
-                             # of the context that called txn_do()
-  my $args = \@_;
-
-  try {
-
-    # Need to differentiate between scalar/list context to allow for
-    # returning a list in scalar context to get the size of the list
-    if ($wantarray) {
-      # list context
-      @return_values = $coderef->(@$args);
-    } elsif (defined $wantarray) {
-      # scalar context
-      $return_value = $coderef->(@$args);
-    } else {
-      # void context
-      $coderef->(@$args);
-    }
-    $self->txn_commit;
-  }
-  catch {
-    my $error = shift;
-
-    try {
-      $self->txn_rollback;
-    } catch {
-      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-      $self->throw_exception($error)  # propagate nested rollback
-        if $_ =~ /$exception_class/;
-
+    if ( $rollback_exception and (
+      ! defined blessed $rollback_exception
+          or
+      ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
+    ) ) {
       $self->throw_exception(
-        "Transaction aborted: $error. Rollback failed: $_"
+        "Transaction aborted: ${exception}. "
+        . "Rollback failed: ${rollback_exception}"
       );
     }
-    $self->throw_exception($error); # txn failed but rollback succeeded
+    $self->throw_exception($exception);
   };
 
-  return wantarray ? @return_values : $return_value;
+  # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+  my $args = \@_;
+
+  # do not turn on until a succesful txn_begin
+  my $attempt_commit = 0;
+
+  my $txn_init_depth = $self->transaction_depth;
+
+  try {
+    $self->txn_begin;
+    $attempt_commit = 1;
+    $coderef->(@$args)
+  }
+  catch {
+    $attempt_commit = 0;
+
+    # init depth of > 0 implies nesting or non-autocommit (either way no retry)
+    if($txn_init_depth or $self->connected ) {
+      $abort_txn->($self, $_);
+    }
+    else {
+      carp "Retrying txn_do($coderef) after catching disconnected exception: $_"
+        if $ENV{DBIC_STORAGE_RETRY_DEBUG};
+
+      $self->_populate_dbh;
+
+      # if txn_depth is > 1 this means something was done to the
+      # original $dbh, otherwise we would not get past the if() above
+      $self->throw_exception(sprintf
+        'Unexpected transaction depth of %d on freshly connected handle',
+        $self->transaction_depth,
+      ) if $self->transaction_depth;
+
+      $self->txn_begin;
+      $attempt_commit = 1;
+
+      try {
+        $coderef->(@$args)
+      }
+      catch {
+        $attempt_commit = 0;
+        $abort_txn->($self, $_)
+      };
+    };
+  }
+  finally {
+    if ($attempt_commit) {
+      my $delta_txn = (1 + $txn_init_depth) - $self->transaction_depth;
+
+      if ($delta_txn) {
+        # a rollback in a top-level txn_do is valid-ish (seen in the wild and our own tests)
+        carp "Unexpected reduction of transaction depth by $delta_txn after execution of $coderef, skipping txn_do's commit"
+          unless $delta_txn == 1 and $self->transaction_depth == 0;
+      }
+      else {
+        $self->txn_commit;
+      }
+    }
+  };
 }
 
 =head2 txn_begin
@@ -240,7 +267,20 @@ an entire code block to be executed transactionally.
 
 =cut
 
-sub txn_begin { die "Virtual method!" }
+sub txn_begin {
+  my $self = shift;
+
+  if($self->transaction_depth == 0) {
+    $self->debugobj->txn_begin()
+      if $self->debug;
+    $self->_exec_txn_begin;
+  }
+  elsif ($self->auto_savepoint) {
+    $self->svp_begin;
+  }
+  $self->{transaction_depth}++;
+
+}
 
 =head2 txn_commit
 
@@ -251,7 +291,22 @@ transaction currently in effect (i.e. you called L</txn_begin>).
 
 =cut
 
-sub txn_commit { die "Virtual method!" }
+sub txn_commit {
+  my $self = shift;
+
+  if ($self->transaction_depth == 1) {
+    $self->debugobj->txn_commit() if $self->debug;
+    $self->_exec_txn_commit;
+    $self->{transaction_depth}--;
+  }
+  elsif($self->transaction_depth > 1) {
+    $self->{transaction_depth}--;
+    $self->svp_release if $self->auto_savepoint;
+  }
+  else {
+    $self->throw_exception( 'Refusing to commit without a started transaction' );
+  }
+}
 
 =head2 txn_rollback
 
@@ -261,7 +316,31 @@ which allows the rollback to propagate to the outermost transaction.
 
 =cut
 
-sub txn_rollback { die "Virtual method!" }
+sub txn_rollback {
+  my $self = shift;
+
+  if ($self->transaction_depth == 1) {
+    $self->debugobj->txn_rollback() if $self->debug;
+    $self->_exec_txn_rollback;
+    $self->{transaction_depth}--;
+  }
+  elsif ($self->transaction_depth > 1) {
+    $self->{transaction_depth}--;
+
+    if ($self->auto_savepoint) {
+      $self->svp_rollback;
+      $self->svp_release;
+    }
+    else {
+      DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->throw(
+        "A txn_rollback in nested transaction is ineffective! (depth $self->{transaction_depth})"
+      );
+    }
+  }
+  else {
+    $self->throw_exception( 'Refusing to roll back without a started transaction' );
+  }
+}
 
 =head2 svp_begin
 
@@ -272,7 +351,30 @@ is provided, a random name will be used.
 
 =cut
 
-sub svp_begin { die "Virtual method!" }
+sub svp_begin {
+  my ($self, $name) = @_;
+
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_begin')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  $name = $self->_svp_generate_name
+    unless defined $name;
+
+  push @{ $self->{savepoints} }, $name;
+
+  $self->debugobj->svp_begin($name) if $self->debug;
+
+  $exec->($self, $name);
+}
+
+sub _svp_generate_name {
+  my ($self) = @_;
+  return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
+}
+
 
 =head2 svp_release
 
@@ -284,7 +386,35 @@ release all savepoints created after the one explicitly released as well.
 
 =cut
 
-sub svp_release { die "Virtual method!" }
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_release')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  if (defined $name) {
+    my @stack = @{ $self->savepoints };
+    my $svp;
+
+    do { $svp = pop @stack } until $svp eq $name;
+
+    $self->throw_exception ("Savepoint '$name' does not exist")
+      unless $svp;
+
+    $self->savepoints(\@stack); # put back what's left
+  }
+  else {
+    $name = pop @{ $self->savepoints }
+      or $self->throw_exception('No savepoints to release');;
+  }
+
+  $self->debugobj->svp_release($name) if $self->debug;
+
+  $exec->($self, $name);
+}
 
 =head2 svp_rollback
 
@@ -296,7 +426,39 @@ release all savepoints created after the savepoint we rollback to.
 
 =cut
 
-sub svp_rollback { die "Virtual method!" }
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_rollback')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  if (defined $name) {
+    my @stack = @{ $self->savepoints };
+    my $svp;
+
+    # a rollback doesn't remove the named savepoint,
+    # only everything after it
+    while (@stack and $stack[-1] ne $name) {
+      pop @stack
+    };
+
+    $self->throw_exception ("Savepoint '$name' does not exist")
+      unless @stack;
+
+    $self->savepoints(\@stack); # put back what's left
+  }
+  else {
+    $name = $self->savepoints->[-1]
+      or $self->throw_exception('No savepoints to rollback');;
+  }
+
+  $self->debugobj->svp_rollback($name) if $self->debug;
+
+  $exec->($self, $name);
+}
 
 =for comment
 

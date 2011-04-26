@@ -878,7 +878,7 @@ sub connect_call_datetime_setup {
 }
 
 
-sub _dbh_begin_work {
+sub _exec_txn_begin {
   my $self = shift;
 
 # bulkLogin=1 connections are always in a transaction, and can only call BEGIN
@@ -892,19 +892,19 @@ sub _dbh_begin_work {
 
 # savepoint support using ASE syntax
 
-sub _svp_begin {
+sub _exec_svp_begin {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("SAVE TRANSACTION $name");
+  $self->_dbh->do("SAVE TRANSACTION $name");
 }
 
 # A new SAVE TRANSACTION with the same name releases the previous one.
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
+  $self->_dbh->do("ROLLBACK TRANSACTION $name");
 }
 
 1;

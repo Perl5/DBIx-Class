@@ -104,31 +104,23 @@ sub bind_attribute_by_data_type {
 # Unfortunately DBI does not support nested transactions.
 # WARNING: this code uses the undocumented 'BegunWork' DBI attribute.
 
-sub _svp_begin {
+sub _exec_svp_begin {
   my ($self, $name) = @_;
-
-  $self->throw_exception(
-    'cannot BEGIN a nested transaction on a disconnected handle'
-  ) unless $self->_dbh;
 
   local $self->_dbh->{AutoCommit} = 1;
   local $self->_dbh->{BegunWork}  = 0;
-  $self->_dbh_begin_work;
+  $self->_exec_txn_begin;
 }
 
 # A new nested transaction on the same level releases the previous one.
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
-
-  $self->throw_exception(
-    'cannot ROLLBACK a nested transaction on a disconnected handle'
-  ) unless $self->_dbh;
 
   local $self->_dbh->{AutoCommit} = 0;
   local $self->_dbh->{BegunWork}  = 1;
-  $self->_dbh_rollback;
+  $self->_exec_txn_rollback;
 }
 
 1;

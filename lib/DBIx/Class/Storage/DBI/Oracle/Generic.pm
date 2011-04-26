@@ -552,18 +552,18 @@ sub _prep_for_execute {
 
 # Savepoints stuff.
 
-sub _svp_begin {
+sub _exec_svp_begin {
   my ($self, $name) = @_;
-  $self->_get_dbh->do("SAVEPOINT $name");
+  $self->_dbh->do("SAVEPOINT $name");
 }
 
 # Oracle automatically releases a savepoint when you start another one with the
 # same name.
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
-  $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+  $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head2 relname_to_table_alias

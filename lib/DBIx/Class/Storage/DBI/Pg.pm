@@ -184,22 +184,22 @@ sub bind_attribute_by_data_type {
   $type_cache->{$data_type};
 }
 
-sub _svp_begin {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_savepoint($name);
+    $self->_dbh->pg_savepoint($name);
 }
 
-sub _svp_release {
+sub _exec_svp_release {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_release($name);
+    $self->_dbh->pg_release($name);
 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_rollback_to($name);
+    $self->_dbh->pg_rollback_to($name);
 }
 
 sub deployment_statements {

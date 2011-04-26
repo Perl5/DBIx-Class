@@ -32,8 +32,7 @@ __PACKAGE__->sql_name_sep('.');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
-  _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts
-  transaction_depth _dbh_autocommit  savepoints
+  _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts _dbh_autocommit
 /);
 
 # the values for these accessors are picked out (and deleted) from
@@ -86,6 +85,7 @@ my @rdbms_specific_methods = qw/
   build_datetime_parser
   datetime_parser_type
 
+  txn_begin
   insert
   insert_bulk
   update
@@ -131,7 +131,6 @@ for my $meth (@rdbms_specific_methods) {
   };
 }
 
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler
@@ -167,11 +166,9 @@ documents DBI-specific methods and behaviors.
 sub new {
   my $new = shift->next::method(@_);
 
-  $new->transaction_depth(0);
   $new->_sql_maker_opts({});
   $new->_dbh_details({});
-  $new->{savepoints} = [];
-  $new->{_in_dbh_do} = 0;
+  $new->{_in_do_block} = 0;
   $new->{_dbh_gen} = 0;
 
   # read below to see what this does
@@ -216,6 +213,9 @@ sub new {
       next unless $_;
       $_->{_dbh_gen}++;  # so that existing cursors will drop as well
       $_->_dbh(undef);
+
+      $_->transaction_depth(0);
+      $_->savepoints([]);
     }
   }
 }
@@ -243,6 +243,8 @@ sub _verify_pid {
     $dbh->{InactiveDestroy} = 1;
     $self->{_dbh_gen}++;
     $self->_dbh(undef);
+    $self->transaction_depth(0);
+    $self->savepoints([]);
   }
 
   return;
@@ -775,98 +777,33 @@ sub dbh_do {
   my $dbh = $self->_get_dbh;
 
   return $self->$code($dbh, @_)
-    if ( $self->{_in_dbh_do} || $self->{transaction_depth} );
+    if ( $self->{_in_do_block} || $self->{transaction_depth} );
 
-  local $self->{_in_dbh_do} = 1;
+  local $self->{_in_do_block} = 1;
 
   # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
   my $args = \@_;
-  return try {
+
+  try {
     $self->$code ($dbh, @$args);
   } catch {
     $self->throw_exception($_) if $self->connected;
 
     # We were not connected - reconnect and retry, but let any
     #  exception fall right through this time
-    carp "Retrying $code after catching disconnected exception: $_"
-      if $ENV{DBIC_DBIRETRY_DEBUG};
+    carp "Retrying dbh_do($code) after catching disconnected exception: $_"
+      if $ENV{DBIC_STORAGE_RETRY_DEBUG};
 
     $self->_populate_dbh;
     $self->$code($self->_dbh, @$args);
   };
 }
 
-# This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
-# It also informs dbh_do to bypass itself while under the direction of txn_do,
-# via $self->{_in_dbh_do} (this saves some redundant eval and errorcheck, etc)
 sub txn_do {
-  my $self = shift;
-  my $coderef = shift;
-
-  ref $coderef eq 'CODE' or $self->throw_exception
-    ('$coderef must be a CODE reference');
-
-  local $self->{_in_dbh_do} = 1;
-
-  my @result;
-  my $want = wantarray;
-
-  my $tried = 0;
-  while(1) {
-    my $exception;
-
-    # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
-    my $args = \@_;
-
-    try {
-      $self->txn_begin;
-      my $txn_start_depth = $self->transaction_depth;
-      if($want) {
-          @result = $coderef->(@$args);
-      }
-      elsif(defined $want) {
-          $result[0] = $coderef->(@$args);
-      }
-      else {
-          $coderef->(@$args);
-      }
-
-      my $delta_txn = $txn_start_depth - $self->transaction_depth;
-      if ($delta_txn == 0) {
-        $self->txn_commit;
-      }
-      elsif ($delta_txn != 1) {
-        # an off-by-one would mean we fired a rollback
-        carp "Unexpected reduction of transaction depth by $delta_txn after execution of $coderef";
-      }
-    } catch {
-      $exception = $_;
-    };
-
-    if(! defined $exception) { return wantarray ? @result : $result[0] }
-
-    if($self->transaction_depth > 1 || $tried++ || $self->connected) {
-      my $rollback_exception;
-      try { $self->txn_rollback } catch { $rollback_exception = shift };
-      if(defined $rollback_exception) {
-        my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-        $self->throw_exception($exception)  # propagate nested rollback
-          if $rollback_exception =~ /$exception_class/;
-
-        $self->throw_exception(
-          "Transaction aborted: ${exception}. "
-          . "Rollback failed: ${rollback_exception}"
-        );
-      }
-      $self->throw_exception($exception)
-    }
-
-    # We were not connected, and was first try - reconnect and retry
-    # via the while loop
-    carp "Retrying $coderef after catching disconnected exception: $exception"
-      if $ENV{DBIC_TXNRETRY_DEBUG};
-    $self->_populate_dbh;
-  }
+  # connects or reconnects on pid change, necessary to grab correct txn_depth
+  $_[0]->_get_dbh;
+  local $_[0]->{_in_do_block} = 1;
+  shift->next::method(@_);
 }
 
 =head2 disconnect
@@ -887,7 +824,8 @@ sub disconnect {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
-    $self->_dbh_rollback unless $self->_dbh_autocommit;
+    # stops the "implicit rollback on disconnect" warning
+    $self->_exec_txn_rollback unless $self->_dbh_autocommit;
 
     %{ $self->_dbh->{CachedKids} } = ();
     $self->_dbh->disconnect;
@@ -1370,118 +1308,23 @@ sub _connect {
   $dbh;
 }
 
-sub svp_begin {
-  my ($self, $name) = @_;
-
-  $name = $self->_svp_generate_name
-    unless defined $name;
-
-  $self->throw_exception ("You can't use savepoints outside a transaction")
-    if $self->{transaction_depth} == 0;
-
-  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
-    unless $self->can('_svp_begin');
-
-  push @{ $self->{savepoints} }, $name;
-
-  $self->debugobj->svp_begin($name) if $self->debug;
-
-  return $self->_svp_begin($name);
-}
-
-sub svp_release {
-  my ($self, $name) = @_;
-
-  $self->throw_exception ("You can't use savepoints outside a transaction")
-    if $self->{transaction_depth} == 0;
-
-  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
-    unless $self->can('_svp_release');
-
-  if (defined $name) {
-    $self->throw_exception ("Savepoint '$name' does not exist")
-      unless grep { $_ eq $name } @{ $self->{savepoints} };
-
-    # Dig through the stack until we find the one we are releasing.  This keeps
-    # the stack up to date.
-    my $svp;
-
-    do { $svp = pop @{ $self->{savepoints} } } while $svp ne $name;
-  } else {
-    $name = pop @{ $self->{savepoints} };
-  }
-
-  $self->debugobj->svp_release($name) if $self->debug;
-
-  return $self->_svp_release($name);
-}
-
-sub svp_rollback {
-  my ($self, $name) = @_;
-
-  $self->throw_exception ("You can't use savepoints outside a transaction")
-    if $self->{transaction_depth} == 0;
-
-  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
-    unless $self->can('_svp_rollback');
-
-  if (defined $name) {
-      # If they passed us a name, verify that it exists in the stack
-      unless(grep({ $_ eq $name } @{ $self->{savepoints} })) {
-          $self->throw_exception("Savepoint '$name' does not exist!");
-      }
-
-      # Dig through the stack until we find the one we are releasing.  This keeps
-      # the stack up to date.
-      while(my $s = pop(@{ $self->{savepoints} })) {
-          last if($s eq $name);
-      }
-      # Add the savepoint back to the stack, as a rollback doesn't remove the
-      # named savepoint, only everything after it.
-      push(@{ $self->{savepoints} }, $name);
-  } else {
-      # We'll assume they want to rollback to the last savepoint
-      $name = $self->{savepoints}->[-1];
-  }
-
-  $self->debugobj->svp_rollback($name) if $self->debug;
-
-  return $self->_svp_rollback($name);
-}
-
-sub _svp_generate_name {
-  my ($self) = @_;
-  return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
-}
-
 sub txn_begin {
   my $self = shift;
 
   # this means we have not yet connected and do not know the AC status
-  # (e.g. coderef $dbh)
+  # (e.g. coderef $dbh), need a full-fledged connection check
   if (! defined $self->_dbh_autocommit) {
     $self->ensure_connected;
   }
-  # otherwise re-connect on pid changes, so
-  # that the txn_depth is adjusted properly
-  # the lightweight _get_dbh is good enoug here
-  # (only superficial handle check, no pings)
+  # Otherwise simply connect or re-connect on pid changes
   else {
     $self->_get_dbh;
   }
 
-  if($self->transaction_depth == 0) {
-    $self->debugobj->txn_begin()
-      if $self->debug;
-    $self->_dbh_begin_work;
-  }
-  elsif ($self->auto_savepoint) {
-    $self->svp_begin;
-  }
-  $self->{transaction_depth}++;
+  $self->next::method(@_);
 }
 
-sub _dbh_begin_work {
+sub _exec_txn_begin {
   my $self = shift;
 
   # if the user is utilizing txn_do - good for him, otherwise we need to
@@ -1489,7 +1332,7 @@ sub _dbh_begin_work {
   # We do this via ->dbh_do instead of ->dbh, so that the ->dbh "ping"
   # will be replaced by a failure of begin_work itself (which will be
   # then retried on reconnect)
-  if ($self->{_in_dbh_do}) {
+  if ($self->{_in_do_block}) {
     $self->_dbh->begin_work;
   } else {
     $self->dbh_do(sub { $_[1]->begin_work });
@@ -1498,83 +1341,76 @@ sub _dbh_begin_work {
 
 sub txn_commit {
   my $self = shift;
-  if (! $self->_dbh) {
-    $self->throw_exception('cannot COMMIT on a disconnected handle');
-  }
-  elsif ($self->{transaction_depth} == 1) {
-    $self->debugobj->txn_commit()
-      if ($self->debug);
-    $self->_dbh_commit;
-    $self->{transaction_depth} = 0
-      if $self->_dbh_autocommit;
-  }
-  elsif($self->{transaction_depth} > 1) {
-    $self->{transaction_depth}--;
-    $self->svp_release
-      if $self->auto_savepoint;
-  }
-  elsif (! $self->_dbh->FETCH('AutoCommit') ) {
 
-    carp "Storage transaction_depth $self->{transaction_depth} does not match "
+  $self->_verify_pid if $self->_dbh;
+  $self->throw_exception("Unable to txn_commit() on a disconnected storage")
+    unless $self->_dbh;
+
+  # esoteric case for folks using external $dbh handles
+  if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {
+    carp "Storage transaction_depth 0 does not match "
         ."false AutoCommit of $self->{_dbh}, attempting COMMIT anyway";
+    $self->transaction_depth(1);
+  }
 
-    $self->debugobj->txn_commit()
-      if ($self->debug);
-    $self->_dbh_commit;
-    $self->{transaction_depth} = 0
-      if $self->_dbh_autocommit;
-  }
-  else {
-    $self->throw_exception( 'Refusing to commit without a started transaction' );
-  }
+  $self->next::method(@_);
+
+  # if AutoCommit is disabled txn_depth never goes to 0
+  # as a new txn is started immediately on commit
+  $self->transaction_depth(1) if (
+    !$self->transaction_depth
+      and 
+    defined $self->_dbh_autocommit
+      and
+    ! $self->_dbh_autocommit
+  );
 }
 
-sub _dbh_commit {
-  my $self = shift;
-  my $dbh  = $self->_dbh
-    or $self->throw_exception('cannot COMMIT on a disconnected handle');
-  $dbh->commit;
+sub _exec_txn_commit {
+  shift->_dbh->commit;
 }
 
 sub txn_rollback {
   my $self = shift;
-  my $dbh = $self->_dbh;
-  try {
-    if ($self->{transaction_depth} == 1) {
-      $self->debugobj->txn_rollback()
-        if ($self->debug);
-      $self->{transaction_depth} = 0
-        if $self->_dbh_autocommit;
-      $self->_dbh_rollback;
-    }
-    elsif($self->{transaction_depth} > 1) {
-      $self->{transaction_depth}--;
-      if ($self->auto_savepoint) {
-        $self->svp_rollback;
-        $self->svp_release;
-      }
-    }
-    else {
-      die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
-    }
+
+  $self->_verify_pid if $self->_dbh;
+  $self->throw_exception("Unable to txn_rollback() on a disconnected storage")
+    unless $self->_dbh;
+
+  # esoteric case for folks using external $dbh handles
+  if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {
+    carp "Storage transaction_depth 0 does not match "
+        ."false AutoCommit of $self->{_dbh}, attempting ROLLBACK anyway";
+    $self->transaction_depth(1);
   }
-  catch {
-    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
 
-    if ($_ !~ /$exception_class/) {
-      # ensure that a failed rollback resets the transaction depth
-      $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-    }
+  $self->next::method(@_);
 
-    $self->throw_exception($_)
-  };
+  # if AutoCommit is disabled txn_depth never goes to 0
+  # as a new txn is started immediately on commit
+  $self->transaction_depth(1) if (
+    !$self->transaction_depth
+      and 
+    defined $self->_dbh_autocommit
+      and
+    ! $self->_dbh_autocommit
+  );
 }
 
-sub _dbh_rollback {
-  my $self = shift;
-  my $dbh  = $self->_dbh
-    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
-  $dbh->rollback;
+sub _exec_txn_rollback {
+  shift->_dbh->rollback;
+}
+
+# generate some identical methods
+for my $meth (qw/svp_begin svp_release svp_rollback/) {
+  no strict qw/refs/;
+  *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
+    my $self = shift;
+    $self->_verify_pid if $self->_dbh;
+    $self->throw_exception("Unable to $meth() on a disconnected storage")
+      unless $self->_dbh;
+    $self->next::method(@_);
+  };
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
@@ -3091,7 +2927,8 @@ sub _is_text_lob_type {
 
 DBIx::Class can do some wonderful magic with handling exceptions,
 disconnections, and transactions when you use C<< AutoCommit => 1 >>
-(the default) combined with C<txn_do> for transaction support.
+(the default) combined with L<txn_do|DBIx::Class::Storage/txn_do> for
+transaction support.
 
 If you set C<< AutoCommit => 0 >> in your connect info, then you are always
 in an assumed transaction between commits, and you're telling us you'd
