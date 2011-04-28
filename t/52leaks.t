@@ -42,15 +42,6 @@ BEGIN {
 }
 
 use Scalar::Util qw/refaddr reftype weaken/;
-use Carp qw/longmess/;
-use Try::Tiny;
-
-my $have_test_cycle;
-BEGIN {
-  require DBIx::Class::Optional::Dependencies;
-  $have_test_cycle = DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks')
-    and import Test::Memory::Cycle;
-}
 
 # this is what holds all weakened refs to be checked for leakage
 my $weak_registry = {};
@@ -60,23 +51,24 @@ my $has_dt;
 
 # Skip the heavy-duty leak tracing when just doing an install
 unless (DBICTest::RunMode->is_plain) {
-  # Some modules are known to install singletons on-load
-  # Load them before we swap out $bless_override
-  require DBI;
-  require DBD::SQLite;
-  require Errno;
-  require Class::Struct;
-  require FileHandle;
-  require Hash::Merge;
-  require Storable;
 
-  # this loads the DT armada as well
-  $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
+  # have our own little stack maker - Carp infloops due to the bless override
+  my $trace = sub {
+    my $depth = 1;
+    my (@stack, @frame);
 
+    while (@frame = caller($depth++)) {
+      push @stack, [@frame[3,1,2]];
+    }
+
+    $stack[0][0] = '';
+    return join "\tinvoked as ", map { sprintf ("%s at %s line %d\n", @$_ ) } @stack;
+  };
+
+  # redefine the bless override so that we can catch each and every object created
   no warnings qw/redefine once/;
   no strict qw/refs/;
 
-  # redefine the bless override so that we can catch each and every object created
   $bless_override = sub {
 
     my $obj = CORE::bless(
@@ -95,24 +87,38 @@ unless (DBICTest::RunMode->is_plain) {
     );
 
     # weaken immediately to avoid weird side effects
-    $weak_registry->{$slot} = { weakref => $obj, strace => longmess() };
+    $weak_registry->{$slot} = { weakref => $obj, strace => $trace->() };
     weaken $weak_registry->{$slot}{weakref};
 
     return $obj;
   };
 
+  require Try::Tiny;
   for my $func (qw/try catch finally/) {
     my $orig = \&{"Try::Tiny::$func"};
     *{"Try::Tiny::$func"} = sub (&;@) {
 
       my $slot = sprintf ('CODE(0x%x)', refaddr $_[0]);
 
-      $weak_registry->{$slot} = { weakref => $_[0], strace => longmess() };
+      $weak_registry->{$slot} = { weakref => $_[0], strace => $trace->() };
       weaken $weak_registry->{$slot}{weakref};
 
       goto $orig;
     }
   }
+
+  # Some modules are known to install singletons on-load
+  # Load them and empty the registry
+
+  # this loads the DT armada
+  $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
+
+  require Errno;
+  require DBI;
+  require DBD::SQLite;
+  require FileHandle;
+
+  %$weak_registry = ();
 }
 
 {
@@ -188,6 +194,7 @@ unless (DBICTest::RunMode->is_plain) {
 
   };
 
+  require Storable;
   %$base_collection = (
     %$base_collection,
     refrozen => Storable::dclone( $base_collection ),
@@ -213,8 +220,14 @@ unless (DBICTest::RunMode->is_plain) {
     my @dummy = $rs->all;
   }
 
-  memory_cycle_ok ($base_collection, 'No cycles in the object collection')
-    if $have_test_cycle;
+  # dbh's are created in XS space, so pull them separately
+  for ( grep { defined } map { @{$_->{ChildHandles}} } values %{ {DBI->installed_drivers()} } ) {
+    $base_collection->{"DBI handle $_"} = $_;
+  }
+
+  if ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks') ) {
+    Test::Memory::Cycle::memory_cycle_ok ($base_collection, 'No cycles in the object collection')
+  }
 
   for (keys %$base_collection) {
     $weak_registry->{"basic $_"} = { weakref => $base_collection->{$_} };
@@ -281,6 +294,10 @@ for my $slot (keys %$weak_registry) {
   elsif ($slot =~ /^__TxnScopeGuard__FIXUP__/) {
     delete $weak_registry->{$slot}
       if $] > 5.013001 and $] < 5.013008;
+  }
+  elsif ($slot =~ /^DateTime::TimeZone/) {
+    # DT is going through a refactor it seems - let it leak zones for now
+    delete $weak_registry->{$slot};
   }
 }
 
