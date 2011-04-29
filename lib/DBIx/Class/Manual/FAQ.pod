@@ -473,25 +473,25 @@ Invoked like this:
 
 =item How do I store my own (non-db) data in my DBIx::Class objects?
 
-You can add your own data accessors to your classes.
+You can add your own data accessors to your Result classes.
 
 One method is to use the built in mk_group_accessors (via L<Class::Accessor::Grouped>)
 
-	package MyTable;
+	package App::Schema::Result::MyTable;
 
-	use parent 'DBIx::Class';
+	use parent 'DBIx::Class::Core';
 
 	__PACKAGE__->table('foo'); #etc
 	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
 
 An another method is to use L<Moose> with your L<DBIx::Class> package.
 
-	package MyTable;
+	package App::Schema::Result::MyTable;
 
 	use Moose; # import Moose
 	use Moose::Util::TypeConstraint; # import Moose accessor type constraints
 
-	extends 'DBIx::Class'; # Moose changes the way we define our parent (base) package
+	extends 'DBIx::Class::Core'; # Moose changes the way we define our parent (base) package
 
 	has 'non_column_data' => ( is => 'rw', isa => 'Str' ); # define a simple attribute
 
