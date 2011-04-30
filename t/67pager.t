@@ -152,18 +152,30 @@ is ($qcnt, 0, 'No queries with explicitly sey total count');
 # test cached resultsets
 my $init_cnt = $rs->count;
 
-$it = $rs->search({}, { rows => 3, cache => 1 })->page(3);
+$it = $rs->search({}, { rows => 3, cache => 1 })->page(2);
+is ($it->count, 3, '3 rows');
+is (scalar $it->all, 3, '3 objects');
+
+isa_ok($it->pager,'Data::Page','Get a pager back ok');
+is($it->pager->total_entries,7);
+is($it->pager->current_page,2);
+is($it->pager->entries_on_this_page,3);
+
+$it = $it->page(3);
 is ($it->count, 1, 'One row');
 is (scalar $it->all, 1, 'One object');
+
+isa_ok($it->pager,'Data::Page','Get a pager back ok');
+is($it->pager->total_entries,7);
+is($it->pager->current_page,3);
+is($it->pager->entries_on_this_page,1);
+
 
 $it->delete;
 is ($rs->count, $init_cnt - 1, 'One row deleted as expected');
 
 is ($it->count, 1, 'One row (cached)');
 is (scalar $it->all, 1, 'One object (cached)');
-
-throws_ok { $it->pager }
-  qr/Pagers on cached resultsets are not supported/, 'No pagers on cached resultsets';
 
 # test fresh rs creation with modified defaults
 my $p = sub { $schema->resultset('CD')->page(1)->pager->entries_per_page; };

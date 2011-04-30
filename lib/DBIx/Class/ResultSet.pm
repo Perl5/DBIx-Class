@@ -2157,10 +2157,6 @@ sub pager {
 
   return $self->{pager} if $self->{pager};
 
-  if ($self->get_cache) {
-    $self->throw_exception ('Pagers on cached resultsets are not supported');
-  }
-
   my $attrs = $self->{attrs};
   if (!defined $attrs->{page}) {
     $self->throw_exception("Can't create pager for non-paged rs");

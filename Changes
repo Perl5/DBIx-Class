@@ -38,6 +38,8 @@ Revision history for DBIx::Class
         - Fix older oracle-specific "WhereJoins" to work properly with
           name quoting
         - Fix problems with M.A.D. under CGI::SpeedyCGI (RT#65131)
+        - Reenable paging of cached resultsets - breakage erroneously added
+          in 0.08127
         - Better error handling when prepare() fails silently
         - Fixes skipped lines when a comment is followed by a statement
           when deploying a schema via sql file
