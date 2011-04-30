@@ -70,6 +70,8 @@ Revision history for DBIx::Class
           with multilevel monikers (e.g. $schema->source('Foo::Bar') )
         - Fix incorrect signature of the default sqlt_deploy_hook - it now
           matches the documentation of passing in the result source object
+        - Fix inadequate handling of internal storage methods within
+          ::Storage::Replicated (RT#66295)
 
     * Misc
         - Rewire all warnings to a new Carp-like implementation internal

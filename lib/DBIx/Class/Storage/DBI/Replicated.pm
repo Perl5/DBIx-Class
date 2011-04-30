@@ -313,19 +313,12 @@ my $method_dispatch = {
     _native_data_type
     _get_dbh
     sql_maker_class
-    _adjust_select_args_for_complex_prefetch
-    _resolve_ident_sources
-    _resolve_column_info
-    _prune_unused_joins
-    _strip_cond_qualifiers
-    _strip_cond_qualifiers_from_array
-    _resolve_aliastypes_from_select_args
     _execute
     _do_query
     _sth
     _dbh_sth
     _dbh_execute
-  /],
+  /, Class::MOP::Class->initialize('DBIx::Class::Storage::DBIHacks')->get_method_list ],
   reader => [qw/
     select
     select_single
@@ -349,10 +342,6 @@ my $method_dispatch = {
     sql_limit_dialect
     sql_quote_char
     sql_name_sep
-
-    _inner_join_to_node
-    _group_over_selection
-    _extract_order_criteria
 
     _prefetch_autovalues
 
