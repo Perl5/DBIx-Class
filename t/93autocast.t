@@ -5,6 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 
 { # Fake storage driver for sqlite with autocast
     package DBICTest::SQLite::AutoCast;
@@ -33,23 +34,26 @@ my $rs = $schema->resultset ('CD')->search ({
   'tracks.last_updated_at' => { '!=', undef },
   'tracks.last_updated_on' => { '<', 2009 },
   'tracks.position' => 4,
-  'me.single_track' => \[ '= ?', [ single_track => [1, 2, 3 ] ] ],
+  'me.single_track' => \[ '= ?', [ single_track => 1 ] ],
 }, { join => 'tracks' });
 
-my $bind = [
-  [ { sqlt_datatype => 'integer', dbic_colname => 'cdid' }
-    => 5 ],
-  [ { sqlt_datatype => 'integer', dbic_colname => 'single_track' }
-    => [ 1, 2, 3] ],
-  [ { sqlt_datatype => 'datetime', dbic_colname => 'tracks.last_updated_on' }
-    => 2009 ],
-  [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
-    => 4 ],
-];
+my ($sql, @bind);
+my $debugobj = DBIC::DebugObj->new (\$sql, \@bind);
+my $storage = $schema->storage;
+my ($orig_debug, $orig_debugobj) = ($storage->debug, $storage->debugobj);
+$storage->debugobj ($debugobj);
+$storage->debug (1);
 
+# the quoting is a debugobj thing, not dbic-internals
+my $bind = [ map { "'$_'" } qw/
+  5 1 2009 4
+/];
+
+$rs->all;
 is_same_sql_bind (
-  $rs->as_query,
-  '(
+  $sql,
+  \@bind,
+  '
     SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
       FROM cd me
       LEFT JOIN track tracks ON tracks.cd = me.cdid
@@ -59,16 +63,18 @@ is_same_sql_bind (
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < ?
       AND tracks.position = ?
-  )',
+  ',
   $bind,
   'expected sql with casting off',
 );
 
 $schema->storage->auto_cast (1);
 
+$rs->all;
 is_same_sql_bind (
-  $rs->as_query,
-  '(
+  $sql,
+  \@bind,
+  '
     SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
       FROM cd me
       LEFT JOIN track tracks ON tracks.cd = me.cdid
@@ -78,9 +84,12 @@ is_same_sql_bind (
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < CAST (? AS DateTime)
       AND tracks.position = ?
-  )',
+  ',
   $bind,
   'expected sql with casting on',
 );
+
+$storage->debugobj ($orig_debugobj);
+$storage->debug ($orig_debug);
 
 done_testing;

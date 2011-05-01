@@ -407,27 +407,47 @@ sub _run_tests {
         $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str" } )
       } "inserted $size without dying";
 
+      my %kids = %{$schema->storage->_dbh->{CachedKids}};
       my @objs = $rs->search({ blob => "blob:$str", clob => "clob:$str" })->all;
-      is (@objs, 1, 'One row found matching on both LOBs');
+      is_deeply (
+        $schema->storage->_dbh->{CachedKids},
+        \%kids,
+        'multi-part LOB equality query was not cached',
+      ) if $size eq 'large';
+      is @objs, 1, 'One row found matching on both LOBs';
       ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
       ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
-
-      if ($size eq 'large') { # check that prepare_cached was NOT used
-        my $sql = ${ $rs->search({ blob => "blob:$str", clob => "clob:$str" })
-          ->as_query }->[0];
-
-        ok((not exists $schema->storage->_dbh->{CachedKids}{$sql}),
-          'multi-part LOB equality query was not cached');
-      }
 
       @objs = $rs->search({ clob => { -like => 'clob:%' } })->all;
       ok (@objs, 'rows found matching CLOB with a LIKE query');
 
-      ok(my $subq = $rs->search({ blob => "blob:$str", clob => "clob:$str" })
-        ->get_column('id')->as_query);
+      ok(my $subq = $rs->search(
+        { blob => "blob:$str", clob => "clob:$str" },
+        {
+          from => \ "(SELECT * FROM ${q}bindtype_test${q} WHERE ${q}id${q} != ?) ${q}me${q}",
+          bind => [ [ undef => 12345678 ] ],
+        }
+      )->get_column('id')->as_query);
 
       @objs = $rs->search({ id => { -in => $subq } })->all;
       is (@objs, 1, 'One row found matching on both LOBs as a subquery');
+
+      lives_ok {
+        $rs->search({ blob => "blob:$str", clob => "clob:$str" })
+          ->update({ blob => 'updated blob', clob => 'updated clob' });
+      } 'blob UPDATE with WHERE clause survived';
+
+      @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
+      is @objs, 1, 'found updated row';
+      ok (try { $objs[0]->blob }||'' eq "updated blob", 'blob updated/retrieved correctly');
+      ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
+
+      lives_ok {
+        $rs->search({ blob => "updated blob", clob => "updated clob" })
+          ->delete;
+      } 'blob DELETE with WHERE clause survived';
+      @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
+      is @objs, 0, 'row deleted successfully';
     }
 
     $schema->storage->debug ($orig_debug);

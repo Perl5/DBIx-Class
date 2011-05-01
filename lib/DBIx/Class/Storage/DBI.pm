@@ -1417,6 +1417,11 @@ for my $meth (qw/svp_begin svp_release svp_rollback/) {
 #  easier to override in NoBindVars without duping the rest.  It takes up
 #  all of _execute's args, and emits $sql, @bind.
 sub _prep_for_execute {
+  #my ($self, $op, $ident, $args) = @_;
+  return shift->_gen_sql_bind(@_)
+}
+
+sub _gen_sql_bind {
   my ($self, $op, $ident, $args) = @_;
 
   my ($sql, @bind) = $self->sql_maker->$op(
@@ -2080,8 +2085,8 @@ sub _select_args_to_query {
   my ($op, $ident, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
-  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $ident, \@args);
+  # my ($sql, $prepared_bind) = $self->_gen_sql_bind($op, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
+  my ($sql, $prepared_bind) = $self->_gen_sql_bind($op, $ident, \@args);
   $prepared_bind ||= [];
 
   return wantarray

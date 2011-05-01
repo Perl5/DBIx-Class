@@ -2,6 +2,9 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 
 use strict;
 use warnings;
+use base qw/DBIx::Class::Storage::DBI/;
+use mro 'c3';
+use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
@@ -10,6 +13,10 @@ use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
 __PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
+__PACKAGE__->datetime_parser_type('DateTime::Format::Oracle');
+
+sub __cache_queries_with_max_lob_parts { 2 }
 
 =head1 NAME
 
@@ -76,14 +83,6 @@ versions before 9.0.
 =head1 METHODS
 
 =cut
-
-use base qw/DBIx::Class::Storage::DBI/;
-use mro 'c3';
-
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
-__PACKAGE__->datetime_parser_type('DateTime::Format::Oracle');
-
-sub __cache_queries_with_max_lob_parts { 2 }
 
 sub _determine_supports_insert_returning {
   my $self = shift;
@@ -488,16 +487,45 @@ sub _prep_for_execute {
 
   my ($sql, $bind) = $self->next::method(@_);
 
-  return ($sql, $bind) if $op ne 'select';
+  return ($sql, $bind) if $op eq 'insert';
 
-  my @sql_part = split /\?/, $sql;
-  my ($new_sql, @new_binds);
+  my $blob_bind_index;
+  for (0 .. $#$bind) {
+    $blob_bind_index->{$_} = 1 if $self->_is_lob_type(
+      $bind->[$_][0]{sqlt_datatype}
+    );
+  }
 
-  foreach my $bound (@$bind) {
-    my $data_type = $bound->[0]{sqlt_datatype}||'';
+  return ($sql, $bind) unless $blob_bind_index;
 
-    if ($self->_is_lob_type($data_type)) {
-      if (my ($col, $eq) = $sql_part[0] =~ /(?<=\s)([\w."]+)(\s*=\s*)$/) {
+  my (@sql_parts, $new_sql, @new_binds);
+
+  if ($op eq 'select' || $op eq 'delete') {
+    @sql_parts = split /\?/, $sql;
+  }
+  elsif ($op eq 'update') {
+    $self->throw_exception('Update with complex WHERE clauses currently not supported')
+      if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
+
+    my ($set_part, $where_part) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
+
+    my $set_bind_count = $set_part =~ y/?//;
+    @new_binds = splice @$bind, 0, $set_bind_count;
+
+    @sql_parts = split /\?/, $where_part;
+    $new_sql  = $set_part;
+  }
+  else {
+    $self->throw_exception("Unsupported \$op: $op");
+  }
+
+  my $col_equality_re = qr/ (?<=\s) ([\w."]+) (\s*=\s*) $/x;
+
+  for my $b_idx (0 .. $#$bind) {
+    my $bound = $bind->[$b_idx];
+
+    if ($blob_bind_index->{$b_idx}) {
+      if (my ($col, $eq) = $sql_parts[0] =~ $col_equality_re) {
         my $data = $bound->[1];
 
         $data = "$data" if ref $data;
@@ -507,15 +535,17 @@ sub _prep_for_execute {
         my @sql_frag;
 
         for my $idx (0..$#parts) {
-          push @sql_frag,
-"UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR($col, 2000, ".($idx*2000+1)."))) = ?";
+          push @sql_frag, sprintf (
+            'UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR(%s, 2000, %d))) = ?',
+            $col, ($idx*2000 + 1),
+          );
         }
 
         my $sql_frag = '( ' . (join ' AND ', @sql_frag) . ' )';
 
-        $sql_part[0] =~ s/(?<=\s)([\w."]+)(\s*=\s*)$/$sql_frag/;
+        $sql_parts[0] =~ s/$col_equality_re/$sql_frag/;
 
-        $new_sql .= shift @sql_part;
+        $new_sql .= shift @sql_parts;
 
         for my $idx (0..$#parts) {
           push @new_binds, [
@@ -529,7 +559,7 @@ sub _prep_for_execute {
         }
       }
       else {
-        $new_sql .= shift(@sql_part) . '?';
+        $new_sql .= shift(@sql_parts) . '?';
 
         push @new_binds, [
           {
@@ -541,11 +571,17 @@ sub _prep_for_execute {
       }
     }
     else {
-      $new_sql .= shift(@sql_part) . '?';
+      $new_sql .= shift(@sql_parts) . '?';
       push @new_binds, $bound;
     }
   }
-  $new_sql .= join '', @sql_part;
+
+  if (@sql_parts > 1) {
+    carp "There are more placeholders than binds, this should not happen!";
+    @sql_parts = join ('?', @sql_parts);
+  }
+
+  $new_sql .= $sql_parts[0];
 
   return ($new_sql, \@new_binds);
 }

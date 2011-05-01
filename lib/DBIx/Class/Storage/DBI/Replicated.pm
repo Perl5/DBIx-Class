@@ -300,6 +300,7 @@ my $method_dispatch = {
     _per_row_update_delete
     _dbh_execute_inserts_with_no_binds
     _select_args_to_query
+    _gen_sql_bind
     _svp_generate_name
     _multipk_update_delete
     _normalize_connect_info
