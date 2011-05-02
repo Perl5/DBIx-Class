@@ -93,6 +93,14 @@ BEGIN {
 # as the value to abuse with MSSQL ordered subqueries)
 sub __max_int () { 0x7FFFFFFF };
 
+# poor man's de-qualifier
+sub _quote {
+  $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+    ? $_[1] =~ / ([^\.]+) $ /x
+    : $_[1]
+  );
+}
+
 sub new {
   my $self = shift->next::method(@_);
 

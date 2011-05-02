@@ -1654,12 +1654,8 @@ sub _rs_update_delete {
 
   my $rsrc = $self->result_source;
 
-  # if a condition exists we need to strip all table qualifiers
-  # if this is not possible we'll force a subquery below
-  my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
-
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = $needs_group_by_subq || (not defined $cond) || $self->_has_resolved_attr(qw/rows offset/);
+  my $needs_subq = $needs_group_by_subq || $self->_has_resolved_attr(qw/rows offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
@@ -1704,10 +1700,23 @@ sub _rs_update_delete {
     return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
   }
   else {
+    # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
+    # a condition containing 'me' or other table prefixes will not work
+    # at all. What this code tries to do (badly) is to generate a condition
+    # with the qualifiers removed, by exploiting the quote mechanism of sqla
+    #
+    # this is atrocious and should be replaced by normal sqla introspection
+    # one sunny day
+    my ($sql, @bind) = do {
+      my $sqla = $rsrc->storage->sql_maker;
+      local $sqla->{_dequalify_idents} = 1;
+      $sqla->_recurse_where($self->{cond});
+    } if $self->{cond};
+
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
-      $cond,
+      $self->{cond} ? \[$sql, @bind] : (),
     );
   }
 }

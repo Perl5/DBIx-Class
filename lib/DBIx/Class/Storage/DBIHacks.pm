@@ -591,66 +591,6 @@ sub _inner_join_to_node {
   return \@new_from;
 }
 
-# Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
-# a condition containing 'me' or other table prefixes will not work
-# at all. What this code tries to do (badly) is introspect the condition
-# and remove all column qualifiers. If it bails out early (returns undef)
-# the calling code should try another approach (e.g. a subquery)
-
-sub _strip_cond_qualifiers_from_array {
-  my ($self, $where) = @_;
-  my @cond;
-  for (my $i = 0; $i < @$where; $i++) {
-    my $entry = $where->[$i];
-    my $hash;
-    my $ref = ref $entry;
-    if ($ref eq 'HASH' or $ref eq 'ARRAY') {
-      $hash = $self->_strip_cond_qualifiers($entry);
-    }
-    elsif (! $ref) {
-      $entry =~ /([^.]+)$/;
-      $hash->{$1} = $where->[++$i];
-    }
-    push @cond, $hash;
-  }
-  return \@cond;
-}
-
-sub _strip_cond_qualifiers {
-  my ($self, $where) = @_;
-
-  my $cond = {};
-
-  # No-op. No condition, we're updating/deleting everything
-  return $cond unless $where;
-
-  if (ref $where eq 'ARRAY') {
-    $cond = $self->_strip_cond_qualifiers_from_array($where);
-  }
-  elsif (ref $where eq 'HASH') {
-    if ( (keys %$where) == 1 && ( (keys %{$where})[0] eq '-and' )) {
-      $cond->{-and} =
-        $self->_strip_cond_qualifiers_from_array($where->{-and});
-    }
-    else {
-      foreach my $key (keys %$where) {
-        if ($key eq '-or' && ref $where->{$key} eq 'ARRAY') {
-          $cond->{$key} = $self->_strip_cond_qualifiers($where->{$key});
-        }
-        else {
-          $key =~ /([^.]+)$/;
-          $cond->{$1} = $where->{$key};
-        }
-      }
-    }
-  }
-  else {
-    return undef;
-  }
-
-  return $cond;
-}
-
 sub _extract_order_criteria {
   my ($self, $order_by, $sql_maker) = @_;
 
