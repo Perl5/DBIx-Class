@@ -730,26 +730,25 @@ sub _update_blobs {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
     };
 
-# check if we're updating a single row by PK
-  my $pk_cols_in_where = 0;
-  for my $col (@primary_cols) {
-    $pk_cols_in_where++ if defined $where->{$col};
-  }
-  my @rows;
-
-  if ($pk_cols_in_where == @primary_cols) {
+  my @pks_to_update;
+  if (
+    ref $where eq 'HASH'
+      and
+    @primary_cols == grep { defined $where->{$_} } @primary_cols
+  ) {
     my %row_to_update;
     @row_to_update{@primary_cols} = @{$where}{@primary_cols};
-    @rows = \%row_to_update;
-  } else {
+    @pks_to_update = \%row_to_update;
+  }
+  else {
     my $cursor = $self->select ($source, \@primary_cols, $where, {});
-    @rows = map {
+    @pks_to_update = map {
       my %row; @row{@primary_cols} = @$_; \%row
     } $cursor->all;
   }
 
-  for my $row (@rows) {
-    $self->_insert_blobs($source, $blob_cols, $row);
+  for my $ident (@pks_to_update) {
+    $self->_insert_blobs($source, $blob_cols, $ident);
   }
 }
 
