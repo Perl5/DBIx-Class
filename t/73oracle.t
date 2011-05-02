@@ -418,8 +418,15 @@ sub _run_tests {
       ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
       ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
 
-      @objs = $rs->search({ clob => { -like => 'clob:%' } })->all;
-      ok (@objs, 'rows found matching CLOB with a LIKE query');
+      TODO: {
+        local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
+          if $schema->storage->_server_info->{normalized_dbms_version} < 10;
+
+        lives_ok {
+          @objs = $rs->search({ clob => { -like => 'clob:%' } })->all;
+          ok (@objs, 'rows found matching CLOB with a LIKE query');
+        } 'Query with like on blob succeeds';
+      }
 
       ok(my $subq = $rs->search(
         { blob => "blob:$str", clob => "clob:$str" },
