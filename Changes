@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.08191 2011-05-02 00:45 (UTC)
+   No major changes since dev rel, see below for Changes
+
 0.08190_01 2011-05-02 15:00 (UTC)
     * New Features / Changes
         - Add quote_names connection option. When set to true automatically
