@@ -27,5 +27,4 @@
 2008-10-30 by ribasushi
   - Rewrite the test suite to rely on $schema->deploy, allowing for seamless
     testing of various RDBMS using the same tests
-  - Automatically infer quote_char/name_sep from $schema->storage
   - Recursive update() (all code seems to be already available)
