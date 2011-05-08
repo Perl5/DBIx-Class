@@ -401,8 +401,6 @@ ZEROINSEARCH: {
     Test::More->builder->plan('no_plan');
     Test::More->builder->_indent(' ' x 4);
 
-    ok ($orig_dbh, 'Now dead $dbh is still there for the child');
-
     # try to do something dbic-esque
     $rs->create({ name => "Hardcore Forker $$" });
 
