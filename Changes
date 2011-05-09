@@ -1,9 +1,10 @@
 Revision history for DBIx::Class
 
-0.08191 2011-05-02 00:45 (UTC)
-   No major changes since dev rel, see below for Changes
+    * Fixes
+        - Fix serious regression on SQLite, corrupting data when an alphanum
+          value does not correspond to a stale numeric datatype in colinfo
 
-0.08190_01 2011-05-02 15:00 (UTC)
+0.08191 2011-05-02 00:45 (UTC) (deleted from CPAN)
     * New Features / Changes
         - Add quote_names connection option. When set to true automatically
           sets quote_char and name_sep appropriate for your RDBMS
