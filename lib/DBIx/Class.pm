@@ -3,6 +3,18 @@ package DBIx::Class;
 use strict;
 use warnings;
 
+our $VERSION;
+# Always remember to do all digits for the version even if they're 0
+# i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
+# brain damage and presumably various other packaging systems too
+
+# $VERSION declaration must stay up here, ahead of any other package
+# declarations, as to not confuse various modules attempting to determine
+# this ones version, whether that be s.c.o. or Module::Metadata, etc
+$VERSION = '0.08191';
+
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 BEGIN {
   package DBIx::Class::_ENV_;
 
@@ -54,7 +66,6 @@ use mro 'c3';
 
 use DBIx::Class::Optional::Dependencies;
 
-use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
 
@@ -72,13 +83,6 @@ sub mk_classaccessor {
 }
 
 sub component_base_class { 'DBIx::Class' }
-
-# Always remember to do all digits for the version even if they're 0
-# i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
-# brain damage and presumably various other packaging systems too
-$VERSION = '0.08191';
-
-$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;

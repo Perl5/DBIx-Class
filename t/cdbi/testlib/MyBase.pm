@@ -6,7 +6,7 @@ use base qw(DBIx::Class::CDBICompat);
 
 use DBI;
 
-use vars qw/$dbh/;
+our $dbh;
 
 my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});
 $dbh = DBI->connect(@connect) or die DBI->errstr;

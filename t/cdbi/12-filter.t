@@ -149,7 +149,7 @@ test_normal_iterator;
 
 package Class::DBI::My::Iterator;
 
-use vars qw/@ISA/;
+our @ISA;
 
 @ISA = ($it_class);
 
