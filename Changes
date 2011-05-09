@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+
+    * New Features / Changes
+        - Allow schema cloning to mutate attributes.
+
+    * Fixes
         - Fix issue where the query was becoming overly mangled when trying
           to use pagination with a query that has a sub-select in the WHERE
           clause.

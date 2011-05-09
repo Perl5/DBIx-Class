@@ -1004,18 +1004,25 @@ sub svp_rollback {
 
 =over 4
 
+=item Arguments: %attrs?
+
 =item Return Value: $new_schema
 
 =back
 
 Clones the schema and its associated result_source objects and returns the
-copy.
+copy. The resulting copy will have the same attributes as the source schema,
+except for those attributes explicitly overriden by the provided C<%attrs>.
 
 =cut
 
 sub clone {
-  my ($self) = @_;
-  my $clone = { (ref $self ? %$self : ()) };
+  my $self = shift;
+
+  my $clone = {
+      (ref $self ? %$self : ()),
+      (@_ == 1 && ref $_[0] eq 'HASH' ? %{ $_[0] } : @_),
+  };
   bless $clone, (ref $self || $self);
 
   $clone->class_mappings({ %{$clone->class_mappings} });
