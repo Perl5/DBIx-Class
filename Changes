@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08192 2011-05-10 04:20 (UTC)
     * Fixes
         - Fix serious regression on SQLite, corrupting data when an alphanum
           value does not correspond to a stale numeric datatype in colinfo
