@@ -322,4 +322,14 @@ lives_ok ( sub {
   ])
 }, 'empty has_many relationship accepted by populate');
 
+lives_ok ( sub {
+  $schema->populate('Artist', [
+         { name => 'Snuggy Bottoms',
+           cds => { title => 'Hit My Singlet', year => 1973,
+                    tracks => { title => 'Grunt', position => 0 },
+                  },
+         },
+  ])
+}, 'single hashref accepted by populate on has_many');
+
 done_testing;

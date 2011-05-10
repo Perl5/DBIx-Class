@@ -202,8 +202,9 @@ sub new {
           $related->{$key} = $rel_obj;
           next;
         }
-        elsif ($acc_type eq 'multi' && ref $attrs->{$key} eq 'ARRAY' ) {
+        elsif ($acc_type eq 'multi') {
           my $others = delete $attrs->{$key};
+          $others = [ $others ] unless ref $others eq 'ARRAY';
           my $total = @$others;
           my @objects;
           foreach my $idx (0 .. $#$others) {
