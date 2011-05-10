@@ -4,21 +4,9 @@ use strict;
 use warnings;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
+use DBIx::Class;
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
-
-# temporary until we fix the $@ issue in core
-# we also need a real appendable, stackable exception object
-# (coming soon)
-BEGIN {
-  if ($] >= 5.013001 and $] <= 5.013007) {
-    *IS_BROKEN_PERL = sub () { 1 };
-  }
-  else {
-    *IS_BROKEN_PERL = sub () { 0 };
-  }
-}
-
 use namespace::clean;
 
 my ($guards_count, $compat_handler, $foreign_handler);
@@ -31,7 +19,7 @@ sub new {
 
 
   # install a callback carefully
-  if (IS_BROKEN_PERL and !$guards_count) {
+  if (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and !$guards_count) {
 
     # if the thrown exception is a plain string, wrap it in our
     # own exception class
@@ -83,7 +71,7 @@ sub DESTROY {
 
   # don't touch unless it's ours, and there are no more of us left
   if (
-    IS_BROKEN_PERL
+    DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT
       and
     !$guards_count
   ) {
@@ -148,7 +136,7 @@ sub DESTROY {
     }
   }
 
-  $@ = $exception unless IS_BROKEN_PERL;
+  $@ = $exception unless DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT;
 }
 
 1;

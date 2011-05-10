@@ -291,9 +291,8 @@ for my $slot (keys %$weak_registry) {
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
   }
-  elsif ($slot =~ /^__TxnScopeGuard__FIXUP__/) {
+  elsif (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and $slot =~ /^__TxnScopeGuard__FIXUP__/) {
     delete $weak_registry->{$slot}
-      if $] > 5.013001 and $] < 5.013008;
   }
   elsif ($slot =~ /^DateTime::TimeZone/) {
     # DT is going through a refactor it seems - let it leak zones for now
