@@ -623,9 +623,14 @@ sub _subqueried_limit_attrs {
     'Limit dialect implementation usable only in the context of DBIC (missing $rs_attrs)'
   ) unless ref ($rs_attrs) eq 'HASH';
 
-  # mangle the input sql as we will be replacing the selector
-  $proto_sql =~ s/^ \s* SELECT \s+ .+ \s+ (?= \b FROM \b )//ix
-    or $self->throw_exception("Unrecognizable SELECT: $proto_sql");
+  # mangle the input sql as we will be replacing the selector entirely
+  unless (
+    $rs_attrs->{_selector_sql}
+      and
+    $proto_sql =~ s/^ \s* SELECT \s* \Q$rs_attrs->{_selector_sql}//ix
+  ) {
+    $self->throw_exception("Unrecognizable SELECT: $proto_sql");
+  }
 
   my ($re_sep, $re_alias) = map { quotemeta $_ } ( $self->{name_sep}, $rs_attrs->{alias} );
 

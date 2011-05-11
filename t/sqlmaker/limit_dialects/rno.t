@@ -180,5 +180,35 @@ is_same_sql_bind(
   );
 }
 
+{
+my $subq = $schema->resultset('Owners')->search({
+   'books.owner' => { -ident => 'owner.id' },
+}, { alias => 'owner', select => ['id'] } )->count_rs;
+
+my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search( { -exists => $subq->as_query }, { select => ['id','owner'], rows => 1 } );
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(
+ SELECT [id], [owner] FROM (
+   SELECT [id], [owner], ROW_NUMBER() OVER(  ) AS [rno__row__index] FROM (
+     SELECT [me].[id], [me].[owner]
+     FROM [books] [me]
+     WHERE ( ( (EXISTS (
+       SELECT COUNT( * ) FROM [owners] [owner] WHERE ( [books].[owner] = [owner].[id] )
+     )) AND [source] = ? ) )
+   ) [me]
+ ) [me] WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
+ )',
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $OFFSET => 1 ],
+    [ $TOTAL => 1 ],
+  ],
+  'Pagination with sub-query in WHERE works'
+);
+
+}
+
 
 done_testing;

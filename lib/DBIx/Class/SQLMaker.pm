@@ -205,7 +205,12 @@ sub select {
       }
     ;
 
-    $sql = $self->$limiter ($sql, $rs_attrs, $limit, $offset);
+    $sql = $self->$limiter (
+      $sql,
+      { %{$rs_attrs||{}}, _selector_sql => $fields },
+      $limit,
+      $offset
+    );
   }
   else {
     ($sql, @bind) = $self->next::method ($table, $fields, $where, $rs_attrs);

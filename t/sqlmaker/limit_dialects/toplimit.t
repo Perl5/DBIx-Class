@@ -253,4 +253,22 @@ is_same_sql_bind( $rs_selectas_top->search({})->as_query,
   );
 }
 
+{
+my $subq = $schema->resultset('Owners')->search({
+   'books.owner' => { -ident => 'owner.id' },
+}, { alias => 'owner', select => ['id'] } )->count_rs;
+
+my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search( { -exists => $subq->as_query }, { select => ['id','owner'], rows => 1 } );
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(SELECT TOP 1 me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )   ORDER BY me.id)',
+  [
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+  ],
+  'Pagination with sub-query in WHERE works'
+);
+
+}
+
 done_testing;
