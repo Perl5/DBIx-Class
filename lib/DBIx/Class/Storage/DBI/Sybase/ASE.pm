@@ -69,7 +69,7 @@ sub _rebless {
   my $no_bind_vars = __PACKAGE__ . '::NoBindVars';
 
   if ($self->using_freetds) {
-    carp <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
+    carp_once <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
 
 You are using FreeTDS with Sybase.
 
