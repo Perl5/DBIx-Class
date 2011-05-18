@@ -27,6 +27,10 @@ __PACKAGE__->mk_group_accessors('simple' =>
        _identity_method/
 );
 
+__PACKAGE__->datetime_parser_type(
+  'DBIx::Class::Storage::DBI::Sybase::ASE::DateTime::Format'
+);
+
 my @also_proxy_to_extra_storages = qw/
   connect_call_set_auto_cast auto_cast connect_call_blob_setup
   connect_call_datetime_setup
@@ -904,6 +908,34 @@ sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
   $self->_dbh->do("ROLLBACK TRANSACTION $name");
+}
+
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::Sybase::ASE::DateTime::Format;
+
+my $datetime_parse_format  = '%Y-%m-%dT%H:%M:%S.%3NZ';
+my $datetime_format_format = '%m/%d/%Y %H:%M:%S.%3N';
+
+my ($datetime_parser, $datetime_formatter);
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_parse_format,
+    on_error => 'croak',
+  );
+  return $datetime_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_formatter ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_format_format,
+    on_error => 'croak',
+  );
+  return $datetime_formatter->format_datetime(shift);
 }
 
 1;
