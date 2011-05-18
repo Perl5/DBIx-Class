@@ -22,6 +22,8 @@ Revision history for DBIx::Class
         - A number of corner case fixes of void context populate() with \[]
         - Fix corner case of forked children disconnecting the parents DBI
           handle
+        - Improve identity/autoinc retrieval code in MSSQL and Sybase -
+          should reduce weird side-effects especially with populate()
         - Fix leakage of $schema on in-memory new_related() calls
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Fix leakage of $storage in ::Storage::DBI::Oracle

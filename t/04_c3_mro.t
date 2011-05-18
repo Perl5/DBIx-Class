@@ -45,6 +45,7 @@ is_deeply (
     DBIx::Class::Storage::DBI::Sybase
     DBIx::Class::Storage::DBI::MSSQL
     DBIx::Class::Storage::DBI::UniqueIdentifier
+    DBIx::Class::Storage::DBI::IdentityInsert
     DBIx::Class::Storage::DBI
     DBIx::Class::Storage::DBIHacks
     DBIx::Class::Storage

@@ -56,6 +56,9 @@ sub _prefetch_autovalues {
     first { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
 
 # user might have an identity PK without is_auto_increment
+#
+# FIXME we probably should not have supported the above, see what
+# does it take to move away from it
   if (not $identity_col) {
     foreach my $pk_col ($source->primary_columns) {
       if (

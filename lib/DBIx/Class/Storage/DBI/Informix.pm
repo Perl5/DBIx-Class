@@ -34,9 +34,10 @@ sub _execute {
   my $self = shift;
   my ($op) = @_;
   my ($rv, $sth, @rest) = $self->next::method(@_);
-  if ($op eq 'insert') {
-    $self->__last_insert_id($sth->{ix_sqlerrd}[1]);
-  }
+
+  $self->__last_insert_id($sth->{ix_sqlerrd}[1])
+    if $self->_perform_autoinc_retrieval;
+
   return (wantarray ? ($rv, $sth, @rest) : $rv);
 }
 

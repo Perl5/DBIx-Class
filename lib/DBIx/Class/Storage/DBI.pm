@@ -34,6 +34,7 @@ __PACKAGE__->sql_name_sep('.');
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
   _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts _dbh_autocommit
+  _perform_autoinc_retrieval _autoinc_supplied_for_op
 /);
 
 # the values for these accessors are picked out (and deleted) from
@@ -1666,10 +1667,17 @@ sub insert {
   # they can be fused once again with the final return
   $to_insert = { %$to_insert, %$prefetched_values };
 
+  # FIXME - we seem to assume undef values as non-supplied. This is wrong.
+  # Investigate what does it take to s/defined/exists/
   my $col_infos = $source->columns_info;
   my %pcols = map { $_ => 1 } $source->primary_columns;
-  my %retrieve_cols;
+  my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
   for my $col ($source->columns) {
+    if ($col_infos->{$col}{is_auto_increment}) {
+      $autoinc_supplied ||= 1 if defined $to_insert->{$col};
+      $retrieve_autoinc_col ||= $col unless $autoinc_supplied;
+    }
+
     # nothing to retrieve when explicit values are supplied
     next if (defined $to_insert->{$col} and ! (
       ref $to_insert->{$col} eq 'SCALAR'
@@ -1684,6 +1692,9 @@ sub insert {
       $col_infos->{$col}{retrieve_on_insert}
     );
   };
+
+  local $self->{_autoinc_supplied_for_op} = $autoinc_supplied;
+  local $self->{_perform_autoinc_retrieval} = $retrieve_autoinc_col;
 
   my ($sqla_opts, @ir_container);
   if (%retrieve_cols and $self->_use_insert_returning) {
@@ -1763,7 +1774,13 @@ sub insert_bulk {
     }
   }
 
-  my $colinfo_cache = {}; # since we will run _resolve_bindattrs on the same $source a lot
+  my $colinfos = $source->columns_info($cols);
+
+  local $self->{_autoinc_supplied_for_op} =
+    (first { $_->{is_auto_increment} } values %$colinfos)
+      ? 1
+      : 0
+  ;
 
   # get a slice type index based on first row of data
   # a "column" in this context may refer to more than one bind value
@@ -1800,7 +1817,7 @@ sub insert_bulk {
 
       # normalization of user supplied stuff
       my $resolved_bind = $self->_resolve_bindattrs(
-        $source, \@bind, $colinfo_cache,
+        $source, \@bind, $colinfos,
       );
 
       # store value-less (attrs only) bind info - we will be comparing all
@@ -1916,7 +1933,7 @@ sub insert_bulk {
               map
               { $_->[0] }
               @{$self->_resolve_bindattrs(
-                $source, [ @{$$val}[1 .. $#$$val] ], $colinfo_cache,
+                $source, [ @{$$val}[1 .. $#$$val] ], $colinfos,
               )}
             ],
           )) {
@@ -1954,7 +1971,7 @@ sub insert_bulk {
 
   $guard->commit;
 
-  return (wantarray ? ($rv, $sth, @$proto_bind) : $rv);
+  return wantarray ? ($rv, $sth, @$proto_bind) : $rv;
 }
 
 # execute_for_fetch is capable of returning data just fine (it means it

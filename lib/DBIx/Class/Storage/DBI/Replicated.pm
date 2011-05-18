@@ -344,6 +344,8 @@ my $method_dispatch = {
     sql_name_sep
 
     _prefetch_autovalues
+    _perform_autoinc_retrieval
+    _autoinc_supplied_for_op
 
     _resolve_bindattrs
 
