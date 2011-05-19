@@ -86,7 +86,7 @@ another.
   sub get_data {
     my $self = shift;
     my $request = $self->get_request; # Get a request object somehow.
-    my $schema = $self->get_schema;   # Get the DBIC schema object somehow.
+    my $schema = $self->result_source->schema;
 
     my $cd_rs = $schema->resultset('CD')->search({
       title => $request->param('title'),
