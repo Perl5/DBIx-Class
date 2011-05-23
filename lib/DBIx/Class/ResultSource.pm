@@ -1578,7 +1578,7 @@ sub _resolve_condition {
 
       # FIXME sanity check until things stabilize, remove at some point
       $self->throw_exception (
-        "A join-free condition returned for relationship '$relname' whithout a row-object to chain from"
+        "A join-free condition returned for relationship '$relname' without a row-object to chain from"
       ) unless $obj_rel;
 
       # FIXME another sanity check
