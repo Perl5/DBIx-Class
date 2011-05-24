@@ -4,7 +4,11 @@ package # hide from PAUSE
 use base qw/DBICTest::BaseResult/;
 use Carp qw/confess/;
 
-__PACKAGE__->load_components(qw/InflateColumn::DateTime Ordered/);
+__PACKAGE__->load_components(qw{
+    +DBICTest::DeployComponent
+    InflateColumn::DateTime
+    Ordered
+});
 
 __PACKAGE__->table('track');
 __PACKAGE__->add_columns(
@@ -89,5 +93,14 @@ __PACKAGE__->might_have (
     )
   }
 );
+
+our $hook_cb;
+
+sub sqlt_deploy_hook {
+  my $class = shift;
+
+  $hook_cb->($class, @_) if $hook_cb;
+  $class->next::method(@_) if $class->next::can;
+}
 
 1;

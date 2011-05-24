@@ -59,8 +59,7 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
   $custom_deployment_statements_called = 0;
 
   # add a temporary sqlt_deploy_hook to a source
-  no warnings 'once';
-  local *DBICTest::Track::sqlt_deploy_hook = sub {
+  local $DBICTest::Schema::Track::hook_cb = sub {
     my ($class, $sqlt_table) = @_;
 
     $deploy_hook_called = 1;
@@ -74,9 +73,15 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
     );
   };
 
+  my $component_deploy_hook_called = 0;
+  local $DBICTest::DeployComponent::hook_cb = sub {
+    $component_deploy_hook_called = 1;
+  };
+
   $schema->deploy; # do not remove, this fires the is() test in the callback above
   ok($deploy_hook_called, 'deploy hook got called');
   ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
+  ok($component_deploy_hook_called, 'component deploy hook got called');
 }
 
 {
