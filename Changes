@@ -1,6 +1,5 @@
 Revision history for DBIx::Class
 
-
     * New Features / Changes
         - Allow schema cloning to mutate attributes.
 
@@ -8,6 +7,8 @@ Revision history for DBIx::Class
         - Fix issue where the query was becoming overly mangled when trying
           to use pagination with a query that has a sub-select in the WHERE
           clause.
+        - Revert "Fix incorrect signature of the default sqlt_deploy_hook"
+          from 0.08191 - documentation was in fact incorrect, not the code
 
 0.08192 2011-05-10 04:20 (UTC)
     * Fixes

@@ -886,11 +886,20 @@ sub unique_constraint_columns {
 
 =over
 
-=item Arguments: $callback
+=item Arguments: $callback_name | \&callback_code
+
+=item Return value: $callback_name | \&callback_code
 
 =back
 
   __PACKAGE__->sqlt_deploy_callback('mycallbackmethod');
+
+   or
+
+  __PACKAGE__->sqlt_deploy_callback(sub {
+    my ($source_instance, $sqlt_table) = @_;
+    ...
+  } );
 
 An accessor to set a callback to be called during deployment of
 the schema via L<DBIx::Class::Schema/create_ddl_dir> or
@@ -899,7 +908,7 @@ L<DBIx::Class::Schema/deploy>.
 The callback can be set as either a code reference or the name of a
 method in the current result class.
 
-If not set, the L</default_sqlt_deploy_hook> is called.
+Defaults to L</default_sqlt_deploy_hook>.
 
 Your callback will be passed the $source object representing the
 ResultSource instance being deployed, and the
@@ -919,19 +928,13 @@ and call L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
 
 =head2 default_sqlt_deploy_hook
 
-=over
-
-=item Arguments: $source, $sqlt_table
-
-=item Return value: undefined
-
-=back
-
-This is the sensible default for L</sqlt_deploy_callback>.
-
-If a method named C<sqlt_deploy_hook> exists in your Result class, it
-will be called and passed the current C<$source> and the
-C<$sqlt_table> being deployed.
+This is the default deploy hook implementation which checks if your
+current Result class has a C<sqlt_deploy_hook> method, and if present
+invokes it B<on the Result class directly>. This is to preserve the
+semantics of C<sqlt_deploy_hook> which was originally designed to expect
+the Result class name and the
+L<$sqlt_table instance|SQL::Translator::Schema::Table> of the table being
+deployed.
 
 =cut
 
@@ -940,8 +943,8 @@ sub default_sqlt_deploy_hook {
 
   my $class = $self->result_class;
 
-  if ($class and my $hook = $class->can('sqlt_deploy_hook')) {
-    $self->$hook(@_);
+  if ($class and $class->can('sqlt_deploy_hook')) {
+    $class->sqlt_deploy_hook(@_);
   }
 }
 
