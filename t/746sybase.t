@@ -439,16 +439,12 @@ SQL
     lives_ok {
       $rs->populate([
         {
-          bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
-          a_memo => 2,
         },
         {
-          bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
-          a_memo => 2,
         },
       ]);
     } 'insert_bulk with blobs does not die';
