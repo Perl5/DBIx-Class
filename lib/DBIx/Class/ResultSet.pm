@@ -8,6 +8,7 @@ use DBIx::Class::Exception;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
+use Test::Deep::NoTest 'eq_deeply';
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -529,17 +530,61 @@ sub _normalize_selection {
 
 sub _stack_cond {
   my ($self, $left, $right) = @_;
+
+  # collapse single element top-level conditions
+  # (single pass only, unlikely to need recursion)
+  for ($left, $right) {
+    if (ref $_ eq 'ARRAY') {
+      if (@$_ == 0) {
+        $_ = undef;
+      }
+      elsif (@$_ == 1) {
+        $_ = $_->[0];
+      }
+    }
+    elsif (ref $_ eq 'HASH') {
+      my ($first, $more) = keys %$_;
+
+      # empty hash
+      if (! defined $first) {
+        $_ = undef;
+      }
+      # one element hash
+      elsif (! defined $more) {
+        if ($first eq '-and' and ref $_->{'-and'} eq 'HASH') {
+          $_ = $_->{'-and'};
+        }
+        elsif ($first eq '-or' and ref $_->{'-or'} eq 'ARRAY') {
+          $_ = $_->{'-or'};
+        }
+      }
+    }
+  }
+
+  # merge hashes with weeding out of duplicates (simple cases only)
+  if (ref $left eq 'HASH' and ref $right eq 'HASH') {
+
+    # shallow copy to destroy
+    $right = { %$right };
+    for (grep { exists $right->{$_} } keys %$left) {
+      # the use of eq_deeply here is justified - the rhs of an
+      # expression can contain a lot of twisted weird stuff
+      delete $right->{$_} if eq_deeply( $left->{$_}, $right->{$_} );
+    }
+
+    $right = undef unless keys %$right;
+  }
+
+
   if (defined $left xor defined $right) {
     return defined $left ? $left : $right;
   }
-  elsif (defined $left) {
-    return { -and => [ map
-      { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
-      ($left, $right)
-    ]};
+  elsif (! defined $left) {
+    return undef;
   }
-
-  return undef;
+  else {
+    return { -and => [ $left, $right ] };
+  }
 }
 
 =head2 search_literal
