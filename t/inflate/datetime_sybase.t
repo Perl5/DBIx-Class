@@ -18,8 +18,10 @@ if (not ($dsn && $user)) {
     "\nWarning: This test drops and creates a table called 'track'";
 }
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
+for (qw/test_rdbms_ase test_dt/) {
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ($_)
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ($_);
+}
 
 my @storage_types = (
   'DBI::Sybase::ASE',

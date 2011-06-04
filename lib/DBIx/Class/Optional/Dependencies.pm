@@ -421,7 +421,6 @@ my $reqs = {
       $ENV{DBICTEST_SYBASE_DSN}
         ? (
           %$rdbms_ase,
-          'DateTime::Format::Sybase' => '0',
         ) : ()
     },
   },

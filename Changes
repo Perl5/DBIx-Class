@@ -1,14 +1,16 @@
 Revision history for DBIx::Class
 
     * New Features / Changes
-        - Allow schema cloning to mutate attributes.
+        - Allow schema cloning to mutate attributes
 
     * Fixes
         - Fix issue where the query was becoming overly mangled when trying
           to use pagination with a query that has a sub-select in the WHERE
-          clause.
+          clause
         - Revert "Fix incorrect signature of the default sqlt_deploy_hook"
           from 0.08191 - documentation was in fact incorrect, not the code
+        - Fix Sybase ASE IC::DateTime support (::Storage going out of sync
+          with new default format expected by DateTime::Format::Sybase)
 
 0.08192 2011-05-10 04:20 (UTC)
     * Fixes
