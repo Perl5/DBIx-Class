@@ -15,13 +15,19 @@ use namespace::clean;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
-  _columns _primaries _unique_constraints name resultset_attributes
-  from _relationships column_info_from_storage source_info
-  source_name sqlt_deploy_callback/);
+__PACKAGE__->mk_group_accessors(simple => qw/
+  source_name name source_info
+  _ordered_columns _columns _primaries _unique_constraints
+  _relationships resultset_attributes
+  column_info_from_storage
+/);
 
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
-  result_class/);
+__PACKAGE__->mk_group_accessors(component_class => qw/
+  resultset_class
+  result_class
+/);
+
+__PACKAGE__->mk_classdata( sqlt_deploy_callback => 'default_sqlt_deploy_hook' );
 
 =head1 NAME
 
@@ -115,7 +121,6 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
-  $new->{sqlt_deploy_callback} ||= "default_sqlt_deploy_hook";
   return $new;
 }
 
@@ -1073,6 +1078,10 @@ its class name.
 Returns an expression of the source to be supplied to storage to specify
 retrieval from this source. In the case of a database, the required FROM
 clause contents.
+
+=cut
+
+sub from { die 'Virtual method!' }
 
 =head2 schema
 
