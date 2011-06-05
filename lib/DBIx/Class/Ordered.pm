@@ -3,6 +3,9 @@ use strict;
 use warnings;
 use base qw( DBIx::Class );
 
+use List::Util 'first';
+use namespace::clean;
+
 =head1 NAME
 
 DBIx::Class::Ordered - Modify the position of objects in an ordered list.
@@ -364,33 +367,20 @@ sub move_to {
 
     my $position_column = $self->position_column;
 
-    my $guard;
-
     if ($self->is_column_changed ($position_column) ) {
-      # something changed our position, we have no idea where we
-      # used to be - requery without using discard_changes
-      # (we need only a specific column back)
-
-      $guard = $self->result_source->schema->txn_scope_guard;
-
-      my $cursor = $self->result_source->resultset->search(
-        $self->ident_condition,
-        { select => $position_column },
-      )->cursor;
-
-      my ($pos) = $cursor->next;
-      $self->$position_column ($pos);
+      # something changed our position, we need to know where we
+      # used to be - use the stashed value
+      $self->store_column($position_column, delete $self->{_column_data_in_storage}{$position_column});
       delete $self->{_dirty_columns}{$position_column};
     }
 
     my $from_position = $self->_position;
 
     if ( $from_position == $to_position ) {   # FIXME this will not work for non-numeric order
-      $guard->commit if $guard;
       return 0;
     }
 
-    $guard ||= $self->result_source->schema->txn_scope_guard;
+    my $guard = $self->result_source->schema->txn_scope_guard;
 
     my ($direction, @between);
     if ( $from_position < $to_position ) {
@@ -447,28 +437,13 @@ sub move_to_group {
     return 0 if ( defined($to_position) and $to_position < 1 );
 
     # check if someone changed the _grouping_columns - this will
-    # prevent _is_in_group working, so we need to requery the db
-    # for the original values
-    my (@dirty_cols, %values, $guard);
+    # prevent _is_in_group working, so we need to restore the
+    # original stashed values
     for ($self->_grouping_columns) {
-      $values{$_} = $self->get_column ($_);
-      push @dirty_cols, $_ if $self->is_column_changed ($_);
-    }
-
-    # re-query only the dirty columns, and restore them on the
-    # object (subsequent code will update them to the correct
-    # after-move values)
-    if (@dirty_cols) {
-      $guard = $self->result_source->schema->txn_scope_guard;
-
-      my $cursor = $self->result_source->resultset->search(
-        $self->ident_condition,
-        { select => \@dirty_cols },
-      )->cursor;
-
-      my @original_values = $cursor->next;
-      $self->set_inflated_columns ({ %values, map { $_ => shift @original_values } (@dirty_cols) });
-      delete $self->{_dirty_columns}{$_} for (@dirty_cols);
+      if ($self->is_column_changed ($_)) {
+        $self->store_column($_, delete $self->{_column_data_in_storage}{$_});
+        delete $self->{_dirty_columns}{$_};
+      }
     }
 
     if ($self->_is_in_group ($to_group) ) {
@@ -477,11 +452,10 @@ sub move_to_group {
         $ret = $self->move_to ($to_position);
       }
 
-      $guard->commit if $guard;
       return $ret||0;
     }
 
-    $guard ||= $self->result_source->schema->txn_scope_guard;
+    my $guard = $self->result_source->schema->txn_scope_guard;
 
     # Move to end of current group to adjust siblings
     $self->move_last;
@@ -549,103 +523,52 @@ of a new group if it has been changed to undef.
 =cut
 
 sub update {
-    my $self = shift;
+  my $self = shift;
 
-    # this is set by _ordered_internal_update()
-    return $self->next::method(@_) if $self->{_ORDERED_INTERNAL_UPDATE};
+  # this is set by _ordered_internal_update()
+  return $self->next::method(@_) if $self->{_ORDERED_INTERNAL_UPDATE};
 
-    my $position_column = $self->position_column;
-    my @ordering_columns = ($self->_grouping_columns, $position_column);
+  my $upd = shift;
+  $self->set_inflated_columns($upd) if $upd;
 
+  my $position_column = $self->position_column;
+  my @group_columns = $self->_grouping_columns;
 
-    # these steps are necessary to keep the external appearance of
-    # ->update($upd) so that other things overloading update() will
-    # work properly
-    my %original_values = $self->get_columns;
-    my %existing_changes = $self->get_dirty_columns;
+  # see if the order is already changed
+  my $changed_ordering_cols = { map { $_ => $self->get_column($_) } grep { $self->is_column_changed($_) } ($position_column, @group_columns) };
 
-    # See if any of the *supplied* changes would affect the ordering
-    # The reason this is so contrived, is that we want to leverage
-    # the datatype aware value comparing, while at the same time
-    # keep the original value intact (it will be updated later by the
-    # corresponding routine)
+  # nothing changed - short circuit
+  if (! keys %$changed_ordering_cols) {
+    return $self->next::method( undef, @_ );
+  }
+  elsif (defined first { exists $changed_ordering_cols->{$_} } @group_columns ) {
+    $self->move_to_group(
+      # since the columns are already re-set the _grouping_clause is correct
+      # move_to_group() knows how to get the original storage values
+      { $self->_grouping_clause },
 
-    my %upd = %{shift || {}};
-    my %changes = %existing_changes;
+      # The FIXME bit contradicts the documentation: POD states that
+      # when changing groups without supplying explicit positions in
+      # move_to_group(), we push the item to the end of the group.
+      # However when I was rewriting this, the position from the old
+      # group was clearly passed to the new one
+      # Probably needs to go away (by ribasushi)
+      (exists $changed_ordering_cols->{$position_column}
+        ? $changed_ordering_cols->{$position_column}  # means there was a position change supplied with the update too
+        : $self->_position                            # FIXME! (replace with undef)
+      ),
+    );
+  }
+  else {
+    $self->move_to($changed_ordering_cols->{$position_column});
+  }
 
-    for (@ordering_columns) {
-        next unless exists $upd{$_};
-
-        # we do not want to keep propagating this to next::method
-        # as it will be a done deal by the time get there
-        my $value = delete $upd{$_};
-        $self->set_inflated_columns ({ $_ => $value });
-
-        # see if an update resulted in a dirty column
-        # it is important to preserve the old value, as it
-        # will be needed to carry on a successfull move()
-        # operation without re-querying the database
-        if ($self->is_column_changed ($_) && not exists $existing_changes{$_}) {
-            $changes{$_} = $value;
-            $self->set_inflated_columns ({ $_ => $original_values{$_} });
-            delete $self->{_dirty_columns}{$_};
-        }
-    }
-
-    # if nothing group/position related changed - short circuit
-    if (not grep { exists $changes{$_} } ( @ordering_columns ) ) {
-        return $self->next::method( \%upd, @_ );
-    }
-
-    {
-        my $guard = $self->result_source->schema->txn_scope_guard;
-
-        # if any of our grouping columns have been changed
-        if (grep { exists $changes{$_} } ($self->_grouping_columns) ) {
-
-            # create new_group by taking the current group and inserting changes
-            my $new_group = {$self->_grouping_clause};
-            foreach my $col (keys %$new_group) {
-                $new_group->{$col} = $changes{$col} if exists $changes{$col};
-            }
-
-            $self->move_to_group(
-                $new_group,
-                (exists $changes{$position_column}
-                    # The FIXME bit contradicts the documentation: POD states that
-                    # when changing groups without supplying explicit positions in
-                    # move_to_group(), we push the item to the end of the group.
-                    # However when I was rewriting this, the position from the old
-                    # group was clearly passed to the new one
-                    # Probably needs to go away (by ribasushi)
-                    ? $changes{$position_column}    # means there was a position change supplied with the update too
-                    : $self->_position              # FIXME! (replace with undef)
-                ),
-            );
-        }
-        elsif (exists $changes{$position_column}) {
-            $self->move_to($changes{$position_column});
-        }
-
-        my @res;
-        if (not defined wantarray) {
-            $self->next::method( \%upd, @_ );
-        }
-        elsif (wantarray) {
-            @res = $self->next::method( \%upd, @_ );
-        }
-        else {
-            $res[0] = $self->next::method( \%upd, @_ );
-        }
-
-        $guard->commit;
-        return wantarray ? @res : $res[0];
-    }
+  return $self;
 }
 
 =head2 delete
 
-Overrides the DBIC delete() method by first moving the object 
+Overrides the DBIC delete() method by first moving the object
 to the last position, then deleting it, thus ensuring the
 integrity of the positions.
 
@@ -671,6 +594,12 @@ sub delete {
 
     $guard->commit;
     return wantarray ? @res : $res[0];
+}
+
+# add the current position/group to the things we track old values for
+sub _track_storage_value {
+  my ($self, $col) = @_;
+  return $self->next::method($col) || defined first { $_ eq $col } ($self->position_column, $self->_grouping_columns);
 }
 
 =head1 METHODS FOR EXTENDING ORDERED
@@ -839,9 +768,12 @@ excluding the object you called this method on.
 sub _siblings {
     my $self = shift;
     my $position_column = $self->position_column;
-    return $self->_group_rs->search(
-        { $position_column => { '!=' => $self->get_column($position_column) } },
-    );
+    return defined (my $pos = $self->get_column($position_column))
+        ? $self->_group_rs->search(
+            { $position_column => { '!=' => $self->get_column($position_column) } },
+          )
+        : $self->_group_rs
+    ;
 }
 
 =head2 _position

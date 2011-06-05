@@ -96,7 +96,32 @@ ok(
   "overloaded update 7"
 );
 
+$employee->group_id(2);
+$employee->name('E of the month');
+$employee->update({ employee_id => 666, position => 2 });
+is_deeply(
+  { $employee->get_columns },
+  {
+    employee_id => 666,
+    encoded => undef,
+    group_id => 2,
+    group_id_2 => undef,
+    group_id_3 => undef,
+    name => "E of the month",
+    position => 2
+  },
+  'combined update() worked correctly'
+);
+is_deeply(
+  { $employee->get_columns },
+  { $employee->get_from_storage->get_columns },
+  'object matches database state',
+);
+
+#####
 # multicol tests begin here
+#####
+
 DBICTest::Employee->grouping_column(['group_id_2', 'group_id_3']);
 $employees->delete();
 foreach my $group_id_2 (1..4) {

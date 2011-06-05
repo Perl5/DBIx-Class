@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use DBIx::Class::Exception;
 use Scalar::Util 'blessed';
+use List::Util 'first';
 use Try::Tiny;
 
 ###
@@ -362,6 +363,9 @@ sub insert {
       );
   }
 
+  delete $self->{_column_data_in_storage};
+  $self->in_storage(1);
+
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
 
@@ -394,10 +398,8 @@ sub insert {
     }
   }
 
-  $self->in_storage(1);
-  delete $self->{_orig_ident};
-  delete $self->{_orig_ident_failreason};
   delete $self->{_ignore_at_insert};
+
   $rollback_guard->commit if $rollback_guard;
 
   return $self;
@@ -494,14 +496,10 @@ sub update {
   my %to_update = $self->get_dirty_columns
     or return $self;
 
-  my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
-  $self->throw_exception($self->{_orig_ident_failreason})
-    if ! keys %$ident_cond;
-
   my $rows = $self->result_source->storage->update(
-    $self->result_source, \%to_update, $ident_cond
+    $self->result_source, \%to_update, $self->ident_condition
   );
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
@@ -510,7 +508,7 @@ sub update {
   }
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
-  delete $self->{_orig_ident};
+  delete $self->{_column_data_in_storage};
   return $self;
 }
 
@@ -562,15 +560,11 @@ sub delete {
   if (ref $self) {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
-    my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
-    $self->throw_exception($self->{_orig_ident_failreason})
-      if ! keys %$ident_cond;
-
     $self->result_source->storage->delete(
-      $self->result_source, $ident_cond
+      $self->result_source, $self->ident_condition
     );
 
-    delete $self->{_orig_ident};  # no longer identifiable
+    delete $self->{_column_data_in_storage};
     $self->in_storage(undef);
   }
   else {
@@ -835,25 +829,16 @@ instead, see L</set_inflated_columns>.
 sub set_column {
   my ($self, $column, $new_value) = @_;
 
-  # if we can't get an ident condition on first try - mark the object as unidentifiable
-  # (by using an empty hashref) and store the error for further diag
-  unless ($self->{_orig_ident}) {
-    try {
-      $self->{_orig_ident} = $self->ident_condition
-    }
-    catch {
-      $self->{_orig_ident_failreason} = $_;
-      $self->{_orig_ident} = {};
-    };
-  }
+  my $had_value = $self->has_column_loaded($column);
+  my ($old_value, $in_storage) = ($self->get_column($column), $self->in_storage)
+    if $had_value;
 
-  my $old_value = $self->get_column($column);
   $new_value = $self->store_column($column, $new_value);
 
   my $dirty =
     $self->{_dirty_columns}{$column}
       ||
-    $self->in_storage # no point tracking dirtyness on uninserted data
+    $in_storage # no point tracking dirtyness on uninserted data
       ? ! $self->_eq_column_values ($column, $old_value, $new_value)
       : 1
   ;
@@ -882,6 +867,21 @@ sub set_column {
         delete $self->{_inflated_column}{$rel};
       }
     }
+
+    if (
+      # value change from something (even if NULL)
+      $had_value
+        and
+      # no storage - no storage-value
+      $in_storage
+        and
+      # no value already stored (multiple changes before commit to storage)
+      ! exists $self->{_column_data_in_storage}{$column}
+        and
+      $self->_track_storage_value($column)
+    ) {
+      $self->{_column_data_in_storage}{$column} = $old_value;
+    }
   }
 
   return $new_value;
@@ -905,6 +905,13 @@ sub _eq_column_values {
   else {
     return 0;
   }
+}
+
+# returns a boolean indicating if the passed column should have its original
+# value tracked between column changes and commitment to storage
+sub _track_storage_value {
+  my ($self, $col) = @_;
+  return defined first { $col eq $_ } ($self->primary_columns);
 }
 
 =head2 set_columns
@@ -1363,12 +1370,7 @@ sub get_from_storage {
       $resultset = $resultset->search(undef, $attrs);
     }
 
-    my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
-
-    $self->throw_exception($self->{_orig_ident_failreason})
-      if ! keys %$ident_cond;
-
-    return $resultset->find($ident_cond);
+    return $resultset->find($self->ident_condition);
 }
 
 =head2 discard_changes ($attrs?)

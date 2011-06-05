@@ -41,7 +41,10 @@ sub _ident_values {
   my (@ids, @missing);
 
   for ($self->_pri_cols) {
-    push @ids, $self->get_column($_);
+    push @ids, exists $self->{_column_data_in_storage}{$_}
+      ? $self->{_column_data_in_storage}{$_}
+      : $self->get_column($_)
+    ;
     push @missing, $_ if (! defined $ids[-1] and ! $self->has_column_loaded ($_) );
   }
 

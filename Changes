@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - Allow schema cloning to mutate attributes
         - DBIC now attempts more aggressive de-duplication of where
           conditions on resultset chaining
+        - The Ordered component is now smarter wrt reordering of dirty
+          objects, and does its job with less storage queries
 
     * Fixes
         - Fix issue where the query was becoming overly mangled when trying
