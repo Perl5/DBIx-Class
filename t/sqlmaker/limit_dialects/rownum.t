@@ -18,53 +18,121 @@ $s->storage->sql_maker->limit_dialect ('RowNum');
 
 my $rs = $s->resultset ('CD');
 
-is_same_sql_bind (
-  $rs->search ({}, { rows => 1, offset => 3,columns => [
-      { id => 'foo.id' },
-      { 'bar.id' => 'bar.id' },
-      { bleh => \ 'TO_CHAR (foo.womble, "blah")' },
-    ]})->as_query,
-  '(
-    SELECT id, bar__id, bleh
+for my $test_set (
+  {
+    name => 'Rownum subsel aliasing works correctly',
+    rs => $rs->search_rs(undef, {
+      rows => 1,
+      offset => 3,
+      columns => [
+        { id => 'foo.id' },
+        { 'bar.id' => 'bar.id' },
+        { bleh => \'TO_CHAR (foo.womble, "blah")' },
+      ]
+    }),
+    sql => '(
+      SELECT id, bar__id, bleh
       FROM (
         SELECT id, bar__id, bleh, ROWNUM rownum__index
-          FROM (
-            SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
-              FROM cd me
-          ) me
+        FROM (
+          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR (foo.womble, "blah") AS bleh
+          FROM cd me
+        ) me
+      ) me WHERE rownum__index BETWEEN ? AND ?
+    )',
+    binds => [
+      [ $OFFSET => 4 ],
+      [ $TOTAL => 4 ],
+    ],
+  }, {
+    name => 'Rownum subsel aliasing works correctly with unique order_by',
+    rs => $rs->search_rs(undef, {
+      rows => 1,
+      offset => 3,
+      columns => [
+        { id => 'foo.id' },
+        { 'bar.id' => 'bar.id' },
+        { bleh => \'TO_CHAR (foo.womble, "blah")' },
+      ],
+      order_by => [qw( artist title )],
+    }),
+    sql => '(
+      SELECT id, bar__id, bleh
+      FROM (
+        SELECT id, bar__id, bleh, ROWNUM rownum__index
+        FROM (
+          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
+          FROM cd me
+          ORDER BY artist, title
+        ) me
         WHERE ROWNUM <= ?
       ) me
-    WHERE rownum__index >= ?
-  )',
-  [
-    [ $TOTAL => 4 ],
-    [ $OFFSET => 4 ],
-  ],
-  'Rownum subsel aliasing works correctly'
-);
-
-is_same_sql_bind (
-  $rs->search ({}, { rows => 2, offset => 3,columns => [
-      { id => 'foo.id' },
-      { 'ends_with_me.id' => 'ends_with_me.id' },
-    ]})->as_query,
-  '(SELECT id, ends_with_me__id
+      WHERE rownum__index >= ?
+    )',
+    binds => [
+      [ $TOTAL => 4 ],
+      [ $OFFSET => 4 ],
+    ],
+  }, {
+    name => 'Rownum subsel aliasing #2 works correctly',
+    rs => $rs->search_rs(undef, {
+      rows => 2,
+      offset => 3,
+      columns => [
+        { id => 'foo.id' },
+        { 'ends_with_me.id' => 'ends_with_me.id' },
+      ]
+    }),
+    sql => '(
+      SELECT id, ends_with_me__id
       FROM (
         SELECT id, ends_with_me__id, ROWNUM rownum__index
-          FROM (
-            SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
-              FROM cd me
-          ) me
+        FROM (
+          SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
+          FROM cd me
+        ) me
+      ) me WHERE rownum__index BETWEEN ? AND ?
+    )',
+    binds => [
+      [ $OFFSET => 4 ],
+      [ $TOTAL => 5 ],
+    ],
+  }, {
+    name => 'Rownum subsel aliasing #2 works correctly with unique order_by',
+    rs => $rs->search_rs(undef, {
+      rows => 2,
+      offset => 3,
+      columns => [
+        { id => 'foo.id' },
+        { 'ends_with_me.id' => 'ends_with_me.id' },
+      ],
+      order_by => [qw( artist title )],
+    }),
+    sql => '(
+      SELECT id, ends_with_me__id
+      FROM (
+        SELECT id, ends_with_me__id, ROWNUM rownum__index
+        FROM (
+          SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
+          FROM cd me
+          ORDER BY artist, title
+        ) me
         WHERE ROWNUM <= ?
       ) me
-    WHERE rownum__index >= ?
-  )',
-  [
-    [ $TOTAL => 5 ],
-    [ $OFFSET => 4 ],
-  ],
-  'Rownum subsel aliasing works correctly'
-);
+      WHERE rownum__index >= ?
+    )',
+    binds => [
+      [ $TOTAL => 5 ],
+      [ $OFFSET => 4 ],
+    ],
+  }
+) {
+  is_same_sql_bind(
+    $test_set->{rs}->as_query,
+    $test_set->{sql},
+    $test_set->{binds},
+    $test_set->{name});
+}
 
 {
 my $subq = $s->resultset('Owners')->search({
@@ -94,15 +162,14 @@ is_same_sql_bind(
               JOIN owners owner ON owner.id = me.owner
             WHERE ( source = ? )
           ) me
-        WHERE ROWNUM <= ?
       ) me
-    WHERE rownum__index >= ?
+    WHERE rownum__index BETWEEN ? AND ?
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
       => 'Library' ],
-    [ $TOTAL => 5 ],
     [ $OFFSET => 4 ],
+    [ $TOTAL => 5 ],
   ],
 
   'pagination with subquery works'
@@ -134,14 +201,16 @@ my $rs_selectas_rel = $s->resultset('BooksInLibrary')->search( { -exists => $sub
 
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
-  '(  SELECT id, owner FROM (
-     SELECT me.id, me.owner
-     FROM books me
-     WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )
-   ) me WHERE ROWNUM <= ?
- )',
+  '(
+    SELECT id, owner FROM (
+      SELECT id, owner, ROWNUM rownum__index FROM (
+        SELECT me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )
+      ) me
+    ) me WHERE rownum__index BETWEEN ? AND ?
+  )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $OFFSET => 1 ],
     [ $TOTAL => 1 ],
   ],
   'Pagination with sub-query in WHERE works'

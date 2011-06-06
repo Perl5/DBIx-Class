@@ -316,7 +316,7 @@ do_creates($dbh);
     my $rs = $schema->resultset('Artist')->search({}, {
       start_with => { name => 'root' },
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      order_by => { -asc => 'name' },
+      order_by => [ { -asc => 'name' }, {  -desc => 'artistid' } ],
       rows => 2,
     });
 
@@ -329,7 +329,7 @@ do_creates($dbh);
               FROM artist me
             START WITH name = ?
             CONNECT BY parentid = PRIOR artistid
-            ORDER BY name ASC
+            ORDER BY name ASC, artistid DESC
           ) me
         WHERE ROWNUM <= ?
       )',
@@ -352,17 +352,22 @@ do_creates($dbh);
           FROM (
             SELECT artistid
               FROM (
-                SELECT me.artistid
-                  FROM artist me
-                START WITH name = ?
-                CONNECT BY parentid = PRIOR artistid
+                SELECT artistid, ROWNUM rownum__index
+                  FROM (
+                    SELECT me.artistid
+                      FROM artist me
+                    START WITH name = ?
+                    CONNECT BY parentid = PRIOR artistid
+                  ) me
               ) me
-            WHERE ROWNUM <= ?
+            WHERE rownum__index BETWEEN ? AND ?
           ) me
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
-            => 'root'], [ $ROWS => 2 ] ,
+            => 'root'],
+        [ $ROWS => 1 ],
+        [ $TOTAL => 2 ],
       ],
     );
 

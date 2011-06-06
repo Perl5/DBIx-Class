@@ -4,7 +4,7 @@ package   #hide from PAUSE
 #
 # This module contains code that should never have seen the light of day,
 # does not belong in the Storage, or is otherwise unfit for public
-# display. The arrival of SQLA2 should immediately oboslete 90% of this
+# display. The arrival of SQLA2 should immediately obsolete 90% of this
 #
 
 use strict;

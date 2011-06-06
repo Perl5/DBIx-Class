@@ -214,13 +214,30 @@ sub _FirstSkip {
   );
 }
 
+
 =head2 RowNum
+
+Depending on the resultset attributes one of:
 
  SELECT * FROM (
   SELECT *, ROWNUM rownum__index FROM (
    SELECT ...
   ) WHERE ROWNUM <= ($limit+$offset)
  ) WHERE rownum__index >= ($offset+1)
+
+or
+
+ SELECT * FROM (
+  SELECT *, ROWNUM rownum__index FROM (
+    SELECT ...
+  )
+ ) WHERE rownum__index BETWEEN ($offset+1) AND ($limit+$offset)
+
+or
+
+ SELECT * FROM (
+    SELECT ...
+  ) WHERE ROWNUM <= ($limit+1)
 
 Supported by B<Oracle>.
 
@@ -234,33 +251,92 @@ sub _RowNum {
   my $idx_name = $self->_quote ('rownum__index');
   my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
 
+  #
+  # There are two ways to limit in Oracle, one vastly faster than the other
+  # on large resultsets: https://decipherinfosys.wordpress.com/2007/08/09/paging-and-countstopkey-optimization/
+  # However Oracle is retarded and does not preserve stable ROWNUM() values
+  # when called twice in the same scope. Therefore unless the resultset is
+  # ordered by a unique set of columns, it is not safe to use the faster
+  # method, and the slower BETWEEN query is used instead
+  #
+  # FIXME - this is quite expensive, and doe snot perform caching of any sort
+  # as soon as some of the DQ work becomes viable consider switching this
+  # over
+  if ( __order_by_is_unique($rs_attrs) ) {
 
-  if ($offset) {
+    # if offset is 0 (first page) the we can skip a subquery
+    if (! $offset) {
+      push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
 
-    push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
+      return <<EOS;
+SELECT $outsel FROM (
+  SELECT $insel ${stripped_sql}${order_group_having}
+) $qalias WHERE ROWNUM <= ?
+EOS
+    }
+    else {
+      push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
 
-    return <<EOS;
+      return <<EOS;
 SELECT $outsel FROM (
   SELECT $outsel, ROWNUM $idx_name FROM (
     SELECT $insel ${stripped_sql}${order_group_having}
   ) $qalias WHERE ROWNUM <= ?
 ) $qalias WHERE $idx_name >= ?
 EOS
-
+    }
   }
   else {
-    push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+    push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset + 1 ], [ $self->__total_bindtype => $offset + $rows ];
 
     return <<EOS;
-  SELECT $outsel FROM (
+SELECT $outsel FROM (
+  SELECT $outsel, ROWNUM $idx_name FROM (
     SELECT $insel ${stripped_sql}${order_group_having}
-  ) $qalias WHERE ROWNUM <= ?
+  ) $qalias
+) $qalias WHERE $idx_name BETWEEN ? AND ?
 EOS
-
   }
 }
 
-# used by _Top and _FetchFirst
+# determine if the supplied order_by contains a unique column (set)
+sub __order_by_is_unique {
+  my $rs_attrs = shift;
+  my $rsrc = $rs_attrs->{_rsroot_rsrc};
+  my $order_by = $rs_attrs->{order_by}
+    || return 0;
+
+  my $storage = $rsrc->schema->storage;
+
+  my @order_by_cols = map { $_->[0] } $storage->_extract_order_criteria($order_by)
+    or return 0;
+
+  my $colinfo =
+    $storage->_resolve_column_info($rs_attrs->{from}, \@order_by_cols);
+
+  my $sources = {
+    map {( "$_" => $_ )} map { $_->{-result_source} } values %$colinfo
+  };
+
+  my $supplied_order = {
+    map { $_ => 1 }
+    grep { exists $colinfo->{$_} and ! $colinfo->{$_}{is_nullable} }
+    @order_by_cols
+  };
+
+  return 0 unless keys %$supplied_order;
+
+  for my $uks (
+    map { values %$_ } map { +{ $_->unique_constraints } } values %$sources
+  ) {
+    return 1
+      unless first { ! exists $supplied_order->{$_} } @$uks;
+  }
+
+  return 0;
+}
+
+# used by _Top and _FetchFirst below
 sub _prep_for_skimming_limit {
   my ( $self, $sql, $rs_attrs ) = @_;
 
