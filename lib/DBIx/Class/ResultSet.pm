@@ -1830,7 +1830,7 @@ sub update_all {
     unless ref $values eq 'HASH';
 
   my $guard = $self->result_source->schema->txn_scope_guard;
-  $_->update($values) for $self->all;
+  $_->update({%$values}) for $self->all;  # shallow copy - update will mangle it
   $guard->commit;
   return 1;
 }

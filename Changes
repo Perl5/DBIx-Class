@@ -15,6 +15,8 @@ Revision history for DBIx::Class
           from 0.08191 - documentation was in fact incorrect, not the code
         - Fix Sybase ASE IC::DateTime support (::Storage going out of sync
           with new default format expected by DateTime::Format::Sybase)
+        - Fix a bug in update_all() resulting in the first row receiving a
+          different dataset than the subsequent ones
 
 0.08192 2011-05-10 04:20 (UTC)
     * Fixes
