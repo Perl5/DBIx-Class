@@ -499,7 +499,7 @@ sub update {
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
   my $rows = $self->result_source->storage->update(
-    $self->result_source, \%to_update, $self->ident_condition
+    $self->result_source, \%to_update, $self->_storage_ident_condition
   );
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
@@ -561,7 +561,7 @@ sub delete {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
     $self->result_source->storage->delete(
-      $self->result_source, $self->ident_condition
+      $self->result_source, $self->_storage_ident_condition
     );
 
     delete $self->{_column_data_in_storage};
@@ -1370,7 +1370,7 @@ sub get_from_storage {
       $resultset = $resultset->search(undef, $attrs);
     }
 
-    return $resultset->find($self->ident_condition);
+    return $resultset->find($self->_storage_ident_condition);
 }
 
 =head2 discard_changes ($attrs?)

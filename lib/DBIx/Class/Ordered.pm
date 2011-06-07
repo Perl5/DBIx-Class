@@ -768,9 +768,10 @@ excluding the object you called this method on.
 sub _siblings {
     my $self = shift;
     my $position_column = $self->position_column;
-    return defined (my $pos = $self->get_column($position_column))
+    my $pos;
+    return defined ($pos = $self->get_column($position_column))
         ? $self->_group_rs->search(
-            { $position_column => { '!=' => $self->get_column($position_column) } },
+            { $position_column => { '!=' => $pos } },
           )
         : $self->_group_rs
     ;
