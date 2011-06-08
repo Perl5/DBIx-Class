@@ -5,6 +5,7 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI::UniqueIdentifier';
 use mro 'c3';
 
+use DBI ();
 use List::Util 'first';
 use namespace::clean;
 

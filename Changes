@@ -19,6 +19,7 @@ Revision history for DBIx::Class
           with new default format expected by DateTime::Format::Sybase)
         - Fix a bug in update_all() resulting in the first row receiving a
           different dataset than the subsequent ones
+        - Accomodate MSAccess supporting only 'INNER JOIN' (not plain 'JOIN')
 
 0.08192 2011-05-10 04:20 (UTC)
     * Fixes

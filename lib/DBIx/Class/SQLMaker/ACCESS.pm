@@ -5,6 +5,16 @@ use strict;
 use warnings;
 use base 'DBIx::Class::SQLMaker';
 
+# inner joins must be prefixed with 'INNER '
+sub new {
+  my $class = shift;
+  my $self  = $class->next::method(@_);
+
+  $self->{_default_jointype} = 'INNER';
+
+  return $self;
+}
+
 # MSAccess is retarded wrt multiple joins in FROM - it requires a certain
 # way of parenthesizing each left part before each next right part
 sub _recurse_from {

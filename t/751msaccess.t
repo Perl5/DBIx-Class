@@ -7,6 +7,8 @@ use Scope::Guard ();
 use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::DebugObj ();
+use DBIC::SqlMakerTest;
 
 DBICTest::Schema->load_classes('ArtistGUID');
 
@@ -141,7 +143,12 @@ EOF
     title => 'my track',
   });
 
+  my ($sql, @bind);
+
   my $joined_track = try {
+    local $schema->storage->{debug} = 1;
+    local $schema->storage->{debugobj} = DBIC::DebugObj->new(\$sql, \@bind);
+
     $schema->resultset('Artist')->search({
       artistid => $first_artistid,
     }, {
@@ -151,11 +158,52 @@ EOF
     })->next;
   }
   catch {
-    diag "Could not execute two-step join: $_";
+    diag "Could not execute two-step left join: $_";
   };
 
+  s/^'//, s/'\z// for @bind;
+
+  is_same_sql_bind(
+    $sql,
+    \@bind,
+    'SELECT [me].[artistid], [me].[name], [me].[rank], [me].[charfield], [tracks].[title] FROM ( ( [artist] [me] LEFT JOIN cd [cds] ON [cds].[artist] = [me].[artistid] ) LEFT JOIN [track] [tracks] ON [tracks].[cd] = [cds].[cdid] ) WHERE ( [artistid] = ? )',
+    [1],
+    'correct SQL for two-step left join',
+  );
+
   is try { $joined_track->get_column('track_title') }, 'my track',
-    'two-step join works';
+    'two-step left join works';
+
+  ($sql, @bind) = ();
+
+  $joined_artist = try {
+    local $schema->storage->{debug} = 1;
+    local $schema->storage->{debugobj} = DBIC::DebugObj->new(\$sql, \@bind);
+
+    $schema->resultset('Track')->search({
+      trackid => $track->trackid,
+    }, {
+      join => [{ cd => 'artist' }],
+      '+select' => [ 'artist.name' ],
+      '+as'     => [ 'artist_name'  ],
+    })->next;
+  }
+  catch {
+    diag "Could not execute two-step inner join: $_";
+  };
+
+  s/^'//, s/'\z// for @bind;
+
+  is_same_sql_bind(
+    $sql,
+    \@bind,
+    'SELECT [me].[trackid], [me].[cd], [me].[position], [me].[title], [me].[last_updated_on], [me].[last_updated_at], [artist].[name] FROM ( ( [track] [me] INNER JOIN cd [cd] ON [cd].[cdid] = [me].[cd] ) INNER JOIN [artist] [artist] ON [artist].[artistid] = [cd].[artist] ) WHERE ( [trackid] = ? )',
+    [$track->trackid],
+    'correct SQL for two-step inner join',
+  );
+
+  is try { $joined_artist->get_column('artist_name') }, 'foo',
+    'two-step inner join works';
 
 # test basic transactions
   $schema->txn_do(sub {
