@@ -341,7 +341,7 @@ my $reqs = {
       $ENV{DBICTEST_PG_DSN}
         ? (
           %$rdbms_pg,
-          'Sys::SigAction'        => '0',
+          ($^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : ()),
           'DBD::Pg'               => '2.009002',
         ) : ()
     },
