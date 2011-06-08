@@ -526,7 +526,7 @@ sub update {
   my $self = shift;
 
   # this is set by _ordered_internal_update()
-  return $self->next::method(@_) if $self->{_ORDERED_INTERNAL_UPDATE};
+  return $self->next::method(@_) if $self->result_source->schema->{_ORDERED_INTERNAL_UPDATE};
 
   my $upd = shift;
   $self->set_inflated_columns($upd) if $upd;
@@ -719,23 +719,36 @@ sub _shift_siblings {
     # increment/decrement. So what we do here is check if the
     # position column is part of a unique constraint, and do a
     # one-by-one update if this is the case
+    # Also we do a one-by-one if the position is part of the PK
+    # since once we update a column via scalarref we lose the
+    # ability to retrieve this column back (we do not know the
+    # id anymore)
 
     my $rsrc = $self->result_source;
 
-    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
-
-        my @pcols = $rsrc->_pri_cols;
-        my $cursor = $shift_rs->search ({}, { order_by => { "-$ord", $position_column }, columns => \@pcols } )->cursor;
+    # set in case there are more cascades combined with $rs->update => $rs_update_all overrides
+    local $rsrc->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
+    my @pcols = $rsrc->primary_columns;
+    my $pos_is_pk = first { $_ eq $position_column } @pcols;
+    if (
+      $pos_is_pk
+        or
+      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) 
+    ) {
+        my $cursor = $shift_rs->search (
+          {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
+        )->cursor;
         my $rs = $self->result_source->resultset;
 
-        my @all_pks = $cursor->all;
-        while (my $pks = shift @all_pks) {
+        my @all_data = $cursor->all;
+        while (my $data = shift @all_data) {
+          my $pos = shift @$data;
           my $cond;
           for my $i (0.. $#pcols) {
-            $cond->{$pcols[$i]} = $pks->[$i];
+            $cond->{$pcols[$i]} = $data->[$i];
           }
 
-          $rs->search($cond)->update ({ $position_column => \ "$position_column $op 1" } );
+          $rs->find($cond)->update ({ $position_column => $pos + ( ($op eq '+') ? 1 : -1 ) });
         }
     }
     else {
@@ -864,7 +877,7 @@ this module.
 
 sub _ordered_internal_update {
     my $self = shift;
-    local $self->{_ORDERED_INTERNAL_UPDATE} = 1;
+    local $self->result_source->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
     return $self->update (@_);
 }
 
