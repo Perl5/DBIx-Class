@@ -155,7 +155,7 @@ See L<DBIx::Class::ResultSource> for docs on defining result classes.
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD', 'artistid');
 
   1;
 
