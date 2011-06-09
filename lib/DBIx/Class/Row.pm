@@ -357,9 +357,11 @@ sub insert {
       # this ensures we fire store_column only once
       # (some asshats like overriding it)
       if (
-        (! defined $current_rowdata{$_})
+        (!exists $current_rowdata{$_})
           or
-        ( $current_rowdata{$_} ne $returned_cols->{$_})
+        (defined $current_rowdata{$_} xor defined $returned_cols->{$_})
+          or
+        (defined $current_rowdata{$_} and $current_rowdata{$_} ne $returned_cols->{$_})
       );
   }
 
