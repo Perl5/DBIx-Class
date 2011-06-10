@@ -69,8 +69,8 @@ __PACKAGE__->belongs_to(
     { join_type => 'left' },
 );
 
-__PACKAGE__->might_have (
-  next_track => __PACKAGE__,
+__PACKAGE__->has_many (
+  next_tracks => __PACKAGE__,
   sub {
     my $args = shift;
 

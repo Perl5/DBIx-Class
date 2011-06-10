@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Tue Feb 22 18:42:16 2011
+-- Created on Sat Jun 11 00:39:51 2011
 -- 
 
 --
@@ -68,7 +68,7 @@ CREATE TABLE fourkeys (
   hello integer NOT NULL,
   goodbye integer NOT NULL,
   sensors character(10) NOT NULL,
-  read_count integer,
+  read_count int,
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 

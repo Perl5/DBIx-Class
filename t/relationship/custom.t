@@ -194,8 +194,8 @@ for my $cd ($schema->resultset('CD')->search ({}, { order_by => 'cdid'})->all) {
 }
 
 my $last_tracks_rs = $schema->resultset('Track')->search (
-  {'next_track.trackid' => undef},
-  { join => 'next_track', order_by => 'me.cd' },
+  {'next_tracks.trackid' => undef},
+  { join => 'next_tracks', order_by => 'me.cd' },
 );
 
 is_deeply (
