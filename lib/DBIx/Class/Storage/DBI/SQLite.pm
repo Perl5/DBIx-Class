@@ -91,7 +91,7 @@ sub deployment_statements {
 }
 
 sub bind_attribute_by_data_type {
-  $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium|big)int ) $/ix
+  $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium)int ) $/ix
     ? do { require DBI; DBI::SQL_INTEGER() }
     : undef
   ;
