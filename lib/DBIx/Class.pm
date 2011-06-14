@@ -406,6 +406,8 @@ michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
 
+mstratman: Mark A. Stratman <stratman@gmail.com>
+
 ned: Neil de Carteret
 
 nigel: Nigel Metheringham <nigelm@cpan.org>

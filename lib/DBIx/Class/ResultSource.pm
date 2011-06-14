@@ -1041,6 +1041,20 @@ sub resultset {
   );
 }
 
+=head2 name
+
+=over 4
+
+=item Arguments: None
+
+=item Result value: $name
+
+=back
+
+Returns the name of the result source, which will typically be the table
+name. This may be a scalar reference if the result source has a non-standard
+name.
+
 =head2 source_name
 
 =over 4
