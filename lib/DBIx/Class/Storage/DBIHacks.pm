@@ -15,6 +15,7 @@ use mro 'c3';
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
+use Sub::Name 'subname';
 use namespace::clean;
 
 #
@@ -589,6 +590,61 @@ sub _inner_join_to_node {
   }
 
   return \@new_from;
+}
+
+# yet another atrocity: attempt to extract all columns from a
+# where condition by hooking _quote
+sub _extract_condition_columns {
+  my ($self, $cond, $sql_maker) = @_;
+
+  return [] unless $cond;
+
+  $sql_maker ||= $self->{_sql_ident_capturer} ||= do {
+    # FIXME - replace with a Moo trait
+    my $orig_sm_class = ref $self->sql_maker;
+    my $smic_class = "${orig_sm_class}::_IdentCapture_";
+
+    unless ($smic_class->isa('SQL::Abstract')) {
+
+      no strict 'refs';
+      *{"${smic_class}::_quote"} = subname "${smic_class}::_quote" => sub {
+        my ($self, $ident) = @_;
+        if (ref $ident eq 'SCALAR') {
+          $ident = $$ident;
+          my $storage_quotes = $self->sql_quote_char || '"';
+          my ($ql, $qr) = map
+            { quotemeta $_ }
+            (ref $storage_quotes eq 'ARRAY' ? @$storage_quotes : ($storage_quotes) x 2 )
+          ;
+
+          while ($ident =~ /
+            $ql (\w+) $qr
+              |
+            ([\w\.]+)
+          /xg) {
+            $self->{_captured_idents}{$1||$2}++;
+          }
+        }
+        else {
+          $self->{_captured_idents}{$ident}++;
+        }
+        return $ident;
+      };
+
+      *{"${smic_class}::_get_captured_idents"} = subname "${smic_class}::_get_captures" => sub {
+        (delete shift->{_captured_idents}) || {};
+      };
+
+      $self->inject_base ($smic_class, $orig_sm_class);
+
+    }
+
+    $smic_class->new();
+  };
+
+  $sql_maker->_recurse_where($cond);
+
+  return [ sort keys %{$sql_maker->_get_captured_idents} ];
 }
 
 sub _extract_order_criteria {
