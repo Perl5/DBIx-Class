@@ -55,8 +55,10 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
         $self->throw_exception( "No relationship to JOIN from ${from_class} to ${to_class}" )
           unless $rel_obj;
         my $join = $from_class->storage->sql_maker->_join_condition(
-          $from_class->result_source_instance->_resolve_condition(
-            $rel_obj->{cond}, $to, $from) );
+          scalar $from_class->result_source_instance->_resolve_condition(
+            $rel_obj->{cond}, $to, $from
+          )
+        );
         return $join;
       }
 

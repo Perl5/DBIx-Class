@@ -87,8 +87,8 @@ __PACKAGE__->has_many (
         "$args->{foreign_alias}.position" => { '>' => { -ident => "$args->{self_alias}.position" } },
       },
       $args->{self_rowobj} && {
-        "$args->{foreign_alias}.cd"       => $args->{self_rowobj}->cd,
-        "$args->{foreign_alias}.position" => { '>' => $args->{self_rowobj}->position },
+        "$args->{foreign_alias}.cd"       => $args->{self_rowobj}->get_column('cd'),
+        "$args->{foreign_alias}.position" => { '>' => $args->{self_rowobj}->pos },
       }
     )
   }
