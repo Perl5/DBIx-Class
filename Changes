@@ -6,6 +6,8 @@ Revision history for DBIx::Class
           conditions on resultset chaining
         - The Ordered component is now smarter wrt reordering of dirty
           objects, and does its job with less storage queries
+        - Logging via DBIC_TRACE=1=<filename> no longer overwrites the
+          logfile on every program startup, appending loglines instead
 
     * Fixes
         - Fix issue where the query was becoming overly mangled when trying

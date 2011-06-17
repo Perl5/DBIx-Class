@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+no warnings 'once';
 
 use Test::More;
 use Test::Exception;
@@ -11,38 +12,45 @@ use Path::Class qw/file/;
 
 my $schema = DBICTest->init_schema();
 
+my $lfn = file('t/var/sql.log');
+unlink $lfn or die $!
+  if -e $lfn;
+
 # make sure we are testing the vanilla debugger and not ::PrettyPrint
 $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
-$schema->storage->debugfh(file('t/var/sql.log')->openw);
-
+$schema->storage->debugfh($lfn->openw);
 $schema->storage->debugfh->autoflush(1);
-my $rs = $schema->resultset('CD')->search({});
-$rs->count();
+$schema->resultset('CD')->count;
 
-my $log = file('t/var/sql.log')->openr;
-my $line = <$log>;
-$log->close();
-like($line, qr/^SELECT COUNT/, 'Log success');
+my @loglines = $lfn->slurp;
+is (@loglines, 1, 'one line of log');
+like($loglines[0], qr/^SELECT COUNT/, 'File log via debugfh success');
 
 $schema->storage->debugfh(undef);
-$ENV{'DBIC_TRACE'} = '=t/var/foo.log';
-$rs = $schema->resultset('CD')->search({});
-$rs->count();
-$log = file('t/var/foo.log')->openr;
-$line = <$log>;
-$log->close();
-like($line, qr/^SELECT COUNT/, 'Log success');
-$schema->storage->debugobj->debugfh(undef);
-delete($ENV{'DBIC_TRACE'});
+
+{
+  local $ENV{DBIC_TRACE} = "=$lfn";
+  unlink $lfn;
+
+  $schema->resultset('CD')->count;
+
+  my $schema2 = DBICTest->init_schema(no_deploy => 1);
+  $schema2->storage->_do_query('SELECT 1'); # _do_query() logs via standard mechanisms
+
+  my @loglines = $lfn->slurp;
+  is(@loglines, 2, '2 lines of log');
+  like($loglines[0], qr/^SELECT COUNT/, 'Env log from schema1 success');
+  like($loglines[1], qr/^SELECT 1:/, 'Env log from schema2 success');
+
+  $schema->storage->debugobj->debugfh(undef)
+}
 
 open(STDERRCOPY, '>&STDERR');
-stat(STDERRCOPY); # nop to get warnings quiet
 close(STDERR);
 dies_ok {
-    $rs = $schema->resultset('CD')->search({});
-    $rs->count();
+  $schema->resultset('CD')->search({})->count;
 } 'Died on closed FH';
 
 open(STDERR, '>&STDERRCOPY');

@@ -61,7 +61,7 @@ sub debugfh {
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
     if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-      $fh = IO::File->new($1, 'w')
+      $fh = IO::File->new($1, 'a')
         or die("Cannot open trace file $1");
     } else {
       $fh = IO::File->new('>&STDERR')
