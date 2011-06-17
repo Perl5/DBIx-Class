@@ -1,3 +1,23 @@
+# Pre-5.10 perls pollute %INC on unsuccesfull module
+# require, making it appear as if the module is already
+# loaded on subsequent require()s
+# Can't seem to find the exact RT/perldelta entry
+BEGIN {
+  if ($] < 5.010) {
+    # shut up spurious warnings without loading warnings.pm
+    *CORE::GLOBAL::require = sub {};
+
+    *CORE::GLOBAL::require = sub {
+      my $res = eval { CORE::require($_[0]) };
+      if ($@) {
+        delete $INC{$_[0]};
+        die
+      }
+      $res;
+    }
+  }
+}
+
 use strict;
 use warnings;
 
@@ -15,15 +35,15 @@ use DBIx::Class::Carp;
 my @modules = grep {
   my $mod = $_;
 
-  # trap deprecation warnings and whatnot
-  local $SIG{__WARN__} = sub {};
-
   # not all modules are loadable at all times
-  eval "require $mod" ? $mod : do {
-    SKIP: { skip "Failed require of $mod: $@", 1 };
-    ();
+  do {
+    # trap deprecation warnings and whatnot
+    local $SIG{__WARN__} = sub {};
+    eval "require $mod";
+  } ? $mod : do {
+    SKIP: { skip "Failed require of $mod: " . ($@ =~ /^(.+?)$/m)[0], 1 };
+    (); # empty RV for @modules
   };
-
 
 } find_modules();
 
