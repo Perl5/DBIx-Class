@@ -22,6 +22,8 @@ Revision history for DBIx::Class
         - Accomodate MSAccess supporting only 'INNER JOIN' (not plain 'JOIN')
         - InflateColumn::DateTime option datetime_undef_if_invalid no longer
           masks missing dependency exceptions (RT#66823)
+        - Fix bug in Schema::Versioned failing to insert a schema version row
+          during upgrades at the turn of the second
 
 0.08192 2011-05-10 04:20 (UTC)
     * Fixes

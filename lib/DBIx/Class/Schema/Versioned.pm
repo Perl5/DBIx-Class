@@ -719,7 +719,7 @@ sub _set_db_version {
       $dt[2],
       $dt[1],
       $dt[0],
-      $tm[1] / 1000, # convert to millisecs, format as up/down rounded int above
+      int($tm[1] / 1000), # convert to millisecs
     ),
   });
 }
