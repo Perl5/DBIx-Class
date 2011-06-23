@@ -10,14 +10,12 @@ use base qw( DBIx::Class::SQLMaker );
 sub insert {
   my $self = shift;
 
-  my $table = $_[0];
-  $table = $self->_quote($table);
-
   if (! $_[1] or (ref $_[1] eq 'HASH' and !keys %{$_[1]} ) ) {
+    my $table = $self->_quote($_[0]);
     return "INSERT INTO ${table} () VALUES ()"
   }
 
-  return $self->SUPER::insert (@_);
+  return $self->next::method (@_);
 }
 
 # Allow STRAIGHT_JOIN's
@@ -28,7 +26,7 @@ sub _generate_join_clause {
         return ' STRAIGHT_JOIN '
     }
 
-    return $self->SUPER::_generate_join_clause( $join_type );
+    return $self->next::method($join_type);
 }
 
 # LOCK IN SHARE MODE

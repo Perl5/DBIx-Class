@@ -20,7 +20,7 @@ sub new {
     handler => '_where_field_PRIOR',
   };
 
-  $self->SUPER::new (\%opts);
+  $self->next::method(\%opts);
 }
 
 sub _assemble_binds {
@@ -36,7 +36,7 @@ sub _parse_rs_attrs {
     my ($cb_sql, @cb_bind) = $self->_connect_by($rs_attrs);
     push @{$self->{oracle_connect_by_bind}}, @cb_bind;
 
-    my $sql = $self->SUPER::_parse_rs_attrs(@_);
+    my $sql = $self->next::method(@_);
 
     return "$cb_sql $sql";
 }
