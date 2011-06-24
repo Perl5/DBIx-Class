@@ -1186,6 +1186,10 @@ Explicitly specifies the type of join to use in the relationship. Any
 SQL join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in
 the SQL command immediately before C<JOIN>.
 
+=item index_hint
+
+Adds an index hint for the joined table.
+
 =item proxy
 
 An arrayref containing a list of accessors in the foreign class to proxy in
@@ -1509,6 +1513,7 @@ sub _resolve_join {
                 ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
+               -index_hint => $rel_info->{attrs}{index_hint},
              },
              scalar $self->_resolve_condition($rel_info->{cond}, $as, $alias, $join)
           ];

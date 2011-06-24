@@ -240,6 +240,29 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   );
 }
 
+{
+  # Test support for index hints
+  my $cdsrc = $schema->source('CD');
+  my $artrel_info = $cdsrc->relationship_info ('artist');
+  $cdsrc->add_relationship(
+    'artist_hinted',
+    $artrel_info->{class},
+    $artrel_info->{cond},
+    { %{$artrel_info->{attrs}}, index_hint => 'FORCE INDEX (rank)' },
+  );
+  is_same_sql_bind (
+    $cdsrc->resultset->search({}, { prefetch => 'artist_hinted' })->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+             artist_hinted.artistid, artist_hinted.name, artist_hinted.rank, artist_hinted.charfield
+        FROM cd me
+        JOIN artist artist_hinted FORCE INDEX (rank) ON artist_hinted.artistid = me.artist
+    )',
+    [],
+    'index hints supported for mysql'
+  );
+}
+
 ## Can we properly deal with the null search problem?
 ##
 ## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect
