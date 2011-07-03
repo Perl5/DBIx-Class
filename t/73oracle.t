@@ -5,6 +5,7 @@ use Test::Exception;
 use Test::More;
 use Sub::Name;
 use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;

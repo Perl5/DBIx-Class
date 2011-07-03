@@ -5,15 +5,27 @@ use Test::More;
 use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' or ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere'),
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere_odbc'))
+  unless
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere_odbc')
+    or
+    (not $dsn || $dsn2);
 
 DBICTest::Schema->load_classes('ArtistGUID');
 
 # tests stolen from 748informix.t
-
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_SQLANYWHERE_DSN} and/or $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN},

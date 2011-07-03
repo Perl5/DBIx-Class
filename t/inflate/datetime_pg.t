@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Warn;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 

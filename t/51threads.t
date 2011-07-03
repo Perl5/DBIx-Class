@@ -16,7 +16,11 @@ BEGIN {
 
 use threads;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'

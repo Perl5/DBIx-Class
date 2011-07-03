@@ -2,14 +2,21 @@ use strict;
 use warnings;
 
 use Test::More;
+use DBIx::Class::Optional::Dependencies ();
 
 my ($create_sql, $dsn, $user, $pass);
 
 if ($ENV{DBICTEST_PG_DSN}) {
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
+
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
   $create_sql = "CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10))";
 } elsif ($ENV{DBICTEST_MYSQL_DSN}) {
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');
+
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
   $create_sql = "CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10)) ENGINE=InnoDB";

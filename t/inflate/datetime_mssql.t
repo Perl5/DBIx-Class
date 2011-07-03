@@ -5,10 +5,29 @@ use Test::More;
 use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-DBICTest::Schema->load_classes('EventSmallDT');
+my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSSQL_${_}" }      qw/DSN USER PASS/};
+my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" }  qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' and ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
+    (join ' or ', map { $_ ? $_ : () }
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_odbc'),
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_sybase'),
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_ado')))
+  unless
+    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_odbc')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_sybase')
+    or
+    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_ado'))
+      or (not $dsn || $dsn2 || $dsn3);
 
 # use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
 BEGIN {
@@ -16,10 +35,6 @@ BEGIN {
     unshift @INC, $_ for split /:/, $lib_dirs;
   }
 }
-
-my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSSQL_${_}" }      qw/DSN USER PASS/};
-my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" }  qw/DSN USER PASS/};
 
 if (not ($dsn || $dsn2 || $dsn3)) {
   plan skip_all =>
@@ -29,8 +44,7 @@ if (not ($dsn || $dsn2 || $dsn3)) {
     ." 'track'.";
 }
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
+DBICTest::Schema->load_classes('EventSmallDT');
 
 my @connect_info = (
   [ $dsn,  $user,  $pass ],

@@ -3,6 +3,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Data::Dumper::Concise;
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -103,9 +104,15 @@ while (my ($db, $base_class) = each %dbs) {
 
   next unless $dsn;
 
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
-    quote_names => 1
-  });
+  my $schema;
+
+  try {
+    $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+      quote_names => 1
+    });
+    $schema->storage->ensure_connected;
+    1;
+  } || next;
 
   my $expected_quote_char = $expected{$base_class}{quote_char};
   my $quote_char_text = dumper($expected_quote_char);

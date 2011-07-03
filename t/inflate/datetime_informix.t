@@ -3,9 +3,16 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+. ' and ' .
+DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_informix')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt')
+    && DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_informix');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS/};
 
@@ -15,9 +22,6 @@ Set $ENV{DBICTEST_INFORMIX_DSN} _USER and _PASS to run this test'.
 Warning: This test drops and creates a table called 'event'";
 EOF
 }
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 my $schema;
 

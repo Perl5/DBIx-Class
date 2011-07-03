@@ -2,8 +2,12 @@ use strict;
 use warnings;
 
 use Test::More;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
 
 my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 

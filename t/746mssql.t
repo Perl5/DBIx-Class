@@ -3,12 +3,16 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Try::Tiny;
+use DBIx::Class::SQLMaker::LimitDialects;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
-use Try::Tiny;
 
-use DBIx::Class::SQLMaker::LimitDialects;
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mssql_odbc')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mssql_odbc');
+
 my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
 my $TOTAL  = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype;
 

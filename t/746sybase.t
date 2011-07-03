@@ -4,8 +4,12 @@ no warnings 'uninitialized';
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 

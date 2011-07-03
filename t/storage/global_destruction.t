@@ -4,6 +4,8 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
+use DBIx::Class::Optional::Dependencies ();
+
 use lib qw(t/lib);
 use DBICTest;
 
@@ -12,6 +14,15 @@ for my $type (qw/PG MYSQL/) {
   SKIP: {
     skip "Skipping $type tests without DBICTEST_${type}_DSN", 1
       unless $ENV{"DBICTEST_${type}_DSN"};
+
+    if ($type eq 'PG') {
+      skip "skipping Pg tests without dependencies installed", 1
+        unless DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_pg');
+    }
+    elsif ($type eq 'MYSQL') {
+      skip "skipping MySQL tests without dependencies installed", 1
+        unless DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mysql');
+    }
 
     my $schema = DBICTest::Schema->connect (@ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/});
 

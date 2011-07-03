@@ -3,24 +3,41 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
 
+my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }           qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_INTERBASE_${_}" } qw/DSN USER PASS/};
+my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" }      qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' or ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird'),
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_interbase'),
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_odbc'))
+  unless
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_interbase')
+    or
+    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_odbc')
+    or
+    (not $dsn || $dsn2 || $dsn3);
+
 # tests stolen from 749sybase_asa.t
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
-
 # Example DSNs:
-# dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
 # dbi:Firebird:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
+# dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
 
 # Example ODBC DSN:
 # dbi:ODBC:Driver=Firebird;Dbname=/var/lib/firebird/2.5/data/hlaghdb.fdb
 
-plan skip_all => <<'EOF' unless $dsn || $dsn2;
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
+plan skip_all => <<'EOF' unless $dsn || $dsn2 || $dsn3;
+Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
+and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
 _USER and _PASS to run these tests.
 
 WARNING: this test creates and drops the tables "artist", "bindtype_test" and
@@ -31,6 +48,7 @@ EOF
 my @info = (
   [ $dsn,  $user,  $pass  ],
   [ $dsn2, $user2, $pass2 ],
+  [ $dsn3, $user3, $pass3 ],
 );
 
 my $schema;

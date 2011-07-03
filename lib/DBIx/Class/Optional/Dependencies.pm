@@ -76,6 +76,24 @@ my $rdbms_ase = {
 my $rdbms_db2 = {
   'DBD::DB2'                      => '0',
 };
+my $rdbms_db2_400 = {
+  'DBD::ODBC'                     => '0',
+};
+my $rdbms_informix = {
+  'DBD::Informix'                 => '0',
+};
+my $rdbms_sqlanywhere = {
+  'DBD::SQLAnywhere'              => '0',
+};
+my $rdbms_sqlanywhere_odbc = {
+  'DBD::ODBC'                     => '0',
+};
+my $rdbms_firebird = {
+  'DBD::Firebird'                 => '0',
+};
+my $rdbms_firebird_interbase = {
+  'DBD::InterBase'                => '0',
+};
 my $rdbms_firebird_odbc = {
   'DBD::ODBC'                     => '0',
 };
@@ -334,6 +352,76 @@ my $reqs = {
     },
   },
 
+  rdbms_db2_400 => {
+    req => {
+      %$rdbms_db2_400,
+    },
+    pod => {
+      title => 'DB2 on AS/400 support',
+      desc => 'Modules required to connect to DB2 on AS/400',
+    },
+  },
+
+  rdbms_informix => {
+    req => {
+      %$rdbms_informix,
+    },
+    pod => {
+      title => 'Informix support',
+      desc => 'Modules required to connect to Informix',
+    },
+  }, 
+
+  rdbms_sqlanywhere => {
+    req => {
+      %$rdbms_sqlanywhere,
+    },
+    pod => {
+      title => 'SQLAnywhere support',
+      desc => 'Modules required to connect to SQLAnywhere',
+    },
+  }, 
+
+  rdbms_sqlanywhere_odbc => {
+    req => {
+      %$rdbms_sqlanywhere_odbc,
+    },
+    pod => {
+      title => 'SQLAnywhere support via DBD::ODBC',
+      desc => 'Modules required to connect to SQLAnywhere via DBD::ODBC',
+    },
+  }, 
+
+  rdbms_firebird => {
+    req => {
+      %$rdbms_firebird,
+    },
+    pod => {
+      title => 'Firebird support',
+      desc => 'Modules required to connect to Firebird',
+    },
+  }, 
+
+  rdbms_firebird_interbase => {
+    req => {
+      %$rdbms_firebird_interbase,
+    },
+    pod => {
+      title => 'Firebird support via DBD::InterBase',
+      desc => 'Modules required to connect to Firebird via DBD::InterBase',
+    },
+  }, 
+
+  rdbms_firebird_odbc => {
+    req => {
+      %$rdbms_firebird_odbc,
+    },
+    pod => {
+      title => 'Firebird support via DBD::ODBC',
+      desc => 'Modules required to connect to Firebird via DBD::ODBC',
+    },
+  }, 
+
 # the order does matter because the rdbms support group might require
 # a different version that the test group
   test_rdbms_pg => {
@@ -434,6 +522,60 @@ my $reqs = {
     },
   },
 
+  test_rdbms_db2_400 => {
+    req => {
+      $ENV{DBICTEST_DB2_400_DSN}
+        ? (
+          %$rdbms_db2_400,
+        ) : ()
+    },
+  },
+
+  test_rdbms_informix => {
+    req => {
+      $ENV{DBICTEST_INFORMIX_DSN}
+        ? (
+          %$rdbms_informix,
+        ) : ()
+    },
+  },
+
+  test_rdbms_sqlanywhere => {
+    req => {
+      $ENV{DBICTEST_SQLANYWHERE_DSN}
+        ? (
+          %$rdbms_sqlanywhere,
+        ) : ()
+    },
+  },
+
+  test_rdbms_sqlanywhere_odbc => {
+    req => {
+      $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN}
+        ? (
+          %$rdbms_sqlanywhere_odbc,
+        ) : ()
+    },
+  },
+
+  test_rdbms_firebird => {
+    req => {
+      $ENV{DBICTEST_FIREBIRD_DSN}
+        ? (
+          %$rdbms_firebird,
+        ) : ()
+    },
+  },
+
+  test_rdbms_firebird_interbase => {
+    req => {
+      $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
+        ? (
+          %$rdbms_firebird_interbase,
+        ) : ()
+    },
+  },
+
   test_rdbms_firebird_odbc => {
     req => {
       $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
@@ -520,7 +662,6 @@ sub _check_deps {
     if (keys %errors) {
       my $missing = join (', ', map { $deps->{$_} ? "$_ >= $deps->{$_}" : $_ } (sort keys %errors) );
       $missing .= " (see $class for details)" if $reqs->{$group}{pod};
-      $missing .= "\n";
       $res = {
         status => 0,
         errorlist => \%errors,

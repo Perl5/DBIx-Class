@@ -4,11 +4,25 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Scope::Guard ();
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
 my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' and ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
+    (join ' or ', map { $_ ? $_ : () }
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere'),
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere_odbc')))
+  unless
+    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere_odbc'))
+      or (not $dsn || $dsn2);
 
 if (not ($dsn || $dsn2)) {
   plan skip_all => <<'EOF';
@@ -17,9 +31,6 @@ _USER and _PASS to run this test'.
 Warning: This test drops and creates a table called 'event'";
 EOF
 }
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 my @info = (
   [ $dsn,  $user,  $pass  ],

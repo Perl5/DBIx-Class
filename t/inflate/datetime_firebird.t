@@ -3,27 +3,44 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
 
 my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_INTERBASE_${_}" } qw/DSN USER PASS/};
+my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' and ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
+    (join ' or ', map { $_ ? $_ : () }
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird'),
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_interbase'),
+      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_odbc')))
+  unless
+    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_interbase')
+    or
+    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_odbc'))
+      or (not $dsn || $dsn2 || $dsn3);
 
 if (not ($dsn || $dsn2)) {
   plan skip_all => <<'EOF';
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
+Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
+and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
 _USER and _PASS to run this test'.
 Warning: This test drops and creates a table called 'event'";
 EOF
 }
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
-
 my @info = (
   [ $dsn,  $user,  $pass  ],
   [ $dsn2, $user2, $pass2 ],
+  [ $dsn3, $user3, $pass3 ],
 );
 
 my $schema;

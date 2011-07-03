@@ -5,10 +5,25 @@ use Test::More;
 use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::DebugObj ();
 use DBIC::SqlMakerTest;
+
+my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSACCESS_ODBC_${_}" } qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSACCESS_ADO_${_}" }  qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' or ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_odbc'),
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_ado'))
+  unless
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_odbc')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_ado')
+    or
+    (not $dsn || $dsn2);
 
 DBICTest::Schema->load_classes('ArtistGUID');
 
@@ -17,22 +32,10 @@ DBICTest::Schema->load_classes('ArtistGUID');
 # dbi:ADO:Microsoft.Jet.OLEDB.4.0;Data Source=C:\Users\rkitover\Documents\access_sample.accdb
 # dbi:ADO:Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\Users\rkitover\Documents\access_sample.accdb;Persist Security Info=False'
 
-my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSACCESS_ODBC_${_}" } qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSACCESS_ADO_${_}" }  qw/DSN USER PASS/};
-
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_MSACCESS_ODBC_DSN} and/or $ENV{DBICTEST_MSACCESS_ADO_DSN} (and optionally _USER and _PASS) to run these tests.
 Warning: this test drops and creates the tables 'artist', 'cd', 'bindtype_test' and 'artist_guid'.
 EOF
-
-plan skip_all => 'Test needs ' .
-DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_odbc')
-. ' or ' .
-DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_ado')
-  unless
-    DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_odbc')
-    or
-    DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_ado');
 
 my @info = (
   [ $dsn,  $user  || '', $pass  || '' ],
