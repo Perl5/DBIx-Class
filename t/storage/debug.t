@@ -10,6 +10,8 @@ use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
+BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE)} }
+
 my $schema = DBICTest->init_schema();
 
 my $lfn = file('t/var/sql.log');
