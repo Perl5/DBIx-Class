@@ -258,8 +258,12 @@ sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
 
   # use the maker to leverage quoting settings
-  my $sql_maker = $self->sql_maker;
-  my ($id) = $self->_get_dbh->selectrow_array ($sql_maker->select('DUAL', [ ref $seq ? \"$$seq.$type" : "$seq.$type" ] ) );
+  my $sth = $self->_dbh->prepare_cached(
+    $self->sql_maker->select('DUAL', [ ref $seq ? \"$$seq.$type" : "$seq.$type" ] )
+  );
+  $sth->execute;
+  my ($id) = $sth->fetchrow_array;
+  $sth->finish;
   return $id;
 }
 
