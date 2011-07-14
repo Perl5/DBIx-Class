@@ -66,7 +66,7 @@ sub _init {
   no warnings 'redefine';
   require DBD::ADO;
 
-  if ($DBD::ADO::VERSION <= 2.98) {
+  if (DBD::ADO->VERSION <= 2.98) {
     my $disconnect = *DBD::ADO::db::disconnect{CODE};
 
     *DBD::ADO::db::disconnect = subname 'DBD::ADO::db::disconnect' => sub {
