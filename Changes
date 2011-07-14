@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08193 2011-07-14 17:00 (UTC)
     * New Features / Changes
         - Allow schema cloning to mutate attributes
         - DBIC now attempts more aggressive de-duplication of where
