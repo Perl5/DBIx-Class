@@ -45,7 +45,7 @@ BEGIN {
     Class::Accessor::Grouped
     Class::C3::Componentised
 
-    Test::Deep::NoTest
+    Data::Compare
   /, $] < 5.010 ? 'MRO::Compat' : () };
 
   $test_hook = sub {

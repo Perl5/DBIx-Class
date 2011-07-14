@@ -75,6 +75,7 @@ my $runtime_requires = {
   'SQL::Abstract'            => '1.72',
   'Test::Deep'               => '0.108',
   'Try::Tiny'                => '0.04',
+  'Data::Compare'            => '1.22',
 
   # XS (or XS-dependent) libs
   'DBI'                      => '1.57',

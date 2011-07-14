@@ -8,7 +8,7 @@ use DBIx::Class::Exception;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;
-use Test::Deep::NoTest 'eq_deeply';
+use Data::Compare;
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -569,7 +569,7 @@ sub _stack_cond {
     for (grep { exists $right->{$_} } keys %$left) {
       # the use of eq_deeply here is justified - the rhs of an
       # expression can contain a lot of twisted weird stuff
-      delete $right->{$_} if eq_deeply( $left->{$_}, $right->{$_} );
+      delete $right->{$_} if Compare( $left->{$_}, $right->{$_} );
     }
 
     $right = undef unless keys %$right;
