@@ -14,6 +14,10 @@ BEGIN {
 use strict;
 use warnings;
 use Test::More;
+# this is only being used because Data::Compare is dumb and has a weird
+# plugin infrastructure and ends up loading a bunch of random stuff for
+# various people
+use Data::Compare;
 
 BEGIN {
   my $core_modules = { map { $_ => 1 } qw/
