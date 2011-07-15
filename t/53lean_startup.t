@@ -14,19 +14,14 @@ BEGIN {
 use strict;
 use warnings;
 use Test::More;
-# this is only being used because Data::Compare is dumb and has a weird
-# plugin infrastructure and ends up loading a bunch of random stuff for
-# various people
-use Data::Compare;
+use Data::Dumper;
 
 BEGIN {
   my $core_modules = { map { $_ => 1 } qw/
     strict
     warnings
-    vars
 
     base
-    parent
     mro
     overload
 
@@ -40,6 +35,7 @@ BEGIN {
     Scalar::Util
     List::Util
     Hash::Merge
+    Data::Compare
 
     DBI
     SQL::Abstract
@@ -48,9 +44,7 @@ BEGIN {
 
     Class::Accessor::Grouped
     Class::C3::Componentised
-
-    Data::Compare
-  /, $] < 5.010 ? 'MRO::Compat' : () };
+  /, $] < 5.010 ? ( 'Class::C3', 'MRO::Compat' ) : () }; # this is special-cased in DBIx/Class.pm
 
   $test_hook = sub {
 
@@ -58,21 +52,41 @@ BEGIN {
     $req =~ s/\.pm$//;
     $req =~ s/\//::/g;
 
-    return if $req =~ /^DBIx::Class|^DBICTest::Schema/;
+    return if $req =~ /^DBIx::Class|^DBICTest::/;
 
     my $up = 1;
     my @caller;
     do { @caller = caller($up++) } while (
       @caller and (
+        # exclude our test suite, known "module require-rs" and eval frames
+        $caller[1] =~ /^ t [\/\\] /x
+          or
         $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector) $/x
           or
-        $caller[1] =~ / \( eval \s \d+ \) /x
+        $caller[3] eq '(eval)',
       )
     );
 
-    if ( $caller[0] =~ /^DBIx::Class/) {
-      fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])")
-        unless $core_modules->{$req};
+    # exclude everything where the current namespace does not match the called function
+    # (this works around very weird XS-induced require callstack corruption)
+    if (
+      !$core_modules->{$req}
+        and
+      @caller
+        and
+      $caller[0] =~ /^DBIx::Class/
+        and
+      (caller($up))[3] =~ /\Q$caller[0]/
+    ) {
+      fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
+
+      if ($ENV{TEST_VERBOSE}) { 
+        my ($i, @stack) = 1;
+        while (my @f = caller($i++) ) {
+          push @stack, \@f;
+        }
+        diag Dumper(\@stack);
+      }
     }
   };
 }
