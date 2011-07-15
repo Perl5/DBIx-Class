@@ -686,4 +686,6 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   }
 }
 
+ok(eval { $art_rs->populate([]); 1 }, "Empty populate runs but does nothing");
+
 done_testing;

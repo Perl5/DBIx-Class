@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix spurious test failures caused by use of Data::Compare
+        - Fix $rs->populate([]) to be a no-op rather than an exception
 
 0.08193 2011-07-14 17:00 (UTC)
     * New Features / Changes

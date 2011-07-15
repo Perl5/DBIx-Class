@@ -1972,6 +1972,8 @@ sub populate {
   # cruft placed in standalone method
   my $data = $self->_normalize_populate_args(@_);
 
+  return unless @$data;
+
   if(defined wantarray) {
     my @created;
     foreach my $item (@$data) {
@@ -2076,7 +2078,10 @@ sub _normalize_populate_args {
   my ($self, $arg) = @_;
 
   if (ref $arg eq 'ARRAY') {
-    if (ref $arg->[0] eq 'HASH') {
+    if (!@$arg) {
+      return [];
+    }
+    elsif (ref $arg->[0] eq 'HASH') {
       return $arg;
     }
     elsif (ref $arg->[0] eq 'ARRAY') {
