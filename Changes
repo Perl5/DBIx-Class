@@ -1,8 +1,9 @@
 Revision history for DBIx::Class
 
     * Fixes
-        - Overhaul t/53lean_startup.t to better dodge false positives
         - Fix $rs->populate([]) to be a no-op rather than an exception
+        - Overhaul t/53lean_startup.t to better dodge false positives
+        - Stop Data::Compare from loading random plugins
 
 0.08193 2011-07-14 17:00 (UTC)
     * New Features / Changes
