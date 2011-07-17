@@ -1,15 +1,16 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
 use lib qw(t/lib);
 
-BEGIN {
-  local $SIG{__WARN__} = sub {};
-  require DBIx::Class::ResultSetManager;
-}
-
-use DBICTest::ResultSetManager;
+warnings_exist { require DBICTest::ResultSetManager }
+  [
+    qr/\QDBIx::Class::ResultSetManager never left experimental status/,
+  ],
+  'found deprecation warning'
+;
 
 my $schema = DBICTest::ResultSetManager->compose_namespace('DB');
 my $rs = $schema->resultset('Foo');

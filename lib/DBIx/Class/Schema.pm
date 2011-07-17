@@ -1479,55 +1479,51 @@ more information.
 
 =cut
 
-{
-  my $warn;
+sub compose_connection {
+  my ($self, $target, @info) = @_;
 
-  sub compose_connection {
-    my ($self, $target, @info) = @_;
+  carp_once "compose_connection deprecated as of 0.08000"
+    unless $INC{"DBIx/Class/CDBICompat.pm"};
 
-    carp "compose_connection deprecated as of 0.08000"
-      unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
-
-    my $base = 'DBIx::Class::ResultSetProxy';
-    try {
-      eval "require ${base};"
-    }
-    catch {
-      $self->throw_exception
-        ("No arguments to load_classes and couldn't load ${base} ($_)")
-    };
-
-    if ($self eq $target) {
-      # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
-      foreach my $moniker ($self->sources) {
-        my $source = $self->source($moniker);
-        my $class = $source->result_class;
-        $self->inject_base($class, $base);
-        $class->mk_classdata(resultset_instance => $source->resultset);
-        $class->mk_classdata(class_resolver => $self);
-      }
-      $self->connection(@info);
-      return $self;
-    }
-
-    my $schema = $self->compose_namespace($target, $base);
-    {
-      no strict 'refs';
-      my $name = join '::', $target, 'schema';
-      *$name = subname $name, sub { $schema };
-    }
-
-    $schema->connection(@info);
-    foreach my $moniker ($schema->sources) {
-      my $source = $schema->source($moniker);
-      my $class = $source->result_class;
-      #warn "$moniker $class $source ".$source->storage;
-      $class->mk_classdata(result_source_instance => $source);
-      $class->mk_classdata(resultset_instance => $source->resultset);
-      $class->mk_classdata(class_resolver => $schema);
-    }
-    return $schema;
+  my $base = 'DBIx::Class::ResultSetProxy';
+  try {
+    eval "require ${base};"
   }
+  catch {
+    $self->throw_exception
+      ("No arguments to load_classes and couldn't load ${base} ($_)")
+  };
+
+  if ($self eq $target) {
+    # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
+    foreach my $moniker ($self->sources) {
+      my $source = $self->source($moniker);
+      my $class = $source->result_class;
+      $self->inject_base($class, $base);
+      $class->mk_classdata(resultset_instance => $source->resultset);
+      $class->mk_classdata(class_resolver => $self);
+    }
+    $self->connection(@info);
+    return $self;
+  }
+
+  my $schema = $self->compose_namespace($target, $base);
+  {
+    no strict 'refs';
+    my $name = join '::', $target, 'schema';
+    *$name = subname $name, sub { $schema };
+  }
+
+  $schema->connection(@info);
+  foreach my $moniker ($schema->sources) {
+    my $source = $schema->source($moniker);
+    my $class = $source->result_class;
+    #warn "$moniker $class $source ".$source->storage;
+    $class->mk_classdata(result_source_instance => $source);
+    $class->mk_classdata(resultset_instance => $source->resultset);
+    $class->mk_classdata(class_resolver => $schema);
+  }
+  return $schema;
 }
 
 1;
