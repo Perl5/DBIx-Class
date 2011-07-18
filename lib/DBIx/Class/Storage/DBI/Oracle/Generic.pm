@@ -495,94 +495,101 @@ sub _prep_for_execute {
   my $self = shift;
   my ($op) = @_;
 
+  return $self->next::method(@_)
+    if $op eq 'insert';
+
   my ($sql, $bind) = $self->next::method(@_);
 
-  return ($sql, $bind) if $op eq 'insert';
-
-  my $blob_bind_index;
-  for (0 .. $#$bind) {
-    $blob_bind_index->{$_} = 1 if $self->_is_lob_type(
+  my $lob_bind_indices = { map {
+    (
       $bind->[$_][0]{sqlt_datatype}
-    );
-  }
+        and
+      $self->_is_lob_type($bind->[$_][0]{sqlt_datatype})
+    ) ? ( $_ => 1 ) : ()
+  } ( 0 .. $#$bind ) };
 
-  return ($sql, $bind) unless $blob_bind_index;
+  return ($sql, $bind) unless %$lob_bind_indices;
 
-  my (@sql_parts, $new_sql, @new_binds);
-
-  if ($op eq 'select' || $op eq 'delete') {
-    @sql_parts = split /\?/, $sql;
-  }
-  elsif ($op eq 'update') {
+  my ($final_sql, @final_binds);
+  if ($op eq 'update') {
     $self->throw_exception('Update with complex WHERE clauses currently not supported')
       if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
 
-    my ($set_part, $where_part) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
+    ($final_sql, $sql) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
 
-    my $set_bind_count = $set_part =~ y/?//;
-    @new_binds = splice @$bind, 0, $set_bind_count;
+    if (my $set_bind_count = $final_sql =~ y/?//) {
 
-    @sql_parts = split /\?/, $where_part;
-    $new_sql  = $set_part;
+      delete $lob_bind_indices->{$_} for (0 .. ($set_bind_count - 1));
+
+      # bail if only the update part contains blobs
+      return ($sql, $bind) unless %$lob_bind_indices;
+
+      @final_binds = splice @$bind, 0, $set_bind_count;
+      $lob_bind_indices = { map
+        { $_ - $set_bind_count => $lob_bind_indices->{$_} }
+        keys %$lob_bind_indices
+      };
+    }
   }
-  else {
+  elsif ($op ne 'select' and $op ne 'delete') {
     $self->throw_exception("Unsupported \$op: $op");
   }
+
+  my @sql_parts = split /\?/, $sql;
 
   my $col_equality_re = qr/ (?<=\s) ([\w."]+) (\s*=\s*) $/x;
 
   for my $b_idx (0 .. $#$bind) {
     my $bound = $bind->[$b_idx];
 
-    if ($blob_bind_index->{$b_idx}) {
-      if (my ($col, $eq) = $sql_parts[0] =~ $col_equality_re) {
-        my $data = $bound->[1];
+    if (
+      $lob_bind_indices->{$b_idx}
+        and
+      my ($col, $eq) = $sql_parts[0] =~ $col_equality_re
+    ) {
+      my $data = $bound->[1];
 
-        $data = "$data" if ref $data;
+      $data = "$data" if ref $data;
 
-        my @parts = unpack '(a2000)*', $data;
+      my @parts = unpack '(a2000)*', $data;
 
-        my @sql_frag;
+      my @sql_frag;
 
-        for my $idx (0..$#parts) {
-          push @sql_frag, sprintf (
-            'UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR(%s, 2000, %d))) = ?',
-            $col, ($idx*2000 + 1),
-          );
-        }
-
-        my $sql_frag = '( ' . (join ' AND ', @sql_frag) . ' )';
-
-        $sql_parts[0] =~ s/$col_equality_re/$sql_frag/;
-
-        $new_sql .= shift @sql_parts;
-
-        for my $idx (0..$#parts) {
-          push @new_binds, [
-            {
-              %{ $bound->[0] },
-              _ora_lob_autosplit_part => $idx,
-              dbd_attrs => undef,
-            },
-            $parts[$idx]
-          ];
-        }
+      for my $idx (0..$#parts) {
+        push @sql_frag, sprintf (
+          'UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR(%s, 2000, %d))) = ?',
+          $col, ($idx*2000 + 1),
+        );
       }
-      else {
-        $new_sql .= shift(@sql_parts) . '?';
 
-        push @new_binds, [
+      my $sql_frag = '( ' . (join ' AND ', @sql_frag) . ' )';
+
+      $sql_parts[0] =~ s/$col_equality_re/$sql_frag/;
+
+      $final_sql .= shift @sql_parts;
+
+      for my $idx (0..$#parts) {
+        push @final_binds, [
+          {
+            %{ $bound->[0] },
+            _ora_lob_autosplit_part => $idx,
+            dbd_attrs => undef,
+          },
+          $parts[$idx]
+        ];
+      }
+    }
+    else {
+      $final_sql .= shift(@sql_parts) . '?';
+      push @final_binds, $lob_bind_indices->{$b_idx}
+        ? [
           {
             %{ $bound->[0] },
             dbd_attrs => undef,
           },
           $bound->[1],
-        ];
-      }
-    }
-    else {
-      $new_sql .= shift(@sql_parts) . '?';
-      push @new_binds, $bound;
+        ] : $bound
+      ;
     }
   }
 
@@ -591,9 +598,9 @@ sub _prep_for_execute {
     @sql_parts = join ('?', @sql_parts);
   }
 
-  $new_sql .= $sql_parts[0];
+  $final_sql .= $sql_parts[0];
 
-  return ($new_sql, \@new_binds);
+  return ($final_sql, \@final_binds);
 }
 
 # Savepoints stuff.
