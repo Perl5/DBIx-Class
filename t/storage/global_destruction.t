@@ -9,6 +9,8 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
+plan skip_all => 'Test segfaults on Win32' if $^O eq 'MSWin32';
+
 for my $type (qw/PG MYSQL/) {
 
   SKIP: {

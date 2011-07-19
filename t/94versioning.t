@@ -85,8 +85,8 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   warnings_exist (
     sub { $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0') },
     [
-      qr/Overwriting existing DDL file - $fn->{v2}/,
-      qr/Overwriting existing diff file - $fn->{trans_v12}/,
+      qr/Overwriting existing DDL file - \Q$fn->{v2}\E/,
+      qr/Overwriting existing diff file - \Q$fn->{trans_v12}\E/,
     ],
     'An overwrite warning generated for both the DDL and the diff',
   );
@@ -176,7 +176,7 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 }
 
 # add a "harmless" comment before one of the statements.
-system( qq($^X -pi -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23};) );
+system( qq($^X -pi.bak -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23}) );
 
 # Then attempt v1 -> v3 upgrade
 {
