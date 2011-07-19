@@ -15,13 +15,13 @@ $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_oracle')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_oracle');
-
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
  unless ($dsn && $user && $pass);
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_oracle')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_oracle');
 
 use DBICTest::Schema::Artist;
 BEGIN {
