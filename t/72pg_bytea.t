@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use DBIx::Class::Optional::Dependencies ();
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -15,6 +16,17 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
 
 my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+
+if ($schema->storage->_server_info->{normalized_dbms_version} >= 9.0) {
+  if (not try { DBD::Pg->VERSION('2.17.2') }) {
+    plan skip_all =>
+      'DBD::Pg < 2.17.2 does not work with Pg >= 9.0 BYTEA columns';
+  }
+}
+elsif (not try { DBD::Pg->VERSION('2.9.2') }) {
+  plan skip_all =>
+    'DBD::Pg < 2.9.2 does not work with BYTEA columns';
+}
 
 my $dbh = $schema->storage->dbh;
 

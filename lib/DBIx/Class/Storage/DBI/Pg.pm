@@ -11,6 +11,7 @@ use mro 'c3';
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use DBIx::Class::Carp;
+use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
@@ -170,8 +171,16 @@ sub bind_attribute_by_data_type {
   # Ask for a DBD::Pg with array support
   # pg uses (used?) version::qv()
   require DBD::Pg;
-  if ($DBD::Pg::VERSION < 2.009002) {
-    carp_once( __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n" );
+
+  if ($self->_server_info->{normalized_dbms_version} >= 9.0) {
+    if (not try { DBD::Pg->VERSION('2.17.2') }) {
+      carp_once( __PACKAGE__.': BYTEA columns are known to not work on Pg >='
+        . " 9.0 with DBD::Pg < 2.17.2\n" );
+    }
+  }
+  elsif (not try { DBD::Pg->VERSION('2.9.2') }) {
+    carp_once( __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended'
+      . "for BYTEA column support.\n" );
   }
 
   # cache the result of _is_binary_lob_type
