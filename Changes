@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08194 2011-07-20 16:10 (UTC)
     * Fixes
         - Fix $rs->populate([]) to be a no-op rather than an exception
         - Overhaul t/53lean_startup.t to better dodge false positives
