@@ -71,8 +71,8 @@ and canonical option.
 A replicated storage contains several parts.  First, there is the replicated
 storage itself (L<DBIx::Class::Storage::DBI::Replicated>).  A replicated storage
 takes a pool of replicants (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
-and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Pool>).  The
-balancer does the job of splitting up all the read traffic amongst the
+and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Balancer>).
+The balancer does the job of splitting up all the read traffic amongst the
 replicants in the Pool. Currently there are two types of balancers, a Random one
 which chooses a Replicant in the Pool using a naive randomizer algorithm, and a
 First replicant, which just uses the first one in the Pool (and obviously is
