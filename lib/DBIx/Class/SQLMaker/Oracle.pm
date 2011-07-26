@@ -352,6 +352,18 @@ The valid formats are:
  month
  year
 
+The function used to add dates is C<NUMTODSINTERVAL> for:
+
+ second
+ minute
+ hour
+ day
+
+and C<NUMTOYMINTERVAL> for:
+
+ month
+ year
+
 =cut
 
 1;
