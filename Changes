@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08195 2011-07-27 16:20 (UTC)
     * Fixes
         - Fix horrible oversight in the Oracle sqlmaker when dealing with
           queries updating blobs (RT#69829)
