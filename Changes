@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix horrible oversight in the Oracle sqlmaker when dealing with
+          queries updating blobs (RT#69829)
+
 0.08194 2011-07-20 16:10 (UTC)
     * Fixes
         - Fix $rs->populate([]) to be a no-op rather than an exception

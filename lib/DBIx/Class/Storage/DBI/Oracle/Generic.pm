@@ -515,7 +515,8 @@ sub _prep_for_execute {
     $self->throw_exception('Update with complex WHERE clauses currently not supported')
       if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
 
-    ($final_sql, $sql) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
+    my $where_sql;
+    ($final_sql, $where_sql) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
 
     if (my $set_bind_count = $final_sql =~ y/?//) {
 
@@ -530,6 +531,10 @@ sub _prep_for_execute {
         keys %$lob_bind_indices
       };
     }
+
+    # if we got that far - assume the where SQL is all we got
+    # (the first part is already shoved into $final_sql)
+    $sql = $where_sql;
   }
   elsif ($op ne 'select' and $op ne 'delete') {
     $self->throw_exception("Unsupported \$op: $op");

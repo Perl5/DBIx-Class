@@ -449,7 +449,7 @@ sub _run_tests {
       lives_ok {
         $rs->search({ id => $id, blob => "blob:$str", clob => "clob:$str" })
           ->update({ blob => 'updated blob', clob => 'updated clob' });
-      } 'blob UPDATE with WHERE clause survived';
+      } 'blob UPDATE with blobs in WHERE clause survived';
 
       @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
       is @objs, 1, 'found updated row';
@@ -457,10 +457,20 @@ sub _run_tests {
       ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
 
       lives_ok {
-        $rs->search({ blob => "updated blob", clob => "updated clob" })
+        $rs->search({ id => $id  })
+          ->update({ blob => 're-updated blob', clob => 're-updated clob' });
+      } 'blob UPDATE without blobs in WHERE clause survived';
+
+      @objs = $rs->search({ blob => 're-updated blob', clob => 're-updated clob' })->all;
+      is @objs, 1, 'found updated row';
+      ok (try { $objs[0]->blob }||'' eq 're-updated blob', 'blob updated/retrieved correctly');
+      ok (try { $objs[0]->clob }||'' eq 're-updated clob', 'clob updated/retrieved correctly');
+
+      lives_ok {
+        $rs->search({ blob => "re-updated blob", clob => "re-updated clob" })
           ->delete;
       } 'blob DELETE with WHERE clause survived';
-      @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
+      @objs = $rs->search({ blob => "re-updated blob", clob => 're-updated clob' })->all;
       is @objs, 0, 'row deleted successfully';
     }
 
