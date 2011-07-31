@@ -441,15 +441,18 @@ sub _gen_from_blocks {
 sub _from_chunk_to_sql {
   my ($self, $fromspec) = @_;
 
-  return join (' ', $self->_SWITCH_refkind($fromspec, {
-    SCALARREF => sub {
+  return join (' ', do {
+    if (! ref $fromspec) {
+      $self->_quote($fromspec);
+    }
+    elsif (ref $fromspec eq 'SCALAR') {
       $$fromspec;
-    },
-    ARRAYREFREF => sub {
+    }
+    elsif (ref $fromspec eq 'REF' and ref $$fromspec eq 'ARRAY') {
       push @{$self->{from_bind}}, @{$$fromspec}[1..$#$$fromspec];
       $$fromspec->[0];
-    },
-    HASHREF => sub {
+    }
+    elsif (ref $fromspec eq 'HASH') {
       my ($as, $table, $toomuch) = ( map
         { $_ => $fromspec->{$_} }
         ( grep { $_ !~ /^\-/ } keys %$fromspec )
@@ -459,11 +462,11 @@ sub _from_chunk_to_sql {
         if defined $toomuch;
 
       ($self->_from_chunk_to_sql($table), $self->_quote($as) );
-    },
-    SCALAR => sub {
-      $self->_quote($fromspec);
-    },
-  }));
+    }
+    else {
+      $self->throw_exception('Unsupported from refkind: ' . ref $fromspec );
+    }
+  });
 }
 
 sub _join_condition {

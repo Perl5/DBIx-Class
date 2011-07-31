@@ -75,13 +75,13 @@ sub _order_siblings_by {
 
     my ( @sql, @bind );
     for my $c ( $self->_order_by_chunks($arg) ) {
-        $self->_SWITCH_refkind(
-            $c,
-            {
-                SCALAR   => sub { push @sql, $c },
-                ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
-            }
-        );
+        if (ref $c) {
+            push @sql, shift @$c;
+            push @bind, @$c;
+        }
+        else {
+            push @sql, $c;
+        }
     }
 
     my $sql =
@@ -210,20 +210,29 @@ sub _insert_returning {
 
   my $f = $options->{returning};
 
-  my ($f_list, @f_names) = $self->_SWITCH_refkind($f, {
-    ARRAYREF => sub {
-      (join ', ', map { $self->_quote($_) } @$f),
-      @$f
-    },
-    SCALAR => sub {
-      $self->_quote($f),
-      $f,
-    },
-    SCALARREF => sub {
-      $$f,
-      $$f,
-    },
-  });
+  my ($f_list, @f_names) = do {
+    if (! ref $f) {
+      (
+        $self->_quote($f),
+        $f,
+      )
+    }
+    elsif (ref $f eq 'ARRAY') {
+      (
+        (join ', ', map { $self->_quote($_) } @$f),
+        @$f,
+      )
+    }
+    elsif (ref $f eq 'SCALAR') {
+      (
+        $$f,
+        $$f,
+      )
+    }
+    else {
+      $self->throw_exception("Unsupported INSERT RETURNING option $f");
+    }
+  };
 
   my $rc_ref = $options->{returning_container}
     or $self->throw_exception('No returning container supplied for IR values');
