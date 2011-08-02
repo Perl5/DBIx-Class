@@ -424,7 +424,7 @@ Numa: Dan Sully <daniel@cpan.org>
 
 ovid: Curtis "Ovid" Poe <ovid@cpan.org>
 
-oyse: Øystein Torget <oystein.torget@dnv.com>
+oyse: E<Oslash>ystein Torget <oystein.torget@dnv.com>
 
 paulm: Paul Makepeace
 
@@ -433,6 +433,8 @@ penguin: K J Cheetham
 perigrin: Chris Prather <chris@prather.org>
 
 peter: Peter Collingbourne <peter@pcc.me.uk>
+
+Peter Valdemar ME<oslash>rch <peter@morch.com>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 

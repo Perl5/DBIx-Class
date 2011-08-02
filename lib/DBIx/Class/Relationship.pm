@@ -159,7 +159,7 @@ OR
 =item cond
 
 A hashref, arrayref or coderef specifying a custom join expression. For
-more info see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship::Base/condition>.
 
 =back
 
@@ -271,7 +271,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-more info see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship::Base/condition>.
 
 =back
 
@@ -392,7 +392,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-more info see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship::Base/condition>.
 
 =back
 
@@ -487,7 +487,7 @@ OR
 =item cond
 
 A hashref, arrayref  or coderef specifying a custom join expression. For
-more info see L<DBIx::Class::Relationship/condition>.
+more info see L<DBIx::Class::Relationship::Base/condition>.
 
 =back
 
