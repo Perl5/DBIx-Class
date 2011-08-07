@@ -149,6 +149,9 @@ my $exceptions = {
 
 # skipped because the synopsis covers it clearly
     'DBIx::Class::InflateColumn::File'              => { skip => 1 },
+
+# internal subclass, nothing to POD
+    'DBIx::Class::ResultSet::Pager'                 => { skip => 1 },
 };
 
 my $ex_lookup = {};

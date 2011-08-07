@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use Storable qw/dclone/;
 
 my $schema = DBICTest->init_schema();
 
@@ -186,5 +187,32 @@ $schema->default_resultset_attributes({ rows => 5 });
 
 is($p->(), 5, 'default rows is 5');
 
+# does serialization work (preserve laziness, while preserving state if exits)
+$qcnt = 0;
+$it = $rs->search(
+    {},
+    { order_by => 'title',
+      rows => 5,
+      page => 2 }
+);
+$pager = $it->pager;
+is ($qcnt, 0, 'No queries on rs/pager creation');
+
+$it = do { local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema; dclone ($it) };
+is ($qcnt, 0, 'No queries on rs/pager freeze/thaw');
+
+is( $it->pager->entries_on_this_page, 1, "entries_on_this_page ok for page 2" );
+
+is ($qcnt, 1, 'Count fired to get pager page entries');
+
+$rs->create({ title => 'bah', artist => 1, year => 2011 });
+
+$qcnt = 0;
+$it = do { local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema; dclone ($it) };
+is ($qcnt, 0, 'No queries on rs/pager freeze/thaw');
+
+is( $it->pager->entries_on_this_page, 1, "entries_on_this_page ok for page 2, even though underlying count changed" );
+
+is ($qcnt, 0, 'No count fired on pre-existing total count');
 
 done_testing;

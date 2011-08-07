@@ -188,8 +188,6 @@ unless (DBICTest::RunMode->is_plain) {
 
     result_source_handle => $rs->result_source->handle,
 
-    fresh_pager => $rs->page(5)->pager,
-    pager => $pager,
     pager_explicit_count => $pager_explicit_count,
 
   };
@@ -203,6 +201,8 @@ unless (DBICTest::RunMode->is_plain) {
     storage => $storage,
     sql_maker => $storage->sql_maker,
     dbh => $storage->_dbh,
+    fresh_pager => $rs->page(5)->pager,
+    pager => $pager,
   );
 
   if ($has_dt) {

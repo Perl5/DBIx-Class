@@ -53,20 +53,21 @@ my $runtime_requires = {
   'Hash::Merge'              => '0.12',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
+  'namespace::clean'         => '0.20',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.72',
   'Try::Tiny'                => '0.04',
-  'Data::Compare'            => '1.22',
 
   # XS (or XS-dependent) libs
   'DBI'                      => '1.57',
-  'namespace::clean'         => '0.20',
   'Sub::Name'                => '0.04',
-  'Variable::Magic'          => '0.44',
 
   # dual-life corelibs needing a specific bugfixed version
   'File::Path'               => '2.07',
+
+  # FIXME - temporary, needs throwing out for something more efficient
+  'Data::Compare'            => '1.22',
 };
 
 
@@ -279,6 +280,7 @@ no_index directory => $_ for (qw|
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBIHacks
   DBIx::Class::Carp
+  DBIx::Class::ResultSet::Pager
 /);
 
 WriteAll();

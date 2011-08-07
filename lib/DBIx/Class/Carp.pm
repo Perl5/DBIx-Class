@@ -5,9 +5,9 @@ use warnings;
 
 # This is here instead of DBIx::Class because of load-order issues
 BEGIN {
-  ## FIXME FIXME FIXME - something is tripping up V::M on 5.8.1, leading
-  # to segfaults. When n::c/B::H::EndOfScope is rewritten in terms of tie()
-  # see if this starts working
+  # something is tripping up V::M on 5.8.1, leading  to segfaults.
+  # A similar test in n::c itself is disabled on 5.8.1 for the same
+  # reason. There isn't much motivation to try to find why it happens
   *DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN = ($] < 5.008005)
     ? sub () { 1 }
     : sub () { 0 }
@@ -30,6 +30,15 @@ sub __find_caller {
   my @f;
   while (@f = caller($fr_num++)) {
     last unless $f[0] =~ $skip_pattern;
+
+    # 
+    if (
+      $f[0]->can('_skip_namespace_frames')
+        and
+      my $extra_skip = $f[0]->_skip_namespace_frames
+    ) {
+      $skip_pattern = qr/$skip_pattern|$extra_skip/;
+    }
   }
 
   my ($ln, $calling) = @f # if empty - nothing matched - full stack
@@ -133,7 +142,8 @@ In addition to the classic interface:
 this module also supports a class-data based way to specify the exclusion
 regex. A message is only carped from a callsite that matches neither the
 closed over string, nor the value of L</_skip_namespace_frames> as declared
-on the B<first> callframe origin.
+on any callframe already skipped due to the same mechanism. This is to ensure
+that intermediate callsites can declare their own additional skip-namespaces.
 
 =head1 CLASS ATTRIBUTES
 

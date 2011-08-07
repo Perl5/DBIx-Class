@@ -2126,107 +2126,6 @@ C<total_entries> on the L<Data::Page> object.
 
 =cut
 
-# make a wizard good for both a scalar and a hashref
-my $mk_lazy_count_wizard = sub {
-  require Variable::Magic;
-
-  my $stash = { total_rs => shift };
-  my $slot = shift; # only used by the hashref magic
-
-  my $magic = Variable::Magic::wizard (
-    data => sub { $stash },
-
-    (!$slot)
-    ? (
-      # the scalar magic
-      get => sub {
-        # set value lazily, and dispell for good
-        ${$_[0]} = $_[1]{total_rs}->count;
-        Variable::Magic::dispell (${$_[0]}, $_[1]{magic_selfref});
-        return 1;
-      },
-      set => sub {
-        # an explicit set implies dispell as well
-        # the unless() is to work around "fun and giggles" below
-        Variable::Magic::dispell (${$_[0]}, $_[1]{magic_selfref})
-          unless (caller(2))[3] eq 'DBIx::Class::ResultSet::pager';
-        return 1;
-      },
-    )
-    : (
-      # the uvar magic
-      fetch => sub {
-        if ($_[2] eq $slot and !$_[1]{inactive}) {
-          my $cnt = $_[1]{total_rs}->count;
-          $_[0]->{$slot} = $cnt;
-
-          # attempting to dispell in a fetch handle (works in store), seems
-          # to invariable segfault on 5.10, 5.12, 5.13 :(
-          # so use an inactivator instead
-          #Variable::Magic::dispell (%{$_[0]}, $_[1]{magic_selfref});
-          $_[1]{inactive}++;
-        }
-        return 1;
-      },
-      store => sub {
-        if (! $_[1]{inactive} and $_[2] eq $slot) {
-          #Variable::Magic::dispell (%{$_[0]}, $_[1]{magic_selfref});
-          $_[1]{inactive}++
-            unless (caller(2))[3] eq 'DBIx::Class::ResultSet::pager';
-        }
-        return 1;
-      },
-    ),
-  );
-
-  $stash->{magic_selfref} = $magic;
-  weaken ($stash->{magic_selfref}); # this fails on 5.8.1
-
-  return $magic;
-};
-
-# the tie class for 5.8.1
-{
-  package # hide from pause
-    DBIx::Class::__DBIC_LAZY_RS_COUNT__;
-  use base qw/Tie::Hash/;
-
-  sub FIRSTKEY { my $dummy = scalar keys %{$_[0]{data}}; each %{$_[0]{data}} }
-  sub NEXTKEY  { each %{$_[0]{data}} }
-  sub EXISTS   { exists $_[0]{data}{$_[1]} }
-  sub DELETE   { delete $_[0]{data}{$_[1]} }
-  sub CLEAR    { %{$_[0]{data}} = () }
-  sub SCALAR   { scalar %{$_[0]{data}} }
-
-  sub TIEHASH {
-    $_[1]{data} = {%{$_[1]{selfref}}};
-    %{$_[1]{selfref}} = ();
-    Scalar::Util::weaken ($_[1]{selfref});
-    return bless ($_[1], $_[0]);
-  };
-
-  sub FETCH {
-    if ($_[1] eq $_[0]{slot}) {
-      my $cnt = $_[0]{data}{$_[1]} = $_[0]{total_rs}->count;
-      untie %{$_[0]{selfref}};
-      %{$_[0]{selfref}} = %{$_[0]{data}};
-      return $cnt;
-    }
-    else {
-      $_[0]{data}{$_[1]};
-    }
-  }
-
-  sub STORE {
-    $_[0]{data}{$_[1]} = $_[2];
-    if ($_[1] eq $_[0]{slot}) {
-      untie %{$_[0]{selfref}};
-      %{$_[0]{selfref}} = %{$_[0]{data}};
-    }
-    $_[2];
-  }
-}
-
 sub pager {
   my ($self) = @_;
 
@@ -2245,70 +2144,15 @@ sub pager {
   # with a subselect) to get the real total count
   my $count_attrs = { %$attrs };
   delete $count_attrs->{$_} for qw/rows offset page pager/;
+
   my $total_rs = (ref $self)->new($self->result_source, $count_attrs);
 
-
-### the following may seem awkward and dirty, but it's a thought-experiment
-### necessary for future development of DBIx::DS. Do *NOT* change this code
-### before talking to ribasushi/mst
-
-  require Data::Page;
-  my $pager = Data::Page->new(
-    0,  #start with an empty set
+  require DBIx::Class::ResultSet::Pager;
+  return $self->{pager} = DBIx::Class::ResultSet::Pager->new(
+    sub { $total_rs->count },  #lazy-get the total
     $attrs->{rows},
     $self->{attrs}{page},
   );
-
-  my $data_slot = 'total_entries';
-
-  # Since we are interested in a cached value (once it's set - it's set), every
-  # technique will detach from the magic-host once the time comes to fire the
-  # ->count (or in the segfaulting case of >= 5.10 it will deactivate itself)
-
-  if ($] < 5.008003) {
-    # 5.8.1 throws 'Modification of a read-only value attempted' when one tries
-    # to weakref the magic container :(
-    # tested on 5.8.1
-    tie (%$pager, 'DBIx::Class::__DBIC_LAZY_RS_COUNT__',
-      { slot => $data_slot, total_rs => $total_rs, selfref => $pager }
-    );
-  }
-  elsif ($] < 5.010) {
-    # We can use magic on the hash value slot. It's interesting that the magic is
-    # attached to the hash-slot, and does *not* stop working once I do the dummy
-    # assignments after the cast()
-    # tested on 5.8.3 and 5.8.9
-    my $magic = $mk_lazy_count_wizard->($total_rs);
-    Variable::Magic::cast ( $pager->{$data_slot}, $magic );
-
-    # this is for fun and giggles
-    $pager->{$data_slot} = -1;
-    $pager->{$data_slot} = 0;
-
-    # this does not work for scalars, but works with
-    # uvar magic below
-    #my %vals = %$pager;
-    #%$pager = ();
-    #%{$pager} = %vals;
-  }
-  else {
-    # And the uvar magic
-    # works on 5.10.1, 5.12.1 and 5.13.4 in its current form,
-    # however see the wizard maker for more notes
-    my $magic = $mk_lazy_count_wizard->($total_rs, $data_slot);
-    Variable::Magic::cast ( %$pager, $magic );
-
-    # still works
-    $pager->{$data_slot} = -1;
-    $pager->{$data_slot} = 0;
-
-    # this now works
-    my %vals = %$pager;
-    %$pager = ();
-    %{$pager} = %vals;
-  }
-
-  return $self->{pager} = $pager;
 }
 
 =head2 page
@@ -3709,6 +3553,11 @@ sub STORABLE_freeze {
 
   # A cursor in progress can't be serialized (and would make little sense anyway)
   delete $to_serialize->{cursor};
+
+  # nor is it sensical to store a not-yet-fired-count pager
+  if ($to_serialize->{pager} and ref $to_serialize->{pager}{total_entries} eq 'CODE') {
+    delete $to_serialize->{pager};
+  }
 
   Storable::nfreeze($to_serialize);
 }

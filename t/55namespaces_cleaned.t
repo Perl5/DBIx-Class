@@ -60,6 +60,10 @@ my $skip_idx = { map { $_ => 1 } (
   # G::L::D is unclean, but we never inherit from it
   'DBIx::Class::Admin::Descriptive',
   'DBIx::Class::Admin::Usage',
+
+  # this subclass is expected to inherit whatever crap comes
+  # from the parent
+  'DBIx::Class::ResultSet::Pager',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
