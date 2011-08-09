@@ -1139,21 +1139,36 @@ sub inflate_result {
 
   foreach my $pre (keys %{$prefetch||{}}) {
 
-    my $pre_source = $source->related_source($pre)
-      or $class->throw_exception("Can't prefetch non-existent relationship ${pre}");
-
-    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
-      or $class->throw_exception("No accessor for prefetched $pre");
-
-    my @pre_vals;
+    my (@pre_vals, $is_multi);
     if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
+      $is_multi = 1;
       @pre_vals = @{$prefetch->{$pre}};
-    }
-    elsif ($accessor eq 'multi') {
-      $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor 'multi'");
     }
     else {
       @pre_vals = $prefetch->{$pre};
+    }
+
+    my $pre_source = try {
+      $source->related_source($pre)
+    }
+    catch {
+      $class->throw_exception(sprintf
+
+        "Can't inflate manual prefetch into non-existent relationship '%s' from '%s', "
+      . "check the inflation specification (columns/as) ending in '%s.%s'.",
+
+        $pre,
+        $source->source_name,
+        $pre,
+        (keys %{$pre_vals[0][0]})[0] || 'something.something...',
+      );
+    };
+
+    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
+      or $class->throw_exception("No accessor type declared for prefetched $pre");
+
+    if (! $is_multi and $accessor eq 'multi') {
+      $class->throw_exception("Manual prefetch (via select/columns) not supported with accessor 'multi'");
     }
 
     my @pre_objects;
