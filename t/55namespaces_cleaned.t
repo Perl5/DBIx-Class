@@ -2,19 +2,56 @@
 # require, making it appear as if the module is already
 # loaded on subsequent require()s
 # Can't seem to find the exact RT/perldelta entry
+#
+# we want to do this here, in the very beginning, before even
+# warnings/strict are loaded
 BEGIN {
   if ($] < 5.010) {
-    # shut up spurious warnings without loading warnings.pm
-    *CORE::GLOBAL::require = sub {};
+
+    # All of this almost verbatim copied from Lexical::SealRequireHints
+    # Zefram++
+
+    # a potential caller() in $next_require must see the correct
+    # immediate frame caller
+    my $caller = caller(0);
+
+    our $next_require = defined(&CORE::GLOBAL::require)
+      ? \&CORE::GLOBAL::require
+      : sub {
+        my ($arg) = @_;
+
+        # The shenanigans with $CORE::GLOBAL::{require}
+        # are required because if there's a
+        # &CORE::GLOBAL::require when the eval is
+        # executed then the CORE::require in there is
+        # interpreted as plain require on some Perl
+        # versions, leading to recursion.
+        my $grequire = delete $CORE::GLOBAL::{require};
+
+        my $result = eval sprintf '
+          local $SIG{__DIE__};
+          $CORE::GLOBAL::{require} = $grequire;
+          package %s;
+          CORE::require($arg);
+        ', $caller;
+
+        die $@ if $@ ne '';
+        return $result;
+      }
+    ;
 
     *CORE::GLOBAL::require = sub {
-      my $res = eval { CORE::require($_[0]) };
-      if ($@) {
+      die "wrong number of arguments to require\n"
+        unless @_ == 1;
+
+      my $res = eval "package $caller; \$next_require->(\@_)";
+      if ($@ ne '') {
         delete $INC{$_[0]};
-        die
+        die $@;
       }
+
       $res;
-    }
+    };
   }
 }
 
@@ -96,7 +133,7 @@ for my $mod (@modules) {
 
       next if ( DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN() and $name =~ /^carp(?:_unique|_once)?$/ );
 
-      # overload is a funky thing - it is neither cleaned, and its imports are named funny
+      # overload is a funky thing - it is not cleaned, and its imports are named funny
       next if $name =~ /^\(/;
 
       my $gv = svref_2object($all_method_like{$name})->GV;
