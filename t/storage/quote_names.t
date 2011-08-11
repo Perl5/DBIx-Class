@@ -71,21 +71,11 @@ for my $class (keys %expected) { SKIP: {
 
 # Try quote_names with available DBs.
 
-# SQLite first.
-
-my $schema = DBICTest->init_schema(quote_names => 1);
-
-is $schema->storage->sql_maker->quote_char, '"',
-  q{quote_names => 1 sets correct quote_char for SQLite ('"')};
-
-is $schema->storage->sql_maker->name_sep, '.',
-  q{quote_names => 1 sets correct name_sep for SQLite (".")};
-
-# Now the others.
-
 # Env var to base class mapping, these are the DBs I actually have.
-# -- Caelum
+# the SQLITE is a fake memory dsn
+local $ENV{DBICTEST_SQLITE_DSN} = 'dbi:SQLite::memory:';
 my %dbs = (
+  SQLITE           => 'DBIx::Class::Storage::DBI::SQLite',
   ORA              => 'DBIx::Class::Storage::DBI::Oracle::Generic',
   PG               => 'DBIx::Class::Storage::DBI::Pg',
   MYSQL            => 'DBIx::Class::Storage::DBI::mysql',
@@ -99,7 +89,13 @@ my %dbs = (
   MSSQL_ODBC       => 'DBIx::Class::Storage::DBI::MSSQL',
 );
 
-while (my ($db, $base_class) = each %dbs) {
+# Make sure oracle is tried last - some clients (e.g. 10.2) have symbol
+# clashes with libssl, and will segfault everything coming after them
+for my $db (sort {
+    $a eq 'ORA' ? 1
+  : $b eq 'ORA' ? -1
+  : $a cmp $b
+} keys %dbs) {
   my ($dsn, $user, $pass) = map $ENV{"DBICTEST_${db}_$_"}, qw/DSN USER PASS/;
 
   next unless $dsn;
@@ -114,28 +110,30 @@ while (my ($db, $base_class) = each %dbs) {
     1;
   } || next;
 
-  my $expected_quote_char = $expected{$base_class}{quote_char};
-  my $quote_char_text = dumper($expected_quote_char);
+  my ($exp_quote_char, $exp_name_sep) =
+    @{$expected{$dbs{$db}}}{qw/quote_char name_sep/};
+
+  my ($quote_char_text, $name_sep_text) = map { dumper($_) }
+    ($exp_quote_char, $exp_name_sep);
 
   is_deeply $schema->storage->sql_maker->quote_char,
-    $expected_quote_char,
+    $exp_quote_char,
     "$db quote_char with quote_names => 1 is $quote_char_text";
 
-  my $expected_name_sep = $expected{$base_class}{name_sep};
 
   is $schema->storage->sql_maker->name_sep,
-    $expected_name_sep,
-    "$db name_sep with quote_names => 1 is '$expected_name_sep'";
+    $exp_name_sep,
+    "$db name_sep with quote_names => 1 is $name_sep_text";
 }
 
 done_testing;
 
 sub dumper {
-    my $val = shift;
+  my $val = shift;
 
-    my $dd = DumperObject;
-    $dd->Indent(0);
-    return $dd->Values([ $val ])->Dump;
+  my $dd = DumperObject;
+  $dd->Indent(0);
+  return $dd->Values([ $val ])->Dump;
 }
 
 1;
