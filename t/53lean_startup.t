@@ -16,8 +16,10 @@ use warnings;
 use Test::More;
 use Data::Dumper;
 
+my $expected_core_modules;
+
 BEGIN {
-  my $core_modules = { map { $_ => 1 } qw/
+  $expected_core_modules = { map { $_ => 1 } qw/
     strict
     warnings
 
@@ -70,7 +72,7 @@ BEGIN {
     # exclude everything where the current namespace does not match the called function
     # (this works around very weird XS-induced require callstack corruption)
     if (
-      !$core_modules->{$req}
+      !$expected_core_modules->{$req}
         and
       @caller
         and
@@ -102,5 +104,22 @@ delete $ENV{$_} for qw/
 
 my $schema = DBICTest->init_schema;
 is ($schema->resultset('Artist')->next->name, 'Caterwauler McCrae');
+
+# check if anything we were expecting didn't actually load
+my $nl;
+for (keys %$expected_core_modules) {
+  my $mod = "$_.pm";
+  $mod =~ s/::/\//g;
+  unless ($INC{$mod}) {
+    my $err = sprintf "Expected DBIC core module %s never loaded - %s needs adjustment", $_, __FILE__;
+    if (DBICTest::RunMode->is_smoker) {
+      fail ($err)
+    }
+    else {
+      diag "\n" unless $nl++;
+      diag $err;
+    }
+  }
+}
 
 done_testing;
