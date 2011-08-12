@@ -196,17 +196,16 @@ sub _map_namespaces {
 # returns the result_source_instance for the passed class/object,
 # or dies with an informative message (used by load_namespaces)
 sub _ns_get_rsrc_instance {
-  my $class = shift;
-  my $rs = ref ($_[0]) || $_[0];
+  my $me = shift;
+  my $rs_class = ref ($_[0]) || $_[0];
 
-  if ($rs->can ('result_source_instance') ) {
-    return $rs->result_source_instance;
-  }
-  else {
-    $class->throw_exception (
-      "Attempt to load_namespaces() class $rs failed - are you sure this is a real Result Class?"
+  return try {
+    $rs_class->result_source_instance
+  } catch {
+    $me->throw_exception (
+      "Attempt to load_namespaces() class $rs_class failed - are you sure this is a real Result Class?: $_"
     );
-  }
+  };
 }
 
 sub load_namespaces {
@@ -400,7 +399,6 @@ sub load_classes {
 
   foreach my $to (@to_register) {
     $class->register_class(@$to);
-    #  if $class->can('result_source_instance');
   }
 }
 
@@ -831,7 +829,7 @@ sub connection {
   }
   catch {
     $self->throw_exception(
-      "No arguments to load_classes and couldn't load ${storage_class} ($_)"
+      "Unable to load storage class ${storage_class}: $_"
     );
   };
   my $storage = $storage_class->new($self=>$args);
@@ -905,40 +903,51 @@ will produce the output
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
+
   my $schema = $self->clone;
+
+  $schema->source_registrations({});
+
+  # the original class-mappings must remain - otherwise
+  # reverse_relationship_info will not work
+  #$schema->class_mappings({});
+
   {
     no warnings qw/redefine/;
     local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
     use warnings qw/redefine/;
 
     no strict qw/refs/;
-    foreach my $moniker ($schema->sources) {
-      my $source = $schema->source($moniker);
-      my $target_class = "${target}::${moniker}";
-      $self->inject_base(
-        $target_class => $source->result_class, ($base ? $base : ())
-      );
-      $source->result_class($target_class);
-      if ($target_class->can('result_source_instance')) {
+    foreach my $moniker ($self->sources) {
+      my $orig_source = $self->source($moniker);
 
-        # since the newly created classes are registered only with
-        # the instance of $schema, it should be safe to weaken
-        # the ref (it will GC when $schema is destroyed)
-        $target_class->result_source_instance($source);
-        weaken ${"${target_class}::__cag_result_source_instance"};
+      my $target_class = "${target}::${moniker}";
+      $self->inject_base($target_class, $orig_source->result_class, ($base || ()) );
+
+      # register_source examines result_class, and then returns us a clone
+      my $new_source = $schema->register_source($moniker, bless
+        { %$orig_source, result_class => $target_class },
+        ref $orig_source,
+      );
+
+      if ($target_class->can('result_source_instance')) {
+        # give the class a schema-less source copy
+        $target_class->result_source_instance( bless
+          { %$new_source, schema => ref $new_source->{schema} || $new_source->{schema} },
+          ref $new_source,
+        );
       }
-     $schema->register_source($moniker, $source);
     }
-  }
-  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
-  {
-    no strict 'refs';
-    no warnings 'redefine';
+
     foreach my $meth (qw/class source resultset/) {
+      no warnings 'redefine';
       *{"${target}::${meth}"} = subname "${target}::${meth}" =>
         sub { shift->schema->$meth(@_) };
     }
   }
+
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
   return $schema;
 }
 
@@ -1035,6 +1044,7 @@ sub clone {
     $clone->register_extra_source($moniker => $new);
   }
   $clone->storage->set_schema($clone) if $clone->storage;
+
   return $clone;
 }
 
@@ -1319,11 +1329,7 @@ moniker.
 
 =cut
 
-sub register_source {
-  my $self = shift;
-
-  $self->_register_source(@_);
-}
+sub register_source { shift->_register_source(@_) }
 
 =head2 unregister_source
 
@@ -1337,11 +1343,7 @@ Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
 
 =cut
 
-sub unregister_source {
-  my $self = shift;
-
-  $self->_unregister_source(@_);
-}
+sub unregister_source { shift->_unregister_source(@_) }
 
 =head2 register_extra_source
 
@@ -1356,42 +1358,44 @@ has a source and you want to register an extra one.
 
 =cut
 
-sub register_extra_source {
-  my $self = shift;
-
-  $self->_register_source(@_, { extra => 1 });
-}
+sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
-  my $orig_source = $source;
-
   $source = $source->new({ %$source, source_name => $moniker });
+
   $source->schema($self);
   weaken $source->{schema} if ref($self);
-
-  my $rs_class = $source->result_class;
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
 
-  return if ($params->{extra});
-  return unless defined($rs_class) && $rs_class->can('result_source_instance');
+  return $source if $params->{extra};
 
-  my %map = %{$self->class_mappings};
-  if (
-    exists $map{$rs_class}
-      and
-    $map{$rs_class} ne $moniker
-      and
-    $rs_class->result_source_instance ne $orig_source
-  ) {
-    carp "$rs_class already has a source, use register_extra_source for additional sources";
+  my $rs_class = $source->result_class;
+  if ($rs_class and my $rsrc = try { $rs_class->result_source_instance } ) {
+    my %map = %{$self->class_mappings};
+    if (
+      exists $map{$rs_class}
+        and
+      $map{$rs_class} ne $moniker
+        and
+      $rsrc ne $_[2]  # orig_source
+    ) {
+      carp
+        "$rs_class already had a registered source which was replaced by this call. "
+      . 'Perhaps you wanted register_extra_source(), though it is more likely you did '
+      . 'something wrong.'
+      ;
+    }
+
+    $map{$rs_class} = $moniker;
+    $self->class_mappings(\%map);
   }
-  $map{$rs_class} = $moniker;
-  $self->class_mappings(\%map);
+
+  return $source;
 }
 
 {

@@ -31,7 +31,6 @@ sub __find_caller {
   while (@f = caller($fr_num++)) {
     last unless $f[0] =~ $skip_pattern;
 
-    # 
     if (
       $f[0]->can('_skip_namespace_frames')
         and

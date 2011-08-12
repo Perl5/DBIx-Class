@@ -36,9 +36,10 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 use lib qw(t/lib);
 use DBICTest::RunMode;
 use DBIx::Class;
+use B 'svref_2object';
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
-    if DBIx::Class::_ENV_::PEEPEENESS();
+    if DBIx::Class::_ENV_::PEEPEENESS;
 }
 
 use Scalar::Util qw/refaddr reftype weaken/;
@@ -121,12 +122,15 @@ unless (DBICTest::RunMode->is_plain) {
   %$weak_registry = ();
 }
 
+my @compose_ns_classes;
 {
   use_ok ('DBICTest');
 
   my $schema = DBICTest->init_schema;
   my $rs = $schema->resultset ('Artist');
   my $storage = $schema->storage;
+
+  @compose_ns_classes = map { "DBICTest::${_}" } keys %{$schema->source_registrations};
 
   ok ($storage->connected, 'we are connected');
 
@@ -267,6 +271,7 @@ unless (DBICTest::RunMode->is_plain) {
       reftype $phantom,
       refaddr $phantom,
     );
+
     $weak_registry->{$slot} = $phantom;
     weaken $weak_registry->{$slot};
   }
@@ -300,25 +305,32 @@ for my $slot (keys %$weak_registry) {
   }
 }
 
-
-# FIXME
-# For reasons I can not yet fully understand the table() god-method (located in
-# ::ResultSourceProxy::Table) attaches an actual source instance to each class
-# as virtually *immortal* class-data. 
-# For now just ignore these instances manually but there got to be a saner way
-for ( map { $_->result_source_instance } (
+# every result class has a result source instance as classdata
+# make sure these are all present and distinct before ignoring
+# (distinct means only 1 reference)
+for my $rs_class (
   'DBICTest::BaseResult',
+  @compose_ns_classes,
   map { DBICTest::Schema->class ($_) } DBICTest::Schema->sources
-)) {
-  delete $weak_registry->{$_};
+) {
+  # need to store the SVref and examine it separately, to push the rsrc instance off the pad
+  my $SV = svref_2object($rs_class->result_source_instance);
+  is( $SV->REFCNT, 1, "Source instance of $rs_class referenced exactly once" );
+
+  # ignore it
+  delete $weak_registry->{$rs_class->result_source_instance};
 }
 
-# FIXME
-# same problem goes for the schema - its classdata contains live result source
-# objects, which to add insult to the injury are *different* instances from the
-# ones we ignored above
-for ( values %{DBICTest::Schema->source_registrations || {}} ) {
-  delete $weak_registry->{$_};
+# Schema classes also hold sources, but these are clones, since
+# each source contains the schema (or schema class name in this case)
+# Hence the clone so that the same source can be registered with
+# multiple schemas
+for my $moniker ( keys %{DBICTest::Schema->source_registrations || {}} ) {
+
+  my $SV = svref_2object(DBICTest::Schema->source($moniker));
+  is( $SV->REFCNT, 1, "Source instance registered under DBICTest::Schema as $moniker referenced exactly once" );
+
+  delete $weak_registry->{DBICTest::Schema->source($moniker)};
 }
 
 for my $slot (sort keys %$weak_registry) {
@@ -336,7 +348,6 @@ for my $slot (sort keys %$weak_registry) {
     diag $diag if $diag;
   };
 }
-
 
 # we got so far without a failure - this is a good thing
 # now let's try to rerun this script under a "persistent" environment
