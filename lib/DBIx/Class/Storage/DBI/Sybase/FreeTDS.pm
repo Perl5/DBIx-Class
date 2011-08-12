@@ -9,8 +9,8 @@ use namespace::clean;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase - Base class for drivers using L<DBD::Sybase>
-over FreeTDS.
+DBIx::Class::Storage::DBI::Sybase::FreeTDS - Base class for drivers using
+DBD::Sybase over FreeTDS.
 
 =head1 DESCRIPTION
 

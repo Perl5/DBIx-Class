@@ -16,7 +16,8 @@ $VERSION = '0.08195';
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 BEGIN {
-  package DBIx::Class::_ENV_;
+  package # hide from pause
+    DBIx::Class::_ENV_;
 
   if ($] < 5.009_005) {
     require MRO::Compat;
