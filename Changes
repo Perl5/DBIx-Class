@@ -12,6 +12,8 @@ Revision history for DBIx::Class
         - Fix uninitialized warning in ::Storage::Sybase::ASE
         - Improve/cache  DBD-specific datatype bind checks (also solves a
           nasty memleak with version.pm on multiple ->VERSION invocations)
+        - The internal carp module now correctly skips CAG frames when
+          reporting a callsite
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl

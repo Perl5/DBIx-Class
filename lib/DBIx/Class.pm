@@ -71,7 +71,7 @@ use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
 
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
-__PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny');
+__PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped$');
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);
