@@ -203,7 +203,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to introspect trigger '%s' for column %s.%s (references multiple sequences). "
+        "Unable to introspect trigger '%s' for column '%s.%s' (references multiple sequences). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $triggers[0]{name},
         $source_name,
@@ -225,7 +225,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to reliably select a BEFORE INSERT trigger for column %s.%s (possibilities: %s). "
+        "Unable to reliably select a BEFORE INSERT trigger for column '%s.%s' (possibilities: %s). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $source_name,
         $col,
@@ -246,7 +246,7 @@ sub _dbh_get_autoinc_seq {
   }
 
   $self->throw_exception( sprintf (
-    "No suitable BEFORE INSERT triggers found for column %s.%s. "
+    "No suitable BEFORE INSERT triggers found for column '%s.%s'. "
   . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
     $source_name,
     $col,
@@ -512,7 +512,7 @@ sub _prep_for_execute {
 
   my ($final_sql, @final_binds);
   if ($op eq 'update') {
-    $self->throw_exception('Update with complex WHERE clauses currently not supported')
+    $self->throw_exception('Update with complex WHERE clauses involving BLOB columns currently not supported')
       if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
 
     my $where_sql;

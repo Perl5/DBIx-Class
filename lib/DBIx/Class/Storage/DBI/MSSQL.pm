@@ -118,8 +118,8 @@ sub _select_args_to_query {
     scalar $self->_extract_order_criteria ($attrs->{order_by})
   ) {
     $self->throw_exception(
-      'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
-    ') unless $attrs->{unsafe_subselect_ok};
+      'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL'
+    ) unless $attrs->{unsafe_subselect_ok};
     my $max = $self->sql_maker->__max_int;
     $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
   }

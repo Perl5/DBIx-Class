@@ -90,7 +90,7 @@ sub _prefetch_autovalues  {
 
     if (not defined $guid_method) {
       $self->throw_exception(
-        'You must set new_guid on your storage. See perldoc '
+        'You must set new_guid() on your storage. See perldoc '
        .'DBIx::Class::Storage::DBI::UniqueIdentifier'
       );
     }

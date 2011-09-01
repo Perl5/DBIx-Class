@@ -239,7 +239,7 @@ sub _get_forced_pool {
   } elsif(my $replicant = $self->pool->replicants->{$forced_pool}) {
     return $replicant;
   } else {
-    $self->master->throw_exception("$forced_pool is not a named replicant.");
+    $self->master->throw_exception("'$forced_pool' is not a named replicant.");
   }
 }
 

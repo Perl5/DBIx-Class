@@ -445,7 +445,7 @@ sub related_resultset {
     unless ref $self;
   my $rel = shift;
   my $rel_info = $self->relationship_info($rel);
-  $self->throw_exception( "No such relationship ${rel}" )
+  $self->throw_exception( "No such relationship '$rel'" )
     unless $rel_info;
 
   return $self->{related_resultsets}{$rel} ||= do {
@@ -474,8 +474,8 @@ sub related_resultset {
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
     if ($is_crosstable) {
       $self->throw_exception (
-        "A cross-table relationship condition returned for statically declared '$rel'")
-          unless ref $rel_info->{cond} eq 'CODE';
+        "A cross-table relationship condition returned for statically declared '$rel'"
+      ) unless ref $rel_info->{cond} eq 'CODE';
 
       # A WHOREIFFIC hack to reinvoke the entire condition resolution
       # with the correct alias. Another way of doing this involves a
@@ -781,11 +781,11 @@ sub set_from_related {
 
   my $rsrc = $self->result_source;
   my $rel_info = $rsrc->relationship_info($rel)
-    or $self->throw_exception( "No such relationship ${rel}" );
+    or $self->throw_exception( "No such relationship '$rel'" );
 
   if (defined $f_obj) {
     my $f_class = $rel_info->{class};
-    $self->throw_exception( "Object $f_obj isn't a ".$f_class )
+    $self->throw_exception( "Object '$f_obj' isn't a ".$f_class )
       unless blessed $f_obj and $f_obj->isa($f_class);
   }
 

@@ -398,7 +398,7 @@ if (DBIx::Class::_ENV_::DBICTEST) {
 for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
     my $self = shift;
-    $self->throw_exception("$method must not be called on ".(blessed $self).' objects');
+    $self->throw_exception("$method() must not be called on ".(blessed $self).' objects');
   });
 }
 

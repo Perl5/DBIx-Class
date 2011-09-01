@@ -259,7 +259,7 @@ sub new {
           next;
         }
       }
-      $new->throw_exception("No such column $key on $class")
+      $new->throw_exception("No such column '$key' on $class")
         unless $class->has_column($key);
       $new->store_column($key => $attrs->{$key});
     }
