@@ -38,7 +38,7 @@ my $datetime_basic = {
 };
 
 my $id_shortener = {
-  'Math::BigInt'                  => '1.89',
+  'Math::BigInt'                  => '1.80',
   'Math::Base36'                  => '0.07',
 };
 

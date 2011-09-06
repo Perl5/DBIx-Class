@@ -16,6 +16,8 @@ Revision history for DBIx::Class
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl
           namespace::clean is available
+        - Drop Oracle's Math::BigInt req down to 1.80 - no fixes concerning
+          us were made since
 
 0.08195 2011-07-27 16:20 (UTC)
     * Fixes
