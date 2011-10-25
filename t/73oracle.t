@@ -358,6 +358,23 @@ sub _run_tests {
     });
   } qr/constraint/i, 'with_deferred_fk_checks is off';
 
+  throws_ok {
+    $schema->storage->with_deferred_fk_checks(sub {
+      $schema->resultset('Track')->create({
+        trackid => 9999, cd => 9999, position => 1, title => 'orphaned deferred FK track',
+      });
+    });
+  } qr/constraint/i, 'unsatisfied deferred FK throws';
+  ok !$schema->resultset('Track')->find(9999), 'orphaned deferred FK track not inserted';
+
+  throws_ok {
+    $schema->storage->with_deferred_fk_checks(sub {
+      $schema->resultset('CD')->create({
+        artist => 1, cdid => 9999, year => '2003', title => 'dupe PK cd'
+      }) foreach 0..1;
+    });
+  } qr/unique/i, 'unique constraint violation inside deferred block propagated';
+  ok !$schema->resultset('CD')->find(9999), 'duplicate PK track not inserted';
 
 # test auto increment using sequences WITHOUT triggers
   for (1..5) {

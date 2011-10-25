@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
-use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use DBIx::Class::Carp;
 use Try::Tiny;
@@ -30,11 +29,11 @@ sub with_deferred_fk_checks {
 
   $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
 
-  my $sg = Scope::Guard->new(sub {
-    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
-  });
-
-  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
+  return preserve_context { $sub->() } after => sub {
+      $txn_scope_guard->commit;
+      $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE')
+          if $self->transaction_depth;
+  };
 }
 
 # only used when INSERT ... RETURNING is disabled

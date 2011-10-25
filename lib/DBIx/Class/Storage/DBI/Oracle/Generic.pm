@@ -5,7 +5,6 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 use DBIx::Class::Carp;
-use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use List::Util 'first';
@@ -668,12 +667,12 @@ sub with_deferred_fk_checks {
 
   $self->_do_query('alter session set constraints = deferred');
 
-  my $sg = Scope::Guard->new(sub {
-    $self->_do_query('alter session set constraints = immediate');
-  });
-
   return
-    preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
+    preserve_context { $sub->() } after => sub {
+        $txn_scope_guard->commit;
+        $self->_do_query('alter session set constraints = immediate')
+            if $self->transaction_depth;
+    };
 }
 
 =head1 ATTRIBUTES
