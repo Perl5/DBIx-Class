@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix tests for DBD::SQLite >= 1.34.
+        - Fix test failures with DBICTEST_SQLITE_USE_FILE set
         - Fix the find() condition heuristics being invoked even when the
           call defaults to 'primary' (i.e. when invoked with bare values)
         - Throw much clearer error on incorrect inflation spec

@@ -30,7 +30,8 @@ BEGIN {
 lives_ok { isa_ok (create_schema ({ schema => 'DBICTest::Schema' }), 'SQL::Translator::Schema', 'SQLT schema object produced') };
 
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema( no_deploy => 1 );
+
 # Dummy was yanked out by the sqlt hook test
 # CustomSql tests the horrific/deprecated ->name(\$sql) hack
 # YearXXXXCDs are views

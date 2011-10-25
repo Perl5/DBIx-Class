@@ -22,11 +22,10 @@ sub DBICTest::Schema::deployment_statements {
   return $self->next::method(@_);
 }
 
-my $schema = DBICTest->init_schema (no_deploy => 1);
-
 
 # Check deployment statements ctx sensitivity
 {
+  my $schema = DBICTest->init_schema (no_deploy => 1);
   my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
 
   my $statements = $schema->deployment_statements;
@@ -83,6 +82,8 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
   ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
   ok($component_deploy_hook_called, 'component deploy hook got called');
 }
+
+my $schema = DBICTest->init_schema (no_deploy => 1);
 
 {
   my $deploy_hook_called = 0;
