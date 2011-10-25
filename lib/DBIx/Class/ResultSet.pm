@@ -702,22 +702,33 @@ sub find {
 
   my $rsrc = $self->result_source;
 
+  my $constraint_name;
+  if (exists $attrs->{key}) {
+    $constraint_name = defined $attrs->{key}
+      ? $attrs->{key}
+      : $self->throw_exception("An undefined 'key' resultset attribute makes no sense")
+    ;
+  }
+
   # Parse out the condition from input
   my $call_cond;
+
   if (ref $_[0] eq 'HASH') {
     $call_cond = { %{$_[0]} };
   }
   else {
-    my $constraint = exists $attrs->{key} ? $attrs->{key} : 'primary';
-    my @c_cols = $rsrc->unique_constraint_columns($constraint);
+    # if only values are supplied we need to default to 'primary'
+    $constraint_name = 'primary' unless defined $constraint_name;
+
+    my @c_cols = $rsrc->unique_constraint_columns($constraint_name);
 
     $self->throw_exception(
-      "No constraint columns, maybe a malformed '$constraint' constraint?"
+      "No constraint columns, maybe a malformed '$constraint_name' constraint?"
     ) unless @c_cols;
 
     $self->throw_exception (
       'find() expects either a column/value hashref, or a list of values '
-    . "corresponding to the columns of the specified unique constraint '$constraint'"
+    . "corresponding to the columns of the specified unique constraint '$constraint_name'"
     ) unless @c_cols == @_;
 
     $call_cond = {};
@@ -748,11 +759,11 @@ sub find {
 
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
   my $final_cond;
-  if (exists $attrs->{key}) {
+  if (defined $constraint_name) {
     $final_cond = $self->_qualify_cond_columns (
 
       $self->_build_unique_cond (
-        $attrs->{key},
+        $constraint_name,
         $call_cond,
       ),
 

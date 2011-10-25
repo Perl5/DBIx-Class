@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix tests for DBD::SQLite >= 1.34.
+        - Fix the find() condition heuristics being invoked even when the
+          call defaults to 'primary' (i.e. when invoked with bare values)
 
 0.08195 2011-07-27 16:20 (UTC)
     * Fixes
