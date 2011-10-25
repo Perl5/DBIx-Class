@@ -171,7 +171,7 @@ throws_ok {
             name => 'foo3',
         },
     ]);
-} qr/\Qexecute_array() aborted with 'datatype mismatch'/, 'bad slice';
+} qr/\Qexecute_array() aborted with 'datatype mismatch\E\b/, 'bad slice';
 
 is($rs->count, 0, 'populate is atomic');
 
