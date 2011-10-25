@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix tests for DBD::SQLite >= 1.34.
+
 0.08195 2011-07-27 16:20 (UTC)
     * Fixes
         - Fix horrible oversight in the Oracle sqlmaker when dealing with
