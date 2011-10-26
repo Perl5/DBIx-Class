@@ -92,6 +92,7 @@ my @rdbms_specific_methods = qw/
   delete
   select
   select_single
+  with_deferred_fk_checks
 
   get_use_dbms_capability
   get_dbms_capability
