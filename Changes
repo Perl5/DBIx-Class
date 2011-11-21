@@ -5,6 +5,8 @@ Revision history for DBIx::Class
         - Fix the find() condition heuristics being invoked even when the
           call defaults to 'primary' (i.e. when invoked with bare values)
         - Throw much clearer error on incorrect inflation spec
+        - Fix incorrect storage behavior when first call on a fresh schema
+          is with_deferred_fk_checks
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl
