@@ -14,6 +14,7 @@ Revision history for DBIx::Class
           nasty memleak with version.pm on multiple ->VERSION invocations)
         - The internal carp module now correctly skips CAG frames when
           reporting a callsite
+        - Fix test failures on perl < 5.8.7 and new Package::Stash::XS
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl

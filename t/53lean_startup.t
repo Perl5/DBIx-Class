@@ -1,20 +1,29 @@
 # Use a require override instead of @INC munging (less common)
 # Do the override as early as possible so that CORE::require doesn't get compiled away
-# We will replace $req_override in a bit
+# We will add the hook in a bit, got to load some regular stuff
 
 my $test_hook;
 BEGIN {
-  $test_hook = sub {}; # noop at first
-  *CORE::GLOBAL::require = sub {
-    $test_hook->(@_);
-    CORE::require($_[0]);
-  };
+  unshift @INC, 't/lib';
+  require DBICTest::Util::OverrideRequire;
+
+  DBICTest::Util::OverrideRequire::override_global_require( sub {
+    my $res = $_[0]->();
+    $test_hook->($_[1]) if $test_hook;
+    return $res;
+  });
 }
 
 use strict;
 use warnings;
 use Test::More;
 use Data::Dumper;
+
+# Package::Stash::XS is silly and fails if a require hook contains regular
+# expressions on perl < 5.8.7. Load the damned thing if the case
+BEGIN {
+  require Package::Stash if $] < 5.008007;
+}
 
 my $expected_core_modules;
 
@@ -112,7 +121,7 @@ for (keys %$expected_core_modules) {
   $mod =~ s/::/\//g;
   unless ($INC{$mod}) {
     my $err = sprintf "Expected DBIC core module %s never loaded - %s needs adjustment", $_, __FILE__;
-    if (DBICTest::RunMode->is_smoker) {
+    if (DBICTest::RunMode->is_smoker or DBICTest::RunMode->is_author) {
       fail ($err)
     }
     else {

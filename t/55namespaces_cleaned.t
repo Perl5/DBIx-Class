@@ -1,57 +1,32 @@
-# Pre-5.10 perls pollute %INC on unsuccesfull module
-# require, making it appear as if the module is already
-# loaded on subsequent require()s
-# Can't seem to find the exact RT/perldelta entry
-#
-# we want to do this here, in the very beginning, before even
-# warnings/strict are loaded
 BEGIN {
   if ($] < 5.010) {
 
-    # All of this almost verbatim copied from Lexical::SealRequireHints
-    # Zefram++
+    # Pre-5.10 perls pollute %INC on unsuccesfull module
+    # require, making it appear as if the module is already
+    # loaded on subsequent require()s
+    # Can't seem to find the exact RT/perldelta entry
+    #
+    # The reason we can't just use a sane, clean loader, is because
+    # if a Module require()s another module the %INC will still
+    # get filled with crap and we are back to square one. A global
+    # fix is really the only way for this test, as we try to load
+    # each available module separately, and have no control (nor
+    # knowledge) over their common dependencies.
+    #
+    # we want to do this here, in the very beginning, before even
+    # warnings/strict are loaded
 
-    # a potential caller() in $next_require must see the correct
-    # immediate frame caller
-    my $caller = caller(0);
+    unshift @INC, 't/lib';
+    require DBICTest::Util::OverrideRequire;
 
-    our $next_require = defined(&CORE::GLOBAL::require)
-      ? \&CORE::GLOBAL::require
-      : sub {
-        my ($arg) = @_;
-
-        # The shenanigans with $CORE::GLOBAL::{require}
-        # are required because if there's a
-        # &CORE::GLOBAL::require when the eval is
-        # executed then the CORE::require in there is
-        # interpreted as plain require on some Perl
-        # versions, leading to recursion.
-        my $grequire = delete $CORE::GLOBAL::{require};
-
-        my $result = eval sprintf '
-          local $SIG{__DIE__};
-          $CORE::GLOBAL::{require} = $grequire;
-          package %s;
-          CORE::require($arg);
-        ', $caller;
-
-        die $@ if $@ ne '';
-        return $result;
-      }
-    ;
-
-    *CORE::GLOBAL::require = sub {
-      die "wrong number of arguments to require\n"
-        unless @_ == 1;
-
-      my $res = eval "package $caller; \$next_require->(\@_)";
+    DBICTest::Util::OverrideRequire::override_global_require( sub {
+      my $res = eval { $_[0]->() };
       if ($@ ne '') {
-        delete $INC{$_[0]};
+        delete $INC{$_[1]};
         die $@;
       }
-
-      $res;
-    };
+      return $res;
+    } );
   }
 }
 
@@ -210,6 +185,5 @@ sub find_modules {
 
   return sort @modules;
 }
-
 
 done_testing;
