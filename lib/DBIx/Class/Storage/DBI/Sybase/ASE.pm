@@ -263,8 +263,17 @@ sub _prep_for_execute {
       keys %$columns_info
   ;
 
-  if (($op eq 'insert' && $bound_identity_col) ||
-      ($op eq 'update' && exists $args->[0]{$identity_col})) {
+  if (
+    ($bound_identity_col and $op eq 'insert')
+      or
+    (
+      $op eq 'update'
+        and
+      defined $identity_col
+        and
+      exists $args->[0]{$identity_col}
+    )
+  ) {
     $sql = join ("\n",
       $self->_set_table_identity_sql($op => $table, 'on'),
       $sql,
@@ -272,8 +281,15 @@ sub _prep_for_execute {
     );
   }
 
-  if ($op eq 'insert' && (not $bound_identity_col) && $identity_col &&
-      (not $self->{insert_bulk})) {
+  if (
+    (not $bound_identity_col)
+      and
+    $identity_col
+      and
+    (not $self->{insert_bulk})
+      and
+    $op eq 'insert'
+  ) {
     $sql =
       "$sql\n" .
       $self->_fetch_identity_sql($ident, $identity_col);

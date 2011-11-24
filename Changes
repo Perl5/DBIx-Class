@@ -9,6 +9,7 @@ Revision history for DBIx::Class
         - Fix incorrect storage behavior when first call on a fresh schema
           is with_deferred_fk_checks
         - Fix incorrect dependency on Test::Simple/Builder (RT#72282)
+        - Fix uninitialized warning in ::Storage::Sybase::ASE
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl
