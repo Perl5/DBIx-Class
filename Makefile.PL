@@ -32,10 +32,11 @@ my $build_requires = {
 
 my $test_requires = {
   'File::Temp'               => '0.22',
-  'Test::Builder'            => '0.33',
   'Test::Exception'          => '0.31',
-  'Test::More'               => '0.92',
   'Test::Warn'               => '0.21',
+  'Test::More'               => '0.94',
+  # not sure if this is necessary at all, ask schwern some day
+  'Test::Builder'            => '0.94',
 
   # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
   # remove and do a manual glob-collection if n::c is no longer a dep
