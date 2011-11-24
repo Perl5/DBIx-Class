@@ -164,33 +164,34 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
-my $type_cache;
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
-  # Ask for a DBD::Pg with array support
-  # pg uses (used?) version::qv()
-  require DBD::Pg;
+  if ($self->_is_binary_lob_type($data_type)) {
+    # this is a hot-ish codepath, use an escape flag to minimize
+    # amount of function/method calls
+    # additionally version.pm is cock, and memleaks on multiple
+    # ->VERSION calls
+    # the flag is stored in the DBD namespace, so that Class::Unload
+    # will work (unlikely, but still)
+    unless ($DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__) {
+      if ($self->_server_info->{normalized_dbms_version} >= 9.0) {
+        try { DBD::Pg->VERSION('2.17.2'); 1 } or carp (
+          __PACKAGE__.': BYTEA columns are known to not work on Pg >= 9.0 with DBD::Pg < 2.17.2'
+        );
+      }
+      elsif (not try { DBD::Pg->VERSION('2.9.2'); 1 } ) { carp (
+        __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended for BYTEA column support'
+      )}
 
-  if ($self->_server_info->{normalized_dbms_version} >= 9.0) {
-    if (not try { DBD::Pg->VERSION('2.17.2') }) {
-      carp_once( __PACKAGE__.': BYTEA columns are known to not work on Pg >='
-        . " 9.0 with DBD::Pg < 2.17.2\n" );
+      $DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__ = 1;
     }
-  }
-  elsif (not try { DBD::Pg->VERSION('2.9.2') }) {
-    carp_once( __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended'
-      . "for BYTEA column support.\n" );
-  }
 
-  # cache the result of _is_binary_lob_type
-  if (!exists $type_cache->{$data_type}) {
-    $type_cache->{$data_type} = $self->_is_binary_lob_type($data_type)
-      ? +{ pg_type => DBD::Pg::PG_BYTEA() }
-      : undef
+    return { pg_type => DBD::Pg::PG_BYTEA() };
   }
-
-  $type_cache->{$data_type};
+  else {
+    return undef;
+  }
 }
 
 sub _exec_svp_begin {

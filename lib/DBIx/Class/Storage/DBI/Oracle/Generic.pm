@@ -433,27 +433,34 @@ sub _dbi_attrs_for_bind {
   $attrs;
 }
 
-my $dbd_loaded;
 sub bind_attribute_by_data_type {
   my ($self, $dt) = @_;
 
-  $dbd_loaded ||= do {
-    require DBD::Oracle;
-    if ($DBD::Oracle::VERSION eq '1.23') {
-      $self->throw_exception(
-        "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
-        "version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
-      );
-    }
-    1;
-  };
-
   if ($self->_is_lob_type($dt)) {
+
+    # this is a hot-ish codepath, store an escape-flag in the DBD namespace, so that
+    # things like Class::Unload work (unlikely but possible)
+    unless ($DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__) {
+
+      # no earlier - no later
+      if ($DBD::Oracle::VERSION eq '1.23') {
+        $self->throw_exception(
+          "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
+          "version (https://rt.cpan.org/Public/Bug/Display.html?id=46016)"
+        );
+      }
+
+      $DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__ = 1;
+    }
+
     return {
       ora_type => $self->_is_text_lob_type($dt)
         ? DBD::Oracle::ORA_CLOB()
         : DBD::Oracle::ORA_BLOB()
     };
+  }
+  else {
+    return undef;
   }
 }
 

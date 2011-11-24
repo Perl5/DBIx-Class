@@ -1529,7 +1529,13 @@ sub _dbi_attrs_for_bind {
         $_->{dbd_attrs}
       }
       elsif($_->{sqlt_datatype}) {
-        $self->bind_attribute_by_data_type($_->{sqlt_datatype}) || undef;
+        # cache the result in the dbh_details hash, as it can not change unless
+        # we connect to something else
+        my $cache = $self->_dbh_details->{_datatype_map_cache} ||= {};
+        if (not exists $cache->{$_->{sqlt_datatype}}) {
+          $cache->{$_->{sqlt_datatype}} = $self->bind_attribute_by_data_type($_->{sqlt_datatype}) || undef;
+        }
+        $cache->{$_->{sqlt_datatype}};
       }
       elsif ($sba_attrs and $_->{dbic_colname}) {
         $sba_attrs->{$_->{dbic_colname}} || undef;

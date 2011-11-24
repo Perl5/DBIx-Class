@@ -4,6 +4,7 @@ use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
 use Sub::Name;
+use Try::Tiny;
 use namespace::clean;
 
 =head1 NAME
@@ -60,23 +61,28 @@ sub _dbh_get_info {
 }
 
 # Monkeypatch out the horrible warnings during global destruction.
-# A patch to DBD::ADO has been submitted as well.
+# A patch to DBD::ADO has been submitted as well, and it was fixed
+# as of 2.99
 # https://rt.cpan.org/Ticket/Display.html?id=65563
 sub _init {
-  no warnings 'redefine';
-  require DBD::ADO;
+  unless ($DBD::ADO::__DBIC_MONKEYPATCH_CHECKED__) {
+    require DBD::ADO;
 
-  if (DBD::ADO->VERSION <= 2.98) {
-    my $disconnect = *DBD::ADO::db::disconnect{CODE};
+    unless (try { DBD::ADO->VERSION('2.99'); 1 }) {
+      no warnings 'redefine';
+      my $disconnect = *DBD::ADO::db::disconnect{CODE};
 
-    *DBD::ADO::db::disconnect = subname 'DBD::ADO::db::disconnect' => sub {
-      my $warn_handler = $SIG{__WARN__} || sub { warn @_ };
-      local $SIG{__WARN__} = sub {
-        $warn_handler->(@_)
-          unless $_[0] =~ /Not a Win32::OLE object|uninitialized value/;
+      *DBD::ADO::db::disconnect = subname 'DBD::ADO::db::disconnect' => sub {
+        my $warn_handler = $SIG{__WARN__} || sub { warn @_ };
+        local $SIG{__WARN__} = sub {
+          $warn_handler->(@_)
+            unless $_[0] =~ /Not a Win32::OLE object|uninitialized value/;
+        };
+        $disconnect->(@_);
       };
-      $disconnect->(@_);
-    };
+    }
+
+    $DBD::ADO::__DBIC_MONKEYPATCH_CHECKED__ = 1;
   }
 }
 
