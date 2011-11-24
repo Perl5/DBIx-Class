@@ -534,10 +534,15 @@ SQL
       });
 
       TODO: {
-        local $TODO =
+        my $freetds_and_dynamic_cursors = 1
+          if $opts_name eq 'use_dynamic_cursors' &&
+            $schema->storage->using_freetds;
+
+        local $TODO = 
 'these tests fail on freetds with dynamic cursors for some reason'
-          if $opts_name eq 'use_dynamic_cursors'
-             && $schema->storage->using_freetds;
+          if $freetds_and_dynamic_cursors;
+        local $ENV{DBIC_NULLABLE_KEY_NOWARN} = 1
+          if $freetds_and_dynamic_cursors;
 
         my $rs = $schema->resultset('Money');
         my $row;
