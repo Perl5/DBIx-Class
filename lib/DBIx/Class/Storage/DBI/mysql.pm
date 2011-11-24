@@ -5,18 +5,45 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
+use Try::Tiny;
+use namespace::clean;
+
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
 __PACKAGE__->sql_quote_char ('`');
 
 __PACKAGE__->_use_multicolumn_in (1);
 
+# We turn FOREIGN_KEY_CHECKS off, do a transaction, then turn them back on right
+# before the COMMIT so that they can be checked during the COMMIT.
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
   $self->_do_query('SET FOREIGN_KEY_CHECKS = 0');
-  $sub->();
-  $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
+
+  my $tried_fk_checks_reset = 0;
+
+  return try {
+    my $guard = $self->txn_scope_guard;
+    preserve_context { $sub->() } after => sub {
+      $tried_fk_checks_reset = 1;
+      $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
+      $guard->commit;
+    };
+  }
+  catch {
+    my $e = $_;
+    if (not $tried_fk_checks_reset) {
+      eval {
+        $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
+      };
+      if ($@) {
+        $e .= " also 'SET FOREIGN_KEY_CHECKS = 1' failed: $@"
+      }
+    }
+    $self->throw_exception($e);
+  };
 }
 
 sub connect_call_set_strict_mode {

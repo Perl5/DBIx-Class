@@ -2,10 +2,10 @@ package DBIx::Class::Storage::DBI::Informix;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-use Context::Preserve 'preserve_context';
+use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('SkipFirst');
@@ -28,6 +28,59 @@ This class implements storage-specific support for the Informix RDBMS
 =head1 METHODS
 
 =cut
+
+__PACKAGE__->_unsatisfied_deferred_constraints_autorollback(1);
+
+sub _set_constraints_deferred {
+  $_[0]->_do_query('SET CONSTRAINTS ALL DEFERRED');
+}
+
+# Constraints are deferred only for the current transaction, new transactions
+# start with constraints IMMEDIATE by default. If we are already in a
+# transaction when with_deferred_fk_checks is fired, we want to switch
+# constraints back to IMMEDIATE mode at the end of the savepoint or "nested
+# transaction" so that they can be checked.
+
+sub _set_constraints_immediate {
+  $_[0]->_do_query('SET CONSTRAINTS ALL IMMEDIATE') if $_[0]->transaction_depth;
+}
+
+# A failed commit due to unsatisfied deferred FKs throws a "DBD driver has not
+# implemented the AutoCommit attribute" exception, masking the actual error. We
+# fix it up here by doing a manual $dbh->do("COMMIT WORK"), propagating the
+# exception, and resetting the $dbh->{AutoCommit} attribute.
+
+sub _exec_txn_commit {
+  my $self = shift;
+
+  my $tried_resetting_autocommit = 0;
+
+  try {
+    $self->_dbh->do('COMMIT WORK');
+    if ($self->_dbh_autocommit && $self->transaction_depth == 1) {
+      eval {
+        $tried_resetting_autocommit = 1;
+        $self->_dbh->{AutoCommit} = 1;
+      };
+      if ($@) {
+        $self->throw_exception('$dbh->{AutoCommit} = 1 failed: '.$@);
+      }
+    }
+  }
+  catch {
+    my $e = $_;
+    if ((not $tried_resetting_autocommit) &&
+        $self->_dbh_autocommit && $self->transaction_depth == 1) {
+      eval {
+        $self->_dbh->{AutoCommit} = 1
+      };
+      if ($@ && $@ !~ /DBD driver has not implemented the AutoCommit attribute/) {
+        $e .= ' also $dbh->{AutoCommit} = 1 failed: '.$@;
+      }
+    }
+    $self->throw_exception($e);
+  };
+}
 
 sub _execute {
   my $self = shift;
@@ -57,20 +110,6 @@ sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
     $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
-}
-
-sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
-
-  my $txn_scope_guard = $self->txn_scope_guard;
-
-  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
-
-  return preserve_context { $sub->() } after => sub {
-      $txn_scope_guard->commit;
-      $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE')
-          if $self->transaction_depth;
-  };
 }
 
 =head2 connect_call_datetime_setup
@@ -180,3 +219,4 @@ See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim:sts=2 sw=2:

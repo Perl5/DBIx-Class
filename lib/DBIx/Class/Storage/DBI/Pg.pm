@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
-use Context::Preserve 'preserve_context';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -22,18 +21,20 @@ sub _determine_supports_insert_returning {
   ;
 }
 
-sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
+__PACKAGE__->_unsatisfied_deferred_constraints_autorollback(1);
 
-  my $txn_scope_guard = $self->txn_scope_guard;
+sub _set_constraints_deferred {
+  $_[0]->_do_query('SET CONSTRAINTS ALL DEFERRED');
+}
 
-  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
+# Constraints are deferred only for the current transaction, new transactions
+# start with constraints IMMEDIATE by default. If we are already in a
+# transaction when with_deferred_fk_checks is fired, we want to switch
+# constraints back to IMMEDIATE mode at the end of the savepoint or "nested
+# transaction" so that they can be checked.
 
-  return preserve_context { $sub->() } after => sub {
-      $txn_scope_guard->commit;
-      $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE')
-          if $self->transaction_depth;
-  };
+sub _set_constraints_immediate {
+  $_[0]->_do_query('SET CONSTRAINTS ALL IMMEDIATE') if $_[0]->transaction_depth;
 }
 
 # only used when INSERT ... RETURNING is disabled
@@ -274,3 +275,4 @@ See L<DBIx::Class/CONTRIBUTORS>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim:sts=2 sw=2:

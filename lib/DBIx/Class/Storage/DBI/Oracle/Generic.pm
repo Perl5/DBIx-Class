@@ -646,33 +646,16 @@ sub relname_to_table_alias {
   return $self->sql_maker->_shorten_identifier($alias);
 }
 
-=head2 with_deferred_fk_checks
+# Since these are session variables, they affect all subsequent transactions,
+# not just the current transaction like in Pg/Informix, this is why we have to
+# reset constraints to immediate regardless of transaction_depth.
 
-Runs a coderef between:
+sub _set_constraints_deferred {
+  $_[0]->_do_query('alter session set constraints = deferred');
+}
 
-  alter session set constraints = deferred
-  ...
-  alter session set constraints = immediate
-
-to defer foreign key checks.
-
-Constraints must be declared C<DEFERRABLE> for this to work.
-
-=cut
-
-sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
-
-  my $txn_scope_guard = $self->txn_scope_guard;
-
-  $self->_do_query('alter session set constraints = deferred');
-
-  return
-    preserve_context { $sub->() } after => sub {
-        $txn_scope_guard->commit;
-        $self->_do_query('alter session set constraints = immediate')
-            if $self->transaction_depth;
-    };
+sub _set_constraints_immediate {
+  $_[0]->_do_query('alter session set constraints = immediate')
 }
 
 =head1 ATTRIBUTES

@@ -147,7 +147,7 @@ throws_ok {
       trackid => 9999, cd => 9999, position => 1, title => 'orphaned deferred FK track',
     });
   });
-} qr/constraint/i, 'unsatisfied deferred FK throws';
+} qr/constraint/, 'unsatisfied deferred FK throws';
 ok !$schema->resultset('Track')->find(9999), 'orphaned deferred FK track not inserted';
 
 throws_ok {
@@ -156,7 +156,7 @@ throws_ok {
       artist => 1, cdid => 9999, year => '2003', title => 'dupe PK cd'
     }) foreach 0..1;
   });
-} qr/unique/i, 'unique constraint violation inside deferred block propagated';
+} qr/unique/, 'unique constraint violation inside deferred block propagated';
 ok !$schema->resultset('CD')->find(9999), 'duplicate PK track not inserted';
 
 done_testing;

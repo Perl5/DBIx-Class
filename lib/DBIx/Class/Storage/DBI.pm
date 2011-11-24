@@ -17,6 +17,7 @@ use Try::Tiny;
 use overload ();
 use Data::Compare (); # no imports!!! guard against insane architecture
 use DBI::Const::GetInfoType (); # no import of retarded global hash
+use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -24,7 +25,11 @@ __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/
   sql_limit_dialect sql_quote_char sql_name_sep
+  _unsatisfied_deferred_constraints_autorollback
 /);
+
+# see with_deferred_fk_checks
+__PACKAGE__->_unsatisfied_deferred_constraints_autorollback(0);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/sql_maker_class datetime_parser_type/);
 
@@ -850,10 +855,70 @@ in MySQL's case disabled entirely.
 
 =cut
 
-# Storage subclasses should override this
+# In most cases the driver can just implement the methods
+# _set_constraints_deferred and _set_constraints_immediate for the appropriate
+# statements to make FKs deferred until COMMIT and make them immediately checked
+# again, respectively.
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
-  $sub->();
+
+  if ($self->can('_set_constraints_deferred') &&
+      $self->can('_set_constraints_immediate')) {
+
+    my $tried_to_reset_constraints = 0;
+
+    return try {
+      my $guard = $self->txn_scope_guard;
+      $self->_set_constraints_deferred;
+      preserve_context { $sub->() } after => sub {
+        my $e;
+        eval {
+          $guard->commit;
+        };
+        if ($@) {
+          if ($self->_unsatisfied_deferred_constraints_autorollback) {
+            $guard->{inactivated} = 1; # DO NOT ROLLBACK
+            $self->{transaction_depth}--;
+          }
+          $e = $@;
+        }
+        eval {
+          $tried_to_reset_constraints = 1;
+          $self->_set_constraints_immediate;
+        };
+        if ($@) {
+          if ($e) {
+            $e .= " also set constraints immediate failed: $@";
+          }
+          else {
+            $e = "set constraints immediate failed: $@";
+          }
+        }
+        $self->throw_exception($e) if $e;
+      };
+    }
+    catch {
+      my $e = $_;
+      if (not $tried_to_reset_constraints) {
+        eval {
+          $self->_set_constraints_immediate;
+        };
+        if ($@) {
+          $e .= " also setting constraints immediate failed: $@";
+        }
+      }
+      $self->throw_exception($e);
+    };
+  }
+  else {
+    carp_unique
+      'Your Storage driver '.ref($self).' '.
+      'has not implemented with_deferred_fk_checks, please '.
+      'file an RT';
+
+    return $sub->();
+  }
 }
 
 =head2 connected
