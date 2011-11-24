@@ -10,6 +10,8 @@ Revision history for DBIx::Class
           DBD::SQLite - RT#79576
         - Audit and correct potential bugs associated with braindead reuse
           of $1 on unsuccessful matches
+        - Fix incorrect warning/exception originator reported by carp*() and
+          throw_exception()
 
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes

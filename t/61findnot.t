@@ -57,7 +57,7 @@ $artist_rs = $schema->resultset("Artist");
 
 warnings_exist {
   $artist_rs->find({})
-} qr/\QDBIx::Class::ResultSet::find(): Query returned more than one row.  SQL that returns multiple rows is DEPRECATED for ->find and ->single/
+} qr/\QQuery returned more than one row.  SQL that returns multiple rows is DEPRECATED for ->find and ->single/
     =>  "Non-unique find generated a cursor inexhaustion warning";
 
 throws_ok {
