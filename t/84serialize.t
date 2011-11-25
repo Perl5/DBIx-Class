@@ -55,22 +55,35 @@ my %stores = (
       return $fire;
     },
 
-    ($ENV{DBICTEST_MEMCACHED})
-      ? do {
-        require Cache::Memcached;
-        my $memcached = Cache::Memcached->new(
-          { servers => [ $ENV{DBICTEST_MEMCACHED} ] } );
-
-        my $key = 'tmp_dbic_84serialize_memcached_test';
-
-        ( memcached => sub {
-            $memcached->set( $key, $_[0], 60 );
-            local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
-            return $memcached->get($key);
-        });
-      } : ()
-    ,
 );
+
+if ($ENV{DBICTEST_MEMCACHED}) {
+  if (DBIx::Class::Optional::Dependencies->req_ok_for ('test_memcached')) {
+    my $memcached = Cache::Memcached->new(
+      { servers => [ $ENV{DBICTEST_MEMCACHED} ] }
+    );
+
+    my $key = 'tmp_dbic_84serialize_memcached_test';
+
+    $stores{memcached} = sub {
+      $memcached->set( $key, $_[0], 60 );
+      local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
+      return $memcached->get($key);
+    };
+  }
+  else {
+    SKIP: {
+      skip 'Memcached tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_memcached'), 1;
+    }
+  }
+}
+else {
+  SKIP: {
+    skip 'Set $ENV{DBICTEST_MEMCACHED} to run the memcached serialization tests', 1;
+  }
+}
+
+
 
 for my $name (keys %stores) {
 

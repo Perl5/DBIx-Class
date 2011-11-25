@@ -90,8 +90,11 @@ warning_is {
 
 # Emulate that Class::DBI inflates immediately
 SKIP: {
-    skip "Need MySQL to run this test", 3 unless eval { require MyFoo };
-    
+    unless (eval { require MyFoo }) {
+      my ($err) = $@ =~ /([^\n]+)/;
+      skip $err, 3
+    }
+
     my $foo = MyFoo->insert({
         name    => 'Whatever',
         tdate   => '1949-02-01',

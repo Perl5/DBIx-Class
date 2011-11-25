@@ -8,6 +8,24 @@ use DBI;
 
 our $dbh;
 
+my $err;
+if (! $ENV{DBICTEST_MYSQL_DSN} ) {
+  $err = 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test';
+}
+elsif ( ! DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql') ) {
+  $err = 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
+}
+
+if ($err) {
+  my $t = eval { Test::Builder->new };
+  if ($t and ! $t->current_test) {
+    $t->skip_all ($err);
+  }
+  else {
+    die "$err\n";
+  }
+}
+
 my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});
 $dbh = DBI->connect(@connect) or die DBI->errstr;
 my @table;

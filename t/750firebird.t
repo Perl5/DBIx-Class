@@ -8,23 +8,21 @@ use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }           qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_INTERBASE_${_}" } qw/DSN USER PASS/};
-my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" }      qw/DSN USER PASS/};
+my $env2optdep = {
+  DBICTEST_FIREBIRD => 'test_rdbms_firebird',
+  DBICTEST_FIREBIRD_INTERBASE => 'test_rdbms_firebird_interbase',
+  DBICTEST_FIREBIRD_ODBC => 'test_rdbms_firebird_odbc',
+};
 
-plan skip_all => 'Test needs ' .
-  (join ' or ', map { $_ ? $_ : () }
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird'),
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_interbase'),
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_odbc'))
-  unless
-    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird')
-    or
-    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_interbase')
-    or
-    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_odbc')
-    or
-    (not $dsn || $dsn2 || $dsn3);
+plan skip_all => join (' ',
+  'Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}',
+  'and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},',
+  '_USER and _PASS to run these tests.',
+
+  'WARNING: this test creates and drops the tables "artist", "bindtype_test" and',
+  '"sequence_test"; the generators "gen_artist_artistid", "pkid1_seq", "pkid2_seq"',
+  'and "nonpkid_seq" and the trigger "artist_bi".',
+) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
 
 # tests stolen from 749sybase_asa.t
 
@@ -35,28 +33,16 @@ plan skip_all => 'Test needs ' .
 # Example ODBC DSN:
 # dbi:ODBC:Driver=Firebird;Dbname=/var/lib/firebird/2.5/data/hlaghdb.fdb
 
-plan skip_all => <<'EOF' unless $dsn || $dsn2 || $dsn3;
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
-and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
-_USER and _PASS to run these tests.
-
-WARNING: this test creates and drops the tables "artist", "bindtype_test" and
-"sequence_test"; the generators "gen_artist_artistid", "pkid1_seq", "pkid2_seq"
-and "nonpkid_seq" and the trigger "artist_bi".
-EOF
-
-my @info = (
-  [ $dsn,  $user,  $pass  ],
-  [ $dsn2, $user2, $pass2 ],
-  [ $dsn3, $user3, $pass3 ],
-);
-
 my $schema;
 
-foreach my $conn_idx (0..$#info) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
+for my $prefix (keys %$env2optdep) { SKIP: {
+
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   next unless $dsn;
+
+  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
+    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     auto_savepoint  => 1,
@@ -294,7 +280,7 @@ EOF
         };
     }
   }
-}
+}}
 
 done_testing;
 
