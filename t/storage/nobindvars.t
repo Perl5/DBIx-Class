@@ -4,39 +4,20 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::DebugObj;
+use DBIC::SqlMakerTest;
 use DBI::Const::GetInfoType;
 
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
-
-#warn "$dsn $user $pass";
-
-plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
-
-{ # Fake storage driver for mysql + no bind variables
-    package DBIx::Class::Storage::DBI::MySQLNoBindVars;
+{ # Fake storage driver for SQLite + no bind variables
+  package DBICTest::SQLite::NoBindVars;
     use Class::C3;
     use base qw/
         DBIx::Class::Storage::DBI::NoBindVars
-        DBIx::Class::Storage::DBI::mysql
+        DBIx::Class::Storage::DBI::SQLite
     /;
-    $INC{'DBIx/Class/Storage/DBI/MySQLNoBindVars.pm'} = 1;
 }
 
-# XXX Class::C3 doesn't like some of the Storage stuff happening late...
-Class::C3::reinitialize();
-
-my $schema = DBICTest::Schema->clone;
-$schema->storage_type('::DBI::MySQLNoBindVars');
-$schema->connection($dsn, $user, $pass);
-
-my $dbh = $schema->storage->dbh;
-
-$dbh->do("DROP TABLE IF EXISTS artist;");
-
-$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
-
-$schema->class('Artist')->load_components('PK::Auto');
+my $schema = DBICTest->init_schema (storage_type => 'DBICTest::SQLite::NoBindVars', no_populate => 1);
 
 # test primary key handling
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
@@ -51,16 +32,29 @@ my $it = $schema->resultset('Artist')->search( {},
       offset => 2,
       order_by => 'artistid' }
 );
+
 is( $it->count, 3, "LIMIT count ok" );  # ask for 3 rows out of 7 artists
+
+my ($sql, @bind);
+my $orig_debugobj = $schema->storage->debugobj;
+my $orig_debug = $schema->storage->debug;
+$schema->storage->debugobj (DBIC::DebugObj->new (\$sql, \@bind) );
+$schema->storage->debug (1);
+
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
-# clean up our mess
-END {
-    my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do("DROP TABLE artist") if $dbh;
-}
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me ORDER BY artistid LIMIT 3 OFFSET 2',
+  [],
+  'Correctly interpolated SQL'
+);
 
 done_testing;
