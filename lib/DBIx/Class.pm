@@ -508,7 +508,7 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 - 2010 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+Copyright (c) 2005 - 2011 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
 as listed above.
 
 =head1 LICENSE
