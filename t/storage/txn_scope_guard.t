@@ -116,7 +116,9 @@ use DBICTest;
 }
 
 # make sure it warns *big* on failed rollbacks
-{
+# test with and without a poisoned $@
+for my $poison (0,1) {
+
   my $schema = DBICTest->init_schema();
 
   no strict 'refs';
@@ -160,11 +162,12 @@ use DBICTest;
     }
   };
   {
+      eval { die 'GIFT!' if $poison };
       my $guard = $schema->txn_scope_guard;
       $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
   }
 
-  is (@w, 2, 'Both expected warnings found');
+  is (@w, 2, 'Both expected warnings found' . ($poison ? ' (after $@ poisoning)' : '') );
 
   # just to mask off warning since we could not disconnect above
   $schema->storage->_dbh->disconnect;

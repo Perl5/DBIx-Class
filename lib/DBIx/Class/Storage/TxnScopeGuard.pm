@@ -3,7 +3,7 @@ package DBIx::Class::Storage::TxnScopeGuard;
 use strict;
 use warnings;
 use Try::Tiny;
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util qw/weaken blessed refaddr/;
 use DBIx::Class;
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
@@ -14,9 +14,25 @@ my ($guards_count, $compat_handler, $foreign_handler);
 sub new {
   my ($class, $storage) = @_;
 
-  $storage->txn_begin;
-  my $guard = bless [ 0, $storage, $storage->_dbh ], ref $class || $class;
+  my $guard = {
+    inactivated => 0,
+    storage => $storage,
+  };
 
+  # we are starting with an already set $@ - in order for things to work we need to
+  # be able to recognize it upon destruction - store its weakref
+  # recording it before doing the txn_begin stuff
+  if (defined $@ and $@ ne '') {
+    $guard->{existing_exception_ref} = (ref $@ ne '') ? $@ : \$@;
+    weaken $guard->{existing_exception_ref};
+  }
+
+  $storage->txn_begin;
+
+  $guard->{dbh} = $storage->_dbh;
+  weaken $guard->{dbh};
+
+  bless $guard, ref $class || $class;
 
   # install a callback carefully
   if (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and !$guards_count) {
@@ -53,19 +69,21 @@ sub new {
 
   $guards_count++;
 
-  weaken ($guard->[2]);
   $guard;
 }
 
 sub commit {
   my $self = shift;
 
-  $self->[1]->txn_commit;
-  $self->[0] = 1;
+  $self->{storage}->throw_exception("Refusing to execute multiple commits on scope guard $self")
+    if $self->{inactivated};
+
+  $self->{storage}->txn_commit;
+  $self->{inactivated} = 1;
 }
 
 sub DESTROY {
-  my ($dismiss, $storage) = @{$_[0]};
+  my $self = shift;
 
   $guards_count--;
 
@@ -90,24 +108,34 @@ sub DESTROY {
     undef $foreign_handler;
   }
 
-  return if $dismiss;
+  return if $self->{inactivated};
 
-  # if our dbh is not ours anymore, the weakref will go undef
-  $storage->_verify_pid;
-  return unless $_[0]->[2];
+  # if our dbh is not ours anymore, the $dbh weakref will go undef
+  $self->{storage}->_verify_pid;
+  return unless $self->{dbh};
 
-  my $exception = $@;
+  my $exception = $@ if (
+    defined $@
+      and
+    $@ ne ''
+      and
+    (
+      ! defined $self->{existing_exception_ref}
+        or
+      refaddr( ref $@ eq '' ? \$@ : $@ ) != refaddr($self->{existing_exception_ref})
+    )
+  );
 
   {
     local $@;
 
     carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
-      unless $exception;
+      unless defined $exception;
 
     my $rollback_exception;
     # do minimal connectivity check due to weird shit like
     # https://rt.cpan.org/Public/Bug/Display.html?id=62370
-    try { $storage->_seems_connected && $storage->txn_rollback }
+    try { $self->{storage}->_seems_connected && $self->{storage}->txn_rollback }
     catch { $rollback_exception = shift };
 
     if ( $rollback_exception and (

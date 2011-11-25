@@ -15,6 +15,8 @@ Revision history for DBIx::Class
         - The internal carp module now correctly skips CAG frames when
           reporting a callsite
         - Fix test failures on perl < 5.8.7 and new Package::Stash::XS
+        - Fix TxnScopeGuard not behaving correctly when $@ is set at the
+          time of $guard instantiation
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl
