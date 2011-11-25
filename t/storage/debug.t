@@ -10,7 +10,7 @@ use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
-BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
+BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
 
 my $schema = DBICTest->init_schema();
 
