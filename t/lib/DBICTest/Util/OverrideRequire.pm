@@ -3,9 +3,12 @@ package DBICTest::Util::OverrideRequire;
 # no use/require of any kind - work bare
 
 BEGIN {
+  # Neat STDERR require call tracer
+  #
   # 0 - no trace
   # 1 - just requires and return values
-  # 2 - full stacktrace
+  # 2 - neat stacktrace (assumes that the supplied $override_cref does *not* (ab)use goto)
+  # 3 - full stacktrace
   *TRACE = sub () { 0 };
 }
 
@@ -64,20 +67,24 @@ sub override_global_require (&) {
           while (@fr = caller($fr_num++)) {
 
             # Package::Stash::XS is a cock and gets mightily confused if one
-            # uses a regex in the require hook - go figure
-
-            if (index($fr[1], '(eval ') != 0 and index($fr[1], __FILE__) != 0) {
+            # uses a regex in the require hook. Even though it happens only
+            # on < 5.8.7 it's still rather embarassing (also wtf does P::S::XS
+            # even need to regex its own module name?!). So we do not use re :)
+            if (TRACE == 3 or (index($fr[1], '(eval ') != 0 and index($fr[1], __FILE__) != 0) ) {
               push @tr, [@fr]
             }
 
+            # the caller before this would be the override site - kill it away
+            # if the cref writer uses goto - well tough, tracer won't work
             if ($fr[3] eq 'DBICTest::Util::OverrideRequire::__ANON__') {
-              $excise ||= $tr[-2];
+              $excise ||= $tr[-2]
+                if TRACE == 2;
             }
           }
 
           my @stack =
             map { "$_->[1], line $_->[2]" }
-            grep { not ($_->[1] eq $excise->[1] and $_->[2] eq $_->[2]) }
+            grep { ! $excise or $_->[1] ne $excise->[1] or $_->[2] ne $excise->[2] }
             @tr
           ;
 
