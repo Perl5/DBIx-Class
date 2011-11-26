@@ -17,6 +17,8 @@ Revision history for DBIx::Class
         - Fix test failures on perl < 5.8.7 and new Package::Stash::XS
         - Fix TxnScopeGuard not behaving correctly when $@ is set at the
           time of $guard instantiation
+        - Fix the join/prefetch resolver when dealing with ''/undef/()
+          relation specifications
 
     * Misc
         - No longer depend on Variable::Magic now that a pure-perl

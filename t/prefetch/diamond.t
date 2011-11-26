@@ -38,11 +38,21 @@ my $ars = $schema->resultset ('Artwork');
 
 my $cd_paths = {
   'no cd' => [],
+  'no cd empty' => [ '' ],
+  'no cd undef' => [ undef ],
+  'no cd href' => [ {} ],
+  'no cd aoh' => [ [{}] ],
+  'no cd complex' => [ [ [ undef ] ] ],
   'cd' => ['cd'],
   'cd->artist1' => [{'cd' => 'artist'}]
 };
 my $a2a_paths = {
   'no a2a' => [],
+  'no a2a empty ' => [ '' ],
+  'no a2a undef' => [ undef ],
+  'no a2a href' => [ {} ],
+  'no a2a aoh' => [ [{}] ],
+  'no a2a complex' => [ [ '' ] ],
   'a2a' => ['artwork_to_artist'],
   'a2a->artist2' => [{'artwork_to_artist' => 'artist'}]
 };

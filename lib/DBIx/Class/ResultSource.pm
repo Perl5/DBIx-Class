@@ -1461,7 +1461,7 @@ sub _resolve_join {
 
   $jpath = [@$jpath]; # copy
 
-  if (not defined $join) {
+  if (not defined $join or not length $join) {
     return ();
   }
   elsif (ref $join eq 'ARRAY') {
@@ -1728,7 +1728,7 @@ sub _resolve_prefetch {
   my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
   $pref_path ||= [];
 
-  if (not defined $pre) {
+  if (not defined $pre or not length $pre) {
     return ();
   }
   elsif( ref $pre eq 'ARRAY' ) {

@@ -3440,6 +3440,7 @@ sub _merge_joinpref_attr {
       $position++;
     }
     my ($import_key) = ( ref $import_element eq 'HASH' ) ? keys %{$import_element} : ($import_element);
+    $import_key = '' if not defined $import_key;
 
     if ($best_candidate->{score} == 0 || exists $seen_keys->{$import_key}) {
       push( @{$orig}, $import_element );
