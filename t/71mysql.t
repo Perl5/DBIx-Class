@@ -374,11 +374,15 @@ ZEROINSEARCH: {
 
   my $rs = $schema_autorecon->resultset('Artist');
 
+  my ($parent_in, $child_out);
+  pipe( $parent_in, $child_out ) or die "Pipe open failed: $!";
   my $pid = fork();
   if (! defined $pid ) {
     die "fork() failed: $!"
   }
   elsif ($pid) {
+    close $child_out;
+
     # sanity check
     $schema_autorecon->storage->dbh_do(sub {
       is ($_[1], $orig_dbh, 'Storage holds correct $dbh in parent');
@@ -395,17 +399,21 @@ ZEROINSEARCH: {
     }
   }
   else {
+    close $parent_in;
+
+    #simulate a  subtest to not confuse the parent TAP emission
+    my $tb = Test::More->builder;
+    $tb->reset;
+    for (qw/output failure_output todo_output/) {
+      close $tb->$_;
+      open ($tb->$_, '>&', $child_out);
+    }
+
     # wait for parent to kill its $dbh
     sleep 1;
 
-    #simulate a  subtest to not confuse the parent TAP emission
-    Test::More->builder->reset;
-    Test::More->builder->plan('no_plan');
-    Test::More->builder->_indent(' ' x 4);
-
     # try to do something dbic-esque
     $rs->create({ name => "Hardcore Forker $$" });
-
 
     TODO: {
       local $TODO = "Perl $] is known to leak like a sieve"
@@ -414,9 +422,13 @@ ZEROINSEARCH: {
       ok (! defined $orig_dbh, 'DBIC operation triggered reconnect - old $dbh is gone');
     }
 
+    done_testing;
     exit 0;
   }
 
+  while (my $ln = <$parent_in>) {
+    print "   $ln";
+  }
   wait;
   ok(!$?, 'Child subtests passed');
 

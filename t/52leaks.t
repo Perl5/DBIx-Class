@@ -23,14 +23,26 @@ use Test::More;
 
 my $TB = Test::More->builder;
 if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
-  # without this explicit close ->reset below warns
-  close ($TB->$_) for qw/output failure_output/;
+  # without this explicit close older TBs warn in END after a ->reset
+  if ($TB->VERSION < 1.005) {
+    close ($TB->$_) for (qw/output failure_output todo_output/);
+  }
 
-  # so done_testing can work
+  # if I do not do this, I get happy sigpipes on new TB, no idea why
+  # (the above close-and-forget doesn't work - new TB does *not* reopen
+  # its handles automatically anymore)
+  else {
+    for (qw/failure_output todo_output/) {
+      close $TB->$_;
+      open ($TB->$_, '>&', *STDERR);
+    }
+
+    close $TB->output;
+    open ($TB->output, '>&', *STDOUT);
+  }
+
+  # so done_testing can work on every persistent pass
   $TB->reset;
-
-  # this simulates a subtest
-  $TB->_indent(' ' x 4);
 }
 
 use lib qw(t/lib);
@@ -66,6 +78,11 @@ unless (DBICTest::RunMode->is_plain) {
         $class;
       }
     );
+
+    # Test Builder is now making a new object for every pass/fail (que bloat?)
+    # and as such we can't really store any of its objects (since it will
+    # re-populate the registry while checking it, ewwww!)
+    return $obj if (ref $obj) =~ /^TB2::/;
 
     # weaken immediately to avoid weird side effects
     return populate_weakregistry ($weak_registry, $obj );
@@ -401,19 +418,26 @@ assert_empty_weakregistry ($weak_registry);
 # this is ugly and dirty but we do not yet have a Test::Embedded or
 # similar
 
-my @pperl_cmd = (qw/pperl --prefork=1/, __FILE__);
-my @pperl_term_cmd = @pperl_cmd;
-splice @pperl_term_cmd, 1, 0, '--kill';
+my $persistence_tests = {
+  PPerl => {
+    cmd => [qw/pperl --prefork=1/, __FILE__],
+  },
+  'CGI::SpeedyCGI' => {
+    cmd => [qw/speedy -- -t5/, __FILE__],
+  },
+};
 
 # scgi is smart and will auto-reap after -t amount of seconds
-my @scgi_cmd = (qw/speedy -- -t5/, __FILE__);
+# pperl needs an actual killer :(
+$persistence_tests->{PPerl}{termcmd} = [
+  $persistence_tests->{PPerl}{cmd}[0],
+  '--kill',
+  @{$persistence_tests->{PPerl}{cmd}}[ 1 .. $#{$persistence_tests->{PPerl}{cmd}} ],
+];
 
 SKIP: {
   skip 'Test already in a persistent loop', 1
     if $ENV{DBICTEST_IN_PERSISTENT_ENV};
-
-  skip 'Persistence test disabled on regular installs', 1
-    if DBICTest::RunMode->is_plain;
 
   skip 'Main test failed - skipping persistent env tests', 1
     unless $TB->is_passing;
@@ -424,47 +448,44 @@ SKIP: {
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
 
-  # try with pperl
-  SKIP: {
-    skip 'PPerl persistent environment tests require PPerl', 1
-      unless eval { require PPerl };
+  require IPC::Open2;
+
+  for my $type (keys %$persistence_tests) { SKIP: {
+      skip "$type module not found", 1
+        unless eval "require $type";
+
+    my @cmd = @{$persistence_tests->{$type}{cmd}};
 
     # since PPerl is racy and sucks - just prime the "server"
     {
       local $ENV{DBICTEST_PERSISTENT_ENV_BAIL_EARLY} = 1;
-      system(@pperl_cmd);
+      system(@cmd);
       sleep 1;
 
-      # see if it actually runs - if not might as well bail now
-      skip "Something is wrong with pperl ($!)", 1
-        if system(@pperl_cmd);
+      # see if the thing actually runs, if not - might as well bail now
+      skip "Something is wrong with $type ($!)", 1
+        if system(@cmd);
     }
 
     for (1,2,3) {
-      system(@pperl_cmd);
-      ok (!$?, "Run in persistent env (PPerl pass $_): exit $?");
+      note ("Starting run in persistent env ($type pass $_)");
+      IPC::Open2::open2(my $out, undef, @cmd);
+      my @out_lines;
+      while (my $ln = <$out>) {
+        next if $ln =~ /^\s*$/;
+        push @out_lines, "   $ln";
+        last if $ln =~ /^\d+\.\.\d+$/;  # this is persistence, we need to terminate reading on our end
+      }
+      print $_ for @out_lines;
+      close $out;
+      wait;
+      ok (!$?, "Run in persistent env ($type pass $_): exit $?");
+      ok (scalar @out_lines, "Run in persistent env ($type pass $_): got output");
     }
 
-    ok (! system (@pperl_term_cmd), 'killed pperl instance');
-  }
-
-  # try with speedy-cgi
-  SKIP: {
-    skip 'SPeedyCGI persistent environment tests require CGI::SpeedyCGI', 1
-      unless eval { require CGI::SpeedyCGI };
-
-    {
-      local $ENV{DBICTEST_PERSISTENT_ENV_BAIL_EARLY} = 1;
-      skip "Something is wrong with speedy ($!)", 1
-        if system(@scgi_cmd);
-      sleep 1;
-    }
-
-    for (1,2,3) {
-      system(@scgi_cmd);
-      ok (!$?, "Run in persistent env (SpeedyCGI pass $_): exit $?");
-    }
-  }
+    ok (! system (@{$persistence_tests->{$type}{termcmd}}), "killed $type server instance")
+      if $persistence_tests->{$type}{termcmd};
+  }}
 }
 
 done_testing;
@@ -473,9 +494,8 @@ done_testing;
 # PID files to go by (man does pperl really suck :(
 END {
   unless ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
-    close STDOUT;
-    close STDERR;
+    close $_ for (*STDIN, *STDOUT, *STDERR);
     local $?; # otherwise test will inherit $? of the system()
-    system (@pperl_term_cmd);
+    system (@{$persistence_tests->{PPerl}{termcmd}});
   }
 }
