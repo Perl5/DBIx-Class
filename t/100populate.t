@@ -45,7 +45,7 @@ throws_ok ( sub {
       }
     } ('Huey', 'Dewey', $ex_title, 'Louie')
   ])
-}, qr/\Qexecute_array() aborted with 'constraint failed\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
+}, qr/\Qexecute_array() aborted with '\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
 
 ## make sure populate honors fields/orders in list context
 ## schema order

@@ -16,7 +16,7 @@ warnings_are ( sub {
     sub {
       $schema->resultset('CD')->create({ title => 'vacation in antarctica' })
     },
-    qr/DBI Exception.+constraint failed.+cd\.artist.+NULL/s
+    qr/DBI Exception.+cd\.artist.+NULL/s
   );  # as opposed to some other error
 }, [], 'No warnings besides exception' );
 
