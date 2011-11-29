@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08196 2011-11-29 05:35 (UTC)
     * Fixes
         - Fix tests for DBD::SQLite >= 1.34.
         - Fix test failures with DBICTEST_SQLITE_USE_FILE set
