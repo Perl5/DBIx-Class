@@ -169,13 +169,13 @@ sub _SkipFirst {
   return sprintf ('SELECT %s%s%s%s',
     $offset
       ? do {
-         push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset];
+         push @{$self->{pre_select_bind}}, [ $self->__offset_bindtype => $offset];
          'SKIP ? '
       }
       : ''
     ,
     do {
-       push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+       push @{$self->{pre_select_bind}}, [ $self->__rows_bindtype => $rows ];
        'FIRST ? '
     },
     $sql,
@@ -199,12 +199,12 @@ sub _FirstSkip {
 
   return sprintf ('SELECT %s%s%s%s',
     do {
-       push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+       push @{$self->{pre_select_bind}}, [ $self->__rows_bindtype => $rows ];
        'FIRST ? '
     },
     $offset
       ? do {
-         push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset];
+         push @{$self->{pre_select_bind}}, [ $self->__offset_bindtype => $offset];
          'SKIP ? '
       }
       : ''
@@ -390,11 +390,9 @@ sub _prep_for_skimming_limit {
       $r{mid_sel} .= ', ' . $extra_order_sel->{$extra_col};
     }
 
-    # since whatever order bindvals there are, they will be realiased
-    # and need to show up in front of the entire initial inner subquery
-    # *unshift* the selector bind stack to make this happen (horrible,
-    # horrible, but we don't have another mechanism yet)
-    unshift @{$self->{select_bind}}, @{$self->{order_bind}};
+    # Whatever order bindvals there are, they will be realiased and
+    # need to show up in front of the entire initial inner subquery
+    push @{$self->{pre_select_bind}}, @{$self->{order_bind}};
   }
 
   # and this is order re-alias magic

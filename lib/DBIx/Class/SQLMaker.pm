@@ -229,7 +229,7 @@ sub select {
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where group having order limit/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/pre_select select from where group having order limit/);
 }
 
 my $for_syntax = {

@@ -16,7 +16,9 @@ my ($TOTAL, $OFFSET) = (
 my $s = DBICTest->init_schema (no_deploy => 1, );
 $s->storage->sql_maker->limit_dialect ('RowNum');
 
-my $rs = $s->resultset ('CD');
+my $rs = $s->resultset ('CD')->search({ id => 1 });
+
+my $where_bind = [ { dbic_colname => 'id' }, 1 ];
 
 for my $test_set (
   {
@@ -36,11 +38,13 @@ for my $test_set (
         SELECT id, bar__id, bleh, ROWNUM rownum__index
         FROM (
           SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR (foo.womble, "blah") AS bleh
-          FROM cd me
+            FROM cd me
+          WHERE id = ?
         ) me
       ) me WHERE rownum__index BETWEEN ? AND ?
     )',
     binds => [
+      $where_bind,
       [ $OFFSET => 4 ],
       [ $TOTAL => 4 ],
     ],
@@ -62,7 +66,8 @@ for my $test_set (
         SELECT id, bar__id, bleh, ROWNUM rownum__index
         FROM (
           SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
-          FROM cd me
+            FROM cd me
+          WHERE id = ?
           ORDER BY artist, title
         ) me
         WHERE ROWNUM <= ?
@@ -70,6 +75,7 @@ for my $test_set (
       WHERE rownum__index >= ?
     )',
     binds => [
+      $where_bind,
       [ $TOTAL => 4 ],
       [ $OFFSET => 4 ],
     ],
@@ -89,11 +95,13 @@ for my $test_set (
         SELECT id, ends_with_me__id, ROWNUM rownum__index
         FROM (
           SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
-          FROM cd me
+            FROM cd me
+          WHERE id = ?
         ) me
       ) me WHERE rownum__index BETWEEN ? AND ?
     )',
     binds => [
+      $where_bind,
       [ $OFFSET => 4 ],
       [ $TOTAL => 5 ],
     ],
@@ -114,7 +122,8 @@ for my $test_set (
         SELECT id, ends_with_me__id, ROWNUM rownum__index
         FROM (
           SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
-          FROM cd me
+            FROM cd me
+          WHERE id = ?
           ORDER BY artist, title
         ) me
         WHERE ROWNUM <= ?
@@ -122,6 +131,7 @@ for my $test_set (
       WHERE rownum__index >= ?
     )',
     binds => [
+      $where_bind,
       [ $TOTAL => 5 ],
       [ $OFFSET => 4 ],
     ],

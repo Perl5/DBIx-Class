@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
+
 0.08196 2011-11-29 05:35 (UTC)
     * Fixes
         - Fix tests for DBD::SQLite >= 1.34.
