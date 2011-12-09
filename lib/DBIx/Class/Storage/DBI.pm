@@ -779,37 +779,28 @@ Example:
 
 sub dbh_do {
   my $self = shift;
-  my $code = shift;
+  my $run_target = shift;
 
-  my $dbh = $self->_get_dbh;
+  # short circuit when we know there is no need for a runner
+  #
+  # FIXME - asumption may be wrong
+  # the rationale for the txn_depth check is that if this block is a part
+  # of a larger transaction, everything up to that point is screwed anyway
+  return $self->$run_target($self->_get_dbh, @_)
+    if $self->{_in_do_block} or $self->transaction_depth;
 
-  return $self->$code($dbh, @_)
-    if ( $self->{_in_do_block} || $self->{transaction_depth} );
-
-  local $self->{_in_do_block} = 1;
-
-  # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
   my $args = \@_;
 
-  try {
-    $self->$code ($dbh, @$args);
-  } catch {
-    $self->throw_exception($_) if $self->connected;
-
-    # We were not connected - reconnect and retry, but let any
-    #  exception fall right through this time
-    carp "Retrying dbh_do($code) after catching disconnected exception: $_"
-      if $ENV{DBIC_STORAGE_RETRY_DEBUG};
-
-    $self->_populate_dbh;
-    $self->$code($self->_dbh, @$args);
-  };
+  DBIx::Class::Storage::BlockRunner->new(
+    storage => $self,
+    run_code => sub { $self->$run_target ($self->_get_dbh, @$args ) },
+    wrap_txn => 0,
+    retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
+  )->run;
 }
 
 sub txn_do {
-  # connects or reconnects on pid change, necessary to grab correct txn_depth
-  $_[0]->_get_dbh;
-  local $_[0]->{_in_do_block} = 1;
+  $_[0]->_get_dbh; # connects or reconnects on pid change, necessary to grab correct txn_depth
   shift->next::method(@_);
 }
 

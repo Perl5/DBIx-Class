@@ -13,6 +13,7 @@ use mro 'c3';
 }
 
 use DBIx::Class::Carp;
+use DBIx::Class::Storage::BlockRunner;
 use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
@@ -176,86 +177,13 @@ sub txn_do {
   my $self = shift;
   my $coderef = shift;
 
-  ref $coderef eq 'CODE' or $self->throw_exception
-    ('$coderef must be a CODE reference');
-
-  my $abort_txn = sub {
-    my ($self, $exception) = @_;
-
-    my $rollback_exception = try { $self->txn_rollback; undef } catch { shift };
-
-    if ( $rollback_exception and (
-      ! defined blessed $rollback_exception
-          or
-      ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
-    ) ) {
-      $self->throw_exception(
-        "Transaction aborted: ${exception}. "
-        . "Rollback failed: ${rollback_exception}"
-      );
-    }
-    $self->throw_exception($exception);
-  };
-
-  # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
-  my $args = \@_;
-
-  # do not turn on until a succesful txn_begin
-  my $attempt_commit = 0;
-
-  my $txn_init_depth = $self->transaction_depth;
-
-  try {
-    $self->txn_begin;
-    $attempt_commit = 1;
-    $coderef->(@$args)
-  }
-  catch {
-    $attempt_commit = 0;
-
-    # init depth of > 0 implies nesting or non-autocommit (either way no retry)
-    if($txn_init_depth or $self->connected ) {
-      $abort_txn->($self, $_);
-    }
-    else {
-      carp "Retrying txn_do($coderef) after catching disconnected exception: $_"
-        if $ENV{DBIC_STORAGE_RETRY_DEBUG};
-
-      $self->_populate_dbh;
-
-      # if txn_depth is > 1 this means something was done to the
-      # original $dbh, otherwise we would not get past the if() above
-      $self->throw_exception(sprintf
-        'Unexpected transaction depth of %d on freshly connected handle',
-        $self->transaction_depth,
-      ) if $self->transaction_depth;
-
-      $self->txn_begin;
-      $attempt_commit = 1;
-
-      try {
-        $coderef->(@$args)
-      }
-      catch {
-        $attempt_commit = 0;
-        $abort_txn->($self, $_)
-      };
-    };
-  }
-  finally {
-    if ($attempt_commit) {
-      my $delta_txn = (1 + $txn_init_depth) - $self->transaction_depth;
-
-      if ($delta_txn) {
-        # a rollback in a top-level txn_do is valid-ish (seen in the wild and our own tests)
-        carp "Unexpected reduction of transaction depth by $delta_txn after execution of $coderef, skipping txn_do's commit"
-          unless $delta_txn == 1 and $self->transaction_depth == 0;
-      }
-      else {
-        $self->txn_commit;
-      }
-    }
-  };
+  DBIx::Class::Storage::BlockRunner->new(
+    storage => $self,
+    run_code => $coderef,
+    run_args => \@_, # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+    wrap_txn => 1,
+    retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
+  )->run;
 }
 
 =head2 txn_begin

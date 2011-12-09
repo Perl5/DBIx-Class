@@ -58,6 +58,7 @@ my $runtime_requires = {
   'Data::Dumper::Concise'    => '2.020',
   'Data::Page'               => '2.00',
   'Hash::Merge'              => '0.12',
+  'Moo'                      => '0.009013',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'namespace::clean'         => '0.20',
@@ -88,6 +89,17 @@ my $test_requires = {
   # remove and do a manual glob-collection if n::c is no longer a dep
   'Package::Stash'           => '0.28',
 };
+
+# make strictures.pm happy (DO NOT LIKE, TOO MUCH XS!)
+# (i.e. what if the .git/.svn is *not* because of DBIC?)
+#
+# Note - this is added as test_requires *directly*, so it gets properly
+# excluded on META.yml cleansing
+if (-e '.git' or -e '.svn') {
+  test_requires 'indirect'              => '0.25';
+  test_requires 'multidimensional'      => '0.008';
+  test_requires 'bareword::filehandles' => '0.003';
+}
 
 # Bail out on parallel testing
 if (

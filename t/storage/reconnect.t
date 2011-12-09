@@ -7,8 +7,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 6;
-
 my $db_orig = "$FindBin::Bin/../var/DBIxClass.db";
 my $db_tmp  = "$db_orig.tmp";
 
@@ -71,3 +69,44 @@ SKIP: {
     ok( !$@, 'The operation succeeded' );
     cmp_ok( @art_four, '==', 3, "Three artists returned" );
 }
+
+# check that reconnection contexts are preserved in txn_do / dbh_do
+
+my $args = [1, 2, 3];
+
+my $ctx_map = {
+  VOID => {
+    invoke => sub { shift->(); 1 },
+    wa => undef,
+  },
+  SCALAR => {
+    invoke => sub { my $foo = shift->() },
+    wa => '',
+  },
+  LIST => {
+    invoke => sub { my @foo = shift->() },
+    wa => 1,
+  },
+};
+
+for my $ctx (keys $ctx_map) {
+
+  # start disconnected and then connected
+  $schema->storage->disconnect;
+  for (1, 2) {
+    my $disarmed;
+
+    $ctx_map->{$ctx}{invoke}->(sub { $schema->txn_do(sub {
+      is_deeply (\@_, $args, 'Args propagated correctly' );
+
+      is (wantarray(), $ctx_map->{$ctx}{wa}, "Correct $ctx context");
+
+      # this will cause a retry
+      $schema->storage->_dbh->disconnect unless $disarmed++;
+
+      isa_ok ($schema->resultset('Artist')->next, 'DBICTest::Artist');
+    }, @$args) });
+  }
+};
+
+done_testing;

@@ -140,7 +140,7 @@ my @compose_ns_classes;
   # txn_do to invoke more codepaths
   my ($mc_row_obj, $pager, $pager_explicit_count) = $schema->txn_do (sub {
 
-    my $artist = $rs->create ({
+    my $artist = $schema->resultset('Artist')->create ({
       name => 'foo artist',
       cds => [{
         title => 'foo cd',
@@ -160,7 +160,24 @@ my @compose_ns_classes;
     return ($artist, $pg, $pg_wcount);
   });
 
-  # same for dbh_do
+  # more codepaths - error handling in txn_do
+  {
+    eval { $schema->txn_do ( sub {
+      $storage->_dbh->begin_work;
+      fail ('how did we get so far?!');
+    } ) };
+
+    eval { $schema->txn_do ( sub {
+      $schema->txn_do ( sub {
+        die "It's called EXCEPTION";
+        fail ('how did we get so far?!');
+      } );
+      fail ('how did we get so far?!');
+    } ) };
+    like( $@, qr/It\'s called EXCEPTION/, 'Exception correctly propagated in nested txn_do' );
+  }
+
+  # dbh_do codepath
   my ($rs_bind_circref, $cond_rowobj) = $schema->storage->dbh_do ( sub {
     my $row = $_[0]->schema->resultset('Artist')->new({});
     my $rs = $_[0]->schema->resultset('Artist')->search({
@@ -348,6 +365,10 @@ my $cleared;
 for my $slot (keys %$weak_registry) {
   if ($slot =~ /^Test::Builder/) {
     # T::B 2.0 has result objects and other fancyness
+    delete $weak_registry->{$slot};
+  }
+  elsif ($slot =~ /^Method::Generate::(?:Accessor|Constructor)/) {
+    # Moo keeps globals around, this is normal
     delete $weak_registry->{$slot};
   }
   elsif ($slot =~ /^SQL::Translator/) {

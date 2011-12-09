@@ -76,6 +76,9 @@ my $skip_idx = { map { $_ => 1 } (
   # this subclass is expected to inherit whatever crap comes
   # from the parent
   'DBIx::Class::ResultSet::Pager',
+
+  # Moo does not name its generated methods, fix pending
+  'DBIx::Class::Storage::BlockRunner',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
@@ -115,7 +118,11 @@ for my $mod (@modules) {
       my $origin = $gv->STASH->NAME;
 
       TODO: {
-        local $TODO = 'CAG does not clean its BEGIN constants' if $name =~ /^__CAG_/;
+        local $TODO;
+        if ($name =~ /^__CAG_/) {
+          $TODO = 'CAG does not clean its BEGIN constants';
+        }
+
         is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
           ? ''
           : " (inherited by $mod)"

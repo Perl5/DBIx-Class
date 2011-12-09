@@ -41,6 +41,7 @@ BEGIN {
 
     namespace::clean
     Try::Tiny
+    Context::Preserve
     Sub::Name
 
     Scalar::Util
@@ -55,6 +56,8 @@ BEGIN {
 
     Class::Accessor::Grouped
     Class::C3::Componentised
+    Moo
+    Sub::Quote
   /, $] < 5.010 ? ( 'Class::C3', 'MRO::Compat' ) : () }; # this is special-cased in DBIx/Class.pm
 
   $test_hook = sub {
