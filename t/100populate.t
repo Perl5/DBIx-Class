@@ -154,6 +154,55 @@ is($link7->title, 'gtitle', 'Link 7 title');
   $rs->delete;
 }
 
+# populate with literal+bind
+{
+  my $rs = $schema->resultset('Link');
+  $rs->delete;
+
+  # test insert_bulk with all literal/bind sql
+  $rs->populate([
+    (+{
+        url => \['?', [ {} => 'cpan.org' ] ],
+        title => \['?', [ {} => "The 'best of' cpan" ] ],
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal/bind');
+
+  $rs->delete;
+
+  # test insert_bulk with mix literal and literal/bind
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => \['?', [ {} => "The 'best of' cpan" ] ],
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal/bind SQL');
+
+  $rs->delete;
+
+  # test mixed binds with literal sql/bind
+
+  $rs->populate([ map { +{
+    url => \[ '? || ?', [ {} => 'cpan.org_' ], [ undef, $_ ] ],
+    title => "The 'best of' cpan",
+  } } (1 .. 5) ]);
+
+  for (1 .. 5) {
+    ok($rs->find({ url => "cpan.org_$_" }), "Row $_ correctly created with dynamic literal/bind populate" );
+  }
+
+  $rs->delete;
+}
+
 my $rs = $schema->resultset('Artist');
 $rs->delete;
 throws_ok {
@@ -218,6 +267,45 @@ throws_ok {
     }
   ]);
 } qr/Inconsistent literal SQL value/, 'literal sql must be the same in all slices';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ {} => 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \"'bar'",
+    }
+  ]);
+} qr/\QIncorrect value (expecting ARRAYREF-ref/, 'literal where literal+bind expected throws';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ { sqlt_datatype => 'foooo' } => 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \['?', [ {} => 'foo' ] ],
+    }
+  ]);
+} qr/\QDiffering bind attributes on literal\/bind values not supported for column 'name'/, 'literal+bind with differing attrs throws';
+
+lives_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ undef, 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \['?', [ {} => 'bar' ] ],
+    }
+  ]);
+} 'literal+bind with semantically identical attrs works after normalization';
 
 # the stringification has nothing to do with the artist name
 # this is solely for testing consistency

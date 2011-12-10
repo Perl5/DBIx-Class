@@ -105,7 +105,32 @@ my $new;
   ok($new->bytea eq $big_long_string, 'bytea value made it to db');
 }
 
+# test inserting a row via populate() (bindtype propagation through execute_for_fetch)
+# use a new $dbh to ensure no leakage due to prepare_cached
+{
+  my $cnt = 4;
+
+  $schema->storage->_dbh(undef);
+  my $rs = $schema->resultset('BindType');
+  $rs->delete;
+
+  $rs->populate([
+    [qw/id bytea/],
+    map { [
+      \[ '?', [ {} => $_ ] ],
+      "pop_${_}_" . $big_long_string,
+    ]} (1 .. $cnt)
+  ]);
+
+  is($rs->count, $cnt, 'All rows were correctly inserted');
+  for (1..$cnt) {
+    my $r = $rs->find({ bytea => "pop_${_}_" . $big_long_string });
+    is ($r->id, $_, "Row $_ found after find() on the blob");
+
+  }
+}
+
 done_testing;
 
-eval { $dbh->do("DROP TABLE bindtype_test") };
+eval { $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE bindtype_test") } ) };
 

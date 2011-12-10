@@ -7,6 +7,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
+        - A number of corner case fixes of void context populate() with \[]
 
     * Misc
         - Codebase is now trailing-whitespace-free
