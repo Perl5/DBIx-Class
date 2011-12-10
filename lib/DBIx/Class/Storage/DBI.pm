@@ -1871,8 +1871,8 @@ sub insert_bulk {
     $self->throw_exception('Cannot insert_bulk without support for placeholders');
   }
 
-  # neither _execute_array, nor _execute_inserts_with_no_binds are
-  # atomic (even if _execute _array is a single call). Thus a safety
+  # neither _dbh_execute_for_fetch, nor _dbh_execute_inserts_with_no_binds
+  # are atomic (even if execute_for_fetch is a single call). Thus a safety
   # scope guard
   my $guard = $self->txn_scope_guard;
 
@@ -1882,7 +1882,7 @@ sub insert_bulk {
     if (@$proto_bind) {
       # proto bind contains the information on which pieces of $data to pull
       # $cols is passed in only for prettier error-reporting
-      $self->_execute_array( $source, $sth, $proto_bind, $cols, $data );
+      $self->_dbh_execute_for_fetch( $source, $sth, $proto_bind, $cols, $data );
     }
     else {
       # bind_param_array doesn't work if there are no binds
@@ -1897,37 +1897,56 @@ sub insert_bulk {
   return (wantarray ? ($rv, $sth, @$proto_bind) : $rv);
 }
 
-sub _execute_array {
-  my ($self, $source, $sth, $proto_bind, $cols, $data, @extra) = @_;
+# execute_for_fetch is capable of returning data just fine (it means it
+# can be used for INSERT...RETURNING and UPDATE...RETURNING. Since this
+# is the void-populate fast-path we will just ignore this altogether
+# for the time being.
+sub _dbh_execute_for_fetch {
+  my ($self, $source, $sth, $proto_bind, $cols, $data) = @_;
 
-  ## This must be an arrayref, else nothing works!
-  my $tuple_status = [];
+  my @idx_range = ( 0 .. $#$proto_bind );
+
+  # If we have any bind attributes to take care of, we will bind the
+  # proto-bind data (which will never be used by execute_for_fetch)
+  # However since column bindtypes are "sticky", this is sufficient
+  # to get the DBD to apply the bindtype to all values later on
 
   my $bind_attrs = $self->_dbi_attrs_for_bind($source, $proto_bind);
 
-  # Bind the values by column slices
-  for my $i (0 .. $#$proto_bind) {
-    my $data_slice_idx = (
-      ref $proto_bind->[$i][0] eq 'HASH'
-        and
-      exists $proto_bind->[$i][0]{_bind_data_slice_idx}
-    ) ? $proto_bind->[$i][0]{_bind_data_slice_idx} : undef;
-
-    $sth->bind_param_array(
+  for my $i (@idx_range) {
+    $sth->bind_param (
       $i+1, # DBI bind indexes are 1-based
-      defined $data_slice_idx
-        # either get a "column" of dynamic values, or just repeat the same
-        # bind over and over
-        ? [ map { $_->[$data_slice_idx] } @$data ]
-        : [ ($proto_bind->[$i][1]) x @$data ]
-      ,
-      defined $bind_attrs->[$i] ? $bind_attrs->[$i] : (), # some DBDs throw up when given an undef
-    );
+      $proto_bind->[$i][1],
+      $bind_attrs->[$i],
+    ) if defined $bind_attrs->[$i];
   }
 
+  my $data_slice_idx = [ map {
+    (
+      ref $proto_bind->[$_][0] eq 'HASH'
+        and
+      exists $proto_bind->[$_][0]{_bind_data_slice_idx}
+    ) ? $proto_bind->[$_][0]{_bind_data_slice_idx} : undef;
+  } @idx_range ];
+
+  my $fetch_row_idx = -1; # saner loop this way
+  my $fetch_tuple = sub {
+    return undef if ++$fetch_row_idx > $#$data;
+
+    return [ map {
+      defined $data_slice_idx->[$_]
+        ? $data->[$fetch_row_idx][$data_slice_idx->[$_]]
+        : $proto_bind->[$_][1]
+    } @idx_range ];
+  };
+
+  my $tuple_status = [];
   my ($rv, $err);
   try {
-    $rv = $self->_dbh_execute_array($sth, $tuple_status, @extra);
+    $rv = $sth->execute_for_fetch(
+      $fetch_tuple,
+      $tuple_status,
+    );
   }
   catch {
     $err = shift;
@@ -1957,18 +1976,13 @@ sub _execute_array {
       if ($i > $#$tuple_status);
 
     require Data::Dumper::Concise;
-    $self->throw_exception(sprintf "execute_array() aborted with '%s' at populate slice:\n%s",
+    $self->throw_exception(sprintf "execute_for_fetch() aborted with '%s' at populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
       Data::Dumper::Concise::Dumper( { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) } ),
     );
   }
 
   return $rv;
-}
-
-sub _dbh_execute_array {
-  #my ($self, $sth, $tuple_status, @extra) = @_;
-  return $_[1]->execute_array({ArrayTupleStatus => $_[2]});
 }
 
 sub _dbh_execute_inserts_with_no_binds {

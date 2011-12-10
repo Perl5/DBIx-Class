@@ -45,7 +45,7 @@ throws_ok ( sub {
       }
     } ('Huey', 'Dewey', $ex_title, 'Louie')
   ])
-}, qr/\Qexecute_array() aborted with '\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
+}, qr/\Qexecute_for_fetch() aborted with '\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
 
 ## make sure populate honors fields/orders in list context
 ## schema order
@@ -121,7 +121,7 @@ is($link7->title, 'gtitle', 'Link 7 title');
   my $rs = $schema->resultset('Link');
   $rs->delete;
 
-  # test _execute_array_empty (insert_bulk with all literal sql)
+  # test insert_bulk with all literal sql (no binds)
 
   $rs->populate([
     (+{
@@ -171,7 +171,7 @@ throws_ok {
             name => 'foo3',
         },
     ]);
-} qr/\Qexecute_array() aborted with 'datatype mismatch\E\b/, 'bad slice';
+} qr/\Qexecute_for_fetch() aborted with 'datatype mismatch\E\b/, 'bad slice';
 
 is($rs->count, 0, 'populate is atomic');
 

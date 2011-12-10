@@ -523,7 +523,7 @@ sub insert_bulk {
   if (not $use_bulk_api) {
     my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
-# _execute_array uses a txn anyway, but it ends too early in case we need to
+# next::method uses a txn anyway, but it ends too early in case we need to
 # select max(col) to get the identity for inserting blobs.
     ($self, my $guard) = $self->{transaction_depth} == 0 ?
       ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
@@ -654,7 +654,7 @@ sub insert_bulk {
       no strict 'refs';
       local *{ref($sth).'::finish'} = sub {};
 
-      $self->_execute_array(
+      $self->_dbh_execute_for_fetch(
         $source, $sth, $proto_bind, \@source_columns, \@new_data
       );
     }

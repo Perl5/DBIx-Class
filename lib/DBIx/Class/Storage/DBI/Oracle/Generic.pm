@@ -329,10 +329,10 @@ sub _dbh_execute {
   return wantarray ? @res : $res[0];
 }
 
-sub _dbh_execute_array {
+sub _dbh_execute_for_fetch {
   #my ($self, $sth, $tuple_status, @extra) = @_;
 
-  # DBD::Oracle warns loudly on partial execute_array failures
+  # DBD::Oracle warns loudly on partial execute_for_fetch failures
   local $_[1]->{PrintWarn} = 0;
 
   shift->next::method(@_);

@@ -299,7 +299,7 @@ my $method_dispatch = {
     transaction_depth
     _dbh
     _select_args
-    _dbh_execute_array
+    _dbh_execute_for_fetch
     _sql_maker
     _per_row_update_delete
     _dbh_execute_inserts_with_no_binds
@@ -309,7 +309,6 @@ my $method_dispatch = {
     _multipk_update_delete
     _normalize_connect_info
     _parse_connect_do
-    _execute_array
     savepoints
     _sql_maker_opts
     _conn_pid
