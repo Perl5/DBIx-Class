@@ -1430,48 +1430,13 @@ sub _gen_sql_bind {
     @$args,
   );
 
-  my (@final_bind, $colinfos);
-  my $resolve_bindinfo = sub {
-    $colinfos ||= $self->_resolve_column_info($ident);
-    if (my $col = $_[1]->{dbic_colname}) {
-      $_[1]->{sqlt_datatype} ||= $colinfos->{$col}{data_type}
-        if $colinfos->{$col}{data_type};
-      $_[1]->{sqlt_size} ||= $colinfos->{$col}{size}
-        if $colinfos->{$col}{size};
-    }
-    $_[1];
-  };
-
-  for my $e (@{$args->[2]{bind}||[]}, @bind) {
-    push @final_bind, [ do {
-      if (ref $e ne 'ARRAY') {
-        ({}, $e)
-      }
-      elsif (! defined $e->[0]) {
-        ({}, $e->[1])
-      }
-      elsif (ref $e->[0] eq 'HASH') {
-        (
-          (first { $e->[0]{$_} } qw/dbd_attrs sqlt_datatype/) ? $e->[0] : $self->$resolve_bindinfo($e->[0]),
-          $e->[1]
-        )
-      }
-      elsif (ref $e->[0] eq 'SCALAR') {
-        ( { sqlt_datatype => ${$e->[0]} }, $e->[1] )
-      }
-      else {
-        ( $self->$resolve_bindinfo({ dbic_colname => $e->[0] }), $e->[1] )
-      }
-    }];
-  }
-
   if (
     ! $ENV{DBIC_DT_SEARCH_OK}
       and
     $op eq 'select'
       and
-    first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @final_bind) {
-
+    first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @bind
+  ) {
     carp_unique 'DateTime objects passed to search() are not supported '
       . 'properly (InflateColumn::DateTime formats and settings are not '
       . 'respected.) See "Formatting DateTime objects in queries" in '
@@ -1479,7 +1444,56 @@ sub _gen_sql_bind {
       . 'set $ENV{DBIC_DT_SEARCH_OK} to true'
   }
 
-  ($sql, \@final_bind);
+  return( $sql, $self->_resolve_bindattrs(
+    $ident, [ @{$args->[2]{bind}||[]}, @bind ]
+  ));
+}
+
+sub _resolve_bindattrs {
+  my ($self, $ident, $bind, $colinfos) = @_;
+
+  $colinfos ||= {};
+
+  my $resolve_bindinfo = sub {
+    #my $infohash = shift;
+
+    %$colinfos = %{ $self->_resolve_column_info($ident) }
+      unless keys %$colinfos;
+
+    my $ret;
+    if (my $col = $_[0]->{dbic_colname}) {
+      $ret = { %{$_[0]} };
+
+      $ret->{sqlt_datatype} ||= $colinfos->{$col}{data_type}
+        if $colinfos->{$col}{data_type};
+
+      $ret->{sqlt_size} ||= $colinfos->{$col}{size}
+        if $colinfos->{$col}{size};
+    }
+
+    $ret || $_[0];
+  };
+
+  return [ map {
+    if (ref $_ ne 'ARRAY') {
+      [{}, $_]
+    }
+    elsif (! defined $_->[0]) {
+      [{}, $_->[1]]
+    }
+    elsif (ref $_->[0] eq 'HASH') {
+      [
+        ($_->[0]{dbd_attrs} or $_->[0]{sqlt_datatype}) ? $_->[0] : $resolve_bindinfo->($_->[0]),
+        $_->[1]
+      ]
+    }
+    elsif (ref $_->[0] eq 'SCALAR') {
+      [ { sqlt_datatype => ${$_->[0]} }, $_->[1] ]
+    }
+    else {
+      [ $resolve_bindinfo->({ dbic_colname => $_->[0] }), $_->[1] ]
+    }
+  } @$bind ];
 }
 
 sub _format_for_trace {

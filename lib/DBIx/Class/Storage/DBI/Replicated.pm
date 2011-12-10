@@ -349,6 +349,8 @@ my $method_dispatch = {
 
     _prefetch_autovalues
 
+    _resolve_bindattrs
+
     _max_column_bytesize
     _is_lob_type
     _is_binary_lob_type
