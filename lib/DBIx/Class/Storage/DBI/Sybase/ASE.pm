@@ -25,7 +25,6 @@ __PACKAGE__->datetime_parser_type(
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
        _bulk_storage _is_bulk_storage _began_bulk_work
-       _bulk_disabled_due_to_coderef_connect_info_warned
        _identity_method/
 );
 
@@ -474,7 +473,6 @@ sub update {
   my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
 
 # We can't only update NULL blobs, because blobs cannot be in the WHERE clause.
-
   $self->next::method($source, \%blobs_to_empty, $where, @rest);
 
 # Now update the blobs before the other columns in case the update of other
@@ -511,22 +509,15 @@ sub insert_bulk {
 
   my $is_identity_insert = (first { $_ eq $identity_col } @{$cols}) ? 1 : 0;
 
-  my @source_columns = $source->columns;
-
   my $use_bulk_api =
     $self->_bulk_storage &&
     $self->_get_dbh->{syb_has_blk};
 
-  if ((not $use_bulk_api)
-        &&
-      (ref($self->_dbi_connect_info->[0]) eq 'CODE')
-        &&
-      (not $self->_bulk_disabled_due_to_coderef_connect_info_warned)) {
-    carp <<'EOF';
-Bulk API support disabled due to use of a CODEREF connect_info. Reverting to
-regular array inserts.
-EOF
-    $self->_bulk_disabled_due_to_coderef_connect_info_warned(1);
+  if (! $use_bulk_api and ref($self->_dbi_connect_info->[0]) eq 'CODE') {
+    carp_unique( join ' ',
+      'Bulk API support disabled due to use of a CODEREF connect_info.',
+      'Reverting to regular array inserts.',
+    );
   }
 
   if (not $use_bulk_api) {
@@ -575,27 +566,34 @@ EOF
 # otherwise, use the bulk API
 
 # rearrange @$data so that columns are in database order
-  my %orig_idx;
-  @orig_idx{@$cols} = 0..$#$cols;
+# and so we submit a full column list
+  my %orig_order = map { $cols->[$_] => $_ } 0..$#$cols;
 
-  my %new_idx;
-  @new_idx{@source_columns} = 0..$#source_columns;
+  my @source_columns = $source->columns;
+
+  # bcp identity index is 1-based
+  my $identity_idx = first { $source_columns[$_] eq $identity_col } (0..$#source_columns);
+  $identity_idx = defined $identity_idx ? $identity_idx + 1 : 0;
 
   my @new_data;
-  for my $datum (@$data) {
-    my $new_datum = [];
-    for my $col (@source_columns) {
-# identity data will be 'undef' if not $is_identity_insert
-# columns with defaults will also be 'undef'
-      $new_datum->[ $new_idx{$col} ] =
-        exists $orig_idx{$col} ? $datum->[ $orig_idx{$col} ] : undef;
-    }
-    push @new_data, $new_datum;
+  for my $slice_idx (0..$#$data) {
+    push @new_data, [map {
+      # identity data will be 'undef' if not $is_identity_insert
+      # columns with defaults will also be 'undef'
+      exists $orig_order{$_}
+        ? $data->[$slice_idx][$orig_order{$_}]
+        : undef
+    } @source_columns];
   }
 
-# bcp identity index is 1-based
-  my $identity_idx = exists $new_idx{$identity_col} ?
-    $new_idx{$identity_col} + 1 : 0;
+  my $proto_bind = $self->_resolve_bindattrs(
+    $source,
+    [map {
+      [ { dbic_colname => $source_columns[$_], _bind_data_slice_idx => $_ }
+        => $new_data[0][$_] ]
+    } (0 ..$#source_columns) ],
+    $columns_info
+  );
 
 ## Set a client-side conversion error handler, straight from DBD::Sybase docs.
 # This ignores any data conversion errors detected by the client side libs, as
@@ -621,6 +619,7 @@ EOF
 
     my $guard = $bulk->txn_scope_guard;
 
+## FIXME - once this is done - address the FIXME on finish() below
 ## XXX get this to work instead of our own $sth
 ## will require SQLA or *Hacks changes for ordered columns
 #    $bulk->next::method($source, \@source_columns, \@new_data, {
@@ -648,13 +647,19 @@ EOF
       }
     );
 
-    my @bind = map { [ $source_columns[$_] => $_ ] } (0 .. $#source_columns);
+    {
+      # FIXME the $sth->finish in _execute_array does a rollback for some
+      # reason. Disable it temporarily until we fix the SQLMaker thing above
+      no warnings 'redefine';
+      no strict 'refs';
+      local *{ref($sth).'::finish'} = sub {};
 
-    $self->_execute_array(
-      $source, $sth, \@bind, \@source_columns, \@new_data, sub {
-        $guard->commit
-      }
-    );
+      $self->_execute_array(
+        $source, $sth, $proto_bind, \@source_columns, \@new_data
+      );
+    }
+
+    $guard->commit;
 
     $bulk->_query_end($sql);
   } catch {
@@ -679,15 +684,6 @@ EOF
     $self->_bulk_storage->disconnect;
     $self->throw_exception($exception);
   }
-}
-
-sub _dbh_execute_array {
-  my ($self, $sth, $tuple_status, $cb) = @_;
-
-  my $rv = $self->next::method($sth, $tuple_status);
-  $cb->() if $cb;
-
-  return $rv;
 }
 
 # Make sure blobs are not bound as placeholders, and return any non-empty ones
