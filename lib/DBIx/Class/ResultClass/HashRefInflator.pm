@@ -58,9 +58,7 @@ recommended.
 #
 # Generally people use this to gain as much speed as possible. If a new &mk_hash is
 # implemented, it should be benchmarked using the maint/benchmark_hashrefinflator.pl
-# script (in addition to passing all tests of course :). Additional instructions are
-# provided in the script itself.
-#
+# script (in addition to passing all tests of course :)
 
 # This coderef is a simple recursive function
 # Arguments: ($me, $prefetch, $is_root) from inflate_result() below
