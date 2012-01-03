@@ -6,6 +6,7 @@ use warnings;
 use DBICTest::RunMode;
 use DBICTest::Schema;
 use Carp;
+use Path::Class::File ();
 
 =head1 NAME
 
@@ -53,7 +54,9 @@ sub has_custom_dsn {
 }
 
 sub _sqlite_dbfilename {
-    return "t/var/DBIxClass.db";
+    my $dir = Path::Class::File->new(__FILE__)->dir->parent->subdir('var');
+    $dir->mkpath unless -d "$dir";
+    return $dir->file('DBIxClass.db')->stringify;
 }
 
 sub _sqlite_dbname {
@@ -81,8 +84,6 @@ sub _database {
         "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!"
       );
     }
-
-    mkdir("t/var") unless -d "t/var";
 
     return ("dbi:SQLite:${db_file}", '', '', {
       AutoCommit => 1,
@@ -230,10 +231,9 @@ sub deploy_schema {
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
         $schema->deploy($args);
     } else {
-        open IN, "t/lib/sqlite.sql";
-        my $sql;
-        { local $/ = undef; $sql = <IN>; }
-        close IN;
+        my $filename = Path::Class::File->new(__FILE__)->dir
+          ->file('sqlite.sql')->stringify;
+        my $sql = do { local (@ARGV, $/) = $filename ; <> };
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
             $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";
