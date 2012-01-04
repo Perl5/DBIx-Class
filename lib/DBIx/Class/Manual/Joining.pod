@@ -164,7 +164,7 @@ object will have no 'track_name' accessor:
 Instead C<get_column> must be used:
 
   while(my $row = $search_rs->next) {
-     print $row->get_colum('track_name'); ## WORKS
+     print $row->get_column('track_name'); ## WORKS
   }
 
 =head2 Incomplete related objects

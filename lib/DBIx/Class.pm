@@ -316,6 +316,8 @@ bphillips: Brian Phillips <bphillips@cpan.org>
 
 boghead: Bryan Beeley <cpan@beeley.org>
 
+brd: Brad Davis <brd@FreeBSD.org>
+
 bricas: Brian Cassidy <bricas@cpan.org>
 
 brunov: Bruno Vecchi <vecchi.b@gmail.com>
