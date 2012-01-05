@@ -709,7 +709,7 @@ and child rows of the hierarchy.
   #     person me
   # CONNECT BY
   #     parentid = prior persionid
-  
+
 
   connect_by_nocycle => { parentid => 'prior personid' }
 

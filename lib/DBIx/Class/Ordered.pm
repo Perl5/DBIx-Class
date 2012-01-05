@@ -20,7 +20,7 @@ Create a table for your ordered data.
     position INTEGER NOT NULL
   );
 
-Optionally, add one or more columns to specify groupings, allowing you 
+Optionally, add one or more columns to specify groupings, allowing you
 to maintain independent ordered lists within one table:
 
   CREATE TABLE items (
@@ -40,12 +40,12 @@ Or even
     other_group_id INTEGER NOT NULL
   );
 
-In your Schema or DB class add "Ordered" to the top 
+In your Schema or DB class add "Ordered" to the top
 of the component list.
 
   __PACKAGE__->load_components(qw( Ordered ... ));
 
-Specify the column that stores the position number for 
+Specify the column that stores the position number for
 each row.
 
   package My::Item;
@@ -89,13 +89,13 @@ That's it, now you can change the position of your objects.
 
 =head1 DESCRIPTION
 
-This module provides a simple interface for modifying the ordered 
+This module provides a simple interface for modifying the ordered
 position of DBIx::Class objects.
 
 =head1 AUTO UPDATE
 
-All of the move_* methods automatically update the rows involved in 
-the query.  This is not configurable and is due to the fact that if you 
+All of the move_* methods automatically update the rows involved in
+the query.  This is not configurable and is due to the fact that if you
 move a record it always causes other records in the list to be updated.
 
 =head1 METHODS
@@ -104,7 +104,7 @@ move a record it always causes other records in the list to be updated.
 
   __PACKAGE__->position_column('position');
 
-Sets and retrieves the name of the column that stores the 
+Sets and retrieves the name of the column that stores the
 positional value of each record.  Defaults to "position".
 
 =cut
@@ -115,8 +115,8 @@ __PACKAGE__->mk_classdata( 'position_column' => 'position' );
 
   __PACKAGE__->grouping_column('group_id');
 
-This method specifies a column to limit all queries in 
-this module by.  This effectively allows you to have multiple 
+This method specifies a column to limit all queries in
+this module by.  This effectively allows you to have multiple
 ordered lists within the same table.
 
 =cut
@@ -218,7 +218,7 @@ sub previous_sibling {
 
   my $sibling = $item->first_sibling();
 
-Returns the first sibling object, or 0 if the first sibling 
+Returns the first sibling object, or 0 if the first sibling
 is this sibling.
 
 =cut
@@ -259,7 +259,7 @@ sub next_sibling {
 
   my $sibling = $item->last_sibling();
 
-Returns the last sibling, or 0 if the last sibling is this 
+Returns the last sibling, or 0 if the last sibling is this
 sibling.
 
 =cut
@@ -415,7 +415,7 @@ group, or to the end of the group if $position is undef.
 1 is returned on success, and 0 is returned if the object is
 already at the specified position of the specified group.
 
-$group may be specified as a single scalar if only one 
+$group may be specified as a single scalar if only one
 grouping column is in use, or as a hashref of column => value pairs
 if multiple grouping columns are in use.
 
@@ -489,8 +489,8 @@ sub move_to_group {
 
 =head2 insert
 
-Overrides the DBIC insert() method by providing a default 
-position number.  The default will be the number of rows in 
+Overrides the DBIC insert() method by providing a default
+position number.  The default will be the number of rows in
 the table +1, thus positioning the new record at the last position.
 
 =cut
@@ -733,7 +733,7 @@ sub _shift_siblings {
     if (
       $pos_is_pk
         or
-      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) 
+      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
     ) {
         my $cursor = $shift_rs->search (
           {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
@@ -758,7 +758,7 @@ sub _shift_siblings {
 
 =head1 PRIVATE METHODS
 
-These methods are used internally.  You should never have the 
+These methods are used internally.  You should never have the
 need to use them.
 
 =head2 _group_rs
@@ -806,7 +806,7 @@ sub _position {
 =head2 _grouping_clause
 
 This method returns one or more name=>value pairs for limiting a search
-by the grouping column(s).  If the grouping column is not defined then 
+by the grouping column(s).  If the grouping column is not defined then
 this will return an empty list.
 
 =cut
@@ -914,17 +914,17 @@ will prevent such race conditions going undetected.
 
 =head2 Multiple Moves
 
-Be careful when issuing move_* methods to multiple objects.  If 
-you've pre-loaded the objects then when you move one of the objects 
-the position of the other object will not reflect their new value 
+Be careful when issuing move_* methods to multiple objects.  If
+you've pre-loaded the objects then when you move one of the objects
+the position of the other object will not reflect their new value
 until you reload them from the database - see
 L<DBIx::Class::Row/discard_changes>.
 
-There are times when you will want to move objects as groups, such 
-as changing the parent of several objects at once - this directly 
-conflicts with this problem.  One solution is for us to write a 
-ResultSet class that supports a parent() method, for example.  Another 
-solution is to somehow automagically modify the objects that exist 
+There are times when you will want to move objects as groups, such
+as changing the parent of several objects at once - this directly
+conflicts with this problem.  One solution is for us to write a
+ResultSet class that supports a parent() method, for example.  Another
+solution is to somehow automagically modify the objects that exist
 in the current object's result set to have the new position value.
 
 =head2 Default Values

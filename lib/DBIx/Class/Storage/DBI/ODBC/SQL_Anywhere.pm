@@ -22,7 +22,7 @@ that module for details.
 =head2 uniqueidentifierstr data type
 
 If you use the C<uniqueidentifierstr> type with this driver, your queries may
-fail with: 
+fail with:
 
   Data truncated (SQL-01004)
 

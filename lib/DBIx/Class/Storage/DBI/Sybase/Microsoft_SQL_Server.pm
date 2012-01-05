@@ -124,7 +124,7 @@ package # hide from PAUSE
   DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format;
 
 my $datetime_parse_format  = '%Y-%m-%dT%H:%M:%S.%3NZ';
-my $datetime_format_format = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T 
+my $datetime_format_format = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T
 
 my ($datetime_parser, $datetime_formatter);
 

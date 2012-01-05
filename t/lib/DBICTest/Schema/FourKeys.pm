@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::FourKeys;
 
 use base qw/DBICTest::BaseResult/;

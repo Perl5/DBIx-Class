@@ -30,9 +30,9 @@ sub test_order {
             }
           )->as_query,
         "(
-          SELECT me.foo, me.bar, me.hello, me.goodbye, me.sensors, me.read_count 
-          FROM fourkeys me 
-          WHERE ( foo = ? ) 
+          SELECT me.foo, me.bar, me.hello, me.goodbye, me.sensors, me.read_count
+          FROM fourkeys me
+          WHERE ( foo = ? )
           HAVING read_count > ? OR read_count < ?
           ORDER BY $args->{order_req}
         )",

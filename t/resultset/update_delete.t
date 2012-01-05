@@ -87,7 +87,7 @@ $sub_rs->search (
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
-            ->get_column ('pilot_sequence')->all 
+            ->get_column ('pilot_sequence')->all
   ],
   [qw/11 21 30 40/],
   'Only two rows incremented',
@@ -100,7 +100,7 @@ $tkfks->search (
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
-            ->get_column ('pilot_sequence')->all 
+            ->get_column ('pilot_sequence')->all
   ],
   [qw/12 22 30 40/],
   'Only two rows incremented (where => scalarref works)',

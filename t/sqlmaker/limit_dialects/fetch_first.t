@@ -183,7 +183,7 @@ my $rs_selectas_top = $schema->resultset ('BooksInLibrary')->search ({}, {
   '+select' => ['owner.name'],
   '+as' => ['owner_name'],
   join => 'owner',
-  rows => 1 
+  rows => 1
 });
 
 is_same_sql_bind( $rs_selectas_top->search({})->as_query,

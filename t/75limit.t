@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -59,7 +59,7 @@ is( $cds[0]->title, "Spoonful of bees", "offset with no limit" );
 # requires SQL::Abstract >= 1.20
 $it = $schema->resultset("CD")->search(
     { title => [
-        -and => 
+        -and =>
             {
                 -like => '%bees'
             },

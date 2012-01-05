@@ -61,7 +61,7 @@ sub _prune_unused_joins {
 
 #
 # This is the code producing joined subqueries like:
-# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
+# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ...
 #
 sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
@@ -569,7 +569,7 @@ sub _inner_join_to_node {
   # So it looks like we will have to switch some stuff around.
   # local() is useless here as we will be leaving the scope
   # anyway, and deep cloning is just too fucking expensive
-  # So replace the first hashref in the node arrayref manually 
+  # So replace the first hashref in the node arrayref manually
   my @new_from = ($from->[0]);
   my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
 

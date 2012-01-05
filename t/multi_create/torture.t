@@ -8,7 +8,7 @@ use DBICTest;
 
 plan tests => 23;
 
-# an insane multicreate 
+# an insane multicreate
 # (should work, despite the fact that no one will probably use it this way)
 
 my $schema = DBICTest->init_schema();
@@ -38,7 +38,7 @@ eval {
           name => 'bob',
           producer_to_cd => [
             {
-              cd => { 
+              cd => {
                 artist => {
                   name => 'lars',
                   cds => [
@@ -111,11 +111,11 @@ eval {
               },
             },
             {
-              cd => { 
+              cd => {
                 artist => {
                   name => 'lars',    # should already exist
                   # even though the artist 'name' is not uniquely constrained
-                  # find_or_create will arguably DWIM 
+                  # find_or_create will arguably DWIM
                 },
                 title => 'Greatest hits 7',
                 year => 2013,

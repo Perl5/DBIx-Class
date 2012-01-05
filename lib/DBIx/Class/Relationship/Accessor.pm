@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Sub::Name ();
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::Accessor' => 'DBIx::Class::Relationship' }
   );

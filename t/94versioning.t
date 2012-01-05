@@ -259,11 +259,11 @@ system( qq($^X -pi.bak -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23
 
   DBICVersion::Schema->connect({
     dsn => $dsn,
-    user => $user, 
+    user => $user,
     pass => $pass,
     ignore_version => 1
   });
-  
+
   ok($get_db_version_run == 0, "attributes pulled from hashref connect_info");
   $get_db_version_run = 0;
 

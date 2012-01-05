@@ -37,11 +37,11 @@ ok !$rs->is_ordered, 'vanilla resultset is not ordered';
 
 # More complicated ordering
 {
-  my $ordered = $rs->search(undef, { 
+  my $ordered = $rs->search(undef, {
     order_by => [
-      { -asc => 'artistid' }, 
+      { -asc => 'artistid' },
       { -desc => 'name' },
-    ] 
+    ]
   });
   ok $ordered->is_ordered, 'more complicated resultset ordering is_ordered';
 }

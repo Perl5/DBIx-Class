@@ -20,7 +20,7 @@ DBIx::Class::Test::SQLite - Base class for running Class::DBI tests against DBIx
           salary INT
       }
   }
-    
+
 =head1 DESCRIPTION
 
 This provides a simple base class for DBIx::Class::CDBICompat tests using

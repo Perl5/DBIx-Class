@@ -1,7 +1,7 @@
--- 
+--
 -- Created by SQL::Translator::Producer::SQLite
 -- Created on Sat Jun 11 00:39:51 2011
--- 
+--
 
 --
 -- Table: artist

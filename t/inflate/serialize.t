@@ -59,14 +59,14 @@ my $inflated;
 
 #======= testing hashref serialization
 
-my $object = $rs->create( { 
+my $object = $rs->create( {
     serialized => '',
 } );
 ok($object->update( { serialized => $struct_hash } ), 'hashref deflation');
 ok($inflated = $object->serialized, 'hashref inflation');
 is_deeply($inflated, $struct_hash, 'inflated hash matches original');
 
-$object = $rs->create( { 
+$object = $rs->create( {
     serialized => '',
 } );
 $object->set_inflated_column('serialized', $struct_hash);

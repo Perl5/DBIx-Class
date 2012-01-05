@@ -682,7 +682,7 @@ $order_sql
 #
 # Returns mangled proto-sql, inner/outer strings of SQL QUOTED selectors
 # with aliases (to be used in whatever select statement), and an alias
-# index hashref of QUOTED SEL => QUOTED ALIAS pairs (to maybe be used 
+# index hashref of QUOTED SEL => QUOTED ALIAS pairs (to maybe be used
 # for string-subst higher up).
 # If an order_by is supplied, the inner select needs to bring out columns
 # used in implicit (non-selected) orders, and the order condition itself

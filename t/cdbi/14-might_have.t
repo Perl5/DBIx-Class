@@ -62,7 +62,7 @@ Film->create_test_film;
     $blurb = Blurb->retrieve('Bad Taste');
     is $blurb, undef, "Blurb has gone";
   }
-    
+
 }
 
 {

@@ -177,7 +177,7 @@ EOF
       ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
- 
+
   my @uuid_types = qw/uniqueidentifier uniqueidentifierstr/;
 
 # test uniqueidentifiers (and the cursor_class).

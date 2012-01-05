@@ -49,7 +49,7 @@ TODO: {
   $new_source->source_name('Complex');
 
   $new_source->name(\<<'');
-  ( SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year 
+  ( SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year
     FROM artist a
     JOIN cd ON cd.artist = a.artistid
     WHERE cd.year = ?)
@@ -71,7 +71,7 @@ TODO: {
     $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
-      [ {} => '1999' ], 
+      [ {} => '1999' ],
       [ {} => 'Spoon%' ]
     ],
     'got correct SQL'
@@ -100,7 +100,7 @@ TODO: {
     $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
-      [ {} => '1999' ], 
+      [ {} => '1999' ],
       [ {} => 'Spoon%' ]
     ],
     'got correct SQL (cookbook arbitrary SQL, in separate file)'

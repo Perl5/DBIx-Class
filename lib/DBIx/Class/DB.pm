@@ -184,8 +184,8 @@ sub result_source_instance {
 
   if ($result_class ne $class) {  # new class
     # Give this new class its own source and register it.
-    $source = $source->new({ 
-        %$source, 
+    $source = $source->new({
+        %$source,
         source_name  => $class,
         result_class => $class
     } );

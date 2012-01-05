@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     Film;
 
 use base 'DBIC::Test::SQLite';
@@ -21,7 +21,7 @@ sub create_sql {
   }
 }
 
-sub create_test_film { 
+sub create_test_film {
   return shift->create({
     Title             => 'Bad Taste',
     Director          => 'Peter Jackson',

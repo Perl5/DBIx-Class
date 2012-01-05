@@ -112,7 +112,7 @@ for my $want (0,1) {
       die "$$ starts in txn!" if $s->storage->transaction_depth != 0;
       $s->txn_do ( sub {
         die "$$ not in txn!" if $s->storage->transaction_depth == 0;
-        $s->storage->dbh->do('SELECT 1') } 
+        $s->storage->dbh->do('SELECT 1') }
       );
       die "$$ did not finish txn!" if $s->storage->transaction_depth != 0;
     },

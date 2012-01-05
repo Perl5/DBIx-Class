@@ -27,7 +27,7 @@ my $bt;
 eval {
   my $data = $data;
   $data->{sheep} = 1;
-  ok $bt = Film->insert($data), "Modified accessor - with  
+  ok $bt = Film->insert($data), "Modified accessor - with
 accessor";
   isa_ok $bt, "Film";
 };

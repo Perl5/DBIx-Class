@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Warn;
@@ -21,7 +21,7 @@ $schema->storage->debug(1);
 
 $cd->update;
 
-is($queries, 1, 'liner_notes (might_have) not prefetched - do not load 
+is($queries, 1, 'liner_notes (might_have) not prefetched - do not load
 liner_notes on update');
 
 $schema->storage->debug($sdebug);
@@ -36,7 +36,7 @@ $schema->storage->debug(1);
 
 $cd2->update;
 
-is($queries, 1, 'liner_notes (might_have) prefetched - do not load 
+is($queries, 1, 'liner_notes (might_have) prefetched - do not load
 liner_notes on update');
 
 warning_like {
@@ -50,7 +50,7 @@ warning_like {
 
 {
   local $ENV{DBIC_DONT_VALIDATE_RELS} = 1;
-  warning_is { 
+  warning_is {
     DBICTest::Schema::Bookmark->might_have(
       slinky => 'DBICTest::Schema::Link',
       { "foreign.id" => "self.link" },

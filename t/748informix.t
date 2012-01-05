@@ -133,7 +133,7 @@ lives_ok {
 } 'with_deferred_fk_checks code survived';
 
 is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
- 'code in with_deferred_fk_checks worked'; 
+ 'code in with_deferred_fk_checks worked';
 
 throws_ok {
   $schema->resultset('Track')->create({

@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -50,7 +50,7 @@ foreach my $info (@info) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $sg = Scope::Guard->new(\&cleanup); 
+  my $sg = Scope::Guard->new(\&cleanup);
 
   eval { $schema->storage->dbh->do('DROP TABLE event') };
   $schema->storage->dbh->do(<<"SQL");

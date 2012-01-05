@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::BindType;
 
 use base qw/DBICTest::BaseResult/;

@@ -164,9 +164,9 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
 =back
 
   # in a Book class (where Author has many Books)
-  My::DBIC::Schema::Book->belongs_to( 
-    author => 
-    'My::DBIC::Schema::Author', 
+  My::DBIC::Schema::Book->belongs_to(
+    author =>
+    'My::DBIC::Schema::Author',
     'author_id'
   );
 
@@ -174,11 +174,11 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
   My::DBIC::Schema::Book->belongs_to(
     author =>
     'My::DBIC::Schema::Author',
-    { 'foreign.author_id' => 'self.author_id' } 
+    { 'foreign.author_id' => 'self.author_id' }
   );
 
   # OR (similar result but uglier accessor name)
-  My::DBIC::Schema::Book->belongs_to( 
+  My::DBIC::Schema::Book->belongs_to(
     author_id =>
     'My::DBIC::Schema::Author'
   );
@@ -203,9 +203,9 @@ declaration is shown below:
 
   # in a Book class (where Author has_many Books)
   __PACKAGE__->belongs_to(
-    author => 
+    author =>
     'My::DBIC::Schema::Author',
-    'author', 
+    'author',
     { join_type => 'left' }
   );
 
@@ -237,7 +237,7 @@ which can be assigned to relationships as well.
 
 Creates a one-to-many relationship where the foreign class refers to
 this class's primary key. This relationship refers to zero or more
-records in the foreign table (e.g. a C<LEFT JOIN>). This relationship 
+records in the foreign table (e.g. a C<LEFT JOIN>). This relationship
 defaults to using the end of this classes namespace as the foreign key
 in C<$related_class> to resolve the join, unless C<$their_fk_column>
 specifies the foreign key column in C<$related_class> or C<cond>
@@ -278,28 +278,28 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
   # in an Author class (where Author has_many Books)
   # assuming related class is storing our PK in "author_id"
   My::DBIC::Schema::Author->has_many(
-    books => 
-    'My::DBIC::Schema::Book', 
+    books =>
+    'My::DBIC::Schema::Book',
     'author_id'
   );
 
   # OR (same result)
   My::DBIC::Schema::Author->has_many(
-    books => 
-    'My::DBIC::Schema::Book', 
+    books =>
+    'My::DBIC::Schema::Book',
     { 'foreign.author_id' => 'self.id' },
   );
 
   # OR (similar result, assuming related_class is storing our PK, in "author")
   # (the "author" is guessed at from "Author" in the class namespace)
   My::DBIC::Schema::Author->has_many(
-    books => 
-    'My::DBIC::Schema::Book', 
+    books =>
+    'My::DBIC::Schema::Book',
   );
 
 
   # Usage
-  # resultset of Books belonging to author 
+  # resultset of Books belonging to author
   my $booklist = $author->books;
 
   # resultset of Books belonging to author, restricted by author name
@@ -493,20 +493,20 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
 
   # Every book has exactly one ISBN
   My::DBIC::Schema::Book->has_one(
-    isbn => 
+    isbn =>
     'My::DBIC::Schema::ISBN',
     'book_id',
   );
 
   # OR (same result, assuming related_class stores our PK)
   My::DBIC::Schema::Book->has_one(
-    isbn => 
+    isbn =>
     'My::DBIC::Schema::ISBN',
   );
 
   # OR (same result)
   My::DBIC::Schema::Book->has_one(
-    isbn => 
+    isbn =>
     'My::DBIC::Schema::ISBN',
     { 'foreign.book_id' => 'self.id' },
   );
@@ -553,8 +553,8 @@ L<Glossary|DBIx::Class::Manual::Glossary/Relationship bridge>.
 
 C<many_to_many> is not strictly a relationship in its own right. Instead, it is
 a bridge between two resultsets which provide the same kind of convenience
-accessors as true relationships provide. Although the accessor will return a 
-resultset or collection of objects just like has_many does, you cannot call 
+accessors as true relationships provide. Although the accessor will return a
+resultset or collection of objects just like has_many does, you cannot call
 C<related_resultset> and similar methods which operate on true relationships.
 
 =over

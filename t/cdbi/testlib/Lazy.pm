@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     Lazy;
 
 use base 'DBIC::Test::SQLite';

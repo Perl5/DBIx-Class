@@ -538,7 +538,7 @@ SQL
           if $opts_name eq 'use_dynamic_cursors' &&
             $schema->storage->using_freetds;
 
-        local $TODO = 
+        local $TODO =
 'these tests fail on freetds with dynamic cursors for some reason'
           if $freetds_and_dynamic_cursors;
         local $ENV{DBIC_NULLABLE_KEY_NOWARN} = 1

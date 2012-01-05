@@ -13,7 +13,7 @@ my $schema = DBICTest->init_schema();
 # even if the preceeding relationship already exists.
 #
 # To get this to work a minor rewrite of find() is necessary, and
-# more importantly some sort of recursive_insert() call needs to 
+# more importantly some sort of recursive_insert() call needs to
 # be available. The way things will work then is:
 # *) while traversing the hierarchy code calls find_or_create()
 # *) this in turn calls find(%\nested_dataset)

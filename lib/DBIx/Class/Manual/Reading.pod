@@ -105,7 +105,7 @@ caller should pass C<undef> in place of the missing argument.
 
 =item *
 
-| - Alternate argument content types. 
+| - Alternate argument content types.
 
 At least one of these must be supplied unless the argument is also
 marked optional.

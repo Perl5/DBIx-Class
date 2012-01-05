@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Money;
 
 use base qw/DBICTest::BaseResult/;

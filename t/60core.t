@@ -106,7 +106,7 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
-# test that store_column is called once for create() for non sequence columns 
+# test that store_column is called once for create() for non sequence columns
 {
   ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
   is($artist->name, 'X store_column test'); # used to be 'X X store...'
@@ -284,7 +284,7 @@ warnings_exist (sub {
        group_by => [ qw/position title/ ]
     }
   );
-  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');  
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');
 }
 
 my $tag_rs = $schema->resultset('Tag')->search(
@@ -335,7 +335,7 @@ ok($schema->storage(), 'Storage available');
 
   my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
   is(@artsn, 4, "Four artists returned");
-  
+
   # make sure subclasses that don't set source_name are ok
   ok($schema->source('ArtistSubclass'), 'ArtistSubclass exists');
 }

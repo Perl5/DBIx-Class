@@ -6,7 +6,7 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Storage::DBI::MultiColumnIn - Storage component for RDBMS supporting multicolumn in clauses
 
@@ -29,7 +29,7 @@ sub _multipk_update_delete {
   my @pcols = $rsrc->_pri_cols;
   my $attrs = $rs->_resolved_attrs;
 
-  # naive check - this is an internal method after all, we should know what we are doing 
+  # naive check - this is an internal method after all, we should know what we are doing
   $self->throw_exception ('Number of columns selected by supplied resultset does not match number of primary keys')
     if ( ref $attrs->{select} ne 'ARRAY' or @{$attrs->{select}} != @pcols );
 

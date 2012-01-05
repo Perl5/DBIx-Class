@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -167,7 +167,7 @@ is($rs->first->name, 'We Are Goth', 'Correct record returned');
         [ 4, 7 ],
         [ 4, 8 ],
     ]);
-    
+
     sub cd_count {
         return $schema->resultset("CD")->count;
     }
@@ -177,7 +177,7 @@ is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
     is(cd_count(), 8, '8 rows in table cd');
     is(tk_count(), 7, '7 rows in table twokeys');
- 
+
     sub artist1 {
         return $schema->resultset("CD")->search(
             { 'artist.name' => 'Caterwauler McCrae' },

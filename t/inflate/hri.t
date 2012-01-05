@@ -130,7 +130,7 @@ for my $index (0 .. $#hashrefinf) {
 }
 
 # sometimes for ultra-mega-speed you want to fetch columns in esoteric ways
-# check the inflator over a non-fetching join 
+# check the inflator over a non-fetching join
 $rs_dbic = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
     prefetch => { cds => 'tracks' },
     order_by => [qw/cds.cdid tracks.trackid/],

@@ -1360,7 +1360,7 @@ sub txn_commit {
   # as a new txn is started immediately on commit
   $self->transaction_depth(1) if (
     !$self->transaction_depth
-      and 
+      and
     defined $self->_dbh_autocommit
       and
     ! $self->_dbh_autocommit
@@ -1391,7 +1391,7 @@ sub txn_rollback {
   # as a new txn is started immediately on commit
   $self->transaction_depth(1) if (
     !$self->transaction_depth
-      and 
+      and
     defined $self->_dbh_autocommit
       and
     ! $self->_dbh_autocommit
@@ -2879,7 +2879,7 @@ sub _max_column_bytesize {
       if ($data_type =~ /^(?:
           l? (?:var)? char(?:acter)? (?:\s*varying)?
             |
-          (?:var)? binary (?:\s*varying)? 
+          (?:var)? binary (?:\s*varying)?
             |
           raw
         )\b/x

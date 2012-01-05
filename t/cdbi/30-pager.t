@@ -39,7 +39,7 @@ $it->next;
 is( $it->next, undef, "next past end of page ok" );
 
 # second page
-( $pager, $it ) = Film->page( 
+( $pager, $it ) = Film->page(
     {},
     { rows => 3,
       page => 2 }

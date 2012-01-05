@@ -28,7 +28,7 @@ DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
 
 =head1 DESCRIPTION
 
-DBIx::Class is faster than older ORMs like Class::DBI but it still isn't 
+DBIx::Class is faster than older ORMs like Class::DBI but it still isn't
 designed primarily for speed. Sometimes you need to quickly retrieve the data
 from a massive resultset, while skipping the creation of fancy row objects.
 Specifying this class as a C<result_class> for a resultset will change C<< $rs->next >>
@@ -128,9 +128,9 @@ following:
 
  my $cds = $artist->cds;
  $cds->result_class('DBIx::Class::ResultClass::HashRefInflator');
- my $first = $cds->first; 
+ my $first = $cds->first;
 
-C<$first> will B<not> be a hashref, it will be a normal CD row since 
+C<$first> will B<not> be a hashref, it will be a normal CD row since
 HashRefInflator only affects resultsets at inflation time, and prefetch causes
 relations to be inflated when the master C<$artist> row is inflated.
 

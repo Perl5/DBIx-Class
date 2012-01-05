@@ -52,7 +52,7 @@ SQL
   my $row;
   ok( $row = $rs->create({
     id => 1,
-    starts_at => $date_only, 
+    starts_at => $date_only,
     created_on => $dt,
   }));
   ok( $row = $rs->search({ id => 1 }, { select => [qw/starts_at created_on/] })
@@ -70,7 +70,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
-  my $dbh; 
+  my $dbh;
   eval {
     $dbh = $schema->storage->dbh;
   };

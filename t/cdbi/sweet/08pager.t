@@ -26,7 +26,7 @@ my ( $pager, $it ) = DBICTest::CD->page(
     { order_by => 'title',
       rows => 3,
       page => 1 } );
-      
+
 cmp_ok( $pager->entries_on_this_page, '==', 3, "entries_on_this_page ok" );
 
 cmp_ok( $pager->next_page, '==', 2, "next_page ok" );
@@ -57,7 +57,7 @@ is( $it->next, undef, "disable_sql_paging next past end of page ok" );
 # based on a failing criteria submitted by waswas
 ( $pager, $it ) = DBICTest::CD->page(
     { title => [
-        -and => 
+        -and =>
             {
                 -like => '%bees'
             },

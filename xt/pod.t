@@ -5,11 +5,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-# Don't run tests for installs
-if ( DBICTest::RunMode->is_plain ) {
-  plan( skip_all => "Author tests not required for installation" );
-}
-
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_pod') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_pod');

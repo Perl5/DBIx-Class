@@ -27,7 +27,7 @@ my $book_rs = $schema->resultset ('BooksInLibrary')->search ({}, { join => 'owne
 
 is_same_sql_bind (
   $book_rs->as_subselect_rs->as_query,
-  '(SELECT me.id, me.source, me.owner, me.title, me.price 
+  '(SELECT me.id, me.source, me.owner, me.title, me.price
       FROM (
         SELECT me.id, me.source, me.owner, me.title, me.price
           FROM books me

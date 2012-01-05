@@ -91,7 +91,7 @@ ok( !defined($track->cd), 'set_from_related with undef ok');
 
 $track = $schema->resultset("Track")->new( {} );
 $track->cd;
-$track->set_from_related( cd => $cd ); 
+$track->set_from_related( cd => $cd );
 ok ($track->cd, 'set_from_related ok after using the accessor' );
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
@@ -144,8 +144,8 @@ my $newartist = $cd->find_or_new_related( 'artist', {
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-lives_ok( 
-    sub { 
+lives_ok(
+    sub {
         my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
         my $new_related_link = $new_bookmark->new_related( 'link', {} );
     },
@@ -208,12 +208,12 @@ is( $prod_rs->first->name, 'Testy McProducer',
 $cd->add_to_producers({ name => 'Jack Black' });
 is( $prod_rs->count(), 2, 'many_to_many add_to_$rel($hash) count ok' );
 $cd->set_producers($schema->resultset('Producer')->all);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(@objs) count ok' );
 $cd->set_producers($schema->resultset('Producer')->find(1));
 is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->all]);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);
 is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
@@ -313,7 +313,7 @@ my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
 
-# check that relationships below left join relationships are forced to left joins 
+# check that relationships below left join relationships are forced to left joins
 # when traversing multiple belongs_to
 my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
 is($cds->count, 1, "subjoins under left joins force_left (string)");

@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::ResultSetManager;
 use base 'DBIx::Class::Schema';
 

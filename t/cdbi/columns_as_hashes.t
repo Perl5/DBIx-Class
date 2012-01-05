@@ -52,15 +52,15 @@ warning_is {
 } '', 'DBIC_CDBICOMPAT_HASH_WARN controls warnings';
 
 
-{    
+{
     $waves->rating("R");
     $waves->update;
-    
+
     no warnings 'redefine';
     local *Film::rating = sub {
         return "wibble";
     };
-    
+
     is $waves->{rating}, "R";
 }
 
@@ -73,7 +73,7 @@ warning_is {
         return "movie" if lc $col eq "film";
         return $col;
     };
-    
+
     require Actor;
     Actor->has_a( film => "Film" );
 
@@ -81,7 +81,7 @@ warning_is {
         name    => 'Emily Watson',
         film    => $waves,
     });
-    
+
     ok !eval { $actor->film };
     is $actor->{film}->id, $waves->id,
        'hash access still works despite lack of accessor';
@@ -100,7 +100,7 @@ SKIP: {
         tdate   => '1949-02-01',
     });
     isa_ok $foo, 'MyFoo';
-    
+
     isa_ok $foo->{tdate}, 'Date::Simple';
     is $foo->{tdate}->year, 1949;
 }

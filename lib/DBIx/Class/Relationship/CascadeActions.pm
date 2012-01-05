@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use DBIx::Class::Carp;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::CascadeActions' => 'DBIx::Class::Relationship' }
   );

@@ -159,7 +159,7 @@ my $bar = Bar->create({ id => 2, fav => 6 });
 isa_ok($bar->fav, "Foo");
 isa_ok($foo->fav, "Film");
 
-{ 
+{
   my $foo;
   Foo->add_trigger(after_create => sub { $foo = shift->fav });
   my $gwh = Foo->create({ id => 93, fav => 'Good Will Hunting' });

@@ -12,8 +12,8 @@ my $schema = DBICTest->init_schema();
 
 lives_ok ( sub {
   my $cd = $schema->resultset('CD')->create({
-    artist => { 
-      name => 'Fred Bloggs' 
+    artist => {
+      name => 'Fred Bloggs'
     },
     title => 'Some CD',
     year => 1996
@@ -316,10 +316,10 @@ lives_ok ( sub {
 }, 'Test might_have again but with just a PK and FK (neither specified) in the mid-table');
 
 lives_ok ( sub {
-  my $newartist2 = $schema->resultset('Artist')->find_or_create({ 
+  my $newartist2 = $schema->resultset('Artist')->find_or_create({
     name => 'Fred 3',
     cds => [
-      { 
+      {
         title => 'Noah Act',
         year => 2007,
       },
@@ -330,9 +330,9 @@ lives_ok ( sub {
 
 lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
-  
+
   my $cd_result = $artist->create_related('cds', {
-  
+
     title => 'TestOneCD1',
     year => 2007,
     tracks => [
@@ -341,14 +341,14 @@ lives_ok ( sub {
     ],
 
   });
-  
+
   isa_ok( $cd_result, 'DBICTest::CD', "Got Good CD Class");
   ok( $cd_result->title eq "TestOneCD1", "Got Expected Title");
-  
+
   my $tracks = $cd_result->tracks;
-  
+
   isa_ok( $tracks, 'DBIx::Class::ResultSet', 'Got Expected Tracks ResultSet');
-  
+
   foreach my $track ($tracks->all)
   {
     isa_ok( $track, 'DBICTest::Track', 'Got Expected Track Class');
@@ -357,9 +357,9 @@ lives_ok ( sub {
 
 lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
-  
+
   my $cd_result = $artist->create_related('cds', {
-  
+
     title => 'TestOneCD2',
     year => 2007,
     tracks => [
@@ -370,15 +370,15 @@ lives_ok ( sub {
     liner_notes => { notes => 'I can haz liner notes?' },
 
   });
-  
+
   isa_ok( $cd_result, 'DBICTest::CD', "Got Good CD Class");
   ok( $cd_result->title eq "TestOneCD2", "Got Expected Title");
   ok( $cd_result->notes eq 'I can haz liner notes?', 'Liner notes');
-  
+
   my $tracks = $cd_result->tracks;
-  
+
   isa_ok( $tracks, 'DBIx::Class::ResultSet', "Got Expected Tracks ResultSet");
-  
+
   foreach my $track ($tracks->all)
   {
     isa_ok( $track, 'DBICTest::Track', 'Got Expected Track Class');
@@ -408,17 +408,17 @@ lives_ok ( sub {
   $a = $schema->resultset('Artist')->find({name => 'Kurt Cobain'});
 
   is($a->name, 'Kurt Cobain', 'Artist insertion ok');
-  is($a->cds && $a->cds->first && $a->cds->first->title, 
+  is($a->cds && $a->cds->first && $a->cds->first->title,
       'In Utero', 'CD insertion ok');
 }, 'populate');
 
 ## Create foreign key col obj including PK
 ## See test 20 in 66relationships.t
 lives_ok ( sub {
-  my $new_cd_hashref = { 
-    cdid => 27, 
-    title => 'Boogie Woogie', 
-    year => '2007', 
+  my $new_cd_hashref = {
+    cdid => 27,
+    title => 'Boogie Woogie',
+    year => '2007',
     artist => { artistid => 17, name => 'king luke' }
   };
 
@@ -431,10 +431,10 @@ lives_ok ( sub {
 }, 'Create foreign key col obj including PK');
 
 lives_ok ( sub {
-  $schema->resultset("CD")->create({ 
-              cdid => 28, 
-              title => 'Boogie Wiggle', 
-              year => '2007', 
+  $schema->resultset("CD")->create({
+              cdid => 28,
+              title => 'Boogie Wiggle',
+              year => '2007',
               artist => { artistid => 18, name => 'larry' }
              });
 }, 'new cd created without clash on related artist');

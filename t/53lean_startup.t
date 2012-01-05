@@ -91,7 +91,7 @@ BEGIN {
     ) {
       fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      if ($ENV{TEST_VERBOSE}) { 
+      if ($ENV{TEST_VERBOSE}) {
         my ($i, @stack) = 1;
         while (my @f = caller($i++) ) {
           push @stack, \@f;

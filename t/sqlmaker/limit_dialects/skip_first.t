@@ -88,7 +88,7 @@ is_same_sql_bind(
         [owner].[name],
         ( SELECT COUNT(*) FROM
           ( SELECT FIRST ? [owner].[id] FROM [owners] [owner]
-            WHERE [count].[id] = [owner].[id] and [count].[name] = ? 
+            WHERE [count].[id] = [owner].[id] and [count].[name] = ?
           ) [owner]
         )
       FROM [books] [me]

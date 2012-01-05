@@ -348,7 +348,7 @@ SQL
       eval { $dbh->do('DROP TABLE bindtype_test') };
 
       $dbh->do(qq[
-        CREATE TABLE bindtype_test 
+        CREATE TABLE bindtype_test
         (
           id     INT   IDENTITY PRIMARY KEY,
           bytea  IMAGE NULL,
@@ -363,7 +363,7 @@ SQL
     $binstr{'large'} = $binstr{'small'} x 1024;
 
     my $maxloblen = length $binstr{'large'};
-    
+
     if (not $schema->storage->using_freetds) {
       $dbh->{'LongReadLen'} = $maxloblen * 2;
     } else {
@@ -589,7 +589,7 @@ CREATE TABLE computed_column_test (
    id INT IDENTITY PRIMARY KEY,
    a_computed_column AS getdate(),
    a_timestamp timestamp,
-   charfield VARCHAR(20) DEFAULT 'foo' 
+   charfield VARCHAR(20) DEFAULT 'foo'
 )
 SQL
   });

@@ -66,7 +66,7 @@ sub pod_option_text {
 
     $spec = Getopt::Long::Descriptive->_strip_assignment($spec);
     $string .= "=item " . join " or ", map { length > 1 ? "B<--$_>" : "B<-$_>" }
-                             split /\|/, $spec; 
+                             split /\|/, $spec;
     $string .= "\n\n$desc\n\n=cut\n\n";
 
   }

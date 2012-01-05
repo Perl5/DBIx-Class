@@ -29,7 +29,7 @@ sub register_column {
     return unless defined($info->{is_file_column});
 
     $self->inflate_column($column => {
-        inflate => sub { 
+        inflate => sub {
             my ($value, $obj) = @_;
             $obj->_inflate_file_column($column, $value);
         },
@@ -155,7 +155,7 @@ In your L<DBIx::Class> table class:
             data_type           => "varchar",
             is_file_column      => 1,
             file_column_path    =>'/tmp/uploaded_files',
-            # or for a Catalyst application 
+            # or for a Catalyst application
             # file_column_path  => MyApp->path_to('root','static','files'),
             default_value       => undef,
             is_nullable         => 1,
@@ -169,11 +169,11 @@ In your L<Catalyst::Controller> class:
 FileColumn requires a hash that contains L<IO::File> as handle and the file's
 name as name.
 
-    my $entry = $c->model('MyAppDB::Articles')->create({ 
+    my $entry = $c->model('MyAppDB::Articles')->create({
         subject => 'blah',
-        filename => { 
-            handle => $c->req->upload('myupload')->fh, 
-            filename => $c->req->upload('myupload')->basename 
+        filename => {
+            handle => $c->req->upload('myupload')->fh,
+            filename => $c->req->upload('myupload')->basename
         },
         body => '....'
     });
@@ -183,7 +183,7 @@ name as name.
 And Place the following in your TT template
 
     Article Subject: [% entry.subject %]
-    Uploaded File: 
+    Uploaded File:
     <a href="/static/files/[% entry.id %]/[% entry.filename.filename %]">File</a>
     Body: [% entry.body %]
 

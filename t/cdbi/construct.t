@@ -38,6 +38,6 @@ INIT {
     my $film = Foo->construct({
         temp_thing  => 23
     });
-    
+
     ::is $film->temp_thing, 23, "construct sets temp columns";
 }

@@ -142,7 +142,7 @@ In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to turn on foreign key
 
 Executes:
 
-  PRAGMA foreign_keys = ON 
+  PRAGMA foreign_keys = ON
 
 See L<http://www.sqlite.org/foreignkeys.html> for more information.
 

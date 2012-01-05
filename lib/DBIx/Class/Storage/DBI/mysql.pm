@@ -79,7 +79,7 @@ sub deployment_statements {
 
   if (
     ! exists $sqltargs->{producer_args}{mysql_version}
-      and 
+      and
     my $dver = $self->_server_info->{normalized_dbms_version}
   ) {
     $sqltargs->{producer_args}{mysql_version} = $dver;

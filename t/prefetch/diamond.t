@@ -31,7 +31,7 @@ my $ars = $schema->resultset ('Artwork');
 # The current artwork belongs to a cd by artist1
 # but the artwork itself is painted by artist2
 #
-# What we try is all possible permutations of join/prefetch 
+# What we try is all possible permutations of join/prefetch
 # combinations in both directions, while always expecting to
 # arrive at the specific artist at the end of each path.
 

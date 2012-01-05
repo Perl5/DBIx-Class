@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::ArtistGUID;
 
 use base qw/DBICTest::BaseResult/;

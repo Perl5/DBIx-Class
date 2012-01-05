@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::CD_to_Producer;
 
 use base qw/DBICTest::BaseResult/;

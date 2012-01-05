@@ -54,7 +54,7 @@ this module anyway as Unicode is properly supported by all major
 database engines, as explained below.
 
 If you have specific questions about the integrity of your data in light
-of this development - please 
+of this development - please
 L<join us on IRC or the mailing list|DBIx::Class/GETTING HELP/SUPPORT>
 to further discuss your concerns with the team.
 

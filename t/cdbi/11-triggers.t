@@ -57,7 +57,7 @@ is + (
 ok $ver->delete, "Delete";
 
 {
-  Film->add_trigger(before_create => sub { 
+  Film->add_trigger(before_create => sub {
     my $self = shift;
     ok !$self->_attribute_exists('title'), "PK doesn't auto-vivify";
   });

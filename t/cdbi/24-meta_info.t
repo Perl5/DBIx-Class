@@ -15,8 +15,8 @@ package Temp::DBI;
 use base qw(DBIx::Class::CDBICompat);
 Temp::DBI->columns(All => qw(id date));
 
-my $strptime_inflate = sub { 
-    Time::Piece->strptime(shift, "%Y-%m-%d") 
+my $strptime_inflate = sub {
+    Time::Piece->strptime(shift, "%Y-%m-%d")
 };
 Temp::DBI->has_a(
     date => 'Time::Piece',

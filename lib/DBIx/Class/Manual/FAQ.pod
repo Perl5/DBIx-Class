@@ -134,8 +134,8 @@ as you like. See L<DBIx::Class::Relationship::Base>.
 
 =item .. define a relationship bridge across an intermediate table? (many-to-many)
 
-The term 'relationship' is used loosely with many_to_many as it is not considered a 
-relationship in the fullest sense.  For more info, read the documentation on L<DBIx::Class::Relationship/many_to_many>.  
+The term 'relationship' is used loosely with many_to_many as it is not considered a
+relationship in the fullest sense.  For more info, read the documentation on L<DBIx::Class::Relationship/many_to_many>.
 
 =item .. stop DBIx::Class from attempting to cascade deletes on my has_many and might_have relationships?
 
@@ -437,8 +437,8 @@ data out.
 
 =head2 Custom methods in Result classes
 
-You can add custom methods that do arbitrary things, even to unrelated tables. 
-For example, to provide a C<< $book->foo() >> method which searches the 
+You can add custom methods that do arbitrary things, even to unrelated tables.
+For example, to provide a C<< $book->foo() >> method which searches the
 cd table, you'd could add this to Book.pm:
 
   sub foo {
@@ -455,7 +455,7 @@ methods to find or create data in related tables for you. But if you want to
 write your own methods, you can.
 
 For example, to provide a C<< $book->foo() >> method to manually implement
-what create_related() from L<DBIx::Class::Relationship::Base> does, you could 
+what create_related() from L<DBIx::Class::Relationship::Base> does, you could
 add this to Book.pm:
 
   sub foo {
@@ -567,12 +567,12 @@ The code example works for both modules:
 
     package Your::Schema::Group;
     use Class::Method::Modifiers;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     # if the server group is a "super group", then return all servers
     # otherwise return only servers that belongs to the given group
     around 'servers' => sub {
@@ -592,12 +592,12 @@ L<Method::Signatures::Simple> way:
 
     package Your::Schema::Group;
     use Method::Signatures::Simple;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     # The method keyword automatically injects the annoying my $self = shift; for you.
     method servers {
         return $self->result_source->schema->resultset('Server')->search({ ... });
@@ -607,17 +607,17 @@ The dirty way:
 
     package Your::Schema::Group;
     use Sub::Name;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     *servers = subname servers => sub {
         my $self = shift;
         return $self->result_source->schema->resultset('Server')->search({ ... });
     };
-    
+
 =back
 
 =head2 Notes for CDBI users

@@ -9,7 +9,7 @@ use Test::Warn;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
-  plan $@ 
+  plan $@
     ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
     : (tests => 36)
   ;
@@ -110,7 +110,7 @@ warning_like {
     }, undef, 23, $l->this);
 
     is $l->oop, 23;
-    
+
     $l->delete;
 }
 
@@ -123,7 +123,7 @@ SKIP: {
         inflate => sub { Date::Simple->new($_[0] . '-01-01') },
         deflate => 'format'
     );
-    
+
     my $l = Lazy->create({
         this => 89,
         that => 2,
@@ -135,13 +135,13 @@ SKIP: {
         SET    orp  = ?
         WHERE  this = ?
     }, undef, 1987, $l->this);
-    
+
     is $l->orp, '1987-01-01';
 
     $l->orp(2007);
     is $l->orp, '2007-01-01';   # make sure it's inflated
     $l->update;
-    
+
     ok $l->db_Main->do(qq{
         UPDATE @{[ $l->table ]}
         SET    orp  = ?
@@ -149,7 +149,7 @@ SKIP: {
     }, undef, 1942, $l->this);
 
     is $l->orp, '1942-01-01';
-    
+
     $l->delete;
 }
 
@@ -163,16 +163,16 @@ SKIP: {
         oop  => 3,
         opop => 4,
     });
-    
+
     # Delete the object without it knowing.
     Lazy->db_Main->do(qq[
         DELETE
         FROM   @{[ Lazy->table ]}
         WHERE  this = 99
     ]);
-    
+
     $l->eep;
-    
+
     # The problem was when an object had an inflated object
     # loaded.  _flesh() would set _column_data to undef and
     # get_column() would think nothing was there.

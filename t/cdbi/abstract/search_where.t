@@ -29,7 +29,7 @@ is $superman->next, undef;
     is_deeply [sort map $_->Title, @supers],
               [sort ("Super Fuzz", "Superman")], 'like';
 }
-    
+
 
 my @all = Film->search_where({}, { order_by => "Title ASC" });
 is_deeply ["Batman", "Super Fuzz", "Superman"],

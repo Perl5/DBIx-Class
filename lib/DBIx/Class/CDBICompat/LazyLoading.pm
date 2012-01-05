@@ -12,7 +12,7 @@ sub resultset_instance {
 }
 
 
-# Emulate that CDBI throws out all changed columns and reloads them on 
+# Emulate that CDBI throws out all changed columns and reloads them on
 # request in case the database modifies the new value (say, via a trigger)
 sub update {
     my $self = shift;

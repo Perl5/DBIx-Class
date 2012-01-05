@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Taint::Namespaces::Result::Test;
 
 use base 'DBIx::Class::Core';

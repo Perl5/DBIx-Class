@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-# Test various new() invocations - this is all about backcompat, making 
+# Test various new() invocations - this is all about backcompat, making
 # sure that insert() still works as expected by legacy code.
 #
 # What we essentially do is multi-instantiate objects, making sure nothing

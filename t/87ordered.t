@@ -1,6 +1,6 @@
 # vim: filetype=perl
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -181,15 +181,15 @@ $employee->group_id_2(1);
 $employee->update;
 ok(
     check_rs($employees->search_rs({group_id_2=>4, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>1})), 
-    "overloaded multicol update 1" 
+    && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>1})),
+    "overloaded multicol update 1"
 );
 
 $employee = $employees->search({group_id_2=>4, group_id_3=>1})->first;
 $employee->update({group_id_2=>2});
 ok( check_rs($employees->search_rs({group_id_2=>4, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>1})), 
-   "overloaded multicol update 2" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>1})),
+   "overloaded multicol update 2"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>1})->first;
@@ -198,21 +198,21 @@ $employee->group_id_3(3);
 $employee->update();
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>1}))
     && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>3})),
-    "overloaded multicol update 3" 
+    "overloaded multicol update 3"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>1})->first;
 $employee->update({group_id_2=>2, group_id_3=>3});
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>3})), 
-    "overloaded multicol update 4" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>3})),
+    "overloaded multicol update 4"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>2})->first;
 $employee->update({group_id_2=>2, group_id_3=>4, position=>2});
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>2}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>4})), 
-    "overloaded multicol update 5" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>4})),
+    "overloaded multicol update 5"
 );
 
 sub hammer_rs {

@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     Actor;
 
 use strict;
@@ -19,7 +19,7 @@ sub create_sql {
   return qq{
     id     INTEGER PRIMARY KEY,
     name   CHAR(40),
-    film   VARCHAR(255),   
+    film   VARCHAR(255),
     salary INT
   }
 }

@@ -207,7 +207,7 @@ sub create_schema {
   my $additional_sqltargs = $args->{args} || {};
 
   my $sqltargs = {
-    add_drop_table => 1, 
+    add_drop_table => 1,
     ignore_constraint_names => 1,
     ignore_index_names => 1,
     %{$additional_sqltargs}

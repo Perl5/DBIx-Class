@@ -40,7 +40,7 @@ $schema->storage->debugobj->callback(undef);
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
     {
-      columns => [qw/title artist artist.name/], 
+      columns => [qw/title artist artist.name/],
       join => { 'artist' => {} }
     }
 );
@@ -216,7 +216,7 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
    'Tree search_related with prefetch ok');
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
-    { 'children.id' => 3, 'children_2.id' => 6 }, 
+    { 'children.id' => 3, 'children_2.id' => 6 },
     { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };

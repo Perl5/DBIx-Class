@@ -15,7 +15,7 @@ use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::Oracle;
 
 #
-#  Offline test for connect_by 
+#  Offline test for connect_by
 #  ( without active database connection)
 #
 my @handle_tests = (
@@ -43,7 +43,7 @@ my @handle_tests = (
         bind        => ['King'],
         msg         => 'oracle.com example #1',
     },
-    # CONNECT BY PRIOR employee_id = manager_id and 
+    # CONNECT BY PRIOR employee_id = manager_id and
     #            PRIOR account_mgr_id = customer_id ...
     {
         connect_by  => {

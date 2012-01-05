@@ -8,7 +8,7 @@ plan tests => 4;
 my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 
 {
-  my @w; 
+  my @w;
   local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
   my $code = gen_code ( suffix => 1 );
   eval "$code";
@@ -19,7 +19,7 @@ my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 }
 
 {
-  my @w; 
+  my @w;
   local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
 
   my $code = gen_code ( suffix => 2 );

@@ -55,7 +55,7 @@ for my $args ({ no_cascade_delete => 1 }, { cascade => "None" }) {
 
 #{ # Fail on cascade
 #    local $TODO = 'cascade => "Fail" unimplemented';
-#    
+#
 #    Director->has_many(nasties => Film => { cascade => 'Fail' });
 #
 #    my $dir = Director->insert({ name => "Nasty Noddy" });

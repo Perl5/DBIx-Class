@@ -446,7 +446,7 @@ sub _normalize_selection {
   $attrs->{'+columns'} = $self->_merge_attr($attrs->{'+columns'}, delete $attrs->{include_columns})
     if exists $attrs->{include_columns};
 
-  # columns are always placed first, however 
+  # columns are always placed first, however
 
   # Keep the X vs +X separation until _resolved_attrs time - this allows to
   # delay the decision on whether to use a default select list ($rsrc->columns)
@@ -1991,7 +1991,7 @@ sub populate {
       push(@created, $self->create($item));
     }
     return wantarray ? @created : \@created;
-  } 
+  }
   else {
     my $first = $data->[0];
 
@@ -2720,7 +2720,7 @@ supplied by the database (e.g. an auto_increment primary key column).
 In normal usage, the value of such columns should NOT be included at
 all in the call to C<update_or_new>, even when set to C<undef>.
 
-See also L</find>, L</find_or_create> and L</find_or_new>. 
+See also L</find>, L</find_or_create> and L</find_or_new>.
 
 =cut
 

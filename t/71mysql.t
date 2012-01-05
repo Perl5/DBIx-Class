@@ -52,7 +52,7 @@ $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, so
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
-# make sure sqlt_type overrides work (::Storage::DBI::mysql does this) 
+# make sure sqlt_type overrides work (::Storage::DBI::mysql does this)
 {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -144,7 +144,7 @@ $schema->populate ('BooksInLibrary', [
 ]);
 
 #
-# try a distinct + prefetch on tables with identically named columns 
+# try a distinct + prefetch on tables with identically named columns
 # (mysql doesn't seem to like subqueries with equally named columns)
 #
 
@@ -338,7 +338,7 @@ ZEROINSEARCH: {
     'Zero-year groups successfully',
   );
 
-  # convoluted search taken verbatim from list 
+  # convoluted search taken verbatim from list
   my $restrict_rs = $rs->search({ -and => [
     year => { '!=', 0 },
     year => { '!=', undef }

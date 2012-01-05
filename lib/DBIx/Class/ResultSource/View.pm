@@ -106,7 +106,7 @@ You could now say:
 
   $schema->resultset('Year2000CDs')->all();
 
-  SELECT cdid, artist, title FROM 
+  SELECT cdid, artist, title FROM
     (SELECT cdid, artist, title FROM cd WHERE year ='2000') me
 
 =back
@@ -129,7 +129,7 @@ database-based view.
 An SQL query for your view. Will not be translated across database
 syntaxes.
 
-=head2 deploy_depends_on 
+=head2 deploy_depends_on
 
   __PACKAGE__->result_source_instance->deploy_depends_on(
       ["MyApp::Schema::Result::Year","MyApp::Schema::Result::CD"]

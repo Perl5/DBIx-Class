@@ -55,7 +55,7 @@ condition between the tables.
 =head2 Relationship bridge
 
 A relationship bridge, such as C<many_to_many> defines an accessor to
-retrieve row contents across multiple relationships. 
+retrieve row contents across multiple relationships.
 
 The difference between a bridge and a relationship is, that the bridge
 cannot be used to C<join> tables in a C<search>, instead its component
