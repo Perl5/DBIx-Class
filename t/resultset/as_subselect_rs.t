@@ -40,4 +40,35 @@ is_same_sql_bind (
   'Resultset-class attributes do not seep outside of the subselect',
 );
 
+$schema->storage->debug(1);
+
+is_same_sql_bind(
+  $schema->resultset('CD')->search ({}, {
+    rows => 2,
+    join => [ 'genre', { artist => 'cds' } ],
+    distinct => 1,
+    columns => {
+      title => 'me.title',
+      artist__name => 'artist.name',
+      genre__name => 'genre.name',
+      cds_for_artist => \ '(SELECT COUNT(*) FROM cds WHERE cd.artist = artist.id)',
+    },
+    order_by => { -desc => 'me.year' },
+  })->count_rs->as_query,
+  '(
+    SELECT COUNT( * )
+      FROM (
+        SELECT artist.name AS artist__name, (SELECT COUNT(*) FROM cds WHERE cd.artist = artist.id), genre.name AS genre__name, me.title, me.year
+          FROM cd me
+          LEFT JOIN genre genre
+            ON genre.genreid = me.genreid
+          JOIN artist artist ON artist.artistid = me.artist
+        GROUP BY artist.name, (SELECT COUNT(*) FROM cds WHERE cd.artist = artist.id), genre.name, me.title, me.year
+        LIMIT ?
+      ) me
+  )',
+  [ [{ sqlt_datatype => 'integer' } => 2 ] ],
+);
+
+
 done_testing;
