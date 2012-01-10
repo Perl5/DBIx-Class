@@ -74,6 +74,34 @@ However, if it is used in a boolean context it is B<always> true.  So if
 you want to check if a resultset has any results, you must use C<if $rs
 != 0>.
 
+=head1 CUSTOM ResultSet CLASSES THAT USE Moose
+
+If you want to make your custom ResultSet classes with L<Moose>, use a template
+similar to:
+
+    package MyApp::Schema::ResultSet::User;
+
+    use Moose;
+    use namespace::autoclean;
+    use MooseX::NonMoose;
+    extends 'DBIx::Class::ResultSet';
+
+    sub BUILDARGS { $_[2] }
+
+    ...your code...
+
+    __PACKAGE__->meta->make_immutable;
+
+    1;
+
+The L<MooseX::NonMoose> is necessary so that the L<Moose> constructor does not
+clash with the regular ResultSet constructor. Alternatively, you can use:
+
+    __PACKAGE__->meta->make_immutable(inline_constructor => 0);
+
+The L<BUILDARGS|Moose::Manual::Construction/BUILDARGS> is necessary because the
+signature of the ResultSet C<new> is C<< ->new($source, \%args) >>.
+
 =head1 EXAMPLES
 
 =head2 Chaining resultsets
