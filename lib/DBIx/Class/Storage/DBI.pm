@@ -2242,16 +2242,6 @@ storage driver. Can be overridden by supplying an explicit L</limit_dialect>
 to L<DBIx::Class::Schema/connect>. For a list of available limit dialects
 see L<DBIx::Class::SQLMaker::LimitDialects>.
 
-=head2 sth
-
-=over 4
-
-=item Arguments: $sql
-
-=back
-
-Returns a L<DBI> sth (statement handle) for the supplied SQL.
-
 =cut
 
 sub _dbh_sth {
