@@ -15,6 +15,24 @@ __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::SQLite');
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
+
+=head1 SYNOPSIS
+
+  # In your table classes
+  use base 'DBIx::Class::Core';
+  __PACKAGE__->set_primary_key('id');
+
+=head1 DESCRIPTION
+
+This class implements autoincrements for SQLite.
+
+=head1 METHODS
+
+=cut
+
 sub backup {
 
   require File::Spec;
@@ -157,20 +175,6 @@ sub connect_call_use_foreign_keys {
 }
 
 1;
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
-
-=head1 SYNOPSIS
-
-  # In your table classes
-  use base 'DBIx::Class::Core';
-  __PACKAGE__->set_primary_key('id');
-
-=head1 DESCRIPTION
-
-This class implements autoincrements for SQLite.
 
 =head1 AUTHORS
 
