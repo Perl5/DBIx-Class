@@ -680,7 +680,7 @@ re-connect on your schema.
 
 =head2 DBIC_TRACE_PROFILE
 
-If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::PrettyPrint>
+If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::Debug::PrettyPrint>
 will be used to format the output from C<DBIC_TRACE>.  The value it
 is set to is the C<profile> that it will be used.  If the value is a
 filename the file is read with L<Config::Any> and the results are
