@@ -304,7 +304,7 @@ Use the L<DBIx::Class::ResultSet/rows> and
 L<DBIx::Class::ResultSet/order_by> attributes to order your data and
 pick off a single row.
 
-See also L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
+See also L<DBIx::Class::Manual::Cookbook/Retrieve one and only one row from a resultset>.
 
 A less readable way is to ask a regular search to return 1 row, using
 L<DBIx::Class::ResultSet/slice>:

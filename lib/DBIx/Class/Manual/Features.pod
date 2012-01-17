@@ -254,7 +254,7 @@ Create a DBIx::Class schema from your database.
 
  my $schema = Frew::Schema->connect( $dsn, $user, $pass );
 
-See L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base/CONSTRUCTOR_OPTIONS>.
+See L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base/CONSTRUCTOR OPTIONS>.
 
 =head2 Populate
 

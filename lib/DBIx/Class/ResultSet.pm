@@ -293,7 +293,7 @@ condition-bound methods L</new>, L</create> and L</find>. The user must ensure
 manually that any value passed to this method will stringify to something the
 RDBMS knows how to deal with. A notable example is the handling of L<DateTime>
 objects, for more info see:
-L<DBIx::Class::Manual::Cookbook/Formatting_DateTime_objects_in_queries>.
+L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
 
@@ -1822,7 +1822,7 @@ triggers, nor will it update any row object instances derived from this
 resultset (this includes the contents of the L<resultset cache|/set_cache>
 if any). See L</update_all> if you need to execute any on-update
 triggers or cascades defined either by you or a
-L<result component|DBIx::Class::Manual::Component/WHAT_IS_A_COMPONENT>.
+L<result component|DBIx::Class::Manual::Component/WHAT IS A COMPONENT>.
 
 The return value is a pass through of what the underlying
 storage backend returned, and may vary. See L<DBI/execute> for the most
@@ -1835,7 +1835,7 @@ This is unlike the corresponding L<DBIx::Class::Row/update>. The user must
 ensure manually that any value passed to this method will stringify to
 something the RDBMS knows how to deal with. A notable example is the
 handling of L<DateTime> objects, for more info see:
-L<DBIx::Class::Manual::Cookbook/Formatting_DateTime_objects_in_queries>.
+L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
 
@@ -1890,7 +1890,7 @@ L<in_storage|DBIx::Class::Row/in_storage> status of any row object instances
 derived from this resultset (this includes the contents of the
 L<resultset cache|/set_cache> if any). See L</delete_all> if you need to
 execute any on-delete triggers or cascades defined either by you or a
-L<result component|DBIx::Class::Manual::Component/WHAT_IS_A_COMPONENT>.
+L<result component|DBIx::Class::Manual::Component/WHAT IS A COMPONENT>.
 
 The return value is a pass through of what the underlying storage backend
 returned, and may vary. See L<DBI/execute> for the most common case.

@@ -96,7 +96,7 @@ up with the following errors:
 2) syntax error at or near "user" - due to "user" in the JOIN clause
 
 The solution is to enable quoting - see
-L<DBIx::Class::Manual::Cookbook/Setting_quoting_for_the_generated_SQL> for
+L<DBIx::Class::Manual::Cookbook/Setting quoting for the generated SQL> for
 details.
 
 =head2 column "foo DESC" does not exist ...
@@ -112,7 +112,7 @@ should be written as:
   $rs->search( {}, { order_by => { -desc => 'name' } } );
 
 For more ways to express order clauses refer to
-L<SQL::Abstract/ORDER_BY_CLAUSES>
+L<SQL::Abstract/ORDER BY CLAUSES>
 
 =head2 Perl Performance Issues on Red Hat Systems
 

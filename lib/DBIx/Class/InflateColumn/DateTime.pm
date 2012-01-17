@@ -305,7 +305,7 @@ use the old way you'll see a warning - please fix your code then!
       can be found in the documentation for L<DBIx::Class::ResultSource>.
 
 =item Further discussion of problems inherent to the Floating timezone:
-      L<Floating DateTimes|DateTime/Floating_DateTimes>
+      L<Floating DateTimes|DateTime/Floating DateTimes>
       and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
 =back

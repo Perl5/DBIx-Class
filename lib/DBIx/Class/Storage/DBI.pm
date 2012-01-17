@@ -325,8 +325,8 @@ for most DBDs. See L</DBIx::Class and AutoCommit> for details.
 
 =head3 DBIx::Class specific connection attributes
 
-In addition to the standard L<DBI|DBI/ATTRIBUTES_COMMON_TO_ALL_HANDLES>
-L<connection|DBI/Database_Handle_Attributes> attributes, DBIx::Class recognizes
+In addition to the standard L<DBI|DBI/ATTRIBUTES COMMON TO ALL HANDLES>
+L<connection|DBI/Database Handle Attributes> attributes, DBIx::Class recognizes
 the following connection options. These options can be mixed in with your other
 L<DBI> connection attributes, or placed in a separate hashref
 (C<\%extra_attributes>) as shown above.
