@@ -8,6 +8,8 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util 'looks_like_number';
+use Scope::Guard ();
+use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -172,6 +174,24 @@ sub connect_call_use_foreign_keys {
   $self->_do_query(
     'PRAGMA foreign_keys = ON'
   );
+}
+
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  my ($fk_state) = $self->_get_dbh->selectrow_array('PRAGMA foreign_keys');
+  $self->_do_query('PRAGMA foreign_keys = OFF');
+
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  my $sg;
+  if ($fk_state) {
+    $sg = Scope::Guard->new(sub {
+      $self->_do_query('PRAGMA foreign_keys = ON')
+    })
+  }
+
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 1;

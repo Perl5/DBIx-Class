@@ -96,6 +96,42 @@ for my $bi (qw/
   }
 }
 
+$schema->storage->dbh_do(sub {
+  my $dbh = $_[1];
+  SKIP: {
+    my ($fk_enabled) = $dbh->selectrow_array('PRAGMA foreign_keys');
+    if (! defined $fk_enabled) {
+      # skip
+      skip 'SQLite not compiled with foreign key enforcement', 2;
+      return;
+    }
+    $schema->storage->connect_call_use_foreign_keys;
+
+    lives_ok {
+      $schema->storage->with_deferred_fk_checks(sub {
+        $schema->resultset('Track')->create({
+          trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
+        });
+        $schema->resultset('CD')->create({
+          artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
+        });
+      });
+    } 'with_deferred_fk_checks code survived';
+
+    is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
+       'code in with_deferred_fk_checks worked';
+
+    throws_ok {
+      $schema->resultset('Track')->create({
+        trackid => 1, cd => 9999, position => 1, title => 'Track1'
+      });
+    } qr/constraint/i, 'with_deferred_fk_checks is off';
+
+    ok $dbh->selectrow_array('PRAGMA foreign_keys'), 'foreign key checks reenabled';
+  }
+});
+
+
 done_testing;
 
 # vim:sts=2 sw=2:

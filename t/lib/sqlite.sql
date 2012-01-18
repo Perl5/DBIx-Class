@@ -287,7 +287,7 @@ CREATE INDEX self_ref_alias_idx_self_ref ON self_ref_alias (self_ref);
 --
 CREATE TABLE track (
   trackid INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL,
+  cd integer NOT NULL REFERENCES cd(cdid),
   position int NOT NULL,
   title varchar(100) NOT NULL,
   last_updated_on datetime,
@@ -305,7 +305,7 @@ CREATE UNIQUE INDEX track_cd_title ON track (cd, title);
 --
 CREATE TABLE cd (
   cdid INTEGER PRIMARY KEY NOT NULL,
-  artist integer NOT NULL,
+  artist integer NOT NULL REFERENCES artist(artistid),
   title varchar(100) NOT NULL,
   year varchar(100) NOT NULL,
   genreid integer,
