@@ -2,6 +2,8 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -19,15 +21,28 @@ isa_ok($event->starts_at, 'DateTime', 'DateTime returned');
 my $starts = $event->starts_at;
 is("$starts", '2006-04-25T22:24:33', 'Correct date/time');
 
+my $row;
+
+warnings_exist {
+  $row = try {
+    $schema->resultset('Event')->search({ starts_at => $starts })->single
+  };
+} [qr/DateTime objects.+not supported/],
+  'using a DateTime object in ->search generates a warning';
+
 TODO: {
   local $TODO = "We can't do this yet before 0.09" if DBIx::Class->VERSION < 0.09;
 
-  ok(my $row =
-    $schema->resultset('Event')->search({ starts_at => $starts })->single);
   is(eval { $row->id }, 1, 'DT in search');
 
+  local $SIG{__WARN__} = sub {
+    warn @_ unless $_[0] =~ /DateTime objects.+not supported/;
+  };
+
   ok($row =
-    $schema->resultset('Event')->search({ starts_at => { '>=' => $starts } })->single);
+    $schema->resultset('Event')->search({ starts_at => { '>=' => $starts } })
+    ->single);
+
   is(eval { $row->id }, 1, 'DT in search with condition');
 }
 

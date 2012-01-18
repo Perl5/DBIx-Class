@@ -1465,6 +1465,15 @@ sub _gen_sql_bind {
     }];
   }
 
+  if ($op eq 'select'
+     && first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @final_bind) {
+
+    carp_unique 'DateTime objects passed to search() are not supported '
+      . 'properly (InflateColumn::DateTime formats and settings are not '
+      . 'respected.) See "Formatting DateTime objects in queries" in '
+      . 'DBIx::Class::Manual::Cookbook';
+  }
+
   ($sql, \@final_bind);
 }
 
