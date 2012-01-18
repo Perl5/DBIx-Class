@@ -10,6 +10,7 @@ use DBIx::Class::Carp;
 use Scalar::Util 'looks_like_number';
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
+use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -117,18 +118,18 @@ sub bind_attribute_by_data_type {
   ;
 }
 
-# DBD::SQLite (at least up to version 1.31 has a bug where it will
+# DBD::SQLite up to version 1.34_01 has a bug where it will
 # non-fatally nummify a string value bound as an integer, resulting
 # in insertions of '0' into supposed-to-be-numeric fields
 # Since this can result in severe data inconsistency, remove the
 # bind attr if such a sitation is detected
-#
-# FIXME - when a DBD::SQLite version is released that eventually fixes
-# this sutiation (somehow) - no-op this override once a proper DBD
-# version is detected
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
   my $bindattrs = $self->next::method($ident, $bind);
+
+  if (try { DBD::SQLite->VERSION('1.34_02'); 1 } ) {
+    return $bindattrs;
+  }
 
   for (0.. $#$bindattrs) {
     if (
@@ -140,11 +141,10 @@ sub _dbi_attrs_for_bind {
         and
       ! looks_like_number ($bind->[$_][1])
     ) {
-      carp_unique( sprintf (
+      $self->throw_exception( sprintf (
         "Non-numeric value supplied for column '%s' despite the numeric datatype",
-        $bind->[$_][0]{dbic_colname} || "# $_"
+        $bind->[$_][0]{dbic_colname},
       ) );
-      undef $bindattrs->[$_];
     }
   }
 

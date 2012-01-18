@@ -11,7 +11,7 @@ use DBICTest;
 
 # savepoints test
 {
-  my $schema = DBICTest->init_schema(auto_savepoint => 1);
+  my $schema = DBICTest->init_schema(auto_savepoint => 1, PrintError => 0);
 
   my $ars = $schema->resultset('Artist');
 
@@ -45,14 +45,14 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-# make sure the side-effects of RT#67581 do not result in data loss
 my $row;
-warnings_exist { $row = $schema->resultset('Artist')->create ({ name => 'alpha rank', rank => 'abc' }) }
-  [qr/Non-numeric value supplied for column 'rank' despite the numeric datatype/],
-  'proper warning on string insertion into an numeric column'
+# make sure the side-effects of RT#67581 do not result in data loss on older DBD::SQLite versions
+throws_ok { $row = $schema->resultset('Artist')->create ({ name => 'alpha rank', rank => 'abc' }) }
+  qr/datatype mismatch: bind 1 type 1 as abc|Non-numeric value supplied for column 'rank' despite the numeric datatype/,
+  'proper exception on string insertion into an numeric column'
 ;
-$row->discard_changes;
-is ($row->rank, 'abc', 'proper rank inserted into database');
+is $schema->resultset('Artist')->search({ name => 'alpha rank' })->count, 0,
+  'no rows inserted for string insertion into a numeric column';
 
 # and make sure we do not lose actual bigints
 {
