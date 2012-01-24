@@ -1,5 +1,4 @@
-^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile.PL$|README$|MANIFEST$|Changes$|META.yml$)
-
+^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile\.PL$|maint/Makefile\.PL|README$|MANIFEST$|Changes$|META\.(?:yml|json)$)
 
 # Avoid version control files.
 \bRCS\b
@@ -42,14 +41,11 @@
 ^t/var
 
 # Don't ship the last dist we built :)
-\.tar\.gz$
-
-# Skip maint stuff
-^maint/
+\.tar\.(?:gz|bz2|xz)$
 
 # Avoid patch remnants
 \.orig$
 \.rej$
 
 # Dont use Module::Build anymore
-^Build.PL$
+^Build\.PL$

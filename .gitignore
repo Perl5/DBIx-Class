@@ -6,11 +6,12 @@ META.*
 MYMETA.*
 Makefile
 Makefile.old
-README
 _build/
 blib/
 inc/
 lib/DBIx/Class/Optional/Dependencies.pod
+DBIx-Class-*/
+DBIx-Class-*.tar.*
 pm_to_blib
 t/var/
 .*.sw?
