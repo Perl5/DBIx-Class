@@ -101,8 +101,7 @@ $schema->storage->dbh_do(sub {
   SKIP: {
     my ($fk_enabled) = $dbh->selectrow_array('PRAGMA foreign_keys');
     if (! defined $fk_enabled) {
-      # skip
-      skip 'SQLite not compiled with foreign key enforcement', 2;
+      skip 'SQLite not compiled with foreign key enforcement', 4;
       return;
     }
     $schema->storage->connect_call_use_foreign_keys;
