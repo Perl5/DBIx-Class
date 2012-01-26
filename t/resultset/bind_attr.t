@@ -66,12 +66,12 @@ TODO: {
       ->search({ 'artistid' => 1 });
   is ( $rs->count, 1, '...cookbook (bind first) + chained search' );
 
-  $rs = $schema->resultset('Complex')->search({}, { bind => [ 1999 ] })->search({}, { where => \"title LIKE ?", bind => [ 'Spoon%' ] });
+  $rs = $schema->resultset('Complex')->search({}, { bind => [ [{ sqlt_datatype => 'datetime'} => 1999 ] ] })->search({}, { where => \"title LIKE ?", bind => [ 'Spoon%' ] });
   is_same_sql_bind(
     $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
-      [ {} => '1999' ],
+      [ { sqlt_datatype => 'datetime' } => '1999' ],
       [ {} => 'Spoon%' ]
     ],
     'got correct SQL'
