@@ -143,7 +143,7 @@ if ($Module::Install::AUTHOR) {
 }
 else {
   # make sure this Makefile can not be used to make a dist
-  # (without the author includes there are no sanity checks)
+  # (without the author includes there are no meta cleanup, no sanity checks, etc)
   postamble <<EOP;
 .PHONY: nonauthor_stop_distdir_creation
 create_distdir: nonauthor_stop_distdir_creation
