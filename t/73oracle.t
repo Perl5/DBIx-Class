@@ -372,112 +372,6 @@ sub _run_tests {
   is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
 
-# test BLOBs
-  SKIP: {
-  TODO: {
-    my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
-    $binstr{'large'} = $binstr{'small'} x 1024;
-
-    my $maxloblen = (length $binstr{'large'}) + 5;
-    note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
-    local $dbh->{'LongReadLen'} = $maxloblen;
-
-    my $rs = $schema->resultset('BindType');
-
-    if ($DBD::Oracle::VERSION eq '1.23') {
-      throws_ok { $rs->create({ id => 1, blob => $binstr{large} }) }
-        qr/broken/,
-        'throws on blob insert with DBD::Oracle == 1.23';
-
-      skip 'buggy BLOB support in DBD::Oracle 1.23', 1;
-    }
-
-    # disable BLOB mega-output
-    my $orig_debug = $schema->storage->debug;
-
-    local $TODO = 'Something is confusing column bindtype assignment when quotes are active'
-                . ': https://rt.cpan.org/Ticket/Display.html?id=64206'
-      if $q;
-
-    my $id;
-    foreach my $size (qw( small large )) {
-      $id++;
-
-      if ($size eq 'small') {
-        $schema->storage->debug($orig_debug);
-      }
-      elsif ($size eq 'large') {
-        $schema->storage->debug(0);
-      }
-
-      my $str = $binstr{$size};
-      lives_ok {
-        $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str" } )
-      } "inserted $size without dying";
-
-      my %kids = %{$schema->storage->_dbh->{CachedKids}};
-      my @objs = $rs->search({ blob => "blob:$str", clob => "clob:$str" })->all;
-      is_deeply (
-        $schema->storage->_dbh->{CachedKids},
-        \%kids,
-        'multi-part LOB equality query was not cached',
-      ) if $size eq 'large';
-      is @objs, 1, 'One row found matching on both LOBs';
-      ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
-      ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
-
-      TODO: {
-        local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
-          if $schema->storage->_server_info->{normalized_dbms_version} < 10;
-
-        lives_ok {
-          @objs = $rs->search({ clob => { -like => 'clob:%' } })->all;
-          ok (@objs, 'rows found matching CLOB with a LIKE query');
-        } 'Query with like on blob succeeds';
-      }
-
-      ok(my $subq = $rs->search(
-        { blob => "blob:$str", clob => "clob:$str" },
-        {
-          from => \ "(SELECT * FROM ${q}bindtype_test${q} WHERE ${q}id${q} != ?) ${q}me${q}",
-          bind => [ [ undef => 12345678 ] ],
-        }
-      )->get_column('id')->as_query);
-
-      @objs = $rs->search({ id => { -in => $subq } })->all;
-      is (@objs, 1, 'One row found matching on both LOBs as a subquery');
-
-      lives_ok {
-        $rs->search({ id => $id, blob => "blob:$str", clob => "clob:$str" })
-          ->update({ blob => 'updated blob', clob => 'updated clob' });
-      } 'blob UPDATE with blobs in WHERE clause survived';
-
-      @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
-      is @objs, 1, 'found updated row';
-      ok (try { $objs[0]->blob }||'' eq "updated blob", 'blob updated/retrieved correctly');
-      ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
-
-      lives_ok {
-        $rs->search({ id => $id  })
-          ->update({ blob => 're-updated blob', clob => 're-updated clob' });
-      } 'blob UPDATE without blobs in WHERE clause survived';
-
-      @objs = $rs->search({ blob => 're-updated blob', clob => 're-updated clob' })->all;
-      is @objs, 1, 'found updated row';
-      ok (try { $objs[0]->blob }||'' eq 're-updated blob', 'blob updated/retrieved correctly');
-      ok (try { $objs[0]->clob }||'' eq 're-updated clob', 'clob updated/retrieved correctly');
-
-      lives_ok {
-        $rs->search({ blob => "re-updated blob", clob => "re-updated clob" })
-          ->delete;
-      } 'blob DELETE with WHERE clause survived';
-      @objs = $rs->search({ blob => "re-updated blob", clob => 're-updated clob' })->all;
-      is @objs, 0, 'row deleted successfully';
-    }
-
-    $schema->storage->debug ($orig_debug);
-  }}
-
 # test populate (identity, success and error handling)
   my $art_rs = $schema->resultset('Artist');
 
@@ -692,8 +586,6 @@ sub do_creates {
 
   $dbh->do("CREATE TABLE ${q}track${q} (${q}trackid${q} NUMBER(12), ${q}cd${q} NUMBER(12) REFERENCES CD(${q}cdid${q}) DEFERRABLE, ${q}position${q} NUMBER(12), ${q}title${q} VARCHAR(255), ${q}last_updated_on${q} DATE, ${q}last_updated_at${q} DATE)");
   $dbh->do("ALTER TABLE ${q}track${q} ADD (CONSTRAINT ${q}track_pk${q} PRIMARY KEY (${q}trackid${q}))");
-
-  $dbh->do("CREATE TABLE ${q}bindtype_test${q} (${q}id${q} integer NOT NULL PRIMARY KEY, ${q}bytea${q} integer NULL, ${q}blob${q} blob NULL, ${q}clob${q} clob NULL, ${q}a_memo${q} integer NULL)");
 
   $dbh->do(qq{
     CREATE OR REPLACE TRIGGER ${q}artist_insert_trg_auto${q}
