@@ -23,8 +23,10 @@ use namespace::clean;
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/
-  sql_limit_dialect sql_quote_char sql_name_sep
+  sql_limit_dialect sql_quote_char sql_name_sep _prepare_attributes
 /);
+
+__PACKAGE__->_prepare_attributes({}); # see _dbh_sth
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/sql_maker_class datetime_parser_type/);
 
@@ -2304,8 +2306,8 @@ sub _dbh_sth {
 
   # 3 is the if_active parameter which avoids active sth re-use
   my $sth = $self->disable_sth_caching
-    ? $dbh->prepare($sql)
-    : $dbh->prepare_cached($sql, {}, 3);
+    ? $dbh->prepare($sql, $self->_prepare_attributes)
+    : $dbh->prepare_cached($sql, $self->_prepare_attributes, 3);
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(

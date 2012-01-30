@@ -1,5 +1,14 @@
 Revision history for DBIx::Class
 
+        - Loosen primary key requirement restriction on TEXT/IMAGE operations
+          for Sybase ASE to unique constraints
+        - Support TEXT/IMAGE UPDATE operations with TEXT queries in WHERE for
+          Sybase ASE
+        - Support BLOB/CLOB operations for Oracle with quoting enabled (by
+          switching to ora_auto_lob => 0)
+        - Support BLOB/CLOB operations for Oracle on DBD::Oracle version 1.23
+        - Support insert_bulk with BLOBs/CLOBs for Oracle
+
 0.08200 2012-08-24 (UTC)
     * Fixes
         - Change one of the new tests for the previous release to not require

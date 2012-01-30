@@ -2,7 +2,7 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::WriteLOBs/;
 use mro 'c3';
 use DBIx::Class::Carp;
 use Scope::Guard ();
@@ -453,6 +453,37 @@ sub bind_attribute_by_data_type {
   }
   else {
     return undef;
+  }
+}
+
+sub _empty_lob {
+  my ($self, $source, $col) = @_;
+
+  return $self->_is_text_lob_type($source->column_info($col)->{data_type}) ?
+    \'EMPTY_CLOB()' : \'EMPTY_BLOB()';
+}
+
+sub _write_lobs {
+  my ($self, $source, $lobs, $where) = @_;
+
+  my @lobs = keys %$lobs;
+
+  local $self->_prepare_attributes->{ora_auto_lob} = 0;
+
+  my $cursor = $self->select($source, \@lobs, $where, { for => 'update' });
+
+  my $dbh = $self->_get_dbh;
+
+  while (my @locators = $cursor->next) {
+    my %lobs;
+    @lobs{@lobs} = @locators;
+
+    foreach my $lob (@lobs) {
+      my $data = \$lobs->{$lob};
+
+      $dbh->ora_lob_trim($lobs{$lob}, 0);
+      $dbh->ora_lob_write($lobs{$lob}, 1, $$data);
+    }
   }
 }
 

@@ -434,6 +434,19 @@ SQL
 
     $rs->delete;
 
+    lives_ok {
+      $rs->create({ id => 1, clob => "foobar$binstr{large}" })
+    } 'inserted large TEXT without dying with manual PK';
+
+    lives_and {
+      $rs->search({ clob => { -like => 'foobar%' } })->update({
+        clob => 'updated TEXT'
+      });
+      is((grep $_->clob eq 'updated TEXT', $rs->all), 1);
+    } 'TEXT UPDATE with LIKE query in WHERE';
+
+    $rs->delete;
+
     # now try insert_bulk with blobs and only blobs
     $new_str = $binstr{large} . 'bar';
     lives_ok {

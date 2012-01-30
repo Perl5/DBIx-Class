@@ -6,16 +6,15 @@ use warnings;
 use base qw/
   DBIx::Class::Storage::DBI::Sybase
   DBIx::Class::Storage::DBI::AutoCast
+  DBIx::Class::Storage::DBI::WriteLOBs
   DBIx::Class::Storage::DBI::IdentityInsert
 /;
 use mro 'c3';
 use DBIx::Class::Carp;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util qw/weaken/;
 use List::Util 'first';
 use Sub::Name();
-use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
-use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowCountOrGenericSubQ');
@@ -247,12 +246,6 @@ sub connect_call_blob_setup {
     if exists $args{log_on_update};
 }
 
-sub _is_lob_column {
-  my ($self, $source, $column) = @_;
-
-  return $self->_is_lob_type($source->column_info($column)->{data_type});
-}
-
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $ident) = @_;
@@ -346,8 +339,7 @@ sub insert {
       keys %$columns_info )
     || '';
 
-  # FIXME - this is duplication from DBI.pm. When refactored towards
-  # the LobWriter this can be folded back where it belongs.
+  # FIXME - this is duplication from DBI.pm
   local $self->{_autoinc_supplied_for_op} = exists $to_insert->{$identity_col}
     ? 1
     : 0
@@ -363,7 +355,7 @@ sub insert {
   # try to insert explicit 'DEFAULT's instead (except for identity, timestamp
   # and computed columns)
   if (not %$to_insert) {
-    for my $col ($source->columns) {
+    foreach my $col ($source->columns) {
       next if $col eq $identity_col;
 
       my $info = $source->column_info($col);
@@ -377,8 +369,6 @@ sub insert {
     }
   }
 
-  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
-
   # do we need the horrific SELECT MAX(COL) hack?
   my $need_dumb_last_insert_id = (
     $self->_perform_autoinc_retrieval
@@ -386,25 +376,19 @@ sub insert {
     ($self->_identity_method||'') ne '@@IDENTITY'
   );
 
-  my $next = $self->next::can;
-
-  # we are already in a transaction, or there are no blobs
+  # we are already in a transaction, or there are no lobs
   # and we don't need the PK - just (try to) do it
   if ($self->{transaction_depth}
-        || (!$blob_cols && !$need_dumb_last_insert_id)
+|| (!$self->_have_lob_fields($source, $to_insert) && !$need_dumb_last_insert_id)
   ) {
-    return $self->_insert (
-      $next, $source, $to_insert, $blob_cols, $identity_col
-    );
+    return $self->next::method(@_);
   }
 
   # otherwise use the _writer_storage to do the insert+transaction on another
   # connection
   my $guard = $self->_writer_storage->txn_scope_guard;
 
-  my $updated_cols = $self->_writer_storage->_insert (
-    $next, $source, $to_insert, $blob_cols, $identity_col
-  );
+  my $updated_cols = $self->_writer_storage->next::method(@_);
 
   $self->_identity($self->_writer_storage->_identity);
 
@@ -413,80 +397,16 @@ sub insert {
   return $updated_cols;
 }
 
-sub _insert {
-  my ($self, $next, $source, $to_insert, $blob_cols, $identity_col) = @_;
-
-  my $updated_cols = $self->$next ($source, $to_insert);
-
-  my $final_row = {
-    ($identity_col ?
-      ($identity_col => $self->last_insert_id($source, $identity_col)) : ()),
-    %$to_insert,
-    %$updated_cols,
-  };
-
-  $self->_insert_blobs ($source, $blob_cols, $final_row) if $blob_cols;
-
-  return $updated_cols;
-}
-
 sub update {
   my $self = shift;
   my ($source, $fields, $where, @rest) = @_;
 
-  #
-  # When *updating* identities, ASE requires SET IDENTITY_UPDATE called
-  #
-  if (my $blob_cols = $self->_remove_blob_cols($source, $fields)) {
+  my $columns_info = $source->columns_info([keys %$fields]);
 
-    # If there are any blobs in $where, Sybase will return a descriptive error
-    # message.
-    # XXX blobs can still be used with a LIKE query, and this should be handled.
+  local $self->{_autoinc_supplied_for_op} = 1
+    if first { $columns_info->{$_}{is_auto_increment} } keys %$columns_info;
 
-    # update+blob update(s) done atomically on separate connection
-    $self = $self->_writer_storage;
-
-    my $guard = $self->txn_scope_guard;
-
-    # First update the blob columns to be updated to '' (taken from $fields, where
-    # it is originally put by _remove_blob_cols .)
-    my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
-
-    # We can't only update NULL blobs, because blobs cannot be in the WHERE clause.
-    $self->next::method($source, \%blobs_to_empty, $where, @rest);
-
-    # Now update the blobs before the other columns in case the update of other
-    # columns makes the search condition invalid.
-    my $rv = $self->_update_blobs($source, $blob_cols, $where);
-
-    if (keys %$fields) {
-
-      # Now set the identity update flags for the actual update
-      local $self->{_autoinc_supplied_for_op} = (first
-        { $_->{is_auto_increment} }
-        values %{ $source->columns_info([ keys %$fields ]) }
-      ) ? 1 : 0;
-
-      my $next = $self->next::can;
-      my $args = \@_;
-      return preserve_context {
-        $self->$next(@$args);
-      } after => sub { $guard->commit };
-    }
-    else {
-      $guard->commit;
-      return $rv;
-    }
-  }
-  else {
-    # Set the identity update flags for the actual update
-    local $self->{_autoinc_supplied_for_op} = (first
-      { $_->{is_auto_increment} }
-      values %{ $source->columns_info([ keys %$fields ]) }
-    ) ? 1 : 0;
-
-    return $self->next::method(@_);
-  }
+  return $self->next::method(@_);
 }
 
 sub insert_bulk {
@@ -519,20 +439,22 @@ sub insert_bulk {
   }
 
   if (not $use_bulk_api) {
-    my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
+    my $lobs = $self->_replace_lob_fields_array($source, $cols, $data);
 
 # next::method uses a txn anyway, but it ends too early in case we need to
-# select max(col) to get the identity for inserting blobs.
+# select max(col) to get the identity for inserting lobs.
     ($self, my $guard) = $self->{transaction_depth} == 0 ?
       ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
       :
       ($self, undef);
 
+    local $self->{_skip_writelobs_impl} = 1;
+
     $self->next::method(@_);
 
-    if ($blob_cols) {
-      if ($self->_autoinc_supplied_for_op) {
-        $self->_insert_blobs_array ($source, $blob_cols, $cols, $data);
+    if ($lobs) {
+      if ($self->_autoinc_supplied_for_op || (not defined $identity_col)) {
+        $self->_write_lobs_array($source, $lobs, $cols, $data);
       }
       else {
         my @cols_with_identities = (@$cols, $identity_col);
@@ -548,8 +470,8 @@ sub insert_bulk {
 
         my @data_with_identities = map [@$_, shift @identities], @$data;
 
-        $self->_insert_blobs_array (
-          $source, $blob_cols, \@cols_with_identities, \@data_with_identities
+        $self->_write_lobs_array(
+          $source, $lobs, \@cols_with_identities, \@data_with_identities
         );
       }
     }
@@ -624,8 +546,11 @@ sub insert_bulk {
 #        identity_column => $identity_idx,
 #      }
 #    });
+
+    my $table_name = $source->name;
+
     my $sql = 'INSERT INTO ' .
-      $bulk->sql_maker->_quote($source->name) . ' (' .
+      $bulk->sql_maker->_quote($table_name) . ' (' .
 # colname list is ignored for BCP, but does no harm
       (join ', ', map $bulk->sql_maker->_quote($_), @source_columns) . ') '.
       ' VALUES ('.  (join ', ', ('?') x @source_columns) . ')';
@@ -682,118 +607,33 @@ sub insert_bulk {
   }
 }
 
-# Make sure blobs are not bound as placeholders, and return any non-empty ones
-# as a hash.
-sub _remove_blob_cols {
-  my ($self, $source, $fields) = @_;
+# Override from WriteLOBs for NULL uniqueness (in ASE null values in UCs are
+# unique.)
+sub _identifying_column_set {
+  my ($self, $source, $cols) = @_;
 
-  my %blob_cols;
+  my $colinfos = ref $cols eq 'HASH' ? $cols : $source->columns_info($cols||());
 
-  for my $col (keys %$fields) {
-    if ($self->_is_lob_column($source, $col)) {
-      my $blob_val = delete $fields->{$col};
-      if (not defined $blob_val) {
-        $fields->{$col} = \'NULL';
-      }
-      else {
-        $fields->{$col} = \"''";
-        $blob_cols{$col} = $blob_val unless $blob_val eq '';
-      }
-    }
-  }
+  local $colinfos->{$_}{is_nullable} = 0 for keys %$colinfos;
 
-  return %blob_cols ? \%blob_cols : undef;
+  return $source->_identifying_column_set($colinfos);
 }
 
-# same for insert_bulk
-sub _remove_blob_cols_array {
-  my ($self, $source, $cols, $data) = @_;
+sub _empty_lob { \"''" }
 
-  my @blob_cols;
+sub _open_cursors_while_writing_lobs_allowed { 0 }
 
-  for my $i (0..$#$cols) {
-    my $col = $cols->[$i];
+sub _write_lobs {
+  my ($self, $source, $lobs, $where) = @_;
 
-    if ($self->_is_lob_column($source, $col)) {
-      for my $j (0..$#$data) {
-        my $blob_val = delete $data->[$j][$i];
-        if (not defined $blob_val) {
-          $data->[$j][$i] = \'NULL';
-        }
-        else {
-          $data->[$j][$i] = \"''";
-          $blob_cols[$j][$i] = $blob_val
-            unless $blob_val eq '';
-        }
-      }
-    }
-  }
-
-  return @blob_cols ? \@blob_cols : undef;
-}
-
-sub _update_blobs {
-  my ($self, $source, $blob_cols, $where) = @_;
-
-  my @primary_cols = try
-    { $source->_pri_cols }
-    catch {
-      $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
-    };
-
-  my @pks_to_update;
-  if (
-    ref $where eq 'HASH'
-      and
-    @primary_cols == grep { defined $where->{$_} } @primary_cols
-  ) {
-    my %row_to_update;
-    @row_to_update{@primary_cols} = @{$where}{@primary_cols};
-    @pks_to_update = \%row_to_update;
-  }
-  else {
-    my $cursor = $self->select ($source, \@primary_cols, $where, {});
-    @pks_to_update = map {
-      my %row; @row{@primary_cols} = @$_; \%row
-    } $cursor->all;
-  }
-
-  for my $ident (@pks_to_update) {
-    $self->_insert_blobs($source, $blob_cols, $ident);
-  }
-}
-
-sub _insert_blobs {
-  my ($self, $source, $blob_cols, $row) = @_;
   my $dbh = $self->_get_dbh;
 
-  my $table = $source->name;
+  foreach my $col (keys %$lobs) {
+    my $lob = $lobs->{$col};
 
-  my %row = %$row;
-  my @primary_cols = try
-    { $source->_pri_cols }
-    catch {
-      $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
-    };
-
-  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
-    if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
-
-  for my $col (keys %$blob_cols) {
-    my $blob = $blob_cols->{$col};
-
-    my %where = map { ($_, $row{$_}) } @primary_cols;
-
-    my $cursor = $self->select ($source, [$col], \%where, {});
+    my $cursor = $self->select($source, [$col], $where, {});
     $cursor->next;
     my $sth = $cursor->sth;
-
-    if (not $sth) {
-      $self->throw_exception(
-          "Could not find row in table '$table' for blob update:\n"
-        . (Dumper \%where)
-      );
-    }
 
     try {
       do {
@@ -806,11 +646,11 @@ sub _insert_blobs {
       $log_on_update    = 1 if not defined $log_on_update;
 
       $sth->func('CS_SET', 1, {
-        total_txtlen => length($blob),
+        total_txtlen => length($lob),
         log_on_update => $log_on_update
       }, 'ct_data_info') or die $sth->errstr;
 
-      $sth->func($blob, length($blob), 'ct_send_data') or die $sth->errstr;
+      $sth->func($lob, length($lob), 'ct_send_data') or die $sth->errstr;
 
       $sth->func('ct_finish_send') or die $sth->errstr;
     }
@@ -827,26 +667,6 @@ sub _insert_blobs {
     finally {
       $sth->finish if $sth;
     };
-  }
-}
-
-sub _insert_blobs_array {
-  my ($self, $source, $blob_cols, $cols, $data) = @_;
-
-  for my $i (0..$#$data) {
-    my $datum = $data->[$i];
-
-    my %row;
-    @row{ @$cols } = @$datum;
-
-    my %blob_vals;
-    for my $j (0..$#$cols) {
-      if (exists $blob_cols->[$i][$j]) {
-        $blob_vals{ $cols->[$j] } = $blob_cols->[$i][$j];
-      }
-    }
-
-    $self->_insert_blobs ($source, \%blob_vals, \%row);
   }
 }
 
@@ -1173,10 +993,6 @@ any active cursors, using eager cursors.
 =item *
 
 Real limits and limited counts using stored procedures deployed on startup.
-
-=item *
-
-Blob update with a LIKE query on a blob, without invalidating the WHERE condition.
 
 =item *
 

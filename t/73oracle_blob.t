@@ -8,6 +8,23 @@ use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
+
+# add extra columns for the bindtype tests
+BEGIN {
+  require DBICTest::RunMode;
+  require DBICTest::Schema::BindType;
+  DBICTest::Schema::BindType->add_columns(
+    'blob2' => {
+      data_type => 'blob',
+      is_nullable => 1,
+    },
+    'clob2' => {
+      data_type => 'clob',
+      is_nullable => 1,
+    },
+  );
+}
+
 use DBICTest;
 use DBIC::SqlMakerTest;
 
@@ -51,53 +68,44 @@ for my $opt (@tryopt) {
 
   do_creates($dbh, $q);
 
-  _run_blob_tests($schema, $opt);
+  _run_tests($schema, $opt);
 }
 
-sub _run_blob_tests {
-SKIP: {
-TODO: {
+sub _run_tests {
   my ($schema, $opt) = @_;
+
+  my $q = $schema->storage->sql_maker->quote_char || '';
+
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
   $binstr{'large'} = $binstr{'small'} x 1024;
 
-  my $maxloblen = (length $binstr{'large'}) + 5;
+  my $maxloblen = (length $binstr{'large'}) + 6;
   note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
   local $dbh->{'LongReadLen'} = $maxloblen;
 
   my $rs = $schema->resultset('BindType');
 
-  if ($DBD::Oracle::VERSION eq '1.23') {
-    throws_ok { $rs->create({ id => 1, blob => $binstr{large} }) }
-      qr/broken/,
-      'throws on blob insert with DBD::Oracle == 1.23';
-    skip 'buggy BLOB support in DBD::Oracle 1.23', 1;
-  }
-
-  my $q = $schema->storage->sql_maker->quote_char || '';
-  local $TODO = 'Something is confusing column bindtype assignment when quotes are active'
-              . ': https://rt.cpan.org/Ticket/Display.html?id=64206'
-    if $q;
-
-  # so we can disable BLOB mega-output
+  # disable BLOB mega-output
   my $orig_debug = $schema->storage->debug;
 
   my $id;
   foreach my $size (qw( small large )) {
     $id++;
 
-    local $schema->storage->{debug} = $size eq 'large'
-      ? 0
-      : $orig_debug
-    ;
+    if ($size eq 'small') {
+      $schema->storage->debug($orig_debug);
+    }
+    elsif ($size eq 'large') {
+      $schema->storage->debug(0);
+    }
 
     my $str = $binstr{$size};
     lives_ok {
-      $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str" } )
+      $rs->create( { 'id' => $id, blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" } )
     } "inserted $size without dying";
 
     my %kids = %{$schema->storage->_dbh->{CachedKids}};
-    my @objs = $rs->search({ blob => "blob:$str", clob => "clob:$str" })->all;
+    my @objs = $rs->search({ blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" })->all;
     is_deeply (
       $schema->storage->_dbh->{CachedKids},
       \%kids,
@@ -105,7 +113,22 @@ TODO: {
     ) if $size eq 'large';
     is @objs, 1, 'One row found matching on both LOBs';
     ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
+    ok (try { $objs[0]->blob2 }||'' eq "blob2:$str", 'blob2 inserted/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
+    ok (try { $objs[0]->clob2 }||'' eq "clob2:$str", 'clob2 inserted/retrieved correctly');
+
+    $rs->find($id)->delete;
+
+    lives_ok {
+      $rs->populate( [ { 'id' => $id, blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" } ] )
+    } "inserted $size via insert_bulk without dying";
+
+    @objs = $rs->search({ blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" })->all;
+    is @objs, 1, 'One row found matching on both LOBs';
+    ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
+    ok (try { $objs[0]->blob2 }||'' eq "blob2:$str", 'blob2 inserted/retrieved correctly');
+    ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
+    ok (try { $objs[0]->clob2 }||'' eq "clob2:$str", 'clob2 inserted/retrieved correctly');
 
     TODO: {
       local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
@@ -118,7 +141,7 @@ TODO: {
     }
 
     ok(my $subq = $rs->search(
-      { blob => "blob:$str", clob => "clob:$str" },
+      { blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" },
       {
         from => \ "(SELECT * FROM ${q}bindtype_test${q} WHERE ${q}id${q} != ?) ${q}me${q}",
         bind => [ [ undef => 12345678 ] ],
@@ -129,35 +152,64 @@ TODO: {
     is (@objs, 1, 'One row found matching on both LOBs as a subquery');
 
     lives_ok {
-      $rs->search({ id => $id, blob => "blob:$str", clob => "clob:$str" })
-        ->update({ blob => 'updated blob', clob => 'updated clob' });
+      $rs->search({ id => $id, blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" })
+        ->update({ id => 9999 });
     } 'blob UPDATE with blobs in WHERE clause survived';
 
-    @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
+    @objs = $rs->search({ id => 9999, blob => "blob:$str", blob2 => "blob2:$str", clob => "clob:$str", clob2 => "clob2:$str" })->all;
+    is @objs, 1, 'found updated row';
+
+    lives_ok {
+      $rs->search({ id => 9999 })->update({ blob => 'updated blob', blob2 => 'updated blob2', clob => 'updated clob', clob2 => 'updated clob2' });
+    } 'blob UPDATE survived';
+
+    @objs = $rs->search({ blob => "updated blob", blob2 => "updated blob2", clob => 'updated clob', clob2 => 'updated clob2' })->all;
     is @objs, 1, 'found updated row';
     ok (try { $objs[0]->blob }||'' eq "updated blob", 'blob updated/retrieved correctly');
+    ok (try { $objs[0]->blob2 }||'' eq "updated blob2", 'blob2 updated/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
+    ok (try { $objs[0]->clob2 }||'' eq "updated clob2", 'clob2 updated/retrieved correctly');
+
+    # test multirow update
+    $rs->create({ id => $id+1, blob => 'updated blob', blob2 => 'updated blob2', clob => 'updated clob', clob2 => 'updated clob2' });
+
+    lives_ok {
+      $rs->search({ id => [ 9999, $id+1 ], blob => 'updated blob', blob2 => 'updated blob2', clob => 'updated clob', clob2 => 'updated clob2' })->update({ blob => 'updated blob again', blob2 => 'updated blob2 again', clob => 'updated clob again', clob2 => 'updated clob2 again' });
+    } 'lob multirow UPDATE based on lobs in WHERE clause survived';
+
+    @objs = $rs->search({ blob => "updated blob again", blob2 => "updated blob2 again", clob => 'updated clob again', clob2 => 'updated clob2 again' })->all;
+    is @objs, 2, 'found updated rows';
+    foreach my $idx (0..1) {
+      ok (try { $objs[$idx]->blob }||'' eq "updated blob again", 'blob updated/retrieved correctly');
+      ok (try { $objs[$idx]->blob2 }||'' eq "updated blob2 again", 'blob2 updated/retrieved correctly');
+      ok (try { $objs[$idx]->clob }||'' eq "updated clob again", 'clob updated/retrieved correctly');
+      ok (try { $objs[$idx]->clob2 }||'' eq "updated clob2 again", 'clob2 updated/retrieved correctly');
+    }
+
+    $rs->find($id+1)->delete;
+    $rs->find(9999)->update({ id => $id });
 
     lives_ok {
       $rs->search({ id => $id  })
-        ->update({ blob => 're-updated blob', clob => 're-updated clob' });
+        ->update({ blob => 're-updated blob', blob2 => 're-updated blob2', clob => 're-updated clob', clob2 => 're-updated clob2' });
     } 'blob UPDATE without blobs in WHERE clause survived';
 
-    @objs = $rs->search({ blob => 're-updated blob', clob => 're-updated clob' })->all;
+    @objs = $rs->search({ blob => 're-updated blob', blob2 => 're-updated blob2', clob => 're-updated clob', clob2 => 're-updated clob2' })->all;
     is @objs, 1, 'found updated row';
     ok (try { $objs[0]->blob }||'' eq 're-updated blob', 'blob updated/retrieved correctly');
+    ok (try { $objs[0]->blob2 }||'' eq 're-updated blob', 'blob2 updated/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq 're-updated clob', 'clob updated/retrieved correctly');
+    ok (try { $objs[0]->clob2 }||'' eq 're-updated clob2', 'clob2 updated/retrieved correctly');
 
     lives_ok {
-      $rs->search({ blob => "re-updated blob", clob => "re-updated clob" })
+      $rs->search({ blob => "re-updated blob", blob2 => "re-updated blob2", clob => "re-updated clob", clob2 => "re-updated clob2" })
         ->delete;
     } 'blob DELETE with WHERE clause survived';
-    @objs = $rs->search({ blob => "re-updated blob", clob => 're-updated clob' })->all;
+    @objs = $rs->search({ blob => "re-updated blob", blob2 => "re-updated blob2", clob => 're-updated clob', clob2 => 're-updated clob2' })->all;
     is @objs, 0, 'row deleted successfully';
   }
 
   $schema->storage->debug ($orig_debug);
-}}
 
   do_clean ($dbh);
 }
