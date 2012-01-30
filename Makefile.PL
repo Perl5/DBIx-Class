@@ -118,7 +118,8 @@ my $reqs = {
   test_requires => { %$test_requires },
 };
 
-if ($Module::Install::AUTHOR) {
+# only do author-includes if not part of a `make` run
+if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
   # get options here, make $args available to all snippets
   require Getopt::Long;
   my $getopt = Getopt::Long::Parser->new(
