@@ -100,7 +100,7 @@ END {
   my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
 
   # this is safe as there is a fatal check earlier in the main Makefile.PL
-  # to make sure there are no duplicates (i.e. $opt_testdeps does not contain 
+  # to make sure there are no duplicates (i.e. $opt_testdeps does not contain
   # any real dependencies)
   my @illegal_leftovers = grep
     { $meta =~ /^ \s+ \Q$_\E \: \s+ /mx }
