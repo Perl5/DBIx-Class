@@ -56,9 +56,9 @@ be delegated to the replicants, while writes to the master.
 You can force a given query to use a particular storage using the search
 attribute 'force_pool'.  For example:
 
-  my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
+  my $rs = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
 
-Now $RS will force everything (both reads and writes) to use whatever was setup
+Now $rs will force everything (both reads and writes) to use whatever was setup
 as the master storage.  'master' is hardcoded to always point to the Master,
 but you can also use any Replicant name.  Please see:
 L<DBIx::Class::Storage::DBI::Replicated::Pool> and the replicants attribute for more.
@@ -68,8 +68,12 @@ force read traffic to the master.  In general, you should wrap your statements
 in a transaction when you are reading and writing to the same tables at the
 same time, since your replicants will often lag a bit behind the master.
 
-See L<DBIx::Class::Storage::DBI::Replicated::Instructions> for more help and
-walkthroughs.
+If you have a multi-statement read only transaction you can force it to select
+a random server in the pool by:
+
+  my $rs = $schema->resultset('Source')->search( undef,
+    { force_pool => $db->storage->read_handler->next_storage }
+  );
 
 =head1 DESCRIPTION
 

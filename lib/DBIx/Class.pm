@@ -506,6 +506,8 @@ willert: Sebastian Willert <willert@cpan.org>
 
 wreis: Wallace Reis <wreis@cpan.org>
 
+xenoterracide: Caleb Cushing <xenoterracide@gmail.com>
+
 yrlnry: Mark Jason Dominus <mjd@plover.com>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
