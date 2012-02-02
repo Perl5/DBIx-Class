@@ -4162,6 +4162,8 @@ Adds to the WHERE clause.
 Can be overridden by passing C<< { where => undef } >> as an attribute
 to a resultset.
 
+For more complicated where clauses see L<SQL::Abstract/WHERE CLAUSES>.
+
 =back
 
 =head2 cache
