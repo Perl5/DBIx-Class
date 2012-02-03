@@ -43,10 +43,9 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
 {
-  my $schema2 = $schema->connect ($schema->storage->connect_info);
+  my $schema2 = $schema->connect (@{$schema->storage->connect_info});
   ok (! $schema2->storage->connected, 'a re-connected cloned schema starts unconnected');
 }
-
 $schema->storage->_dbh->disconnect;
 
 lives_ok {
