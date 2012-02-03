@@ -6,7 +6,7 @@ use warnings;
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Try::Tiny;
-use Scalar::Util 'weaken';
+use Scalar::Util qw/weaken blessed/;
 use Sub::Name 'subname';
 use B 'svref_2object';
 use DBIx::Class::GlobalDestruction;
@@ -1222,12 +1222,12 @@ sub ddl_filename {
 
   require File::Spec;
 
-  my $filename = ref($self);
-  $filename =~ s/::/-/g;
-  $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
-  $filename =~ s/$version/$preversion-$version/ if($preversion);
+  $version = "$preversion-$version" if $preversion;
 
-  return $filename;
+  my $class = blessed($self) || $self;
+  $class =~ s/::/-/g;
+
+  return File::Spec->catfile($dir, "$class-$version-$type.sql");
 }
 
 =head2 thaw

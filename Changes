@@ -46,11 +46,13 @@ Revision history for DBIx::Class
         - Fix leakage of $storage in ::Storage::DBI::Oracle
         - Fix pessimization of Oracle RowNum limit dialect query when no
           offset has been specified
-        - Remove useless vestigial pessimization in Ordered.pm for cases 
+        - Remove useless vestigial pessimization in Ordered.pm for cases
           when the position column is part of a unique constraint
         - Fix dbicadmin to no longer ignore the documented 'config' option
         - The schema-resultsource entanglement is now much more robust
           under threads
+        - Fix ::Schema::ddl_filename() failing miserably on paths containing
+          certain numeric sequences
         - t/53lean_startup.t adjusted for new 5.15.x base.pm behavior
 
     * Misc
