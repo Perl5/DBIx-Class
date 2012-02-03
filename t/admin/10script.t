@@ -79,9 +79,10 @@ sub test_dbicadmin {
 }
 
 sub default_args {
+  my $dbname = DBICTest->_sqlite_dbfilename;
   return (
     qw|--quiet --schema=DBICTest::Schema --class=Employee|,
-    q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
+    qq|--connect=["dbi:SQLite:dbname=$dbname","","",{"AutoCommit":1}]|,
     qw|--force -I testincludenoniterference|,
   );
 }

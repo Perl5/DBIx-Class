@@ -7,9 +7,10 @@ use Test::Exception;
 
 BEGIN { delete @ENV{qw(DBI_DSN DBI_DRIVER)} }
 
-my $schema;
+$ENV{DBICTEST_LOCK_HOLDER} = -1;
 
-DBICTest->init_schema(sqlite_use_file => 1);
+# pre-populate
+my $schema = DBICTest->init_schema(sqlite_use_file => 1);
 
 my $dbname = DBICTest->_sqlite_dbname(sqlite_use_file => 1);
 

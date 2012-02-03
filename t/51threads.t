@@ -18,6 +18,7 @@ plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
 
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
+use DBICTest;
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');

@@ -65,6 +65,8 @@ Revision history for DBIx::Class
           of storage capabilities
         - Fixed carp_once only emitting one single warning per package
           regardless of warning content
+        - Test suite now can be safely executed in parallel (prove -jN
+          or HARNESS_OPTIONS=jN)
 
 0.08196 2011-11-29 05:35 (UTC)
     * Fixes

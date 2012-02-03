@@ -20,6 +20,7 @@ BEGIN {
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
+use DBICTest;
 
 throws_ok (
   sub { $ENV{PATH} . (kill (0)) },

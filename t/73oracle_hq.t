@@ -5,6 +5,7 @@ use Test::Exception;
 use Test::More;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
+use DBICTest::RunMode;
 use DBIC::SqlMakerTest;
 
 use DBIx::Class::SQLMaker::LimitDialects;
@@ -38,6 +39,7 @@ BEGIN {
   );
 }
 
+use DBICTest;
 use DBICTest::Schema;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);

@@ -36,7 +36,7 @@ our $VERSION = '1.0';
 
 __PACKAGE__->register_class('Table', 'DBICVersion::Table');
 __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
-__PACKAGE__->upgrade_directory('t/var/');
+__PACKAGE__->upgrade_directory("t/var/versioning_ddl-$$");
 
 sub ordered_schema_versions {
   return('1.0','2.0','3.0');

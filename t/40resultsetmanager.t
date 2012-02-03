@@ -4,6 +4,7 @@ use Test::More;
 use Test::Warn;
 
 use lib qw(t/lib);
+use DBICTest;
 
 warnings_exist { require DBICTest::ResultSetManager }
   [

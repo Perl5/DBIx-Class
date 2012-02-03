@@ -9,7 +9,7 @@ use Test::Warn;
 use Test::Exception;
 
 use lib qw(t/lib);
-use base 'DBICTest';
+use DBICTest;
 require DBI;
 
 

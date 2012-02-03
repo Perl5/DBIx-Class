@@ -35,6 +35,9 @@ use warnings;
 
 use Test::More;
 
+use lib 't/lib';
+use DBICTest;
+
 use File::Find;
 use File::Spec;
 use B qw/svref_2object/;

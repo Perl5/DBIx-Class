@@ -8,7 +8,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-my $db_orig = "$FindBin::Bin/../var/DBIxClass.db";
+my $db_orig = DBICTest->_sqlite_dbfilename;
 my $db_tmp  = "$db_orig.tmp";
 
 # Set up the "usual" sqlite for DBICTest

@@ -79,6 +79,10 @@ unless (DBICTest::RunMode->is_plain) {
       }
     );
 
+    # unicode is tricky, and now we happen to invoke it early via a
+    # regex in connection()
+    return $obj if (ref $obj) =~ /^utf8/;
+
     # Test Builder is now making a new object for every pass/fail (que bloat?)
     # and as such we can't really store any of its objects (since it will
     # re-populate the registry while checking it, ewwww!)

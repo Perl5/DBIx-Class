@@ -293,6 +293,3 @@ package main;
 }
 
 done_testing;
-
-END { unlink $DB if -e $DB }
-

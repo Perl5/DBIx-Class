@@ -119,27 +119,6 @@ if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   }
 }
 
-# Bail out on parallel testing
-if (
-  ($ENV{HARNESS_OPTIONS}||'') =~ / (?: ^ | \: ) j(\d+) /x
-    and
-  $1 > 1
-) { die <<EOP }
-
-******************************************************************************
-******************************************************************************
-***                                                                        ***
-***      PARALLEL TESTING DETECTED ( \$ENV{HARNESS_OPTIONS} = 'j$1' )        ***
-***                                                                        ***
-*** DBIC tests WILL FAIL. It is harder to make them parallel-friendly than ***
-*** it should be (though work is underway). In the meantime you will have  ***
-*** to adjust your environment and re-run the installation. Sorry!         ***
-***                                                                        ***
-******************************************************************************
-******************************************************************************
-
-EOP
-
 # this is so we can order requires alphabetically
 # copies are needed for potential author requires injection
 my $reqs = {

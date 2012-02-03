@@ -2,9 +2,8 @@ use strict;
 use warnings;
 use Test::More;
 
-unshift(@INC, './t/lib');
-
-plan tests => 4;
+use lib 't/lib';
+use DBICTest;
 
 my $warnings;
 eval {
@@ -21,3 +20,4 @@ isa_ok($source_a, 'DBIx::Class::ResultSource::Table');
 my $rset_a   = DBICTest::Schema->resultset('Artist');
 isa_ok($rset_a, 'DBIx::Class::ResultSet');
 
+done_testing;

@@ -21,22 +21,27 @@ BEGIN {
 
 use_ok 'DBIx::Class::Admin';
 
-my $sql_dir = dir(qw/t var/);
-my @connect_info = DBICTest->_database(
-  no_deploy=>1,
-  no_populate=>1,
-  sqlite_use_file  => 1,
+# lock early
+DBICTest->init_schema(no_deploy => 1, no_populate => 1);
+
+my $db_fn = DBICTest->_sqlite_dbfilename;
+my @connect_info = (
+  "dbi:SQLite:$db_fn",
+  undef,
+  undef,
+  { on_connect_do => 'PRAGMA synchronous = OFF' },
 );
+my $ddl_dir = dir(qw/t var/, "admin_ddl-$$");
 
 { # create the schema
 
 #  make sure we are  clean
-clean_dir($sql_dir);
+clean_dir($ddl_dir);
 
 
 my $admin = DBIx::Class::Admin->new(
   schema_class=> "DBICTest::Schema",
-  sql_dir=> $sql_dir,
+  sql_dir=> $ddl_dir,
   connect_info => \@connect_info,
 );
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
@@ -50,12 +55,12 @@ lives_ok {
 
 { # upgrade schema
 
-clean_dir($sql_dir);
+clean_dir($ddl_dir);
 require DBICVersion_v1;
 
 my $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema',
-  sql_dir =>  $sql_dir,
+  sql_dir =>  $ddl_dir,
   connect_info => \@connect_info,
 );
 
@@ -71,11 +76,11 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and 
 
 
 require DBICVersion_v2;
-DBICVersion::Schema->upgrade_directory (undef);  # so that we can test use of $sql_dir
+DBICVersion::Schema->upgrade_directory (undef);  # so that we can test use of $ddl_dir
 
 $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema',
-  sql_dir =>  $sql_dir,
+  sql_dir =>  $ddl_dir,
   connect_info => \@connect_info
 );
 
@@ -92,11 +97,11 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 
 { # install
 
-clean_dir($sql_dir);
+clean_dir($ddl_dir);
 
 my $admin = DBIx::Class::Admin->new(
   schema_class  => 'DBICVersion::Schema',
-  sql_dir      => $sql_dir,
+  sql_dir      => $ddl_dir,
   _confirm    => 1,
   connect_info  => \@connect_info,
 );
@@ -111,20 +116,16 @@ warnings_exist ( sub {
   lives_ok { $admin->install("4.0") } 'can force install to allready existing version'
 }, qr/Forcing install may not be a good idea/, 'Force warning emitted' );
 is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
-#clean_dir($sql_dir);
 }
 
 sub clean_dir {
   my ($dir) = @_;
-  $dir = $dir->resolve;
-  if ( ! -d $dir ) {
-    $dir->mkpath();
-  }
-  foreach my $file ($dir->children) {
-    # skip any hidden files
-    next if ($file =~ /^\./);
-    unlink $file;
-  }
+  $dir->rmtree if -d $dir;
+  unlink $db_fn;
+}
+
+END {
+  clean_dir($ddl_dir);
 }
 
 done_testing;

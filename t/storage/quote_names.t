@@ -88,6 +88,9 @@ my %dbs = (
   MSSQL_ODBC       => 'DBIx::Class::Storage::DBI::MSSQL',
 );
 
+# lie that we already locked stuff - the tests below do not touch anything
+$ENV{DBICTEST_LOCK_HOLDER} = -1;
+
 # Make sure oracle is tried last - some clients (e.g. 10.2) have symbol
 # clashes with libssl, and will segfault everything coming after them
 for my $db (sort {

@@ -48,10 +48,7 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/CDBICompat Core DB/);
 
-use File::Temp qw/tempfile/;
-my (undef, $DB) = tempfile();
-END { unlink $DB if -e $DB }
-
+my $DB = DBICTest->_sqlite_dbfilename;
 my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 1, RaiseError => 1 });
 
 __PACKAGE__->connection(@DSN);

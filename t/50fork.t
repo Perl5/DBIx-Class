@@ -1,7 +1,12 @@
 use strict;
 use warnings;
 use Test::More;
+
+use lib qw(t/lib);
+use DBICTest;
 use DBIx::Class::Optional::Dependencies ();
+
+my $main_pid = $$;
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
@@ -17,12 +22,6 @@ my $num_children = $ENV{DBICTEST_FORK_STRESS} || 1;
 if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
-
-plan tests => ($num_children*2) + 6;
-
-use lib qw(t/lib);
-
-use_ok('DBICTest::Schema');
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1 });
 
@@ -117,4 +116,9 @@ while(@pids) {
 
 ok(1, "Made it to the end");
 
-$schema->storage->dbh->do("DROP TABLE cd");
+done_testing;
+
+END {
+  $schema->storage->dbh->do("DROP TABLE cd") if ($schema and $main_pid == $$);
+  undef $schema;
+}

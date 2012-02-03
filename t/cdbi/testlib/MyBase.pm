@@ -2,9 +2,12 @@ package # hide from PAUSE
     MyBase;
 
 use strict;
-use base qw(DBIx::Class::CDBICompat);
-
 use DBI;
+
+use lib 't/lib';
+use DBICTest;
+
+use base qw(DBIx::Class::CDBICompat);
 
 our $dbh;
 
@@ -27,6 +30,11 @@ if ($err) {
 }
 
 my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});
+# this is only so we grab a lock on mysql
+{
+  my $x = DBICTest::Schema->connect(@connect);
+}
+
 $dbh = DBI->connect(@connect) or die DBI->errstr;
 my @table;
 

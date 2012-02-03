@@ -14,7 +14,7 @@ BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} 
 
 my $schema = DBICTest->init_schema();
 
-my $lfn = file('t/var/sql.log');
+my $lfn = file("t/var/sql-$$.log");
 unlink $lfn or die $!
   if -e $lfn;
 
@@ -47,6 +47,10 @@ $schema->storage->debugfh(undef);
   like($loglines[1], qr/^SELECT 1:/, 'Env log from schema2 success');
 
   $schema->storage->debugobj->debugfh(undef)
+}
+
+END {
+  unlink $lfn;
 }
 
 open(STDERRCOPY, '>&STDERR');

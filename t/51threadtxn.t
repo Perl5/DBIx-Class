@@ -21,6 +21,7 @@ plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
 use DBIx::Class::Optional::Dependencies ();
 use Scalar::Util 'weaken';
 use lib qw(t/lib);
+use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'

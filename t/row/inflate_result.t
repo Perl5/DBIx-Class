@@ -78,7 +78,7 @@ my $admin_data = {
     admin    => 1
 };
 
-ok( my $schema = My::Schema->connection(DBICTest->_database) );
+ok( my $schema = My::Schema->connect(DBICTest->_database) );
 
 ok(
     $schema->storage->dbh->do(

@@ -5,9 +5,11 @@ use strict;
 use warnings;
 use DBICTest::RunMode;
 use DBICTest::Schema;
-use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry local_umask/;
 use Carp;
 use Path::Class::File ();
+use File::Spec;
+use Fcntl qw/:flock/;
 
 =head1 NAME
 
@@ -50,14 +52,85 @@ default, unless the no_deploy or no_populate flags are set.
 
 =cut
 
-sub has_custom_dsn {
-    return $ENV{"DBICTEST_DSN"} ? 1:0;
+# some tests are very time sensitive and need to run on their own, without
+# being disturbed by anything else grabbing CPU or disk IO. Hence why everything
+# using DBICTest grabs a shared lock, and the few tests that request a :GlobalLock
+# will ask for an exclusive one and block until they can get it
+our ($global_lock_fh, $global_exclusive_lock);
+sub import {
+    my $self = shift;
+
+    my $lockpath = File::Spec->tmpdir . '/.dbictest_global.lock';
+
+    {
+      my $u = local_umask(0); # so that the file opens as 666, and any user can lock
+      open ($global_lock_fh, '>', $lockpath)
+        or die "Unable to open $lockpath: $!";
+    }
+
+    for (@_) {
+        if ($_ eq ':GlobalLock') {
+            flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
+            $global_exclusive_lock = 1;
+        }
+        else {
+            croak "Unknown export $_ requested from $self";
+        }
+    }
+
+    unless ($global_exclusive_lock) {
+        flock ($global_lock_fh, LOCK_SH) or die "Unable to lock $lockpath: $!";
+    }
 }
 
-sub _sqlite_dbfilename {
+END {
+    if ($global_lock_fh) {
+        # delay destruction even more
+    }
+}
+
+{
     my $dir = Path::Class::File->new(__FILE__)->dir->parent->subdir('var');
     $dir->mkpath unless -d "$dir";
-    return $dir->file('DBIxClass.db')->stringify;
+    $dir = "$dir";
+
+    sub _sqlite_dbfilename {
+        my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
+        $holder = $$ if $holder == -1;
+
+        # useful for missing cleanup debugging
+        #if ( $holder == $$) {
+        #  my $x = $0;
+        #  $x =~ s/\//#/g;
+        #  $holder .= "-$x";
+        #}
+
+        return "$dir/DBIxClass-$holder.db";
+    }
+
+    END {
+        _cleanup_dbfile();
+    }
+}
+
+$SIG{INT} = sub { _cleanup_dbfile(); exit 1 };
+
+sub _cleanup_dbfile {
+    # cleanup if this is us
+    if (
+      ! $ENV{DBICTEST_LOCK_HOLDER}
+        or
+      $ENV{DBICTEST_LOCK_HOLDER} == -1
+        or
+      $ENV{DBICTEST_LOCK_HOLDER} == $$
+    ) {
+        my $db_file = _sqlite_dbfilename();
+        unlink $_ for ($db_file, "${db_file}-journal");
+    }
+}
+
+sub has_custom_dsn {
+    return $ENV{"DBICTEST_DSN"} ? 1:0;
 }
 
 sub _sqlite_dbname {
