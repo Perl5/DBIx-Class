@@ -7,6 +7,9 @@ use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
+# so user's env doesn't screw us
+undef $ENV{DBIC_DT_SEARCH_OK};
+
 my $schema = DBICTest->init_schema();
 
 plan skip_all => 'DT inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite')
@@ -21,13 +24,22 @@ isa_ok($event->starts_at, 'DateTime', 'DateTime returned');
 my $starts = $event->starts_at;
 is("$starts", '2006-04-25T22:24:33', 'Correct date/time');
 
+my $dt_warn_re = qr/DateTime objects.+not supported properly/;
+
 my $row;
 
-warnings_exist {
-  $row = try {
-    $schema->resultset('Event')->search({ starts_at => $starts })->single
+{
+  local $ENV{DBIC_DT_SEARCH_OK} = 1;
+  local $SIG{__WARN__} = sub {
+    fail('Disabled warning still issued') if $_[0] =~ $dt_warn_re;
+    warn @_;
   };
-} [qr/DateTime objects.+not supported/],
+  $row = $schema->resultset('Event')->search({ starts_at => $starts })->single
+}
+
+warnings_exist {
+  $row = $schema->resultset('Event')->search({ starts_at => $starts })->single
+} [$dt_warn_re],
   'using a DateTime object in ->search generates a warning';
 
 TODO: {
@@ -35,9 +47,7 @@ TODO: {
 
   is(eval { $row->id }, 1, 'DT in search');
 
-  local $SIG{__WARN__} = sub {
-    warn @_ unless $_[0] =~ /DateTime objects.+not supported/;
-  };
+  local $ENV{DBIC_DT_SEARCH_OK} = 1;
 
   ok($row =
     $schema->resultset('Event')->search({ starts_at => { '>=' => $starts } })

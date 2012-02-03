@@ -1,11 +1,13 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Issue a warning when DateTime objects are passed to ->search
+
     * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
 
     * Misc
         - Codebase is now trailing-whitespace-free
-        - Issue a warning when DateTime objects are passed to ->search
 
 0.08196 2011-11-29 05:35 (UTC)
     * Fixes

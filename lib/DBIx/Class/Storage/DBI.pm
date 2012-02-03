@@ -1465,13 +1465,18 @@ sub _gen_sql_bind {
     }];
   }
 
-  if ($op eq 'select'
-     && first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @final_bind) {
+  if (
+    ! $ENV{DBIC_DT_SEARCH_OK}
+      and
+    $op eq 'select'
+      and
+    first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @final_bind) {
 
     carp_unique 'DateTime objects passed to search() are not supported '
       . 'properly (InflateColumn::DateTime formats and settings are not '
       . 'respected.) See "Formatting DateTime objects in queries" in '
-      . 'DBIx::Class::Manual::Cookbook';
+      . 'DBIx::Class::Manual::Cookbook. To disable this warning for good '
+      . 'set $ENV{DBIC_DT_SEARCH_OK} to true'
   }
 
   ($sql, \@final_bind);
