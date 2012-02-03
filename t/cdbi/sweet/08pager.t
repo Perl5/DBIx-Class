@@ -3,17 +3,8 @@ use warnings;
 
 use Test::More;
 
-use lib 't/lib';
-use DBICTest;
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  plan tests => 9;
-}
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat CDBICompat::Pager/);
 
@@ -80,3 +71,5 @@ for ( map { DBICTest->schema->class($_) } DBICTest->schema->sources ) {
   no warnings qw/redefine once/;
   *DBICTest::schema = sub {};
 }
+
+done_testing;

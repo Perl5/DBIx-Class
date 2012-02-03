@@ -7,14 +7,6 @@ use Test::Warn;
 # Test lazy loading
 #----------------------------------------------------------------------
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@
-    ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
-    : (tests => 36)
-  ;
-}
-
 INIT {
   use lib 't/cdbi/testlib';
   use Lazy;
@@ -179,3 +171,5 @@ SKIP: {
     # I'm too lazy to set up the proper inflation test.
     ok !exists $l->{_column_data}{orp};
 }
+
+done_testing;

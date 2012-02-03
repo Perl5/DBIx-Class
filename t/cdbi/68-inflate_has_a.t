@@ -2,16 +2,13 @@ use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
-use DBICTest;
+use lib qw(t/cdbi/testlib);
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
 BEGIN {
-  eval "use DBIx::Class::CDBICompat; use DateTime 0.55; use Clone;";
-  plan skip_all => "Clone, DateTime 0.55, Class::Trigger and DBIx::ContextualFetch required"
-    if $@;
+  eval { require DateTime; DateTime->VERSION(0.55) }
+    or plan skip_all => 'DateTime 0.55 required for this test';
 }
-
-plan tests => 6;
 
 my $schema = DBICTest->init_schema();
 
@@ -59,3 +56,4 @@ $cd->update;
 ($cd) = $schema->resultset("CD")->search({ year => $now->year });
 is( $cd->year->year, $now->year, 'deflate ok' );
 
+done_testing;

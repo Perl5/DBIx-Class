@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 22;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 use Blurb;
@@ -79,3 +71,5 @@ Film->create_test_film;
     $host->discard_changes;
     ok !$host->info, 'relationships rechecked after discard_changes';
 }
+
+done_testing;

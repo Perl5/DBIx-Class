@@ -231,11 +231,10 @@ my $reqs = {
 
   test_cdbicompat => {
     req => {
-      'DBIx::ContextualFetch'     => '0',
+      'Class::DBI' => 0,
       'Class::DBI::Plugin::DeepAbstractSearch' => '0',
-      'Class::Trigger'            => '0',
+      %$datetime_basic,
       'Time::Piece::MySQL'        => '0',
-      'Clone'                     => '0',
       'Date::Simple'              => '3.03',
     },
   },

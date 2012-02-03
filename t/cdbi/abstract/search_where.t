@@ -3,14 +3,6 @@ use Test::More;
 use strict;
 use warnings;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
-  }
-  plan tests => 10;
-}
-
 INIT {
   use lib 't/cdbi/testlib';
   use Film;
@@ -68,3 +60,4 @@ is_deeply ["Super Fuzz", "Superman"],
           [map $_->Title, @all],
           "limit_dialect ignored";
 
+done_testing;

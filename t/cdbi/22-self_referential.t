@@ -1,10 +1,5 @@
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required') : (tests=> 2);
-}
-
 use strict;
 
 use lib 't/cdbi/testlib';
@@ -22,4 +17,4 @@ my @aliases = $first->aliases;
 is( scalar @aliases, 1, 'proper number of aliases' );
 is( $aliases[ 0 ]->name, 'Second', 'proper alias' );
 
-
+done_testing;

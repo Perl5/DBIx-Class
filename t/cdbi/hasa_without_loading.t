@@ -1,11 +1,8 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
-          : (tests=> 2);
-}
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
 package Foo;
 
@@ -19,3 +16,5 @@ eval {
 #::is $@, '';
 ::is(Foo->table, "foo");
 ::is_deeply [sort map lc, Foo->columns], [sort map lc, qw(foo bar)];
+
+::done_testing;

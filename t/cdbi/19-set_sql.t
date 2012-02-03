@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 20;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 use Actor;
@@ -128,3 +120,4 @@ Film->set_sql(
   is $apg[1]->title, "B", "and B";
 }
 
+done_testing;

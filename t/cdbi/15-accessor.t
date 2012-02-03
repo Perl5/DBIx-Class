@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-    eval "use DBIx::Class::CDBICompat;";
-    if ($@) {
-        plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    }
-    plan tests => 75;
-}
-
 INIT {
     #local $SIG{__WARN__} =
         #sub { like $_[0], qr/clashes with built-in method/, $_[0] };
@@ -266,3 +258,5 @@ is $@, '', "No errors";
 
     $_->discard_changes for ($naked, $sandl);
 }
+
+done_testing;

@@ -4,14 +4,6 @@ use Scalar::Util 'refaddr';
 use namespace::clean;
 $| = 1;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 98;
-}
-
 INIT {
   use lib 't/cdbi/testlib';
   use Film;
@@ -412,3 +404,5 @@ SKIP: {
     "Creating and retrieving gives ref to same object";
 
 }
+
+done_testing;

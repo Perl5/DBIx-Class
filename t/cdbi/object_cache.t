@@ -2,12 +2,6 @@ use strict;
 use Test::More;
 $| = 1;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-}
 
 INIT {
     use lib 't/cdbi/testlib';
@@ -77,3 +71,5 @@ ok +Film->create({
 
     $film1->discard_changes;
 }
+
+done_testing;

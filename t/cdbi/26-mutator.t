@@ -1,13 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
-    if $@;
-  plan tests => 6;
-}
-
 use lib 't/cdbi/testlib';
 require Film;
 
@@ -39,3 +32,4 @@ eval {
 };
 is $@, '', "No errors";
 
+done_testing;

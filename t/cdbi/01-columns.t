@@ -3,11 +3,6 @@ use strict;
 use Test::More;
 use lib 't/cdbi/testlib';
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@") : (tests=> 24);
-}
-
 
 #-----------------------------------------------------------------------
 # Make sure that we can set up columns properly
@@ -152,3 +147,4 @@ is join (' ', sort A->columns),    'id',          "A columns";
 is join (' ', sort A::B->columns), 'b1 id',       "A::B columns";
 is join (' ', sort A::C->columns), 'c1 c2 c3 id', "A::C columns";
 
+done_testing;

@@ -2,12 +2,6 @@ use strict;
 use Test::More;
 use lib 't/cdbi/testlib';
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 5);
-}
-
 {
     package Thing;
 
@@ -31,3 +25,5 @@ is( $thing->id, 23 );
 is( $thing->yarrow, "hock", 'custom accessor not overwritten by column' );
 is( $thing->foo, 42, 'custom routine not overwritten by temp column' );
 is( $thing->bar, "that", 'temp column accessor generated' );
+
+done_testing;

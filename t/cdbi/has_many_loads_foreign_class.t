@@ -2,12 +2,6 @@ use strict;
 use Test::More;
 use Class::Inspector ();
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => 'Class::Trigger and DBIx::ContextualFetch required' if $@;
-  plan tests => 3;
-}
-
 
 use lib 't/cdbi/testlib';
 use Director;
@@ -34,3 +28,5 @@ my $guillotine = Film->create({
 });
 
 is_deeply [sort $shan_hua->films], [sort $inframan, $guillotine2];
+
+done_testing;

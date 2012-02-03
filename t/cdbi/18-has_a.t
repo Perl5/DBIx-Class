@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 41;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 use Director;
@@ -236,3 +228,5 @@ SKIP: {
   eval { Film->has_a(driector => "Director") };
   like $@, qr/driector/, "Sensible error from has_a with incorrect column: $@";
 }
+
+done_testing;

@@ -2,12 +2,6 @@ use strict;
 use Test::More;
 use lib 't/cdbi/testlib';
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 3);
-}
-
 {
     package Thing;
 
@@ -24,3 +18,5 @@ is $thing->some, "woosh";
 is $thing->baz, 99;
 
 $thing->discard_changes;
+
+done_testing;

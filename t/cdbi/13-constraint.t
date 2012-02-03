@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 23;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -100,6 +92,8 @@ ok $fred, "Got fred";
     is $freeaa && $freeaa->codirector, '2001-03-03', "Set the codirector";
 }
 
+done_testing;
+
 __DATA__
 
 use CGI::Untaint;
@@ -114,4 +108,3 @@ sub _constrain_by_untaint {
         return 1;
     });
 }
-

@@ -1,16 +1,15 @@
 use strict;
 use Test::More;
 
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
+
 BEGIN {
-    eval "use DBIx::Class::CDBICompat; require Class::DBI::Plugin::DeepAbstractSearch;";
-    if ($@) {
-        plan (skip_all => "Class::DBI::Plugin::DeepAbstractSearch, Class::Trigger and DBIx::ContextualFetch required: $@");
-    }
-    plan tests => 19;
+  eval { require Class::DBI::Plugin::DeepAbstractSearch }
+    or plan skip_all => 'Class::DBI::Plugin::DeepAbstractSearch required for this test';
 }
 
-my $DB  = "t/var/cdbi_testdb";
-unlink $DB if -e $DB;
+my $DB = DBICTest->_sqlite_dbname(sqlite_use_file => 1);;
 
 # not usre why this test needs an AutoCommit => 0 and a commit further
 # down - EDONOTCARE
@@ -292,6 +291,8 @@ package main;
     is_deeply [ @cds ], [ 2, 4, 6, 7 ],
             "CDs from Sony or Supraphon";
 }
+
+done_testing;
 
 END { unlink $DB if -e $DB }
 

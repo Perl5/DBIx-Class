@@ -34,6 +34,16 @@ table, and tie it to the class.
 use strict;
 use warnings;
 
+use Test::More;
+
+use lib 't/lib';
+use DBICTest;
+
+BEGIN {
+  eval { require DBIx::Class::CDBICompat }
+    or plan skip_all => 'Class::DBI required for this test';
+}
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/CDBICompat Core DB/);

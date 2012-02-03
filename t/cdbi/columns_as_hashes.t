@@ -2,11 +2,6 @@ use strict;
 use Test::More;
 use Test::Warn;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@" if $@;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 

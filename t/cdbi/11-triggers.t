@@ -1,15 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  plan tests => 13;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -63,3 +54,5 @@ ok $ver->delete, "Delete";
   });
   Film->create({director => "Me"});
 }
+
+done_testing;

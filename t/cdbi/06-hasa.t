@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
-  }
-  plan tests => 24;
-}
-
 @YA::Film::ISA = 'Film';
 
 #local $SIG{__WARN__} = sub { };
@@ -166,3 +158,4 @@ isa_ok($foo->fav, "Film");
   isa_ok $foo, "Film", "Object in after_create trigger";
 }
 
+done_testing;

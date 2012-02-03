@@ -1,12 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 5);
-}
-
 INIT {
     use lib 't/cdbi/testlib';
     use Film;
@@ -41,3 +35,5 @@ INIT {
 
     ::is $film->temp_thing, 23, "construct sets temp columns";
 }
+
+done_testing;

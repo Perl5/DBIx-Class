@@ -1,14 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 6;
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -48,3 +40,5 @@ is( $it->next, undef, "next past end of page ok" );
 is( $pager->entries_on_this_page, 2, "entries on second page ok" );
 
 is( $it->next->title, "Film 4", "second page first title ok" );
+
+done_testing;

@@ -1,15 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  plan tests => 50;
-}
-
 use lib 't/cdbi/testlib';
 use Actor;
 use Film;
@@ -172,3 +163,5 @@ delete $film->{related_resultsets};
   eval { $film->actors->delete_all };
   is $@, '', "Deleting again does no harm";
 }
+
+done_testing;
