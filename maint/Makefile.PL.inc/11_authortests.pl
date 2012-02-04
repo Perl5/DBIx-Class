@@ -12,7 +12,7 @@ eval {
 
     # better error message in case of missing dep
     eval { require Module::Install::AuthorTests }
-      || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL in author mode (or supply --skip_author_deps):\n\n$@\n";
+      || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL in author mode (or add --skip-author-deps):\n\n$@\n";
 
     die $err;
   }

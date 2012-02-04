@@ -128,7 +128,9 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
   my $args = {
     skip_author_deps => undef,
   };
-  $getopt->getoptions($args, 'skip_author_deps');
+  $getopt->getoptions($args, qw/
+    skip_author_deps|skip-author-deps
+  /);
   if (@ARGV) {
     warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
   }
