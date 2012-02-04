@@ -10,7 +10,7 @@ use warnings;
 use strict;
 
 use FindBin;
-use lib ("$FindBin::Bin/../lib", "$FindBin::Bin/../t/lib");
+use lib ("$FindBin::Bin/../../lib", "$FindBin::Bin/../../t/lib");
 
 use Class::Unload '0.07';
 use Benchmark ();
@@ -19,7 +19,7 @@ use Benchmark::Dumb ':all';
 use DBICTest;
 
 # for git reporting to work, and to use it as INC key directly
-chdir ("$FindBin::Bin/../lib");
+chdir ("$FindBin::Bin/../../lib");
 my $hri_fn = 'DBIx/Class/ResultClass/HashRefInflator.pm';
 
 require Getopt::Long;

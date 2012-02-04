@@ -1,29 +1,11 @@
-^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile\.PL$|maint/Makefile\.PL|README$|MANIFEST$|Changes$|META\.(?:yml|json)$)
+^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile\.PL$|maint/|README$|MANIFEST$|Changes$|META\.(?:yml|json)$)
 
 # Avoid version control files.
 \bRCS\b
 \bCVS\b
 ,v$
 \B\.svn\b
-\B\.git\b
-\B\.gitignore\b
 \b_darcs\b
-
-# Avoid Makemaker generated and utility files.
-\bMakefile$
-\bblib
-\bMakeMaker-\d
-\bpm_to_blib$
-\bblibdirs$
-^MANIFEST\.SKIP$
-
-# for developers only :)
-^TODO$
-^Features_09$
-
-# Avoid Module::Build generated and utility files.
-\bBuild$
-\b_build
 
 # Avoid temp and backup files.
 ~$
@@ -40,12 +22,7 @@
 # Don't ship the test db
 ^t/var
 
-# Don't ship the last dist we built :)
-\.tar\.(?:gz|bz2|xz)$
-
 # Avoid patch remnants
 \.orig$
 \.rej$
 
-# Dont use Module::Build anymore
-^Build\.PL$

@@ -5,8 +5,8 @@ use warnings;
 
 use Benchmark qw/cmpthese/;
 use FindBin;
-use lib "$FindBin::Bin/../t/lib";
-use lib "$FindBin::Bin/../lib";
+use lib "$FindBin::Bin/../../t/lib";
+use lib "$FindBin::Bin/../../lib";
 use DBICTest::Schema;
 use DBIx::Class::ResultClass::HashRefInflator;  # older dbic didn't load it
 
