@@ -179,8 +179,42 @@ my @compose_ns_classes;
     $schema->txn_rollback;
   }
 
+  # prefetching
+  my $cds_rs = $schema->resultset('CD');
+  my $cds_with_artist = $cds_rs->search({}, { prefetch => 'artist' });
+  my $cds_with_tracks = $cds_rs->search({}, { prefetch => 'tracks' });
+  my $cds_with_stuff = $cds_rs->search({}, { prefetch => [ 'genre', { artist => { cds => { tracks => 'cd_single' } } } ] });
+
+  # implicit pref
+  my $cds_with_impl_artist = $cds_rs->search({}, { columns => [qw/me.title artist.name/], join => 'artist' });
+
+  # get_column
+  my $getcol_rs = $cds_rs->get_column('me.cdid');
+  my $pref_getcol_rs = $cds_with_stuff->get_column('me.cdid');
+
+  # fire the column getters
+  my @throwaway = $pref_getcol_rs->all;
+
   my $base_collection = {
     resultset => $rs,
+
+    pref_precursor => $cds_rs,
+
+    pref_rs_single => $cds_with_artist,
+    pref_rs_multi => $cds_with_tracks,
+    pref_rs_nested => $cds_with_stuff,
+
+    pref_rs_implicit => $cds_with_impl_artist,
+
+    pref_row_single => $cds_with_artist->next,
+    pref_row_multi => $cds_with_tracks->next,
+    pref_row_nested => $cds_with_stuff->next,
+
+    # even though this does not leak Storable croaks on it :(((
+    #pref_row_implicit => $cds_with_impl_artist->next,
+
+    get_column_rs_plain => $getcol_rs,
+    get_column_rs_pref => $pref_getcol_rs,
 
     # twice so that we make sure only one H::M object spawned
     chained_resultset => $rs->search_rs ({}, { '+columns' => [ 'foo' ] } ),
@@ -193,7 +227,6 @@ my @compose_ns_classes;
     result_source_handle => $rs->result_source->handle,
 
     pager_explicit_count => $pager_explicit_count,
-
   };
 
   require Storable;
@@ -201,6 +234,7 @@ my @compose_ns_classes;
     %$base_collection,
     refrozen => Storable::dclone( $base_collection ),
     rerefrozen => Storable::dclone( Storable::dclone( $base_collection ) ),
+    pref_row_implicit => $cds_with_impl_artist->next,
     schema => $schema,
     storage => $storage,
     sql_maker => $storage->sql_maker,

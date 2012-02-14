@@ -461,11 +461,9 @@ sub related_resultset {
         my $reverse = $source->reverse_relationship_info($rel);
         foreach my $rev_rel (keys %$reverse) {
           if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-            $attrs->{related_objects}{$rev_rel} = [ $self ];
-            weaken $attrs->{related_object}{$rev_rel}[0];
+            weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
           } else {
-            $attrs->{related_objects}{$rev_rel} = $self;
-            weaken $attrs->{related_object}{$rev_rel};
+            weaken($attrs->{related_objects}{$rev_rel} = $self);
           }
         }
       }
