@@ -24,10 +24,10 @@ use constant DEBUG_TEST_CONCURRENCY_LOCKS =>
 ;
 
 use Config;
-use Carp 'confess';
+use Carp qw(cluck confess croak);
 use Fcntl ':flock';
 use Scalar::Util qw(blessed refaddr);
-use DBIx::Class::_Util;
+use DBIx::Class::_Util 'scope_guard';
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
@@ -90,27 +90,26 @@ sub await_flock ($$) {
   return $res;
 }
 
-sub local_umask {
+
+sub local_umask ($) {
   return unless defined $Config{d_umask};
 
-  die 'Calling local_umask() in void context makes no sense'
+  croak 'Calling local_umask() in void context makes no sense'
     if ! defined wantarray;
 
-  my $old_umask = umask(shift());
+  my $old_umask = umask($_[0]);
   die "Setting umask failed: $!" unless defined $old_umask;
 
-  return bless \$old_umask, 'DBICTest::Util::UmaskGuard';
-}
-{
-  package DBICTest::Util::UmaskGuard;
-  sub DESTROY {
-    &DBIx::Class::_Util::detected_reinvoked_destructor;
+  scope_guard(sub {
+    local ($@, $!, $?);
 
-    local ($@, $!);
-    eval { defined (umask ${$_[0]}) or die };
-    warn ( "Unable to reset old umask ${$_[0]}: " . ($!||'Unknown error') )
-      if ($@ || $!);
-  }
+    eval {
+      defined(umask $old_umask) or die "nope";
+      1;
+    } or cluck (
+      "Unable to reset old umask '$old_umask': " . ($! || 'Unknown error')
+    );
+  });
 }
 
 sub stacktrace {

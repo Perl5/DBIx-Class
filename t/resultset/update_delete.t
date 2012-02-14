@@ -10,6 +10,8 @@ use Test::Exception;
 # and that's a whole another bag of dicks
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
 
+use DBIx::Class::_Util 'scope_guard';
+
 use DBICTest::Schema::CD;
 BEGIN {
   # the default scalarref table name will not work well for this test
@@ -142,9 +144,9 @@ $schema->is_executed_sql_bind( sub {
 $schema->is_executed_sql_bind( sub {
 
   my $orig_umi = $schema->storage->_use_multicolumn_in;
-  my $sg = Scope::Guard->new(sub {
+  my $sg = scope_guard {
     $schema->storage->_use_multicolumn_in($orig_umi);
-  });
+  };
 
   $schema->storage->_use_multicolumn_in(1);
 

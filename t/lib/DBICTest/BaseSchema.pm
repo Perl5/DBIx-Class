@@ -7,7 +7,7 @@ use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
 use Time::HiRes 'sleep';
-use Scope::Guard ();
+use DBIx::Class::_Util 'scope_guard';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use namespace::clean;
@@ -31,9 +31,9 @@ sub capture_executed_sql_bind {
     qw(debugcb debugobj debug)
   };
 
-  my $sg = Scope::Guard->new(sub {
+  my $sg = scope_guard {
     $self->storage->$_ ( $orig_states->{$_} ) for keys %$orig_states;
-  });
+  };
 
   $self->storage->debugcb(undef);
   $self->storage->debugobj( my $tracer_obj = DBICTest::SQLTracerObj->new );

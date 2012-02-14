@@ -5,8 +5,8 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::_Util 'scope_guard';
 use lib qw(t/lib);
 use DBICTest;
 
@@ -52,7 +52,7 @@ for my $connect_info (@connect_info) {
     }
   }
 
-  my $guard = Scope::Guard->new(sub{ cleanup($schema) });
+  my $guard = scope_guard { cleanup($schema) };
 
   # $^W because DBD::ADO is a piece of crap
   try { local $^W = 0; $schema->storage->dbh->do("DROP TABLE track") };

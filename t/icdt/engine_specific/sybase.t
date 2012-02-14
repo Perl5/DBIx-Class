@@ -5,8 +5,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Scope::Guard ();
-use Try::Tiny;
+use DBIx::Class::_Util 'scope_guard';
 use lib qw(t/lib);
 use DBICTest;
 
@@ -30,7 +29,7 @@ for my $storage_type (@storage_types) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $guard = Scope::Guard->new(sub { cleanup($schema) } );
+  my $guard = scope_guard { cleanup($schema) };
 
   $schema->storage->ensure_connected;
 

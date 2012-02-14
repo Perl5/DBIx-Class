@@ -7,13 +7,12 @@ use warnings;
 use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
-use DBIx::Class::_Util 'detected_reinvoked_destructor';
+use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
 use Carp;
 use Path::Class::File ();
 use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
-use Scope::Guard ();
 
 =head1 NAME
 
@@ -405,7 +404,7 @@ sub deploy_schema {
 
     my $guard;
     if ( ($ENV{TRAVIS}||'') eq 'true' and my $old_dbg = $schema->storage->debug ) {
-      $guard = Scope::Guard->new(sub { $schema->storage->debug($old_dbg) });
+      $guard = scope_guard { $schema->storage->debug($old_dbg) };
       $schema->storage->debug(0);
     }
 
@@ -439,7 +438,7 @@ sub populate_schema {
 
     my $guard;
     if ( ($ENV{TRAVIS}||'') eq 'true' and my $old_dbg = $schema->storage->debug ) {
-      $guard = Scope::Guard->new(sub { $schema->storage->debug($old_dbg) });
+      $guard = scope_guard { $schema->storage->debug($old_dbg) };
       $schema->storage->debug(0);
     }
 

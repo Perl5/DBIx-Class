@@ -4,7 +4,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use DBIx::Class::Optional::Dependencies ();
-use Scope::Guard ();
+use DBIx::Class::_Util 'scope_guard';
 use List::Util 'shuffle';
 use Try::Tiny;
 use lib qw(t/lib);
@@ -53,7 +53,7 @@ for my $prefix (shuffle keys %$env2optdep) { SKIP: {
   });
   my $dbh = $schema->storage->dbh;
 
-  my $sg = Scope::Guard->new(sub { cleanup($schema) });
+  my $sg = scope_guard { cleanup($schema) };
 
   eval { $dbh->do(q[DROP TABLE "artist"]) };
   $dbh->do(<<EOF);

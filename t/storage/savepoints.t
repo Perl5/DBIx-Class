@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
+use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer scope_guard);
 
 use lib qw(t/lib);
 use DBICTest;
@@ -76,9 +76,9 @@ for ('', keys %$env2optdep) { SKIP: {
     { $_ => $schema->storage->$_ }
     qw(debugcb debugobj debug)
   };
-  my $sg = Scope::Guard->new(sub {
+  my $sg = scope_guard {
     $schema->storage->$_ ( $orig_states->{$_} ) for keys %$orig_states;
-  });
+  };
   $schema->storage->debugobj (my $stats = DBICTest::SVPTracerObj->new);
   $schema->storage->debug (1);
 

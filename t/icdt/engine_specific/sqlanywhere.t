@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Test::More;
-use Scope::Guard ();
+use DBIx::Class::_Util 'scope_guard';
 use lib qw(t/lib);
 use DBICTest;
 
@@ -38,7 +38,7 @@ foreach my $info (@info) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $sg = Scope::Guard->new(sub { cleanup($schema) } );
+  my $sg = scope_guard { cleanup($schema) };
 
   eval { $schema->storage->dbh->do('DROP TABLE event') };
   $schema->storage->dbh->do(<<"SQL");

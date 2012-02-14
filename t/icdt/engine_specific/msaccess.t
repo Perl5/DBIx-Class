@@ -4,8 +4,8 @@ use strict;
 use warnings;
 
 use Test::More;
-use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::_Util 'scope_guard';
 use lib qw(t/lib);
 use DBICTest;
 
@@ -36,7 +36,7 @@ for my $connect_info (@connect_info) {
     quote_names => 1,
   });
 
-  my $guard = Scope::Guard->new(sub { cleanup($schema) });
+  my $guard = scope_guard { cleanup($schema) };
 
   try { local $^W = 0; $schema->storage->dbh->do('DROP TABLE track') };
   $schema->storage->dbh->do(<<"SQL");

@@ -4,9 +4,9 @@ use strict;
 use warnings;
 
 use Test::More;
+use DBIx::Class::_Util 'scope_guard';
 use lib qw(t/lib);
 use DBICTest;
-use Scope::Guard ();
 
 my $env2optdep = {
   DBICTEST_FIREBIRD => 'test_rdbms_firebird',
@@ -42,7 +42,7 @@ for my $prefix (keys %$env2optdep) { SKIP: {
     on_connect_call => [ 'datetime_setup' ],
   });
 
-  my $sg = Scope::Guard->new(sub { cleanup($schema) } );
+  my $sg = scope_guard { cleanup($schema) };
 
   eval { $schema->storage->dbh->do('DROP TABLE "event"') };
   $schema->storage->dbh->do(<<'SQL');
