@@ -52,7 +52,7 @@ for my $prefix (keys %$env2optdep) { SKIP: {
   });
   my $dbh = $schema->storage->dbh;
 
-  my $sg = Scope::Guard->new(\&cleanup);
+  my $sg = Scope::Guard->new(sub { cleanup($schema) });
 
   eval { $dbh->do(q[DROP TABLE "artist"]) };
   $dbh->do(<<EOF);
@@ -305,6 +305,8 @@ done_testing;
 # clean up our mess
 
 sub cleanup {
+  my $schema = shift;
+
   my $dbh;
   eval {
     $schema->storage->disconnect; # to avoid object FOO is in use errors

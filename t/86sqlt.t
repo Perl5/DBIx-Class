@@ -88,6 +88,7 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 {
   my $deploy_hook_called = 0;
   $custom_deployment_statements_called = 0;
+  my $sqlt_type = $schema->storage->sqlt_type;
 
   # replace the sqlt calback with a custom version ading an index
   $schema->source('Track')->sqlt_deploy_callback(sub {
@@ -97,11 +98,11 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 
     is (
       $sqlt_table->schema->translator->producer_type,
-      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      join ('::', 'SQL::Translator::Producer', $sqlt_type),
       'Production type passed to translator object',
     );
 
-    if ($schema->storage->sqlt_type eq 'SQLite' ) {
+    if ($sqlt_type eq 'SQLite' ) {
       $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
         or die $sqlt_table->error;
     }

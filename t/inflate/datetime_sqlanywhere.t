@@ -50,7 +50,7 @@ foreach my $info (@info) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $sg = Scope::Guard->new(\&cleanup);
+  my $sg = Scope::Guard->new(sub { cleanup($schema) } );
 
   eval { $schema->storage->dbh->do('DROP TABLE event') };
   $schema->storage->dbh->do(<<"SQL");
@@ -98,6 +98,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
+  my $schema = shift;
   if (my $dbh = $schema->storage->dbh) {
     eval { $dbh->do("DROP TABLE $_") } for qw/event/;
   }

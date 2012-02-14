@@ -93,5 +93,7 @@ END {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist/;
   }
+
+  undef $schema;
 }
 # vim:sw=2 sts=2

@@ -168,61 +168,52 @@ is($rs->first->name, 'We Are Goth', 'Correct record returned');
         [ 4, 8 ],
     ]);
 
-    sub cd_count {
-        return $schema->resultset("CD")->count;
-    }
-    sub tk_count {
-        return $schema->resultset("TwoKeys")->count;
-    }
+    my $cd_count = sub { $schema->resultset("CD")->count };
+    my $tk_count = sub { $schema->resultset("TwoKeys")->count };
 
-    is(cd_count(), 8, '8 rows in table cd');
-    is(tk_count(), 7, '7 rows in table twokeys');
+    is($cd_count->(), 8, '8 rows in table cd');
+    is($tk_count->(), 7, '7 rows in table twokeys');
 
-    sub artist1 {
-        return $schema->resultset("CD")->search(
-            { 'artist.name' => 'Caterwauler McCrae' },
-            { join => [qw/artist/]}
-        );
-    }
-    sub artist2 {
-        return $schema->resultset("CD")->search(
-            { 'artist.name' => 'Random Boy Band' },
-            { join => [qw/artist/]}
-        );
-    }
+    my $artist1_rs = $schema->resultset("CD")->search(
+      { 'artist.name' => 'Caterwauler McCrae' },
+      { join => [qw/artist/]}
+    );
 
-    is( artist1()->count, 3, '3 Caterwauler McCrae CDs' );
-    ok( artist1()->delete, 'Successfully deleted 3 CDs' );
-    is( artist1()->count, 0, '0 Caterwauler McCrae CDs' );
-    is( artist2()->count, 2, '3 Random Boy Band CDs' );
-    ok( artist2()->update( { 'artist' => 1 } ) );
-    is( artist2()->count, 0, '0 Random Boy Band CDs' );
-    is( artist1()->count, 2, '2 Caterwauler McCrae CDs' );
+    my $artist2_rs = $schema->resultset("CD")->search(
+      { 'artist.name' => 'Random Boy Band' },
+      { join => [qw/artist/]}
+    );
+
+    is( $artist1_rs->count, 3, '3 Caterwauler McCrae CDs' );
+    ok( $artist1_rs->delete, 'Successfully deleted 3 CDs' );
+    is( $artist1_rs->count, 0, '0 Caterwauler McCrae CDs' );
+    is( $artist2_rs->count, 2, '3 Random Boy Band CDs' );
+    ok( $artist2_rs->update( { 'artist' => 1 } ) );
+    is( $artist2_rs->count, 0, '0 Random Boy Band CDs' );
+    is( $artist1_rs->count, 2, '2 Caterwauler McCrae CDs' );
 
     # test update on multi-column-pk
-    sub tk1 {
-        return $schema->resultset("TwoKeys")->search(
-            {
-                'artist.name' => { like => '%Boy Band' },
-                'cd.title'    => 'Greatest Hits',
-            },
-            { join => [qw/artist cd/] }
-        );
-    }
-    sub tk2 {
-        return $schema->resultset("TwoKeys")->search(
-            { 'artist.name' => 'Caterwauler McCrae' },
-            { join => [qw/artist/]}
-        );
-    }
-    is( tk2()->count, 2, 'TwoKeys count == 2' );
-    is( tk1()->count, 2, 'TwoKeys count == 2' );
-    ok( tk1()->update( { artist => 1 } ) );
-    is( tk1()->count, 0, 'TwoKeys count == 0' );
-    is( tk2()->count, 4, '2 Caterwauler McCrae CDs' );
-    ok( tk2()->delete, 'Successfully deleted 4 CDs' );
-    is(cd_count(), 5, '5 rows in table cd');
-    is(tk_count(), 3, '3 rows in table twokeys');
+    my $tk1_rs = $schema->resultset("TwoKeys")->search(
+      {
+        'artist.name' => { like => '%Boy Band' },
+        'cd.title'    => 'Greatest Hits',
+      },
+      { join => [qw/artist cd/] }
+    );
+
+    my $tk2_rs = $schema->resultset("TwoKeys")->search(
+      { 'artist.name' => 'Caterwauler McCrae' },
+      { join => [qw/artist/]}
+    );
+
+    is( $tk2_rs->count, 2, 'TwoKeys count == 2' );
+    is( $tk1_rs->count, 2, 'TwoKeys count == 2' );
+    ok( $tk1_rs->update( { artist => 1 } ) );
+    is( $tk1_rs->count, 0, 'TwoKeys count == 0' );
+    is( $tk2_rs->count, 4, '2 Caterwauler McCrae CDs' );
+    ok( $tk2_rs->delete, 'Successfully deleted 4 CDs' );
+    is($cd_count->(), 5, '5 rows in table cd');
+    is($tk_count->(), 3, '3 rows in table twokeys');
 }
 
 done_testing;

@@ -69,3 +69,14 @@ is( $it->next, undef, "disable_sql_paging next past end of page ok" );
     { rows => 5 }
 );
 is( $it->count, 1, "complex abstract count ok" );
+
+# cleanup globals so we do not trigger the leaktest
+for ( map { DBICTest->schema->class($_) } DBICTest->schema->sources ) {
+  $_->class_resolver(undef);
+  $_->resultset_instance(undef);
+  $_->result_source_instance(undef);
+}
+{
+  no warnings qw/redefine once/;
+  *DBICTest::schema = sub {};
+}

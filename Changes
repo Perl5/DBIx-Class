@@ -26,6 +26,8 @@ Revision history for DBIx::Class
           when the position column is part of a unique constraint
 
     * Misc
+        - Centralized leak-checks for all instances of DBICTest::Schema
+          from within any test
         - Codebase is now trailing-whitespace-free
         - Cleanup of complex resultset update/delete oprations - storage
           specific code moved back to ResultSet and replaced by checks

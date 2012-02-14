@@ -109,8 +109,9 @@ done_testing;
 
 # clean up our mess
 END {
-    if($schema && ($dbh = $schema->storage->dbh)) {
-        $dbh->do("DROP TABLE track");
-    }
+  if($schema && ($dbh = $schema->storage->dbh)) {
+    $dbh->do("DROP TABLE track");
+  }
+  undef $schema;
 }
 

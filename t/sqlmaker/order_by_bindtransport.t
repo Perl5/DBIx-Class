@@ -8,13 +8,10 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-my $schema = DBICTest->init_schema;
-
-my $rs = $schema->resultset('FourKeys');
-
 sub test_order {
 
   TODO: {
+    my $rs = shift;
     my $args = shift;
 
     local $TODO = "Not implemented" if $args->{todo};
@@ -100,6 +97,7 @@ my @tests = (
     },
 );
 
-test_order($_) for @tests;
+my $rs = DBICTest->init_schema->resultset('FourKeys');
+test_order($rs, $_) for @tests;
 
 done_testing;

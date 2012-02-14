@@ -48,7 +48,7 @@ foreach my $info (@info) {
     auto_savepoint => 1
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub{ cleanup($schema) });
 
   my $dbh = $schema->storage->dbh;
 
@@ -259,6 +259,7 @@ SQL
 done_testing;
 
 sub cleanup {
+  my $schema = shift;
   eval { $schema->storage->dbh->do("DROP TABLE $_") }
     for qw/artist artist_guid bindtype_test/;
 }

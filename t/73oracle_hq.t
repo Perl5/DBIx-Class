@@ -557,13 +557,15 @@ sub do_creates {
 
 # clean up our mess
 END {
-  eval {
-    my $dbh = $schema->storage->dbh;
-    $dbh->do("DROP SEQUENCE artist_pk_seq");
-    $dbh->do("DROP SEQUENCE cd_seq");
-    $dbh->do("DROP SEQUENCE track_seq");
-    $dbh->do("DROP TABLE artist");
-    $dbh->do("DROP TABLE track");
-    $dbh->do("DROP TABLE cd");
+  if ($schema and my $dbh = $schema->storage->dbh) {
+    eval { $dbh->do($_) } for (
+      'DROP SEQUENCE artist_pk_seq',
+      'DROP SEQUENCE cd_seq',
+      'DROP SEQUENCE track_seq',
+      'DROP TABLE artist',
+      'DROP TABLE track',
+      'DROP TABLE cd',
+    );
   };
+  undef $schema;
 }

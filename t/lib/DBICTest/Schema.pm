@@ -1,9 +1,14 @@
 package # hide from PAUSE
     DBICTest::Schema;
 
-use base qw/DBIx::Class::Schema/;
+use strict;
+use warnings;
+no warnings 'qw';
 
-no warnings qw/qw/;
+use base 'DBIx::Class::Schema';
+
+use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => 'custom_attr');
 
@@ -58,6 +63,19 @@ sub sqlt_deploy_hook {
   my ($self, $sqlt_schema) = @_;
 
   $sqlt_schema->drop_table('dummy');
+}
+
+my $weak_registry = {};
+
+sub clone {
+  my $self = shift->next::method(@_);
+  populate_weakregistry ( $weak_registry, $self )
+    if $INC{'Test/Builder.pm'};
+  $self;
+}
+
+END {
+  assert_empty_weakregistry($weak_registry, 'quiet');
 }
 
 1;

@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use DBICTest::RunMode;
 use DBICTest::Schema;
+use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
 use Carp;
 use Path::Class::File ();
 
@@ -181,6 +182,8 @@ sub __mk_disconnect_guard {
   };
 }
 
+my $weak_registry = {};
+
 sub init_schema {
     my $self = shift;
     my %args = @_;
@@ -208,7 +211,15 @@ sub init_schema {
         __PACKAGE__->populate_schema( $schema )
          if( !$args{no_populate} );
     }
+
+    populate_weakregistry ( $weak_registry, $schema->storage )
+      if $INC{'Test/Builder.pm'} and $schema->storage;
+
     return $schema;
+}
+
+END {
+    assert_empty_weakregistry($weak_registry, 'quiet');
 }
 
 =head2 deploy_schema

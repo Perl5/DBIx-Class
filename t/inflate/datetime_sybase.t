@@ -42,7 +42,7 @@ for my $storage_type (@storage_types) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub { cleanup($schema) } );
 
   $schema->storage->ensure_connected;
 
@@ -143,6 +143,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
+  my $schema = shift;
   if (my $dbh = eval { $schema->storage->dbh }) {
     $dbh->do('DROP TABLE track');
     $dbh->do('DROP TABLE event_small_dt');

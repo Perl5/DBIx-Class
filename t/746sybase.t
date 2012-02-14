@@ -638,4 +638,6 @@ END {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist bindtype_test money_test computed_column_test/;
   }
+
+  undef $schema;
 }

@@ -129,17 +129,19 @@ for my $prefix (keys %$env2optdep) { SKIP: {
 
   # And now to see if txn_do will behave correctly
   $schema->txn_do (sub {
+    my $artycp = $arty;
+
     $schema->txn_do (sub {
-      $arty->name ('Muff');
-      $arty->update;
+      $artycp->name ('Muff');
+      $artycp->update;
     });
 
     eval {
       $schema->txn_do (sub {
-        $arty->name ('Moff');
-        $arty->update;
-        $arty->discard_changes;
-        is($arty->name,'Moff','Value updated in nested transaction');
+        $artycp->name ('Moff');
+        $artycp->update;
+        $artycp->discard_changes;
+        is($artycp->name,'Moff','Value updated in nested transaction');
         $schema->storage->dbh->do ("GUARANTEED TO PHAIL");
       });
     };
@@ -170,5 +172,7 @@ for my $prefix (keys %$env2optdep) { SKIP: {
 
 done_testing;
 
-END { eval { $schema->storage->dbh->do ("DROP TABLE artist") } if defined $schema }
-
+END {
+  eval { $schema->storage->dbh->do ("DROP TABLE artist") } if defined $schema;
+  undef $schema;
+}

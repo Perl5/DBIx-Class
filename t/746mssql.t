@@ -580,5 +580,6 @@ END {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist artist_guid money_test books owners/;
   }
+  undef $schema;
 }
 # vim:sw=2 sts=2

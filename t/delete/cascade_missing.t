@@ -12,8 +12,9 @@ my $schema = DBICTest->init_schema();
 $schema->_unregister_source('CD');
 
 warnings_like {
+  my $s = $schema;
   lives_ok {
-    $_->delete for $schema->resultset('Artist')->all;
+    $_->delete for $s->resultset('Artist')->all;
   } 'delete on rows with dangling rels lives';
 } [
   # 12 == 3 artists * failed cascades:

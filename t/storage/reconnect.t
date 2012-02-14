@@ -89,7 +89,7 @@ my $ctx_map = {
   },
 };
 
-for my $ctx (keys $ctx_map) {
+for my $ctx (keys %$ctx_map) {
 
   # start disconnected and then connected
   $schema->storage->disconnect;

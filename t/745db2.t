@@ -158,6 +158,7 @@ done_testing;
 
 # clean up our mess
 END {
-    my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do("DROP TABLE artist") if $dbh;
+  my $dbh = eval { $schema->storage->_dbh };
+  $dbh->do("DROP TABLE artist") if $dbh;
+  undef $schema;
 }

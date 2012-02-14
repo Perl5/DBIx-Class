@@ -73,7 +73,7 @@ for my $connect_info (@connect_info) {
     }
   }
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub{ cleanup($schema) });
 
   # $^W because DBD::ADO is a piece of crap
   try { local $^W = 0; $schema->storage->dbh->do("DROP TABLE track") };
@@ -151,6 +151,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
+  my $schema = shift;
   if (my $dbh = eval { $schema->storage->dbh }) {
     $dbh->do('DROP TABLE track');
     $dbh->do('DROP TABLE event_small_dt');

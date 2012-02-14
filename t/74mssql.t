@@ -10,6 +10,7 @@ BEGIN {
 
 use Test::More;
 use Test::Exception;
+use Scalar::Util 'weaken';
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
@@ -123,7 +124,8 @@ for my $storage_type (@test_storages) {
 SQL
    });
 
-   my $rs = $schema->resultset('Money');
+  my $rs = $schema->resultset('Money');
+  weaken(my $rs_cp = $rs);  # nested closure refcounting is an utter mess in perl
 
   my $row;
   lives_ok {
@@ -151,7 +153,7 @@ SQL
   # test simple transaction with commit
   lives_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 300 });
+      $rs_cp->create({ amount => 300 });
     });
   } 'simple transaction';
 
@@ -163,7 +165,7 @@ SQL
   # test rollback
   throws_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 700 });
+      $rs_cp->create({ amount => 700 });
       die 'mtfnpy';
     });
   } qr/mtfnpy/, 'simple failed txn';
@@ -212,9 +214,10 @@ SQL
     # a reconnect should trigger on next action
     $schema->storage->_get_dbh->disconnect;
 
+
     lives_and {
       $wrappers->{$wrapper}->( sub {
-        $rs->create({ amount => 900 + $_ }) for 1..3;
+        $rs_cp->create({ amount => 900 + $_ }) for 1..3;
       });
       is $rs->count, 3;
     } "transaction on disconnected handle with $wrapper wrapper";
@@ -245,12 +248,13 @@ SQL
 
       my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
 
+      weaken(my $a_rs_cp = $artist_rs);
+
       lives_and {
         my @results;
-
         $wrappers->{$wrapper}->( sub {
-          while (my $money = $rs->next) {
-            my $artist = $artist_rs->next;
+          while (my $money = $rs_cp->next) {
+            my $artist = $a_rs_cp->next;
             push @results, [ $artist->name, $money->amount ];
           };
         });
@@ -332,4 +336,6 @@ END {
     $dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL DROP TABLE cd");
     $dbh->do("IF OBJECT_ID('money_test', 'U') IS NOT NULL DROP TABLE money_test");
   }
+
+  undef $schema;
 }

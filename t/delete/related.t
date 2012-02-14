@@ -1,10 +1,9 @@
-use Test::More;
 use strict;
 use warnings;
+use Test::More;
+
 use lib qw(t/lib);
 use DBICTest;
-
-plan tests => 4;
 
 my $schema = DBICTest->init_schema();
 
@@ -60,4 +59,9 @@ TODO: {
   my $cd2pr_count = $cd2pr_rs->count;
   $prod_cd->delete_related('cd_to_producer', { producer => $prod } );
   is ($cd2pr_rs->count, $cd2pr_count -= 1, 'm2m link deleted succesfully');
+
+  # see 187ec69a for why this is neccessary
+  $prod->result_source(undef);
 }
+
+done_testing;

@@ -405,10 +405,10 @@ lives_ok ( sub {
 
 
   $schema->resultset('Artist')->populate([ $kurt_cobain ]); # %)
-  $a = $schema->resultset('Artist')->find({name => 'Kurt Cobain'});
+  my $artist = $schema->resultset('Artist')->find({name => 'Kurt Cobain'});
 
-  is($a->name, 'Kurt Cobain', 'Artist insertion ok');
-  is($a->cds && $a->cds->first && $a->cds->first->title,
+  is($artist->name, 'Kurt Cobain', 'Artist insertion ok');
+  is($artist->cds && $artist->cds->first && $artist->cds->first->title,
       'In Utero', 'CD insertion ok');
 }, 'populate');
 

@@ -35,14 +35,13 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
+use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
 use DBIx::Class;
 use B 'svref_2object';
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
     if DBIx::Class::_ENV_::PEEPEENESS;
 }
-
-use Scalar::Util qw/refaddr reftype weaken/;
 
 # this is what holds all weakened refs to be checked for leakage
 my $weak_registry = {};
@@ -52,19 +51,6 @@ my $has_dt;
 
 # Skip the heavy-duty leak tracing when just doing an install
 unless (DBICTest::RunMode->is_plain) {
-
-  # have our own little stack maker - Carp infloops due to the bless override
-  my $trace = sub {
-    my $depth = 1;
-    my (@stack, @frame);
-
-    while (@frame = caller($depth++)) {
-      push @stack, [@frame[3,1,2]];
-    }
-
-    $stack[0][0] = '';
-    return join "\tinvoked as ", map { sprintf ("%s at %s line %d\n", @$_ ) } @stack;
-  };
 
   # redefine the bless override so that we can catch each and every object created
   no warnings qw/redefine once/;
@@ -81,29 +67,15 @@ unless (DBICTest::RunMode->is_plain) {
       }
     );
 
-    my $slot = (sprintf '%s=%s(0x%x)', # so we don't trigger stringification
-      ref $obj,
-      reftype $obj,
-      refaddr $obj,
-    );
-
     # weaken immediately to avoid weird side effects
-    $weak_registry->{$slot} = { weakref => $obj, strace => $trace->() };
-    weaken $weak_registry->{$slot}{weakref};
-
-    return $obj;
+    return populate_weakregistry ($weak_registry, $obj );
   };
 
   require Try::Tiny;
   for my $func (qw/try catch finally/) {
     my $orig = \&{"Try::Tiny::$func"};
     *{"Try::Tiny::$func"} = sub (&;@) {
-
-      my $slot = sprintf ('CODE(0x%x)', refaddr $_[0]);
-
-      $weak_registry->{$slot} = { weakref => $_[0], strace => $trace->() };
-      weaken $weak_registry->{$slot}{weakref};
-
+      populate_weakregistry( $weak_registry, $_[0] );
       goto $orig;
     }
   }
@@ -309,10 +281,8 @@ my @compose_ns_classes;
     }
   }
 
-  for (keys %$base_collection) {
-    $weak_registry->{"basic $_"} = { weakref => $base_collection->{$_} };
-    weaken $weak_registry->{"basic $_"}{weakref};
-  }
+  populate_weakregistry ($weak_registry, $base_collection->{$_}, "basic $_")
+    for keys %$base_collection;
 }
 
 # check that "phantom-chaining" works - we never lose track of the original $schema
@@ -344,16 +314,7 @@ my @compose_ns_classes;
     sub { shift->delete },
     sub { shift->insert },
   ) {
-    $phantom = $_->($phantom);
-
-    my $slot = (sprintf 'phantom %s=%s(0x%x)', # so we don't trigger stringification
-      ref $phantom,
-      reftype $phantom,
-      refaddr $phantom,
-    );
-
-    $weak_registry->{$slot} = $phantom;
-    weaken $weak_registry->{$slot};
+    $phantom = populate_weakregistry ( $weak_registry, scalar $_->($phantom) );
   }
 
   ok( $phantom->in_storage, 'Properly deleted/reinserted' );
@@ -433,21 +394,7 @@ TODO: {
     or $r->result_source(undef);
 }
 
-for my $slot (sort keys %$weak_registry) {
-
-  ok (! defined $weak_registry->{$slot}{weakref}, "No leaks of $slot") or do {
-    my $diag = '';
-
-    $diag .= Devel::FindRef::track ($weak_registry->{$slot}{weakref}, 20) . "\n"
-      if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
-
-    if (my $stack = $weak_registry->{$slot}{strace}) {
-      $diag .= "    Reference first seen$stack";
-    }
-
-    diag $diag if $diag;
-  };
-}
+assert_empty_weakregistry ($weak_registry);
 
 # we got so far without a failure - this is a good thing
 # now let's try to rerun this script under a "persistent" environment

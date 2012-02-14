@@ -449,7 +449,8 @@ done_testing;
 END {
     return unless $schema;
     drop_test_schema($schema);
-    eapk_drop_all( $schema)
+    eapk_drop_all($schema);
+    undef $schema;
 };
 
 
