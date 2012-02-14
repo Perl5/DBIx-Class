@@ -34,15 +34,16 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
-    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
-    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
-    weaken $_[1] if ref ($_[1]);
-
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
     my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
     $dbicschema     ||= $args->{'package'};
     my $limit_sources = $args->{'sources'};
+
+    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
+    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
+    ref $_ and weaken $_
+      for $_[1], $dbicschema, @{$args}{qw/DBIx::Schema DBIx::Class::Schema package/};
 
     DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
     if (!ref $dbicschema) {

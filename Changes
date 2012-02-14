@@ -21,6 +21,7 @@ Revision history for DBIx::Class
         - Fix corner case of forked children disconnecting the parents DBI
           handle
         - Fix leakage of $schema on in-memory new_related() calls
+        - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Remove useless vestigial pessimization in Ordered.pm for cases 
           when the position column is part of a unique constraint
 
