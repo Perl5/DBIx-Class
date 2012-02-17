@@ -230,6 +230,7 @@ sub DESTROY {
   my $self = shift;
 
   # some databases spew warnings on implicit disconnect
+  $self->_verify_pid;
   local $SIG{__WARN__} = sub {};
   $self->_dbh(undef);
 

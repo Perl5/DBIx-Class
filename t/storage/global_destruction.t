@@ -53,6 +53,7 @@ for my $type (qw/PG MYSQL/) {
           }
           else {
             note "Child $$ terminating";
+            undef $DBICTest::FakeSchemaFactory::schema;
             exit 0;
           }
 

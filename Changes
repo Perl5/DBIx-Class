@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           instead
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
         - A number of corner case fixes of void context populate() with \[]
+        - Fix corner case of forked children disconnecting the parents DBI
+          handle
 
     * Misc
         - Codebase is now trailing-whitespace-free
