@@ -153,4 +153,18 @@ is_deeply (
   'prefetch properly collapses amount of rows from get_column',
 );
 
+$rs->reset;
+my $pob_rs = $rs->search({}, {
+  select   => ['me.title', 'tracks.title'],
+  prefetch => 'tracks',
+  order_by => [{-asc => ['position']}],
+  group_by => ['me.title', 'tracks.title'],
+});
+is_same_sql_bind (
+  $pob_rs->get_column("me.title")->as_query,
+  '(SELECT me.title FROM (SELECT me.title, tracks.title FROM cd me LEFT JOIN track tracks ON tracks.cd = me.cdid GROUP BY me.title, tracks.title ORDER BY position ASC) me)',
+  [],
+  'Correct SQL for prefetch/order_by/group_by'
+);
+
 done_testing;

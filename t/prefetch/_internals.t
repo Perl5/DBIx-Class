@@ -1,9 +1,6 @@
 use strict;
 use warnings;
 
-use Data::Dumper;
-BEGIN { $Data::Dumper::Sortkeys = 1 }; # so we can compare the deparsed coderefs below
-
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
@@ -35,7 +32,12 @@ while (@pairs) {
   push @$vals, shift @pairs;
 }
 
-my $parser = $schema->source ('Artwork')->_mk_row_parser($as, 'collapse requested');
+=begin
+
+my $parser = $schema->source ('Artwork')->_mk_row_parser({
+  inflate_map => $as,
+  collapse => 1,
+});
 
 is_deeply (
   $parser->($vals),
@@ -86,6 +88,8 @@ is_deeply (
   'generated row parser works as expected',
 );
 
+#=begin
+
 undef $_ for ($as, $vals);
 @pairs = (
   'name' => 'Caterwauler McCrae',
@@ -129,6 +133,8 @@ is_deeply (
   'generated parser works as expected over missing joins (no collapse)',
 );
 
+=cut
+
 undef $_ for ($as, $vals);
 @pairs = (
     'tracks.lyrics.lyric_versions.text'                => 'unique when combined with the lyric collapsable by the 1:1 tracks-parent',
@@ -150,58 +156,62 @@ while (@pairs) {
 is_deeply (
   $schema->source ('CD')->_resolve_collapse ( { map { $as->[$_] => $_ } (0 .. $#$as) } ),
   {
-    -collapse_on => {
-      'existing_single_track.cd.artist.artistid' => 1,
-    },
+    -node_index => 1,
+    -node_id => [ 1 ], # existing_single_track.cd.artist.artistid
+    -branch_id => [ 0, 1, 5, 6, 8 ],
 
     existing_single_track => {
-      -collapse_on => {
-       'existing_single_track.cd.artist.artistid' => 1,
-      },
+      -node_index => 2,
+      -node_id => [ 1 ], # existing_single_track.cd.artist.artistid
+      -branch_id => [ 1, 6, 8 ],
+      -is_single => 1,
 
       cd => {
-        -collapse_on => {
-          'existing_single_track.cd.artist.artistid' => 1,
-        },
+        -node_index => 3,
+        -node_id => [ 1 ], # existing_single_track.cd.artist.artistid
+        -branch_id => [ 1, 6, 8 ],
+        -is_single => 1,
 
         artist => {
-          -collapse_on => {
-            'existing_single_track.cd.artist.artistid' => 1,
-          },
+          -node_index => 4,
+          -node_id => [ 1 ], # existing_single_track.cd.artist.artistid
+          -branch_id => [ 1, 6, 8 ],
+          -is_single => 1,
 
           cds => {
-            -collapse_on => {
-              'existing_single_track.cd.artist.cds.cdid' => 6,
-            },
+            -node_index => 5,
+            -node_id => [ 6 ], # existing_single_track.cd.artist.cds.cdid
+            -branch_id => [ 6, 8 ],
+            -is_optional => 1,
 
             tracks => {
-              -collapse_on => {
-                'existing_single_track.cd.artist.cds.cdid' => 6,
-                'existing_single_track.cd.artist.cds.tracks.title' => 8,
-              }
+              -node_index => 6,
+              -node_id => [ 6, 8 ], # existing_single_track.cd.artist.cds.cdid, existing_single_track.cd.artist.cds.tracks.title
+              -branch_id => [ 6, 8 ],
+              -is_optional => 1,
             }
           }
         }
       }
     },
     tracks => {
-      -collapse_on => {
-        'existing_single_track.cd.artist.artistid' => 1,
-        'tracks.title' => 5,
-      },
+      -node_index => 7,
+      -node_id => [ 1, 5 ], # existing_single_track.cd.artist.artistid, tracks.title
+      -branch_id => [ 0, 1, 5 ],
+      -is_optional => 1,
 
       lyrics => {
-        -collapse_on => {
-          'existing_single_track.cd.artist.artistid' => 1,
-          'tracks.title' => 5,
-        },
+        -node_index => 8,
+        -node_id => [ 1, 5 ], # existing_single_track.cd.artist.artistid, tracks.title
+        -branch_id => [ 0, 1, 5 ],
+        -is_single => 1,
+        -is_optional => 1,
 
         lyric_versions => {
-          -collapse_on => {
-            'existing_single_track.cd.artist.artistid' => 1,
-            'tracks.title' => 5,
-            'tracks.lyrics.lyric_versions.text' => 0,
-          },
+          -node_index => 9,
+          -node_id => [ 0, 1, 5 ], # tracks.lyrics.lyric_versions.text, existing_single_track.cd.artist.artistid, tracks.title
+          -branch_id => [ 0, 1, 5 ],
+          -is_optional => 1,
         },
       },
     }
@@ -209,8 +219,13 @@ is_deeply (
   'Correct collapse map constructed',
 );
 
+done_testing;
+__END__
+=cut
 
-$parser = $schema->source ('CD')->_mk_row_parser ($as, 'add collapse data');
+my $parser = $schema->source ('CD')->_mk_row_parser ({ inflate_map => $as, collapse => 1 });
+
+=begin
 
 is_deeply (
   $parser->($vals),
@@ -296,11 +311,21 @@ is_deeply (
   'Proper row parser constructed',
 );
 
+=cut
+
 # For extra insanity test/showcase the parser's guts:
 my $deparser = B::Deparse->new;
 is (
   $deparser->coderef2text ($parser),
   $deparser->coderef2text ( sub { package DBIx::Class::ResultSource;
+    my $rows = [];
+    while (1) {
+      my $r = (shift @{$_[0]->{row_stash}}) || ($_[0]->{next_row} and $_[0]->{next_row}->()) || last;
+
+    }
+    return $rows
+
+
     [
       {
         genreid => $_[0][4],

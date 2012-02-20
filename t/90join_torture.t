@@ -50,11 +50,12 @@ lives_ok (sub {
           ON producer_2.producerid = cd_to_producer_2.producer
         JOIN artist artist ON artist.artistid = me.artist
       WHERE ( ( producer.name = ? AND producer_2.name = ? ) )
-      ORDER BY cd_to_producer.cd, producer_to_cd.producer
     )',
     [
-      [ 'producer.name' => 'blah' ],
-      [ 'producer_2.name' => 'foo' ],
+      [ { sqlt_datatype => 'varchar', dbic_colname => 'producer.name', sqlt_size => 100 }
+          => 'blah' ],
+      [ { sqlt_datatype => 'varchar', dbic_colname => 'producer_2.name', sqlt_size => 100 }
+          => 'foo' ],
     ],
   );
 

@@ -162,7 +162,7 @@ while( my $tag = $tags->next ) {
   push @objs, $tag->id; #warn "tag: ", $tag->ID;
 }
 
-is_deeply( \@objs, [ 1 ], 'second cd has correct tags' );
+is_deeply( \@objs, [ 2, 5, 8 ], 'third cd has correct tags' );
 
 $tags = $cds->next->tags;
 @objs = ();
@@ -170,7 +170,7 @@ while( my $tag = $tags->next ) {
   push @objs, $tag->id; #warn "tag: ", $tag->ID;
 }
 
-is_deeply( \@objs, [ 2, 5, 8 ], 'third cd has correct tags' );
+is_deeply( \@objs, [ 1 ], 'second cd has correct tags' );
 
 is( $queries, 0, 'no additional SQL statements while checking nested data' );
 

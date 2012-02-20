@@ -179,7 +179,7 @@ for ($cd_rs->all) {
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( me.cdid IS NOT NULL )
-      ORDER BY track_count DESC, maxtr ASC, tracks.cd
+      ORDER BY track_count DESC, maxtr ASC
     )',
     [[$ROWS => 2]],
     'next() query generated expected SQL',
@@ -227,7 +227,7 @@ for ($cd_rs->all) {
           ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
-      ORDER BY cdid, tags.cd, tags.tag
+      ORDER BY cdid
     )',
     [],
     'Prefetch + distinct resulted in correct group_by',
@@ -353,7 +353,7 @@ for ($cd_rs->all) {
             ORDER BY tags.tag ASC LIMIT ?)
             me
           LEFT JOIN tags tags ON tags.cd = me.cdid
-         ORDER BY tags.tag ASC, tags.cd, tags.tag
+         ORDER BY tags.tag ASC
         )
     }, [[$ROWS => 1]]);
 }

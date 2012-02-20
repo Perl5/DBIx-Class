@@ -32,7 +32,7 @@ plan tests => 12;
 
   throws_ok {
     $artist_rs->first
-  } qr/Can't locate object method "inflate_result" via package "IWillExplode"/,
+  } qr/\QInflator IWillExplode does not provide an inflate_result() method/,
   'IWillExplode explodes on inflate';
 
   my $cd_rs = $artist_rs->related_resultset('cds');

@@ -13,14 +13,14 @@ lives_ok(sub {
   # only the requested me.name column will be fetched.
 
   # reference sql with select => [...]
-  #   SELECT me.name, cds.title, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...
+  #   SELECT me.name, cds.title, me.artistid, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...
 
   my $rs = $schema->resultset('Artist')->search(
     { 'cds.title' => { '!=', 'Generic Manufactured Singles' } },
     {
       prefetch => [ qw/ cds / ],
       order_by => [ { -desc => 'me.name' }, 'cds.title' ],
-      select => [qw/ me.name  cds.title / ],
+      select => [qw/ me.name cds.title me.artistid / ],
     },
   );
 
@@ -30,7 +30,6 @@ lives_ok(sub {
   is ($we_are_goth->cds->count, 1, 'Correct number of CDs for first artist');
   is ($we_are_goth->cds->first->title, 'Come Be Depressed With Us', 'Correct cd for artist');
 }, 'explicit prefetch on a keyless object works');
-
 
 lives_ok ( sub {
 
@@ -50,14 +49,14 @@ lives_ok ( sub {
 
   my @cds_and_tracks;
   for my $cd ($rs->all) {
-    my $data->{year} = $cd->year;
+    my $data = { year => $cd->year, cdid => $cd->cdid };
     for my $tr ($cd->tracks->all) {
       push @{$data->{tracks}}, { $tr->get_columns };
     }
     push @cds_and_tracks, $data;
   }
 
-  my $pref_rs = $rs->search ({}, { columns => ['year'], prefetch => 'tracks' });
+  my $pref_rs = $rs->search ({}, { columns => [qw/year cdid/], prefetch => 'tracks' });
 
   my @pref_cds_and_tracks;
   for my $cd ($pref_rs->all) {
@@ -106,7 +105,7 @@ throws_ok(
   sub {
     $schema->resultset('Track')->search({}, { join => { cd => 'artist' }, '+columns' => 'artist.name' } )->next;
   },
-  qr|\QCan't inflate manual prefetch into non-existent relationship 'artist' from 'Track', check the inflation specification (columns/as) ending in 'artist.name'|,
+  qr|\QCan't inflate prefetch into non-existent relationship 'artist' from 'Track', check the inflation specification (columns/as) ending in '...artist.name'|,
   'Sensible error message on mis-specified "as"',
 );
 

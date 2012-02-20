@@ -22,9 +22,10 @@ my $mo_rs = $schema->resultset('Artist')->search(
         ],
 
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+
+        order_by => [qw/tracks.position tracks.trackid producer.producerid/],
     }
 );
-
 
 $schema->resultset('Artist')->create(
     {
@@ -98,7 +99,6 @@ is_deeply(
                 'single_track' => undef,
                 'tracks'       => [
                     {
-                        'small_dt'  => undef,
                         'cd'        => '6',
                         'position'  => '1',
                         'trackid'   => '19',
@@ -108,7 +108,6 @@ is_deeply(
                         'last_updated_at' => undef
                     },
                     {
-                        'small_dt'        => undef,
                         'cd'              => '6',
                         'position'        => '2',
                         'trackid'         => '20',
@@ -118,7 +117,6 @@ is_deeply(
                         'last_updated_at' => undef
                     },
                     {
-                        'small_dt'        => undef,
                         'cd'              => '6',
                         'position'        => '3',
                         'trackid'         => '21',
@@ -128,7 +126,6 @@ is_deeply(
                         'last_updated_at' => undef
                     },
                     {
-                        'small_dt'        => undef,
                         'cd'              => '6',
                         'position'        => '4',
                         'trackid'         => '22',
@@ -144,7 +141,6 @@ is_deeply(
                             'year'         => '2021',
                             'tracks'       => [
                                 {
-                                    'small_dt' => undef,
                                     'cd' => '7',
                                     'position' => '1',
                                     'title' => 'singled out',
@@ -153,7 +149,6 @@ is_deeply(
                                     'last_updated_on' => undef
                                 },
                                 {
-                                    'small_dt' => undef,
                                     'cd' => '7',
                                     'position' => '2',
                                     'title' => 'still alone',
@@ -192,23 +187,7 @@ is_deeply(
             {
                 'single_track' => undef,
                 'tracks'       => [
-                    # FIXME
-                    # although the positional ordering is correct, SQLite seems to return
-                    # the rows randomly if an ORDER BY is not supplied. Of course ordering
-                    # by right side of prefetch joins is not yet possible, thus we just hope
-                    # that the order is stable
                     {
-                        'small_dt'        => undef,
-                        'cd'              => '8',
-                        'position'        => '2',
-                        'trackid'         => '26',
-                        'title'           => 'Bar Foo',
-                        'cd_single'       => undef,
-                        'last_updated_on' => undef,
-                        'last_updated_at' => undef
-                    },
-                    {
-                        'small_dt'  => undef,
                         'cd'        => '8',
                         'position'  => '1',
                         'trackid'   => '25',
@@ -218,7 +197,15 @@ is_deeply(
                         'cd_single'       => undef,
                     },
                     {
-                        'small_dt'        => undef,
+                        'cd'              => '8',
+                        'position'        => '2',
+                        'trackid'         => '26',
+                        'title'           => 'Bar Foo',
+                        'cd_single'       => undef,
+                        'last_updated_on' => undef,
+                        'last_updated_at' => undef
+                    },
+                    {
                         'cd'              => '8',
                         'position'        => '3',
                         'trackid'         => '27',
@@ -234,7 +221,6 @@ is_deeply(
                             'year'         => '2020',
                             'tracks'       => [
                                 {
-                                    'small_dt' => undef,
                                     'cd' => '9',
                                     'position' => '1',
                                     'title' => 'singled out',
@@ -243,7 +229,6 @@ is_deeply(
                                     'last_updated_on' => undef
                                 },
                                 {
-                                    'small_dt' => undef,
                                     'cd' => '9',
                                     'position' => '2',
                                     'title' => 'still alone',

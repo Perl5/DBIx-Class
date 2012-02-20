@@ -1038,11 +1038,9 @@ sub single {
 
   my $attrs = $self->_resolved_attrs_copy;
 
-  if ($attrs->{collapse}) {
-    $self->throw_exception(
-      'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
-    );
-  }
+  $self->throw_exception(
+    'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
+  ) if $attrs->{collapse};
 
   if ($where) {
     if (defined $attrs->{where}) {
@@ -1056,15 +1054,12 @@ sub single {
     }
   }
 
-  my @data = $self->result_source->storage->select_single(
+  my $data = [ $self->result_source->storage->select_single(
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
-  );
+  )];
 
-  return @data
-    ? ($self->_construct_objects(@data))[0]
-    : undef
-  ;
+  return @$data ? $self->_construct_objects($data)->[0] : undef;
 }
 
 
@@ -1221,29 +1216,24 @@ first record from the resultset.
 
 sub next {
   my ($self) = @_;
+
   if (my $cache = $self->get_cache) {
     $self->{all_cache_position} ||= 0;
     return $cache->[$self->{all_cache_position}++];
   }
+
   if ($self->{attrs}{cache}) {
     delete $self->{pager};
     $self->{all_cache_position} = 1;
     return ($self->all)[0];
   }
-  if ($self->{stashed_objects}) {
-    my $obj = shift(@{$self->{stashed_objects}});
-    delete $self->{stashed_objects} unless @{$self->{stashed_objects}};
-    return $obj;
-  }
-  my @row = (
-    exists $self->{stashed_row}
-      ? @{delete $self->{stashed_row}}
-      : $self->cursor->next
-  );
-  return undef unless (@row);
-  my ($row, @more) = $self->_construct_objects(@row);
-  $self->{stashed_objects} = \@more if @more;
-  return $row;
+
+  return shift(@{$self->{stashed_objects}}) if @{ $self->{stashed_objects}||[] };
+
+  $self->{stashed_objects} = $self->_construct_objects
+    or return undef;
+
+  return shift @{$self->{stashed_objects}};
 }
 
 # takes a single DBI-row of data and coinstructs as many objects
@@ -1254,348 +1244,89 @@ sub next {
 # until the current row-object is assembled (the collapser was able to
 # order the result sensibly) OR until the cursor is exhausted (an
 # unordered collapsing resultset effectively triggers ->all)
-
-# FIXME: why the *FUCK* do we pass around DBI data by copy?! Sadly needs
-# assessment before changing...
-#
 sub _construct_objects {
-  my ($self, @row) = @_;
+  my ($self, $fetched_row, $fetch_all) = @_;
+
   my $attrs = $self->_resolved_attrs;
-  my $keep_collapsing = $attrs->{collapse};
+  my $unordered = 0;  # will deal with this later
 
-  my $res_index;
-=begin
-  do {
-    my $me_pref_col = $attrs->{_row_parser}->($row_ref);
+  # this will be used as both initial raw-row collector AND as a RV of
+  # _construct_objects. Not regrowing the   # array twice matters a lot...
+  # a suprising amount actually
+  my $rows;
 
-    my $container;
-    if ($keep_collapsing) {
-
-      # FIXME - we should be able to remove these 2 checks after the design validates
-      $self->throw_exception ('Collapsing without a top-level collapse-set... can not happen')
-        unless @{$me_ref_col->[2]};
-      $self->throw_exception ('Top-level collapse-set contains a NULL-value... can not happen')
-        if grep { ! defined $_ }  @{$me_pref_col->[2]};
-
-      my $main_ident = join "\x00", @{$me_pref_col->[2]};
-
-      if (! $res_index->{$main_ident}) {
-        # this is where we bail out IFF we are ordered, and the $main_ident changes
-
-        $res_index->{$main_ident} = {
-          all_me_pref => [,
-          index => scalar keys %$res_index,
-        };
-      }
-    }
-
-
-
-      $container = $res_index->{$main_ident}{container};
-    };
-
-    push @$container, [ @{$me_pref_col}[0,1] ];
-
-
-
-  } while (
-    $keep_collapsing
-      &&
-    do { $row_ref = [$self->cursor->next]; $self->{stashed_row} = $row_ref if @$row_ref; scalar @$row_ref }
-  );
-
-  # attempt collapse all rows with same collapse identity
-  if (@to_collapse > 1) {
-    my @collapsed;
-    while (@to_collapse) {
-      $self->_merge_result(\@collapsed, shift @to_collapse);
-    }
+  # $fetch_all implies all() which means all stashes have been cleared
+  # and the cursor reset
+  if ($fetch_all) {
+    # FIXME - we can do better, cursor->all (well a diff. method) should return a ref
+    $rows = [ $self->cursor->all ];
   }
-=cut
+  elsif ($unordered) {
+    $rows = [
+      $fetched_row||(),
+      @{ delete $self->{stashed_rows} || []},
+      $self->cursor->all,
+    ];
+  }
+  else {  # simple single object
+    $rows = [ $fetched_row || ( @{$self->{stashed_rows}||[]} ? shift @{$self->{stashed_rows}} : [$self->cursor->next] ) ];
+  }
 
-  my $mepref_structs = $self->_collapse_result($attrs->{as}, \@row, $keep_collapsing)
-    or return ();
+  return undef unless @{$rows->[0]||[]};
 
   my $rsrc = $self->result_source;
   my $res_class = $self->result_class;
-  my $inflator = $res_class->can ('inflate_result');
+  my $inflator = $res_class->can ('inflate_result')
+    or $self->throw_exception("Inflator $res_class does not provide an inflate_result() method");
 
-  my @objs =
-    $res_class->$inflator ($rsrc, @$mepref_structs);
+  # construct a much simpler array->hash folder for the one-table cases right here
+  if ($attrs->{_single_object_inflation} and ! $attrs->{collapse}) {
+    # FIXME this is a very very very hot spot
+    # while rather optimal we can *still* do much better, by
+    # building a smarter [Row|HRI]::inflate_result(), and
+    # switch to feeding it data via some leaner interface
+    #
+    my $infmap = $attrs->{as};
+    my @as_idx = 0..$#$infmap;
+    for my $r (@$rows) {
+      $r = [{ map { $infmap->[$_] => $r->[$_] } @as_idx }]
+    }
 
-  if (my $f = $attrs->{record_filter}) {
-    @objs = map { $f->($_) } @objs;
+    # FIXME - this seems to be faster than the hashmapper aove, especially
+    # on more rows, but need a better bench-environment to confirm
+    #eval sprintf (
+    #  '$_ = [{ %s }] for @$rows',
+    #  join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
+    #);
   }
+  else {
+    push @$rows, @{$self->{stashed_rows}||[]};
 
-  return @objs;
-}
-
-
-sub _collapse_result {
-  my ( $self, $as_proto, $row_ref, $keep_collapsing ) = @_;
-  my $collapse = $self->_resolved_attrs->{collapse};
-  my $parser   = $self->result_source->_mk_row_parser( $as_proto, $collapse );
-  my $result   = [];
-  my $register = {};
-  my $rel_register = {};
-
-  my @row = @$row_ref;
-  do {
-    my $row = $parser->( \@row );
-
-    # init register
-    $self->_check_register( $register, $row ) unless ( keys %$register );
-
-    $self->_merge_result( $result, $row, $rel_register )
-      if ( !$collapse
-      || ( $collapse = $self->_check_register( $register, $row ) ) );
-
-    } while (
-    $collapse
-    && do { @row = $self->cursor->next; $self->{stashed_row} = \@row if @row; }
-
-  # run this as long as there is a next row and we are not yet done collapsing
+    $rsrc->_mk_row_parser({
+      inflate_map => $attrs->{as},
+      selection => $attrs->{select},
+      collapse => $attrs->{collapse},
+      unordered => $unordered,
+    })->(
+      $rows,  # modify in-place, shrinking/extending as necessary
+      ($attrs->{collapse} and ! $fetch_all and ! $unordered)
+        ? (
+            sub { my @r = $self->cursor->next or return undef; \@r },
+            ($self->{stashed_rows} = []), # this is where we empty things and prepare for leftovers
+          )
+        : ()
+      ,
     );
-  return $result;
-}
-
-
-
-# Taubenschlag
-sub _check_register {
-  my ( $self, $register, $obj ) = @_;
-  return undef unless ( ref $obj eq 'ARRAY' && ref $obj->[2] eq 'ARRAY' );
-  my @ids = @{ $obj->[2] };
-  while ( defined( my $id = shift @ids ) ) {
-    return $register->{$id} if ( exists $register->{$id} && !@ids );
-    $register->{$id} = @ids ? {} : $obj unless ( exists $register->{$id} );
-    $register = $register->{$id};
-  }
-  return undef;
-}
-
-sub _merge_result {
-  my ( $self, $result, $row, $register ) = @_;
-  return @$result = @$row if ( @$result == 0 );  # initialize with $row
-
-  my ( undef, $rels,   $ids )   = @$result;
-  my ( undef, $new_rels, $new_ids ) = @$row;
-
-  my @rels = keys %{ { %{$rels||{} }, %{ $new_rels||{} } } };
-  foreach my $rel (@rels) {
-    $register = $register->{$rel} ||= {};
-
-    my $new_data = $new_rels->{$rel};
-    my $data   = $rels->{$rel};
-    @$data = [@$data] unless ( ref $data->[0] eq 'ARRAY' );
-
-    $self->_check_register( $register, $data->[0] )
-      unless ( keys %$register );
-
-    if ( my $found = $self->_check_register( $register, $new_data ) ) {
-      $self->_merge_result( $found, $new_data, $register );
-    }
-    else {
-      push( @$data, $new_data );
-    }
-  }
-  return 1;
-}
-
-=begin
-
-# two arguments: $as_proto is an arrayref of column names,
-# $row_ref is an arrayref of the data. If none of the row data
-# is defined we return undef (that's copied from the old
-# _collapse_result). Next we decide whether we need to collapse
-# the resultset (i.e. we prefetch something) or not. $collapse
-# indicates that. The do-while loop will run once if we do not need
-# to collapse the result and will run as long as _merge_result returns
-# a true value. It will return undef if the current added row does not
-# match the previous row. A bit of stashing and cursor magic is
-# required so that the cursor is not mixed up.
-
-# "$rows" is a bit misleading. In the end, there should only be one
-# element in this arrayref. 
-
-sub _collapse_result {
-    my ( $self, $as_proto, $row_ref ) = @_;
-    my $has_def;
-    for (@$row_ref) {
-        if ( defined $_ ) {
-            $has_def++;
-            last;
-        }
-    }
-    return undef unless $has_def;
-
-    my $collapse = $self->_resolved_attrs->{collapse};
-    my $rows     = [];
-    my @row      = @$row_ref;
-    do {
-        my $i = 0;
-        my $row = { map { $_ => $row[ $i++ ] } @$as_proto };
-        $row = $self->result_source->_parse_row($row, $collapse);
-        unless ( scalar @$rows ) {
-            push( @$rows, $row );
-        }
-        $collapse = undef unless ( $self->_merge_result( $rows, $row ) );
-      } while (
-        $collapse
-        && do { @row = $self->cursor->next; $self->{stashed_row} = \@row if @row; }
-      );
-
-    return $rows->[0];
-
-}
-
-# _merge_result accepts an arrayref of rows objects (again, an arrayref of two elements)
-# and a row object which should be merged into the first object.
-# First we try to find out whether $row is already in $rows. If this is the case
-# we try to merge them by iteration through their relationship data. We call
-# _merge_result again on them, so they get merged.
-
-# If we don't find the $row in $rows, we append it to $rows and return undef.
-# _merge_result returns 1 otherwise (i.e. $row has been found in $rows).
-
-sub _merge_result {
-    my ( $self, $rows, $row ) = @_;
-    my ( $columns, $rels ) = @$row;
-    my $found = undef;
-    foreach my $seen (@$rows) {
-        my $match = 1;
-        foreach my $column ( keys %$columns ) {
-            if (   defined $seen->[0]->{$column} ^ defined $columns->{$column}
-                or defined $columns->{$column}
-                && $seen->[0]->{$column} ne $columns->{$column} )
-            {
-
-                $match = 0;
-                last;
-            }
-        }
-        if ($match) {
-            $found = $seen;
-            last;
-        }
-    }
-    if ($found) {
-        foreach my $rel ( keys %$rels ) {
-            my $old_rows = $found->[1]->{$rel};
-            $self->_merge_result(
-                ref $found->[1]->{$rel}->[0] eq 'HASH' ? [ $found->[1]->{$rel} ]
-                : $found->[1]->{$rel},
-                ref $rels->{$rel}->[0] eq 'HASH' ? [ $rels->{$rel}->[0], $rels->{$rel}->[1] ]
-                : $rels->{$rel}->[0]
-            );
-
-  my $attrs = $self->_resolved_attrs;
-  my ($keep_collapsing, $set_ident) = @{$attrs}{qw/collapse _collapse_ident/};
-
-  # FIXME this is temporary, need to calculate in _resolved_attrs
-  $set_ident ||= { me => [ $self->result_source->_pri_cols ], pref => {} };
-
-  my @cur_row = @$row_ref;
-  my (@to_collapse, $last_ident);
-
-  do {
-    my $row_hr = { map { $as_proto->[$_] => $cur_row[$_] } (0 .. $#$as_proto) };
-
-    # see if we are switching to another object
-    # this can be turned off and things will still work
-    # since _merge_prefetch knows about _collapse_ident
-#    my $cur_ident = [ @{$row_hr}{@$set_ident} ];
-    my $cur_ident = [];
-    $last_ident ||= $cur_ident;
-
-#    if ($keep_collapsing = Test::Deep::eq_deeply ($cur_ident, $last_ident)) {
-#      push @to_collapse, $self->result_source->_parse_row (
-#        $row_hr,
-#      );
-#    }
-  } while (
-    $keep_collapsing
-      &&
-    do { @cur_row = $self->cursor->next; $self->{stashed_row} = \@cur_row if @cur_row; }
-  );
-
-  die Dumper \@to_collapse;
-
-
-  # attempt collapse all rows with same collapse identity
-  if (@to_collapse > 1) {
-    my @collapsed;
-    while (@to_collapse) {
-      $self->_merge_result(\@collapsed, shift @to_collapse);
-    }
-    @to_collapse = @collapsed;
   }
 
-  # still didn't fully collapse
-  $self->throw_exception ('Resultset collapse failed (theoretically impossible). Maybe a wrong collapse_ident...?')
-    if (@to_collapse > 1);
+  $_ = $res_class->$inflator($rsrc, @$_) for @$rows;
 
-  return $to_collapse[0];
-}
-
-
-# two arguments: $as_proto is an arrayref of 'as' column names,
-# $row_ref is an arrayref of the data. The do-while loop will run
-# once if we do not need to collapse the result and will run as long as
-# _merge_result returns a true value. It will return undef if the
-# current added row does not match the previous row, which in turn
-# means we need to stash the row for the subsequent ->next call
-sub _collapse_result {
-  my ( $self, $as_proto, $row_ref ) = @_;
-
-  my $attrs = $self->_resolved_attrs;
-  my ($keep_collapsing, $set_ident) = @{$attrs}{qw/collapse _collapse_ident/};
-
-  die Dumper [$as_proto, $row_ref, $keep_collapsing, $set_ident ];
-
-
-  my @cur_row = @$row_ref;
-  my (@to_collapse, $last_ident);
-
-  do {
-    my $row_hr = { map { $as_proto->[$_] => $cur_row[$_] } (0 .. $#$as_proto) };
-
-    # see if we are switching to another object
-    # this can be turned off and things will still work
-    # since _merge_prefetch knows about _collapse_ident
-#    my $cur_ident = [ @{$row_hr}{@$set_ident} ];
-    my $cur_ident = [];
-    $last_ident ||= $cur_ident;
-
-#    if ($keep_collapsing = eq_deeply ($cur_ident, $last_ident)) {
-#      push @to_collapse, $self->result_source->_parse_row (
-#        $row_hr,
-#      );
-#    }
-  } while (
-    $keep_collapsing
-      &&
-    do { @cur_row = $self->cursor->next; $self->{stashed_row} = \@cur_row if @cur_row; }
-  );
-
-  # attempt collapse all rows with same collapse identity
-}
-=cut
-
-# Takes an arrayref of me/pref pairs and a new me/pref pair that should
-# be merged on a preexisting matching me (or should be pushed into $merged
-# as a new me/pref pair for further invocations). It should be possible to
-# use this function to collapse complete ->all results,  provided _collapse_result() is adjusted
-# to provide everything to this sub not to barf when $merged contains more than one 
-# arrayref)
-sub _merge_prefetch {
-  my ($self, $merged, $next_row) = @_;
-
-  unless (@$merged) {
-    push @$merged, $next_row;
-    return;
+  # CDBI compat stuff
+  if ($attrs->{record_filter}) {
+    $_ = $attrs->{record_filter}->($_) for @$rows;
   }
 
+  return $rows;
 }
 
 =head2 result_source
@@ -1883,35 +1614,23 @@ Returns all elements in the resultset.
 sub all {
   my $self = shift;
   if(@_) {
-      $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
+    $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
   }
+
+  delete $self->{stashed_rows};
+  delete $self->{stashed_objects};
 
   if (my $c = $self->get_cache) {
     return @$c;
   }
 
-  my @objects;
+  $self->cursor->reset;
 
-  if ($self->_resolved_attrs->{collapse}) {
-    # Using $self->cursor->all is really just an optimisation.
-    # If we're collapsing has_many prefetches it probably makes
-    # very little difference, and this is cleaner than hacking
-    # _construct_objects to survive the approach
-    $self->cursor->reset;
-    my @row = $self->cursor->next;
-    while (@row) {
-      push(@objects, $self->_construct_objects(@row));
-      @row = (exists $self->{stashed_row}
-               ? @{delete $self->{stashed_row}}
-               : $self->cursor->next);
-    }
-  } else {
-    @objects = map { $self->_construct_objects(@$_) } $self->cursor->all;
-  }
+  my $objs = $self->_construct_objects(undef, 'fetch_all') || [];
 
-  $self->set_cache(\@objects) if $self->{attrs}{cache};
+  $self->set_cache($objs) if $self->{attrs}{cache};
 
-  return @objects;
+  return @$objs;
 }
 
 =head2 reset
@@ -1932,7 +1651,10 @@ another query.
 
 sub reset {
   my ($self) = @_;
-  delete $self->{_attrs} if exists $self->{_attrs};
+  delete $self->{_attrs};
+  delete $self->{stashed_rows};
+  delete $self->{stashed_objects};
+
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
@@ -2035,7 +1757,7 @@ sub _rs_update_delete {
   my $existing_group_by = delete $attrs->{group_by};
 
   # make a new $rs selecting only the PKs (that's all we really need for the subq)
-  delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
+  delete $attrs->{$_} for qw/collapse select _prefetch_selector_range as/;
   $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
   $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
   my $subrs = (ref $self)->new($rsrc, $attrs);
@@ -3263,7 +2985,7 @@ sub related_resultset {
 
     if (my $cache = $self->get_cache) {
       if ($cache->[0] && $cache->[0]->related_resultset($rel)->get_cache) {
-        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache} }
+        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache||[]} }
                         @$cache ];
       }
     }
@@ -3566,14 +3288,10 @@ sub _resolved_attrs {
     if $attrs->{select};
 
   # assume all unqualified selectors to apply to the current alias (legacy stuff)
-  for (@sel) {
-    $_ = (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_";
-  }
+  $_ = (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_" for @sel;
 
-  # disqualify all $alias.col as-bits (collapser mandated)
-  for (@as) {
-    $_ = ($_ =~ /^\Q$alias.\E(.+)$/) ? $1 : $_;
-  }
+  # disqualify all $alias.col as-bits (inflate-map mandated)
+  $_ = ($_ =~ /^\Q$alias.\E(.+)$/) ? $1 : $_ for @as;
 
   # de-duplicate the result (remove *identical* select/as pairs)
   # and also die on duplicate {as} pointing to different {select}s
@@ -3730,6 +3448,7 @@ sub _resolved_attrs {
     }
   }
 
+  $attrs->{_single_object_inflation} = ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}};
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
