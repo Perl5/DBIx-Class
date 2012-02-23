@@ -43,7 +43,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::Exception;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
+__PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect storage/);
 
 # for when I need a normalized l/r pair
 sub _quote_chars {
@@ -91,10 +91,24 @@ sub __max_int () { 0x7FFFFFFF };
 
 # poor man's de-qualifier
 sub _quote {
-  $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+  return undef if not defined $_[1];
+
+  my $col = ( $_[0]{_dequalify_idents} and ! ref $_[1] )
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
-  );
+  ;
+
+  if (
+    $_[0]->{FROM}
+      and
+    $_[0]->storage
+      and
+    my $alias = ($_[0]->storage->_resolve_column_info($_[0]->{FROM}, [$col]) || {})->{$col}{sql_alias}
+  ) {
+    $col =~ s/[^\.]+$/$alias/;
+  }
+
+  $_[0]->next::method( $col );
 }
 
 sub _where_op_NEST {
@@ -110,6 +124,7 @@ sub select {
   my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
 
+  local $self->{FROM} = $table;
   $fields = $self->_recurse_fields($fields);
 
   if (defined $offset) {
@@ -194,6 +209,7 @@ sub insert {
 # optimized due to hotttnesss
 #  my ($self, $table, $data, $options) = @_;
 
+  local $_[0]->{FROM} = $_[1];
   # SQLA will emit INSERT INTO $table ( ) VALUES ( )
   # which is sadly understood only by MySQL. Change default behavior here,
   # until SQLA2 comes with proper dialect support
@@ -213,6 +229,17 @@ sub insert {
   }
 
   next::method(@_);
+}
+
+sub update {
+  local $_[0]->{FROM} = $_[1];
+
+  shift->next::method(@_);
+}
+
+sub delete {
+
+  shift->next::method(@_);
 }
 
 sub _recurse_fields {

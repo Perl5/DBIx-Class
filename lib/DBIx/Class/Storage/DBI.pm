@@ -986,14 +986,18 @@ sub sql_maker {
     }
 
     $self->_sql_maker($sql_maker_class->new(
-      bindtype=>'columns',
+      bindtype => 'columns',
       array_datatypes => 1,
       limit_dialect => $dialect,
       ($quote_char ? (quote_char => $quote_char) : ()),
       name_sep => ($name_sep || '.'),
+      storage => $self,
       %opts,
     ));
+
+    weaken($self->_sql_maker->{storage});
   }
+
   return $self->_sql_maker;
 }
 
