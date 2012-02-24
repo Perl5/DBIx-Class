@@ -1281,10 +1281,10 @@ sub _construct_objects {
 
   # construct a much simpler array->hash folder for the one-table cases right here
   if ($attrs->{_single_object_inflation} and ! $attrs->{collapse}) {
-    # FIXME this is a very very very hot spot
+    # FIXME SUBOPTIMAL this is a very very very hot spot
     # while rather optimal we can *still* do much better, by
     # building a smarter [Row|HRI]::inflate_result(), and
-    # switch to feeding it data via some leaner interface
+    # switch to feeding it data via a much leaner interface
     #
     my $infmap = $attrs->{as};
     my @as_idx = 0..$#$infmap;
@@ -1292,7 +1292,7 @@ sub _construct_objects {
       $r = [{ map { $infmap->[$_] => $r->[$_] } @as_idx }]
     }
 
-    # FIXME - this seems to be faster than the hashmapper aove, especially
+    # FIXME - this seems to be faster than the hashmapper above, especially
     # on more rows, but need a better bench-environment to confirm
     #eval sprintf (
     #  '$_ = [{ %s }] for @$rows',
@@ -1302,12 +1302,14 @@ sub _construct_objects {
   else {
     push @$rows, @{$self->{stashed_rows}||[]};
 
-    $rsrc->_mk_row_parser({
+    my $perl = $rsrc->_mk_row_parser({
       inflate_map => $attrs->{as},
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
       unordered => $unordered,
-    })->(
+    });
+
+    (eval "sub { no warnings; no strict; $perl }")->( # disable of strictures seems to have some effect, weird
       $rows,  # modify in-place, shrinking/extending as necessary
       ($attrs->{collapse} and ! $fetch_all and ! $unordered)
         ? (
