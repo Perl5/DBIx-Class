@@ -183,6 +183,7 @@ is_same_sql_bind (
           FROM cd me
           JOIN artist artist ON artist.artistid = me.artist
         WHERE ( ( artist.name = ? AND me.year = ? ) )
+        ORDER BY me.cdid
         LIMIT ?
       ) me
       LEFT JOIN track tracks
@@ -190,6 +191,7 @@ is_same_sql_bind (
       JOIN artist artist
         ON artist.artistid = me.artist
     WHERE ( ( artist.name = ? AND me.year = ? ) )
+    ORDER BY me.cdid
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'artist.name' } => 'foo' ],

@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 
 lives_ok(sub {
   # while cds.* will be selected anyway (prefetch currently forces the result of _resolve_prefetch)
-  # only the requested me.name column will be fetched.
+  # only the requested me.name/me.artistid columns will be fetched.
 
   # reference sql with select => [...]
   #   SELECT me.name, cds.title, me.artistid, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...

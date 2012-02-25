@@ -1058,8 +1058,9 @@ sub single {
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
   )];
-
-  return @$data ? $self->_construct_objects($data)->[0] : undef;
+  return undef unless @$data;
+  $self->{stashed_rows} = [ $data ];
+  $self->_construct_objects->[0];
 }
 
 
@@ -1245,83 +1246,109 @@ sub next {
 # order the result sensibly) OR until the cursor is exhausted (an
 # unordered collapsing resultset effectively triggers ->all)
 sub _construct_objects {
-  my ($self, $fetched_row, $fetch_all) = @_;
-
-  my $attrs = $self->_resolved_attrs;
-  my $unordered = 0;  # will deal with this later
-
-  # this will be used as both initial raw-row collector AND as a RV of
-  # _construct_objects. Not regrowing the   # array twice matters a lot...
-  # a suprising amount actually
-  my $rows;
-
-  # $fetch_all implies all() which means all stashes have been cleared
-  # and the cursor reset
-  if ($fetch_all) {
-    # FIXME - we can do better, cursor->all (well a diff. method) should return a ref
-    $rows = [ $self->cursor->all ];
-  }
-  elsif ($unordered) {
-    $rows = [
-      $fetched_row||(),
-      @{ delete $self->{stashed_rows} || []},
-      $self->cursor->all,
-    ];
-  }
-  else {  # simple single object
-    $rows = [ $fetched_row || ( @{$self->{stashed_rows}||[]} ? shift @{$self->{stashed_rows}} : [$self->cursor->next] ) ];
-  }
-
-  return undef unless @{$rows->[0]||[]};
+  my ($self, $fetch_all) = @_;
 
   my $rsrc = $self->result_source;
+  my $attrs = $self->_resolved_attrs;
+  my $cursor = $self->cursor;
+
+  # this will be used as both initial raw-row collector AND as a RV of
+  # _construct_objects. Not regrowing the array twice matters a lot...
+  # a suprising amount actually
+  my $rows = (delete $self->{stashed_rows}) || [];
+  if ($fetch_all) {
+    # FIXME - we can do better, cursor->next/all (well diff. methods) should return a ref
+    $rows = [ @$rows, $cursor->all ];
+  }
+  elsif (!$attrs->{collapse}) {
+    push @$rows, do { my @r = $cursor->next; @r ? \@r : () }
+      unless @$rows;
+  }
+  else {
+    $attrs->{_ordered_for_collapse} ||= (!$attrs->{order_by}) ? undef : do {
+      my $st = $rsrc->schema->storage;
+      my @ord_cols = map
+        { $_->[0] }
+        ( $st->_extract_order_criteria($attrs->{order_by}) )
+      ;
+
+      my $colinfos = $st->_resolve_column_info($attrs->{from}, \@ord_cols);
+
+      for (0 .. $#ord_cols) {
+        if (
+          ! $colinfos->{$ord_cols[$_]}
+            or
+          $colinfos->{$ord_cols[$_]}{-result_source} != $rsrc
+        ) {
+          splice @ord_cols, $_;
+          last;
+        }
+      }
+
+      # since all we check here are the start of the order_by belonging to the
+      # top level $rsrc, the order stability check will fail unless the whole
+      # thing is ordered as we need it
+      (@ord_cols and $rsrc->_identifying_column_set({ map
+        { $colinfos->{$_}{-colname} => $colinfos->{$_} }
+        @ord_cols
+      })) ? 1 : 0;
+    };
+
+    if ($attrs->{_ordered_for_collapse}) {
+      push @$rows, do { my @r = $cursor->next; @r ? \@r : () };
+    }
+    # instead of looping over ->next, use ->all in stealth mode
+    elsif (! $cursor->{done}) {
+      push @$rows, $cursor->all;
+      $cursor->{done} = 1;
+      $fetch_all = 1;
+    }
+  }
+
+  return undef unless @$rows;
+
   my $res_class = $self->result_class;
   my $inflator = $res_class->can ('inflate_result')
     or $self->throw_exception("Inflator $res_class does not provide an inflate_result() method");
 
-  # construct a much simpler array->hash folder for the one-table cases right here
-  if ($attrs->{_single_object_inflation} and ! $attrs->{collapse}) {
+  my $infmap = $attrs->{as};
+
+  if (!$attrs->{collapse} and $attrs->{_single_object_inflation}) {
+    # construct a much simpler array->hash folder for the one-table cases right here
+
     # FIXME SUBOPTIMAL this is a very very very hot spot
     # while rather optimal we can *still* do much better, by
     # building a smarter [Row|HRI]::inflate_result(), and
     # switch to feeding it data via a much leaner interface
     #
-    my $infmap = $attrs->{as};
-    my @as_idx = 0..$#$infmap;
-    for my $r (@$rows) {
-      $r = [{ map { $infmap->[$_] => $r->[$_] } @as_idx }]
+    # crude unscientific benchmarking indicated the shortcut eval is not worth it for
+    # this particular resultset size
+    if (@$rows < 60) {
+      my @as_idx = 0..$#$infmap;
+      for my $r (@$rows) {
+        $r = $inflator->($res_class, $rsrc, { map { $infmap->[$_] => $r->[$_] } @as_idx } );
+      }
     }
-
-    # FIXME - this seems to be faster than the hashmapper above, especially
-    # on more rows, but need a better bench-environment to confirm
-    #eval sprintf (
-    #  '$_ = [{ %s }] for @$rows',
-    #  join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
-    #);
+    else {
+      eval sprintf (
+        '$_ = $inflator->($res_class, $rsrc, { %s }) for @$rows',
+        join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
+      );
+    }
   }
   else {
-    push @$rows, @{$self->{stashed_rows}||[]};
-
-    my $perl = $rsrc->_mk_row_parser({
-      inflate_map => $attrs->{as},
+    ($self->{_row_parser} ||= eval sprintf 'sub { %s }', $rsrc->_mk_row_parser({
+      inflate_map => $infmap,
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
-      unordered => $unordered,
-    });
+    }) or die $@)->($rows, $fetch_all ? () : (
+      sub { my @r = $cursor->next or return; \@r },
+      ($self->{stashed_rows} = []),
+    ));  # modify $rows in-place, shrinking/extending as necessary
 
-    (eval "sub { no warnings; no strict; $perl }")->( # disable of strictures seems to have some effect, weird
-      $rows,  # modify in-place, shrinking/extending as necessary
-      ($attrs->{collapse} and ! $fetch_all and ! $unordered)
-        ? (
-            sub { my @r = $self->cursor->next or return undef; \@r },
-            ($self->{stashed_rows} = []), # this is where we empty things and prepare for leftovers
-          )
-        : ()
-      ,
-    );
+    $_ = $inflator->($res_class, $rsrc, @$_) for @$rows;
+
   }
-
-  $_ = $res_class->$inflator($rsrc, @$_) for @$rows;
 
   # CDBI compat stuff
   if ($attrs->{record_filter}) {
@@ -1628,7 +1655,7 @@ sub all {
 
   $self->cursor->reset;
 
-  my $objs = $self->_construct_objects(undef, 'fetch_all') || [];
+  my $objs = $self->_construct_objects('fetch_all') || [];
 
   $self->set_cache($objs) if $self->{attrs}{cache};
 
@@ -3425,6 +3452,8 @@ sub _resolved_attrs {
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
   }
 
+  $attrs->{_single_object_inflation} = ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}};
+
   # run through the resulting joinstructure (starting from our current slot)
   # and unset collapse if proven unnesessary
   if ($attrs->{collapse} && ref $attrs->{from} eq 'ARRAY') {
@@ -3450,7 +3479,11 @@ sub _resolved_attrs {
     }
   }
 
-  $attrs->{_single_object_inflation} = ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}};
+  if (! $attrs->{order_by} and $attrs->{collapse}) {
+    # default order for collapsing unless the user asked for something
+    $attrs->{order_by} = [ map { "$alias.$_" } $source->primary_columns ];
+    $attrs->{_ordered_for_collapse} = 1;
+  }
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
@@ -3673,6 +3706,9 @@ sub STORABLE_freeze {
 
   # A cursor in progress can't be serialized (and would make little sense anyway)
   delete $to_serialize->{cursor};
+
+  # the parser can be regenerated
+  delete $to_serialize->{_row_parser};
 
   # nor is it sensical to store a not-yet-fired-count pager
   if ($to_serialize->{pager} and ref $to_serialize->{pager}{total_entries} eq 'CODE') {

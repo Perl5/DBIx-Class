@@ -1,4 +1,5 @@
-package DBIx::Class::ResultSource::RowParser;
+package # hide from the pauses
+  DBIx::Class::ResultSource::RowParser;
 
 use strict;
 use warnings;
@@ -32,7 +33,7 @@ sub _resolve_prefetch {
     map {
       $self->_resolve_prefetch($_, $alias, $alias_map, $order, [ @$pref_path ] ),
       $self->related_source($_)->_resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $alias_map, $order, [ @$pref_path, $_] )
+         $pre->{$_}, "${alias}.$_", $alias_map, $order, [ @$pref_path, $_] )
     } keys %$pre;
     return @ret;
   }
@@ -56,50 +57,9 @@ sub _resolve_prefetch {
       unless $rel_info;
 
     my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
-    my $rel_source = $self->related_source($pre);
-
-    if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
-      $self->throw_exception(
-        "Can't prefetch has_many ${pre} (join cond too complex)")
-        unless ref($rel_info->{cond}) eq 'HASH';
-      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
-
-      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
-      #              values %{$rel_info->{cond}};
-      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
-                    keys %{$rel_info->{cond}};
-
-      push @$order, map { "${as}.$_" } @key;
-
-      if (my $rel_order = $rel_info->{attrs}{order_by}) {
-        # this is kludgy and incomplete, I am well aware
-        # but the parent method is going away entirely anyway
-        # so sod it
-        my $sql_maker = $self->storage->sql_maker;
-        my ($orig_ql, $orig_qr) = $sql_maker->_quote_chars;
-        my $sep = $sql_maker->name_sep;
-
-        # install our own quoter, so we can catch unqualified stuff
-        local $sql_maker->{quote_char} = ["\x00", "\xFF"];
-
-        my $quoted_prefix = "\x00${as}\xFF";
-
-        for my $chunk ( $sql_maker->_order_by_chunks ($rel_order) ) {
-          my @bind;
-          ($chunk, @bind) = @$chunk if ref $chunk;
-
-          $chunk = "${quoted_prefix}${sep}${chunk}"
-            unless $chunk =~ /\Q$sep/;
-
-          $chunk =~ s/\x00/$orig_ql/g;
-          $chunk =~ s/\xFF/$orig_qr/g;
-          push @$order, \[$chunk, @bind];
-        }
-      }
-    }
 
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $rel_source->columns;
+      $self->related_source($pre)->columns;
   }
 }
 
@@ -155,11 +115,11 @@ sub _resolve_collapse {
         $_ =~ s/^ (?: foreign | self ) \.//x for ($f, $s);
         $relinfo->{$rel}{fk_map}{$s} = $f;
 
-        # need to know source from *our* pov, hnce $rel.
+        # need to know source from *our* pov, hence $rel.
         $my_cols->{$s} ||= { via_fk => "$rel.$f" } if (
           defined $rel_cols->{$rel}{$f} # in fact selected
             and
-          (! $node_idx_ref or $relinfo->{$rel}{is_inner}) # either top-level or an inner join
+          $relinfo->{$rel}{is_inner}
         );
       }
     }
@@ -194,14 +154,14 @@ sub _resolve_collapse {
   if (
     $my_cols
       and
-    my $uset = $self->_unique_column_set ($my_cols)
+    my $idset = $self->_identifying_column_set ({map { $_ => $my_cols->{$_}{colinfo} } keys %$my_cols})
   ) {
     # see if the resulting collapser relies on any implied columns,
     # and fix stuff up if this is the case
+    my @reduced_set = grep { ! $assumed_from_parent->{columns}{$_} } @$idset;
 
-    my $parent_collapser_used = defined delete @{$uset}{keys %{$assumed_from_parent->{columns}}};
     $collapse_map->{-node_id} = __unique_numlist(
-      $parent_collapser_used ? @{$parent_info->{collapse_on}} : (),
+      (@reduced_set != @$idset) ? @{$parent_info->{collapse_on}} : (),
       (map
         {
           my $fqc = join ('.',
@@ -211,7 +171,7 @@ sub _resolve_collapse {
 
           $as_fq_idx->{$fqc};
         }
-        keys %$uset
+        @reduced_set
       ),
     );
   }
@@ -309,26 +269,6 @@ sub _resolve_collapse {
   return $collapse_map;
 }
 
-sub _unique_column_set {
-  my ($self, $cols) = @_;
-
-  my %unique = $self->unique_constraints;
-
-  # always prefer the PK first, and then shortest constraints first
-  USET:
-  for my $set (delete $unique{primary}, sort { @$a <=> @$b } (values %unique) ) {
-    next unless $set && @$set;
-
-    for (@$set) {
-      next USET unless ($cols->{$_} && $cols->{$_}{colinfo} && !$cols->{$_}{colinfo}{is_nullable} );
-    }
-
-    return { map { $_ => 1 } @$set };
-  }
-
-  return undef;
-}
-
 # Takes an arrayref of {as} dbic column aliases and the collapse and select
 # attributes from the same $rs (the slector requirement is a temporary
 # workaround), and returns a coderef capable of:
@@ -389,8 +329,6 @@ sub _mk_row_parser {
 
   my ($parser_src);
   if ($args->{collapse}) {
-    # FIXME - deal with unorderedness
-    #    unordered => $unordered
 
     my $collapse_map = $self->_resolve_collapse (
       # FIXME
@@ -406,27 +344,21 @@ sub _mk_row_parser {
       }
     );
 
-    my $unrolled_top_branch_id_indexes = join (', ', @{$collapse_map->{-branch_id}});
+    my $top_branch_idx_list = join (', ', @{$collapse_map->{-branch_id}});
 
-    my ($sequenced_top_branch_id, $sequenced_top_node_id) = map
-      { join ('', map { "{'\xFF__IDVALPOS__${_}__\xFF'}" } @$_ ) }
-      $collapse_map->{-branch_id}, $collapse_map->{-node_id}
-    ;
+    my $top_node_id_path = join ('', map
+      { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
+      @{$collapse_map->{-node_id}}
+    );
 
-    my $rolled_out_assemblers = __visit_infmap_collapse (
+    my $rel_assemblers = __visit_infmap_collapse (
       $inflate_index, $collapse_map
     );
-    my @sprintf_args = (
-      $unrolled_top_branch_id_indexes,
-      $sequenced_top_branch_id,
-      $sequenced_top_node_id,
-      $rolled_out_assemblers,
-    );
 
-    $parser_src = sprintf (<<'EOS', @sprintf_args);
-
+    $parser_src = sprintf (<<'EOS', $top_branch_idx_list, $top_node_id_path, $rel_assemblers);
 ### BEGIN STRING EVAL
-  my ($rows_pos, $result_pos, $cur_row, @cur_row_id_values, $is_new_res, @collapse_idx) = (0,0);
+
+  my ($rows_pos, $result_pos, $cur_row, @cur_row_ids, @collapse_idx, $is_new_res) = (0,0);
 
   # this loop is a bit arcane - the rationale is that the passed in
   # $_[0] will either have only one row (->next) or will have all
@@ -435,30 +367,21 @@ sub _mk_row_parser {
   # array, since the collapsed prefetch is smaller by definition.
   # At the end we cut the leftovers away and move on.
   while ($cur_row =
-    ( ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; 0 } )
+    ( ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
       ||
     ($_[1] and $_[1]->())
   ) {
 
-    # FIXME
-    # optimize this away when we know we have no undefs in the collapse map
-    $cur_row_id_values[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\xFF\xFFN\xFFU\xFFL\xFFL\xFF\xFF"
+    $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\xFF\xFFN\xFFU\xFFL\xFFL\xFF\xFF"
       for (%1$s); # the top branch_id includes all id values
 
-    # check top branch for doubling via a has_many non-selecting join or something
-    # 0 is reserved for this (node indexes start from 1)
-    next if $collapse_idx[0]%2$s++;
+    $is_new_res = ! $collapse_idx[1]%2$s and (
+      $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row) and last
+    );
 
-    $is_new_res = ! $collapse_idx[1]%3$s;
+    %3$s
 
-    # lazify
-    # fire on ordered only
-#    if ($is_new_res = ! $collapse_idx[1]{$cur_row_id_values[2]}) {
-#    }
-
-    %4$s
-
-    $_[0][$result_pos++] = $collapse_idx[1]%3$s
+    $_[0][$result_pos++] = $collapse_idx[1]%2$s
       if $is_new_res;
   }
 
@@ -468,7 +391,7 @@ EOS
 
     # change the quoted placeholders to unquoted alias-references
     $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row->[$1]"/gex;
-    $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /"\$cur_row_id_values[$1]"/gex;
+    $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /"\$cur_row_ids[$1]"/gex;
   }
 
   else {
@@ -557,7 +480,7 @@ sub __visit_infmap_collapse {
 
   my $me_struct = keys %$my_cols
     ? __visit_dump([{ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) }])
-    : 'undef'
+    : undef
   ;
   my $node_idx_ref = sprintf '$collapse_idx[%d]%s', $collapse_map->{-node_index}, $sequenced_node_id;
 
@@ -571,20 +494,20 @@ sub __visit_infmap_collapse {
     push @src, sprintf( '%s ||= %s;',
       $node_idx_ref,
       $me_struct,
-    );
+    ) if $me_struct;
   }
   elsif ($collapse_map->{-is_single}) {
-    push @src, sprintf ( '%s = %s ||= %s;',
+    push @src, sprintf ( '%s ||= %s%s;',
       $parent_idx_ref,
       $node_idx_ref,
-      $me_struct,
+      $me_struct ? " ||= $me_struct" : '',
     );
   }
   else {
-    push @src, sprintf('push @{%s}, %s = %s if !%s;',
+    push @src, sprintf('push @{%s}, %s%s unless %s;',
       $parent_idx_ref,
       $node_idx_ref,
-      $me_struct,
+      $me_struct ? " ||= $me_struct" : '',
       $node_idx_ref,
     );
   }
@@ -594,7 +517,8 @@ sub __visit_infmap_collapse {
 
   for my $rel (sort keys %$rel_cols) {
 
-    push @src, sprintf( '%s[1]{%s} ||= [];', $node_idx_ref, perlstring($rel) );
+    push @src, sprintf( '%s[1]{%s} ||= [];', $node_idx_ref, perlstring($rel) )
+      unless $collapse_map->{$rel}{-is_single};
 
     push @src,  __visit_infmap_collapse($rel_cols->{$rel}, $collapse_map->{$rel}, {
       node_idx => $collapse_map->{-node_index},
@@ -605,7 +529,7 @@ sub __visit_infmap_collapse {
 
     # FIXME SUBOPTIMAL - disabled to satisfy t/resultset/inflate_result_api.t
     #if ($collapse_map->{$rel}{-is_optional} and my @null_checks = map
-    #  { "(! defined '\xFF__VALPOS__${_}__\xFF')" }
+    #  { "(! defined '\xFF__IDVALPOS__${_}__\xFF')" }
     #  sort { $a <=> $b } grep
     #    { ! $known_defined->{$_} }
     #    @{$collapse_map->{$rel}{-node_id}}
