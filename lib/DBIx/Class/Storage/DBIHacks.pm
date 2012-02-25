@@ -680,4 +680,24 @@ sub _extract_order_criteria {
   }
 }
 
+sub _order_by_is_stable {
+  my ($self, $ident, $order_by) = @_;
+
+  my $colinfo = $self->_resolve_column_info(
+    $ident, [ map { $_->[0] } $self->_extract_order_criteria($order_by) ]
+  );
+
+  return undef unless keys %$colinfo;
+
+  my $cols_per_src;
+  $cols_per_src->{$_->{-source_alias}}{$_->{-colname}} = $_ for values %$colinfo;
+
+  for (values %$cols_per_src) {
+    my $src = (values %$_)[0]->{-result_source};
+    return 1 if $src->_identifying_column_set($_);
+  }
+
+  return undef;
+}
+
 1;

@@ -79,6 +79,37 @@ for my $test_set (
       [ $TOTAL => 4 ],
       [ $OFFSET => 4 ],
     ],
+  },
+ {
+    name => 'Rownum subsel aliasing works correctly with non-unique order_by',
+    rs => $rs->search_rs(undef, {
+      rows => 1,
+      offset => 3,
+      columns => [
+        { id => 'foo.id' },
+        { 'bar.id' => 'bar.id' },
+        { bleh => \'TO_CHAR (foo.womble, "blah")' },
+      ],
+      order_by => 'artist',
+    }),
+    sql => '(
+      SELECT id, bar__id, bleh
+      FROM (
+        SELECT id, bar__id, bleh, ROWNUM rownum__index
+        FROM (
+          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
+            FROM cd me
+          WHERE id = ?
+          ORDER BY artist
+        ) me
+      ) me
+      WHERE rownum__index BETWEEN ? and ?
+    )',
+    binds => [
+      $where_bind,
+      [ $OFFSET => 4 ],
+      [ $TOTAL => 4 ],
+    ],
   }, {
     name => 'Rownum subsel aliasing #2 works correctly',
     rs => $rs->search_rs(undef, {

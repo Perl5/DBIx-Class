@@ -259,11 +259,16 @@ sub _RowNum {
   # ordered by a unique set of columns, it is not safe to use the faster
   # method, and the slower BETWEEN query is used instead
   #
-  # FIXME - this is quite expensive, and doe snot perform caching of any sort
+  # FIXME - this is quite expensive, and does not perform caching of any sort
   # as soon as some of the DQ work becomes viable consider switching this
   # over
-  if ( __order_by_is_unique($rs_attrs) ) {
-
+  if (
+    $rs_attrs->{order_by}
+      and
+    $rs_attrs->{_rsroot_rsrc}->storage->_order_by_is_stable(
+      $rs_attrs->{from}, $rs_attrs->{order_by}
+    )
+  ) {
     # if offset is 0 (first page) the we can skip a subquery
     if (! $offset) {
       push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
@@ -297,43 +302,6 @@ SELECT $outsel FROM (
 ) $qalias WHERE $idx_name BETWEEN ? AND ?
 EOS
   }
-}
-
-# determine if the supplied order_by contains a unique column (set)
-sub __order_by_is_unique {
-  my $rs_attrs = shift;
-  my $rsrc = $rs_attrs->{_rsroot_rsrc};
-  my $order_by = $rs_attrs->{order_by}
-    || return 0;
-
-  my $storage = $rsrc->schema->storage;
-
-  my @order_by_cols = map { $_->[0] } $storage->_extract_order_criteria($order_by)
-    or return 0;
-
-  my $colinfo =
-    $storage->_resolve_column_info($rs_attrs->{from}, \@order_by_cols);
-
-  my $sources = {
-    map {( "$_" => $_ )} map { $_->{-result_source} } values %$colinfo
-  };
-
-  my $supplied_order = {
-    map { $_ => 1 }
-    grep { exists $colinfo->{$_} and ! $colinfo->{$_}{is_nullable} }
-    @order_by_cols
-  };
-
-  return 0 unless keys %$supplied_order;
-
-  for my $uks (
-    map { values %$_ } map { +{ $_->unique_constraints } } values %$sources
-  ) {
-    return 1
-      unless first { ! exists $supplied_order->{$_} } @$uks;
-  }
-
-  return 0;
 }
 
 # used by _Top and _FetchFirst below
