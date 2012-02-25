@@ -47,6 +47,7 @@ sub new {
 
   my $orig_attrs = $rs->_resolved_attrs;
   my $alias = $rs->current_source_alias;
+  my $rsrc = $rs->result_source;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -57,18 +58,24 @@ sub new {
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
-  my $new_parent_rs;
+  my ($new_parent_rs, $colmap);
+  for ($rsrc->columns, $column) {
+    if ($_ =~ /^ \Q$alias\E \. ([^\.]+) $ /x) {
+      $colmap->{$_} = $1;
+    }
+    elsif ($_ !~ /\./) {
+      $colmap->{"$alias.$_"} = $_;
+      $colmap->{$_} = $_;
+    }
+  }
+
   # analyze the order_by, and see if it is done over a function/nonexistentcolumn
   # if this is the case we will need to wrap a subquery since the result of RSC
   # *must* be a single column select
-  my %collist = map
-    { $_ => 1, ($_ =~ /\./) ? () : ( "$alias.$_" => 1 ) }
-    ($rs->result_source->columns, $column)
-  ;
   if (
     scalar grep
-      { ! $collist{$_->[0]} }
-      ( $rs->result_source->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) )
+      { ! exists $colmap->{$_->[0]} }
+      ( $rsrc->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) )
   ) {
     # nuke the prefetch before collapsing to sql
     my $subq_rs = $rs->search;
@@ -89,24 +96,11 @@ sub new {
   # we need to group *IF WE CAN* (only if the column in question is unique)
   if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
 
-    # scan for a constraint that would contain our column only - that'd be proof
-    # enough it is unique
-    my $constraints = { $rs->result_source->unique_constraints };
-    for my $constraint_columns ( values %$constraints ) {
-
-      next unless @$constraint_columns == 1;
-
-      my $col = $constraint_columns->[0];
-      my $fqcol = join ('.', $new_attrs->{alias}, $col);
-
-      if ($col eq $select or $fqcol eq $select) {
-        $new_attrs->{group_by} = [ $select ];
-        delete $new_attrs->{distinct}; # it is ignored when group_by is present
-        last;
-      }
+    if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
+      $new_attrs->{group_by} = [ $select ];
+      delete $new_attrs->{distinct}; # it is ignored when group_by is present
     }
-
-    if (!$new_attrs->{group_by}) {
+    else {
       carp (
           "Attempting to retrieve non-unique column '$column' on a resultset containing "
         . 'one-to-many joins will return duplicate results.'
