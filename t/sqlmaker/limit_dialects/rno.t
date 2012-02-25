@@ -98,20 +98,28 @@ my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search ({}, {
   ],
   join => 'owner',
   rows => 1,
+  order_by => 'me.id',
 });
+
+# SELECT [owner_name], [owner_books] FROM (
+#   SELECT [owner_name], [owner_books], [ORDER__BY__1], ROW_NUMBER() OVER(  ORDER BY [ORDER__BY__1] ) AS [rno__row__index] FROM (
+#     SELECT [owner].[name] AS [owner_name], (SELECT COUNT( * ) FROM [owners] [owner] WHERE ( ( [count].[id] = [owner].[id] AND [count].[name] = ? ) )) AS [owner_books], [me].[id] AS [ORDER__BY__1]  FROM [books] [me]  JOIN [owners] [owner] ON [owner].[id] = [me].[owner] WHERE ( [source] = ? )
+#   ) [me]
+# ) [me] WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
 
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
   '(
     SELECT [owner_name], [owner_books]
       FROM (
-        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ) AS [rno__row__index]
+        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ORDER BY [ORDER__BY__1] ) AS [rno__row__index]
           FROM (
             SELECT  [owner].[name] AS [owner_name],
               ( SELECT COUNT( * ) FROM [owners] [owner]
-                WHERE [count].[id] = [owner].[id] and [count].[name] = ? ) AS [owner_books]
-              FROM [books] [me]
-              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+                WHERE [count].[id] = [owner].[id] and [count].[name] = ? ) AS [owner_books],
+              [me].[id] AS [ORDER__BY__1]
+                FROM [books] [me]
+                JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
             WHERE ( [source] = ? )
           ) [me]
       ) [me]

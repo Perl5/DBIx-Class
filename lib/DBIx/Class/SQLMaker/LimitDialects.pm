@@ -114,8 +114,6 @@ sub _RowNumberOver {
         $extra_col,
         $extra_order_sel->{$extra_col},
       );
-
-      $mid_sel .= ', ' . $extra_order_sel->{$extra_col};
     }
   }
 
