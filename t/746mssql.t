@@ -382,7 +382,7 @@ SQL
           },
           {
             prefetch => 'books',
-            order_by => { -asc => \['name + ?', [ test => 'xxx' ]] }, # test bindvar propagation
+            order_by => [ { -asc => \['name + ?', [ test => 'xxx' ]] }, 'me.id' ], # test bindvar propagation
             group_by => [ map { "me.$_" } $schema->source('Owners')->columns ], # the literal order_by requires an explicit group_by
             rows     => 3,  # 8 results total
             unsafe_subselect_ok => 1,
@@ -428,7 +428,7 @@ SQL
             having => \['1 = ?', [ test => 1 ] ], #test having propagation
             prefetch => 'owner',
             rows     => 2,  # 3 results total
-            order_by => { -desc => 'me.owner' },
+            order_by => [{ -desc => 'me.owner' }, 'me.id'],
             unsafe_subselect_ok => 1,
           },
         );

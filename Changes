@@ -13,6 +13,10 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
+        - Fix "Skimming limit" dialects (Top, FetchFirst) to properly check
+          the order_by criteria for stability
+        - Fix "Skimming limit" dialects (Top, FetchFirst) to propagate
+          non-selected order criteria when part of a larger subquery
         - A number of corner case fixes of void context populate() with \[]
         - Fix corner case of forked children disconnecting the parents DBI
           handle

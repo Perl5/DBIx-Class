@@ -314,14 +314,30 @@ sub _prep_for_skimming_limit {
   my $requested_order = delete $rs_attrs->{order_by};
   $r{order_by_requested} = $self->_order_by ($requested_order);
 
-  # make up an order unless supplied
-  my $inner_order = ($r{order_by_requested}
-    ? $requested_order
-    : [ map
+  # make up an order unless supplied or sanity check what we are given
+  my $inner_order;
+  if ($r{order_by_requested}) {
+    $self->throw_exception (
+      'Unable to safely perform "skimming type" limit with supplied unstable order criteria'
+    ) unless $rs_attrs->{_rsroot_rsrc}->schema->storage->_order_by_is_stable(
+      $rs_attrs->{from},
+      $requested_order
+    );
+
+    $inner_order = $requested_order;
+  }
+  else {
+    $inner_order = [ map
       { "$rs_attrs->{alias}.$_" }
-      ( $rs_attrs->{_rsroot_rsrc}->_pri_cols )
-    ]
-  );
+      ( @{
+        $rs_attrs->{_rsroot_rsrc}->_identifying_column_set
+          ||
+        $self->throw_exception(sprintf(
+          'Unable to auto-construct stable order criteria for "skimming type" limit '
+        . "dialect based on source '%s'", $rs_attrs->{_rsroot_rsrc}->name) );
+      } )
+    ];
+  }
 
   # localise as we already have all the bind values we need
   {
@@ -359,6 +375,18 @@ sub _prep_for_skimming_limit {
     # Whatever order bindvals there are, they will be realiased and
     # need to show up in front of the entire initial inner subquery
     push @{$self->{pre_select_bind}}, @{$self->{order_bind}};
+  }
+
+  # if this is a part of something bigger, we need to add back all
+  # the extra order_by's, as they may be relied upon by the outside
+  # of a prefetch or something
+  if ($rs_attrs->{_is_internal_subuery} and keys %$extra_order_sel) {
+    $r{out_sel} .= sprintf ", $extra_order_sel->{$_} AS $_"
+      for sort
+        { $extra_order_sel->{$a} cmp $extra_order_sel->{$b} }
+          grep { $_ !~ /[^\w\-]/ }  # ignore functions
+          keys %$extra_order_sel
+    ;
   }
 
   # and this is order re-alias magic
