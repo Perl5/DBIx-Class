@@ -142,9 +142,9 @@ is_deeply (
 
 {
   $rs = $schema->resultset('Artist')->search({}, {
-    columns => 'name',
+    columns => 'artistid',
     offset => 1,
-    order_by => 'name',
+    order_by => 'artistid',
   });
   local $rs->result_source->{name} = "weird \n newline/multi \t \t space containing \n table";
 
