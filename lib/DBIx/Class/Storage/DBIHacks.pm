@@ -516,7 +516,11 @@ sub _resolve_column_info {
       },
       -result_source => $rsrc,
       -source_alias => $source_alias,
+      -fq_colname => $col eq $colname ? "$source_alias.$col" : $col,
+      -colname => $colname,
     };
+
+    $return{"$source_alias.$colname"} = $return{$col} if $col eq $colname;
   }
 
   return \%return;

@@ -1448,6 +1448,32 @@ sub _compare_relationship_keys {
   ;
 }
 
+# optionally takes either an arrayref of column names, or a hashref of already
+# retrieved colinfos
+# returns an arrayref of column names of the shortest unique constraint
+# (matching some of the input if any), giving preference to the PK
+sub _identifying_column_set {
+  my ($self, $cols) = @_;
+
+  my %unique = $self->unique_constraints;
+  my $colinfos = ref $cols eq 'HASH' ? $cols : $self->columns_info($cols||());
+
+  # always prefer the PK first, and then shortest constraints first
+  USET:
+  for my $set (delete $unique{primary}, sort { @$a <=> @$b } (values %unique) ) {
+    next unless $set && @$set;
+
+    for (@$set) {
+      next USET unless ($colinfos->{$_} && !$colinfos->{$_}{is_nullable} );
+    }
+
+    # copy so we can mangle it at will
+    return [ @$set ];
+  }
+
+  return undef;
+}
+
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
   my ($self, $join, $alias, $seen, $jpath, $parent_force_left) = @_;
@@ -1723,7 +1749,6 @@ sub _resolve_condition {
 # array of column names for each of those relationships. Column names are
 # prefixed relative to the current source, in accordance with where they appear
 # in the supplied relationships.
-
 sub _resolve_prefetch {
   my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
   $pref_path ||= [];

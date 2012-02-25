@@ -4,11 +4,14 @@ Revision history for DBIx::Class
         - Issue a warning when DateTime objects are passed to ->search
         - Fast populate() in void context is now even more efficient by
           going directly through execute_for_fetch bypassing execute_array
-
-    * Fixes
         - Fix update()/delete() on complex resultsets to no longer fall back
           to silly row-by-row deletion, construct a massive OR statement
           instead
+        - Allow complex update/delete operations on sources without a
+          primary key, as long as they have at least one non-nullable
+          unique constraint
+
+    * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
         - A number of corner case fixes of void context populate() with \[]
         - Fix corner case of forked children disconnecting the parents DBI

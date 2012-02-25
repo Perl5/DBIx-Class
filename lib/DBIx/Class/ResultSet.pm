@@ -1541,10 +1541,15 @@ sub _count_subq_rs {
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
   delete @{$sub_attrs}{qw/collapse columns as select _prefetch_selector_range order_by for/};
 
-  # if we multi-prefetch we group_by primary keys only as this is what we would
+  # if we multi-prefetch we group_by something unique, as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
   if ( keys %{$attrs->{collapse}}  ) {
-    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->_pri_cols) ]
+    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } @{
+      $rsrc->_identifying_column_set || $self->throw_exception(
+        'Unable to construct a unique group_by criteria properly collapsing the '
+      . 'has_many prefetch before count()'
+      );
+    } ]
   }
 
   # Calculate subquery selector
@@ -1795,20 +1800,26 @@ sub _rs_update_delete {
   }
 
   # we got this far - means it is time to wrap a subquery
-  my $pcols = [ $rsrc->_pri_cols ];
+  my $idcols = $rsrc->_identifying_column_set || $self->throw_exception(
+    sprintf(
+      "Unable to perform complex resultset %s() without an identifying set of columns on source '%s'",
+      $op,
+      $rsrc->source_name,
+    )
+  );
   my $existing_group_by = delete $attrs->{group_by};
 
   # make a new $rs selecting only the PKs (that's all we really need for the subq)
   delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
-  $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$pcols ];
+  $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
   $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
   my $subrs = (ref $self)->new($rsrc, $attrs);
 
-  if (@$pcols == 1) {
+  if (@$idcols == 1) {
     return $storage->$op (
       $rsrc,
       $op eq 'update' ? $values : (),
-      { $pcols->[0] => { -in => $subrs->as_query } },
+      { $idcols->[0] => { -in => $subrs->as_query } },
     );
   }
   elsif ($storage->_use_multicolumn_in) {
@@ -1816,7 +1827,7 @@ sub _rs_update_delete {
     my $sql_maker = $storage->sql_maker;
     my ($sql, @bind) = @${$subrs->as_query};
     $sql = sprintf ('(%s) IN %s', # the as_query already comes with a set of parenthesis
-      join (', ', map { $sql_maker->_quote ($_) } @$pcols),
+      join (', ', map { $sql_maker->_quote ($_) } @$idcols),
       $sql,
     );
 
@@ -1864,8 +1875,8 @@ sub _rs_update_delete {
     my @op_condition;
     for my $row ($subrs->search({}, { group_by => $subq_group_by })->cursor->all) {
       push @op_condition, { map
-        { $pcols->[$_] => $row->[$_] }
-        (0 .. $#$pcols)
+        { $idcols->[$_] => $row->[$_] }
+        (0 .. $#$idcols)
       };
     }
 
