@@ -10,6 +10,8 @@ Revision history for DBIx::Class
         - Allow complex update/delete operations on sources without a
           primary key, as long as they have at least one non-nullable
           unique constraint
+        - dbicadmin now better supports catalyst-style config files, by
+          unrolling 'config_info' hashkeys
 
     * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
@@ -24,6 +26,7 @@ Revision history for DBIx::Class
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Remove useless vestigial pessimization in Ordered.pm for cases 
           when the position column is part of a unique constraint
+        - Fix dbicadmin to no longer ignore the documented 'config' option
 
     * Misc
         - Centralized leak-checks for all instances of DBICTest::Schema

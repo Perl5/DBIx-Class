@@ -44,14 +44,16 @@ my ($opts, $usage) = describe_options(
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
       ['help' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
       ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
-    ], required=> 1 }],
+    ], required => 1 }],
     ['Arguments'],
+    ["configuration" => hidden => { one_of => [
+      ['config-file|config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+      ['connect-info:s%' => 'Supply the connect info as trailing options e.g. --connect-info dsn=<dsn> user=<user> password=<pass>' ],
+      ['connect:s' => 'Supply the connect info as a JSON-encoded structure, e.g. an --connect=["dsn","user","pass"]'],
+    ], required => 1 }],
     ['schema-class:s' => 'The class of the schema to load', { required => 1 } ],
-    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
     ['config-stanza:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-    ['config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-    ['connect-info:s%' => 'Supply the connect info as additional options ie -I dsn=<dsn> user=<user> password=<pass> '],
-    ['connect:s' => 'Supply the connect info as a json string' ],
+    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
     ['sql-dir:s' => 'The directory where sql diffs will be created'],
     ['sql-type:s' => 'The RDBMs flavour you wish to use'],
     ['version:i' => 'Supply a version install'],
@@ -65,8 +67,6 @@ my ($opts, $usage) = describe_options(
     ['I:s@' => 'Same as perl\'s -I, prepended to current @INC'],
   )
 );
-
-die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
 if($opts->{selfinject_pod}) {
 
@@ -98,9 +98,11 @@ if($opts->{help}) {
 }
 
 # option compatability mangle
+# (can not be joined in the spec, one is s% the other is s)
 if($opts->{connect}) {
   $opts->{connect_info} = delete $opts->{connect};
 }
+
 my $admin = DBIx::Class::Admin->new( %$opts );
 
 my $action = $opts->{action};

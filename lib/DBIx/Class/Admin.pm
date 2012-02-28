@@ -167,7 +167,7 @@ sub _build_connect_info {
 
 config_file provide a config_file to read connect_info from, if this is provided
 config_stanze should also be provided to locate where the connect_info is in the config
-The config file should be in a format readable by Config::General
+The config file should be in a format readable by Config::Any.
 
 =cut
 
@@ -579,6 +579,7 @@ sub _find_stanza {
       die ("Could not find $stanza in config, $path does not seem to exist.\n");
     }
   }
+  $cfg = $cfg->{connect_info} if exists $cfg->{connect_info};
   return $cfg;
 }
 

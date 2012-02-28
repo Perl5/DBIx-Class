@@ -16,25 +16,35 @@ BEGIN {
 }
 
 my @json_backends = qw/XS JSON DWIW/;
-my $tests_per_run = 5;
-plan tests => ($tests_per_run * @json_backends) + 1;
-
 
 # test the script is setting @INC properly
-test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --insert --connect=[] |);
+test_exec (qw|-It/lib/testinclude --schema=DBICTestAdminInc --connect=[] --insert|);
 cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC schema' );
+
+# test that config works properly
+{
+  no warnings 'qw';
+  test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --create --connect=["klaatu","barada","nikto"]|);
+  cmp_ok( $? >> 8, '==', 71, 'Correct schema loaded via config' ) || exit;
+}
+
+# test that config-file works properly
+test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --config=t/lib/admincfgtest.json --config-stanza=Model::Gort --deploy|);
+cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
 for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("JSON backend $js is not available, skip testing", $tests_per_run) if $@;
+        skip ("JSON backend $js is not available, skip testing", 1) if $@;
 
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
         diag $@ if $@;
     }
 }
+
+done_testing();
 
 sub test_dbicadmin {
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run

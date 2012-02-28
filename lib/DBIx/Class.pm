@@ -348,6 +348,8 @@ dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
+edenc: Eden Cardim <edencardim@gmail.com>
+
 felliott: Fitz Elliott <fitz.elliott@gmail.com>
 
 freetime: Bill Moseley <moseley@hank.org>
