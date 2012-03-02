@@ -7,7 +7,7 @@ no warnings qw/qw/;
 
 __PACKAGE__->mk_group_accessors(simple => 'custom_attr');
 
-__PACKAGE__->load_classes(qw/
+__PACKAGE__->lazy_load_classes(qw/
   Artist
   SequenceTest
   BindType

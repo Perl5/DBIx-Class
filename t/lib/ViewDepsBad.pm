@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use base 'DBIx::Class::Schema';
 
-__PACKAGE__->load_namespaces;
+__PACKAGE__->load_namespaces(lazy => 1);
 
 sub sqlt_deploy_hook {
     my $self = shift;
