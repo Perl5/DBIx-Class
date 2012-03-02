@@ -713,47 +713,9 @@ sub _shift_siblings {
         $ord = 'desc';
     }
 
-    my $shift_rs = $self->_group_rs-> search ({ $position_column => { -between => \@between } });
-
-    # some databases (sqlite) are dumb and can not do a blanket
-    # increment/decrement. So what we do here is check if the
-    # position column is part of a unique constraint, and do a
-    # one-by-one update if this is the case
-    # Also we do a one-by-one if the position is part of the PK
-    # since once we update a column via scalarref we lose the
-    # ability to retrieve this column back (we do not know the
-    # id anymore)
-
-    my $rsrc = $self->result_source;
-
-    # set in case there are more cascades combined with $rs->update => $rs_update_all overrides
-    local $rsrc->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
-    my @pcols = $rsrc->primary_columns;
-    my $pos_is_pk = first { $_ eq $position_column } @pcols;
-    if (
-      $pos_is_pk
-        or
-      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
-    ) {
-        my $cursor = $shift_rs->search (
-          {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
-        )->cursor;
-        my $rs = $self->result_source->resultset;
-
-        my @all_data = $cursor->all;
-        while (my $data = shift @all_data) {
-          my $pos = shift @$data;
-          my $cond;
-          for my $i (0.. $#pcols) {
-            $cond->{$pcols[$i]} = $data->[$i];
-          }
-
-          $rs->find($cond)->update ({ $position_column => $pos + ( ($op eq '+') ? 1 : -1 ) });
-        }
-    }
-    else {
-        $shift_rs->update ({ $position_column => \ "$position_column $op 1" } );
-    }
+    $self->_group_rs
+          ->search ({ $position_column => { -between => \@between } })
+           ->update ({ $position_column => \ "$position_column $op 1" } );
 }
 
 =head1 PRIVATE METHODS
