@@ -1140,15 +1140,9 @@ sub inflate_result {
   foreach my $pre (keys %{$prefetch||{}}) {
 
     my @pre_vals;
-    if (! @{$prefetch->{$pre}}) {
-      # nothing, empty @pre_vals is put in the caches
-    }
-    elsif (ref $prefetch->{$pre}[0] eq 'ARRAY') {
-      @pre_vals = @{$prefetch->{$pre}};
-    }
-    else {
-      @pre_vals = $prefetch->{$pre};
-    }
+    @pre_vals = (ref $prefetch->{$pre}[0] eq 'ARRAY')
+      ? @{$prefetch->{$pre}} : $prefetch->{$pre}
+    if @{$prefetch->{$pre}};
 
     my $pre_source = $source->related_source($pre);
 
@@ -1160,7 +1154,8 @@ sub inflate_result {
 
       # FIXME SUBOPTIMAL - the new row parsers can very well optimize
       # this away entirely, and *never* return such empty rows.
-      # For now we maintain inflate_result API backcompat
+      # For now we maintain inflate_result API backcompat, see
+      # t/resultset/inflate_result_api.t
       next unless first { defined $_ } values %{$me_pref->[0]};
 
       push @pre_objects, $pre_source->result_class->inflate_result(

@@ -63,11 +63,12 @@ sub _resolve_prefetch {
   }
 }
 
-# Takes a selection list and generates a collapse-map representing
+# Takes an arrayref selection list and generates a collapse-map representing
 # row-object fold-points. Every relationship is assigned a set of unique,
 # non-nullable columns (which may *not even be* from the same resultset)
 # and the collapser will use this information to correctly distinguish
-# data of individual to-be-row-objects.
+# data of individual to-be-row-objects. See t/resultset/rowparser_internals.t
+# for extensive RV examples
 sub _resolve_collapse {
   my ($self, $as, $as_fq_idx, $rel_chain, $parent_info, $node_idx_ref) = @_;
 
@@ -270,54 +271,28 @@ sub _resolve_collapse {
 }
 
 # Takes an arrayref of {as} dbic column aliases and the collapse and select
-# attributes from the same $rs (the slector requirement is a temporary
-# workaround), and returns a coderef capable of:
-# my $me_pref_clps = $coderef->([$rs->cursor->next])
-# Where the $me_pref_clps arrayref is the future argument to
-# ::ResultSet::_collapse_result.
-#
-# $me_pref_clps->[0] is always returned (even if as an empty hash with no
-# rowdata), however branches of related data in $me_pref_clps->[1] may be
-# pruned short of what was originally requested based on {as}, depending
-# on:
-#
-# * If collapse is requested, a definitive collapse map is calculated for
-#   every relationship "fold-point", consisting of a set of values (which
-#   may not even be contained in the future 'me' of said relationship
-#   (for example a cd.artist_id defines the related inner-joined artist)).
-#   Thus a definedness check is carried on all collapse-condition values
-#   and if at least one is undef it is assumed that we are dealing with a
-#   NULLed right-side of a left-join, so we don't return a related data
-#   container at all, which implies no related objects
-#
-# * If we are not collapsing, there is no constraint on having a selector
-#   uniquely identifying all possible objects, and the user might have very
-#   well requested a column that just *happens* to be all NULLs. What we do
-#   in this case is fallback to the old behavior (which is a potential FIXME)
-#   by always returning a data container, but only filling it with columns
-#   IFF at least one of them is defined. This way we do not get an object
-#   with a bunch of has_column_loaded to undef, but at the same time do not
-#   further relationships based off this "null" object (e.g. in case the user
-#   deliberately skipped link-table values). I am pretty sure there are some
-#   tests that codify this behavior, need to find the exact testname.
+# attributes from the same $rs (the selector requirement is a temporary
+# workaround... I hope), and returns a coderef capable of:
+# my $me_pref_clps = $coderef->([$rs->cursor->next/all])
+# Where the $me_pref_clps arrayref is the future argument to inflate_result()
 #
 # For an example of this coderef in action (and to see its guts) look at
-# t/prefetch/_internals.t
+# t/resultset/rowparser_internals.t
 #
-# This is a huge performance win, as we call the same code for
-# every row returned from the db, thus avoiding repeated method
-# lookups when traversing relationships
+# This is a huge performance win, as we call the same code for # every row
+# returned from the db, thus avoiding repeated method lookups when traversing
+# relationships
 #
 # Also since the coderef is completely stateless (the returned structure is
 # always fresh on every new invocation) this is a very good opportunity for
 # memoization if further speed improvements are needed
 #
-# The way we construct this coderef is somewhat fugly, although I am not
-# sure if the string eval is *that* bad of an idea. The alternative is to
-# have a *very* large number of anon coderefs calling each other in a twisty
-# maze, whereas the current result is a nice, smooth, single-pass function.
+# The way we construct this coderef is somewhat fugly, although the result is
+# really worth it. The final coderef does not perform any kind of recursion -
+# the entire nested structure constructor is rolled out into a single scope.
+#
 # In any case - the output of this thing is meticulously micro-tested, so
-# any sort of rewrite should be relatively easy
+# any sort of adjustment/rewrite should be relatively easy (fsvo relatively)
 #
 sub _mk_row_parser {
   my ($self, $args) = @_;
@@ -327,8 +302,30 @@ sub _mk_row_parser {
     ( 0 .. $#{$args->{inflate_map}} )
   };
 
-  my ($parser_src);
-  if ($args->{collapse}) {
+  my $parser_src;
+
+  # the non-collapsing assembler is easy
+  # FIXME SUBOPTIMAL there could be a yet faster way to do things here, but
+  # need to try an actual implementation and benchmark it:
+  #
+  # <timbunce_> First setup the nested data structure you want for each row
+  #   Then call bind_col() to alias the row fields into the right place in
+  #   the data structure, then to fetch the data do:
+  # push @rows, dclone($row_data_struct) while ($sth->fetchrow);
+  #
+  if (!$args->{collapse}) {
+    $parser_src = sprintf('$_ = %s for @{$_[0]}', __visit_infmap_simple(
+      $inflate_index,
+      { rsrc => $self }, # need the $rsrc to sanity-check inflation map once
+    ));
+
+    # change the quoted placeholders to unquoted alias-references
+    $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$_->[$1]"/gex;
+  }
+
+  # the collapsing parser is more complicated - it needs to keep a lot of state
+  #
+  else {
 
     my $collapse_map = $self->_resolve_collapse (
       # FIXME
@@ -337,7 +334,8 @@ sub _mk_row_parser {
       # alias random crap to existing column names anyway, but still - just in
       # case
       # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
-      # (it is now trivial as the attrs specify where things go out of sync)
+      # (it is now trivial as the attrs specify where things go out of sync
+      # needs MOAR tests)
       { map
         { ref $args->{selection}[$inflate_index->{$_}] ? () : ( $_ => $inflate_index->{$_} ) }
         keys %$inflate_index
@@ -389,24 +387,16 @@ sub _mk_row_parser {
 ### END STRING EVAL
 EOS
 
+    # !!! note - different var than the one above
     # change the quoted placeholders to unquoted alias-references
     $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row->[$1]"/gex;
     $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /"\$cur_row_ids[$1]"/gex;
   }
 
-  else {
-    $parser_src = sprintf('$_ = %s for @{$_[0]}', __visit_infmap_simple(
-      $inflate_index, { rsrc => $self }), # need the $rsrc to determine left-ness
-    );
-
-    # change the quoted placeholders to unquoted alias-references
-    # !!! note - different var than the one above
-    $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$_->[$1]"/gex;
-  }
-
   $parser_src;
 }
 
+# the simple non-collapsing nested structure recursor
 sub __visit_infmap_simple {
   my ($val_idx, $args) = @_;
 
@@ -423,18 +413,18 @@ sub __visit_infmap_simple {
   my @relperl;
   for my $rel (sort keys %$rel_cols) {
 
-    my $rel_rsrc = __get_related_source($args->{rsrc}, $rel, $rel_cols->{$rel});
-
+    # DISABLEPRUNE
     #my $optional = $args->{is_optional};
     #$optional ||= ($args->{rsrc}->relationship_info($rel)->{attrs}{join_type} || '') =~ /^left/i;
 
     push @relperl, join ' => ', perlstring($rel), __visit_infmap_simple($rel_cols->{$rel}, {
-      non_top => 1,
+      rsrc => __get_related_source($args->{rsrc}, $rel, $rel_cols->{$rel}),
+      # DISABLEPRUNE
+      #non_top => 1,
       #is_optional => $optional,
-      rsrc => $rel_rsrc,
     });
 
-    # FIXME SUBOPTIMAL - disabled to satisfy t/resultset/inflate_result_api.t
+    # FIXME SUBOPTIMAL DISABLEPRUNE - disabled to satisfy t/resultset/inflate_result_api.t
     #if ($optional and my @branch_null_checks = map
     #  { "(! defined '\xFF__VALPOS__${_}__\xFF')" }
     #  sort { $a <=> $b } values %{$rel_cols->{$rel}}
@@ -458,6 +448,7 @@ sub __visit_infmap_simple {
   );
 }
 
+# the collapsing nested structure recursor
 sub __visit_infmap_collapse {
 
   my ($val_idx, $collapse_map, $parent_info) = @_;
@@ -512,6 +503,7 @@ sub __visit_infmap_collapse {
     );
   }
 
+  # DISABLEPRUNE
   #my $known_defined = { %{ $parent_info->{known_defined} || {} } };
   #$known_defined->{$_}++ for @{$collapse_map->{-node_id}};
 
@@ -524,10 +516,11 @@ sub __visit_infmap_collapse {
       node_idx => $collapse_map->{-node_index},
       sequenced_node_id => $sequenced_node_id,
       relname => $rel,
+      # DISABLEPRUNE
       #known_defined => $known_defined,
     });
 
-    # FIXME SUBOPTIMAL - disabled to satisfy t/resultset/inflate_result_api.t
+    # FIXME SUBOPTIMAL DISABLEPRUNE - disabled to satisfy t/resultset/inflate_result_api.t
     #if ($collapse_map->{$rel}{-is_optional} and my @null_checks = map
     #  { "(! defined '\xFF__IDVALPOS__${_}__\xFF')" }
     #  sort { $a <=> $b } grep
@@ -575,7 +568,7 @@ sub __visit_dump {
   ($dumper_obj ||= do {
     require Data::Dumper;
     Data::Dumper->new([])
-      ->Useperl (1)
+      ->Useperl (0)
       ->Purity (1)
       ->Pad ('')
       ->Useqq (0)

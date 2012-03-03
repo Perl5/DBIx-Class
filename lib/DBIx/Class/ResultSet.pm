@@ -1237,14 +1237,22 @@ sub next {
   return shift @{$self->{stashed_objects}};
 }
 
-# takes a single DBI-row of data and coinstructs as many objects
-# as the resultset attributes call for.
-# This can be a bit of an action at a distance - it takes as an argument
-# the *current* cursor-row (already taken off the $sth), but if
-# collapsing is requested it will keep advancing the cursor either
-# until the current row-object is assembled (the collapser was able to
-# order the result sensibly) OR until the cursor is exhausted (an
-# unordered collapsing resultset effectively triggers ->all)
+# Constructs as many objects as it can in one pass while respecting
+# cursor laziness. Several modes of operation:
+#
+# * Always builds everything present in @{$self->{stashed_rows}}
+# * If called with $fetch_all true - pulls everything off the cursor and
+#   builds all objects in one pass
+# * If $self->_resolved_attrs->{collapse} is true, checks the order_by
+#   and if the resultset is ordered properly by the left side:
+#   * Fetches stuff off the cursor until the "master object" changes,
+#     and saves the last extra row (if any) in @{$self->{stashed_rows}}
+#   OR
+#   * Just fetches, and collapses/constructs everything as if $fetch_all
+#     was requested (there is no other way to collapse except for an
+#     eager cursor)
+# * If no collapse is requested - just get the next row, construct and
+#   return
 sub _construct_objects {
   my ($self, $fetch_all) = @_;
 
@@ -1257,10 +1265,11 @@ sub _construct_objects {
   # a suprising amount actually
   my $rows = (delete $self->{stashed_rows}) || [];
   if ($fetch_all) {
-    # FIXME - we can do better, cursor->next/all (well diff. methods) should return a ref
+    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
     $rows = [ @$rows, $cursor->all ];
   }
   elsif (!$attrs->{collapse}) {
+    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
     push @$rows, do { my @r = $cursor->next; @r ? \@r : () }
       unless @$rows;
   }
@@ -1286,8 +1295,8 @@ sub _construct_objects {
       }
 
       # since all we check here are the start of the order_by belonging to the
-      # top level $rsrc, the order stability check will fail unless the whole
-      # thing is ordered as we need it
+      # top level $rsrc, a present identifying set will mean that the resultset
+      # is ordered by its leftmost table in a tsable manner
       (@ord_cols and $rsrc->_identifying_column_set({ map
         { $colinfos->{$_}{-colname} => $colinfos->{$_} }
         @ord_cols
@@ -1298,6 +1307,7 @@ sub _construct_objects {
       push @$rows, do { my @r = $cursor->next; @r ? \@r : () };
     }
     # instead of looping over ->next, use ->all in stealth mode
+    # FIXME - encapsulation breach, got to be a better way
     elsif (! $cursor->{done}) {
       push @$rows, $cursor->all;
       $cursor->{done} = 1;
@@ -1342,8 +1352,9 @@ sub _construct_objects {
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
     }) or die $@)->($rows, $fetch_all ? () : (
-      sub { my @r = $cursor->next or return; \@r },
-      ($self->{stashed_rows} = []),
+      # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+      sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
+      ($self->{stashed_rows} = []),                 # where does it stuff excess
     ));  # modify $rows in-place, shrinking/extending as necessary
 
     $_ = $inflator->($res_class, $rsrc, @$_) for @$rows;
