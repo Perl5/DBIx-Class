@@ -1443,8 +1443,7 @@ sub count {
 
   # this is a little optimization - it is faster to do the limit
   # adjustments in software, instead of a subquery
-  my $rows = delete $attrs->{rows};
-  my $offset = delete $attrs->{offset};
+  my ($rows, $offset) = delete @{$attrs}{qw/rows offset/};
 
   my $crs;
   if ($self->_has_resolved_attr (qw/collapse group_by/)) {
@@ -1515,7 +1514,6 @@ sub _count_rs {
   # overwrite the selector (supplied by the storage)
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
   $tmp_attrs->{as} = 'count';
-  delete @{$tmp_attrs}{qw/columns/};
 
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
@@ -1657,8 +1655,7 @@ sub all {
     $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
   }
 
-  delete $self->{stashed_rows};
-  delete $self->{stashed_objects};
+  delete @{$self}{qw/stashed_rows stashed_objects/};
 
   if (my $c = $self->get_cache) {
     return @$c;
@@ -1691,9 +1688,8 @@ another query.
 
 sub reset {
   my ($self) = @_;
-  delete $self->{_attrs};
-  delete $self->{stashed_rows};
-  delete $self->{stashed_objects};
+
+  delete @{$self}{qw/_attrs stashed_rows stashed_objects/};
 
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
@@ -1797,7 +1793,7 @@ sub _rs_update_delete {
   my $existing_group_by = delete $attrs->{group_by};
 
   # make a new $rs selecting only the PKs (that's all we really need for the subq)
-  delete $attrs->{$_} for qw/collapse select _prefetch_selector_range as/;
+  delete @{$attrs}{qw/collapse select _prefetch_selector_range as/};
   $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
   $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
   my $subrs = (ref $self)->new($rsrc, $attrs);
@@ -2244,7 +2240,7 @@ sub pager {
   # throw away the paging flags and re-run the count (possibly
   # with a subselect) to get the real total count
   my $count_attrs = { %$attrs };
-  delete $count_attrs->{$_} for qw/rows offset page pager/;
+  delete @{$count_attrs}{qw/rows offset page pager/};
 
   my $total_rs = (ref $self)->new($self->result_source, $count_attrs);
 
@@ -3716,10 +3712,8 @@ sub STORABLE_freeze {
   my $to_serialize = { %$self };
 
   # A cursor in progress can't be serialized (and would make little sense anyway)
-  delete $to_serialize->{cursor};
-
-  # the parser can be regenerated
-  delete $to_serialize->{_row_parser};
+  # the parser can be regenerated (and can't be serialized)
+  delete @{$to_serialize}{qw/cursor _row_parser/};
 
   # nor is it sensical to store a not-yet-fired-count pager
   if ($to_serialize->{pager} and ref $to_serialize->{pager}{total_entries} eq 'CODE') {
