@@ -1268,6 +1268,14 @@ sub _construct_objects {
 
   my $rsrc = $self->result_source;
   my $attrs = $self->_resolved_attrs;
+
+  if (!$fetch_all and ! $attrs->{order_by} and $attrs->{collapse}) {
+    # default order for collapsing unless the user asked for something
+    $attrs->{order_by} = [ map { join '.', $attrs->{alias}, $_} $rsrc->primary_columns ];
+    $attrs->{_ordered_for_collapse} = 1;
+    $attrs->{_order_is_artificial} = 1;
+  }
+
   my $cursor = $self->cursor;
 
   # this will be used as both initial raw-row collector AND as a RV of
@@ -3543,13 +3551,6 @@ sub _resolved_attrs {
       # if we can not analyze the from - err on the side of safety
       $attrs->{_main_source_premultiplied} = 1;
     }
-  }
-
-  if (! $attrs->{order_by} and $attrs->{collapse}) {
-    # default order for collapsing unless the user asked for something
-    $attrs->{order_by} = [ map { "$alias.$_" } $source->primary_columns ];
-    $attrs->{_ordered_for_collapse} = 1;
-    $attrs->{_order_is_artificial} = 1;
   }
 
   # if both page and offset are specified, produce a combined offset

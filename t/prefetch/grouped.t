@@ -296,7 +296,6 @@ for ($cd_rs->all) {
             GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
           ) me
           JOIN artist artist ON artist.artistid = me.artist
-          ORDER BY me.cdid
       )',
       [],
     );
@@ -328,7 +327,6 @@ for ($cd_rs->all) {
         WHERE ( tracks.title != ? )
         GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
                  artist.artistid, artist.name, artist.rank, artist.charfield
-        ORDER BY me.cdid
       )',
       [ map { [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'tracks.title' }
             => 'ugabuganoexist' ] } (1,2)

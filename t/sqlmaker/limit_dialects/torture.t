@@ -65,7 +65,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [
         [ { sqlt_datatype => 'integer' } => 3 ],
@@ -107,7 +106,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],
@@ -147,7 +145,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],
@@ -187,7 +184,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [
         [ { sqlt_datatype => 'integer' } => 3 ],
@@ -290,7 +286,6 @@ my $tests = {
             ) me
             LEFT JOIN books books
               ON books.owner = me.id
-          ORDER BY me.id
         )',
         [
           [ { sqlt_datatype => 'integer' } => 2 ],
@@ -408,7 +403,6 @@ my $tests = {
             ) me
             LEFT JOIN books books
               ON books.owner = me.id
-          ORDER BY me.id
         )',
         [
           [ { sqlt_datatype => 'integer' } => 2 ],
@@ -527,7 +521,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [],
     ],
@@ -634,7 +627,6 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
       )',
       [],
     ],
