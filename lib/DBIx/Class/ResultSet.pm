@@ -137,11 +137,15 @@ another.
 
 =head3 Resolving conditions and attributes
 
-When a resultset is chained from another resultset, conditions and
-attributes with the same keys need resolving.
+When a resultset is chained from another resultset i.e.
+C<my $new_rs = $old_rs->search(\%extra_cond, \%attrs)>, conditions
+and attributes with the same keys need resolving.
 
-L</join>, L</prefetch>, L</+select>, L</+as> attributes are merged
-into the existing ones from the original resultset.
+If any of L</columns>, L</select>, L</as> are present they reset the
+original selection, and start the selection "clean".
+
+L</join>, L</prefetch>, L</+columns>, L</+select>, L</+as> attributes
+are merged into the existing ones from the original resultset.
 
 The L</where> and L</having> attributes, and any search conditions, are
 merged with an SQL C<AND> to the existing condition from the original
@@ -3870,6 +3874,10 @@ sub throw_exception {
   }
 }
 
+1;
+
+__END__
+
 # XXX: FIXME: Attributes docs need clearing up
 
 =head1 ATTRIBUTES
@@ -3919,7 +3927,7 @@ syntax as outlined above.
 
 =over 4
 
-=item Value: \@columns
+=item Value: \@columns | \%columns | $column
 
 =back
 
@@ -4021,14 +4029,6 @@ an explicit list.
 
 =back
 
-=head2 +as
-
-=over 4
-
-Indicates additional column names for those added via L</+select>. See L</as>.
-
-=back
-
 =head2 as
 
 =over 4
@@ -4070,6 +4070,14 @@ use C<get_column> instead:
 
 You can create your own accessors if required - see
 L<DBIx::Class::Manual::Cookbook> for details.
+
+=head2 +as
+
+=over 4
+
+Indicates additional column names for those added via L</+select>. See L</as>.
+
+=back
 
 =head2 join
 
@@ -4134,7 +4142,7 @@ similarly for a third time). For e.g.
 will return a set of all artists that have both a cd with title 'Down
 to Earth' and a cd with title 'Popular'.
 
-If you want to fetch related objects from other tables as well, see C<prefetch>
+If you want to fetch related objects from other tables as well, see L</prefetch>
 below.
 
  NOTE: An internal join-chain pruner will discard certain joins while
@@ -4145,6 +4153,55 @@ below.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
+=head2 collapse
+
+=over 4
+
+=item Value: (0 | 1)
+
+=back
+
+When set to a true value, indicates that any rows fetched from joined has_many
+relationships are to be aggregated into the corresponding "parent" object. For
+example the resultset:
+
+  my $rs = $schema->resultset('CD')->search({}, {
+    '+columns' => [ qw/ tracks.title tracks.position / ],
+    join => 'tracks',
+    collapse => 1,
+  });
+
+While executing the following query:
+
+  SELECT me.*, tracks.title, tracks.position
+    FROM cd me
+    LEFT JOIN track tracks
+      ON tracks.cdid = me.cdid
+
+Will return only as many objects as there are rows in the CD source, even
+though the result of the query may span many rows. Each of these CD objects
+will in turn have multiple "Track" objects hidden behind the has_many
+generated accessor C<tracks>. Without C<< collapse => 1 >> the return values
+of this resultset would be as many CD objects as there are tracks, with each
+CD object containing exactly one of all fetched Track data.
+
+When a collapse is requested on a non-ordered resultset, an order by some
+unique part of the main source (the left-most table) is inserted automatically.
+This is done so that the resultset is allowed to be "lazy" - calling
+L<< $rs->next|/next >> will fetch only as many rows as it needs to build the next
+object with all of its related data.
+
+If an L</order_by> is already declared, and orders the resultset in a way that
+makes collapsing as described above impossible (e.g. C<< ORDER BY
+has_many_rel.column >> or C<ORDER BY RANDOM()>) DBIC will automatically
+switch to "eager" mode and slurp the entire resultset before consturcting the
+first object returned by L</next>.
+
+Setting this attribute on a resultset that does not join any has_many
+relations is a no-op.
+
+For a more in depth discussion see L</PREFETCHING>.
+
 =head2 prefetch
 
 =over 4
@@ -4153,177 +4210,76 @@ For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 =back
 
-Contains one or more relationships that should be fetched along with
-the main query (when they are accessed afterwards the data will
-already be available, without extra queries to the database).  This is
-useful for when you know you will need the related objects, because it
-saves at least one query:
+This attribute is a shorthand for specifying a L</join> spec, adding all
+columns from the joined related sources as L</+columns> and setting
+L</collapse> to a true value. For example the following two queries are
+equivalent:
 
-  my $rs = $schema->resultset('Tag')->search(
-    undef,
+  my $rs = $schema->resultset('Artist')->search({}, {
+    prefetch => { cds => ['genre', 'tracks' ] },
+  });
+
+and
+
+  my $rs = $schema->resultset('Artist')->search({}, {
+    join => { cds => ['genre', 'tracks' ] },
+    collapse => 1,
+    '+columns' => [
+      (map
+        { +{ "cds.$_" => "cds.$_" } }
+        $schema->source('Artist')->related_source('cds')->columns
+      ),
+      (map
+        { +{ "cds.genre.$_" => "genre.$_" } }
+        $schema->source('Artist')->related_source('cds')->related_source('genre')->columns
+      ),
+      (map
+        { +{ "cds.tracks.$_" => "tracks.$_" } }
+        $schema->source('Artist')->related_source('cds')->related_source('tracks')->columns
+      ),
+    ],
+  });
+
+Both producing the following SQL:
+
+  SELECT  me.artistid, me.name, me.rank, me.charfield,
+          cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track,
+          genre.genreid, genre.name,
+          tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
+    FROM artist me
+    LEFT JOIN cd cds
+      ON cds.artist = me.artistid
+    LEFT JOIN genre genre
+      ON genre.genreid = cds.genreid
+    LEFT JOIN track tracks
+      ON tracks.cd = cds.cdid
+  ORDER BY me.artistid
+
+While L</prefetch> implies a L</join> it is ok to mix the two together, as
+the arguments are properly merged and generally do the right thing. For
+example you may want to do the following:
+
+  my $artists_and_cds_without_genre = $schema->resultset('Artist')->search(
+    { 'genre.genreid' => undef },
     {
-      prefetch => {
-        cd => 'artist'
-      }
+      join => { cds => 'genre' },
+      prefetch => 'cds',
     }
   );
 
-The initial search results in SQL like the following:
+Which generates the following SQL:
 
-  SELECT tag.*, cd.*, artist.* FROM tag
-  JOIN cd ON tag.cd = cd.cdid
-  JOIN artist ON cd.artist = artist.artistid
+  SELECT  me.artistid, me.name, me.rank, me.charfield,
+          cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
+    FROM artist me
+    LEFT JOIN cd cds
+      ON cds.artist = me.artistid
+    LEFT JOIN genre genre
+      ON genre.genreid = cds.genreid
+  WHERE genre.genreid IS NULL
+  ORDER BY me.artistid
 
-L<DBIx::Class> has no need to go back to the database when we access the
-C<cd> or C<artist> relationships, which saves us two SQL statements in this
-case.
-
-Simple prefetches will be joined automatically, so there is no need
-for a C<join> attribute in the above search.
-
-L</prefetch> can be used with the any of the relationship types and
-multiple prefetches can be specified together. Below is a more complex
-example that prefetches a CD's artist, its liner notes (if present),
-the cover image, the tracks on that cd, and the guests on those
-tracks.
-
- # Assuming:
- My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
- My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
- My::Schema::CD->has_one(    cover_image => 'My::Schema::Artwork'    );
- My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
-
- My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
-
- My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
-
-
- my $rs = $schema->resultset('CD')->search(
-   undef,
-   {
-     prefetch => [
-       { artist => 'record_label'},  # belongs_to => belongs_to
-       'liner_note',                 # might_have
-       'cover_image',                # has_one
-       { tracks => 'guests' },       # has_many => has_many
-     ]
-   }
- );
-
-This will produce SQL like the following:
-
- SELECT cd.*, artist.*, record_label.*, liner_note.*, cover_image.*,
-        tracks.*, guests.*
-   FROM cd me
-   JOIN artist artist
-     ON artist.artistid = me.artistid
-   JOIN record_label record_label
-     ON record_label.labelid = artist.labelid
-   LEFT JOIN track tracks
-     ON tracks.cdid = me.cdid
-   LEFT JOIN guest guests
-     ON guests.trackid = track.trackid
-   LEFT JOIN liner_notes liner_note
-     ON liner_note.cdid = me.cdid
-   JOIN cd_artwork cover_image
-     ON cover_image.cdid = me.cdid
- ORDER BY tracks.cd
-
-Now the C<artist>, C<record_label>, C<liner_note>, C<cover_image>,
-C<tracks>, and C<guests> of the CD will all be available through the
-relationship accessors without the need for additional queries to the
-database.
-
-However, there is one caveat to be observed: it can be dangerous to
-prefetch more than one L<has_many|DBIx::Class::Relationship/has_many>
-relationship on a given level. e.g.:
-
- my $rs = $schema->resultset('CD')->search(
-   undef,
-   {
-     prefetch => [
-       'tracks',                         # has_many
-       { cd_to_producer => 'producer' }, # has_many => belongs_to (i.e. m2m)
-     ]
-   }
- );
-
-The collapser currently can't identify duplicate tuples for multiple
-L<has_many|DBIx::Class::Relationship/has_many> relationships and as a
-result the second L<has_many|DBIx::Class::Relationship/has_many>
-relation could contain redundant objects.
-
-=head3 Using L</prefetch> with L</join>
-
-L</prefetch> implies a L</join> with the equivalent argument, and is
-properly merged with any existing L</join> specification. So the
-following:
-
-  my $rs = $schema->resultset('CD')->search(
-   {'record_label.name' => 'Music Product Ltd.'},
-   {
-     join     => {artist => 'record_label'},
-     prefetch => 'artist',
-   }
- );
-
-... will work, searching on the record label's name, but only
-prefetching the C<artist>.
-
-=head3 Using L</prefetch> with L</select> / L</+select> / L</as> / L</+as>
-
-L</prefetch> implies a L</+select>/L</+as> with the fields of the
-prefetched relations.  So given:
-
-  my $rs = $schema->resultset('CD')->search(
-   undef,
-   {
-     select   => ['cd.title'],
-     as       => ['cd_title'],
-     prefetch => 'artist',
-   }
- );
-
-The L</select> becomes: C<'cd.title', 'artist.*'> and the L</as>
-becomes: C<'cd_title', 'artist.*'>.
-
-=head3 CAVEATS
-
-Prefetch does a lot of deep magic. As such, it may not behave exactly
-as you might expect.
-
-=over 4
-
-=item *
-
-Prefetch uses the L</cache> to populate the prefetched relationships. This
-may or may not be what you want.
-
-=item *
-
-If you specify a condition on a prefetched relationship, ONLY those
-rows that match the prefetched condition will be fetched into that relationship.
-This means that adding prefetch to a search() B<may alter> what is returned by
-traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you do
-
-  my $artist_rs = $schema->resultset('Artist')->search({
-      'cds.year' => 2008,
-  }, {
-      join => 'cds',
-  });
-
-  my $count = $artist_rs->first->cds->count;
-
-  my $artist_rs_prefetch = $artist_rs->search( {}, { prefetch => 'cds' } );
-
-  my $prefetch_count = $artist_rs_prefetch->first->cds->count;
-
-  cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
-
-that cmp_ok() may or may not pass depending on the datasets involved. This
-behavior may or may not survive the 0.09 transition.
-
-=back
+For a more in depth discussion see L</PREFETCHING>.
 
 =head2 alias
 
@@ -4501,6 +4457,130 @@ Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
 ... FOR SHARED. If \$scalar is passed, this is taken directly and embedded in the
 query.
 
+=head1 PREFETCHING
+
+DBIx::Class supports arbitrary related data prefetching from multiple related
+sources. Any combination of relationship types and column sets is supported.
+If L<collapsing|/collapse> is requested there is an additional requirement of
+selecting enough data to make every individual object uniquely identifiable.
+
+Here are some more involved examples, based on the following relationship map:
+
+ # Assuming:
+ My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
+ My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
+ My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
+
+ My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
+
+ My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
+
+
+
+  my $rs = $schema->resultset('Tag')->search(
+    undef,
+    {
+      prefetch => {
+        cd => 'artist'
+      }
+    }
+  );
+
+The initial search results in SQL like the following:
+
+  SELECT tag.*, cd.*, artist.* FROM tag
+  JOIN cd ON tag.cd = cd.cdid
+  JOIN artist ON cd.artist = artist.artistid
+
+L<DBIx::Class> has no need to go back to the database when we access the
+C<cd> or C<artist> relationships, which saves us two SQL statements in this
+case.
+
+Simple prefetches will be joined automatically, so there is no need
+for a C<join> attribute in the above search.
+
+L</prefetch> can be used with any of the relationship types and
+multiple prefetches can be specified together. Below is a more complex
+example that prefetches a CD's artist, its liner notes (if present),
+the cover image, the tracks on that cd, and the guests on those
+tracks.
+
+
+ my $rs = $schema->resultset('CD')->search(
+   undef,
+   {
+     prefetch => [
+       { artist => 'record_label'},  # belongs_to => belongs_to
+       'liner_note',                 # might_have
+       'cover_image',                # has_one
+       { tracks => 'guests' },       # has_many => has_many
+     ]
+   }
+ );
+
+This will produce SQL like the following:
+
+ SELECT cd.*, artist.*, record_label.*, liner_note.*, cover_image.*,
+        tracks.*, guests.*
+   FROM cd me
+   JOIN artist artist
+     ON artist.artistid = me.artistid
+   JOIN record_label record_label
+     ON record_label.labelid = artist.labelid
+   LEFT JOIN track tracks
+     ON tracks.cdid = me.cdid
+   LEFT JOIN guest guests
+     ON guests.trackid = track.trackid
+   LEFT JOIN liner_notes liner_note
+     ON liner_note.cdid = me.cdid
+   JOIN cd_artwork cover_image
+     ON cover_image.cdid = me.cdid
+ ORDER BY tracks.cd
+
+Now the C<artist>, C<record_label>, C<liner_note>, C<cover_image>,
+C<tracks>, and C<guests> of the CD will all be available through the
+relationship accessors without the need for additional queries to the
+database.
+
+
+=head3 CAVEATS
+
+Prefetch does a lot of deep magic. As such, it may not behave exactly
+as you might expect.
+
+=over 4
+
+=item *
+
+Prefetch uses the L</cache> to populate the prefetched relationships. This
+may or may not be what you want.
+
+=item *
+
+If you specify a condition on a prefetched relationship, ONLY those
+rows that match the prefetched condition will be fetched into that relationship.
+This means that adding prefetch to a search() B<may alter> what is returned by
+traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you do
+
+  my $artist_rs = $schema->resultset('Artist')->search({
+      'cds.year' => 2008,
+  }, {
+      join => 'cds',
+  });
+
+  my $count = $artist_rs->first->cds->count;
+
+  my $artist_rs_prefetch = $artist_rs->search( {}, { prefetch => 'cds' } );
+
+  my $prefetch_count = $artist_rs_prefetch->first->cds->count;
+
+  cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
+
+that cmp_ok() may or may not pass depending on the datasets involved. This
+behavior may or may not survive the 0.09 transition.
+
+=back
+
 =head1 DBIC BIND VALUES
 
 Because DBIC may need more information to bind values than just the column name
@@ -4557,6 +4637,3 @@ See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in
 
 You may distribute this code under the same terms as Perl itself.
 
-=cut
-
-1;
