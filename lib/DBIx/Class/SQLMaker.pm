@@ -93,7 +93,7 @@ sub __max_int () { 0x7FFFFFFF };
 sub _quote {
   return undef if not defined $_[1];
 
-  my $col = ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+  my ($col) = ( $_[0]{_dequalify_idents} and ! ref $_[1] )
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   ;
@@ -238,6 +238,7 @@ sub update {
 }
 
 sub delete {
+  local $_[0]->{FROM} = $_[1];
 
   shift->next::method(@_);
 }

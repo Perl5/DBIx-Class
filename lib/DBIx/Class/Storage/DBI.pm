@@ -1556,7 +1556,7 @@ sub _gen_sql_bind {
   my ($self, $op, $ident, $args) = @_;
 
   my ($sql, @bind) = $self->sql_maker->$op(
-    blessed($ident) ? $ident->from : $ident,
+    $ident,
     @$args,
   );
 

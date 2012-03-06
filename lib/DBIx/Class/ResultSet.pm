@@ -1802,6 +1802,7 @@ sub _rs_update_delete {
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
     my $cond = do {
       my $sqla = $rsrc->storage->sql_maker;
+      local $sqla->{FROM} = $rsrc;
       local $sqla->{_dequalify_idents} = 1;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };

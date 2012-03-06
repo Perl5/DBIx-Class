@@ -54,7 +54,7 @@ eval {
 
 is_same_sql_bind(
   $sql, \@bind,
-  "DELETE FROM bad_names_1 WHERE ( me.stupid_name = ? )", ["'2001'"],
+  "DELETE FROM bad_names_1 WHERE ( stupid_name = ? )", ["'2001'"],
   'delete'
 );
 
