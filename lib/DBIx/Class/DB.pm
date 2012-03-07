@@ -33,15 +33,19 @@ instead; DBIx::Class::DB will not undergo new development and will be moved
 to being a CDBICompat-only component before 1.0. In order to discourage further
 use, documentation has been removed as of 0.08000
 
-=begin HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
-
 =head1 METHODS
 
-=head2 storage
+Hidden.
+
+=begin hidden head2 storage
 
 Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
-=head2 class_resolver
+=end hidden
+
+=cut
+
+=begin hidden head2 class_resolver
 
 ****DEPRECATED****
 
@@ -49,17 +53,21 @@ Sets or gets the class to use for resolving a class. Defaults to
 L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you give
 it. See resolve_class below.
 
+=end hidden
+
 =cut
 
 __PACKAGE__->mk_classdata('class_resolver' =>
                           'DBIx::Class::ClassResolver::PassThrough');
 
-=head2 connection
+=begin hidden head2 connection
 
   __PACKAGE__->connection($dsn, $user, $pass, $attrs);
 
 Specifies the arguments that will be passed to DBI->connect(...) to
 instantiate the class dbh when required.
+
+=end hidden
 
 =cut
 
@@ -69,13 +77,15 @@ sub connection {
   $class->schema_instance->connection(@info);
 }
 
-=head2 setup_schema_instance
+=begin hidden head2 setup_schema_instance
 
 Creates a class method ->schema_instance which contains a DBIx::Class::Schema;
 all class-method operations are proxies through to this object. If you don't
 call ->connection in your DBIx::Class::DB subclass at load time you *must*
 call ->setup_schema_instance in order for subclasses to find the schema and
 register themselves with it.
+
+=end hidden
 
 =cut
 
@@ -86,35 +96,43 @@ sub setup_schema_instance {
   $class->mk_classdata('schema_instance' => $schema);
 }
 
-=head2 txn_begin
+=begin hidden head2 txn_begin
 
 Begins a transaction (does nothing if AutoCommit is off).
+
+=end hidden
 
 =cut
 
 sub txn_begin { shift->schema_instance->txn_begin(@_); }
 
-=head2 txn_commit
+=begin hidden head2 txn_commit
 
 Commits the current transaction.
+
+=end hidden
 
 =cut
 
 sub txn_commit { shift->schema_instance->txn_commit(@_); }
 
-=head2 txn_rollback
+=begin hidden head2 txn_rollback
 
 Rolls back the current transaction.
+
+=end hidden
 
 =cut
 
 sub txn_rollback { shift->schema_instance->txn_rollback(@_); }
 
-=head2 txn_do
+=begin hidden head2 txn_do
 
 Executes a block of code transactionally. If this code reference
 throws an exception, the transaction is rolled back and the exception
 is rethrown. See L<DBIx::Class::Schema/"txn_do"> for more details.
+
+=end hidden
 
 =cut
 
@@ -129,11 +147,13 @@ sub txn_do { shift->schema_instance->txn_do(@_); }
   }
 }
 
-=head2 resultset_instance
+=begin hidden head2 resultset_instance
 
 Returns an instance of a resultset for this class - effectively
 mapping the L<Class::DBI> connection-as-classdata paradigm into the
 native L<DBIx::Class::ResultSet> system.
+
+=end hidden
 
 =cut
 
@@ -141,9 +161,11 @@ sub resultset_instance {
   $_[0]->result_source_instance->resultset
 }
 
-=head2 result_source_instance
+=begin hidden head2 result_source_instance
 
 Returns an instance of the result source for this class
+
+=end hidden
 
 =cut
 
@@ -195,23 +217,29 @@ sub result_source_instance {
   return $source;
 }
 
-=head2 resolve_class
+=begin hidden head2 resolve_class
 
 ****DEPRECATED****
 
 See L</class_resolver>
 
-=head2 dbi_commit
+=end hidden
+
+=begin hidden head2 dbi_commit
 
 ****DEPRECATED****
 
 Alias for L</txn_commit>
 
-=head2 dbi_rollback
+=end hidden
+
+=begin hidden head2 dbi_rollback
 
 ****DEPRECATED****
 
 Alias for L</txn_rollback>
+
+=end hidden
 
 =end HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
 
