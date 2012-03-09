@@ -460,29 +460,25 @@ sub svp_rollback {
   $exec->($self, $name);
 }
 
-=begin comment
+=head2 txn_scope_guard
 
-    =head2 txn_scope_guard
+An alternative way of transaction handling based on
+L<DBIx::Class::Storage::TxnScopeGuard>:
 
-    An alternative way of transaction handling based on
-    L<DBIx::Class::Storage::TxnScopeGuard>:
+ my $txn_guard = $storage->txn_scope_guard;
 
-     my $txn_guard = $storage->txn_scope_guard;
+ $row->col1("val1");
+ $row->update;
 
-     $row->col1("val1");
-     $row->update;
+ $txn_guard->commit;
 
-     $txn_guard->commit;
-
-    If an exception occurs, or the guard object otherwise leaves the scope
-    before C<< $txn_guard->commit >> is called, the transaction will be rolled
-    back by an explicit L</txn_rollback> call. In essence this is akin to
-    using a L</txn_begin>/L</txn_commit> pair, without having to worry
-    about calling L</txn_rollback> at the right places. Note that since there
-    is no defined code closure, there will be no retries and other magic upon
-    database disconnection. If you need such functionality see L</txn_do>.
-
-=end comment
+If an exception occurs, or the guard object otherwise leaves the scope
+before C<< $txn_guard->commit >> is called, the transaction will be rolled
+back by an explicit L</txn_rollback> call. In essence this is akin to
+using a L</txn_begin>/L</txn_commit> pair, without having to worry
+about calling L</txn_rollback> at the right places. Note that since there
+is no defined code closure, there will be no retries and other magic upon
+database disconnection. If you need such functionality see L</txn_do>.
 
 =cut
 

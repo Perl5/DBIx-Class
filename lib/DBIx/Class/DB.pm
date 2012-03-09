@@ -241,8 +241,6 @@ Alias for L</txn_rollback>
 
 =end hidden
 
-=end HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
-
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
