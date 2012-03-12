@@ -60,6 +60,20 @@ sub _dbh_last_insert_id {
   return @res ? $res[0] : undef;
 }
 
+sub _sequence_fetch {
+  my ($self, $function, $sequence) = @_;
+
+  $self->throw_exception('No sequence to fetch') unless $sequence;
+
+  my $name_sep = $self->sql_name_sep;
+
+  my ($val) = $self->_get_dbh->selectrow_array(
+    sprintf ("SELECT %s FOR %s FROM sysibm${name_sep}sysdummy1", $function, (ref $sequence eq 'SCALAR') ? $$sequence : $sequence)
+  );
+
+  return $val;
+}
+
 1;
 
 =head1 NAME
