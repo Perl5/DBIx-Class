@@ -290,7 +290,7 @@ my @compose_ns_classes;
 {
   my $phantom;
   for (
-    sub { DBICTest->init_schema },
+    sub { DBICTest->init_schema( sqlite_use_file => 0 ) },
     sub { shift->source('Artist') },
     sub { shift->resultset },
     sub { shift->result_source },

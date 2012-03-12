@@ -63,7 +63,9 @@ sub _sqlite_dbfilename {
 sub _sqlite_dbname {
     my $self = shift;
     my %args = @_;
-    return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
+    return $self->_sqlite_dbfilename if (
+      defined $args{sqlite_use_file} ? $args{sqlite_use_file} : $ENV{'DBICTEST_SQLITE_USE_FILE'}
+    );
     return ":memory:";
 }
 
