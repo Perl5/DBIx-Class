@@ -8,7 +8,7 @@ use lib qw(t/lib);
 use DBICTest;
 
 # so user's env doesn't screw us
-undef $ENV{DBIC_DT_SEARCH_OK};
+delete $ENV{DBIC_DT_SEARCH_OK};
 
 my $schema = DBICTest->init_schema();
 
