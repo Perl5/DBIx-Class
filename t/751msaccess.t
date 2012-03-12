@@ -42,15 +42,13 @@ my @info = (
   [ $dsn2, $user2 || '', $pass2 || '' ],
 );
 
-my $schema;
-
 foreach my $info (@info) {
   my ($dsn, $user, $pass) = @$info;
 
   next unless $dsn;
 
 # Check that we can connect without any options.
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   lives_ok {
     $schema->storage->ensure_connected;
   } 'connection without any options';
@@ -66,7 +64,7 @@ foreach my $info (@info) {
     LongReadLen => $maxloblen,
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub { cleanup($schema) });
 
   my $dbh = $schema->storage->dbh;
 
@@ -442,6 +440,8 @@ SQL
 done_testing;
 
 sub cleanup {
+  my $schema = shift;
+
   if (my $storage = eval { $schema->storage }) {
     # cannot drop a table if it has been used, have to reconnect first
     $schema->storage->disconnect;
