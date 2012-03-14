@@ -77,6 +77,9 @@ my $skip_idx = { map { $_ => 1 } (
   # from the parent
   'DBIx::Class::ResultSet::Pager',
 
+  # this is not part of the inheritance tree (plus is a temporary fix anyway)
+  'DBIx::Class::GlobalDestruction',
+
   # Moo does not name its generated methods, fix pending
   'DBIx::Class::Storage::BlockRunner',
 ) };

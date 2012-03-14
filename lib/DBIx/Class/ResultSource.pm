@@ -8,6 +8,7 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
+use DBIx::Class::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
 use Scalar::Util qw/blessed weaken isweak/;
@@ -1936,16 +1937,9 @@ sub handle {
   });
 }
 
-{
-  my $global_phase_destroy;
-
-  # SpeedyCGI runs END blocks every cycle but keeps object instances
-  # hence we have to disable the globaldestroy hatch, and rely on the
-  # eval trap below (which appears to work, but is risky done so late)
-  END { $global_phase_destroy = 1 unless $CGI::SpeedyCGI::i_am_speedy }
-
-  sub DESTROY {
-    return if $global_phase_destroy;
+my $global_phase_destroy;
+sub DESTROY {
+  return if $global_phase_destroy ||= in_global_destruction;
 
 ######
 # !!! ACHTUNG !!!!
@@ -1957,25 +1951,21 @@ sub handle {
 # we are trying to save to reattach back to the source we are destroying.
 # The relevant code checking refcounts is in ::Schema::DESTROY()
 
-    # if we are not a schema instance holder - we don't matter
-    return if(
-      ! ref $_[0]->{schema}
-        or
-      isweak $_[0]->{schema}
-    );
+  # if we are not a schema instance holder - we don't matter
+  return if(
+    ! ref $_[0]->{schema}
+      or
+    isweak $_[0]->{schema}
+  );
 
-    # weaken our schema hold forcing the schema to find somewhere else to live
-    # during global destruction (if we have not yet bailed out) this will throw
-    # which will serve as a signal to not try doing anything else
-    local $@;
-    eval {
-      weaken $_[0]->{schema};
-      1;
-    } or do {
-      $global_phase_destroy = 1;
-      return;
-    };
-
+  # weaken our schema hold forcing the schema to find somewhere else to live
+  # during global destruction (if we have not yet bailed out) this will throw
+  # which will serve as a signal to not try doing anything else
+  # however beware - on older perls the exception seems randomly untrappable
+  # due to some weird race condition during thread joining :(((
+  local $@;
+  eval {
+    weaken $_[0]->{schema};
 
     # if schema is still there reintroduce ourselves with strong refs back to us
     if ($_[0]->{schema}) {
@@ -1985,7 +1975,13 @@ sub handle {
         $srcregs->{$_} = $_[0] if $srcregs->{$_} == $_[0];
       }
     }
-  }
+
+    1;
+  } or do {
+    $global_phase_destroy = 1;
+  };
+
+  return;
 }
 
 sub STORABLE_freeze { Storable::nfreeze($_[0]->handle) }

@@ -27,6 +27,8 @@ Revision history for DBIx::Class
         - Remove useless vestigial pessimization in Ordered.pm for cases 
           when the position column is part of a unique constraint
         - Fix dbicadmin to no longer ignore the documented 'config' option
+        - The schema-resultsource entanglement is now much more robust
+          under threads
 
     * Misc
         - Centralized leak-checks for all instances of DBICTest::Schema

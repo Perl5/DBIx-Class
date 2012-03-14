@@ -15,7 +15,7 @@ use warnings;
 
 use Test::More;
 
-plan skip_all => 'Minimum of perl 5.8.5 required for thread tests (DBD::Pg mandated)'
+plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if $] < '5.008005';
 
 use DBIx::Class::Optional::Dependencies ();
