@@ -284,49 +284,41 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  my ($self, $dbh, $sql, @args) = @_;
+  my ($self, $dbh, $sql, $bind) = @_;
 
-  my (@res, $tried);
-  my $want = wantarray;
+  # Turn off sth caching for multi-part LOBs. See _prep_for_execute above.
+  local $self->{disable_sth_caching} = 1 if first {
+    ($_->[0]{_ora_lob_autosplit_part}||0)
+      >
+    (__cache_queries_with_max_lob_parts - 1)
+  } @$bind;
+
   my $next = $self->next::can;
-  do {
-    try {
-      my $exec = sub {
-        # Turn off sth caching for multi-part LOBs. See _prep_for_execute above.
-        local $self->{disable_sth_caching} = 1
-          if first {
-            ($_->[0]{_ora_lob_autosplit_part}||0)
-              > (__cache_queries_with_max_lob_parts-1)
-          } @{ $args[0] };
 
-        $self->$next($dbh, $sql, @args)
-      };
+  # if we are already in a txn we can't retry anything
+  return shift->$next(@_)
+    if $self->transaction_depth;
 
-      if (!defined $want) {
-        $exec->();
-      }
-      elsif (! $want) {
-        $res[0] = $exec->();
-      }
-      else {
-        @res = $exec->();
-      }
+  # cheat the blockrunner - we do want to rerun things regardless of outer state
+  local $self->{_in_do_block};
 
-      $tried++;
-    }
-    catch {
-      if (! $tried and $_ =~ /ORA-01003/) {
-        # ORA-01003: no statement parsed (someone changed the table somehow,
-        # invalidating your cursor.)
-        delete $dbh->{CachedKids}{$sql};
-      }
-      else {
-        $self->throw_exception($_);
-      }
-    };
-  } while (! $tried++);
+  return DBIx::Class::Storage::BlockRunner->new(
+    storage => $self,
+    run_code => $next,
+    run_args => \@_,
+    wrap_txn => 0,
+    retry_handler => sub {
+      # ORA-01003: no statement parsed (someone changed the table somehow,
+      # invalidating your cursor.)
+      return 0 if ($_[0]->retried_count or $_[0]->last_exception !~ /ORA-01003/);
 
-  return wantarray ? @res : $res[0];
+      # re-prepare towards new table data
+      if (my $dbh = $_[0]->storage->_dbh) {
+        delete $dbh->{CachedKids}{$_[0]->run_args->[2]};
+      }
+      return 1;
+    },
+  )->run;
 }
 
 sub _dbh_execute_for_fetch {
