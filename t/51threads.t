@@ -1,21 +1,21 @@
+use Config;
+BEGIN {
+  unless ($Config{useithreads}) {
+    print "1..0 # SKIP your perl does not support ithreads\n";
+    exit 0;
+  }
+}
+use threads;
+
 use strict;
 use warnings;
 
 use Test::More;
-
-use Config;
-BEGIN {
-    plan skip_all => 'Your perl does not support ithreads'
-        if !$Config{useithreads};
-}
-
-BEGIN {
-    plan skip_all => 'Minimum of perl 5.8.5 required for thread tests (DBD::Pg mandated)'
-        if $] < '5.008005';
-}
-
-use threads;
 use Test::Exception;
+
+plan skip_all => 'Minimum of perl 5.8.5 required for thread tests (DBD::Pg mandated)'
+  if $] < '5.008005';
+
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 
@@ -66,7 +66,7 @@ while(@children < $num_children) {
         if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
             $schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
         }
-        sleep(3);
+        sleep(1); # tasty crashes without this
     };
     die "Thread creation failed: $! $@" if !defined $newthread;
     push(@children, $newthread);
