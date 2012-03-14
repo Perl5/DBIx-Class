@@ -77,6 +77,7 @@ $schema->storage->disconnect();
 ok $disconnected, 'on_disconnect_do() called after disconnect()';
 
 isa_ok($cb_args[0], 'DBIx::Class::Storage', 'first arg to on_connect_do hook');
+@cb_args = ();
 
 sub check_exists {
     my $storage = shift;

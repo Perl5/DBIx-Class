@@ -112,9 +112,10 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   : (0)
 ) {
 
-  no warnings qw/once/;
+  no warnings qw/once redefine/;
+  my $old_connection = DBICTest::Schema->can('connection');
   local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
-    my $s = shift->next::method (@_);
+    my $s = shift->$old_connection(@_);
     $s->storage->_use_insert_returning ($use_insert_returning);
     $s;
   };

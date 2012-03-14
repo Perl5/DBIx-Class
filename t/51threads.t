@@ -35,7 +35,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
 
 use_ok('DBICTest::Schema');
 
-my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 
 my $parent_rs;
 

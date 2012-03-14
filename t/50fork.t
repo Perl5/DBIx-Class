@@ -24,7 +24,7 @@ use lib qw(t/lib);
 
 use_ok('DBICTest::Schema');
 
-my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1 });
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1 });
 
 my $parent_rs;
 

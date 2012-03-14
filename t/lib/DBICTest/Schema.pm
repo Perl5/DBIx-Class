@@ -74,6 +74,13 @@ sub clone {
   $self;
 }
 
+sub connection {
+  my $self = shift->next::method(@_);
+  populate_weakregistry ( $weak_registry, $self->storage )
+    if $INC{'Test/Builder.pm'};
+  $self;
+}
+
 END {
   assert_empty_weakregistry($weak_registry, 'quiet');
 }

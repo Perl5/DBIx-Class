@@ -19,6 +19,7 @@ plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if $] < '5.008005';
 
 use DBIx::Class::Optional::Dependencies ();
+use Scalar::Util 'weaken';
 use lib qw(t/lib);
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
@@ -35,7 +36,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
 
 use_ok('DBICTest::Schema');
 
-my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 
 my $parent_rs;
 
@@ -61,13 +62,13 @@ while(@children < $num_children) {
 
     my $newthread = async {
         my $tid = threads->tid;
-        # my $dbh = $schema->storage->dbh;
-
+        weaken(my $weak_schema = $schema);
+        weaken(my $weak_parent_rs = $parent_rs);
         $schema->txn_do(sub {
-            my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
-            my $row = $parent_rs->next;
+            my $child_rs = $weak_schema->resultset('CD')->search({ year => 1901 });
+            my $row = $weak_parent_rs->next;
             if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
-                $schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
+                $weak_schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
             }
         });
         sleep(1);  # tasty crashes without this

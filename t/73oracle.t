@@ -110,9 +110,10 @@ my $schema;
 for my $use_insert_returning ($test_server_supports_insert_returning ? (1,0) : (0) ) {
   for my $force_ora_joins ($test_server_supports_only_orajoins ? (0) : (0,1) ) {
 
-    no warnings qw/once/;
+    no warnings qw/once redefine/;
+    my $old_connection = DBICTest::Schema->can('connection');
     local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
-      my $s = shift->next::method (@_);
+      my $s = shift->$old_connection (@_);
       $s->storage->_use_insert_returning ($use_insert_returning);
       $s->storage->sql_maker_class('DBIx::Class::SQLMaker::OracleJoins') if $force_ora_joins;
       $s;

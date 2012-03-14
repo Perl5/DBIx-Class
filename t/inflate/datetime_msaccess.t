@@ -34,19 +34,17 @@ my @connect_info = (
   [ $dsn2, $user2 || '', $pass2 || '' ],
 );
 
-my $schema;
-
 for my $connect_info (@connect_info) {
   my ($dsn, $user, $pass) = @$connect_info;
 
   next unless $dsn;
 
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => 'datetime_setup',
     quote_names => 1,
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub { cleanup($schema) });
 
   try { local $^W = 0; $schema->storage->dbh->do('DROP TABLE track') };
   $schema->storage->dbh->do(<<"SQL");
@@ -82,6 +80,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
+  my $schema = shift;
   # have to reconnect to drop a table that's in use
   if (my $storage = eval { $schema->storage }) {
     local $^W = 0;
