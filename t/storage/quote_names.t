@@ -1,7 +1,6 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Exception;
 use Data::Dumper::Concise;
 use Try::Tiny;
 use lib qw(t/lib);

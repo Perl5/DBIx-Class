@@ -3,7 +3,6 @@ use warnings;
 
 use lib qw(t/lib);
 use Test::More;
-use Test::Exception;
 use DBICTest;
 
 my $schema = DBICTest->init_schema();

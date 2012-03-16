@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
