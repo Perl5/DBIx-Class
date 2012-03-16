@@ -696,6 +696,27 @@ sub has_column_loaded {
   return exists $self->{_column_data}{$column};
 }
 
+=head2 has_relationship_loaded
+
+=over 4
+
+=item Arguments: $relationship_name
+
+=item Return Value: true, if the relationship has been loaded.
+
+=back
+
+=cut
+
+sub has_relationship_loaded {
+  my ($self, $rel) = @_;
+
+  $self->throw_exception( "has_relationship_loaded needs a relationship name" )
+    unless defined $rel;
+
+  return 0;
+}
+
 =head2 get_columns
 
   my %data = $result->get_columns;
