@@ -54,8 +54,8 @@ chmod 0000, $db_orig;
     } 'The operation failed';
 }
 
-# otherwise can't unlink the fake db file on these systems
-$schema->storage->_dbh->disconnect if $^O =~ /MSWin32|cygwin/i;
+# otherwise can't unlink the fake db file
+$schema->storage->_dbh->disconnect if $^O eq 'MSWin32';
 
 ### Now, move the db file back to the correct name
 unlink($db_orig) or die "could not delete $db_orig: $!";
