@@ -17,7 +17,7 @@ BEGIN {
 use strict;
 use warnings;
 use Test::More;
-use Data::Dumper;
+use DBICTest::Util 'stacktrace';
 
 # Package::Stash::XS is silly and fails if a require hook contains regular
 # expressions on perl < 5.8.7. Load the damned thing if the case
@@ -35,6 +35,7 @@ BEGIN {
     base
     mro
     overload
+    Exporter
 
     B
     locale
@@ -94,13 +95,7 @@ BEGIN {
     ) {
       fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      if ($ENV{TEST_VERBOSE}) {
-        my ($i, @stack) = 1;
-        while (my @f = caller($i++) ) {
-          push @stack, \@f;
-        }
-        diag Dumper(\@stack);
-      }
+      diag( 'Require invoked' .  stacktrace() ) if $ENV{TEST_VERBOSE};
     }
   };
 }

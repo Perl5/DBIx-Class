@@ -30,6 +30,7 @@ Revision history for DBIx::Class
         - Fix dbicadmin to no longer ignore the documented 'config' option
         - The schema-resultsource entanglement is now much more robust
           under threads
+        - t/53lean_startup.t adjusted for new 5.15.x base.pm behavior
 
     * Misc
         - Centralized leak-checks for all instances of DBICTest::Schema
