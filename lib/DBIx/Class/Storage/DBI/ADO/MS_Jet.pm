@@ -7,7 +7,8 @@ use base qw/
   DBIx::Class::Storage::DBI::ACCESS
 /;
 use mro 'c3';
-use DBIx::Class::Storage::DBI::ADO::MS_Jet::Cursor ();
+use DBIx::Class::Storage::DBI::ADO::CursorUtils '_normalize_guids';
+use namespace::clean;
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::ADO::MS_Jet::Cursor');
 
@@ -103,22 +104,9 @@ sub select_single {
   return @row unless
     $self->cursor_class->isa('DBIx::Class::Storage::DBI::ADO::MS_Jet::Cursor');
 
-  my $col_info = $self->_resolve_column_info($ident);
+  my $col_infos = $self->_resolve_column_info($ident);
 
-  for my $select_idx (0..$#$select) {
-    my $selected = $select->[$select_idx];
-
-    next if ref $selected;
-
-    my $data_type = $col_info->{$selected}{data_type};
-
-    if ($self->_is_guid_type($data_type)) {
-      my $returned = $row[$select_idx];
-
-      $row[$select_idx] = substr($returned, 1, 36)
-        if substr($returned, 0, 1) eq '{';
-    }
-  }
+  _normalize_guids($select, $col_infos, \@row, $self);
 
   return @row;
 }

@@ -38,7 +38,8 @@ In which case it is used as the name of database function to create a new GUID,
 =item coderef
 
 In which case the coderef should return a string GUID, using L<Data::GUID>, or
-whatever GUID generation method you prefer.
+whatever GUID generation method you prefer. It is passed the C<$self>
+L<DBIx::Class::Storage> reference as a parameter.
 
 =back
 
@@ -97,7 +98,7 @@ sub _prefetch_autovalues  {
     }
 
     if (ref $guid_method eq 'CODE') {
-      $to_insert->{$guid_col} = $guid_method->();
+      $to_insert->{$guid_col} = $guid_method->($self);
     }
     else {
       ($to_insert->{$guid_col}) = $self->_get_dbh->selectrow_array("SELECT $guid_method");

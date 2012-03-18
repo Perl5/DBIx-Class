@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use base 'DBIx::Class::Storage::DBI::Cursor';
 use mro 'c3';
+use DBIx::Class::Storage::DBI::ADO::CursorUtils '_normalize_guids';
+use namespace::clean;
 
 =head1 NAME
 
@@ -39,24 +41,11 @@ sub _dbh_next {
 
   my @row = $next->(@_);
 
-  my $col_info = $storage->_resolve_column_info($self->args->[0]);
+  my $col_infos = $storage->_resolve_column_info($self->args->[0]);
 
   my $select = $self->args->[1];
 
-  for my $select_idx (0..$#$select) {
-    my $selected = $select->[$select_idx];
-
-    next if ref $selected;
-
-    my $data_type = $col_info->{$selected}{data_type};
-
-    if ($storage->_is_guid_type($data_type)) {
-      my $returned = $row[$select_idx];
-
-      $row[$select_idx] = substr($returned, 1, 36)
-        if substr($returned, 0, 1) eq '{';
-    }
-  }
+  _normalize_guids($select, $col_infos, \@row, $storage);
 
   return @row;
 }
@@ -68,26 +57,11 @@ sub _dbh_all {
 
   my @rows = $next->(@_);
 
-  my $col_info = $storage->_resolve_column_info($self->args->[0]);
+  my $col_infos = $storage->_resolve_column_info($self->args->[0]);
 
   my $select = $self->args->[1];
 
-  for my $row (@rows) {
-    for my $select_idx (0..$#$select) {
-      my $selected = $select->[$select_idx];
-
-      next if ref $selected;
-
-      my $data_type = $col_info->{$selected}{data_type};
-
-      if ($storage->_is_guid_type($data_type)) {
-        my $returned = $row->[$select_idx];
-
-        $row->[$select_idx] = substr($returned, 1, 36)
-          if substr($returned, 0, 1) eq '{';
-      }
-    }
-  }
+  _normalize_guids($select, $col_infos, $_, $storage) for @rows;
 
   return @rows;
 }
