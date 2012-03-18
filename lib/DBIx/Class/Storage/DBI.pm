@@ -1216,9 +1216,11 @@ sub _do_query {
     my $attrs = shift @do_args;
     my @bind = map { [ undef, $_ ] } @do_args;
 
-    $self->_query_start($sql, \@bind);
-    $self->_get_dbh->do($sql, $attrs, @do_args);
-    $self->_query_end($sql, \@bind);
+    $self->dbh_do(sub {
+      $_[0]->_query_start($sql, \@bind);
+      $_[1]->do($sql, $attrs, @do_args);
+      $_[0]->_query_end($sql, \@bind);
+    });
   }
 
   return $self;
