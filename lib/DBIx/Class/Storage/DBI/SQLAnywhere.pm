@@ -6,7 +6,6 @@ use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use List::Util 'first';
 use Try::Tiny;
-use DBIx::Class::Storage::DBI::SQLAnywhere::Cursor ();
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
