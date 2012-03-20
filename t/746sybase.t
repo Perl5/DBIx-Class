@@ -20,29 +20,6 @@ if (not ($dsn && $user)) {
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
-# first run the test without the lang variable set
-# it is important to do this before module load, hence
-# the subprocess before the optdep check
-if ($ENV{LANG} and $ENV{LANG} ne 'C') {
-  my $oldlang = $ENV{LANG};
-  local $ENV{LANG} = 'C';
-
-  pass ("Your lang is set to $oldlang - testing with C first");
-
-  my @cmd = ($^X, __FILE__);
-
-  # this is cheating, and may even hang here and there (testing on windows passed fine)
-  # will be replaced with Test::SubExec::Noninteractive in due course
-  require IPC::Open2;
-  IPC::Open2::open2(my $out, my $in, @cmd);
-  while (my $ln = <$out>) {
-    print "   $ln";
-  }
-
-  wait;
-  ok (! $?, "Wstat $? from: @cmd");
-}
-
 my @storage_types = (
   'DBI::Sybase::ASE',
   'DBI::Sybase::ASE::NoBindVars',
@@ -629,6 +606,27 @@ SQL
 }
 
 is $ping_count, 0, 'no pings';
+
+# if tests passed and did so under a non-C lang - let's rerun the test
+if (Test::Builder->new->is_passing and $ENV{LANG} and $ENV{LANG} ne 'C') {
+  my $oldlang = $ENV{LANG};
+  local $ENV{LANG} = 'C';
+
+  pass ("Your lang is set to $oldlang - retesting with C");
+
+  my @cmd = ($^X, __FILE__);
+
+  # this is cheating, and may even hang here and there (testing on windows passed fine)
+  # will be replaced with Test::SubExec::Noninteractive in due course
+  require IPC::Open2;
+  IPC::Open2::open2(my $out, undef, @cmd);
+  while (my $ln = <$out>) {
+    print "   $ln";
+  }
+
+  wait;
+  ok (! $?, "Wstat $? from: @cmd");
+}
 
 done_testing;
 
