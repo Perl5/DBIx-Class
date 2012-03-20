@@ -278,35 +278,6 @@ SQL
           );
         }
 
-        {
-          my $book_owner_ids = $schema->resultset ('BooksInLibrary')->search ({}, {
-            rows => 6,
-            offset => 2,
-            join => 'owner',
-            distinct => 1,
-            order_by => 'owner.name',
-            unsafe_subselect_ok => 1
-          })->get_column ('owner');
-
-          my @ids = $book_owner_ids->all;
-
-          is (@ids, 6, 'Limit works');
-
-          my $book_owners = $schema->resultset ('Owners')->search ({
-            id => { -in => $book_owner_ids->as_query }
-          });
-
-          TODO: {
-            local $TODO = "Correlated limited IN subqueries will probably never preserve order";
-
-            is_deeply (
-              [ map { $_->id } ($book_owners->all) ],
-              [ $book_owner_ids->all ],
-              "$test_type: Sort is preserved across IN subqueries",
-            );
-          }
-        }
-
         # still even with lost order of IN, we should be getting correct
         # sets
         {
