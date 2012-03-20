@@ -179,6 +179,7 @@ sub _check_dbh_gen {
 sub DESTROY {
   # None of the reasons this would die matter if we're in DESTROY anyways
   if (my $sth = $_[0]->sth) {
+    local $SIG{__WARN__} = sub {};
     try { $sth->finish } if $sth->FETCH('Active');
   }
 }

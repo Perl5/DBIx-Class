@@ -57,7 +57,9 @@ my %opts = (
   use_mars =>
     { opts => { on_connect_call => 'use_mars' } },
   use_dynamic_cursors =>
-    { opts => { on_connect_call => 'use_dynamic_cursors' }, required => 1 },
+    { opts => { on_connect_call => 'use_dynamic_cursors' },
+      required => $schema->storage->using_freetds ? 0 : 1,
+    },
   use_server_cursors =>
     { opts => { on_connect_call => 'use_server_cursors' } },
   NO_OPTION =>
@@ -133,6 +135,8 @@ SQL
       is_deeply \@result, \@map, "multiple active statements in $opts_name";
 
       $artist_rs->delete;
+
+      is($artist_rs->count, 0, '$dbh still viable');
     }
 
 # Test populate

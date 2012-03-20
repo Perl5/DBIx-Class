@@ -177,6 +177,11 @@ insert trigger that inserts into another table with an C<IDENTITY> column.
 B<WARNING:> on FreeTDS, changes made in one statement (e.g. an insert) may not
 be visible from a following statement (e.g. a select.)
 
+B<WARNING:> FreeTDS versions > 0.82 seem to have completely broken the ODBC
+protocol. DBIC will not allow dynamic cursor support with such versions to
+protect your data. Please hassle the authors of FreeTDS to act on the bugs that
+make their driver not overly usable with DBD::ODBC.
+
 =cut
 
 sub connect_call_use_dynamic_cursors {
@@ -230,14 +235,34 @@ sub _run_connection_actions {
 
       $self->_using_dynamic_cursors(1);
       $self->_identity_method('@@identity');
+      $self->_no_scope_identity_query($self->using_freetds);
     }
     else {
       $self->_using_dynamic_cursors(0);
       $self->_identity_method(undef);
+      $self->_no_scope_identity_query(undef);
     }
   }
 
   $self->next::method (@_);
+
+  # freetds is too damn broken, some fixups
+  if ($self->using_freetds) {
+
+    # no dynamic cursors starting from 0.83
+    if ($self->_using_dynamic_cursors) {
+      my $fv = $self->_dbh_get_info('SQL_DRIVER_VER');
+      $self->throw_exception(
+        'Dynamic cursors (odbc_cursortype => 2) are not supported with FreeTDS > 0.82 '
+      . "(you have $fv). Please hassle FreeTDS authors to fix the outstanding bugs in "
+      . 'their driver.'
+      ) if $fv > 0.82
+    }
+
+    # FreeTDS is too broken wrt execute_for_fetch batching
+    # just disable it outright until things quiet down
+    $self->_get_dbh->{odbc_disable_array_operations} = 1;
+  }
 }
 
 =head2 connect_call_use_server_cursors

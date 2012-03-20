@@ -24,6 +24,12 @@ Revision history for DBIx::Class
           handle
         - Improve identity/autoinc retrieval code in MSSQL and Sybase -
           should reduce weird side-effects especially with populate()
+        - Explicitly disable DBD::ODBC batch operations (as of DBD::ODBC 1.35)
+          when using freetds - the freetds driver is just too buggy to handle
+          the optimized path
+        - Explicitly disable DBD::ODBC dynamic_cursors when using freetds 0.83
+          or later - they made enough ODBC incompatible making it impossible
+          to support
         - Fix leakage of $schema on in-memory new_related() calls
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Fix leakage of $storage in ::Storage::DBI::Oracle

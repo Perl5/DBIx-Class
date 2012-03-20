@@ -14,7 +14,7 @@ use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
-  _identity _identity_method
+  _identity _identity_method _no_scope_identity_query
 /);
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
@@ -60,7 +60,7 @@ sub _prep_for_execute {
   # point we don't have many guarantees we will get what we expected.
   # http://msdn.microsoft.com/en-us/library/ms190315.aspx
   # http://davidhayden.com/blog/dave/archive/2006/01/17/2736.aspx
-  if ($self->_perform_autoinc_retrieval) {
+  if ($self->_perform_autoinc_retrieval and not $self->_no_scope_identity_query) {
     $sql .= "\nSELECT SCOPE_IDENTITY()";
   }
 
@@ -76,9 +76,15 @@ sub _execute {
 
   if ($self->_perform_autoinc_retrieval) {
 
-    # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
+    # attempt to bring back the result of SELECT SCOPE_IDENTITY() we tacked
     # on in _prep_for_execute above
-    my ($identity) = try { $sth->fetchrow_array };
+    my $identity;
+
+    # we didn't even try on ftds
+    unless ($self->_no_scope_identity_query) {
+      ($identity) = try { $sth->fetchrow_array };
+      $sth->finish;
+    }
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {
@@ -88,7 +94,6 @@ sub _execute {
     }
 
     $self->_identity($identity);
-    $sth->finish;
   }
 
   return wantarray ? ($rv, $sth, @bind) : $rv;
