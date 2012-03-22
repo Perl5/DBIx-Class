@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use 5.008001;
-use inc::Module::Install 1.00;
+use inc::Module::Install 1.06;
 
 ##
 ## DO NOT USE THIS HACK IN YOUR DISTS!!! (it makes #toolchain sad)
