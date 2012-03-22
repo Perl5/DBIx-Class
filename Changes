@@ -12,6 +12,7 @@ Revision history for DBIx::Class
           unique constraint
         - dbicadmin now better supports catalyst-style config files, by
           unrolling 'config_info' hashkeys
+        - MSSQL MARS over DBD::ODBC now works with freetds >= 0.91
 
     * Fixes
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
