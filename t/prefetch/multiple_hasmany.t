@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use IO::File;
 
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
@@ -39,7 +38,10 @@ TODO: {
 
     ok(! $o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (1 -> M + M)');
 
+  {
+    local $TODO;
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+  }
     $schema->storage->debugcb (undef);
     $schema->storage->debug ($sdebug);
 
@@ -72,12 +74,16 @@ TODO: {
 
     ok(! $m_o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
 
+  {
+    local $TODO;
+
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
     $schema->storage->debugcb (undef);
     $schema->storage->debug ($sdebug);
 
     is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
     is($pr_tags_rs->all, $tags_rs->all, 'equal amount of objects with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
+  }
 }
 
 # remove this closure once the TODO above is working

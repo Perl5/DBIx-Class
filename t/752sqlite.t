@@ -96,7 +96,7 @@ DDL
   );
   ok ($schema->storage->connected, 'Still connected');
   {
-    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if $c_commit;
+    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if $c_commit and ! $c_begin;
     ok ($schema->storage->_dbh->{AutoCommit}, "DBD aware txn ended with comments on $prefix_comment");
   }
 

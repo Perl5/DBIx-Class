@@ -129,8 +129,6 @@ lives_ok (sub {
     is($rs->count, 1, 'distinct with prefetch (count)');
 
   TODO: {
-    local $TODO = "This makes another 2 trips to the database, it can't be right";
-
     $queries = 0;
     $schema->storage->debugcb ($debugcb);
     $schema->storage->debug (1);
@@ -139,6 +137,7 @@ lives_ok (sub {
     is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
     is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
 
+    local $TODO = "This makes another 2 trips to the database, it can't be right";
     is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
 
     $schema->storage->debugcb (undef);
