@@ -352,22 +352,18 @@ do_creates($dbh);
           FROM (
             SELECT artistid
               FROM (
-                SELECT artistid, ROWNUM rownum__index
-                  FROM (
-                    SELECT me.artistid
-                      FROM artist me
-                    START WITH name = ?
-                    CONNECT BY parentid = PRIOR artistid
-                  ) me
+                SELECT me.artistid
+                  FROM artist me
+                START WITH name = ?
+                CONNECT BY parentid = PRIOR artistid
               ) me
-            WHERE rownum__index BETWEEN ? AND ?
+            WHERE ROWNUM <= ?
           ) me
       )',
       [
         [ { 'sqlt_datatype' => 'varchar', 'dbic_colname' => 'name', 'sqlt_size' => 100 }
             => 'root'],
-        [ $ROWS => 1 ],
-        [ $TOTAL => 2 ],
+        [ $ROWS => 2 ],
       ],
     );
 

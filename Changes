@@ -27,6 +27,8 @@ Revision history for DBIx::Class
         - Fix leakage of $schema on in-memory new_related() calls
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Fix leakage of $storage in ::Storage::DBI::Oracle
+        - Fix pessimization of Oracle RowNum limit dialect query when no
+          offset has been specified
         - Remove useless vestigial pessimization in Ordered.pm for cases 
           when the position column is part of a unique constraint
         - Fix dbicadmin to no longer ignore the documented 'config' option

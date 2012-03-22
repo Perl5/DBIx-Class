@@ -8,9 +8,10 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
 
-my ($TOTAL, $OFFSET) = (
+my ($TOTAL, $OFFSET, $ROWS) = (
    DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
    DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
 );
 
 my $s = DBICTest->init_schema (no_deploy => 1, );
@@ -244,20 +245,17 @@ is_same_sql_bind(
   $rs_selectas_rel->as_query,
   '(
     SELECT id, owner FROM (
-      SELECT id, owner, ROWNUM rownum__index FROM (
-        SELECT me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )
-      ) me
-    ) me WHERE rownum__index BETWEEN ? AND ?
+      SELECT me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )
+    ) me
+    WHERE ROWNUM <= ?
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
-    [ $OFFSET => 1 ],
-    [ $TOTAL => 1 ],
+    [ $ROWS => 1 ],
   ],
   'Pagination with sub-query in WHERE works'
 );
 
 }
-
 
 done_testing;

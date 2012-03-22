@@ -249,6 +249,18 @@ sub _RowNum {
   my $idx_name = $self->_quote ('rownum__index');
   my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
 
+
+  # if no offset (e.g. first page) - we can skip one of the subqueries
+  if (! $offset) {
+    push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+
+    return <<EOS;
+SELECT $outsel FROM (
+  SELECT $insel ${stripped_sql}${order_group_having}
+) $qalias WHERE ROWNUM <= ?
+EOS
+  }
+
   #
   # There are two ways to limit in Oracle, one vastly faster than the other
   # on large resultsets: https://decipherinfosys.wordpress.com/2007/08/09/paging-and-countstopkey-optimization/
@@ -267,27 +279,15 @@ sub _RowNum {
       $rs_attrs->{from}, $rs_attrs->{order_by}
     )
   ) {
-    # if offset is 0 (first page) the we can skip a subquery
-    if (! $offset) {
-      push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
+    push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
 
-      return <<EOS;
-SELECT $outsel FROM (
-  SELECT $insel ${stripped_sql}${order_group_having}
-) $qalias WHERE ROWNUM <= ?
-EOS
-    }
-    else {
-      push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
-
-      return <<EOS;
+    return <<EOS;
 SELECT $outsel FROM (
   SELECT $outsel, ROWNUM $idx_name FROM (
     SELECT $insel ${stripped_sql}${order_group_having}
   ) $qalias WHERE ROWNUM <= ?
 ) $qalias WHERE $idx_name >= ?
 EOS
-    }
   }
   else {
     push @{$self->{limit_bind}}, [ $self->__offset_bindtype => $offset + 1 ], [ $self->__total_bindtype => $offset + $rows ];
