@@ -58,7 +58,7 @@ sub sql_maker {
     my $maker = $self->next::method (@_);
 
     # mysql 3 does not understand a bare JOIN
-    my $mysql_ver = $self->_dbh_get_info(18);
+    my $mysql_ver = $self->_dbh_get_info('SQL_DBMS_VER');
     $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
   }
 

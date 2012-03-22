@@ -24,12 +24,11 @@ $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";
 
 my $v = do {
-  my $v = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_dbh_get_info(18);
-  $v =~ /^(\d+)\.(\d+)/
-    or die "Unparseable Oracle server version: $v\n";
-
-  sprintf('%d.%03d', $1, $2);
+  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  $si->{normalized_dbms_version}
+    or die "Unparseable Oracle server version: $si->{dbms_version}\n";
 };
+
 ##########
 # the recyclebin (new for 10g) sometimes comes in the way
 my $on_connect_sql = $v >= 10 ? ["ALTER SESSION SET recyclebin = OFF"] : [];

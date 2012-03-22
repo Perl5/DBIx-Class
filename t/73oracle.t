@@ -74,11 +74,9 @@ DBICTest::Schema::Track->load_components('PK::Auto::Oracle');
 
 # check if we indeed do support stuff
 my $v = do {
-  my $v = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_dbh_get_info(18);
-  $v =~ /^(\d+)\.(\d+)/
-    or die "Unparseable Oracle server version: $v\n";
-
-  sprintf('%d.%03d', $1, $2);
+  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  $si->{normalized_dbms_version}
+    or die "Unparseable Oracle server version: $si->{dbms_version}\n";
 };
 
 my $test_server_supports_only_orajoins = $v < 9;

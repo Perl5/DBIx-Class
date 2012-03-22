@@ -51,6 +51,7 @@ BEGIN {
     Data::Compare
 
     DBI
+    DBI::Const::GetInfoType
     SQL::Abstract
 
     Carp

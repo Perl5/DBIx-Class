@@ -18,7 +18,7 @@ sub sql_name_sep {
   my $v = $self->next::method(@_);
 
   if (! defined $v and ! @_) {
-    $v = $self->next::method($self->_dbh_get_info(41) || '.');
+    $v = $self->next::method($self->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR') || '.');
   }
 
   return $v;

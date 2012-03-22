@@ -91,14 +91,12 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
 # check if we indeed do support stuff
 my $test_server_supports_insert_returning = do {
-  my $v = DBICTest::Schema->connect($dsn, $user, $pass)
-                   ->storage
-                    ->_get_dbh
-                     ->get_info(18);
-  $v =~ /^(\d+)\.(\d+)/
-    or die "Unparseable Pg server version: $v\n";
 
-  ( sprintf ('%d.%d', $1, $2) >= 8.2 ) ? 1 : 0;
+  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  die "Unparseable Pg server version: $si->{dbms_version}\n"
+    unless $si->{normalized_dbms_version};
+
+  $si->{normalized_dbms_version} < 8.002 ? 0 : 1;
 };
 is (
   DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,

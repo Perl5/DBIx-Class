@@ -287,7 +287,7 @@ sub using_freetds {
   $dsn = '' if ref $dsn eq 'CODE';
 
   return 1 if $dsn =~ /driver=FreeTDS/i
-              || ($self->_dbh_get_info(6)||'') =~ /tdsodbc/i;
+              || ($self->_dbh_get_info('SQL_DRIVER_NAME')||'') =~ /tdsodbc/i;
 
   return 0;
 }

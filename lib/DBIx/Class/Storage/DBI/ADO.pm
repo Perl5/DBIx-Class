@@ -22,7 +22,7 @@ should be transparent to the user.
 sub _rebless {
   my $self = shift;
 
-  my $dbtype = $self->_dbh_get_info(17);
+  my $dbtype = $self->_dbh_get_info('SQL_DBMS_NAME');
 
   if (not $dbtype) {
     warn "Unable to determine ADO driver, failling back to generic support.\n";

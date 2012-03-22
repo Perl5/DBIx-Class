@@ -7,7 +7,7 @@ use mro 'c3';
 sub _rebless {
   my ($self) = @_;
 
-  if (my $dbtype = $self->_dbh_get_info(17)) {
+  if (my $dbtype = $self->_dbh_get_info('SQL_DBMS_NAME')) {
     # Translate the backend name into a perl identifier
     $dbtype =~ s/\W/_/gi;
     my $subclass = "DBIx::Class::Storage::DBI::ODBC::${dbtype}";
