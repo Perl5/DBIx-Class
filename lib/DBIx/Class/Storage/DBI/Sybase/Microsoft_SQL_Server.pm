@@ -65,6 +65,28 @@ EOF
   }
 }
 
+sub _init {
+  my $self = shift;
+
+  $self->next::method(@_);
+
+  # work around massively broken freetds versions after 0.82
+  # - explicitly no scope_identity
+  # - no sth caching
+  #
+  # warn about the fact as well, do not provide a mechanism to shut it up
+  if ($self->_using_freetds and (my $ver = $self->_using_freetds_version||999) > 0.82) {
+    carp_once(
+      "Your DBD::Sybase was compiled against buggy FreeTDS version $ver. "
+    . 'Statement caching does not work and will be disabled.'
+    );
+
+    $self->_identity_method('@@identity');
+    $self->_no_scope_identity_query(1);
+    $self->disable_sth_caching(1);
+  }
+}
+
 # invoked only if DBD::Sybase is compiled against FreeTDS
 sub _set_autocommit_stmt {
   my ($self, $on) = @_;

@@ -29,8 +29,10 @@ Revision history for DBIx::Class
           when using freetds - the freetds driver is just too buggy to handle
           the optimized path
         - Explicitly disable DBD::ODBC dynamic_cursors when using freetds 0.83
-          or later - they made enough ODBC incompatible making it impossible
-          to support
+          or later - they made enough ODBC incompatible changes making it
+          impossible to support sanely
+        - Explicitly disable SCOPE_IDENTITY queries and statement caching for
+          DBD::Sybase compiled against freetds 0.83 or later - way too buggy
         - Fix leakage of $schema on in-memory new_related() calls
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Fix leakage of $storage in ::Storage::DBI::Oracle
