@@ -12,6 +12,7 @@ use DBIx::Class::Exception;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
 use Sub::Name 'subname';
+use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use overload ();
 use Data::Compare (); # no imports!!! guard against insane architecture
@@ -1235,10 +1236,7 @@ sub _connect {
 
   my ($old_connect_via, $dbh);
 
-  if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
-    $old_connect_via = $DBI::connect_via;
-    $DBI::connect_via = 'connect';
-  }
+  local $DBI::connect_via = 'connect' if $INC{'Apache/DBI.pm'} && $ENV{MOD_PERL};
 
   try {
     if(ref $info[0] eq 'CODE') {
@@ -1300,9 +1298,6 @@ sub _connect {
   }
   catch {
     $self->throw_exception("DBI Connection failed: $_")
-  }
-  finally {
-    $DBI::connect_via = $old_connect_via if $old_connect_via;
   };
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
@@ -2748,18 +2743,12 @@ sub deployment_statements {
     data => $schema,
   );
 
-  my @ret;
-  if (wantarray) {
-    @ret = $tr->translate;
-  }
-  else {
-    $ret[0] = $tr->translate;
-  }
-
-  $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error)
-    unless (@ret && defined $ret[0]);
-
-  return wantarray ? @ret : $ret[0];
+  return preserve_context {
+    $tr->translate
+  } after => sub {
+    $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error)
+      unless defined $_[0];
+  };
 }
 
 # FIXME deploy() currently does not accurately report sql errors

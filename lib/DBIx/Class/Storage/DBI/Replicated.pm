@@ -15,8 +15,8 @@ use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
 use List::Util qw/min max reduce/;
+use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use namespace::clean;
 
 use namespace::clean -except => 'meta';
 
@@ -478,24 +478,19 @@ around connect_info => sub {
 
   $self->_master_connect_info_opts(\%opts);
 
-  my @res;
-  if (wantarray) {
-    @res = $self->$next($info, @extra);
-  } else {
-    $res[0] = $self->$next($info, @extra);
-  }
+  return preserve_context {
+    $self->$next($info, @extra);
+  } after => sub {
+    # Make sure master is blessed into the correct class and apply role to it.
+    my $master = $self->master;
+    $master->_determine_driver;
+    Moose::Meta::Class->initialize(ref $master);
 
-  # Make sure master is blessed into the correct class and apply role to it.
-  my $master = $self->master;
-  $master->_determine_driver;
-  Moose::Meta::Class->initialize(ref $master);
+    DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
 
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
-
-  # link pool back to master
-  $self->pool->master($master);
-
-  wantarray ? @res : $res[0];
+    # link pool back to master
+    $self->pool->master($master);
+  };
 };
 
 =head1 METHODS
@@ -676,41 +671,22 @@ inserted something and need to get a resultset including it, etc.
 =cut
 
 sub execute_reliably {
-  my ($self, $coderef, @args) = @_;
+  my $self = shift;
+  my $coderef = shift;
 
   unless( ref $coderef eq 'CODE') {
     $self->throw_exception('Second argument must be a coderef');
   }
 
-  ##Get copy of master storage
-  my $master = $self->master;
+  ## replace the current read handler for the remainder of the scope
+  local $self->{read_handler} = $self->master;
 
-  ##Get whatever the current read hander is
-  my $current = $self->read_handler;
-
-  ##Set the read handler to master
-  $self->read_handler($master);
-
-  ## do whatever the caller needs
-  my @result;
-  my $want_array = wantarray;
-
-  try {
-    if($want_array) {
-      @result = $coderef->(@args);
-    } elsif(defined $want_array) {
-      ($result[0]) = ($coderef->(@args));
-    } else {
-      $coderef->(@args);
-    }
+  my $args = \@_;
+  return try {
+    $coderef->(@$args);
   } catch {
     $self->throw_exception("coderef returned an error: $_");
-  } finally {
-    ##Reset to the original state
-    $self->read_handler($current);
   };
-
-  return wantarray ? @result : $result[0];
 }
 
 =head2 set_reliable_storage

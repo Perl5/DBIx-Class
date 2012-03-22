@@ -581,19 +581,11 @@ sub delete {
 
     $self->move_last;
 
-    my @res;
-    if (not defined wantarray) {
-        $self->next::method( @_ );
-    }
-    elsif (wantarray) {
-        @res = $self->next::method( @_ );
-    }
-    else {
-        $res[0] = $self->next::method( @_ );
-    }
+    $self->next::method( @_ );
 
     $guard->commit;
-    return wantarray ? @res : $res[0];
+
+    return $self;
 }
 
 # add the current position/group to the things we track old values for
