@@ -49,7 +49,7 @@ sub _init {
   # once the driver is determined see if we need to insert the DBD::Sybase w/ FreeTDS fixups
   # this is a dirty version of "instance role application", \o/ DO WANT Moo \o/
   my $self = shift;
-  if (! $self->isa('DBIx::Class::Storage::DBI::Sybase::FreeTDS') and $self->using_freetds) {
+  if (! $self->isa('DBIx::Class::Storage::DBI::Sybase::FreeTDS') and $self->_using_freetds) {
     require DBIx::Class::Storage::DBI::Sybase::FreeTDS;
 
     my @isa = @{mro::get_linear_isa(ref $self)};
@@ -117,17 +117,19 @@ sub _set_max_connect {
   }
 }
 
-=head2 using_freetds
-
-Whether or not L<DBD::Sybase> was compiled against FreeTDS. If false, it means
-the Sybase OpenClient libraries were used.
-
-=cut
-
-sub using_freetds {
+# Whether or not DBD::Sybase was compiled against FreeTDS. If false, it means
+# the Sybase OpenClient libraries were used.
+sub _using_freetds {
   my $self = shift;
-
   return ($self->_get_dbh->{syb_oc_version}||'') =~ /freetds/i;
+}
+
+# Either returns the FreeTDS version against which DBD::Sybase was compiled,
+# 0 if can't be determined, or undef otherwise
+sub _using_freetds_version {
+  my $inf = shift->_get_dbh->{syb_oc_version};
+  return undef unless ($inf||'') =~ /freetds/i;
+  return $inf =~ /v([0-9\.]+)/ ? $1 : 0;
 }
 
 1;

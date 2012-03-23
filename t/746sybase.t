@@ -335,7 +335,7 @@ SQL
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
     skip 'TEXT/IMAGE support does not work with FreeTDS', 22
-      if $schema->storage->using_freetds;
+      if $schema->storage->_using_freetds;
 
     my $dbh = $schema->storage->_dbh;
     {
@@ -359,7 +359,7 @@ SQL
 
     my $maxloblen = length $binstr{'large'};
 
-    if (not $schema->storage->using_freetds) {
+    if (not $schema->storage->_using_freetds) {
       $dbh->{'LongReadLen'} = $maxloblen * 2;
     } else {
       $dbh->do("set textsize ".($maxloblen * 2));

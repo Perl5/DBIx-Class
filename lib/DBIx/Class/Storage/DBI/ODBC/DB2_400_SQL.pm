@@ -4,8 +4,8 @@ use strict;
 use warnings;
 
 use base qw/
-    DBIx::Class::Storage::DBI::DB2
     DBIx::Class::Storage::DBI::ODBC
+    DBIx::Class::Storage::DBI::DB2
 /;
 use mro 'c3';
 

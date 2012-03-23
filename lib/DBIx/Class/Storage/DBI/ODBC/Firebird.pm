@@ -2,7 +2,10 @@ package DBIx::Class::Storage::DBI::ODBC::Firebird;
 
 use strict;
 use warnings;
-use base 'DBIx::Class::Storage::DBI::Firebird::Common';
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC
+  DBIx::Class::Storage::DBI::Firebird::Common
+/;
 use mro 'c3';
 use Try::Tiny;
 use namespace::clean;

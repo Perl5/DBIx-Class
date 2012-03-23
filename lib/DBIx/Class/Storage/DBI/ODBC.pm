@@ -28,6 +28,29 @@ sub _rebless {
   }
 }
 
+# Whether or not we are connecting via the freetds ODBC driver.
+sub _using_freetds {
+  my $self = shift;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  return 1 if (
+    ( (! ref $dsn) and $dsn =~ /driver=FreeTDS/i)
+      or
+    ( ($self->_dbh_get_info('SQL_DRIVER_NAME')||'') =~ /tdsodbc/i )
+  );
+
+  return 0;
+}
+
+# Either returns the FreeTDS version via which we are connecting, 0 if can't
+# be determined, or undef otherwise
+sub _using_freetds_version {
+  my $self = shift;
+  return undef unless $self->_using_freetds;
+  return $self->_dbh_get_info('SQL_DRIVER_VER') || 0;
+}
+
 1;
 
 =head1 NAME

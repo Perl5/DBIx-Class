@@ -2,7 +2,10 @@ package DBIx::Class::Storage::DBI::ODBC::SQL_Anywhere;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI::SQLAnywhere/;
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC
+  DBIx::Class::Storage::DBI::SQLAnywhere
+/;
 use mro 'c3';
 
 1;

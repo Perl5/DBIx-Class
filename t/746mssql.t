@@ -58,7 +58,7 @@ my %opts = (
     { opts => { on_connect_call => 'use_mars' } },
   use_dynamic_cursors =>
     { opts => { on_connect_call => 'use_dynamic_cursors' },
-      required => $schema->storage->using_freetds ? 0 : 1,
+      required => $schema->storage->_using_freetds ? 0 : 1,
     },
   use_server_cursors =>
     { opts => { on_connect_call => 'use_server_cursors' } },
@@ -511,7 +511,7 @@ SQL
       TODO: {
         my $freetds_and_dynamic_cursors = 1
           if $opts_name eq 'use_dynamic_cursors' &&
-            $schema->storage->using_freetds;
+            $schema->storage->_using_freetds;
 
         local $TODO =
 'these tests fail on freetds with dynamic cursors for some reason'

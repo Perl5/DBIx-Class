@@ -73,7 +73,7 @@ sub _rebless {
 
   my $no_bind_vars = __PACKAGE__ . '::NoBindVars';
 
-  if ($self->using_freetds) {
+  if ($self->_using_freetds) {
     carp_once <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
 
 You are using FreeTDS with Sybase.
@@ -202,7 +202,7 @@ sub _run_connection_actions {
   }
 
   $self->_dbh->{syb_chained_txn} = 1
-    unless $self->using_freetds;
+    unless $self->_using_freetds;
 
   $self->next::method(@_);
 }
@@ -804,7 +804,7 @@ sub _insert_blobs {
       $sth->func('ct_finish_send') or die $sth->errstr;
     }
     catch {
-      if ($self->using_freetds) {
+      if ($self->_using_freetds) {
         $self->throw_exception (
           "TEXT/IMAGE operation failed, probably because you are using FreeTDS: $_"
         );
@@ -958,7 +958,7 @@ L<http://www.isug.com/Sybase_FAQ/ASE/section7.html>.
 Sybase ASE for Linux (which comes with the Open Client libraries) may be
 downloaded here: L<http://response.sybase.com/forms/ASE_Linux_Download>.
 
-To see if you're using FreeTDS check C<< $schema->storage->using_freetds >>, or run:
+To see if you're using FreeTDS run:
 
   perl -MDBI -le 'my $dbh = DBI->connect($dsn, $user, $pass); print $dbh->{syb_oc_version}'
 

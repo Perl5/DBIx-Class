@@ -2,7 +2,10 @@ package DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MSSQL/;
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC
+  DBIx::Class::Storage::DBI::MSSQL
+/;
 use mro 'c3';
 use Scalar::Util 'reftype';
 use Try::Tiny;
@@ -124,7 +127,7 @@ sub connect_call_use_mars {
   }
 
   if ($dsn !~ /MARS_Connection=/) {
-    if ($self->using_freetds) {
+    if ($self->_using_freetds) {
       $self->throw_exception('FreeTDS does not support MARS at the time of '
                             .'writing.');
     }
@@ -226,7 +229,7 @@ sub _run_connection_actions {
         $self->throw_exception (
           'Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2).'
          . (
-          $self->using_freetds
+          $self->_using_freetds
             ? ' If you are using FreeTDS, make sure to set tds_version to 8.0 or greater.'
             : ''
           )
@@ -235,7 +238,7 @@ sub _run_connection_actions {
 
       $self->_using_dynamic_cursors(1);
       $self->_identity_method('@@identity');
-      $self->_no_scope_identity_query($self->using_freetds);
+      $self->_no_scope_identity_query($self->_using_freetds);
     }
     else {
       $self->_using_dynamic_cursors(0);
@@ -247,11 +250,11 @@ sub _run_connection_actions {
   $self->next::method (@_);
 
   # freetds is too damn broken, some fixups
-  if ($self->using_freetds) {
+  if ($self->_using_freetds) {
 
     # no dynamic cursors starting from 0.83
     if ($self->_using_dynamic_cursors) {
-      my $fv = $self->_dbh_get_info('SQL_DRIVER_VER');
+      my $fv = $self->_using_freetds_version || 999;  # assume large if can't be determined
       $self->throw_exception(
         'Dynamic cursors (odbc_cursortype => 2) are not supported with FreeTDS > 0.82 '
       . "(you have $fv). Please hassle FreeTDS authors to fix the outstanding bugs in "
@@ -295,26 +298,6 @@ sub connect_call_use_server_cursors {
   }
 
   $self->_get_dbh->{odbc_SQL_ROWSET_SIZE} = $sql_rowset_size;
-}
-
-=head2 using_freetds
-
-Tries to determine, to the best of our ability, whether or not you are using the
-FreeTDS driver with L<DBD::ODBC>.
-
-=cut
-
-sub using_freetds {
-  my $self = shift;
-
-  my $dsn = $self->_dbi_connect_info->[0];
-
-  $dsn = '' if ref $dsn eq 'CODE';
-
-  return 1 if $dsn =~ /driver=FreeTDS/i
-              || ($self->_dbh_get_info('SQL_DRIVER_NAME')||'') =~ /tdsodbc/i;
-
-  return 0;
 }
 
 1;
