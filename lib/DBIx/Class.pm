@@ -476,6 +476,8 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 
 semifor: Marc Mims <marc@questright.com>
 
+SineSwiper: Brendan Byrd <bbyrd@cpan.org>
+
 solomon: Jared Johnson <jaredj@nmgi.com>
 
 spb: Stephen Bennett <stephen@freenode.net>

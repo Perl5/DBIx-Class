@@ -468,7 +468,7 @@ to C<update>, e.g. ( { %{ $href } } )
 If the values passed or any of the column values set on the object
 contain scalar references, e.g.:
 
-  $row->last_modified(\'NOW()');
+  $row->last_modified(\'NOW()')->update();
   # OR
   $row->update({ last_modified => \'NOW()' });
 
@@ -593,7 +593,7 @@ sub delete {
 =back
 
 Throws an exception if the column name given doesn't exist according
-to L</has_column>.
+to L<has_column|DBIx::Class::ResultSource/has_column>.
 
 Returns a raw column value from the row object, if it has already
 been fetched from the database or set by an accessor.
@@ -1446,7 +1446,6 @@ sub discard_changes {
     return $self;
   }
 }
-
 
 =head2 throw_exception
 

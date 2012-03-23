@@ -927,7 +927,7 @@ sub _build_unique_cond {
 
 =over 4
 
-=item Arguments: $rel, $cond, \%attrs?
+=item Arguments: $rel, $cond?, \%attrs?
 
 =item Return Value: $new_resultset (scalar context) || @row_objs (list context)
 

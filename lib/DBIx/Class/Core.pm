@@ -36,7 +36,7 @@ The core modules currently are:
 
 =item L<DBIx::Class::InflateColumn>
 
-=item L<DBIx::Class::Relationship>
+=item L<DBIx::Class::Relationship> (See also L<DBIx::Class::Relationship::Base>)
 
 =item L<DBIx::Class::PK::Auto>
 
@@ -44,7 +44,7 @@ The core modules currently are:
 
 =item L<DBIx::Class::Row>
 
-=item L<DBIx::Class::ResultSourceProxy::Table>
+=item L<DBIx::Class::ResultSourceProxy::Table> (See also L<DBIx::Class::ResultSource>)
 
 =back
 
