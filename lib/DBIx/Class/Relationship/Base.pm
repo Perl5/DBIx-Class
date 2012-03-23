@@ -412,6 +412,31 @@ sub register_relationship { }
 Returns a L<DBIx::Class::ResultSet> for the relationship named
 $relationship_name.
 
+=head2 $relationship_accessor
+
+=over 4
+
+=item Arguments: None
+
+=item Return Value: $row_object | $related_resultset | undef
+
+=back
+
+  # These pairs do the same thing
+  $row = $cd->related_resultset('artist')->single;  # has_one relationship
+  $row = $cd->artist;
+  $rs = $cd->related_resultset('tracks');           # has_many relationship
+  $rs = $cd->tracks;
+
+This is the recommended way to transverse through relationships, based
+on the L</accessor> name given in the relationship definition.
+
+This will return either a L<Row|DBIx::Class::Row> or a
+L<ResultSet|DBIx::Class::ResultSet>, depending on if the relationship is
+C<single> (returns only one row) or C<multi> (returns many rows).  The
+method may also return C<undef> if the relationship doesn't exist for
+this instance (like in the case of C<might_have> relationships).
+
 =cut
 
 sub related_resultset {

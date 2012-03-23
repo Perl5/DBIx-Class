@@ -43,6 +43,23 @@ L<has_one|DBIx::Class::Relationship/has_one> or
 L<might_have|DBIx::Class::Relationship/might_have>)
 relationship accessors of L<DBIx::Class::Row> objects.
 
+=head1 NOTE
+
+All "Row objects" derived from a Schema-attached L<DBIx::Class::ResultSet>
+object (such as a typical C<< L<search|DBIx::Class::ResultSet/search
+>->L<next|DBIx::Class::ResultSet/next> >> call) are actually Result
+instances, based on your application's
+L<Result class|DBIx::Class::Manual::Glossary/Result_class>.
+
+L<DBIx::Class::Row> implements most of the row-based communication with the
+underlying storage, but a Result class B<should not inherit from it directly>.
+Usually, Result classes inherit from L<DBIx::Class::Core>, which in turn
+combines the methods from several classes, one of them being
+L<DBIx::Class::Row>.  Therefore, while many of the methods available to a
+L<DBIx::Class::Core>-derived Result class are described in the following
+documentation, it does not detail all of the methods available to Result
+objects.  Refer to L<DBIx::Class::Core> for more info.
+
 =head1 METHODS
 
 =head2 new
@@ -55,7 +72,7 @@ relationship accessors of L<DBIx::Class::Row> objects.
 
 =item Arguments: \%attrs or \%colsandvalues
 
-=item Returns: A Row object
+=item Returns: A DBIx::Class::Row object
 
 =back
 
@@ -254,6 +271,39 @@ sub new {
 
   return $new;
 }
+
+=head2 $column_accessor
+
+  # Each pair does the same thing
+
+  # (un-inflated, regular column)
+  my $val = $row->get_column('first_name');
+  my $val = $row->first_name;
+
+  $row->set_column('first_name' => $val);
+  $row->first_name($val);
+
+  # (inflated column via DBIx::Class::InflateColumn::DateTime)
+  my $val = $row->get_inflated_column('last_modified');
+  my $val = $row->last_modified;
+
+  $row->set_inflated_column('last_modified' => $val);
+  $row->last_modified($val);
+
+=over
+
+=item Arguments: $value?
+
+=item Returns: $value
+
+=back
+
+A column accessor method is created for each column, which is used for
+getting/setting the value for that column.
+
+The actual method name is based on the L<accessor|DBIx::Class::ResultSource/accessor>
+name given in the table definition.  Like L</set_column>, this will
+not store the data until L</insert> or L</update> is called on the row.
 
 =head2 insert
 
@@ -824,7 +874,7 @@ the column is marked as dirty for when you next call L</update>.
 If passed an object or reference as a value, this method will happily
 attempt to store it, and a later L</insert> or L</update> will try and
 stringify/numify as appropriate. To set an object to be deflated
-instead, see L</set_inflated_columns>.
+instead, see L</set_inflated_columns>, or better yet, use L</$column_accessor>.
 
 =cut
 
@@ -1390,7 +1440,7 @@ sub get_from_storage {
     return $resultset->find($self->_storage_ident_condition);
 }
 
-=head2 discard_changes ($attrs?)
+=head2 discard_changes
 
   $row->discard_changes
 
