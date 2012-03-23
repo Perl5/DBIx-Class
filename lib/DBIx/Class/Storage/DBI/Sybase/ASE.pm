@@ -118,6 +118,17 @@ EOF
 
 sub _init {
   my $self = shift;
+
+  $self->next::method(@_);
+
+  if ($self->_using_freetds && (my $ver = $self->_using_freetds_version||999) > 0.82) {
+    carp_once(
+      "Buggy FreeTDS version $ver detected, statement caching will not work and"
+    . 'will be disabled.'
+    );
+    $self->disable_sth_caching(1);
+  }
+
   $self->_set_max_connect(256);
 
 # create storage for insert/(update blob) transactions,

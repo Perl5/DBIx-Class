@@ -33,7 +33,10 @@ Revision history for DBIx::Class
           or later - they made enough ODBC incompatible changes making it
           impossible to support sanely
         - Explicitly disable SCOPE_IDENTITY queries and statement caching for
-          DBD::Sybase compiled against freetds 0.83 or later - way too buggy
+          MSSQL on DBD::Sybase compiled against freetds 0.83 or later - way too
+          buggy
+        - Disable statement caching when using Sybase ASE and DBD::Sybase
+          compiled against freetds 0.83 or later
         - Fix leakage of $schema on in-memory new_related() calls
         - Fix more cases of $schema leakage in SQLT::Parser::DBIC
         - Fix leakage of $storage in ::Storage::DBI::Oracle
