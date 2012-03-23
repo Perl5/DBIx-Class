@@ -26,8 +26,9 @@ Revision history for DBIx::Class
         - Improve identity/autoinc retrieval code in MSSQL and Sybase -
           should reduce weird side-effects especially with populate()
         - Explicitly disable DBD::ODBC batch operations (as of DBD::ODBC 1.35)
-          when using freetds - the freetds driver is just too buggy to handle
-          the optimized path
+          for the following drivers too buggy to handle the optimized path:
+          - FreeTDS ODBC driver (when used with MSSQL)
+          - The Firebird ODBC driver
         - Explicitly disable DBD::ODBC dynamic_cursors when using freetds 0.83
           or later - they made enough ODBC incompatible changes making it
           impossible to support sanely
