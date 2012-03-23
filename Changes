@@ -53,6 +53,8 @@ Revision history for DBIx::Class
         - Cleanup of complex resultset update/delete oprations - storage
           specific code moved back to ResultSet and replaced by checks
           of storage capabilities
+        - Fixed carp_once only emitting one single warning per package
+          regardless of warning content
 
 0.08196 2011-11-29 05:35 (UTC)
     * Fixes

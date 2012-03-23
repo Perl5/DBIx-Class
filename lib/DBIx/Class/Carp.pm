@@ -81,10 +81,10 @@ sub import {
     );
   };
 
-  my $fired;
+  my $fired = {};
   *{"${into}::carp_once"} = sub {
-    return if $fired;
-    $fired = 1;
+    return if $fired->{$_[0]};
+    $fired->{$_[0]} = 1;
 
     $warn->(
       __find_caller($skip_pattern, $into),
