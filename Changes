@@ -29,6 +29,7 @@ Revision history for DBIx::Class
           for the following drivers too buggy to handle the optimized path:
           - FreeTDS ODBC driver (when used with MSSQL)
           - The Firebird ODBC driver
+          - The MSAccess ODBC driver
         - Explicitly disable DBD::ODBC dynamic_cursors when using freetds 0.83
           or later - they made enough ODBC incompatible changes making it
           impossible to support sanely
