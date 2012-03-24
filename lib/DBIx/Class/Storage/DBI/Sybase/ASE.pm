@@ -123,7 +123,7 @@ sub _init {
 
   if ($self->_using_freetds && (my $ver = $self->_using_freetds_version||999) > 0.82) {
     carp_once(
-      "Buggy FreeTDS version $ver detected, statement caching will not work and"
+      "Buggy FreeTDS version $ver detected, statement caching will not work and "
     . 'will be disabled.'
     );
     $self->disable_sth_caching(1);
