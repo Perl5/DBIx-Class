@@ -170,6 +170,20 @@ sub sqlt_type { 'SQLServer' }
 sub sql_limit_dialect {
   my $self = shift;
 
+  my $supports_ofn = $self->_sql_server_2012_or_higher;
+
+  unless (defined $supports_ofn) {
+    # User is connecting via DBD::Sybase and has no permission to run
+    # stored procedures like xp_msver, or version detection failed for some
+    # other reason.
+    # So, we use a query to check if OFN is implemented.
+    try {
+      $self->_get_dbh->selectrow_array('SELECT 1 ORDER BY 1 OFFSET 0 ROWS');
+      $supports_ofn = 1;
+    };
+  }
+  return 'OffsetFetchNext' if $supports_ofn;
+
   my $supports_rno = $self->_sql_server_2005_or_higher;
 
   unless (defined $supports_rno) {
@@ -182,8 +196,9 @@ sub sql_limit_dialect {
       $supports_rno = 1;
     };
   }
+  return 'RowNumberOver' if $supports_rno;
 
-  return $supports_rno ? 'RowNumberOver' : 'Top';
+  return 'Top';
 }
 
 sub _ping {

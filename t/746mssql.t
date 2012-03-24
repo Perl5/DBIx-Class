@@ -232,6 +232,10 @@ SQL
         ? ('RowNumberOver')
         : ()
       ,
+      ($schema->storage->_server_info->{normalized_dbms_version} || 0 ) >= 11
+        ? ('OffsetFetchNext')
+        : ()
+      ,
     ) {
       for my $quoted (0, 1) {
 
