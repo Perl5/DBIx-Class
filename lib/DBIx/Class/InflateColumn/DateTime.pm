@@ -175,14 +175,14 @@ sub register_column {
           my $dt = $obj->_inflate_to_datetime( $value, $infcopy );
 
           return (defined $dt)
-            ? $obj->_post_inflate_datetime( $dt, $infcopy )
+            ? $obj->post_inflate_datetime( $dt, $infcopy )
             : undef
           ;
         },
         deflate => sub {
           my ($value, $obj) = @_;
 
-          $value = $obj->_pre_deflate_datetime( $value, $infcopy );
+          $value = $obj->pre_deflate_datetime( $value, $infcopy );
           $obj->_deflate_from_datetime( $value, $infcopy );
         },
       }
@@ -224,14 +224,29 @@ sub _datetime_parser {
 sub _post_inflate_datetime {
   my( $self, $dt, $info ) = @_;
 
+  if ((caller(0))[3] ne 'post_inflate_datetime') {
+    carp "Method _post_inflate_datetime is deprecated and should not be used."
+      . " Please use post_inflate_datetime method instead.";
+  }
+
   $dt->set_time_zone($info->{timezone}) if defined $info->{timezone};
   $dt->set_locale($info->{locale}) if defined $info->{locale};
 
   return $dt;
 }
 
+sub post_inflate_datetime {
+  my ($self, @args) = @_;
+  return $self->_post_inflate_datetime(@args);
+}
+
 sub _pre_deflate_datetime {
   my( $self, $dt, $info ) = @_;
+
+  if ((caller(0))[3] ne 'pre_deflate_datetime') {
+    carp "Method _pre_deflate_datetime is deprecated and should not be used."
+      . " Please use pre_deflate_datetime method instead.";
+  }
 
   if (defined $info->{timezone}) {
     carp "You're using a floating timezone, please see the documentation of"
@@ -248,8 +263,66 @@ sub _pre_deflate_datetime {
   return $dt;
 }
 
+sub pre_deflate_datetime {
+  my ($self, @args) = @_;
+  return $self->_pre_deflate_datetime(@args);
+}
+
 1;
 __END__
+
+=head1 DYNAMIC TIME ZONE AND LOCALE SETTING
+
+If you do not want to hard code time zone information into each column
+definition, you can set it globally via method overloading.
+
+There are two methods that get called during the inflation/deflation process:
+
+=head2 post_inflate_datetime($datetime, $column_info)
+
+This method is called after the column has been inflated into a L<DateTime>
+object. The first argument is the DateTime object, and the second argument
+is the column definition passed to L<DBIx::Class::Row/register_column> method.
+
+=head2 pre_deflate_datetime($datetime, $column_info)
+
+This method is called before the DateTime object is deflated into a string
+format. The first argument is the DateTime object, and the second argument
+is the column definition passed to L<DBIx::Class::Row/register_column> method.
+
+=head3 Example
+
+  sub post_inflate_datetime {
+    my ($self, $datetime, $column_info) = @_;
+
+    $column_info->{timezone} = 'UTC';
+    $column_info->{locale}   = 'en_CA';
+
+    return $self->next::method($dt, $info);
+  }
+
+=head3 Advanced Example
+
+In your Schema class:
+
+  package MyApp::Schema;
+  use base qw/DBIx::Class::Schema/;
+  __PACKAGE__->mk_group_accessors(inherited => qw/time_zone/);
+  __PACKAGE__->time_zone('UTC'); ## sets default to UTC
+  
+In your Result class:
+
+  sub post_inflate_datetime {
+    my ($self, $datetime, $column_info) = @_;
+    $column_info->{timezone} = $self->result_source->schema->time_zone;
+    return $self->next::method($dt, $info);
+  }
+  
+In your application code:
+
+  use MyApp::Schema;
+  my $schema = MyApp::Schema->connect();
+  $schema->time_zone('America/Toronto'); ## set time zone dynamically
 
 =head1 USAGE NOTES
 

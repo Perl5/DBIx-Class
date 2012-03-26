@@ -60,6 +60,14 @@ CREATE TABLE event (
 );
 
 --
+-- Table: event_pre_post_inflate
+--
+CREATE TABLE event_pre_post_inflate (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL
+);
+
+--
 -- Table: fourkeys
 --
 CREATE TABLE fourkeys (
