@@ -186,10 +186,9 @@ sub do_clean {
 }
 
 END {
-  for ($dbh) {
-    next unless $_;
+  if ($dbh) {
     local $SIG{__WARN__} = sub {};
-    do_clean($_);
-    $_->disconnect;
+    do_clean($dbh);
+    undef $dbh;
   }
 }

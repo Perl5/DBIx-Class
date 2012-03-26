@@ -76,8 +76,23 @@ sub clone {
 
 sub connection {
   my $self = shift->next::method(@_);
-  populate_weakregistry ( $weak_registry, $self->storage )
-    if $INC{'Test/Builder.pm'};
+
+  if ($INC{'Test/Builder.pm'}) {
+    populate_weakregistry ( $weak_registry, $self->storage );
+
+    my $cur_connect_call = $self->storage->on_connect_call;
+
+    $self->storage->on_connect_call([
+      (ref $cur_connect_call eq 'ARRAY'
+        ? @$cur_connect_call
+        : ($cur_connect_call || ())
+      ),
+      [sub {
+        populate_weakregistry( $weak_registry, shift->_dbh )
+      }],
+    ]);
+  }
+
   $self;
 }
 

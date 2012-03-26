@@ -24,9 +24,9 @@ sub stacktrace {
   return join "\tinvoked as ", map { sprintf ("%s at %s line %d\n", @$_ ) } @stack;
 }
 
+my $refs_traced = 0;
 sub populate_weakregistry {
   my ($reg, $target, $slot) = @_;
-
 
   croak 'Target is not a reference' unless defined ref $target;
 
@@ -36,8 +36,17 @@ sub populate_weakregistry {
     refaddr $target,
   );
 
-  weaken( $reg->{$slot}{weakref} = $target );
-  $reg->{$slot}{stacktrace} = stacktrace(1);
+  if (defined $reg->{$slot}{weakref}) {
+    if ( refaddr($reg->{$slot}{weakref}) != (refaddr $target) ) {
+      print STDERR "Bail out! Weak Registry slot collision: $reg->{$slot}{weakref} / $target\n";
+      exit 255;
+    }
+  }
+  else {
+    $refs_traced++;
+    weaken( $reg->{$slot}{weakref} = $target );
+    $reg->{$slot}{stacktrace} = stacktrace(1);
+  }
 
   $target;
 }
@@ -81,13 +90,22 @@ sub assert_empty_weakregistry {
 }
 
 END {
-  if ($leaks_found) {
+  if ($INC{'Test/Builder.pm'}) {
     my $tb = Test::Builder->new;
-    $tb->diag(sprintf
-      "\n\n%s\n%s\n\nInstall Devel::FindRef and re-run the test with set "
-    . '$ENV{TEST_VERBOSE} (prove -v) to see a more detailed leak-report'
-    . "\n\n%s\n%s\n\n", ('#' x 16) x 4
-    ) if (!$tb->is_passing and (!$ENV{TEST_VERBOSE} or !$INC{'Devel/FindRef.pm'}));
+
+    # we check for test passage - a leak may be a part of a TODO
+    if ($leaks_found and !$tb->is_passing) {
+
+      $tb->diag(sprintf
+        "\n\n%s\n%s\n\nInstall Devel::FindRef and re-run the test with set "
+      . '$ENV{TEST_VERBOSE} (prove -v) to see a more detailed leak-report'
+      . "\n\n%s\n%s\n\n", ('#' x 16) x 4
+      ) if ( !$ENV{TEST_VERBOSE} or !$INC{'Devel/FindRef.pm'} );
+
+    }
+    else {
+      $tb->note("Auto checked $refs_traced references for leaks - none detected");
+    }
   }
 }
 

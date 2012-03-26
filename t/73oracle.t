@@ -679,6 +679,7 @@ END {
     next unless $_;
     local $SIG{__WARN__} = sub {};
     do_clean($_);
-    $_->disconnect;
   }
+  undef $dbh;
+  undef $dbh2;
 }
