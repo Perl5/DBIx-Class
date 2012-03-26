@@ -224,7 +224,7 @@ sub _datetime_parser {
 sub _post_inflate_datetime {
   my( $self, $dt, $info ) = @_;
 
-  if ((caller(0))[3] ne 'post_inflate_datetime') {
+  if ((split(/::/, (caller(1))[3]))[-1] ne 'post_inflate_datetime') {
     carp "Method _post_inflate_datetime is deprecated and should not be used."
       . " Please use post_inflate_datetime method instead.";
   }
@@ -243,7 +243,7 @@ sub post_inflate_datetime {
 sub _pre_deflate_datetime {
   my( $self, $dt, $info ) = @_;
 
-  if ((caller(0))[3] ne 'pre_deflate_datetime') {
+  if ((split(/::/, (caller(1))[3]))[-1] ne 'pre_deflate_datetime') {
     carp "Method _pre_deflate_datetime is deprecated and should not be used."
       . " Please use pre_deflate_datetime method instead.";
   }
