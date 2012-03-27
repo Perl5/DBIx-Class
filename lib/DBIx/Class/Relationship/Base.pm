@@ -428,7 +428,7 @@ $rel_name.
   $rs = $cd->related_resultset('tracks');           # has_many relationship
   $rs = $cd->tracks;
 
-This is the recommended way to transverse through relationships, based
+This is the recommended way to traverse through relationships, based
 on the L</accessor> name given in the relationship definition.
 
 This will return either a L<Result|DBIx::Class::Manual::ResultClass> or a

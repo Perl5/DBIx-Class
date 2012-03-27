@@ -301,9 +301,12 @@ sub new {
 A column accessor method is created for each column, which is used for
 getting/setting the value for that column.
 
-The actual method name is based on the L<accessor|DBIx::Class::ResultSource/accessor>
-name given in the table definition.  Like L</set_column>, this will
-not store the data until L</insert> or L</update> is called on the row.
+The actual method name is based on the
+L<accessor|DBIx::Class::ResultSource/accessor> name given during the
+L<Result Class|DBIx::Class::Manual::ResultClass> L<column definition
+|DBIx::Class::ResultSource/add_columns>. Like L</set_column>, this
+will not store the data in the database until L</insert> or L</update>
+is called on the row.
 
 =head2 insert
 
