@@ -351,7 +351,7 @@ C<count> on the resultset will only return the total number in the page.
 =item .. insert a row with an auto incrementing primary key?
 
 This happens automatically. After
-L<creating|DBIx::Class::ResultSet/create> a row object, the primary
+L<creating|DBIx::Class::ResultSet/create> a result object, the primary
 key value created by your database can be fetched by calling C<id> (or
 the access of your primary key column) on the object.
 
@@ -536,7 +536,7 @@ L<DBIx::Class> runs the actual SQL statement as late as possible, thus
 if you create a resultset using C<search> in scalar context, no query
 is executed. You can create further resultset refinements by calling
 search again or relationship accessors. The SQL query is only run when
-you ask the resultset for an actual row object.
+you ask the resultset for an actual result object.
 
 =item How do I deal with tables that lack a primary key?
 
@@ -556,7 +556,7 @@ Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
 =item How do I reduce the overhead of database queries?
 
 You can reduce the overhead of object creation within L<DBIx::Class>
-using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results">
+using the tips in L<DBIx::Class::Manual::Cookbook/"Skip result object creation for faster results">
 and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 
 =item How do I override a run time method (e.g. a relationship accessor)?

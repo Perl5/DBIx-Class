@@ -48,6 +48,9 @@ The core modules currently are:
 
 =back
 
+A better overview of the methods found in a Result class can be found
+in L<DBIx::Class::Manual::ResultClass>.
+
 =head1 AUTHOR AND CONTRIBUTORS
 
 See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class

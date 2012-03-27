@@ -2334,7 +2334,7 @@ sub _select_args {
 ###
   # This would be the point to deflate anything found in $where
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
-  # expect a row object. And all we have is a resultsource (it is trivial
+  # expect a result object. And all we have is a resultsource (it is trivial
   # to extract deflator coderefs via $alias2source above).
   #
   # I don't see a way forward other than changing the way deflators are
@@ -2641,7 +2641,7 @@ sub is_datatype_numeric {
 
 =over 4
 
-=item Arguments: $schema \@databases, $version, $directory, $preversion, \%sqlt_args
+=item Arguments: $schema, \@databases, $version, $directory, $preversion, \%sqlt_args
 
 =back
 
@@ -2990,6 +2990,8 @@ sub lag_behind_master {
 =over 4
 
 =item Arguments: $relname, $join_count
+
+=item Return Value: $alias
 
 =back
 

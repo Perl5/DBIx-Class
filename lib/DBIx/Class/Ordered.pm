@@ -275,7 +275,7 @@ sub last_sibling {
     return defined $lsib ? $lsib : 0;
 }
 
-# an optimized method to get the last sibling position value without inflating a row object
+# an optimized method to get the last sibling position value without inflating a result object
 sub _last_sibling_posval {
     my $self = shift;
     my $position_column = $self->position_column;

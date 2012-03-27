@@ -67,7 +67,7 @@ The important thing to understand:
 =head2 Search results are returned as Rows
 
 Rows of the search from the database are blessed into
-L<DBIx::Class::Row> objects.
+L<Result|DBIx::Class::Manual::ResultClass> objects.
 
 =head1 SETTING UP DBIx::Class
 

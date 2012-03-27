@@ -298,7 +298,7 @@ sub create_upgrade_path {
 
 =over 4
 
-=item Returns: a list of version numbers, ordered from lowest to highest
+=item Return Value: a list of version numbers, ordered from lowest to highest
 
 =back
 

@@ -717,9 +717,9 @@ SQL statements:
 
 =head1 ROW-LEVEL OPERATIONS
 
-=head2 Retrieving a row object's Schema
+=head2 Retrieving a result object's Schema
 
-It is possible to get a Schema object from a row object like so:
+It is possible to get a Schema object from a result object like so:
 
   my $schema = $cd->result_source->schema;
   # use the schema as normal:
@@ -964,7 +964,7 @@ B<Test File> test.pl
 Alternatively you can use L<DBIx::Class::DynamicSubclass> that implements
 exactly the above functionality.
 
-=head2 Skip row object creation for faster results
+=head2 Skip result object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
@@ -1063,7 +1063,7 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Creating a result set from a set of rows
 
-Sometimes you have a (set of) row objects that you want to put into a
+Sometimes you have a (set of) result objects that you want to put into a
 resultset without the need to hit the DB again. You can do that by using the
 L<set_cache|DBIx::Class::Resultset/set_cache> method:
 
@@ -2162,8 +2162,8 @@ L</Using joins and prefetch>.
 =item *
 
 Use L<populate|DBIx::Class::ResultSet/populate> in void context to insert data
-when you don't need the resulting L<DBIx::Class::Row> objects, if possible, but
-see the caveats.
+when you don't need the resulting L<result|DBIx::Class::Manual::ResultClass> objects,
+if possible, but see the caveats.
 
 When inserting many rows, for best results, populate a large number of rows at a
 time, but not so large that the table is locked for an unacceptably long time.
