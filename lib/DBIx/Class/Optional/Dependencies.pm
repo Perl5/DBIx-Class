@@ -107,7 +107,10 @@ my $rdbms_firebird_odbc = {
 
 my $reqs = {
   dist => {
-    #'Module::Install::Pod::Inherit' => '0.01',
+    req => {
+      'Pod::Inherit' => '0.16',
+      'Pod::Tree'    => '0',
+  },
   },
 
   replicated => {
@@ -713,7 +716,7 @@ sub _gen_pod {
 "\n\n---------------------------------------------------------------------\n"
   ;
 
-  # do not ask for a recet version, use 1.x API calls
+  # do not ask for a recent version, use 1.x API calls
   # this *may* execute on a smoker with old perl or whatnot
   require File::Path;
 
