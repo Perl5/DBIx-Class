@@ -322,7 +322,7 @@ it isn't already in there. Returns the object itself. To insert an
 entirely new row into the database, use L<DBIx::Class::ResultSet/create>.
 
 To fetch an uninserted result object, call
-L<new|DBIx::Class::ResultSet/new> on a resultset.
+L<new_result|DBIx::Class::ResultSet/new_result> on a resultset.
 
 This will also insert any uninserted, related objects held inside this
 one, see L<DBIx::Class::ResultSet/create> for more details.
@@ -475,8 +475,8 @@ not. This is set to true when L<DBIx::Class::ResultSet/find>,
 L<DBIx::Class::ResultSet/create> or L<DBIx::Class::ResultSet/insert>
 are used.
 
-Creating a result object using L<DBIx::Class::ResultSet/new>, or calling
-L</delete> on one, sets it to false.
+Creating a result object using L<DBIx::Class::ResultSet/new_result>, or
+calling L</delete> on one, sets it to false.
 
 =cut
 

@@ -845,7 +845,7 @@ sub update_from_related {
 
 =item Arguments: $rel_name, $cond?, L<\%attrs?|DBIx::Class::ResultSet/ATTRIBUTES>
 
-=item Return Value: $storage_rv
+=item Return Value: $underlying_storage_rv
 
 =back
 
