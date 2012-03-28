@@ -115,6 +115,10 @@ EOW
         "{$set_meth} needs a list of objects or hashrefs"
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
+      ref $_[0] eq 'ARRAY' or warn 
+        "Calling $set_meth with a list of objects is deprecated"
+      . " - please use an arrayref instead.";
+      
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
       if ($rel_attrs && $rel_attrs->{where}) {
