@@ -717,7 +717,9 @@ sub _subqueried_limit_attrs {
       ,
     };
 
-    $in_sel_index->{$sql_sel}++;
+    # anything with a placeholder in it needs re-selection
+    $in_sel_index->{$sql_sel}++ unless $sql_sel =~ / (?: ^ | \W ) \? (?: \W | $ ) /x;
+
     $in_sel_index->{$self->_quote ($sql_alias)}++ if $sql_alias;
 
     # record unqualified versions too, so we do not have
