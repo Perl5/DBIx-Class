@@ -566,6 +566,7 @@ sub _GenericSubQ {
 
   my ($first_order_by) = do {
     local $self->{quote_char};
+    local $self->{order_bind};
     map { ref $_ ? $_->[0] : $_ } $self->_order_by_chunks ($rs_attrs->{order_by})
   } or $self->throw_exception (
     'Generic Subquery Limit does not work on resultsets without an order. Provide a single, '
@@ -588,12 +589,21 @@ sub _GenericSubQ {
     "Generic Subquery Limit first order criteria '$first_ord_col' must be unique"
   ) unless $root_rsrc->_identifying_column_set([$first_ord_col]);
 
-  my $sq_attrs = $self->_subqueried_limit_attrs ($sql, $rs_attrs);
+  my $sq_attrs = do {
+    # perform the mangling only using the very first order crietria
+    # (the one we care about)
+    local $rs_attrs->{order_by} = $first_order_by;
+    $self->_subqueried_limit_attrs ($sql, $rs_attrs);
+  };
 
   my $cmp_op = $direction eq 'desc' ? '>' : '<';
   my $count_tbl_alias = 'rownum__emulation';
 
-  my $order_sql = $self->_order_by (delete $rs_attrs->{order_by});
+  my ($order_sql, @order_bind) = do {
+    local $self->{order_bind};
+    my $s = $self->_order_by (delete $rs_attrs->{order_by});
+    ($s, @{$self->{order_bind}});
+  };
   my $group_having_sql = $self->_parse_rs_attrs($rs_attrs);
 
   my $in_sel = $sq_attrs->{selection_inner};
@@ -617,6 +627,11 @@ sub _GenericSubQ {
       [ $self->__rows_bindtype => $rows ]
     ;
   }
+
+  # even though binds in order_by make no sense here (the rs needs to be
+  # ordered by a unique column first) - pass whatever there may be through
+  # anyway
+  push @{$self->{limit_bind}}, @order_bind;
 
   return sprintf ("
 SELECT $sq_attrs->{selection_outer}
