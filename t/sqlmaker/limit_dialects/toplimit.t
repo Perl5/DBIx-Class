@@ -231,11 +231,10 @@ my $rs_selectas_top = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind( $rs_selectas_top->search({})->as_query,
                   '(SELECT
                       TOP 1 me.id, me.source, me.owner, me.title, me.price,
-                      owner.name AS owner_name
+                      owner.name
                     FROM books me
                     JOIN owners owner ON owner.id = me.owner
                     WHERE ( source = ? )
-                    ORDER BY me.id
                   )',
                   [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
                     => 'Library' ] ],
@@ -265,7 +264,7 @@ my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search( { -exists =>
 
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
-  '(SELECT TOP 1 me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )   ORDER BY me.id)',
+  '(SELECT TOP 1 me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) ) )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
   ],

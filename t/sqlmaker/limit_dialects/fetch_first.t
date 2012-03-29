@@ -191,12 +191,10 @@ my $rs_selectas_top = $schema->resultset ('BooksInLibrary')->search ({}, {
 
 is_same_sql_bind( $rs_selectas_top->search({})->as_query,
                   '(SELECT
-                      me.id, me.source, me.owner, me.title, me.price,
-                      owner.name AS owner_name
+                      me.id, me.source, me.owner, me.title, me.price, owner.name
                     FROM books me
                     JOIN owners owner ON owner.id = me.owner
                     WHERE ( source = ? )
-                    ORDER BY me.id
                     FETCH FIRST 1 ROWS ONLY
                    )',
                   [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
