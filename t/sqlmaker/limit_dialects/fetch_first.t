@@ -141,7 +141,6 @@ for my $ord_set (
           FETCH FIRST 2 ROWS ONLY
         ) me
       ORDER BY $ord_set->{order_req}
-      FETCH FIRST 2 ROWS ONLY
     )",
     [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
         => 'Library' ] ],
@@ -169,7 +168,6 @@ is_same_sql_bind (
             FETCH FIRST 2 ROWS ONLY
           ) me
         ORDER BY ORDER__BY__1
-        FETCH FIRST 2 ROWS ONLY
       ) me
       JOIN owners owner ON owner.id = me.owner
     WHERE ( source = ? )

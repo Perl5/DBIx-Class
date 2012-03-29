@@ -445,8 +445,7 @@ sub _Top {
     $lim->{order_by_middle},
   ) if $offset;
 
-  $sql = sprintf ('SELECT TOP %u %s FROM ( %s ) %s %s',
-    $rows,
+  $sql = sprintf ('SELECT %s FROM ( %s ) %s %s',
     $lim->{selection_outer},
     $sql,
     $lim->{quoted_rs_alias},
@@ -502,12 +501,11 @@ sub _FetchFirst {
   ) if $offset;
 
 
-  $sql = sprintf ('SELECT %s FROM ( %s ) %s %s FETCH FIRST %u ROWS ONLY',
+  $sql = sprintf ('SELECT %s FROM ( %s ) %s %s',
     $lim->{selection_outer},
     $sql,
     $lim->{quoted_rs_alias},
     $lim->{order_by_requested},
-    $rows,
   ) if $offset and (
     $lim->{order_by_requested} or $lim->{selection_middle} ne $lim->{selection_outer}
   );

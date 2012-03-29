@@ -166,8 +166,7 @@ for my $ord_set (
 
   is_same_sql_bind(
     $books_45_and_owners->search ({}, {order_by => $ord_set->{order_by}})->as_query,
-    "(SELECT TOP 2
-          id, source, owner, price, owner__id, owner__name
+    "(SELECT id, source, owner, price, owner__id, owner__name
         FROM (
           SELECT TOP 2
               id, source, owner, price, owner__id, owner__name$o_sel
@@ -193,7 +192,7 @@ is_same_sql_bind (
   $books_45_and_owners->search ({}, { group_by => 'title', order_by => 'title' })->as_query,
   '(SELECT me.id, me.source, me.owner, me.price, owner.id, owner.name
       FROM (
-        SELECT TOP 2 id, source, owner, price, ORDER__BY__1 AS title
+        SELECT id, source, owner, price, ORDER__BY__1 AS title
           FROM (
             SELECT TOP 2
                 id, source, owner, price, ORDER__BY__1
