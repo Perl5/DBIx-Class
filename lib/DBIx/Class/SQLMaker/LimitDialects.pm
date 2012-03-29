@@ -100,7 +100,11 @@ sub _RowNumberOver {
 
   # make up an order if none exists
   my $requested_order = (delete $rs_attrs->{order_by}) || $self->_rno_default_order;
+
+  # the order binds (if any) will need to go at the end of the entire inner select
+  local $self->{order_bind};
   my $rno_ord = $self->_order_by ($requested_order);
+  push @{$self->{select_bind}}, @{$self->{order_bind}};
 
   # this is the order supplement magic
   my $mid_sel = $sq_attrs->{selection_outer};
