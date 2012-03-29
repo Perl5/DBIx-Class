@@ -702,6 +702,7 @@ sub _subqueried_limit_attrs {
     my $sql_alias = (ref $s) eq 'HASH' ? $s->{-as} : undef;
 
     push @sel, {
+      arg => $s,
       sql => $sql_sel,
       unquoted_sql => do {
         local $self->{quote_char};
@@ -749,7 +750,7 @@ sub _subqueried_limit_attrs {
     }
     else {
       push @{$sel->{inner}}, $node->{sql};
-      push @{$sel->{outer}}, $self->_quote ($node->{as});
+      push @{$sel->{outer}}, $self->_quote (ref $node->{arg} ? $node->{as} : $node->{arg});
     }
   }
 

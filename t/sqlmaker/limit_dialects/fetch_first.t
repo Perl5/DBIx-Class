@@ -27,7 +27,7 @@ for my $null_order (
   my $rs = $books_45_and_owners->search ({}, {order_by => $null_order });
   is_same_sql_bind(
       $rs->as_query,
-      '(SELECT id, source, owner, price, owner__id, owner__name
+      '(SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name
           FROM (
             SELECT me.id, me.source, me.owner, me.price, owner.id AS owner__id, owner.name AS owner__name
               FROM books me
@@ -126,9 +126,9 @@ for my $ord_set (
 
   is_same_sql_bind(
     $books_45_and_owners->search ({}, {order_by => $ord_set->{order_by}})->as_query,
-    "(SELECT id, source, owner, price, owner__id, owner__name
+    "(SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name
         FROM (
-          SELECT id, source, owner, price, owner__id, owner__name$o_sel
+          SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name$o_sel
             FROM (
               SELECT me.id, me.source, me.owner, me.price, owner.id AS owner__id, owner.name AS owner__name$i_sel
                 FROM books me
@@ -152,9 +152,9 @@ is_same_sql_bind (
   $books_45_and_owners->search ({}, { group_by => 'title', order_by => 'title' })->as_query,
   '(SELECT me.id, me.source, me.owner, me.price, owner.id, owner.name
       FROM (
-        SELECT id, source, owner, price, ORDER__BY__1 AS title
+        SELECT me.id, me.source, me.owner, me.price, ORDER__BY__1 AS title
           FROM (
-            SELECT id, source, owner, price, ORDER__BY__1
+            SELECT me.id, me.source, me.owner, me.price, ORDER__BY__1
               FROM (
                 SELECT me.id, me.source, me.owner, me.price, title AS ORDER__BY__1
                   FROM books me

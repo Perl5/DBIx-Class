@@ -26,10 +26,10 @@ my $rs_selectas_col = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs_selectas_col->as_query,
   '(
-    SELECT  id, source, owner, title, price,
+    SELECT  me.id, me.source, me.owner, me.title, me.price,
             owner__name
       FROM (
-        SELECT  id, source, owner, title, price,
+        SELECT  me.id, me.source, me.owner, me.title, me.price,
                 owner__name,
                 ROW_NUMBER() OVER( ) AS rno__row__index
           FROM (
@@ -62,10 +62,10 @@ my $rs_selectas_rel = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
   '(
-    SELECT  [id], [source], [owner], [title], [price],
+    SELECT  [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price],
             [owner_name]
       FROM (
-        SELECT  [id], [source], [owner], [title], [price],
+        SELECT  [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price],
                 [owner_name],
                 ROW_NUMBER() OVER( ) AS [rno__row__index]
           FROM (
@@ -198,8 +198,8 @@ my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search( { -exists =>
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
   '(
- SELECT [id], [owner] FROM (
-   SELECT [id], [owner], ROW_NUMBER() OVER(  ) AS [rno__row__index] FROM (
+ SELECT [me].[id], [me].[owner] FROM (
+   SELECT [me].[id], [me].[owner], ROW_NUMBER() OVER(  ) AS [rno__row__index] FROM (
      SELECT [me].[id], [me].[owner]
      FROM [books] [me]
      WHERE ( ( (EXISTS (

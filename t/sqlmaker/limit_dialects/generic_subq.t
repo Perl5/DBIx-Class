@@ -27,7 +27,7 @@ my $rs = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs->as_query,
   '(
-    SELECT  id, source, owner, title, price,
+    SELECT  me.id, me.source, me.owner, me.title, me.price,
             owner_name
       FROM (
         SELECT  me.id, me.source, me.owner, me.title, me.price,
@@ -71,7 +71,7 @@ $rs = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs->as_query,
   '(
-    SELECT  "id", "source", "owner", "title", "price",
+    SELECT  "me"."id", "me"."source", "me"."owner", "me"."title", "me"."price",
             "owner__name"
       FROM (
         SELECT  "me"."id", "me"."source", "me"."owner", "me"."title", "me"."price",

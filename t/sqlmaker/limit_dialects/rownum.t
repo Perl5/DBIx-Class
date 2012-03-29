@@ -244,7 +244,7 @@ my $rs_selectas_rel = $s->resultset('BooksInLibrary')->search( { -exists => $sub
 is_same_sql_bind(
   $rs_selectas_rel->as_query,
   '(
-    SELECT id, owner FROM (
+    SELECT me.id, me.owner FROM (
       SELECT me.id, me.owner  FROM books me WHERE ( ( (EXISTS (SELECT COUNT( * ) FROM owners owner WHERE ( books.owner = owner.id ))) AND source = ? ) )
     ) me
     WHERE ROWNUM <= ?
