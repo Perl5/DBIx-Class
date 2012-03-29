@@ -536,9 +536,9 @@ sub _RowCountOrGenericSubQ {
 
   return $self->_GenericSubQ(@_) if $offset;
 
-  return sprintf <<"EOF", $rows, $sql;
+  return sprintf <<"EOF", $rows, $sql, $self->_parse_rs_attrs( $rs_attrs );
 SET ROWCOUNT %d
-%s
+%s %s
 SET ROWCOUNT 0
 EOF
 }
