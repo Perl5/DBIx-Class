@@ -121,10 +121,10 @@ sub _RowNumberOver {
   }
 
   # and this is order re-alias magic
-  for ($sq_attrs->{order_supplement}, $sq_attrs->{outer_renames}) {
-    for my $col (keys %$_) {
+  for my $map ($sq_attrs->{order_supplement}, $sq_attrs->{outer_renames}) {
+    for my $col (sort { (length $b) <=> (length $a) } keys %{$map||{}} ) {
       my $re_col = quotemeta ($col);
-      $rno_ord =~ s/$re_col/$_->{$col}/;
+      $rno_ord =~ s/$re_col/$map->{$col}/;
     }
   }
 
@@ -398,7 +398,7 @@ sub _prep_for_skimming_limit {
 
     # and this is order re-alias magic
     for my $map ($sq_attrs->{order_supplement}, $sq_attrs->{outer_renames}) {
-      for my $col (sort { $map->{$a} cmp $map->{$b} } keys %{$map||{}}) {
+      for my $col (sort { (length $b) <=> (length $a) } keys %{$map||{}}) {
         my $re_col = quotemeta ($col);
         $_ =~ s/$re_col/$map->{$col}/
           for ($sq_attrs->{order_by_middle}, $sq_attrs->{order_by_requested});
