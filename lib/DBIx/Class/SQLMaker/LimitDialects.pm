@@ -735,11 +735,14 @@ sub _subqueried_limit_attrs {
   # unless we are dealing with the current source alias
   # (which will transcend the subqueries as it is necessary
   # for possible further chaining)
+  # same for anything we do not recognize
   my ($sel, $renamed);
   for my $node (@sel) {
     push @{$sel->{original}}, $node->{sql};
 
     if (
+      ! $in_sel_index->{$node->{sql}}
+        or
       $node->{as} =~ / (?<! ^ $re_alias ) \. /x
         or
       $node->{unquoted_sql} =~ / (?<! ^ $re_alias ) $re_sep /x
