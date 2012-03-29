@@ -89,6 +89,7 @@ SQL
 
 # test primary key handling
   my $new = $schema->resultset('Artist')->create({ name => 'foo' });
+  like $new->artistid, qr/^\d+\z/, 'Auto-PK returned a number';
   ok($new->artistid > 0, "Auto-PK worked");
 
   $seen_id{$new->artistid}++;

@@ -326,7 +326,7 @@ sub _execute {
 
   my ($rv, $sth, @bind) = $self->next::method(@_);
 
-  $self->_identity( ($sth->fetchall_arrayref)[0][0] )
+  $self->_identity( ($sth->fetchall_arrayref)->[0][0] )
     if $self->_perform_autoinc_retrieval;
 
   return wantarray ? ($rv, $sth, @bind) : $rv;
