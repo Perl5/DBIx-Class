@@ -38,7 +38,7 @@ sub _run_connection_actions {
   my $self = shift;
 
   if ($self->_dbh_get_info('SQL_DRIVER_NAME') eq 'OdbcFb') {
-    $self->_get_dbh->{odbc_disable_array_operations} = 1;
+    $self->_disable_odbc_array_ops;
   }
 
   return $self->next::method(@_);

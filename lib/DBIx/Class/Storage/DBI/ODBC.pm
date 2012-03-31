@@ -51,6 +51,18 @@ sub _using_freetds_version {
   return $self->_dbh_get_info('SQL_DRIVER_VER') || 0;
 }
 
+sub _disable_odbc_array_ops {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  if (eval { DBD::ODBC->VERSION('1.35_01') }) {
+    $dbh->{odbc_array_operations} = 0;
+  }
+  elsif (eval { DBD::ODBC->VERSION('1.33_01') }) {
+    $dbh->{odbc_disable_array_operations} = 1;
+  }
+}
+
 1;
 
 =head1 NAME

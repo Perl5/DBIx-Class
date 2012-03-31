@@ -66,7 +66,7 @@ sub _run_connection_actions {
   }
 
   # batch operations do not work
-  $self->_get_dbh->{odbc_disable_array_operations} = 1;
+  $self->_disable_odbc_array_ops;
 
   return $self->next::method(@_);
 }
