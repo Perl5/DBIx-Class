@@ -2712,6 +2712,23 @@ all in the call to C<find_or_create>, even when set to C<undef>.
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
+If you need to know if an existing row was found or a new one created use
+L</find_or_new> and L<DBIx::Class::Row/in_storage> instead. Don't forget
+to call L<DBIx::Class::Row/insert> to save the newly created row to the
+database!
+
+  my $cd = $schema->resultset('CD')->find_or_new({
+    cdid   => 5,
+    artist => 'Massive Attack',
+    title  => 'Mezzanine',
+    year   => 2005,
+  });
+
+  if( $cd->in_storage ) {
+      # do some stuff
+      $cd->insert;
+  }
+
 =cut
 
 sub find_or_create {
@@ -2772,6 +2789,25 @@ all in the call to C<update_or_create>, even when set to C<undef>.
 
 See also L</find> and L</find_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
+
+If you need to know if an existing row was updated or a new one created use
+L</update_or_new> and L<DBIx::Class::Row/in_storage> instead. Don't forget
+to call L<DBIx::Class::Row/insert> to save the newly created row to the
+database!
+
+  my $cd = $schema->resultset('CD')->update_or_new(
+    {
+      artist => 'Massive Attack',
+      title  => 'Mezzanine',
+      year   => 1998,
+    },
+    { key => 'cd_artist_title' }
+  );
+
+  if( $cd->in_storage ) {
+      # do some stuff
+      $cd->insert;
+  }
 
 =cut
 
