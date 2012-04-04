@@ -1035,18 +1035,33 @@ sub clone {
   };
   bless $clone, (ref $self || $self);
 
-  $clone->class_mappings({ %{$clone->class_mappings} });
-  $clone->source_registrations({ %{$clone->source_registrations} });
-  foreach my $moniker ($self->sources) {
-    my $source = $self->source($moniker);
+  $clone->$_(undef) for qw/class_mappings source_registrations storage/;
+
+  $clone->_copy_state_from($self);
+
+  return $clone;
+}
+
+# Needed in Schema::Loader - if you refactor, please make a compatibility shim
+# -- Caelum
+sub _copy_state_from {
+  my ($self, $from) = @_;
+
+  $self->class_mappings({ %{$from->class_mappings} });
+  $self->source_registrations({ %{$from->source_registrations} });
+
+  foreach my $moniker ($from->sources) {
+    my $source = $from->source($moniker);
     my $new = $source->new($source);
     # we use extra here as we want to leave the class_mappings as they are
     # but overwrite the source_registrations entry with the new source
-    $clone->register_extra_source($moniker => $new);
+    $self->register_extra_source($moniker => $new);
   }
-  $clone->storage->set_schema($clone) if $clone->storage;
 
-  return $clone;
+  if ($from->storage) {
+    $self->storage($from->storage);
+    $self->storage->set_schema($self);
+  }
 }
 
 =head2 throw_exception
