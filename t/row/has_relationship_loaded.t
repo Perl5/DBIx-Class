@@ -47,9 +47,10 @@ ok !$row->has_relationship_loaded($_), "vanilla row has no loaded relationship '
 
 # Prefetch of multiple relationships
 {
-  my $prefetched = $rs->search_rs(undef, { prefetch => ['artist', 'tracks'] })->first;
+  my $prefetched = $rs->search_rs(undef, { prefetch => ['artist', 'tracks'] })->find(1);
   ok $prefetched->has_relationship_loaded('artist'), 'first prefetch detected by has_relationship_loaded';
   ok $prefetched->has_relationship_loaded('tracks'), 'second prefetch detected by has_relationship_loaded';
+  ok !$prefetched->tracks->first->has_relationship_loaded('single_cd'), 'nested not prefetched rel detected by has_relationship_loaded';
 }
 
 # Prefetch of nested relationships
@@ -57,6 +58,52 @@ ok !$row->has_relationship_loaded($_), "vanilla row has no loaded relationship '
   my $prefetched = $schema->resultset('Artist')->search_rs(undef, { prefetch => {'cds' => 'tracks'} })->find(1);
   ok $prefetched->has_relationship_loaded('cds'), 'direct prefetch detected by has_relationship_loaded';
   ok $prefetched->cds->first->has_relationship_loaded('tracks'), 'nested prefetch detected by has_relationship_loaded';
+  ok !$prefetched->cds->first->has_relationship_loaded('single_track'), 'nested not prefetched rel detected by has_relationship_loaded';
+}
+
+# Multinew
+{
+  my $cd_with_tracks = $rs->new({
+    artist => 1,
+    title  => 'CD with tracks',
+    year   => 2012,
+    tracks => [
+      {
+        position => 1,
+        title    => 'first track',
+      },
+      {
+        position => 2,
+        title    => 'second track',
+      },
+    ],
+  });
+  ok !$cd_with_tracks->has_relationship_loaded('artist'), 'multinew: not created rel detected by has_relationship_loaded';
+  ok $cd_with_tracks->has_relationship_loaded('tracks'), 'multinew: created rel detected by has_relationship_loaded';
+  # fails because $cd_with_tracks->tracks->first returns undef
+  # ok !$cd_with_tracks->tracks->first->has_relationship_loaded('cd'), 'multinew: nested not created rel detected by has_relationship_loaded';
+}
+
+# Multicreate
+{
+  my $cd_with_tracks = $rs->create({
+    artist => 1,
+    title  => 'CD with tracks',
+    year   => 2012,
+    tracks => [
+      {
+        position => 1,
+        title    => 'first track',
+      },
+      {
+        position => 2,
+        title    => 'second track',
+      },
+    ],
+  });
+  ok !$cd_with_tracks->has_relationship_loaded('artist'), 'multicreate: not created rel detected by has_relationship_loaded';
+  ok $cd_with_tracks->has_relationship_loaded('tracks'), 'multicreate: created rel detected by has_relationship_loaded';
+  ok !$cd_with_tracks->tracks->first->has_relationship_loaded('cd'), 'multicreate: nested not created rel detected by has_relationship_loaded';
 }
 
 done_testing;
