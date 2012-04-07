@@ -128,9 +128,8 @@ sub connect_call_use_mars {
 
   if ($dsn !~ /MARS_Connection=/) {
     if ($self->_using_freetds) {
-      my $v = $self->_using_freetds_version;
-      $self->throw_exception("FreeTDS 0.91 or later required for MARS support, you have $v")
-        if $v < 0.91;
+      $self->throw_exception('FreeTDS does not support MARS at the time of '
+                            .'writing.');
     }
 
     if (exists $self->_server_info->{normalized_dbms_version} &&

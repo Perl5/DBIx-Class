@@ -62,7 +62,7 @@ my %opts = (
     },
   use_server_cursors =>
     { opts => { on_connect_call => 'use_server_cursors' } },
-  NO_OPTION =>
+  plain =>
     { opts => {}, required => 1 },
 );
 
@@ -80,8 +80,9 @@ for my $opts_name (keys %opts) {
       }
       else {
         skip
-"on_connect_call option '$opts_name' not functional in this configuration: $_",
-1;
+          "on_connect_call option '$opts_name' not functional in this configuration: $_",
+          1
+        ;
       }
     };
 
@@ -111,32 +112,40 @@ SQL
       skip 'not a multiple active statements configuration', 1
         if $opts_name eq 'plain';
 
-      my $artist_rs = $schema->resultset('Artist');
+      $schema->storage->ensure_connected;
 
-      $artist_rs->delete;
+      lives_ok {
 
-      $artist_rs->create({ name => "Artist$_" }) for (1..3);
+        no warnings 'redefine';
+        local *DBI::connect = sub { die "NO RECONNECTS!!!" };
 
-      my $forward  = $artist_rs->search({},
-        { order_by => { -asc  => 'artistid' } });
-      my $backward = $artist_rs->search({},
-        { order_by => { -desc => 'artistid' } });
+        my $artist_rs = $schema->resultset('Artist');
 
-      my @map = (
-        [qw/Artist1 Artist3/], [qw/Artist2 Artist2/], [qw/Artist3 Artist1/]
-      );
-      my @result;
+        $artist_rs->delete;
 
-      while (my $forward_row = $forward->next) {
-        my $backward_row = $backward->next;
-        push @result, [$forward_row->name, $backward_row->name];
-      }
+        $artist_rs->create({ name => "Artist$_" }) for (1..3);
 
-      is_deeply \@result, \@map, "multiple active statements in $opts_name";
+        my $forward  = $artist_rs->search({},
+          { order_by => { -asc  => 'artistid' } });
+        my $backward = $artist_rs->search({},
+          { order_by => { -desc => 'artistid' } });
 
-      $artist_rs->delete;
+        my @map = (
+          [qw/Artist1 Artist3/], [qw/Artist2 Artist2/], [qw/Artist3 Artist1/]
+        );
+        my @result;
 
-      is($artist_rs->count, 0, '$dbh still viable');
+        while (my $forward_row = $forward->next) {
+          my $backward_row = $backward->next;
+          push @result, [$forward_row->name, $backward_row->name];
+        }
+
+        is_deeply \@result, \@map, "multiple active statements in $opts_name";
+
+        $artist_rs->delete;
+
+        is($artist_rs->count, 0, '$dbh still viable');
+      } "Multiple active statements survive $opts_name";
     }
 
 # Test populate
