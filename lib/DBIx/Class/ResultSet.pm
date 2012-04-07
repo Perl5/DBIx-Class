@@ -3999,6 +3999,12 @@ to Earth' and a cd with title 'Popular'.
 If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
+ NOTE: An internal join-chain pruner will discard certain joins while
+ constructing the actual SQL query, as long as the joins in question do not
+ affect the retrieved result. This for example includes 1:1 left joins
+ that are not part of the restriction specification (WHERE/HAVING) nor are
+ a part of the query selection.
+
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 =head2 prefetch

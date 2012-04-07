@@ -283,6 +283,8 @@ aherzog: Adam Herzog <adam@herzogdesigns.com>
 
 Alexander Keusch <cpan@keusch.at>
 
+alexrj: Alessandro Ranellucci <aar@cpan.org>
+
 alnewkirk: Al Newkirk <we@ana.im>
 
 amiri: Amiri Barksdale <amiri@metalabel.com>
