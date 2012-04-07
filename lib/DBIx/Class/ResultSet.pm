@@ -4003,6 +4003,9 @@ to Earth' and a cd with title 'Popular'.
 If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
+An internal pruner will prevent joins to be added to the actual SQL query
+if they're not used in the query (as search clauses or selected columns).
+
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 =head2 prefetch
