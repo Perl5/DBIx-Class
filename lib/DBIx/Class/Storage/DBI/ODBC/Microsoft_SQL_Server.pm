@@ -78,6 +78,10 @@ The following options are alternative ways to enable concurrent executing
 statement support. Each has its own advantages and drawbacks and works on
 different platforms. Read each section carefully.
 
+For more details about using MAS in MSSQL over DBD::ODBC see this excellent
+document provided by EasySoft:
+L<http://www.easysoft.com/developer/languages/perl/multiple-active-statements.html>.
+
 In order of preference, they are:
 
 =over 8
