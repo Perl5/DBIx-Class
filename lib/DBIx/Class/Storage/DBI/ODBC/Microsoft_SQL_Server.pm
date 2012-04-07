@@ -211,6 +211,8 @@ sub connect_call_use_dynamic_cursors {
 sub _run_connection_actions {
   my $self = shift;
 
+  $self->next::method (@_);
+
   # keep the dynamic_cursors_support and driver-state in sync
   # on every reconnect
   my $use_dyncursors = ($self->_dbic_connect_attributes->{odbc_cursortype} || 0) > 1;
@@ -238,16 +240,17 @@ sub _run_connection_actions {
 
       $self->_using_dynamic_cursors(1);
       $self->_identity_method('@@identity');
-      $self->_no_scope_identity_query($self->_using_freetds);
     }
     else {
       $self->_using_dynamic_cursors(0);
       $self->_identity_method(undef);
-      $self->_no_scope_identity_query(undef);
     }
   }
 
-  $self->next::method (@_);
+  $self->_no_scope_identity_query($self->_using_dynamic_cursors
+    ? $self->_using_freetds
+    : undef
+  );
 
   # freetds is too damn broken, some fixups
   if ($self->_using_freetds) {
