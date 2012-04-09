@@ -36,6 +36,7 @@ sub is_same_sql_bind {
 
   }
 
+  # adds in $msg on the end
   push @args, shift @_;
 
   croak "Unexpected argument(s) supplied to is_same_sql_bind: " . join ('; ', @_)

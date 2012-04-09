@@ -5,6 +5,9 @@ use strict;
 use warnings;
 use base 'DBIx::Class::SQLMaker';
 
+# a & b & c & d concatenation style
+sub _concat { join(' & ', @{$_[1]}); }
+
 # inner joins must be prefixed with 'INNER '
 sub new {
   my $class = shift;

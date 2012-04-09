@@ -1,4 +1,9 @@
 Revision history for DBIx::Class
+        - Add new -concat "function" indicating rhs is an arrayref of
+          an concatenation operator/function, normalized to the storage
+          platform used.  For example:
+          { col => { -concat => ['snum', \"' '", 'street'] } }
+
 
     * Fixes
         - When performing resultset update/delete only strip condition

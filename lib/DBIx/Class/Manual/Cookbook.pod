@@ -253,6 +253,23 @@ any of your aliases using either of these:
 
 See also L</Using SQL functions on the left hand side of a comparison>.
 
+=head2 Concatenating multiple columns (safely)
+
+Instead of using a storage-specific CONCAT or || operator inside
+the SQL, you can use C<-concat>:
+
+  my $rs = $schema->resultset('People')->search(
+    {},
+    {
+      select => { -concat => [ 'first_name', \"' '", 'last_name' ] },
+      as     => [qw/full_name/],
+    }
+  );
+
+  # Equivalent SQL:
+  # SELECT first_name || ' ' || last_name
+  # FROM people
+
 =head2 SELECT DISTINCT with multiple columns
 
   my $rs = $schema->resultset('Artist')->search(

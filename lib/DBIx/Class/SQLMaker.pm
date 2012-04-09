@@ -97,6 +97,98 @@ sub _quote {
   );
 }
 
+sub _concat {
+   #my ($self, $op, $strs) = @_;
+   # This varies wildly between RDBMS, so we're just going to take a
+   # stab at a sane default of SQL-99:
+   join(' || ', @{$_[2]});
+}
+
+sub new {
+  my $self = shift->next::method(@_);
+
+  # use the same coderefs, they are prepared to handle both cases
+  my @extra_dbic_syntax = (
+    { regex => qr/^ concat    $/xi, handler => '_where_op_CONCAT'    },
+    { regex => qr/^ concat_ws $/xi, handler => '_where_op_CONCAT_WS' },
+  );
+
+  push @{$self->{special_ops}}, @extra_dbic_syntax;
+  push @{$self->{unary_ops}},   @extra_dbic_syntax;
+
+  $self;
+}
+
+sub _where_op_standard_refkind_chunks {
+  my ($self, $lhs) = (shift, shift);
+
+  my @pairs;  # let's not clobber the original structure
+  foreach my $val (@_) {
+    push( @pairs, [ $self->_SWITCH_refkind($val, {
+      SCALAR      => sub {
+        return ( $self->_convert('?'), $self->_bindtype($lhs, $val) );
+      },
+      SCALARREF   => sub {
+        return $$val;
+      },
+      ARRAYREFREF => sub {
+        my ($sql, @bind) = @$$val;
+        $self->_assert_bindval_matches_bindtype(@bind);
+        return ($sql, @bind);
+      },
+      ARRAYREF   => sub {
+        return ( $self->_recurse_where('?'), $self->_bindtype($lhs, $val) );
+      },
+      HASHREF     => sub {
+        my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+        return $self->$method('', $val);
+      },
+      UNDEF       => sub {
+        return $self->_sqlcase('null');
+      },
+    }) ] );  # [ $sql, @bind ] pairs
+  }
+
+  return @pairs;
+}
+
+sub _where_op_CONCAT {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+  $self->throw_exception("-$op takes an arrayref argument") unless (ref $rhs eq 'ARRAY');
+
+  # in case we are called as a top level special op (no '=')
+  my $lhs = shift;
+  $lhs = $lhs && $self->_convert($self->_quote($lhs));
+
+  #use Data::Dumper;
+  #print Data::Dumper->new([$self, $lhs, $op, $rhs], [qw(self lhs op rhs)])->Maxdepth(5)->Dump();
+
+  my @pairs = $self->_where_op_standard_refkind_chunks($lhs, @$rhs);
+  my @bind  = map { $_->[1] } grep { @$_ > 1 } @pairs;
+  my @sql   = map { $_->[0] }                  @pairs;  # done with indiv binds; strip them out
+  $rhs = $self->_concat($op, \@sql);
+
+  return (
+    $lhs ? "$lhs = $rhs" : $rhs,
+    @bind
+  );
+}
+
+sub _where_op_CONCAT_WS {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+  $self->throw_exception("-$op takes an arrayref argument") unless (ref $rhs eq 'ARRAY');
+
+  # this ends up being array sugar
+  my @new = @$rhs;  # let's not clobber the original structure
+  my $sep = shift @new;
+  @new = map { ($_, $sep) } @new;
+  pop @new;  # remove trailing separator
+
+  return $self->_where_op_CONCAT(@_, $op, \@new);  # @_ = $lhs or empty
+}
+
 sub _where_op_NEST {
   carp_unique ("-nest in search conditions is deprecated, you most probably wanted:\n"
       .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
@@ -216,13 +308,20 @@ sub insert {
 }
 
 sub _recurse_fields {
-  my ($self, $fields) = @_;
+  my ($self, $fields, $depth) = @_;
+  $depth ||= 0;
   my $ref = ref $fields;
   return $self->_quote($fields) unless $ref;
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+    return join(', ', map { $self->_recurse_fields($_, $depth + 1) } @$fields)
+      if $depth != 1;
+
+    my ($sql, @bind) = $self->_recurse_where({@$fields});
+
+    push @{$self->{select_bind}}, @bind;
+    return $sql;
   }
   elsif ($ref eq 'HASH') {
     my %hash = %$fields;  # shallow copy
@@ -246,15 +345,12 @@ sub _recurse_fields {
 
     my $select = sprintf ('%s( %s )%s',
       $self->_sqlcase($func),
-      $self->_recurse_fields($args),
-      $as
-        ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
-        : ''
+      $self->_recurse_fields($args, $depth + 1),
+      $as ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) ) : ''
     );
 
     return $select;
   }
-  # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
     push @{$self->{select_bind}}, @{$$fields}[1..$#$$fields];
     return $$fields->[0];
@@ -450,6 +546,25 @@ sub _join_condition {
 }
 
 1;
+
+=head1 OPERATORS
+
+=head2 -concat
+
+A normalized form of the CONCAT function. Takes an arrayref of values (or
+columns, other functions, literals, etc.) and concatenates the arguments
+based on the appropriate function or operator of the storage engine:
+
+    my %where = (
+        street_address => { -concat => ['snum', \"' '", 'street'] }
+    );
+
+which results in:
+
+    $stmt = 'WHERE street_address = CONCAT(snum, ?, street)';  # MySQL
+    $stmt = 'WHERE street_address = snum + ? + street';        # T-SQL
+    $stmt = 'WHERE street_address = snum || ? || street';      # Oracle, Pg, others
+    @bind = ([' ']);
 
 =head1 AUTHORS
 

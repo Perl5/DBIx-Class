@@ -183,6 +183,14 @@ so:
 
  ->search({'mydatefield' => \'now()'})
 
+=item .. concatenate database fields?
+
+Use C<-concat>:
+
+ ->search({}, {'-concat' => [qw/colA colB colC/]})
+
+See L<DBIx::Class::SQLMaker/-concat> for details.
+
 =item .. sort the results of my search?
 
 Supply a list of columns you want to sort by to the C<order_by>

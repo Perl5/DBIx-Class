@@ -3,6 +3,9 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker );
 
+# a + b + c + d concatenation style
+sub _concat { join(' + ', @{$_[1]}); }
+
 #
 # MSSQL does not support ... OVER() ... RNO limits
 #

@@ -3,6 +3,19 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker );
 
+# CONCAT(a, b, c, d) style
+# Also, MySQL has its own CONCAT_WS function (hence the use of $op)
+sub _concat {
+  my ($self, $op, $strs) = @_;
+  (@$strs > 1) ? $_[0]->_sqlcase($op).'('.join(', ', @$strs).')' : $strs->[0];
+}
+
+# this is now a simple pass function
+sub _where_op_CONCAT_WS {
+  my $self = shift;
+  return $self->_where_op_CONCAT(@_);
+}
+
 #
 # MySQL does not understand the standard INSERT INTO $table DEFAULT VALUES
 # Adjust SQL here instead

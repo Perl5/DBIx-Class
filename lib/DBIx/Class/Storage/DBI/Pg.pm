@@ -11,6 +11,13 @@ use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
 
+###################################################
+### FIXME: This only works in PostgreSQL 9.2!!! ###
+###################################################
+### Need assistance on how best to split up based on normalized_dbms_version (OracleJoin method, _determine_* function, etc.)
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::PostgreSQL');
+
+
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
