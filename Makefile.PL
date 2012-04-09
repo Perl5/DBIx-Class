@@ -102,6 +102,20 @@ if (-e '.git' or -e '.svn') {
   test_requires 'bareword::filehandles' => '0.003';
 }
 
+# if the user has this env var set and no SQLT installed, tests will fail
+# same rationale for direct test_requires as the strictures stuff above
+# (even though no dist will be created from this)
+# we force this req regarless of author_deps, worst case scenario it will
+# be specified twice
+if ($ENV{DBICTEST_SQLT_DEPLOY}) {
+  local @INC = ('lib', @INC);
+  require DBIx::Class::Optional::Dependencies;
+  my $dep_req = DBIx::Class::Optional::Dependencies->req_list_for('deploy');
+  for (keys %$dep_req) {
+    test_requires ($_ => $dep_req->{$_})
+  }
+}
+
 # Bail out on parallel testing
 if (
   ($ENV{HARNESS_OPTIONS}||'') =~ / (?: ^ | \: ) j(\d+) /x
@@ -167,18 +181,6 @@ nonauthor_stop_distdir_creation:
 \t\$(NOECHO) \$(ECHO) Creation of dists in non-author mode is not allowed
 \t\$(NOECHO) \$(FALSE)
 EOP
-
-  # if the user has this env var set and no SQLT installed, tests will fail
-  # same rationale for direct test_requires as the strictures stuff above
-  # (even though no dist will be created from this)
-  if ($ENV{DBICTEST_SQLT_DEPLOY}) {
-    local @INC = ('lib', @INC);
-    require DBIx::Class::Optional::Dependencies;
-    my $dep_req = DBIx::Class::Optional::Dependencies->req_list_for('deploy');
-    for (keys %$dep_req) {
-      test_requires ($_ => $dep_req->{$_})
-    }
-  }
 }
 
 # compose final req list, for alphabetical ordering
