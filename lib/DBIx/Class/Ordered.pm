@@ -710,28 +710,16 @@ sub _shift_siblings {
            ->update ({ $position_column => \ "$position_column $op 1" } );
 }
 
-=head1 PRIVATE METHODS
 
-These methods are used internally.  You should never have the
-need to use them.
-
-=head2 _group_rs
-
-This method returns a resultset containing all members of the row
-group (including the row itself).
-
-=cut
+# This method returns a resultset containing all members of the row
+# group (including the row itself).
 sub _group_rs {
     my $self = shift;
     return $self->result_source->resultset->search({$self->_grouping_clause()});
 }
 
-=head2 _siblings
-
-Returns an unordered resultset of all objects in the same group
-excluding the object you called this method on.
-
-=cut
+# Returns an unordered resultset of all objects in the same group
+# excluding the object you called this method on.
 sub _siblings {
     my $self = shift;
     my $position_column = $self->position_column;
@@ -744,38 +732,24 @@ sub _siblings {
     ;
 }
 
-=head2 _position
-
-  my $num_pos = $item->_position;
-
-Returns the B<absolute numeric position> of the current object, with the
-first object being at position 1, its sibling at position 2 and so on.
-
-=cut
+# Returns the B<absolute numeric position> of the current object, with the
+# first object being at position 1, its sibling at position 2 and so on.
 sub _position {
     my $self = shift;
     return $self->_position_from_value ($self->get_column ($self->position_column) );
 }
 
-=head2 _grouping_clause
-
-This method returns one or more name=>value pairs for limiting a search
-by the grouping column(s).  If the grouping column is not defined then
-this will return an empty list.
-
-=cut
+# This method returns one or more name=>value pairs for limiting a search
+# by the grouping column(s).  If the grouping column is not defined then
+# this will return an empty list.
 sub _grouping_clause {
     my( $self ) = @_;
     return map {  $_ => $self->get_column($_)  } $self->_grouping_columns();
 }
 
-=head2 _get_grouping_columns
-
-Returns a list of the column names used for grouping, regardless of whether
-they were specified as an arrayref or a single string, and returns ()
-if there is no grouping.
-
-=cut
+# Returns a list of the column names used for grouping, regardless of whether
+# they were specified as an arrayref or a single string, and returns ()
+# if there is no grouping.
 sub _grouping_columns {
     my( $self ) = @_;
     my $col = $self->grouping_column();
@@ -788,13 +762,7 @@ sub _grouping_columns {
     }
 }
 
-=head2 _is_in_group
-
-    $item->_is_in_group( {user => 'fred', list => 'work'} )
-
-Returns true if the object is in the group represented by hashref $other
-
-=cut
+# Returns true if the object is in the group represented by hashref $other
 sub _is_in_group {
     my ($self, $other) = @_;
     my $current = {$self->_grouping_clause};
@@ -812,23 +780,18 @@ sub _is_in_group {
     return 1;
 }
 
-=head2 _ordered_internal_update
-
-This is a short-circuited method, that is used internally by this
-module to update positioning values in isolation (i.e. without
-triggering any of the positioning integrity code).
-
-Some day you might get confronted by datasets that have ambiguous
-positioning data (e.g. duplicate position values within the same group,
-in a table without unique constraints). When manually fixing such data
-keep in mind that you can not invoke L<DBIx::Class::Row/update> like
-you normally would, as it will get confused by the wrong data before
-having a chance to update the ill-defined row. If you really know what
-you are doing use this method which bypasses any hooks introduced by
-this module.
-
-=cut
-
+# This is a short-circuited method, that is used internally by this
+# module to update positioning values in isolation (i.e. without
+# triggering any of the positioning integrity code).
+#
+# Some day you might get confronted by datasets that have ambiguous
+# positioning data (e.g. duplicate position values within the same group,
+# in a table without unique constraints). When manually fixing such data
+# keep in mind that you can not invoke L<DBIx::Class::Row/update> like
+# you normally would, as it will get confused by the wrong data before
+# having a chance to update the ill-defined row. If you really know what
+# you are doing use this method which bypasses any hooks introduced by
+# this module.
 sub _ordered_internal_update {
     my $self = shift;
     local $self->result_source->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
