@@ -27,10 +27,6 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
-=item * The L</-ident> operator
-
-=item * The L</-value> operator
-
 =back
 
 =cut
@@ -99,63 +95,6 @@ sub _quote {
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   );
-}
-
-sub new {
-  my $self = shift->next::method(@_);
-
-  # use the same coderefs, they are prepared to handle both cases
-  my @extra_dbic_syntax = (
-    { regex => qr/^ ident $/xi, handler => '_where_op_IDENT' },
-    { regex => qr/^ value $/xi, handler => '_where_op_VALUE' },
-  );
-
-  push @{$self->{special_ops}}, @extra_dbic_syntax;
-  push @{$self->{unary_ops}}, @extra_dbic_syntax;
-
-  $self;
-}
-
-sub _where_op_IDENT {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-  if (ref $rhs) {
-    $self->throw_exception("-$op takes a single scalar argument (a quotable identifier)");
-  }
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
-
-  return $lhs
-    ? "$lhs = $rhs"
-    : $rhs
-  ;
-}
-
-sub _where_op_VALUE {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  my @bind = [
-    ($lhs || $self->{_nested_func_lhs} || $self->throw_exception("Unable to find bindtype for -value $rhs") ),
-    $rhs
-  ];
-
-  return $lhs
-    ? (
-      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
-      @bind
-    )
-    : (
-      $self->_convert('?'),
-      @bind,
-    )
-  ;
 }
 
 sub _where_op_NEST {
@@ -511,41 +450,6 @@ sub _join_condition {
 }
 
 1;
-
-=head1 OPERATORS
-
-=head2 -ident
-
-Used to explicitly specify an SQL identifier. Takes a plain string as value
-which is then invariably treated as a column name (and is being properly
-quoted if quoting has been requested). Most useful for comparison of two
-columns:
-
-    my %where = (
-        priority => { '<', 2 },
-        requestor => { -ident => 'submitter' }
-    );
-
-which results in:
-
-    $stmt = 'WHERE "priority" < ? AND "requestor" = "submitter"';
-    @bind = ('2');
-
-=head2 -value
-
-The -value operator signals that the argument to the right is a raw bind value.
-It will be passed straight to DBI, without invoking any of the SQL::Abstract
-condition-parsing logic. This allows you to, for example, pass an array as a
-column value for databases that support array datatypes, e.g.:
-
-    my %where = (
-        array => { -value => [1, 2, 3] }
-    );
-
-which results in:
-
-    $stmt = 'WHERE array = ?';
-    @bind = ([1, 2, 3]);
 
 =head1 AUTHORS
 
