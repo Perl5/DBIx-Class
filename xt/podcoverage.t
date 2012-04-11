@@ -10,7 +10,7 @@ use namespace::clean;
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_podcoverage');
-  $ENV{RELEASE_TESTING} || DBICTest::RunMode->is_author
+  $ENV{RELEASE_TESTING}
     ? die ("Failed to load release-testing module requirements: $missing")
     : plan skip_all => "Test needs: $missing"
 }

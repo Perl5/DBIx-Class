@@ -1,22 +1,31 @@
-# temporary(?) until I get around to fix M::I wrt xt/
-# needs Module::Install::AuthorTests
-eval {
-  # this should not be necessary since the autoloader is supposed
-  # to work, but there were reports of it failing
-  require Module::Install::AuthorTests;
-  recursive_author_tests (qw/xt/);
-  1;
-} || do {
-  if (! $args->{skip_author_deps}) {
-    my $err = $@;
+require File::Spec;
+require File::Find;
 
-    # better error message in case of missing dep
-    eval { require Module::Install::AuthorTests }
-      || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL in author mode (or add --skip-author-deps):\n\n$@\n";
+my $xt_dirs;
+File::Find::find(sub {
+  return if $xt_dirs->{$File::Find::dir};
+  $xt_dirs->{$File::Find::dir} = 1 if (
+    $_ =~ /\.t$/ and -f $_
+  );
+}, 'xt');
 
-    die $err;
-  }
-};
+my $xt_tests = join (' ', map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dirs );
+
+# this will add the xt tests to the `make test` target among other things
+Meta->tests(join (' ', map { $_ || () } Meta->tests, $xt_tests ) );
+
+# inject an explicit xt test run for making a tarball (distdir is exempt)
+postamble <<"EOP";
+
+.PHONY: test_xt
+
+dist : test_xt
+
+test_xt :
+\tPERL_DL_NONLAZY=1 RELEASE_TESTING=1 \$(FULLPERLRUN) "-MExtUtils::Command::MM" "-e" "test_harness(\$(TEST_VERBOSE), 'inc', '\$(INST_LIB)', '\$(INST_ARCHLIB)')" $xt_tests
+
+EOP
+
 
 # keep the Makefile.PL eval happy
 1;
