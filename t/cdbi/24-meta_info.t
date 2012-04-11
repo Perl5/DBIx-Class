@@ -5,6 +5,9 @@ use Test::Warn;
 use lib 't/cdbi/testlib';
 use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
+eval { require Time::Piece }
+  or plan skip_all => 'Time::Piece required for this test';
+
 package Temp::DBI;
 use base qw(DBIx::Class::CDBICompat);
 Temp::DBI->columns(All => qw(id date));
