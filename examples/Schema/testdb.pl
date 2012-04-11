@@ -55,7 +55,6 @@ sub get_tracks_by_artist {
     print "\n";
 }
 
-
 sub get_cd_by_track {
     my $tracktitle = shift;
     print "get_cd_by_track($tracktitle):\n";
@@ -88,8 +87,6 @@ sub get_cds_by_artist {
     print "\n";
 }
 
-
-
 sub get_artist_by_track {
     my $tracktitle = shift;
     print "get_artist_by_track($tracktitle):\n";
@@ -107,7 +104,6 @@ sub get_artist_by_track {
     print $artist->name . "\n\n";
 }
 
-         
 sub get_artist_by_cd {
     my $cdtitle = shift;
     print "get_artist_by_cd($cdtitle):\n";
