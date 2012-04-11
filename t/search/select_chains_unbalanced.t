@@ -42,7 +42,7 @@ my @chain = (
           me.cdid,
           DISTINCT(foo, bar),
           me.genreid,
-          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
+          (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 ))
         FROM cd me'
     => [qw/title cd_id foo bar genreid name rank/],
 
@@ -56,7 +56,7 @@ my @chain = (
           DISTINCT(foo, bar),
           me.genreid,
           (SELECT me.name, me.rank FROM artist me WHERE ( artistid 1 )),
-          COUNT( me.cdid ) AS cnt,
+          COUNT( me.cdid ) AS cnt
         FROM cd me'
     => [qw/title len cd_id foo bar genreid name rank cnt/],
   {
