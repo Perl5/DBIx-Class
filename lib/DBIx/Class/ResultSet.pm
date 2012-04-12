@@ -3098,9 +3098,9 @@ source alias of the current result set:
 
     my $me = $self->current_source_alias;
 
-    return $self->search(
+    return $self->search({
       "$me.modified" => $user->id,
-    );
+    });
   }
 
 =cut
