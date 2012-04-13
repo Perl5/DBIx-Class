@@ -1,5 +1,5 @@
 package
-  DBIx::Class::SQLMaker::Pg;
+  DBIx::Class::SQLMaker::PostgreSQL;
 
 use strict;
 use warnings;
