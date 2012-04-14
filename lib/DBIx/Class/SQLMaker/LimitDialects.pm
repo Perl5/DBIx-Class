@@ -557,8 +557,11 @@ This is the most evil limit "dialect" (more of a hack) for I<really> stupid
 databases. It works by ordering the set by some unique column, and calculating
 the amount of rows that have a less-er value (thus emulating a L</RowNum>-like
 index). Of course this implies the set can only be ordered by a single unique
-column. Also note that this technique can be and often is B<excruciatingly
-slow>.
+column.
+
+Also note that this technique can be and often is B<excruciatingly slow>. You
+may have much better luck using L<DBIx::Class::ResultSet/software_limit>
+instead.
 
 Currently used by B<Sybase ASE>, due to lack of any other option.
 
