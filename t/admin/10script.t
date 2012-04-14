@@ -5,15 +5,16 @@ use warnings;
 use Test::More;
 use Config;
 use lib qw(t/lib);
-$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 use DBICTest;
-
 
 BEGIN {
     require DBIx::Class;
     plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
       unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
 }
+
+$ENV{PATH} = '';
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
 my @json_backends = qw/XS JSON DWIW/;
 
@@ -66,7 +67,9 @@ sub test_dbicadmin {
     SKIP: {
         skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  ( $^X, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        my ($perl) = $^X =~ /(.*)/;
+
+        open(my $fh, "-|",  ( $perl, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -94,7 +97,7 @@ sub default_args {
 # calls it. Bleh.
 #
 sub test_exec {
-  my $perl = $^X;
+  my ($perl) = $^X =~ /(.*)/;
 
   my @args = ('script/dbicadmin', @_);
 

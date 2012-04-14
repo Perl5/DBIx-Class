@@ -165,7 +165,12 @@ sub connection {
       # see if anyone was holding a lock before us, and wait up to 5 seconds for them to terminate
       # if we do not do this we may end up trampling over some long-running END or somesuch
       seek ($lock_fh, 0, SEEK_SET) or die "seek failed $!";
-      if (read ($lock_fh, my $old_pid, 100) ) {
+      my $old_pid;
+      if (
+        read ($lock_fh, $old_pid, 100)
+          and
+        ($old_pid) = $old_pid =~ /^(\d+)$/
+      ) {
         for (1..50) {
           kill (0, $old_pid) or last;
           sleep 0.1;

@@ -615,7 +615,8 @@ if (Test::Builder->new->is_passing and $ENV{LANG} and $ENV{LANG} ne 'C') {
 
   pass ("Your lang is set to $oldlang - retesting with C");
 
-  my @cmd = ($^X, __FILE__);
+  local $ENV{PATH};
+  my @cmd = map { $_ =~ /(.+)/ } ($^X, __FILE__);
 
   # this is cheating, and may even hang here and there (testing on windows passed fine)
   # will be replaced with Test::SubExec::Noninteractive in due course

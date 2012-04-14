@@ -185,7 +185,11 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 }
 
 # add a "harmless" comment before one of the statements.
-system( qq($^X -pi.bak -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23}) );
+{
+  my ($perl) = $^X =~ /(.+)/;
+  local $ENV{PATH};
+  system( qq($perl -pi.bak -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23}) );
+}
 
 # Then attempt v1 -> v3 upgrade
 {

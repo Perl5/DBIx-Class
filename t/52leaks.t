@@ -422,6 +422,12 @@ assert_empty_weakregistry ($weak_registry);
 # this is ugly and dirty but we do not yet have a Test::Embedded or
 # similar
 
+# set up -I
+require Config;
+$ENV{PERL5LIB} = join ($Config::Config{path_sep}, @INC);
+($ENV{PATH}) = $ENV{PATH} =~ /(.+)/;
+
+
 my $persistence_tests = {
   PPerl => {
     cmd => [qw/pperl --prefork=1/, __FILE__],
@@ -445,10 +451,6 @@ SKIP: {
 
   skip 'Main test failed - skipping persistent env tests', 1
     unless $TB->is_passing;
-
-  # set up -I
-  require Config;
-  local $ENV{PERL5LIB} = join ($Config::Config{path_sep}, @INC);
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
 

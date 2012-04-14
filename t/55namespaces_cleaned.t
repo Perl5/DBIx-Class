@@ -48,7 +48,7 @@ use DBIx::Class;
 use DBIx::Class::Carp;
 
 my @modules = grep {
-  my $mod = $_;
+  my ($mod) = $_ =~ /(.+)/;
 
   # not all modules are loadable at all times
   do {
