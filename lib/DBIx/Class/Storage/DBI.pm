@@ -2197,7 +2197,15 @@ sub _select_args {
   }
 
   # try to simplify the joinmap further (prune unreferenced type-single joins)
-  $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+  if (
+    ref $ident
+      and
+    reftype $ident eq 'ARRAY'
+      and
+    @$ident != 1
+  ) {
+    $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+  }
 
 ###
   # This would be the point to deflate anything found in $where

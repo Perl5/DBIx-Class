@@ -1739,14 +1739,19 @@ sub _rs_update_delete {
   # simplify the joinmap and maybe decide if a grouping (and thus subquery) is necessary
   my $relation_classifications;
   if (ref($attrs->{from}) eq 'ARRAY') {
-    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
+    if (@{$attrs->{from}} == 1) {
+      # not a fucking JOIN at all, quit with the dickery
+      $relation_classifications = {};
+    } else {
+      $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
 
-    $relation_classifications = $storage->_resolve_aliastypes_from_select_args (
-      [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
-      $attrs->{select},
-      $cond,
-      $attrs
-    ) unless $needs_group_by_subq;  # we already know we need a group, no point of resolving them
+      $relation_classifications = $storage->_resolve_aliastypes_from_select_args (
+        [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
+        $attrs->{select},
+        $cond,
+        $attrs
+      ) unless $needs_group_by_subq;  # we already know we need a group, no point of resolving them
+    }
   }
   else {
     $needs_group_by_subq ||= 1; # if {from} is unparseable assume the worst
