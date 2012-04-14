@@ -279,7 +279,7 @@ EOS
     $rs_attrs->{order_by}
       and
     $rs_attrs->{_rsroot_rsrc}->storage->_order_by_is_stable(
-      $rs_attrs->{from}, $rs_attrs->{order_by}
+      @{$rs_attrs}{qw/from order_by where/}
     )
   ) {
     push @{$self->{limit_bind}}, [ $self->__total_bindtype => $offset + $rows ], [ $self->__offset_bindtype => $offset + 1 ];
@@ -331,10 +331,11 @@ sub _prep_for_skimming_limit {
     if ($sq_attrs->{order_by_requested}) {
       $self->throw_exception (
         'Unable to safely perform "skimming type" limit with supplied unstable order criteria'
-      ) unless $rs_attrs->{_rsroot_rsrc}->schema->storage->_order_by_is_stable(
+      ) unless ($rs_attrs->{_rsroot_rsrc}->schema->storage->_order_by_is_stable(
         $rs_attrs->{from},
-        $requested_order
-      );
+        $requested_order,
+        $rs_attrs->{where},
+      ));
 
       $inner_order = $requested_order;
     }
