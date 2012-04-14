@@ -27,7 +27,7 @@ my $rs = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs->as_query,
   '(
-    SELECT  id, source, owner, title, price,
+    SELECT  me.id, me.source, me.owner, me.title, me.price,
             owner_name
       FROM (
         SELECT  me.id, me.source, me.owner, me.title, me.price,
@@ -71,7 +71,7 @@ $rs = $schema->resultset ('BooksInLibrary')->search ({}, {
 is_same_sql_bind(
   $rs->as_query,
   '(
-    SELECT  "id", "source", "owner", "title", "price",
+    SELECT  "me"."id", "me"."source", "me"."owner", "me"."title", "me"."price",
             "owner__name"
       FROM (
         SELECT  "me"."id", "me"."source", "me"."owner", "me"."title", "me"."price",
@@ -154,5 +154,41 @@ is_deeply (
     'Newlines/spaces preserved in final sql',
   );
 }
+
+# this is a nonsensical order_by, we are just making sure the bind-transport is correct
+# (not that it'll be useful anywhere in the near future)
+my $attr = {};
+my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search(undef, {
+  columns => 'me.id',
+  offset => 3,
+  rows => 4,
+  '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
+  order_by => [ 'id', \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ],
+  having => \[ '?', [ $attr => 21 ] ],
+});
+
+is_same_sql_bind(
+  $rs_selectas_rel->as_query,
+  '(
+    SELECT "me"."id", "bar", "baz"
+      FROM (
+        SELECT "me"."id", ? * ? AS "bar", ? AS "baz"
+          FROM "books" "me"
+        WHERE ( "source" = ? )
+        HAVING ?
+      ) "me"
+    WHERE ( SELECT COUNT(*) FROM "books" "rownum__emulation" WHERE "rownum__emulation"."id" < "me"."id" ) BETWEEN ? AND ?
+    ORDER BY "id", ? / ?, ?
+  )',
+  [
+    [ $attr => 11 ], [ $attr => 12 ], [ $attr => 13 ],
+    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
+    [ $attr => 21 ],
+    [ {%$OFFSET} => 3 ],
+    [ {%$TOTAL} => 6 ],
+    [ $attr => 1 ], [ $attr => 2 ], [ $attr => 3 ],
+  ],
+  'Pagination with sub-query in ORDER BY works'
+);
 
 done_testing;

@@ -373,15 +373,20 @@ SQL
         );
 
         my ($sql, @bind) = @${$owners->page(3)->as_query};
+        # not testing the SQL as it is quite different between top/rno
         is_same_bind (
           \@bind,
           [
-            ($dialect eq 'Top' ? [ { dbic_colname => 'test' } => 'xxx' ] : ()), # the extra re-order bind
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
-              => 'somebogusstring' ],
             [ { dbic_colname => 'test' }
               => 'xxx' ],
-            ($dialect ne 'Top' ? ( [ $OFFSET => 7 ], [ $TOTAL => 9 ] ) : ()), # parameterised RNO
+            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
+              => 'somebogusstring' ],
+
+            ($dialect eq 'Top'
+              ? [ { dbic_colname => 'test' } => 'xxx' ]  # the extra re-order bind
+              : ([ $OFFSET => 7 ], [ $TOTAL => 9 ]) # parameterised RNO
+            ),
+
             [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
               => 'somebogusstring' ],
             [ { dbic_colname => 'test' }
@@ -417,6 +422,7 @@ SQL
         );
 
         ($sql, @bind) = @${$books->page(3)->as_query};
+        # not testing the SQL as it is quite different between top/rno
         is_same_bind (
           \@bind,
           [

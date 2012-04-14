@@ -2118,6 +2118,10 @@ sub _select {
 sub _select_args_to_query {
   my $self = shift;
 
+  $self->throw_exception(
+    "Unable to generate limited query representation with 'software_limit' enabled"
+  ) if ($_[3]->{software_limit} and ($_[3]->{offset} or $_[3]->{rows}) );
+
   # my ($op, $ident, $select, $cond, $rs_attrs, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
   my ($op, $ident, @args) =

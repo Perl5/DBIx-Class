@@ -23,6 +23,14 @@ Revision history for DBIx::Class
           the order_by criteria for stability
         - Fix "Skimming limit" dialects (Top, FetchFirst) to propagate
           non-selected order criteria when part of a larger subquery
+        - Fix RowNumberOver and all "skimming limits" to correctly assemble
+          bind values when supplied for both select and order_by
+        - Fix all subquery-based dialects to not lose a subquery fragment
+          when we both select and order by the result of the same subquery
+        - Fix the Sybase hubrid limit dialect (RowCountOrGenericSubQ) losing
+          Group/Having/Order clauses when called without an offset (RT#73244)
+        - No longer generate incorrect SQL on ->as_query called on resultsets
+          with software_limit enabled
         - A number of corner case fixes of void context populate() with \[]
         - Fix corner case of forked children disconnecting the parents DBI
           handle

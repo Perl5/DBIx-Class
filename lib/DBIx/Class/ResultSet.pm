@@ -4231,6 +4231,24 @@ rows per page if the page attribute or method is used.
 Specifies the (zero-based) row number for the  first row to be returned, or the
 of the first row of the first page if paging is used.
 
+=head2 software_limit
+
+=over 4
+
+=item Value: (0 | 1)
+
+=back
+
+When combined with L</rows> and/or L</offset> the generated SQL will not
+include any limit dialect stanzas. Instead the entire result will be selected
+as if no limits were specified, and DBIC will perform the limit locally, by
+artificially advancing and finishing the resulting L</cursor>.
+
+This is the recommended way of performing resultset limiting when no sane RDBMS
+implementation is available (e.g.
+L<Sybase ASE|DBIx::Class::Storage::DBI::Sybase::ASE> using the
+L<Generic Sub Query|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ> hack)
+
 =head2 group_by
 
 =over 4
