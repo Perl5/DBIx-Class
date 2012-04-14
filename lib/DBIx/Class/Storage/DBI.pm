@@ -2958,6 +2958,22 @@ sub _is_text_lob_type {
                         |national\s*character\s*varying))\z/xi);
 }
 
+# Determine if a data type is some type if integer
+sub _is_integer_type {
+  my ($self, $data_type) = @_;
+  $data_type && (
+       $data_type =~ /^(?:tiny|small|medium|big)?int(?:eger)?(?:\s+unsigned)?\z/i
+    || $data_type =~ /^int(?:eger)?\s+identity\z/i # Sybase ASE/MSSQL
+    || $data_type =~ /^(?:big)?serial\z/i # Pg/MySQL
+    || $data_type =~ /^serial(?:8|4|2|1)\z/i # Pg/MySQL
+    || $data_type =~ /^int(?:eger)?(?:8|4|2|1)\z/i
+    || lc($data_type) eq 'year' # MySQL
+    || lc($data_type) eq 'autoincrement' # MSAccess
+    || $data_type =~ /^(?:long|short)(?:\s+int(?:eger)?)?\z/i # MSAccess
+    || $data_type =~ /^(?:bit|logical1?|yesno)\z/i # MSAccess
+  )
+}
+
 1;
 
 =head1 USAGE NOTES

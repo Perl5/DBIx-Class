@@ -108,11 +108,54 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
-sub bind_attribute_by_data_type {
-  $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium)int ) $/ix
-    ? do { require DBI; DBI::SQL_INTEGER() }
-    : undef
-  ;
+# In addition to checking for integer data_types, we need to check for generic
+# NUMBER data_types with a zero scale, such as NUMBER(38,0) in Oracle, which are
+# integer types. Because bind_attribute_by_data_type cannot check the
+# column_info size, and the regexes are very hairy, we do the checking in
+# _resolve_bindattrs and cache the result of the check in the column_info.
+#
+sub _resolve_bindattrs {
+  my $self = shift;
+  my ($ident, $bind, $colinfos) = @_;
+
+  $colinfos = $self->_resolve_column_info($ident)
+    unless keys %$colinfos;
+
+  my $binds = $self->next::method(@_);
+
+  BIND: foreach my $bind (@$binds) {
+    my $attrs     = $bind->[0];
+    my $col       = $attrs->{dbic_colname};
+
+    if (exists $colinfos->{$col}{_is_integer_data_type}
+        && $colinfos->{$col}{_is_integer_data_type} == 1) { # cached
+
+      $attrs->{dbd_attrs} = do { require DBI; DBI::SQL_INTEGER() };
+      next BIND;
+    }
+
+    my $data_type = $attrs->{sqlt_datatype};
+    my $size      = $attrs->{sqlt_size};
+
+    my $is_int_type = $self->_is_integer_type($data_type) ? 1 : 0;
+
+    # This should really live in ::DBI and cache in column_info, but currently
+    # only needed in SQLite.
+    if ((not $is_int_type)
+        && (ref $size eq 'ARRAY' && $size->[1] == 0)
+        && $data_type =~ /^(?:real|float|double(?:\s+precision)?|dec(?:imal)?|numeric|number|fixed|money|currency)(?:\s+unsigned)?\z/i) {
+
+      $is_int_type = 1;
+    }
+
+    if ($is_int_type) {
+      $attrs->{dbd_attrs} = do { require DBI; DBI::SQL_INTEGER() };
+
+      $colinfos->{$col}{_is_integer_data_type} = 1; # cache
+    }
+  }
+
+  return $binds;
 }
 
 # DBD::SQLite (at least up to version 1.31 has a bug where it will
@@ -124,8 +167,10 @@ sub bind_attribute_by_data_type {
 # FIXME - when a DBD::SQLite version is released that eventually fixes
 # this sutiation (somehow) - no-op this override once a proper DBD
 # version is detected
+#
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
+
   my $bindattrs = $self->next::method($ident, $bind);
 
   for (0.. $#$bindattrs) {

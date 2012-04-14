@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Config;
+use Try::Tiny;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -84,17 +85,38 @@ for my $bi (qw/
   9223372036854775806
   9223372036854775807
 /) {
-  $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-  is ($row->bigint, $bi, "value in object correct ($bi)");
+  lives_ok {
+    $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
+  } 'inserted a bigint';
+  is (try { $row->bigint }, $bi, "value in object correct ($bi)");
 
   TODO: {
     local $TODO = 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail'
       unless $Config{ivsize} >= 8;
 
     $row->discard_changes;
-    is ($row->bigint, $bi, "value in database correct ($bi)");
+    is (try { $row->bigint }, $bi, "value in database correct ($bi)");
   }
 }
+
+my $artists_with_more_than_one_cd = $schema->resultset('Artist')->search({}, {
+  join => 'cds',
+  '+select' => [ { count => 'cds.cdid', -as => 'cd_count' } ],
+  '+as' => ['cd_count'],
+  group_by => ['me.artistid'],
+  having => [ { cd_count => { '>' => 1 } } ],
+});
+
+my %artist_cd_counts;
+
+lives_ok {
+  while (my $row = $artists_with_more_than_one_cd->next) {
+    $artist_cd_counts{ $row->name } = $row->get_column('cd_count');
+  }
+} 'HAVING int comparison query with a bind survived';
+
+ok ((keys %artist_cd_counts),
+  'HAVING int comparison query with a bind returned results');
 
 done_testing;
 
