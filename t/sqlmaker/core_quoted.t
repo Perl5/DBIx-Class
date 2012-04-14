@@ -42,7 +42,7 @@ my ($sql, @bind) = $sql_maker->select(
           [
             'me.cdid',
             { count => 'tracks.cd' },
-            { min => 'me.year', -as => 'me.minyear' },
+            { min => 'me.year', -as => 'minyear' },
           ],
           {
             'artist.name' => 'Caterwauler McCrae',
@@ -56,7 +56,7 @@ my ($sql, @bind) = $sql_maker->select(
 is_same_sql_bind(
   $sql, \@bind,
   q/
-    SELECT `me`.`cdid`, COUNT( `tracks`.`cd` ), MIN( `me`.`year` ) AS `me`.`minyear`
+    SELECT `me`.`cdid`, COUNT( `tracks`.`cd` ), MIN( `me`.`year` ) AS `minyear`
       FROM `cd` `me`
       JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` )
       LEFT JOIN `tracks` `tracks` ON ( `tracks`.`cd` = `me`.`cdid` )
