@@ -28,11 +28,14 @@ my @order_bind = (
 );
 
 my $tests = {
+
   LimitOffset => {
     ordered_limit_offset => [
       '(
-        SELECT me.id, ? * ?, ?
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -55,8 +58,10 @@ my $tests = {
   LimitXY => {
     ordered_limit_offset => [
       '(
-        SELECT me.id, ? * ?, ?
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -78,8 +83,10 @@ my $tests = {
   SkipFirst => {
     ordered_limit_offset => [
       '(
-        SELECT SKIP ? FIRST ? me.id, ? * ?, ?
+        SELECT SKIP ? FIRST ? me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -100,8 +107,10 @@ my $tests = {
   FirstSkip => {
     ordered_limit_offset => [
       '(
-        SELECT FIRST ? SKIP ? me.id, ? * ?, ?
+        SELECT FIRST ? SKIP ? me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -121,12 +130,14 @@ my $tests = {
 
   RowNumberOver => do {
     my $unordered_sql = '(
-      SELECT me.id, bar, baz
+      SELECT me.id, owner__id, owner__name, bar, baz
         FROM (
-          SELECT me.id, bar, baz, ROW_NUMBER() OVER() AS rno__row__index
+          SELECT me.id, owner__id, owner__name, bar, baz, ROW_NUMBER() OVER() AS rno__row__index
             FROM (
-              SELECT me.id, ? * ? AS bar, ? AS baz
+              SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
                 FROM books me
+                JOIN owners owner
+                  ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
               GROUP BY avg(me.id / ?)
               HAVING ?
@@ -136,13 +147,15 @@ my $tests = {
     )';
 
     my $ordered_sql = '(
-      SELECT me.id, bar, baz
+      SELECT me.id, owner__id, owner__name, bar, baz
         FROM (
-          SELECT me.id, bar, baz, ROW_NUMBER() OVER( ORDER BY ORDER__BY__1, ORDER__BY__2 ) AS rno__row__index
+          SELECT me.id, owner__id, owner__name, bar, baz, ROW_NUMBER() OVER( ORDER BY ORDER__BY__1, ORDER__BY__2 ) AS rno__row__index
             FROM (
-              SELECT me.id, ? * ? AS bar, ? AS baz,
+              SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz,
                      ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
                 FROM books me
+                JOIN owners owner
+                  ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
               GROUP BY avg(me.id / ?)
               HAVING ?
@@ -200,10 +213,12 @@ my $tests = {
   RowNum => do {
     my $limit_sql = sub {
       sprintf '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg(me.id / ?)
             HAVING ?
@@ -225,12 +240,14 @@ my $tests = {
       ],
       limit_offset => [
         '(
-          SELECT me.id, bar, baz
+          SELECT me.id, owner__id, owner__name, bar, baz
             FROM (
-              SELECT me.id, bar, baz, ROWNUM rownum__index
+              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM rownum__index
                 FROM (
-                  SELECT me.id, ? * ? AS bar, ? AS baz
+                  SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
                     FROM books me
+                    JOIN owners owner
+                      ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
                   GROUP BY avg(me.id / ?)
                   HAVING ?
@@ -259,12 +276,14 @@ my $tests = {
       ],
       ordered_limit_offset => [
         '(
-          SELECT me.id, bar, baz
+          SELECT me.id, owner__id, owner__name, bar, baz
             FROM (
-              SELECT me.id, bar, baz, ROWNUM rownum__index
+              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM rownum__index
                 FROM (
-                  SELECT me.id, ? * ? AS bar, ? AS baz
+                  SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
                     FROM books me
+                    JOIN owners owner
+                      ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
                   GROUP BY avg(me.id / ?)
                   HAVING ?
@@ -287,12 +306,13 @@ my $tests = {
     };
   },
 
-
   FetchFirst => {
     limit => [
       '(
-        SELECT me.id, ? * ?, ?
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -307,10 +327,12 @@ my $tests = {
     ],
     limit_offset => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg(me.id / ?)
             HAVING ?
@@ -329,8 +351,10 @@ my $tests = {
     ],
     ordered_limit => [
       '(
-        SELECT me.id, ? * ?, ?
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -347,12 +371,14 @@ my $tests = {
     ],
     ordered_limit_offset => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, bar, baz, ORDER__BY__1, ORDER__BY__2
+            SELECT me.id, owner__id, owner__name, bar, baz, ORDER__BY__1, ORDER__BY__2
               FROM (
-                SELECT me.id, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
+                SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
                   FROM books me
+                  JOIN owners owner
+                    ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
                 GROUP BY avg(me.id / ?)
                 HAVING ?
@@ -378,8 +404,10 @@ my $tests = {
   Top => {
     limit => [
       '(
-        SELECT TOP 4 me.id, ? * ?, ?
+        SELECT TOP 4 me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -393,10 +421,12 @@ my $tests = {
     ],
     limit_offset => [
       '(
-        SELECT TOP 4 me.id, bar, baz
+        SELECT TOP 4 me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT TOP 7 me.id, ? * ? AS bar, ? AS baz
+            SELECT TOP 7 me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg(me.id / ?)
             HAVING ?
@@ -413,8 +443,10 @@ my $tests = {
     ],
     ordered_limit => [
       '(
-        SELECT TOP 4 me.id, ? * ?, ?
+        SELECT TOP 4 me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -430,12 +462,14 @@ my $tests = {
     ],
     ordered_limit_offset => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT TOP 4 me.id, bar, baz, ORDER__BY__1, ORDER__BY__2
+            SELECT TOP 4 me.id, owner__id, owner__name, bar, baz, ORDER__BY__1, ORDER__BY__2
               FROM (
-                SELECT TOP 7 me.id, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
+                SELECT TOP 7 me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
                   FROM books me
+                  JOIN owners owner
+                    ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
                 GROUP BY avg(me.id / ?)
                 HAVING ?
@@ -460,8 +494,10 @@ my $tests = {
     limit => [
       '(
         SET ROWCOUNT 4
-        SELECT me.id, ? * ?, ?
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
           FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
         GROUP BY avg(me.id / ?)
         HAVING ?
@@ -477,10 +513,12 @@ my $tests = {
     ],
     limit_offset => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg( me.id / ? )
             HAVING ?
@@ -506,10 +544,12 @@ my $tests = {
   GenericSubQ => {
     limit => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg( me.id / ? )
             HAVING ?
@@ -531,10 +571,12 @@ my $tests = {
     ],
     limit_offset => [
       '(
-        SELECT me.id, bar, baz
+        SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
               FROM books me
+              JOIN owners owner
+                ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
             GROUP BY avg( me.id / ? )
             HAVING ?
@@ -560,12 +602,15 @@ my $tests = {
 
 for my $limtype (sort keys %$tests) {
 
+  Test::Builder->new->is_passing or exit;
+
   delete $schema->storage->_sql_maker->{_cached_syntax};
   $schema->storage->_sql_maker->limit_dialect ($limtype);
 
   # chained search is necessary to exercise the recursive {where} parser
   my $rs = $schema->resultset('BooksInLibrary')->search({ 'me.title' => { '=' => 'kama sutra' } })->search({ source => { '!=', 'Study' } }, {
-    columns => { identifier => 'me.id' }, # people actually do that. BLEH!!! :)
+    columns => [ { identifier => 'me.id' }, 'owner.id', 'owner.name' ], # people actually do that. BLEH!!! :)
+    join => 'owner',  # single-rel manual prefetch
     rows => 4,
     '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
     group_by => \[ 'avg(me.id / ?)', [ $attr => 21 ] ],
