@@ -14,12 +14,21 @@ DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
  my $rs = $schema->resultset('CD');
  $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
  while (my $hashref = $rs->next) {
-    ...
+   ...
+ }
+
+  OR as an attribute:
+
+ my $rs = $schema->resultset('CD')->search({}, {
+   result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+ });
+ while (my $hashref = $rs->next) {
+   ...
  }
 
 =head1 DESCRIPTION
 
-DBIx::Class is faster than older ORMs like Class::DBI but it still isn't 
+DBIx::Class is faster than older ORMs like Class::DBI but it still isn't
 designed primarily for speed. Sometimes you need to quickly retrieve the data
 from a massive resultset, while skipping the creation of fancy row objects.
 Specifying this class as a C<result_class> for a resultset will change C<< $rs->next >>
@@ -49,43 +58,45 @@ recommended.
 #
 # Generally people use this to gain as much speed as possible. If a new &mk_hash is
 # implemented, it should be benchmarked using the maint/benchmark_hashrefinflator.pl
-# script (in addition to passing all tests of course :). Additional instructions are
-# provided in the script itself.
-#
+# script (in addition to passing all tests of course :)
 
 # This coderef is a simple recursive function
-# Arguments: ($me, $prefetch) from inflate_result() below
+# Arguments: ($me, $prefetch, $is_root) from inflate_result() below
 my $mk_hash;
 $mk_hash = sub {
-    if (ref $_[0] eq 'ARRAY') {     # multi relationship
-        return [ map { $mk_hash->(@$_) || () } (@_) ];
-    }
-    else {
-        my $hash = {
-            # the main hash could be an undef if we are processing a skipped-over join
-            $_[0] ? %{$_[0]} : (),
 
-            # the second arg is a hash of arrays for each prefetched relation
-            map
-                { $_ => $mk_hash->( @{$_[1]->{$_}} ) }
-                ( $_[1] ? (keys %{$_[1]}) : () )
-        };
+  my $hash = {
+    # the main hash could be an undef if we are processing a skipped-over join
+    $_[0] ? %{$_[0]} : (),
 
-        # if there is at least one defined column consider the resultset real
-        # (and not an emtpy has_many rel containing one empty hashref)
-        # an empty arrayref is an empty multi-sub-prefetch - don't consider
-        # those either
-        for (values %$hash) {
-            if (ref $_ eq 'ARRAY') {
-              return $hash if @$_;
-            }
-            elsif (defined $_) {
-              return $hash;
-            }
-        }
+    # the second arg is a hash of arrays for each prefetched relation
+    map {
+      ref $_[1]->{$_}[0] eq 'ARRAY' # multi rel or not?
+        ? ( $_ => [ map
+            { $mk_hash->(@$_) || () }
+            @{$_[1]->{$_}}
+        ] )
+        : ( $_ => $mk_hash->( @{$_[1]->{$_}} ) )
 
-        return undef;
-    }
+    } ( $_[1] ? ( keys %{$_[1]} ) : () )
+  };
+
+  # if there is at least one defined column *OR* we are at the root of
+  # the resultset - consider the result real (and not an emtpy has_many
+  # rel containing one empty hashref)
+  # an empty arrayref is an empty multi-sub-prefetch - don't consider
+  # those either
+  return $hash if $_[2];
+
+  for (values %$hash) {
+    return $hash if (
+      defined $_
+        and
+      (ref $_ ne 'ARRAY' or scalar @$_)
+    );
+  }
+
+  return undef;
 };
 
 =head1 METHODS
@@ -100,7 +111,7 @@ Inflates the result and prefetched data into a hash-ref (invoked by L<DBIx::Clas
 # inflate_result is invoked as:
 # HRI->inflate_result ($resultsource_instance, $main_data_hashref, $prefetch_data_hashref)
 sub inflate_result {
-    return $mk_hash->($_[2], $_[3]);
+  return $mk_hash->($_[2], $_[3], 'is_root');
 }
 
 
@@ -117,9 +128,9 @@ following:
 
  my $cds = $artist->cds;
  $cds->result_class('DBIx::Class::ResultClass::HashRefInflator');
- my $first = $cds->first; 
+ my $first = $cds->first;
 
-C<$first> will B<not> be a hashref, it will be a normal CD row since 
+C<$first> will B<not> be a hashref, it will be a normal CD row since
 HashRefInflator only affects resultsets at inflation time, and prefetch causes
 relations to be inflated when the master C<$artist> row is inflated.
 

@@ -9,7 +9,7 @@ use namespace::clean -except => 'meta';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Balancer - A Software Load Balancer 
+DBIx::Class::Storage::DBI::Replicated::Balancer - A Software Load Balancer
 
 =head1 SYNOPSIS
 
@@ -27,9 +27,10 @@ This class defines the following attributes.
 
 =head2 auto_validate_every ($seconds)
 
-If auto_validate has some sort of value, run the L<validate_replicants> every
-$seconds.  Be careful with this, because if you set it to 0 you will end up
-validating every query.
+If auto_validate has some sort of value, run
+L<DBIx::Class::Storage::DBI::Replicated::Pool/validate_replicants>
+every $seconds.  Be careful with this, because if you set it to 0 you
+will end up validating every query.
 
 =cut
 
@@ -70,7 +71,7 @@ has 'pool' => (
 
 Replicant storages (slaves) handle all read only traffic.  The assumption is
 that your database will become readbound well before it becomes write bound
-and that being able to spread your read only traffic around to multiple 
+and that being able to spread your read only traffic around to multiple
 databases is going to help you to scale traffic.
 
 This attribute returns the next slave to handle a read request.  Your L</pool>
@@ -110,8 +111,8 @@ sub _build_current_replicant {
 This method should be defined in the class which consumes this role.
 
 Given a pool object, return the next replicant that will serve queries.  The
-default behavior is to grab the first replicant it finds but you can write 
-your own subclasses of L<DBIx::Class::Storage::DBI::Replicated::Balancer> to 
+default behavior is to grab the first replicant it finds but you can write
+your own subclasses of L<DBIx::Class::Storage::DBI::Replicated::Balancer> to
 support other balance systems.
 
 This returns from the pool of active replicants.  If there are no active
@@ -127,23 +128,29 @@ or just just forgot to create them :)
 
 =cut
 
+my $on_master;
+
 around 'next_storage' => sub {
   my ($next_storage, $self, @args) = @_;
   my $now = time;
 
   ## Do we need to validate the replicants?
   if(
-     $self->has_auto_validate_every && 
+     $self->has_auto_validate_every &&
      ($self->auto_validate_every + $self->pool->last_validated) <= $now
-  ) {   
+  ) {
       $self->pool->validate_replicants;
   }
 
   ## Get a replicant, or the master if none
   if(my $next = $self->$next_storage(@args)) {
+    $self->master->debugobj->print("Moved back to slave\n") if $on_master;
+    $on_master = 0;
     return $next;
   } else {
-    $self->master->debugobj->print("No Replicants validate, falling back to master reads. ");
+    $self->master->debugobj->print("No Replicants validate, falling back to master reads.\n")
+       unless $on_master++;
+
     return $self->master;
   }
 };
@@ -173,7 +180,7 @@ around 'select' => sub {
 
   if (my $forced_pool = $args[-1]->{force_pool}) {
     delete $args[-1]->{force_pool};
-    return $self->_get_forced_pool($forced_pool)->select(@args); 
+    return $self->_get_forced_pool($forced_pool)->select(@args);
   } elsif($self->master->{transaction_depth}) {
     return $self->master->select(@args);
   } else {
@@ -195,7 +202,7 @@ around 'select_single' => sub {
 
   if (my $forced_pool = $args[-1]->{force_pool}) {
     delete $args[-1]->{force_pool};
-    return $self->_get_forced_pool($forced_pool)->select_single(@args); 
+    return $self->_get_forced_pool($forced_pool)->select_single(@args);
   } elsif($self->master->{transaction_depth}) {
     return $self->master->select_single(@args);
   } else {
@@ -233,7 +240,7 @@ sub _get_forced_pool {
     return $replicant;
   } else {
     $self->master->throw_exception("$forced_pool is not a named replicant.");
-  }   
+  }
 }
 
 =head1 AUTHOR

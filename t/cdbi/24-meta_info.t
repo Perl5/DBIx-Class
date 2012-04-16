@@ -1,25 +1,19 @@
 use strict;
 use Test::More;
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
-    if $@;
-
-  plan skip_all => "Time::Piece required for this test"
-    unless eval { require Time::Piece };
-
-  plan tests => 12;
-}
-
 use Test::Warn;
+
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
+
+eval { require Time::Piece }
+  or plan skip_all => 'Time::Piece required for this test';
 
 package Temp::DBI;
 use base qw(DBIx::Class::CDBICompat);
 Temp::DBI->columns(All => qw(id date));
 
-my $strptime_inflate = sub { 
-    Time::Piece->strptime(shift, "%Y-%m-%d") 
+my $strptime_inflate = sub {
+    Time::Piece->strptime(shift, "%Y-%m-%d")
 };
 Temp::DBI->has_a(
     date => 'Time::Piece',
@@ -76,3 +70,5 @@ package main;
     is $date->accessor,         'date';
     is $date->args->{inflate},  $strptime_inflate;
 }
+
+done_testing;

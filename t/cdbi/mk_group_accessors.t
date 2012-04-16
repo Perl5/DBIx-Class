@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-    eval "use DBIx::Class::CDBICompat;";
-    plan skip_all => 'Class::Trigger and DBIx::ContextualFetch required' if $@;
-
-    eval "use DBD::SQLite";
-    plan skip_all => 'needs DBD::SQLite for testing' if $@;
-
-    plan 'no_plan';
-}
-
 INIT {
     use lib 't/cdbi/testlib';
     require Film;
@@ -67,3 +57,5 @@ sub Film::mutator_name_for {
     $film->wibble_thing(23);
     is $film->wibble_thing, 23;
 }
+
+done_testing;

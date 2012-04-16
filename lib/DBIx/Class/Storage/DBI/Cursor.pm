@@ -5,8 +5,11 @@ use warnings;
 
 use base qw/DBIx::Class::Cursor/;
 
+use Try::Tiny;
+use namespace::clean;
+
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/sth/
+    qw/sth storage args pos attrs _dbh_gen/
 );
 
 =head1 NAME
@@ -150,7 +153,8 @@ sub reset {
   my ($self) = @_;
 
   # No need to care about failures here
-  eval { $self->sth->finish if $self->sth && $self->sth->{Active} };
+  try { $self->sth->finish }
+    if $self->sth && $self->sth->{Active};
   $self->_soft_reset;
   return undef;
 }
@@ -173,11 +177,11 @@ sub _check_dbh_gen {
 }
 
 sub DESTROY {
-  my ($self) = @_;
-
   # None of the reasons this would die matter if we're in DESTROY anyways
-  local $@;
-  eval { $self->sth->finish if $self->sth && $self->sth->{Active} };
+  if (my $sth = $_[0]->sth) {
+    local $SIG{__WARN__} = sub {};
+    try { $sth->finish } if $sth->FETCH('Active');
+  }
 }
 
 1;

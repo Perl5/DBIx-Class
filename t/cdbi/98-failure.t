@@ -5,16 +5,6 @@ use Test::More;
 # Test database failures
 #----------------------------------------------------------------------
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 7);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -60,3 +50,4 @@ if (0) {
   }
 }
 
+done_testing;

@@ -57,32 +57,28 @@ could override the insert and delete methods.
     # Do stuff with $self, like set default values.
     return $self->next::method( @_ );
   }
-  
+
   sub delete {
     my $self = shift;
     # Do stuff with $self.
     return $self->next::method( @_ );
   }
 
-Now, the order that a component is loaded is very important.  Components 
-that are loaded first are the first ones in the inheritance stack.  So, if 
-you override insert() but the DBIx::Class::Row component is loaded first 
-then your insert() will never be called, since the DBIx::Class::Row insert() 
-will be called first.  If you are unsure as to why a given method is not 
-being called try printing out the Class::C3 inheritance stack.
+Now, the order that a component is loaded is very important.  Components
+that are loaded first are the first ones in the inheritance stack.  So, if
+you override insert() but the DBIx::Class::Row component is loaded first
+then your insert() will never be called, since the DBIx::Class::Row insert()
+will be called first.  If you are unsure as to why a given method is not
+being called try printing out the current linearized MRO.
 
-  print join ', ' => Class::C3::calculateMRO('YourClass::Name');
-
-Check out the L<Class::C3> docs for more information about inheritance.
+  print join ', ' => mro::get_linear_isa('YourClass::Name');
 
 =head1 EXISTING COMPONENTS
 
 =head2 Extra
 
-These components provide extra functionality beyond 
+These components provide extra functionality beyond
 basic functionality that you can't live without.
-
-L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
 
 L<DBIx::Class::CDBICompat> - Class::DBI Compatibility layer.
 
@@ -97,8 +93,6 @@ L<DBIx::Class::PK::Auto> - Retrieve automatically created primary keys upon inse
 L<DBIx::Class::QueriesTime> - Display the amount of time it takes to run queries.
 
 L<DBIx::Class::RandomStringColumns> - Declare virtual columns that return random strings.
-
-L<DBIx::Class::UTF8Columns> - Force UTF8 (Unicode) flag on columns.
 
 L<DBIx::Class::UUIDColumns> - Implicit UUID columns.
 

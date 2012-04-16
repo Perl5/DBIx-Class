@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 50);
-}
-
 use lib 't/cdbi/testlib';
 use Actor;
 use Film;
@@ -129,10 +119,6 @@ test_normal_iterator;
 # make sure nothing gets clobbered;
 test_normal_iterator;
 
-SKIP: {
-  #skip "dbic iterators don't support slice yet", 12;
-
-
 {
   my @acts = $film->actors->slice(1, 2);
   is @acts, 2, "Slice gives 2 actor";
@@ -154,7 +140,7 @@ SKIP: {
 
 package Class::DBI::My::Iterator;
 
-use vars qw/@ISA/;
+our @ISA;
 
 @ISA = ($it_class);
 
@@ -178,4 +164,4 @@ delete $film->{related_resultsets};
   is $@, '', "Deleting again does no harm";
 }
 
-} # end SKIP block
+done_testing;

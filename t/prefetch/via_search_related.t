@@ -9,6 +9,10 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
+my $queries;
+my $debugcb = sub { $queries++; };
+my $orig_debug = $schema->storage->debug;
+
 lives_ok ( sub {
   my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
     {
@@ -37,7 +41,6 @@ lives_ok ( sub {
 
 }, 'search_related prefetch with order_by works');
 
-TODO: { local $TODO = 'Unqualified columns in where clauses can not be fixed without an SQLA rewrite' if SQL::Abstract->VERSION < 2;
 lives_ok ( sub {
   my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
     {
@@ -65,8 +68,6 @@ lives_ok ( sub {
   is($use_prefetch->count, $no_prefetch->count, 'counts with and without prefetch match');
 
 }, 'search_related prefetch with condition referencing unqualified column of a joined table works');
-}
-
 
 lives_ok (sub {
     my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
@@ -129,9 +130,19 @@ lives_ok (sub {
 
   TODO: {
     local $TODO = "This makes another 2 trips to the database, it can't be right";
+
+    $queries = 0;
+    $schema->storage->debugcb ($debugcb);
+    $schema->storage->debug (1);
+
     # artist -> 2 cds -> 2 genres -> 2 cds for each genre + distinct = 2
     is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
     is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
+
+    is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
+
+    $schema->storage->debugcb (undef);
+    $schema->storage->debug ($orig_debug);
   }
 
 }, 'distinct generally works with prefetch on deep search_related chains');

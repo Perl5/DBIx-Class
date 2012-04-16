@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     MyFilm;
 
 use base 'MyBase';

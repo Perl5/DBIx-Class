@@ -4,10 +4,13 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class/;
-use Sub::Name ();
+use DBIx::Class::Carp;
+use Sub::Name qw/subname/;
+use Scalar::Util qw/blessed/;
 
-our %_pod_inherit_config = 
+use namespace::clean;
+
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::ManyToMany' => 'DBIx::Class::Relationship' }
   );
@@ -57,7 +60,7 @@ EOW
     $rel_attrs->{alias} ||= $f_rel;
 
     my $rs_meth_name = join '::', $class, $rs_meth;
-    *$rs_meth_name = Sub::Name::subname $rs_meth_name, sub {
+    *$rs_meth_name = subname $rs_meth_name, sub {
       my $self = shift;
       my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
       my @args = ($f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs });
@@ -68,14 +71,14 @@ EOW
     };
 
     my $meth_name = join '::', $class, $meth;
-    *$meth_name = Sub::Name::subname $meth_name, sub {
+    *$meth_name = subname $meth_name, sub {
       my $self = shift;
       my $rs = $self->$rs_meth( @_ );
       return (wantarray ? $rs->all : $rs);
     };
 
     my $add_meth_name = join '::', $class, $add_meth;
-    *$add_meth_name = Sub::Name::subname $add_meth_name, sub {
+    *$add_meth_name = subname $add_meth_name, sub {
       my $self = shift;
       @_ > 0 or $self->throw_exception(
         "${add_meth} needs an object or hashref"
@@ -106,7 +109,7 @@ EOW
     };
 
     my $set_meth_name = join '::', $class, $set_meth;
-    *$set_meth_name = Sub::Name::subname $set_meth_name, sub {
+    *$set_meth_name = subname $set_meth_name, sub {
       my $self = shift;
       @_ > 0 or $self->throw_exception(
         "{$set_meth} needs a list of objects or hashrefs"
@@ -124,16 +127,21 @@ EOW
     };
 
     my $remove_meth_name = join '::', $class, $remove_meth;
-    *$remove_meth_name = Sub::Name::subname $remove_meth_name, sub {
-      my $self = shift;
-      @_ > 0 && ref $_[0] ne 'HASH'
-        or $self->throw_exception("${remove_meth} needs an object");
-      my $obj = shift;
+    *$remove_meth_name = subname $remove_meth_name, sub {
+      my ($self, $obj) = @_;
+      $self->throw_exception("${remove_meth} needs an object")
+        unless blessed ($obj);
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->_resolve_condition(
-        $cond, $obj, $f_rel
+      my ($link_cond, $crosstable) = $rel_source->_resolve_condition(
+        $cond, $obj, $f_rel, $f_rel
       );
+
+      $self->throw_exception(
+        "Custom relationship '$rel' does not resolve to a join-free condition, "
+       ."unable to use with the ManyToMany helper '$f_rel'"
+      ) if $crosstable;
+
       $self->search_related($rel, $link_cond)->delete;
     };
 

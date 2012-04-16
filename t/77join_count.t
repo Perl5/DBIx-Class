@@ -1,15 +1,11 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
-
-eval "use DBD::SQLite";
-plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 4;
 
 cmp_ok($schema->resultset("CD")->count({ 'artist.name' => 'Caterwauler McCrae' },
                            { join => 'artist' }),
@@ -29,3 +25,4 @@ cmp_ok($schema->resultset("CD")->count(
            { join => [ qw/tags liner_notes/ ] } ),
            '==', 2, "Mixed count ok");
 
+done_testing;

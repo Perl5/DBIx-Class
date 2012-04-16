@@ -1,15 +1,14 @@
 use strict;
-use warnings;  
+use warnings;
 
 use FindBin;
-use File::Copy;
+use File::Copy 'move';
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 6;
-
-my $db_orig = "$FindBin::Bin/../var/DBIxClass.db";
+my $db_orig = DBICTest->_sqlite_dbfilename;
 my $db_tmp  = "$db_orig.tmp";
 
 # Set up the "usual" sqlite for DBICTest
@@ -39,7 +38,8 @@ cmp_ok(@art_two, '==', 3, "Three artists returned");
 ### Now, disconnect the dbh, and move the db file;
 # create a new one and chmod 000 to prevent SQLite from connecting.
 $schema->storage->_dbh->disconnect;
-move( $db_orig, $db_tmp );
+move( $db_orig, $db_tmp )
+  or die "failed to move $db_orig to $db_tmp: $!";
 open DBFILE, '>', $db_orig;
 print DBFILE 'THIS IS NOT A REAL DATABASE';
 close DBFILE;
@@ -49,25 +49,63 @@ chmod 0000, $db_orig;
 {
     # Catch the DBI connection error
     local $SIG{__WARN__} = sub {};
-    eval {
+    dies_ok {
         my @art_three = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
-    };
-    ok( $@, 'The operation failed' );
+    } 'The operation failed';
 }
+
+# otherwise can't unlink the fake db file
+$schema->storage->_dbh->disconnect if $^O eq 'MSWin32';
 
 ### Now, move the db file back to the correct name
-unlink($db_orig);
-move( $db_tmp, $db_orig );
+unlink($db_orig) or die "could not delete $db_orig: $!";
+move( $db_tmp, $db_orig )
+  or die "could not move $db_tmp to $db_orig: $!";
 
-SKIP: {
-    skip "Cannot reconnect if original connection didn't fail", 2
-        if ( $@ =~ /encrypted or is not a database/ );
+### Try the operation again... this time, it should succeed
+my @art_four;
+lives_ok {
+    @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+} 'The operation succeeded';
+cmp_ok( @art_four, '==', 3, "Three artists returned" );
 
-    ### Try the operation again... this time, it should succeed
-    my @art_four;
-    eval {
-        @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
-    };
-    ok( !$@, 'The operation succeeded' );
-    cmp_ok( @art_four, '==', 3, "Three artists returned" );
-}
+# check that reconnection contexts are preserved in txn_do / dbh_do
+
+my $args = [1, 2, 3];
+
+my $ctx_map = {
+  VOID => {
+    invoke => sub { shift->(); 1 },
+    wa => undef,
+  },
+  SCALAR => {
+    invoke => sub { my $foo = shift->() },
+    wa => '',
+  },
+  LIST => {
+    invoke => sub { my @foo = shift->() },
+    wa => 1,
+  },
+};
+
+for my $ctx (keys %$ctx_map) {
+
+  # start disconnected and then connected
+  $schema->storage->disconnect;
+  for (1, 2) {
+    my $disarmed;
+
+    $ctx_map->{$ctx}{invoke}->(sub { $schema->txn_do(sub {
+      is_deeply (\@_, $args, 'Args propagated correctly' );
+
+      is (wantarray(), $ctx_map->{$ctx}{wa}, "Correct $ctx context");
+
+      # this will cause a retry
+      $schema->storage->_dbh->disconnect unless $disarmed++;
+
+      isa_ok ($schema->resultset('Artist')->next, 'DBICTest::Artist');
+    }, @$args) });
+  }
+};
+
+done_testing;

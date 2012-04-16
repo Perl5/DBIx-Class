@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
 
 use MyDatabase::Main;
-use strict;
 
 my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
@@ -53,7 +55,6 @@ sub get_tracks_by_artist {
     print "\n";
 }
 
-
 sub get_cd_by_track {
     my $tracktitle = shift;
     print "get_cd_by_track($tracktitle):\n";
@@ -86,8 +87,6 @@ sub get_cds_by_artist {
     print "\n";
 }
 
-
-
 sub get_artist_by_track {
     my $tracktitle = shift;
     print "get_artist_by_track($tracktitle):\n";
@@ -105,7 +104,6 @@ sub get_artist_by_track {
     print $artist->name . "\n\n";
 }
 
-         
 sub get_artist_by_cd {
     my $cdtitle = shift;
     print "get_artist_by_cd($cdtitle):\n";

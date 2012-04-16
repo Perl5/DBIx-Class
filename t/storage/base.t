@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Warn;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
@@ -42,24 +43,20 @@ is( ref($schema->storage), 'DBIx::Class::Storage::DBI::SQLite',
 my $storage = $schema->storage;
 $storage->ensure_connected;
 
-eval {
+throws_ok {
     $schema->storage->throw_exception('test_exception_42');
-};
-like($@, qr/\btest_exception_42\b/, 'basic exception');
+} qr/\btest_exception_42\b/, 'basic exception';
 
-eval {
+throws_ok {
     $schema->resultset('CD')->search_literal('broken +%$#$1')->all;
-};
-like($@, qr/prepare_cached failed/, 'exception via DBI->HandleError, etc');
+} qr/prepare_cached failed/, 'exception via DBI->HandleError, etc';
 
 bless $storage, "DBICTest::ExplodingStorage";
 $schema->storage($storage);
 
-eval { 
+lives_ok {
     $schema->resultset('Artist')->create({ name => "Exploding Sheep" });
-};
-
-is($@, "", "Exploding \$sth->execute was caught");
+} 'Exploding $sth->execute was caught';
 
 is(1, $schema->resultset('Artist')->search({name => "Exploding Sheep" })->count,
   "And the STH was retired");
@@ -143,6 +140,7 @@ my $invocations = {
             AutoCommit => 0,
           },
       ],
+      warn => qr/\QYou provided explicit AutoCommit => 0 in your connection_info/,
   },
   'connect_info ([ \%attr_with_coderef ])' => {
       args => [ {

@@ -4,8 +4,9 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use IO::File;
+use namespace::clean;
 
-__PACKAGE__->mk_group_accessors(simple => qw/callback debugfh silence/);
+__PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh silence/);
 
 =head1 NAME
 
@@ -46,24 +47,21 @@ be an IO::Handle compatible object (only the C<print> method is used). Initially
 should be set to STDERR - although see information on the
 L<DBIC_TRACE> environment variable.
 
-=head2 print
-
-Prints the specified string to our debugging filehandle, which we will attempt
-to open if we haven't yet.  Provided to save our methods the worry of how
-to display the message.
+As getter it will lazily open a filehandle for you if one is not already set.
 
 =cut
-sub print {
-  my ($self, $msg) = @_;
 
-  return if $self->silence;
+sub debugfh {
+  my $self = shift;
 
-  if(!defined($self->debugfh())) {
+  if (@_) {
+    $self->_debugfh($_[0]);
+  } elsif (!defined($self->_debugfh())) {
     my $fh;
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
     if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-      $fh = IO::File->new($1, 'w')
+      $fh = IO::File->new($1, 'a')
         or die("Cannot open trace file $1");
     } else {
       $fh = IO::File->new('>&STDERR')
@@ -71,8 +69,22 @@ sub print {
     }
 
     $fh->autoflush();
-    $self->debugfh($fh);
+    $self->_debugfh($fh);
   }
+
+  $self->_debugfh;
+}
+
+=head2 print
+
+Prints the specified string to our debugging filehandle.  Provided to save our
+methods the worry of how to display the message.
+
+=cut
+sub print {
+  my ($self, $msg) = @_;
+
+  return if $self->silence;
 
   $self->debugfh->print($msg);
 }

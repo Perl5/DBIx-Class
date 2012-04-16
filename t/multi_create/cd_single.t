@@ -1,8 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More qw(no_plan);
-use Test::Exception;
+use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -32,3 +31,5 @@ eval {
 
   ok($single->cdid, 'Got cdid');
 };
+
+done_testing;

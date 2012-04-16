@@ -6,94 +6,37 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use Scalar::Util qw/blessed/;
-use Carp::Clan qw/^DBIx::Class/;
-
-sub iterator_class  { shift->result_source_instance->resultset_class(@_) }
-sub resultset_class { shift->result_source_instance->resultset_class(@_) }
-sub result_class { shift->result_source_instance->result_class(@_) }
-sub source_info { shift->result_source_instance->source_info(@_) }
-
-sub set_inherited_ro_instance {
-    my $self = shift;
-
-    croak "Cannot set @{[shift]} on an instance" if blessed $self;
-
-    return $self->set_inherited(@_);
-}
-
-sub get_inherited_ro_instance {
-    return shift->get_inherited(@_);
-}
+use Sub::Name qw/subname/;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('inherited_ro_instance' => 'source_name');
 
+sub get_inherited_ro_instance {  shift->get_inherited(@_) }
 
-sub resultset_attributes {
-  shift->result_source_instance->resultset_attributes(@_);
+sub set_inherited_ro_instance {
+  my $self = shift;
+
+  $self->throw_exception ("Cannot set @{[shift]} on an instance")
+    if blessed $self;
+
+  $self->set_inherited(@_);
 }
+
 
 sub add_columns {
   my ($class, @cols) = @_;
   my $source = $class->result_source_instance;
   $source->add_columns(@cols);
   foreach my $c (grep { !ref } @cols) {
+    # If this is an augment definition get the real colname.
+    $c =~ s/^\+//;
+
     $class->register_column($c => $source->column_info($c));
   }
 }
 
-sub add_column {
-  shift->add_columns(@_);
-}
+sub add_column { shift->add_columns(@_) }
 
-sub has_column {
-  shift->result_source_instance->has_column(@_);
-}
-
-sub column_info {
-  shift->result_source_instance->column_info(@_);
-}
-
-sub column_info_from_storage {
-  shift->result_source_instance->column_info_from_storage(@_);
-}
-
-sub columns {
-  shift->result_source_instance->columns(@_);
-}
-
-sub remove_columns {
-  shift->result_source_instance->remove_columns(@_);
-}
-
-*remove_column = \&remove_columns;
-
-sub set_primary_key {
-  shift->result_source_instance->set_primary_key(@_);
-}
-
-sub primary_columns {
-  shift->result_source_instance->primary_columns(@_);
-}
-
-sub _pri_cols {
-  shift->result_source_instance->_pri_cols(@_);
-}
-
-sub add_unique_constraint {
-  shift->result_source_instance->add_unique_constraint(@_);
-}
-
-sub unique_constraints {
-  shift->result_source_instance->unique_constraints(@_);
-}
-
-sub unique_constraint_names {
-  shift->result_source_instance->unique_constraint_names(@_);
-}
-
-sub unique_constraint_columns {
-  shift->result_source_instance->unique_constraint_columns(@_);
-}
 
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
@@ -102,12 +45,46 @@ sub add_relationship {
   $class->register_relationship($rel => $source->relationship_info($rel));
 }
 
-sub relationships {
-  shift->result_source_instance->relationships(@_);
-}
 
-sub relationship_info {
-  shift->result_source_instance->relationship_info(@_);
+# legacy resultset_class accessor, seems to be used by cdbi only
+sub iterator_class { shift->result_source_instance->resultset_class(@_) }
+
+for my $method_to_proxy (qw/
+  source_info
+  result_class
+  resultset_class
+  resultset_attributes
+
+  columns
+  has_column
+
+  remove_column
+  remove_columns
+
+  column_info
+  columns_info
+  column_info_from_storage
+
+  set_primary_key
+  primary_columns
+  _pri_cols
+  sequence
+
+  add_unique_constraint
+  add_unique_constraints
+
+  unique_constraints
+  unique_constraint_names
+  unique_constraint_columns
+
+  relationships
+  relationship_info
+  has_relationship
+/) {
+  no strict qw/refs/;
+  *{__PACKAGE__."::$method_to_proxy"} = subname $method_to_proxy => sub {
+    shift->result_source_instance->$method_to_proxy (@_);
+  };
 }
 
 1;

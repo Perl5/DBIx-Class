@@ -8,14 +8,17 @@ package SQL::Translator::Parser::DBIx::Class;
 
 use strict;
 use warnings;
-use vars qw($DEBUG $VERSION @EXPORT_OK);
+our ($DEBUG, $VERSION, @EXPORT_OK);
 $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
-use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
-use Scalar::Util ();
+use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
+use DBIx::Class::Exception;
+use Scalar::Util qw/weaken blessed/;
+use Try::Tiny;
+use namespace::clean;
 
 use base qw(Exporter);
 
@@ -31,20 +34,21 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
-    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
-    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
-    Scalar::Util::weaken ($_[1]) if ref ($_[1]);
-
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
     my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
     $dbicschema     ||= $args->{'package'};
     my $limit_sources = $args->{'sources'};
 
-    croak 'No DBIx::Class::Schema' unless ($dbicschema);
+    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
+    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
+    ref $_ and weaken $_
+      for $_[1], $dbicschema, @{$args}{qw/DBIx::Schema DBIx::Class::Schema package/};
+
+    DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
     if (!ref $dbicschema) {
-      eval "use $dbicschema;";
-      croak "Can't load $dbicschema ($@)" if($@);
+      eval "require $dbicschema"
+        or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
     }
 
     my $schema      = $tr->schema;
@@ -59,7 +63,7 @@ sub parse {
         $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
           unless( $ref eq 'ARRAY' || ref eq 'HASH' );
 
-        # limit monikers to those specified in 
+        # limit monikers to those specified in
         my $sources;
         if ($ref eq 'ARRAY') {
             $sources->{$_} = 1 for (@$limit_sources);
@@ -148,7 +152,11 @@ sub parse {
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $relsource = $source->related_source($rel);
+            my $relsource = try { $source->related_source($rel) };
+            unless ($relsource) {
+              warn "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              next;
+            };
 
             # related sources might be excluded via a {sources} filter or might be views
             next unless exists $table_monikers{$relsource->source_name};
@@ -165,7 +173,7 @@ sub parse {
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
-            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
+            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
 
             # Get the key information, mapping off the foreign/self markers
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
@@ -264,6 +272,7 @@ sub parse {
     my $dependencies = {
       map { $_ => _resolve_deps ($_, \%tables) } (keys %tables)
     };
+
     for my $table (sort
       {
         keys %{$dependencies->{$a} || {} } <=> keys %{ $dependencies->{$b} || {} }
@@ -277,7 +286,7 @@ sub parse {
 
       # the hook might have already removed the table
       if ($schema->get_table($table) && $table =~ /^ \s* \( \s* SELECT \s+/ix) {
-        warn <<'EOW';
+        carp <<'EOW';
 
 Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, for more details see
 "Arbitrary SQL through a custom ResultSource" in DBIx::Class::Manual::Cookbook
@@ -292,9 +301,25 @@ EOW
     }
 
     my %views;
-    foreach my $moniker (sort keys %view_monikers)
+    my @views = map { $dbicschema->source($_) } keys %view_monikers;
+
+    my $view_dependencies = {
+        map {
+            $_ => _resolve_deps( $dbicschema->source($_), \%view_monikers )
+          } ( keys %view_monikers )
+    };
+
+    my @view_sources =
+      sort {
+        keys %{ $view_dependencies->{ $a->source_name }   || {} } <=>
+          keys %{ $view_dependencies->{ $b->source_name } || {} }
+          || $a->source_name cmp $b->source_name
+      }
+      map { $dbicschema->source($_) }
+      keys %view_monikers;
+
+    foreach my $source (@view_sources)
     {
-        my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
 
         # FIXME - this isn't the right way to do it, but sqlt does not
@@ -331,35 +356,51 @@ EOW
 # Quick and dirty dependency graph calculator
 #
 sub _resolve_deps {
-  my ($table, $tables, $seen) = @_;
+    my ( $question, $answers, $seen ) = @_;
+    my $ret = {};
+    $seen ||= {};
+    my @deps;
 
-  my $ret = {};
-  $seen ||= {};
-
-  # copy and bump all deps by one (so we can reconstruct the chain)
-  my %seen = map { $_ => $seen->{$_} + 1 } (keys %$seen);
-  $seen{$table} = 1;
-
-  for my $dep (keys %{$tables->{$table}{foreign_table_deps}} ) {
-
-    if ($seen->{$dep}) {
-
-      # warn and remove the circular constraint so we don't get flooded with the same warning over and over
-      #carp sprintf ("Circular dependency detected, schema may not be deployable:\n%s\n",
-      #  join (' -> ', (sort { $seen->{$b} <=> $seen->{$a} } (keys %$seen) ), $table, $dep )
-      #);
-      #delete $tables->{$table}{foreign_table_deps}{$dep};
-
-      return {};
+    # copy and bump all deps by one (so we can reconstruct the chain)
+    my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
+    if ( blessed($question)
+        && $question->isa('DBIx::Class::ResultSource::View') )
+    {
+        $seen{ $question->result_class } = 1;
+        @deps = keys %{ $question->{deploy_depends_on} };
+    }
+    else {
+        $seen{$question} = 1;
+        @deps = keys %{ $answers->{$question}{foreign_table_deps} };
     }
 
-    my $subdeps = _resolve_deps ($dep, $tables, \%seen);
-    $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+    for my $dep (@deps) {
+        if ( $seen->{$dep} ) {
+            return {};
+        }
+        my $next_dep;
 
-    ++$ret->{$dep};
-  }
-
-  return $ret;
+        if ( blessed($question)
+            && $question->isa('DBIx::Class::ResultSource::View') )
+        {
+            no warnings 'uninitialized';
+            my ($next_dep_source_name) =
+              grep {
+                $question->schema->source($_)->result_class eq $dep
+                  && !( $question->schema->source($_)
+                    ->isa('DBIx::Class::ResultSource::Table') )
+              } @{ [ $question->schema->sources ] };
+            return {} unless $next_dep_source_name;
+            $next_dep = $question->schema->source($next_dep_source_name);
+        }
+        else {
+            $next_dep = $dep;
+        }
+        my $subdeps = _resolve_deps( $next_dep, $answers, \%seen );
+        $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+        ++$ret->{$dep};
+    }
+    return $ret;
 }
 
 1;

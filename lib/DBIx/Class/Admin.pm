@@ -2,9 +2,8 @@ package DBIx::Class::Admin;
 
 # check deps
 BEGIN {
-  use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class;
-  croak('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
+  die('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
 }
 
@@ -87,13 +86,12 @@ has 'schema' => (
 
 sub _build_schema {
   my ($self)  = @_;
+
   require Class::MOP;
   Class::MOP::load_class($self->schema_class);
-
-  $self->connect_info->[3]->{ignore_version} =1;
-  return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
+  $self->connect_info->[3]{ignore_version} = 1;
+  return $self->schema_class->connect(@{$self->connect_info});
 }
-
 
 =head2 resultset
 
@@ -135,7 +133,7 @@ has 'set' => (
 
 =head2 attrs
 
-a hash ref or json string to be used for passing additonal info to the ->search call
+a hash ref or json string to be used for passing additional info to the ->search call
 
 =cut
 
@@ -169,7 +167,7 @@ sub _build_connect_info {
 
 config_file provide a config_file to read connect_info from, if this is provided
 config_stanze should also be provided to locate where the connect_info is in the config
-The config file should be in a format readable by Config::General
+The config file should be in a format readable by Config::Any.
 
 =cut
 
@@ -182,7 +180,7 @@ has config_file => (
 
 =head2 config_stanza
 
-config_stanza for use with config_file should be a '::' deliminated 'path' to the connection information
+config_stanza for use with config_file should be a '::' delimited 'path' to the connection information
 designed for use with catalyst config files
 
 =cut
@@ -195,7 +193,7 @@ has 'config_stanza' => (
 
 =head2 config
 
-Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note 
+Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note
 config_stanza will still be required.
 
 =cut
@@ -209,8 +207,8 @@ has config => (
 sub _build_config {
   my ($self) = @_;
 
-  eval { require Config::Any }
-    or die ("Config::Any is required to parse the config file.\n");
+  try { require Config::Any }
+    catch { die ("Config::Any is required to parse the config file.\n") };
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
@@ -233,6 +231,17 @@ has 'sql_dir' => (
 );
 
 
+=head2 sql_type
+
+The type of sql dialect to use for creating sql files from schema
+
+=cut
+
+has 'sql_type' => (
+  is     => 'ro',
+  isa    => Str,
+);
+
 =head2 version
 
 Used for install, the version which will be 'installed' in the schema
@@ -247,7 +256,7 @@ has version => (
 
 =head2 preversion
 
-Previouse version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
+Previous version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
 
 =cut
 
@@ -286,6 +295,24 @@ has '_confirm' => (
 );
 
 
+=head2 trace
+
+Toggle DBIx::Class debug output
+
+=cut
+
+has trace => (
+    is => 'rw',
+    isa => Bool,
+    trigger => \&_trigger_trace,
+);
+
+sub _trigger_trace {
+    my ($self, $new, $old) = @_;
+    $self->schema->storage->debug($new);
+}
+
+
 =head1 METHODS
 
 =head2 create
@@ -296,8 +323,9 @@ has '_confirm' => (
 
 =back
 
-L<create> will generate sql for the supplied schema_class in sql_dir.  The flavour of sql to 
-generate can be controlled by suppling a sqlt_type which should be a L<SQL::Translator> name.  
+C<create> will generate sql for the supplied schema_class in sql_dir. The
+flavour of sql to generate can be controlled by supplying a sqlt_type which
+should be a L<SQL::Translator> name.
 
 Arguments for L<SQL::Translator> can be supplied in the sqlt_args hashref.
 
@@ -309,6 +337,7 @@ sub create {
   my ($self, $sqlt_type, $sqlt_args, $preversion) = @_;
 
   $preversion ||= $self->preversion();
+  $sqlt_type ||= $self->sql_type();
 
   my $schema = $self->schema();
   # create the dir if does not exist
@@ -334,10 +363,12 @@ B<MAKE SURE YOU BACKUP YOUR DB FIRST>
 sub upgrade {
   my ($self) = @_;
   my $schema = $self->schema();
+
   if (!$schema->get_db_version()) {
     # schema is unversioned
     $schema->throw_exception ("Could not determin current schema version, please either install() or deploy().\n");
   } else {
+    $schema->upgrade_directory ($self->sql_dir) if $self->sql_dir;  # this will override whatever default the schema has
     my $ret = $schema->upgrade();
     return $ret;
   }
@@ -352,9 +383,9 @@ sub upgrade {
 
 =back
 
-install is here to help when you want to move to L<DBIx::Class::Schema::Versioned> and have an existing 
-database.  install will take a version and add the version tracking tables and 'install' the version.  No 
-further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of 
+install is here to help when you want to move to L<DBIx::Class::Schema::Versioned> and have an existing
+database.  install will take a version and add the version tracking tables and 'install' the version.  No
+further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of
 already versioned databases.
 
 =cut
@@ -366,12 +397,12 @@ sub install {
   $version ||= $self->version();
   if (!$schema->get_db_version() ) {
     # schema is unversioned
-    print "Going to install schema version\n";
+    print "Going to install schema version\n" if (!$self->quiet);
     my $ret = $schema->install($version);
-    print "retun is $ret\n";
+    print "return is $ret\n" if (!$self->quiet);
   }
   elsif ($schema->get_db_version() and $self->force ) {
-    carp "Forcing install may not be a good idea";
+    warn "Forcing install may not be a good idea\n";
     if($self->_confirm() ) {
       $self->schema->_set_db_version({ version => $version});
     }
@@ -391,7 +422,7 @@ sub install {
 
 =back
 
-deploy will create the schema at the connected database.  C<$args> are passed straight to 
+deploy will create the schema at the connected database.  C<$args> are passed straight to
 L<DBIx::Class::Schema/deploy>.
 
 =cut
@@ -399,13 +430,7 @@ L<DBIx::Class::Schema/deploy>.
 sub deploy {
   my ($self, $args) = @_;
   my $schema = $self->schema();
-  if (!$schema->get_db_version() ) {
-    # schema is unversioned
-    $schema->deploy( $args, $self->sql_dir)
-      or $schema->throw_exception ("Could not deploy schema.\n"); # FIXME deploy() does not return 1/0 on success/fail
-  } else {
-    $schema->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
-  }
+  $schema->deploy( $args, $self->sql_dir );
 }
 
 =head2 insert
@@ -502,7 +527,7 @@ sub delete {
 
 =back
 
-select takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+select takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search.
 The found data is returned in a array ref where the first row will be the columns list.
 
 =cut
@@ -518,7 +543,7 @@ sub select {
 
   my @data;
   my @columns = $resultset->result_source->columns();
-  push @data, [@columns];# 
+  push @data, [@columns];#
 
   while (my $row = $resultset->next()) {
     my @fields;
@@ -533,12 +558,14 @@ sub select {
 
 sub _confirm {
   my ($self) = @_;
-  print "Are you sure you want to do this? (type YES to confirm) \n";
+
   # mainly here for testing
   return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
+
+  print "Are you sure you want to do this? (type YES to confirm) \n";
   my $response = <STDIN>;
-  return 1 if ($response=~/^YES/);
-  return;
+
+  return ($response=~/^YES/);
 }
 
 sub _find_stanza {
@@ -552,6 +579,7 @@ sub _find_stanza {
       die ("Could not find $stanza in config, $path does not seem to exist.\n");
     }
   }
+  $cfg = $cfg->{connect_info} if exists $cfg->{connect_info};
   return $cfg;
 }
 

@@ -1,7 +1,596 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Issue a warning when DateTime objects are passed to ->search
+        - Fast populate() in void context is now even more efficient by
+          going directly through execute_for_fetch bypassing execute_array
+        - Fix update()/delete() on complex resultsets to no longer fall back
+          to silly row-by-row deletion, construct a massive OR statement
+          instead
+        - Allow complex update/delete operations on sources without a
+          primary key, as long as they have at least one non-nullable
+          unique constraint
+        - dbicadmin now better supports catalyst-style config files, by
+          unrolling 'config_info' hashkeys
+        - Multiple Improvements MSSQL over DBD::ADO
+          - Transaction support
+          - Support for VARCHAR(MAX)/VARBINARY(MAX)/NVARCHAR(MAX) datatypes
+          - Nomalization of retrieved GUID values
+
+    * Fixes
+        - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
+        - Fix "Skimming limit" dialects (Top, FetchFirst) to properly check
+          the order_by criteria for stability
+        - Fix "Skimming limit" dialects (Top, FetchFirst) to propagate
+          non-selected order criteria when part of a larger subquery
+        - Fix RowNumberOver and all "skimming limits" to correctly assemble
+          bind values when supplied for both select and order_by
+        - Fix all subquery-based dialects to not lose a subquery fragment
+          when we both select and order by the result of the same subquery
+        - Fix the Sybase hubrid limit dialect (RowCountOrGenericSubQ) losing
+          Group/Having/Order clauses when called without an offset (RT#73244)
+        - No longer generate incorrect SQL on ->as_query called on resultsets
+          with software_limit enabled
+        - A number of corner case fixes of void context populate() with \[]
+        - Fix corner case of forked children disconnecting the parents DBI
+          handle
+        - Improve identity/autoinc retrieval code in MSSQL and Sybase -
+          should reduce weird side-effects especially with populate()
+        - Explicitly disable DBD::ODBC batch operations (as of DBD::ODBC 1.35)
+          for the following drivers too buggy to handle the optimized path:
+          - FreeTDS ODBC driver (when used with MSSQL)
+          - The Firebird ODBC driver
+          - The MSAccess ODBC driver
+        - Explicitly disable DBD::ODBC dynamic_cursors when using freetds 0.83
+          or later - they made enough ODBC incompatible changes making it
+          impossible to support sanely
+        - Explicitly disable SCOPE_IDENTITY queries and statement caching for
+          MSSQL on DBD::Sybase compiled against freetds 0.83 or later - way too
+          buggy
+        - Disable statement caching when using Sybase ASE and DBD::Sybase
+          compiled against freetds 0.83 or later
+        - Fix leakage of $schema on in-memory new_related() calls
+        - Fix more cases of $schema leakage in SQLT::Parser::DBIC
+        - Fix leakage of $storage in ::Storage::DBI::Oracle
+        - Fix pessimization of Oracle RowNum limit dialect query when no
+          offset has been specified
+        - Remove useless vestigial pessimization in Ordered.pm for cases
+          when the position column is part of a unique constraint
+        - Fix dbicadmin to no longer ignore the documented 'config' option
+        - The schema-resultsource entanglement is now much more robust
+          under threads
+        - Fix ::Schema::ddl_filename() failing miserably on paths containing
+          certain numeric sequences
+        - t/53lean_startup.t adjusted for new 5.15.x base.pm behavior
+
+    * Misc
+        - Centralized leak-checks for all instances of DBICTest::Schema
+          from within any test
+        - Now passes all tests with Test::Builder 1.005
+        - Codebase is now trailing-whitespace-free
+        - Cleanup of complex resultset update/delete oprations - storage
+          specific code moved back to ResultSet and replaced by checks
+          of storage capabilities
+        - Fixed carp_once only emitting one single warning per package
+          regardless of warning content
+        - Test suite now can be safely executed in parallel (prove -jN
+          or HARNESS_OPTIONS=jN)
+
+0.08196 2011-11-29 05:35 (UTC)
+    * Fixes
+        - Fix tests for DBD::SQLite >= 1.34.
+        - Fix test failures with DBICTEST_SQLITE_USE_FILE set
+        - Fix the find() condition heuristics being invoked even when the
+          call defaults to 'primary' (i.e. when invoked with bare values)
+        - Throw much clearer error on incorrect inflation spec
+        - Fix incorrect storage behavior when first call on a fresh schema
+          is with_deferred_fk_checks
+        - Fix incorrect dependency on Test::Simple/Builder (RT#72282)
+        - Fix uninitialized warning in ::Storage::Sybase::ASE
+        - Improve/cache  DBD-specific datatype bind checks (also solves a
+          nasty memleak with version.pm on multiple ->VERSION invocations)
+        - The internal carp module now correctly skips CAG frames when
+          reporting a callsite
+        - Fix test failures on perl < 5.8.7 and new Package::Stash::XS
+        - Fix TxnScopeGuard not behaving correctly when $@ is set at the
+          time of $guard instantiation
+        - Fix the join/prefetch resolver when dealing with ''/undef/()
+          relation specifications
+
+    * Misc
+        - No longer depend on Variable::Magic now that a pure-perl
+          namespace::clean is available
+        - Drop Oracle's Math::BigInt req down to 1.80 - no fixes concerning
+          us were made since
+
+0.08195 2011-07-27 16:20 (UTC)
+    * Fixes
+        - Fix horrible oversight in the Oracle sqlmaker when dealing with
+          queries updating blobs (RT#69829)
+
+0.08194 2011-07-20 16:10 (UTC)
+    * Fixes
+        - Fix $rs->populate([]) to be a no-op rather than an exception
+        - Overhaul t/53lean_startup.t to better dodge false positives
+        - Stop Data::Compare from loading random plugins
+        - Oracle: Recalculate LOB bind indices for UPDATE with LOBs in WHERE
+          (RT#69548)
+
+0.08193 2011-07-14 17:00 (UTC)
+    * New Features / Changes
+        - Allow schema cloning to mutate attributes
+        - DBIC now attempts more aggressive de-duplication of where
+          conditions on resultset chaining
+        - The Ordered component is now smarter wrt reordering of dirty
+          objects, and does its job with less storage queries
+        - Logging via DBIC_TRACE=1=<filename> no longer overwrites the
+          logfile on every program startup, appending loglines instead
+
+    * Fixes
+        - Fix issue where the query was becoming overly mangled when trying
+          to use pagination with a query that has a sub-select in the WHERE
+          clause
+        - Fix possible incorrect pagination on Oracle, when a resultset
+          is not ordered by a unique column
+        - Revert "Fix incorrect signature of the default sqlt_deploy_hook"
+          from 0.08191 - documentation was in fact incorrect, not the code
+        - Fix Sybase ASE IC::DateTime support (::Storage going out of sync
+          with new default format expected by DateTime::Format::Sybase)
+        - Fix a bug in update_all() resulting in the first row receiving a
+          different dataset than the subsequent ones
+        - Accomodate MSAccess supporting only 'INNER JOIN' (not plain 'JOIN')
+        - InflateColumn::DateTime option datetime_undef_if_invalid no longer
+          masks missing dependency exceptions (RT#66823)
+        - Fix bug in Schema::Versioned failing to insert a schema version row
+          during upgrades at the turn of the second
+        - Fix incorrect bind of integers >= 2^^32 (bigint columns) to
+          SQL_INTEGER, resulting in silent conversion to '-1'
+        - Fix pre 5.10 failures of t/55namespaces_cleaned.t due to buggy
+          require() (RT#68814)
+        - Oracle autoinc inserts no longer leave open cursors behind
+
+0.08192 2011-05-10 04:20 (UTC)
+    * Fixes
+        - Fix serious regression on SQLite, corrupting data when an alphanum
+          value does not correspond to a stale numeric datatype in colinfo
+
+0.08191 2011-05-02 00:45 (UTC) (deleted from CPAN)
+    * New Features / Changes
+        - Add quote_names connection option. When set to true automatically
+          sets quote_char and name_sep appropriate for your RDBMS
+        - Add retrieve_on_insert column info flag, allowing to retrieve any
+          column value instead of just autoinc primary keys
+        - Bring back strict ordering of selectors in complex search chains
+          (an ill-fated attempt was made in 0.08127 to order intelligently)
+        - All limit dialects (except for the older Top and FetchFirst) are
+          now using bind parameters for the limits/offsets, making DBI's
+          prepare_cached useful across paged resutsets
+        - Support for savepoints for SQLite
+        - Support for MS Access databases via DBD::ODBC and DBD::ADO (only
+          Win32 support currently tested)
+        - Support for the Firebird RDBMS over the new DBD::Firebird driver
+        - IC::DateTime support for MSSQL over DBD::ADO
+        - Both the ::ODBC and ::ADO dispatchers now warn if a rdbms-specific
+          driver is not found for this connection before falling back to
+          plain ::Storage::DBI
+        - ::Storage::DBI::sth was mistakenly marked/documented as public,
+          privatize and warn on deprecated use
+        - Massive overhaul of bind values/attributes handling - slightly
+          changes the output of as_query (should not cause compat issues)
+        - Support ancient DB2 versions (5.4 and older), with proper limit
+          dialect
+        - Support sub-second precision for TIMESTAMPs for Firebird over ODBC
+        - Support BLOBs and CLOBs in WHERE clauses for Oracle, including LIKE
+          queries for CLOBs.
+
+    * Fixes
+        - Fix ::Storage::DBI::* MRO problems on 5.8.x perls
+        - Disable mysql_auto_reconnect for MySQL - depending on the ENV
+          it sometimes defaults to on and causes major borkage on older
+          DBD::mysql versions
+        - Fix dropped bind values in select/group_by on Oracle (omission
+          from 0542ec57 and 4c2b30d6)
+        - Fix remaining errors with Oracle and identifiers longer than the
+          Oracle-imposed maximum of 30 characters (RT#66390)
+        - Fix older oracle-specific "WhereJoins" to work properly with
+          name quoting
+        - Fix problems with M.A.D. under CGI::SpeedyCGI (RT#65131)
+        - Reenable paging of cached resultsets - breakage erroneously added
+          in 0.08127
+        - Better error handling when prepare() fails silently
+        - Fixes skipped lines when a comment is followed by a statement
+          when deploying a schema via sql file
+        - Fix reverse_relationship_info on prototypical result sources
+          (sources not yet registered with a schema)
+        - Warn and skip relationships missing from a partial schema during
+          dbic cascade_delete
+        - Automatically require the requested cursor class before use
+          (RT#64795)
+        - Work around a Firebird ODBC driver bug exposed by DBD::ODBC 1.29
+        - Fix (to the extent allowed by the driver) transaction support in
+          DBD::Sybase compiled against FreeTDS
+        - Fix exiting via next warnings in ResultSource::sequence()
+        - Fix stripping of table qualifiers in update/delete in arrayref
+          condition elements
+        - Change SQLMaker carp-monkeypatch to be compatible with versions
+          of SQL::Abstract >= 1.73
+        - Fix using \[] literals in the from resultset attribute
+        - Fix populate() with \[], arrays (datatype) and other exotic values
+        - Fix handling of rollbacks in nested transactions
+        - Fix complex limits (RNO/RowNum/FetchFirst/Top/GenSubq) with
+          sub-selects in the selectors list (correlated subqueries)
+        - Fix inconsistency between $rs->next with and without HRI when all
+          the "root" columns are in fact injected from the right rs side
+        - Fix the join optimizer to correctly preserve the non-multi path to
+          a multi relationship ( x -> might_have y -> has_many z )
+        - Fix object-derived custom-relationship resultsets to resultsources
+          with multilevel monikers (e.g. $schema->source('Foo::Bar') )
+        - Fix incorrect signature of the default sqlt_deploy_hook - it now
+          matches the documentation of passing in the result source object
+        - Fix inadequate handling of internal storage methods within
+          ::Storage::Replicated (RT#66295)
+
+    * Misc
+        - Rewire all warnings to a new Carp-like implementation internal
+          to DBIx::Class, and remove the Carp::Clan dependency
+        - Only load Class::C3 and friends if necessary ($] < 5.010)
+        - Greatly reduced loading of non-essential modules to aid startup
+          time (mainly benefiting CGI users)
+        - Make sure all namespaces are clean of rogue imports
+        - Dropped DBI req 2 years back - everything works with 1.57, no
+          point requiring something newer
+
+0.08190-TRIAL 2011-01-24 15:35 (UTC)
+
+    * New Features / Changes
+        - Support for completely arbitrary SQL::Abstract-based conditions
+          in all types of relationships
+
+0.08127 2011-01-19 16:40 (UTC)
+    * New Features / Changes
+        - Schema/resultsource instances are now crossreferenced via a new
+          system guaranteeing leak-free mutually assured destruction
+        - DBIx::Class now warns when the user erroneously supplies
+          AutoCommit => 0 to connect()
+        - A warning is also issued before forcing the RaiseError
+          setting of externally supplied DBI handles
+        - Switch to a warning when find() is invoked with both a 'key'
+          argument and a NULL-containing condition to satisfy the named
+          constraint. Previously (starting with 0.08124) an exception was
+          thrown
+        - Switch to a warning when a commit is attempted with an out-of-sync
+          transaction_depth (someone issued a begin externally to DBIC).
+          Previously (starting with 0.08124) an exception was thrown
+
+    * Fixes
+        - A number of improvements/diagnostics of multiple active resultset
+          handling on MSSQL over DBD::ODBC
+        - Revert default selection to being lazy again (eagerness introduced
+          in 0.08125) - fixes DBIx::Class::Helper::ResultSet::RemoveColumns
+        - Fix losing order of columns provided in select/as (regression from
+          0.08125)
+        - Unaliased "dark" selectors no longer throw off prefetch
+        - Fix proper composition of bind values across all possible
+          SQL areas ( group_by => \[ ... ] now works properly )
+        - Allow populate to skip empty has_many relationships which makes
+          it easier to pass HashRefInflator data directly to ->populate
+        - Improve freeze/thaw semantics and error messages (RT#62546)
+        - Fix inconsistency in Manual::Features (RT#64500)
+        - Fix incorrect SQL when using for => 'shared' with MySQL (RT#64590)
+        - Throw comprehensible exception on erroneous $schema->source()
+          invocation
+        - Fix sloppy refactor of ResultSource::sequence back from 89170201
+          (RT#64839)
+        - Fix incorrect error detection during populate() on Oracle
+        - Better handling of result_source-less row objects by
+          auto-calling result_source_instance when necessary
+        - Fix reverse_relationship_info and sqlt deploy on partially
+          loaded schemas (relationships point to non-existent sources)
+
+    * Misc
+        - Fix test warning on win32 - at this point the test suite is
+          warning-free on all known OSes
+        - Require newest namespace::clean which in turn depends on new
+          installable Package::Stash
+
+0.08126 2010-12-28 18:10 (UTC)
+    * Fixes
+        - Bump forgotten Class::Accessor::Grouped core dependency
+        - Promote forgotten Hash::Merge optdep to a hard requirement
+        - Skip t/storage/error.t on smokers with leaking perls
+        - Fix t/storage/txn.t deadlocks on slower machines
+        - Do not run on smokers if a trial Package::Stash is found
+
+0.08125 2010-12-27 04:30 (UTC)
+    * New Features / Changes
+        - New method ResultSource columns_info method, returning multiple
+          pairs of column name/info at once
+        - $rs->search now throws when called in void context, as it makes
+          no sense (and is nearly always a sign of a bug/misdesign)
+        - Restore long-lost ability to supply unbalanced select/as pairs
+          e.g. +select => \'DISTINCT(foo, bar)', +as => ['foo', 'bar']
+        - +columns now behaves just like columns by not stripping a
+          fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
+        - Deprecate legacy $rs->search( %condition ) syntax (warn once per
+          callsite)
+        - NULL is now supplied unquoted to all debug-objects, in order to
+          differentiate between a real NULL and the string 'NULL'
+        - New search() condition operator -value used to pass complex bind
+          values to DBI: search({ array_col => { -value => [1,2,3] }})
+        - Add full INSERT...RETURNING support for Oracle
+        - Deprecate use of -nest in search conditions (warn once per
+          callsite)
+        - Deprecate the completely useless DBIx::Class::Serialize::Storable
+          result component
+
+    * Fixes
+        - Fixed read-only attribute set attempt in ::Storage::Replicated
+          (RT#62642)
+        - Fix incomplete logic while detecting correct Oracle sequence
+          on insert
+        - Fix detection of Oracle sequences for tables without an explicitly
+          specified schema (RT#63493)
+        - Major overhaul of Storage::Oracle to handle enabled quoting
+        - Fixed incorrect composition of select/as/columns attributes during
+          chaining (RT#61235)
+        - Proper serialization of resultsets with open cursors
+        - Refactor handling of RDBMS-side values during insert() - fix
+          regression of inserts into a Postgres / ::Replicated combination
+        - Missing dependency check in t/60core.t (RT#62635)
+        - Fix regressions in IC::DT registration logic
+        - Fix regression in select-associated bind value handling (RT#61025)
+        - Simplify SQL generated by some LIMITed prefetching queries
+        - Throw an exception when a required group_by on a complex prefetch
+          can not be auto-constructed, instead of continuing to eventually
+          produce invalid SQL
+        - Fix infinite loops on old perls with a recent Try::Tiny
+        - Improve "fork()" on Win32 by reimplementing a more robust DBIC
+          thread support (still problematic, pending a DBI fix)
+        - Properly quote table name on INSERT with no values
+        - Work around possible Storage destruction warnings
+        - Fix count of grouped resultsets using HAVING with aliases
+        - Setting belongs_to columns/relationships no longer leaves the
+          FK value and related object out of sync
+        - Stop stripping newlines from SQL statements in the limit emulators
+          as it is possible that custom sql with comments was provided
+        - Add forgotten attributes to Admin.pm
+        - Fix incorrect 'having' attribute documentation (RT#64129)
+        - Improve fallback-to-master/return-to-slave reporting in
+          ::Replicated::Balancer
+        - Adjust txn_scope_guard code/tests to changes in $@ handling on
+          recent blead (RT#64251)
+
+    * Misc
+        - Add extra option groups to DBIC::Optional::Depencencies, to aid
+          users in requesting the prerequisites for a particular RDBMS
+        - Switch all serialization to use Storable::nfreeze for portable
+          architecture independent ice
+        - Fix the bogus META.yml dependency injection issue for good
+        - Refactor DBIx::Class::Storage::Statistics::debugfh() to be lazy
+
+0.08124 2010-10-28 14:23 (UTC)
+    * New Features / Changes
+        - Add new -ident "function" indicating rhs is a column name
+          { col => { -ident => 'othercol' } } vs { col => \'othercol' }
+        - Extend 'proxy' relationship attribute
+        - Use DBIx::Class::Storage::Debug::PrettyPrint when the
+          environment variable DBIC_TRACE_PROFILE is set, see
+          DBIx::Class::Storage for more information
+        - Implemented add_unique_constraints() which delegates to
+          add_unique_constraint() as appropriate
+        - add_unique_constraint() now poparly throws if called with
+          multiple constraint definitions
+        - No longer depend on SQL::Abstract::Limit - DBIC has been doing
+          most of the heavy lifting for a while anyway
+        - FilterColumn now passes data through when transformations
+          are not specified rather than throwing an exception.
+        - Optimized RowNum based Oracle limit-dialect (RT#61277)
+        - Requesting a pager on a resultset with cached entries now
+          throws an exception, instead of returning a 1-page object
+          since the amount of rows is always equal to the "pagesize"
+        - $rs->pager now uses a lazy count to determine the amount of
+          total entries only when really needed, instead of doing it
+          at instantiation time
+        - New documentation map organized by features
+          (DBIx::Class::Manual::Features)
+        - find( { ... }, { key => $constraint } ) now throws an exception
+          when the supplied data does not fully specify $constraint
+        - find( col1 => $val1, col2 => $val2, ... ) is no longer supported
+          (it has been in deprecated state for more than 4 years)
+        - Make sure exception_action does not allow exception-hiding
+          due to badly-written handlers (the mechanism was never meant
+          to be able to suppress exceptions)
+
+    * Fixes
+        - Fix memory leak during populate() on 5.8.x perls
+        - Temporarily fixed 5.13.x failures (RT#58225)
+          (perl-core fix still pending)
+        - Fix result_soutrce_instance leaks on compose_namespace
+        - Fix $_ volatility on load_namespaces (a class changing $_
+          at compile time no longer causes a massive fail)
+        - Fix find() without a key attr. choosing constraints even if
+          some of the supplied values are NULL (RT#59219)
+        - Fixed rels ending with me breaking subqueried limit realiasing
+        - Fixed $rs->update/delete on resutsets constrained by an
+          -or condition
+        - Remove rogue GROUP BY on non-multiplying prefetch-induced
+          subqueries
+        - Fix incorrect order_by handling with prefetch on
+          $ordered_rs->search_related ('has_many_rel') resultsets
+        - Oracle sequence detection now *really* works across schemas
+          (fixed some ommissions from 0.08123)
+        - dbicadmin now uses a /usr/bin/env shebang to work better with
+          perlbrew and other local perl builds
+        - bulk-inserts via $dbh->bind_array (void $rs->populate) now
+          display properly in DBIC_TRACE
+        - Incomplete exception thrown on relationship auto-fk-inference
+          failures
+        - Fixed distinct with order_by to not double-specify the same
+          column in the GROUP BY clause
+        - Properly support column names with symbols (e.g. single quote)
+          via custom accessors
+        - Fixed ::Schema::Versioned to work properly with quoting on
+          (RT#59619)
+        - Fixed t/54taint fails under local-lib
+        - Fixed SELECT ... FOR UPDATE with LIMIT regression (RT#58554)
+        - Fixed CDBICompat to preserve order of column-group additions,
+          so that test relying on the order of %{} will no longer fail
+        - Fixed mysterious ::Storage::DBI goto-shim failures on older
+          perl versions
+        - Non-blessed reference exceptions are now correctly preserved
+          when thrown from udner DBIC (e.g. from txn_do)
+        - No longer disconnecting database handles supplied to connect
+          via a coderef
+        - Fixed t/inflate/datetime_pg.t failures due to a low dependency
+          on DateTime::Format::Pg (RT#61503)
+        - Fix dirtyness detection on source-less objects
+        - Fix incorrect limit_dialect assignment on Replicated pool members
+        - Fix invalid sql on relationship attr order_by with prefetch
+        - Fix primary key sequence detection for Oracle
+          (first trigger instead of trigger for column)
+        - Add various missing things to Optional::Dependencies
+        - Skip a test that breaks due to serious bugs in current DBD::SQLite
+        - Fix tests related to leaks and leaky perls (5.13.5, 5.13.6)
+
+    * Misc
+        - Entire test suite now passes under DBIC_TRACE=1
+        - Makefile.PL no longer imports GetOptions() to interoperate
+          better with Catalyst installers
+        - Bumped minimum Module::Install for developers
+        - Bumped DBD::SQLite dependency and removed some TODO markers
+          from tests (RT#59565)
+        - Do not execute t/zzzzzzz_sqlite_deadlock.t for regular module
+          installs - test is prone to spontaneous blow up
+        - DT-related tests now require a DateTime >= 0.55 (RT#60324)
+        - Makefile.PL now provides a pre-parsed DBIC version to the
+          Opt::Dep pod generator
+        - t/52leaks.t now performs very aggressive leak detection in
+          author/smoker mode
+
+0.08123 2010-06-12 14:46 (UTC)
+    * Fixes
+        - Make sure Oracle identifier shortener applies to auto-generated
+          column names, so we stay within the 30-char limit (RT#58271)
+        - Oracle sequence detection now works across schemas
+        - Fix a Storage/$dbh leak introduced by the migration to
+          Try::Tiny (this is *not* a Try::Tiny bug)
+        - Fix corner case of count with group-by over a 1:1 join column
+          where the selector ends up with column name clashes
+        - POD fixes (RT#58247)
+
+    * Misc
+        - Test suite default on-disk database now checks for Win32
+          fail-conditions even when running on other OSes
+
+0.08122 2010-06-03 17:41 (UTC)
+    * New Features
+        - Add DBIx::Class::FilterColumn for non-ref filtering
+        - ::Storage::DBI now correctly preserves a parent $dbh from
+          terminating children, even during interpreter-global
+          out-of-order destruction
+        - dbicadmin supports an -I option with the same semantics as
+          perl itself
+        - InflateColumn::DateTime support for MSSQL via DBD::Sybase
+        - Millisecond precision support for MSSQL datetimes for
+          InflateColumn::DateTime
+        - Oracle-specific hierarchical query syntax support:
+          CONNECT BY (NOCYCLE) / START WITH / ORDER SIBLINGS BY
+        - Support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
+        - current_source_alias method on ResultSet objects to
+          determine the alias to use in programatically assembled
+          search()es (originally added in 0.08100 but unmentioned)
+        - Rewrite/unification of all subselecting limit emulations
+          (RNO, Top, RowNum) to be much more robust wrt complex joined
+          resultsets
+        - MSSQL limits now don't require nearly as many applications of
+          the unsafe_subselect_ok attribute, due to optimized queries
+        - Support for Generic Subquery limit "emulation" - awfully slow
+          and inefficient but works on almost any db, and is preferred
+          to software limit emulation
+        - Sybase ASE driver now uses SET ROWCOUNT where possible, and
+          Generic Subquery otherwise for limit support instead of always
+          using software limit emulation
+        - create_ddl_dir (and derivatives) now attempt to create the given
+          $ddl_dir if it does not already exist
+        - deployment_statements now automatically supplies the current RDBMS
+          version to SQLT producer_args for MySQL, Pg, SQLite and Oracle
+
+    * Fixes
+        - Fix nasty potentially data-eating bug when deleting/updating
+          a limited resultset
+        - Fix find() to use result_class set on object
+        - Fix result_class setter behaviour to not mistakenly stuff attrs.
+        - Don't try and ensure_class_loaded an object. This doesn't work.
+        - Fix as_subselect_rs to not inject resultset class-wide where
+          conditions outside of the resulting subquery
+        - Fix count() failing with {for} resultset attribute (RT#56257)
+        - Fixed incorrect detection of Limit dialect on unconnected $schema
+        - update() on row not in_storage no longer throws an exception
+          if there are no dirty columns to update (fixes cascaded update
+          annoyances)
+        - update()/delete() on prefetching resultsets no longer results
+          in malformed SQL (some $rs attributes were erroneously left in)
+        - Fix dbicadmin to allow deploy() on non-versioned schema
+        - Fix dbicadmin to respect sql_dir on upgrade() (RT#57732)
+        - Update Schema::Versioned to respect hashref style of
+          connection_info
+        - Do not recreate the same related object twice during MultiCreate
+          (solves the problem of orphaned IC::FS files)
+        - Fully qualify xp_msver selector when using DBD::Sybase with
+          MSSQL (RT#57467)
+        - Fix ::DBI::Storage to always be able to present a full set of
+          connect() attributes to e.g. Schema::Versioned
+        - Fix Oracle auto-inc trigger detection of "INSERT OR UPDATE"-type
+          triggers
+
+    * Misc
+        - Reformatted Changelog \o/
+        - DBIC goes git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git
+        - Allow developers to skip optional dependency forcing when working
+          from a checkout
+        - Add a warning to load_namespaces if a class in ResultSet/ is not
+          a subclass of DBIx::Class::ResultSet
+        - All DBIC exception-handling switched to Try::Tiny
+        - All DBIC modules are now free of imports via namespace::clean
+        - Depend on optimized SQL::Abstract (faster SQL generation)
+        - Depend on new Class::Accessor::Grouped reintroducing optional use
+          of Class::XSAccessor (just install C::XSA and get lightning fast
+          column accessors)
+
+0.08121 2010-04-11 18:43:00 (UTC)
+        - Support for Firebird RDBMS with DBD::InterBase and ODBC
+        - Add core support for INSERT RETURNING (for storages that
+          supports this syntax, currently PostgreSQL and Firebird)
+        - Fix spurious warnings on multiple UTF8Columns component loads
+        - DBIx::Class::UTF8Columns entered deprecated state
+        - DBIx::Class::InflateColumn::File entered deprecated state
+        - DBIx::Class::Optional::Dependencies left experimental state
+        - Add req_group_list to Opt::Deps (RT#55211)
+        - Add support for mysql-specific STRAIGHT_JOIN (RT#55579)
+        - Cascading delete/update are now wrapped in a transaction
+          for atomicity
+        - Fix accidental autovivification of ENV vars
+        - Fix update_all and delete_all to be wrapped in a transaction
+        - Fix multiple deficiencies when using MultiCreate with
+          data-encoder components (e.g. ::EncodedColumn)
+        - Fix regression where SQL files with comments were not
+          handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship
           is unresolvable
+        - Fix the join-optimiser to consider unqualified column names
+          whenever possible
+        - Fix an issue with multiple same-table joins confusing the join
+          optimizier
+        - Add has_relationship method to row objects
+        - Fix regression in set_column on PK-less objects
+        - Better error text on malformed/missing relationships
+        - Add POD about the significance of PK columns
+        - Fix for SQLite to ignore the (unsupported) { for => ... }
+          attribute
+        - Fix ambiguity in default directory handling of create_ddl_dir
+          (RT#54063)
+        - Support add_columns('+colname' => { ... }) to augment column
+          definitions.
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in

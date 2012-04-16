@@ -36,11 +36,15 @@ sub id {
 }
 
 sub _ident_values {
-  my ($self) = @_;
+  my ($self, $use_storage_state) = @_;
+
   my (@ids, @missing);
 
   for ($self->_pri_cols) {
-    push @ids, $self->get_column($_);
+    push @ids, ($use_storage_state and exists $self->{_column_data_in_storage}{$_})
+      ? $self->{_column_data_in_storage}{$_}
+      : $self->get_column($_)
+    ;
     push @missing, $_ if (! defined $ids[-1] and ! $self->has_column_loaded ($_) );
   }
 
@@ -99,10 +103,18 @@ Produces a condition hash to locate a row based on the primary key(s).
 =cut
 
 sub ident_condition {
-  my ($self, $alias) = @_;
+  shift->_mk_ident_cond(@_);
+}
+
+sub _storage_ident_condition {
+  shift->_mk_ident_cond(shift, 1);
+}
+
+sub _mk_ident_cond {
+  my ($self, $alias, $use_storage_state) = @_;
 
   my @pks = $self->_pri_cols;
-  my @vals = $self->_ident_values;
+  my @vals = $self->_ident_values($use_storage_state);
 
   my (%cond, @undef);
   my $prefix = defined $alias ? $alias.'.' : '';

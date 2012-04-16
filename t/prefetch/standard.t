@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -40,7 +39,7 @@ $schema->storage->debugobj->callback(undef);
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
     {
-      columns => [qw/title artist artist.name/], 
+      columns => [qw/title artist artist.name/],
       join => { 'artist' => {} }
     }
 );
@@ -148,10 +147,11 @@ $rs = $schema->resultset("CD")->search(
 
 cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
-$rs = $schema->resultset("Artist")->search(
-  {},
-      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=> \'< 5' } }
-);
+$rs = $schema->resultset("Artist")->search({}, {
+  join => [qw/ cds /],
+  group_by => [qw/ me.name /],
+  having => \[ 'MAX(cds.cdid) < ?', [ \'int' => 5 ] ],
+});
 
 cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
 
@@ -215,7 +215,7 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
    'Tree search_related with prefetch ok');
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
-    { 'children.id' => 3, 'children_2.id' => 6 }, 
+    { 'children.id' => 3, 'children_2.id' => 6 },
     { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };

@@ -3,48 +3,73 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
-use mro 'c3';
+use base qw/DBIx::Class::Storage::DBI/;
 
-use DBD::Pg qw(:pg_types);
+use Scope::Guard ();
+use Context::Preserve 'preserve_context';
+use DBIx::Class::Carp;
+use Try::Tiny;
+use namespace::clean;
 
-# Ask for a DBD::Pg with array support
-warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
-  if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
+__PACKAGE__->sql_limit_dialect ('LimitOffset');
+__PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
+__PACKAGE__->_use_multicolumn_in (1);
+
+sub _determine_supports_insert_returning {
+  return shift->_server_info->{normalized_dbms_version} >= 8.002
+    ? 1
+    : 0
+  ;
+}
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->_get_dbh->do('SET CONSTRAINTS ALL DEFERRED');
-  $sub->();
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
+
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+  });
+
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
+# only used when INSERT ... RETURNING is disabled
 sub last_insert_id {
   my ($self,$source,@cols) = @_;
 
   my @values;
 
+  my $col_info = $source->columns_info(\@cols);
+
   for my $col (@cols) {
-    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
+    my $seq = ( $col_info->{$col}{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
       or $self->throw_exception( sprintf(
         'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
           $source->name,
           $col,
       ));
 
-    push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
+    push @values, $self->_dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
   }
 
   return @values;
 }
 
-# there seems to be absolutely no reason to have this as a separate method,
-# but leaving intact in case someone is already overriding it
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $seq) = @_;
-  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
-}
+sub _sequence_fetch {
+  my ($self, $function, $sequence) = @_;
 
+  $self->throw_exception('No sequence to fetch') unless $sequence;
+
+  my ($val) = $self->_get_dbh->selectrow_array(
+    sprintf ("select %s('%s')", $function, (ref $sequence eq 'SCALAR') ? $$sequence : $sequence)
+  );
+
+  return $val;
+}
 
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
@@ -137,46 +162,69 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
-sub datetime_parser_type { return "DateTime::Format::Pg"; }
-
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
-  my $bind_attributes = {
-    bytea => { pg_type => DBD::Pg::PG_BYTEA },
-    blob  => { pg_type => DBD::Pg::PG_BYTEA },
-  };
+  if ($self->_is_binary_lob_type($data_type)) {
+    # this is a hot-ish codepath, use an escape flag to minimize
+    # amount of function/method calls
+    # additionally version.pm is cock, and memleaks on multiple
+    # ->VERSION calls
+    # the flag is stored in the DBD namespace, so that Class::Unload
+    # will work (unlikely, but still)
+    unless ($DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__) {
+      if ($self->_server_info->{normalized_dbms_version} >= 9.0) {
+        try { DBD::Pg->VERSION('2.17.2'); 1 } or carp (
+          __PACKAGE__.': BYTEA columns are known to not work on Pg >= 9.0 with DBD::Pg < 2.17.2'
+        );
+      }
+      elsif (not try { DBD::Pg->VERSION('2.9.2'); 1 } ) { carp (
+        __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended for BYTEA column support'
+      )}
 
-  if( defined $bind_attributes->{$data_type} ) {
-    return $bind_attributes->{$data_type};
+      $DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__ = 1;
+    }
+
+    return { pg_type => DBD::Pg::PG_BYTEA() };
   }
   else {
-    return;
+    return undef;
   }
 }
 
-sub _sequence_fetch {
-  my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->_get_dbh->selectrow_array("SELECT nextval('${seq}')");
-  return $id;
-}
-
-sub _svp_begin {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_savepoint($name);
+    $self->_dbh->pg_savepoint($name);
 }
 
-sub _svp_release {
+sub _exec_svp_release {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_release($name);
+    $self->_dbh->pg_release($name);
 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->pg_rollback_to($name);
+    $self->_dbh->pg_rollback_to($name);
+}
+
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+
+  if (
+    ! exists $sqltargs->{producer_args}{postgres_version}
+      and
+    my $dver = $self->_server_info->{normalized_dbms_version}
+  ) {
+    $sqltargs->{producer_args}{postgres_version} = $dver;
+  }
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
 1;
@@ -192,7 +240,6 @@ DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
   # In your result (table) classes
   use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
-  __PACKAGE__->sequence('mysequence');
 
 =head1 DESCRIPTION
 

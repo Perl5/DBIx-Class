@@ -4,7 +4,7 @@ package   #hide from PAUSE
 #
 # This module contains code that should never have seen the light of day,
 # does not belong in the Storage, or is otherwise unfit for public
-# display. The arrival of SQLA2 should immediately oboslete 90% of this
+# display. The arrival of SQLA2 should immediately obsolete 90% of this
 #
 
 use strict;
@@ -13,16 +13,20 @@ use warnings;
 use base 'DBIx::Class::Storage';
 use mro 'c3';
 
-use Carp::Clan qw/^DBIx::Class/;
+use List::Util 'first';
+use Scalar::Util 'blessed';
+use Sub::Name 'subname';
+use namespace::clean;
 
 #
 # This code will remove non-selecting/non-restricting joins from
 # {from} specs, aiding the RDBMS query optimizer
 #
 sub _prune_unused_joins {
-  my ($self) = shift;
-
+  my $self = shift;
   my ($from, $select, $where, $attrs) = @_;
+
+  return $from unless $self->_use_join_optimizer;
 
   if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY') {
     return $from;   # only standard {from} specs are supported
@@ -34,10 +38,16 @@ sub _prune_unused_joins {
   # {multiplying} joins can go
   delete $aliastypes->{multiplying} if $attrs->{group_by};
 
-
   my @newfrom = $from->[0]; # FROM head is always present
 
-  my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
+  my %need_joins;
+  for (values %$aliastypes) {
+    # add all requested aliases
+    $need_joins{$_} = 1 for keys %$_;
+
+    # add all their parents (as per joinpath which is an AoH { table => alias })
+    $need_joins{$_} = 1 for map { values %$_ } map { @$_ } values %$_;
+  }
   for my $j (@{$from}[1..$#$from]) {
     push @newfrom, $j if (
       (! $j->[0]{-alias}) # legacy crap
@@ -51,13 +61,13 @@ sub _prune_unused_joins {
 
 #
 # This is the code producing joined subqueries like:
-# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
+# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ...
 #
 sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
   $self->throw_exception ('Nothing to prefetch... how did we get here?!')
-    if not @{$attrs->{_prefetch_select}};
+    if not @{$attrs->{_prefetch_selector_range}};
 
   $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');
@@ -67,14 +77,14 @@ sub _adjust_select_args_for_complex_prefetch {
   my $outer_attrs = { %$attrs };
   delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
-  my $inner_attrs = { %$attrs };
-  delete $inner_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
+  my $inner_attrs = { %$attrs, _is_internal_subuery => 1 };
+  delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range _collapse_order_by select as/;
 
 
   # bring over all non-collapse-induced order_by into the inner query (if any)
   # the outer one will have to keep them all
   delete $inner_attrs->{order_by};
-  if (my $ord_cnt = @{$outer_attrs->{order_by}} - @{$outer_attrs->{_collapse_order_by}} ) {
+  if (my $ord_cnt = @{$outer_attrs->{order_by}} - @{$outer_attrs->{_collapse_order_by}||[]} ) {
     $inner_attrs->{order_by} = [
       @{$outer_attrs->{order_by}}[ 0 .. $ord_cnt - 1]
     ];
@@ -85,7 +95,9 @@ sub _adjust_select_args_for_complex_prefetch {
   # on the outside we substitute any function for its alias
   my $outer_select = [ @$select ];
   my $inner_select = [];
-  for my $i (0 .. ( @$outer_select - @{$outer_attrs->{_prefetch_select}} - 1) ) {
+
+  my ($p_start, $p_end) = @{$outer_attrs->{_prefetch_selector_range}};
+  for my $i (0 .. $p_start - 1, $p_end + 1 .. $#$outer_select) {
     my $sel = $outer_select->[$i];
 
     if (ref $sel eq 'HASH' ) {
@@ -94,32 +106,60 @@ sub _adjust_select_args_for_complex_prefetch {
     }
 
     push @$inner_select, $sel;
+
+    push @{$inner_attrs->{as}}, $attrs->{as}[$i];
   }
 
-  # construct the inner $from for the subquery
+  # construct the inner $from and lock it in a subquery
   # we need to prune first, because this will determine if we need a group_by below
-  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
+  # the fake group_by is so that the pruner throws away all non-selecting, non-restricting
+  # multijoins (since we def. do not care about those inside the subquery)
 
-  # if a multi-type join was needed in the subquery - add a group_by to simulate the
-  # collapse in the subq
-  $inner_attrs->{group_by} ||= $inner_select
-    if List::Util::first
-      { ! $_->[0]{-is_single} }
-      (@{$inner_from}[1 .. $#$inner_from])
-  ;
+  my $inner_subq = do {
 
-  # generate the subquery
-  my $subq = $self->_select_args_to_query (
-    $inner_from,
-    $inner_select,
-    $where,
-    $inner_attrs,
-  );
+    # must use it here regardless of user requests
+    local $self->{_use_join_optimizer} = 1;
 
-  my $subq_joinspec = {
-    -alias => $attrs->{alias},
-    -source_handle => $inner_from->[0]{-source_handle},
-    $attrs->{alias} => $subq,
+    my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
+      group_by => ['dummy'], %$inner_attrs,
+    });
+
+    my $inner_aliastypes =
+      $self->_resolve_aliastypes_from_select_args( $inner_from, $inner_select, $where, $inner_attrs );
+
+    # we need to simulate collapse in the subq if a multiplying join is pulled
+    # by being a non-selecting restrictor
+    if (
+      ! $inner_attrs->{group_by}
+        and
+      first {
+        $inner_aliastypes->{restricting}{$_}
+          and
+        ! $inner_aliastypes->{selecting}{$_}
+      } ( keys %{$inner_aliastypes->{multiplying}||{}} )
+    ) {
+      my $unprocessed_order_chunks;
+      ($inner_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
+        $inner_from, $inner_select, $inner_attrs->{order_by}
+      );
+
+      $self->throw_exception (
+        'A required group_by clause could not be constructed automatically due to a complex '
+      . 'order_by criteria. Either order_by columns only (no functions) or construct a suitable '
+      . 'group_by by hand'
+      )  if $unprocessed_order_chunks;
+    }
+
+    # we already optimized $inner_from above
+    local $self->{_use_join_optimizer} = 0;
+
+    # generate the subquery
+    $self->_select_args_to_query (
+      $inner_from,
+      $inner_select,
+      $where,
+      $inner_attrs,
+    );
   };
 
   # Generate the outer from - this is relatively easy (really just replace
@@ -132,17 +172,21 @@ sub _adjust_select_args_for_complex_prefetch {
   # - it is part of the restrictions, in which case we need to collapse the outer
   #   result by tackling yet another group_by to the outside of the query
 
-  # normalize a copy of $from, so it will be easier to work with further
-  # down (i.e. promote the initial hashref to an AoH)
   $from = [ @$from ];
-  $from->[0] = [ $from->[0] ];
 
   # so first generate the outer_from, up to the substitution point
   my @outer_from;
   while (my $j = shift @$from) {
+    $j = [ $j ] unless ref $j eq 'ARRAY'; # promote the head-from to an AoH
+
     if ($j->[0]{-alias} eq $attrs->{alias}) { # time to swap
+
       push @outer_from, [
-        $subq_joinspec,
+        {
+          -alias => $attrs->{alias},
+          -rsrc => $j->[0]{-rsrc},
+          $attrs->{alias} => $inner_subq,
+        },
         @{$j}[1 .. $#$j],
       ];
       last; # we'll take care of what's left in $from below
@@ -152,29 +196,51 @@ sub _adjust_select_args_for_complex_prefetch {
     }
   }
 
-  # scan the from spec against different attributes, and see which joins are needed
+  # scan the *remaining* from spec against different attributes, and see which joins are needed
   # in what role
   my $outer_aliastypes =
     $self->_resolve_aliastypes_from_select_args( $from, $outer_select, $where, $outer_attrs );
 
+  # unroll parents
+  my ($outer_select_chain, $outer_restrict_chain) = map { +{
+    map { $_ => 1 } map { values %$_} map { @$_ } values %{ $outer_aliastypes->{$_} || {} }
+  } } qw/selecting restricting/;
+
   # see what's left - throw away if not selecting/restricting
-  # also throw in a group_by if restricting to guard against
-  # cross-join explosions
-  #
+  # also throw in a group_by if a non-selecting multiplier,
+  # to guard against cross-join explosions
+  my $need_outer_group_by;
   while (my $j = shift @$from) {
     my $alias = $j->[0]{-alias};
 
-    if ($outer_aliastypes->{select}{$alias}) {
-      push @outer_from, $j;
+    if (
+      $outer_select_chain->{$alias}
+    ) {
+      push @outer_from, $j
     }
-    elsif ($outer_aliastypes->{restrict}{$alias}) {
+    elsif ($outer_restrict_chain->{$alias}) {
       push @outer_from, $j;
-      $outer_attrs->{group_by} ||= $outer_select unless $j->[0]{-is_single};
+      $need_outer_group_by ||= $outer_aliastypes->{multiplying}{$alias} ? 1 : 0;
     }
   }
 
   # demote the outer_from head
   $outer_from[0] = $outer_from[0][0];
+
+  if ($need_outer_group_by and ! $outer_attrs->{group_by}) {
+
+    my $unprocessed_order_chunks;
+    ($outer_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
+      \@outer_from, $outer_select, $outer_attrs->{order_by}
+    );
+
+    $self->throw_exception (
+      'A required group_by clause could not be constructed automatically due to a complex '
+    . 'order_by criteria. Either order_by columns only (no functions) or construct a suitable '
+    . 'group_by by hand'
+    ) if $unprocessed_order_chunks;
+
+  }
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
@@ -186,15 +252,17 @@ sub _adjust_select_args_for_complex_prefetch {
   return (\@outer_from, $outer_select, $where, $outer_attrs);
 }
 
+#
+# I KNOW THIS SUCKS! GET SQLA2 OUT THE DOOR SO THIS CAN DIE!
+#
 # Due to a lack of SQLA2 we fall back to crude scans of all the
 # select/where/order/group attributes, in order to determine what
 # aliases are neded to fulfill the query. This information is used
 # throughout the code to prune unnecessary JOINs from the queries
 # in an attempt to reduce the execution time.
 # Although the method is pretty horrific, the worst thing that can
-# happen is for it to fail due to an unqualified column, which in
-# turn will result in a vocal exception. Qualifying the column will
-# invariably solve the problem.
+# happen is for it to fail due to some scalar SQL, which in turn will
+# result in a vocal exception.
 sub _resolve_aliastypes_from_select_args {
   my ( $self, $from, $select, $where, $attrs ) = @_;
 
@@ -213,56 +281,155 @@ sub _resolve_aliastypes_from_select_args {
       or next;
 
     $alias_list->{$al} = $j;
-    $aliases_by_type->{multiplying}{$al} = 1
-      unless $j->{-is_single};
+    $aliases_by_type->{multiplying}{$al} ||= $j->{-join_path}||[] if (
+      # not array == {from} head == can't be multiplying
+      ( ref($_) eq 'ARRAY' and ! $j->{-is_single} )
+        or
+      # a parent of ours is already a multiplier
+      ( grep { $aliases_by_type->{multiplying}{$_} } @{ $j->{-join_path}||[] } )
+    );
   }
+
+  # get a column to source/alias map (including unqualified ones)
+  my $colinfo = $self->_resolve_column_info ($from);
 
   # set up a botched SQLA
   my $sql_maker = $self->sql_maker;
-  my $sep = quotemeta ($self->_sql_maker_opts->{name_sep} || '.');
-  local $sql_maker->{quote_char}; # so that we can regex away
 
+  # these are throw away results, do not pollute the bind stack
+  local $sql_maker->{select_bind};
+  local $sql_maker->{where_bind};
+  local $sql_maker->{group_bind};
+  local $sql_maker->{having_bind};
 
-  my $select_sql = $sql_maker->_recurse_fields ($select);
-  my $where_sql = $sql_maker->where ($where);
-  my $group_by_sql = $sql_maker->_order_by({
-    map { $_ => $attrs->{$_} } qw/group_by having/
-  });
-  my @order_by_chunks = ($self->_parse_order_by ($attrs->{order_by}) );
+  # we can't scan properly without any quoting (\b doesn't cut it
+  # everywhere), so unless there is proper quoting set - use our
+  # own weird impossible character.
+  # Also in the case of no quoting, we need to explicitly disable
+  # name_sep, otherwise sorry nasty legacy syntax like
+  # { 'count(foo.id)' => { '>' => 3 } } will stop working >:(
+  local $sql_maker->{quote_char} = $sql_maker->{quote_char};
+  local $sql_maker->{name_sep} = $sql_maker->{name_sep};
 
-  # match every alias to the sql chunks above
+  unless (defined $sql_maker->{quote_char} and length $sql_maker->{quote_char}) {
+    $sql_maker->{quote_char} = ["\x00", "\xFF"];
+    # if we don't unset it we screw up retarded but unfortunately working
+    # 'MAX(foo.bar)' => { '>', 3 }
+    $sql_maker->{name_sep} = '';
+  }
+
+  my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
+
+  # generate sql chunks
+  my $to_scan = {
+    restricting => [
+      $sql_maker->_recurse_where ($where),
+      $sql_maker->_parse_rs_attrs ({
+        map { $_ => $attrs->{$_} } (qw/group_by having/)
+      }),
+    ],
+    selecting => [
+      $sql_maker->_recurse_fields ($select),
+      ( map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker) ),
+    ],
+  };
+
+  # throw away empty chunks
+  $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
+
+  # first loop through all fully qualified columns and get the corresponding
+  # alias (should work even if they are in scalarrefs)
   for my $alias (keys %$alias_list) {
-    my $al_re = qr/\b $alias $sep/x;
+    my $al_re = qr/
+      $lquote $alias $rquote $sep
+        |
+      \b $alias \.
+    /x;
 
-    for my $piece ($where_sql, $group_by_sql) {
-      $aliases_by_type->{restrict}{$alias} = 1 if ($piece =~ $al_re);
+    for my $type (keys %$to_scan) {
+      for my $piece (@{$to_scan->{$type}}) {
+        $aliases_by_type->{$type}{$alias} ||= $alias_list->{$alias}{-join_path}||[]
+          if ($piece =~ $al_re);
+      }
     }
+  }
 
-    for my $piece ($select_sql, @order_by_chunks ) {
-      $aliases_by_type->{select}{$alias} = 1 if ($piece =~ $al_re);
+  # now loop through unqualified column names, and try to locate them within
+  # the chunks
+  for my $col (keys %$colinfo) {
+    next if $col =~ / \. /x;   # if column is qualified it was caught by the above
+
+    my $col_re = qr/ $lquote $col $rquote /x;
+
+    for my $type (keys %$to_scan) {
+      for my $piece (@{$to_scan->{$type}}) {
+        if ($piece =~ $col_re) {
+          my $alias = $colinfo->{$col}{-source_alias};
+          $aliases_by_type->{$type}{$alias} ||= $alias_list->{$alias}{-join_path}||[];
+        }
+      }
     }
   }
 
   # Add any non-left joins to the restriction list (such joins are indeed restrictions)
   for my $j (values %$alias_list) {
     my $alias = $j->{-alias} or next;
-    $aliases_by_type->{restrict}{$alias} = 1 if (
+    $aliases_by_type->{restricting}{$alias} ||= $j->{-join_path}||[] if (
       (not $j->{-join_type})
         or
       ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
     );
   }
 
-  # mark all join parents as mentioned
-  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
-  for my $type (keys %$aliases_by_type) {
-    for my $alias (keys %{$aliases_by_type->{$type}}) {
-      $aliases_by_type->{$type}{$_} = 1
-        for (map { keys %$_ } @{ $alias_list->{$alias}{-join_path} || [] });
+  return $aliases_by_type;
+}
+
+# This is the engine behind { distinct => 1 }
+sub _group_over_selection {
+  my ($self, $from, $select, $order_by) = @_;
+
+  my $rs_column_list = $self->_resolve_column_info ($from);
+
+  my (@group_by, %group_index);
+
+  # the logic is: if it is a { func => val } we assume an aggregate,
+  # otherwise if \'...' or \[...] we assume the user knows what is
+  # going on thus group over it
+  for (@$select) {
+    if (! ref($_) or ref ($_) ne 'HASH' ) {
+      push @group_by, $_;
+      $group_index{$_}++;
+      if ($rs_column_list->{$_} and $_ !~ /\./ ) {
+        # add a fully qualified version as well
+        $group_index{"$rs_column_list->{$_}{-source_alias}.$_"}++;
+      }
     }
   }
 
-  return $aliases_by_type;
+  # add any order_by parts that are not already present in the group_by
+  # we need to be careful not to add any named functions/aggregates
+  # i.e. order_by => [ ... { count => 'foo' } ... ]
+  my @leftovers;
+  for ($self->_extract_order_criteria($order_by)) {
+    # only consider real columns (for functions the user got to do an explicit group_by)
+    if (@$_ != 1) {
+      push @leftovers, $_;
+      next;
+    }
+    my $chunk = $_->[0];
+    my $colinfo = $rs_column_list->{$chunk} or do {
+      push @leftovers, $_;
+      next;
+    };
+
+    $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
+    push @group_by, $chunk unless $group_index{$chunk}++;
+  }
+
+  return wantarray
+    ? (\@group_by, (@leftovers ? \@leftovers : undef) )
+    : \@group_by
+  ;
 }
 
 sub _resolve_ident_sources {
@@ -273,7 +440,7 @@ sub _resolve_ident_sources {
 
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
-  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
     # this is compat mode for insert/update/delete which do not deal with aliases
     $alias2source->{me} = $ident;
     $rs_alias = 'me';
@@ -290,8 +457,8 @@ sub _resolve_ident_sources {
         $tabinfo = $_->[0];
       }
 
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
-        if ($tabinfo->{-source_handle});
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-rsrc}
+        if ($tabinfo->{-rsrc});
     }
   }
 
@@ -309,10 +476,7 @@ sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
 
-  my $sep = $self->_sql_maker_opts->{name_sep} || '.';
-  my $qsep = quotemeta $sep;
-
-  my (%return, %seen_cols, @auto_colnames);
+  my (%seen_cols, @auto_colnames);
 
   # compile a global list of column names, to be able to properly
   # disambiguate unqualified column names (if at all possible)
@@ -320,7 +484,7 @@ sub _resolve_column_info {
     my $rsrc = $alias2src->{$alias};
     for my $colname ($rsrc->columns) {
       push @{$seen_cols{$colname}}, $alias;
-      push @auto_colnames, "$alias$sep$colname" unless $colnames;
+      push @auto_colnames, "$alias.$colname" unless $colnames;
     }
   }
 
@@ -329,26 +493,34 @@ sub _resolve_column_info {
     grep { @{$seen_cols{$_}} == 1 } (keys %seen_cols),
   ];
 
-  COLUMN:
+  my (%return, $colinfos);
   foreach my $col (@$colnames) {
-    my ($alias, $colname) = $col =~ m/^ (?: ([^$qsep]+) $qsep)? (.+) $/x;
+    my ($source_alias, $colname) = $col =~ m/^ (?: ([^\.]+) \. )? (.+) $/x;
 
-    unless ($alias) {
-      # see if the column was seen exactly once (so we know which rsrc it came from)
-      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
-        $alias = $seen_cols{$colname}[0];
-      }
-      else {
-        next COLUMN;
-      }
-    }
+    # if the column was seen exactly once - we know which rsrc it came from
+    $source_alias ||= $seen_cols{$colname}[0]
+      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1);
 
-    my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && {
-      %{$rsrc->column_info($colname)},
+    next unless $source_alias;
+
+    my $rsrc = $alias2src->{$source_alias}
+      or next;
+
+    $return{$col} = {
+      %{
+          ( $colinfos->{$source_alias} ||= $rsrc->columns_info )->{$colname}
+            ||
+          $self->throw_exception(
+            "No such column '$colname' on source " . $rsrc->source_name
+          );
+      },
       -result_source => $rsrc,
-      -source_alias => $alias,
+      -source_alias => $source_alias,
+      -fq_colname => $col eq $colname ? "$source_alias.$col" : $col,
+      -colname => $colname,
     };
+
+    $return{"$source_alias.$colname"} = $return{$col} if $col eq $colname;
   }
 
   return \%return;
@@ -369,7 +541,7 @@ sub _resolve_column_info {
 # the top of the stack, and if not - make sure the chain is inner-joined down
 # to the root.
 #
-sub _straight_join_to_node {
+sub _inner_join_to_node {
   my ($self, $from, $alias) = @_;
 
   # subqueries and other oddness are naturally not supported
@@ -401,9 +573,9 @@ sub _straight_join_to_node {
   # So it looks like we will have to switch some stuff around.
   # local() is useless here as we will be leaving the scope
   # anyway, and deep cloning is just too fucking expensive
-  # So replace the first hashref in the node arrayref manually 
+  # So replace the first hashref in the node arrayref manually
   my @new_from = ($from->[0]);
-  my $sw_idx = { map { values %$_ => 1 } @$switch_branch };
+  my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
 
   for my $j (@{$from}[1 .. $#$from]) {
     my $jalias = $j->[0]{-alias};
@@ -424,81 +596,146 @@ sub _straight_join_to_node {
   return \@new_from;
 }
 
-# Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
-# a condition containing 'me' or other table prefixes will not work
-# at all. What this code tries to do (badly) is introspect the condition
-# and remove all column qualifiers. If it bails out early (returns undef)
-# the calling code should try another approach (e.g. a subquery)
-sub _strip_cond_qualifiers {
-  my ($self, $where) = @_;
+# yet another atrocity: attempt to extract all columns from a
+# where condition by hooking _quote
+sub _extract_condition_columns {
+  my ($self, $cond, $sql_maker) = @_;
 
-  my $cond = {};
+  return [] unless $cond;
 
-  # No-op. No condition, we're updating/deleting everything
-  return $cond unless $where;
+  $sql_maker ||= $self->{_sql_ident_capturer} ||= do {
+    # FIXME - replace with a Moo trait
+    my $orig_sm_class = ref $self->sql_maker;
+    my $smic_class = "${orig_sm_class}::_IdentCapture_";
 
-  if (ref $where eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @$where
-    ];
-  }
-  elsif (ref $where eq 'HASH') {
-    if ( (keys %$where) == 1 && ( (keys %{$where})[0] eq '-and' )) {
-      $cond->{-and} = [];
-      my @cond = @{$where->{-and}};
-       for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-        my $hash;
-        my $ref = ref $entry;
-        if ($ref eq 'HASH' or $ref eq 'ARRAY') {
-          $hash = $self->_strip_cond_qualifiers($entry);
-        }
-        elsif (! $ref) {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
+    unless ($smic_class->isa('SQL::Abstract')) {
+
+      no strict 'refs';
+      *{"${smic_class}::_quote"} = subname "${smic_class}::_quote" => sub {
+        my ($self, $ident) = @_;
+        if (ref $ident eq 'SCALAR') {
+          $ident = $$ident;
+          my $storage_quotes = $self->sql_quote_char || '"';
+          my ($ql, $qr) = map
+            { quotemeta $_ }
+            (ref $storage_quotes eq 'ARRAY' ? @$storage_quotes : ($storage_quotes) x 2 )
+          ;
+
+          while ($ident =~ /
+            $ql (\w+) $qr
+              |
+            ([\w\.]+)
+          /xg) {
+            $self->{_captured_idents}{$1||$2}++;
+          }
         }
         else {
-          $self->throw_exception ("_strip_cond_qualifiers() is unable to handle a condition reftype $ref");
+          $self->{_captured_idents}{$ident}++;
         }
-        push @{$cond->{-and}}, $hash;
-      }
-    }
-    else {
-      foreach my $key (keys %$where) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $where->{$key};
-      }
-    }
-  }
-  else {
-    return undef;
-  }
+        return $ident;
+      };
 
-  return $cond;
+      *{"${smic_class}::_get_captured_idents"} = subname "${smic_class}::_get_captures" => sub {
+        (delete shift->{_captured_idents}) || {};
+      };
+
+      $self->inject_base ($smic_class, $orig_sm_class);
+
+    }
+
+    $smic_class->new();
+  };
+
+  $sql_maker->_recurse_where($cond);
+
+  return [ sort keys %{$sql_maker->_get_captured_idents} ];
 }
 
-sub _parse_order_by {
-  my ($self, $order_by) = @_;
+sub _extract_order_criteria {
+  my ($self, $order_by, $sql_maker) = @_;
 
-  return scalar $self->sql_maker->_order_by_chunks ($order_by)
-    unless wantarray;
+  my $parser = sub {
+    my ($sql_maker, $order_by) = @_;
 
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{quote_char}; #disable quoting
-  my @chunks;
-  for my $chunk (map { ref $_ ? @$_ : $_ } ($sql_maker->_order_by_chunks ($order_by) ) ) {
-    $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
-    push @chunks, $chunk;
+    return scalar $sql_maker->_order_by_chunks ($order_by)
+      unless wantarray;
+
+    my @chunks;
+    for ($sql_maker->_order_by_chunks ($order_by) ) {
+      my $chunk = ref $_ ? $_ : [ $_ ];
+      $chunk->[0] =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      push @chunks, $chunk;
+    }
+
+    return @chunks;
+  };
+
+  if ($sql_maker) {
+    return $parser->($sql_maker, $order_by);
+  }
+  else {
+    $sql_maker = $self->sql_maker;
+    local $sql_maker->{quote_char};
+    return $parser->($sql_maker, $order_by);
+  }
+}
+
+sub _order_by_is_stable {
+  my ($self, $ident, $order_by, $where) = @_;
+
+  my $colinfo = $self->_resolve_column_info($ident, [
+    (map { $_->[0] } $self->_extract_order_criteria($order_by)),
+    $where ? @{$self->_extract_fixed_condition_columns($where)} :(),
+  ]);
+
+  return undef unless keys %$colinfo;
+
+  my $cols_per_src;
+  $cols_per_src->{$_->{-source_alias}}{$_->{-colname}} = $_ for values %$colinfo;
+
+  for (values %$cols_per_src) {
+    my $src = (values %$_)[0]->{-result_source};
+    return 1 if $src->_identifying_column_set($_);
   }
 
-  return @chunks;
+  return undef;
+}
+
+# returns an arrayref of column names which *definitely* have som
+# sort of non-nullable equality requested in the given condition
+# specification. This is used to figure out if a resultset is
+# constrained to a column which is part of a unique constraint,
+# which in turn allows us to better predict how ordering will behave
+# etc.
+#
+# this is a rudimentary, incomplete, and error-prone extractor
+# however this is OK - it is conservative, and if we can not find
+# something that is in fact there - the stack will recover gracefully
+# Also - DQ and the mst it rode in on will save us all RSN!!!
+sub _extract_fixed_condition_columns {
+  my ($self, $where, $nested) = @_;
+
+  return unless ref $where eq 'HASH';
+
+  my @cols;
+  for my $lhs (keys %$where) {
+    if ($lhs =~ /^\-and$/i) {
+      push @cols, ref $where->{$lhs} eq 'ARRAY'
+        ? ( map { $self->_extract_fixed_condition_columns($_, 1) } @{$where->{$lhs}} )
+        : $self->_extract_fixed_condition_columns($where->{$lhs}, 1)
+      ;
+    }
+    elsif ($lhs !~ /^\-/) {
+      my $val = $where->{$lhs};
+
+      push @cols, $lhs if (defined $val and (
+        ! ref $val
+          or
+        (ref $val eq 'HASH' and keys %$val == 1 and defined $val->{'='})
+      ));
+    }
+  }
+  return $nested ? @cols : \@cols;
 }
 
 1;

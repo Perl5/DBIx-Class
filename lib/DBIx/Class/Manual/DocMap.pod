@@ -8,19 +8,21 @@ DBIx::Class::Manual::DocMap - What documentation do we have?
 
 =item L<DBIx::Class::Manual> - User's Manual overview.
 
-=item L<DBIx::Class::Manual::FAQ> - Frequently Asked Questions, gathered from IRC and the mailing list.
-
 =item L<DBIx::Class::Manual::Intro> - Introduction to setting up and using DBIx::Class.
 
 =item L<DBIx::Class::Manual::Example> - Full example Schema.
 
+=item L<DBIx::Class::Manual::SQLHackers::TOC> - How to use DBIx::Class if you know SQL (external, available on CPAN)
+
+=item L<DBIx::Class::Manual::Glossary> - What do all those terms mean?
+
 =item L<DBIx::Class::Manual::Cookbook> - Various short recipes on how to do things.
+
+=item L<DBIx::Class::Manual::FAQ> - Frequently Asked Questions, gathered from IRC and the mailing list.
 
 =item L<DBIx::Class::Manual::Troubleshooting> - What to do if things go wrong (diagnostics of known error messages).
 
 =item L<DBIx::Class::Manual::Component> - How to write your own DBIx::Class components.
-
-=item L<DBIx::Class::Manual::Glossary> - What do all those terms mean?
 
 =back
 

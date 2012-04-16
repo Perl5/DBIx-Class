@@ -20,7 +20,7 @@ DBIx::Class::Test::SQLite - Base class for running Class::DBI tests against DBIx
           salary INT
       }
   }
-    
+
 =head1 DESCRIPTION
 
 This provides a simple base class for DBIx::Class::CDBICompat tests using
@@ -34,14 +34,21 @@ table, and tie it to the class.
 use strict;
 use warnings;
 
+use Test::More;
+
+use lib 't/lib';
+use DBICTest;
+
+BEGIN {
+  eval { require DBIx::Class::CDBICompat }
+    or plan skip_all => 'Class::DBI required for this test';
+}
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/CDBICompat Core DB/);
 
-use File::Temp qw/tempfile/;
-my (undef, $DB) = tempfile();
-END { unlink $DB if -e $DB }
-
+my $DB = DBICTest->_sqlite_dbfilename;
 my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 1, RaiseError => 1 });
 
 __PACKAGE__->connection(@DSN);

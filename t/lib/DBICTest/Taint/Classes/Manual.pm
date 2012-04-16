@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Taint::Classes::Manual;
 
 use base 'DBIx::Class::Core';

@@ -5,9 +5,7 @@ use warnings;
 use Test::More;
 use Config;
 use lib qw(t/lib);
-$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 use DBICTest;
-
 
 BEGIN {
     require DBIx::Class;
@@ -15,16 +13,31 @@ BEGIN {
       unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
 }
 
-my @json_backends = qw/XS JSON DWIW/;
-my $tests_per_run = 5;
+$ENV{PATH} = '';
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
-plan tests => $tests_per_run * @json_backends;
+my @json_backends = qw/XS JSON DWIW/;
+
+# test the script is setting @INC properly
+test_exec (qw|-It/lib/testinclude --schema=DBICTestAdminInc --connect=[] --insert|);
+cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC schema' );
+
+# test that config works properly
+{
+  no warnings 'qw';
+  test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --create --connect=["klaatu","barada","nikto"]|);
+  cmp_ok( $? >> 8, '==', 71, 'Correct schema loaded via config' ) || exit;
+}
+
+# test that config-file works properly
+test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --config=t/lib/admincfgtest.json --config-stanza=Model::Gort --deploy|);
+cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
 for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("Json backend $js is not available, skip testing", $tests_per_run) if $@;
+        skip ("JSON backend $js is not available, skip testing", 1) if $@;
 
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
@@ -32,27 +45,31 @@ for my $js (@json_backends) {
     }
 }
 
+done_testing();
+
 sub test_dbicadmin {
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
 
     my $employees = $schema->resultset('Employee');
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Matt"}| ) );
+    test_exec( default_args(), qw|--op=insert --set={"name":"Matt"}| );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: insert count" );
 
     my $employee = $employees->find(1);
     ok( ($employee->name() eq 'Matt'), "$ENV{JSON_ANY_ORDER}: insert valid" );
 
-    system( _prepare_system_args( qw|--op=update --set={"name":"Trout"}| ) );
+    test_exec( default_args(), qw|--op=update --set={"name":"Trout"}| );
     $employee = $employees->find(1);
     ok( ($employee->name() eq 'Trout'), "$ENV{JSON_ANY_ORDER}: update" );
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Aran"}| ) );
+    test_exec( default_args(), qw|--op=insert --set={"name":"Aran"}| );
 
     SKIP: {
         skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        my ($perl) = $^X =~ /(.*)/;
+
+        open(my $fh, "-|",  ( $perl, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -60,8 +77,17 @@ sub test_dbicadmin {
         };
     }
 
-    system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
+    test_exec( default_args(), qw|--op=delete --where={"name":"Trout"}| );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: delete" );
+}
+
+sub default_args {
+  my $dbname = DBICTest->_sqlite_dbfilename;
+  return (
+    qw|--quiet --schema=DBICTest::Schema --class=Employee|,
+    qq|--connect=["dbi:SQLite:dbname=$dbname","","",{"AutoCommit":1}]|,
+    qw|--force -I testincludenoniterference|,
+  );
 }
 
 # Why do we need this crap? Apparently MSWin32 can not pass through quotes properly
@@ -70,22 +96,17 @@ sub test_dbicadmin {
 # of ", because JSON::XS (proudly) does not support "malformed JSON" as the author
 # calls it. Bleh.
 #
-sub _prepare_system_args {
-    my $perl = $^X;
+sub test_exec {
+  my ($perl) = $^X =~ /(.*)/;
 
-    my @args = (
-        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee|,
-        q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
-        qw|--force|,
-        @_,
-    );
+  my @args = ('script/dbicadmin', @_);
 
-    if ( $^O eq 'MSWin32' ) {
-        $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
-        for (@args) {
-            $_ =~ s/"/\\"/g;
-        }
+  if ( $^O eq 'MSWin32' ) {
+    $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
+    for (@args) {
+      $_ =~ s/"/\\"/g;
     }
+  }
 
-    return ($perl, @args);
+  system ($perl, @args);
 }

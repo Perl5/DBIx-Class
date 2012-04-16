@@ -2,16 +2,6 @@ use strict;
 use Test::More;
 use Data::Dumper;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 12);
-}
-
 INIT {
     use lib 't/cdbi/testlib';
     use Film;
@@ -57,7 +47,7 @@ for my $args ({ no_cascade_delete => 1 }, { cascade => "None" }) {
 
 #{ # Fail on cascade
 #    local $TODO = 'cascade => "Fail" unimplemented';
-#    
+#
 #    Director->has_many(nasties => Film => { cascade => 'Fail' });
 #
 #    my $dir = Director->insert({ name => "Nasty Noddy" });
@@ -76,3 +66,5 @@ for my $args ({ no_cascade_delete => 1 }, { cascade => "None" }) {
 #    ok eval { $dir->delete };
 #    is $@, '', "Can delete once films are gone";
 #}
+
+done_testing;

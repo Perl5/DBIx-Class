@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 13);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -58,9 +48,11 @@ is + (
 ok $ver->delete, "Delete";
 
 {
-  Film->add_trigger(before_create => sub { 
+  Film->add_trigger(before_create => sub {
     my $self = shift;
     ok !$self->_attribute_exists('title'), "PK doesn't auto-vivify";
   });
   Film->create({director => "Me"});
 }
+
+done_testing;

@@ -6,6 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class::File ();
+use List::Util qw/shuffle/;
 
 my $schema = DBICTest->init_schema();
 
@@ -18,10 +19,10 @@ my $schema = DBICTest->init_schema();
 #   [ 10000, "ntn" ],
 
 my $start_id = 'populateXaaaaaa';
-my $rows = 10;
+my $rows = 10_000;
 my $offset = 3;
 
-$schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } ( 1 .. $rows ) ] );
+$schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } shuffle ( 1 .. $rows ) ] );
 is (
     $schema->resultset ('Artist')->search ({ name => { -like => 'populateX%' } })->count,
     $rows,
@@ -44,7 +45,7 @@ throws_ok ( sub {
       }
     } ('Huey', 'Dewey', $ex_title, 'Louie')
   ])
-}, qr/columns .+ are not unique for populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
+}, qr/\Qexecute_for_fetch() aborted with '\E.+ at populate slice.+$ex_title/ms, 'Readable exception thrown for failed populate');
 
 ## make sure populate honors fields/orders in list context
 ## schema order
@@ -115,47 +116,95 @@ is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
 
+# populate with literals
+{
+  my $rs = $schema->resultset('Link');
+  $rs->delete;
+
+  # test insert_bulk with all literal sql (no binds)
+
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => \"'The ''best of'' cpan'",
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal SQL');
+
+  $rs->delete;
+
+  # test mixed binds with literal sql
+
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => "The 'best of' cpan",
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal SQL');
+
+  $rs->delete;
+}
+
+# populate with literal+bind
+{
+  my $rs = $schema->resultset('Link');
+  $rs->delete;
+
+  # test insert_bulk with all literal/bind sql
+  $rs->populate([
+    (+{
+        url => \['?', [ {} => 'cpan.org' ] ],
+        title => \['?', [ {} => "The 'best of' cpan" ] ],
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal/bind');
+
+  $rs->delete;
+
+  # test insert_bulk with mix literal and literal/bind
+  $rs->populate([
+    (+{
+        url => \"'cpan.org'",
+        title => \['?', [ {} => "The 'best of' cpan" ] ],
+    }) x 5
+  ]);
+
+  is((grep {
+    $_->url eq 'cpan.org' &&
+    $_->title eq "The 'best of' cpan",
+  } $rs->all), 5, 'populate with all literal/bind SQL');
+
+  $rs->delete;
+
+  # test mixed binds with literal sql/bind
+
+  $rs->populate([ map { +{
+    url => \[ '? || ?', [ {} => 'cpan.org_' ], [ undef, $_ ] ],
+    title => "The 'best of' cpan",
+  } } (1 .. 5) ]);
+
+  for (1 .. 5) {
+    ok($rs->find({ url => "cpan.org_$_" }), "Row $_ correctly created with dynamic literal/bind populate" );
+  }
+
+  $rs->delete;
+}
+
 my $rs = $schema->resultset('Artist');
 $rs->delete;
-
-# test _execute_array_empty (insert_bulk with all literal sql)
-
-$rs->populate([
-    (+{
-        name => \"'DT'",
-        rank => \500,
-        charfield => \"'mtfnpy'",
-    }) x 5
-]);
-
-is((grep {
-  $_->name eq 'DT' &&
-  $_->rank == 500  &&
-  $_->charfield eq 'mtfnpy'
-} $rs->all), 5, 'populate with all literal SQL');
-
-$rs->delete;
-
-# test mixed binds with literal sql
-
-$rs->populate([
-    (+{
-        name => \"'DT'",
-        rank => 500,
-        charfield => \"'mtfnpy'",
-    }) x 5
-]);
-
-is((grep {
-  $_->name eq 'DT' &&
-  $_->rank == 500  &&
-  $_->charfield eq 'mtfnpy'
-} $rs->all), 5, 'populate with all literal SQL');
-
-$rs->delete;
-
-###
-
 throws_ok {
     $rs->populate([
         {
@@ -171,7 +220,7 @@ throws_ok {
             name => 'foo3',
         },
     ]);
-} qr/slice/, 'bad slice';
+} qr/\Qexecute_for_fetch() aborted with 'datatype mismatch\E\b/, 'bad slice';
 
 is($rs->count, 0, 'populate is atomic');
 
@@ -189,7 +238,7 @@ throws_ok {
       name => \"'foo'",
     }
   ]);
-} qr/bind expected/, 'literal sql where bind expected throws';
+} qr/Literal SQL found where a plain bind value is expected/, 'literal sql where bind expected throws';
 
 # ... and vice-versa.
 
@@ -204,7 +253,7 @@ throws_ok {
       name => \"'foo'",
     }
   ]);
-} qr/literal SQL expected/i, 'bind where literal sql expected throws';
+} qr/\QIncorrect value (expecting SCALAR-ref/, 'bind where literal sql expected throws';
 
 throws_ok {
   $rs->populate([
@@ -217,7 +266,46 @@ throws_ok {
       name => \"'bar'",
     }
   ]);
-} qr/inconsistent/, 'literal sql must be the same in all slices';
+} qr/Inconsistent literal SQL value/, 'literal sql must be the same in all slices';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ {} => 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \"'bar'",
+    }
+  ]);
+} qr/\QIncorrect value (expecting ARRAYREF-ref/, 'literal where literal+bind expected throws';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ { sqlt_datatype => 'foooo' } => 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \['?', [ {} => 'foo' ] ],
+    }
+  ]);
+} qr/\QDiffering bind attributes on literal\/bind values not supported for column 'name'/, 'literal+bind with differing attrs throws';
+
+lives_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \['?', [ undef, 'foo' ] ],
+    },
+    {
+      artistid => 2,
+      name => \['?', [ {} => 'bar' ] ],
+    }
+  ]);
+} 'literal+bind with semantically identical attrs works after normalization';
 
 # the stringification has nothing to do with the artist name
 # this is solely for testing consistency
@@ -315,5 +403,11 @@ lives_ok {
       }]
    }])
 } 'multicol-PK has_many populate works';
+
+lives_ok ( sub {
+  $schema->populate('CD', [
+    {cdid => 10001, artist => $artist->id, title => 'Pretty Much Empty', year => 2011, tracks => []},
+  ])
+}, 'empty has_many relationship accepted by populate');
 
 done_testing;

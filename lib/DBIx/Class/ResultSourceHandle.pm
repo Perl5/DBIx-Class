@@ -2,48 +2,40 @@ package DBIx::Class::ResultSourceHandle;
 
 use strict;
 use warnings;
-use Storable;
-use Carp;
 
 use base qw/DBIx::Class/;
 
+use DBIx::Class::Exception;
+use Try::Tiny;
+
+use namespace::clean;
+
 use overload
-    # on some RH perls the following line causes serious performance problem
-    # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
     q/""/ => sub { __PACKAGE__ . ":" . shift->source_moniker; },
     fallback => 1;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/schema source_moniker/);
+__PACKAGE__->mk_group_accessors('simple' => qw/schema source_moniker _detached_source/);
 
 # Schema to use when thawing.
 our $thaw_schema;
 
 =head1 NAME
 
-DBIx::Class::ResultSourceHandle - Decouple Rows/ResultSets objects from their Source objects
+DBIx::Class::ResultSourceHandle - Serializable pointers to ResultSource instances
 
 =head1 DESCRIPTION
 
-This module removes fixed link between Rows/ResultSets and the actual source
-objects, which gets round the following problems
+Currently instances of this class are used to allow proper serialization of
+L<ResultSources|DBIx::Class::ResultSource> (which may contain unserializable
+elements like C<CODE> references).
 
-=over 4
-
-=item *
-
-Needing to keep C<$schema> in scope, since any objects/result_sets
-will have a C<$schema> object through their source handle
-
-=item *
-
-Large output when using Data::Dump(er) since this class can be set to
-stringify to almost nothing
-
-=item *
-
-Closer to being able to do a Serialize::Storable that doesn't require class-based connections
-
-=back
+Originally this module was used to remove the fixed link between
+L<Rows|DBIx::Class::Row>/L<ResultSets|DBIx::Class::ResultSet> and the actual
+L<result source objects|DBIx::Class::ResultSource> in order to obviate the need
+of keeping a L<schema instance|DBIx::Class::Schema> constantly in scope, while
+at the same time avoiding leaks due to circular dependencies. This is however
+no longer needed after introduction of a proper mutual-assured-destruction
+contract between a C<Schema> instance and its C<ResultSource> registrants.
 
 =head1 METHODS
 
@@ -52,11 +44,17 @@ Closer to being able to do a Serialize::Storable that doesn't require class-base
 =cut
 
 sub new {
-    my ($class, $data) = @_;
+  my ($class, $args) = @_;
+  my $self = bless $args, ref $class || $class;
 
-    $class = ref $class if ref $class;
+  unless( ($self->{schema} || $self->{_detached_source}) && $self->{source_moniker} ) {
+    my $err = 'Expecting a schema instance and a source moniker';
+    $self->{schema}
+      ? $self->{schema}->throw_exception($err)
+      : DBIx::Class::Exception->throw($err)
+  }
 
-    bless $data, $class;
+  $self;
 }
 
 =head2 resolve
@@ -65,7 +63,16 @@ Resolve the moniker into the actual ResultSource object
 
 =cut
 
-sub resolve { return $_[0]->schema->source($_[0]->source_moniker) }
+sub resolve {
+  return $_[0]->{schema}->source($_[0]->source_moniker) if $_[0]->{schema};
+
+  $_[0]->_detached_source || DBIx::Class::Exception->throw( sprintf (
+    # vague error message as this is never supposed to happen
+    "Unable to resolve moniker '%s' - please contact the dev team at %s",
+    $_[0]->source_moniker,
+    'http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT',
+  ), 'full_stacktrace');
+}
 
 =head2 STORABLE_freeze
 
@@ -74,40 +81,53 @@ Freezes a handle.
 =cut
 
 sub STORABLE_freeze {
-    my ($self, $cloning) = @_;
+  my ($self, $cloning) = @_;
 
-    my $to_serialize = { %$self };
+  my $to_serialize = { %$self };
 
-    delete $to_serialize->{schema};
-    $to_serialize->{_frozen_from_class} = $self->schema->class($self->source_moniker);
+  delete $to_serialize->{schema};
+  delete $to_serialize->{_detached_source};
+  $to_serialize->{_frozen_from_class} = $self->{schema}
+    ? $self->{schema}->class($self->source_moniker)
+    : $self->{_detached_source}->result_class
+  ;
 
-    return (Storable::freeze($to_serialize));
+  Storable::nfreeze($to_serialize);
 }
 
 =head2 STORABLE_thaw
 
 Thaws frozen handle. Resets the internal schema reference to the package
-variable C<$thaw_schema>. The recommended way of setting this is to use 
+variable C<$thaw_schema>. The recommended way of setting this is to use
 C<< $schema->thaw($ice) >> which handles this for you.
 
 =cut
 
-
 sub STORABLE_thaw {
-    my ($self, $cloning, $ice) = @_;
-    %$self = %{ Storable::thaw($ice) };
+  my ($self, $cloning, $ice) = @_;
+  %$self = %{ Storable::thaw($ice) };
 
-    my $class = delete $self->{_frozen_from_class};
-    if( $thaw_schema ) {
-        $self->{schema} = $thaw_schema;
+  my $from_class = delete $self->{_frozen_from_class};
+
+  if( $thaw_schema ) {
+    $self->schema( $thaw_schema );
+  }
+  elsif( my $rs = $from_class->result_source_instance ) {
+    # in the off-chance we are using CDBI-compat and have leaked $schema already
+    if( my $s = try { $rs->schema } ) {
+      $self->schema( $s );
     }
     else {
-        my $rs = $class->result_source_instance;
-        $self->{schema} = $rs->schema if $rs;
+      $rs->source_name( $self->source_moniker );
+      $rs->{_detached_thaw} = 1;
+      $self->_detached_source( $rs );
     }
-
-    carp "Unable to restore schema. Look at 'freeze' and 'thaw' methods in DBIx::Class::Schema."
-        unless $self->{schema};
+  }
+  else {
+    DBIx::Class::Exception->throw(
+      "Thaw failed - original result class '$from_class' does not exist on this system"
+    );
+  }
 }
 
 =head1 AUTHOR

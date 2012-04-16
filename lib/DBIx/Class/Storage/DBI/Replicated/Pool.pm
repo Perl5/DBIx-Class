@@ -5,9 +5,9 @@ use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
 use DBI ();
-use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
+use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
@@ -23,7 +23,7 @@ shouldn't need to create instances of this class.
 =head1 DESCRIPTION
 
 In a replicated storage type, there is at least one replicant to handle the
-read-only traffic.  The Pool class manages this replicant, or list of 
+read-only traffic.  The Pool class manages this replicant, or list of
 replicants, and gives some methods for querying information about their status.
 
 =head1 ATTRIBUTES
@@ -81,7 +81,7 @@ has 'replicant_type' => (
   default=>'DBIx::Class::Storage::DBI',
   handles=>{
     'create_replicant' => 'new',
-  },  
+  },
 );
 
 =head2 replicants
@@ -219,7 +219,7 @@ sub connect_replicants {
     }
 
     $replicant->id($key);
-    $self->set_replicant($key => $replicant);  
+    $self->set_replicant($key => $replicant);
 
     push @newly_created, $replicant;
   }
@@ -293,18 +293,16 @@ Returns 1 on success and undef on failure.
 sub _safely {
   my ($self, $replicant, $name, $code) = @_;
 
-  eval {
-    $code->()
-  };
-  if ($@) {
+  return try {
+    $code->();
+    1;
+  } catch {
     $replicant->debugobj->print(sprintf(
       "Exception trying to $name for replicant %s, error is %s",
-      $replicant->_dbi_connect_info->[0], $@)
+      $replicant->_dbi_connect_info->[0], $_)
     );
-    return undef;
-  }
-
-  return 1;
+    undef;
+  };
 }
 
 =head2 connected_replicants
@@ -364,7 +362,7 @@ This does a check to see if 1) each replicate is connected (or reconnectable),
 defined by L</maximum_lag>.  Replicants that fail any of these tests are set to
 inactive, and thus removed from the replication pool.
 
-This tests L<all_replicants>, since a replicant that has been previous marked
+This tests L</all_replicants>, since a replicant that has been previous marked
 as inactive can be reactivated should it start to pass the validation tests again.
 
 See L<DBIx::Class::Storage::DBI> for more about checking if a replicating
@@ -397,9 +395,9 @@ sub validate_replicants {
             if($lag_behind_master <= $self->maximum_lag) {
               $replicant->active(1);
             } else {
-              $replicant->active(0);  
+              $replicant->active(0);
             }
-          }    
+          }
         } else {
           $replicant->active(0);
         }
@@ -408,8 +406,8 @@ sub validate_replicants {
       $replicant->active(0);
     }
   }
-  ## Mark that we completed this validation.  
-  $self->_last_validated(time);  
+  ## Mark that we completed this validation.
+  $self->_last_validated(time);
 }
 
 =head1 AUTHOR

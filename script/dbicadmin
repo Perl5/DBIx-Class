@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -33,25 +33,27 @@ my ($opts, $usage) = describe_options(
   (
     ['Actions'],
     ["action" => hidden => { one_of => [
-      ['create' => 'Create version diffs needs preversion',],
+      ['create' => 'Create version diffs needs preversion'],
       ['upgrade' => 'Upgrade the database to the current schema '],
-      ['install' => 'Install the schema version tables to an existing database',],
-      ['deploy' => 'Deploy the schema to the database',],
-      ['select'   => 'Select data from the schema', ],
-      ['insert'   => 'Insert data into the schema', ],
-      ['update'   => 'Update data in the schema', ], 
-      ['delete'   => 'Delete data from the schema',],
+      ['install' => 'Install the schema version tables to an existing database'],
+      ['deploy' => 'Deploy the schema to the database'],
+      ['select'   => 'Select data from the schema'],
+      ['insert'   => 'Insert data into the schema'],
+      ['update'   => 'Update data in the schema'],
+      ['delete'   => 'Delete data from the schema'],
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
       ['help' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
       ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
-    ], required=> 1 }],
+    ], required => 1 }],
     ['Arguments'],
+    ["configuration" => hidden => { one_of => [
+      ['config-file|config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+      ['connect-info:s%' => 'Supply the connect info as trailing options e.g. --connect-info dsn=<dsn> user=<user> password=<pass>' ],
+      ['connect:s' => 'Supply the connect info as a JSON-encoded structure, e.g. an --connect=["dsn","user","pass"]'],
+    ] }],
     ['schema-class:s' => 'The class of the schema to load', { required => 1 } ],
-    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
     ['config-stanza:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-    ['config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-    ['connect-info:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
-    ['connect:s' => 'Supply the connect info as a json string' ],
+    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
     ['sql-dir:s' => 'The directory where sql diffs will be created'],
     ['sql-type:s' => 'The RDBMs flavour you wish to use'],
     ['version:i' => 'Supply a version install'],
@@ -62,10 +64,9 @@ my ($opts, $usage) = describe_options(
     ['force' => 'Be forceful with some operations'],
     ['trace' => 'Turn on DBIx::Class trace output'],
     ['quiet' => 'Be less verbose'],
+    ['I:s@' => 'Same as perl\'s -I, prepended to current @INC'],
   )
 );
-
-die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
 if($opts->{selfinject_pod}) {
 
@@ -86,23 +87,29 @@ if($opts->{selfinject_pod}) {
     );
 }
 
+# FIXME - lowercasing will eventually go away when Getopt::Long::Descriptive is fixed
+if($opts->{i}) {
+  require lib;
+  lib->import( @{delete $opts->{i}} );
+}
+
 if($opts->{help}) {
-    $usage->die();
+  $usage->die();
 }
 
 # option compatability mangle
+# (can not be joined in the spec, one is s% the other is s)
 if($opts->{connect}) {
   $opts->{connect_info} = delete $opts->{connect};
 }
 
 my $admin = DBIx::Class::Admin->new( %$opts );
 
-
 my $action = $opts->{action};
 
 $action = $opts->{op} if ($action eq 'op');
 
-print "Performig action $action...\n";
+print "Performing action $action...\n";
 
 my $res = $admin->$action();
 if ($action eq 'select') {

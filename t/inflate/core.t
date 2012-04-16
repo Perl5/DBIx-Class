@@ -8,8 +8,8 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-eval { require DateTime };
-plan skip_all => "Need DateTime for inflation tests" if $@;
+plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 $schema->class('CD') ->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
@@ -27,8 +27,10 @@ is( $cd->year->year, 1997, 'inflated year ok' );
 
 is( $cd->year->month, 1, 'inflated month ok' );
 
-eval { $cd->year(\'year +1'); };
-ok(!$@, 'updated year using a scalarref');
+lives_ok (
+  sub { $cd->year(\'year +1') },
+  'updated year using a scalarref'
+);
 $cd->update();
 $cd->discard_changes();
 
@@ -36,7 +38,7 @@ is( ref($cd->year), 'DateTime', 'year is still a DateTime, ok' );
 
 is( $cd->year->year, 1998, 'updated year, bypassing inflation' );
 
-is( $cd->year->month, 1, 'month is still 1' );  
+is( $cd->year->month, 1, 'month is still 1' );
 
 # get_inflated_column test
 
@@ -51,8 +53,10 @@ $cd = $rs->find(3);
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # set_inflated_column test
-eval { $cd->set_inflated_column('year', $now) };
-ok(!$@, 'set_inflated_column with DateTime object');
+lives_ok (
+  sub { $cd->set_inflated_column('year', $now) },
+  'set_inflated_column with DateTime object'
+);
 $cd->update;
 
 $cd = $rs->find(3);
@@ -60,8 +64,10 @@ is( $cd->year->year, $now->year, 'deflate ok' );
 
 $cd = $rs->find(3);
 my $before_year = $cd->year->year;
-eval { $cd->set_inflated_column('year', \'year + 1') };
-ok(!$@, 'set_inflated_column to "year + 1"');
+lives_ok (
+  sub { $cd->set_inflated_column('year', \'year + 1') },
+  'set_inflated_column to "year + 1"',
+);
 $cd->update;
 
 $cd->store_inflated_column('year', \'year + 1');
@@ -72,22 +78,28 @@ is( $cd->year->year, $before_year+1, 'deflate ok' );
 
 # store_inflated_column test
 $cd = $rs->find(3);
-eval { $cd->store_inflated_column('year', $now) };
-ok(!$@, 'store_inflated_column with DateTime object');
+lives_ok (
+  sub { $cd->store_inflated_column('year', $now) },
+  'store_inflated_column with DateTime object'
+);
 $cd->update;
 
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # update tests
 $cd = $rs->find(3);
-eval { $cd->update({'year' => $now}) };
-ok(!$@, 'update using DateTime object ok');
+lives_ok (
+  sub { $cd->update({'year' => $now}) },
+  'update using DateTime object ok'
+);
 is($cd->year->year, $now->year, 'deflate ok');
 
 $cd = $rs->find(3);
 $before_year = $cd->year->year;
-eval { $cd->update({'year' => \'year + 1'}) };
-ok(!$@, 'update using scalarref ok');
+lives_ok (
+  sub { $cd->update({'year' => \'year + 1'}) },
+  'update using scalarref ok'
+);
 
 $cd = $rs->find(3);
 is($cd->year->year, $before_year + 1, 'deflate ok');

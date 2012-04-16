@@ -3,21 +3,20 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use DBICTest::Schema;
+
+plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_mysql')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_mysql');
 
 {
   local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
   DBICTest::Schema->load_classes('EventTZ');
   DBICTest::Schema->load_classes('EventTZDeprecated');
 }
-
-eval { require DateTime::Format::MySQL };
-plan $@ 
-  ? ( skip_all => "Need DateTime::Format::MySQL for inflation tests")
-  : ( tests => 33 )
-;
 
 my $schema = DBICTest->init_schema();
 
@@ -56,20 +55,17 @@ foreach my $tbl (qw/EventTZ EventTZDeprecated/) {
   # Test floating timezone warning
   # We expect one warning
   SKIP: {
-      skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
-      local $SIG{__WARN__} = sub {
-          like(
-              shift,
-              qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
-              'Floating timezone warning'
-          );
-      };
-      my $event_tz_floating = $schema->resultset($tbl)->create({
-          starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
-          created_on => DateTime->new(year=>2006, month=>1, day=>31,
-              hour => 13, minute => 34, second => 56, ),
-      });
-      delete $SIG{__WARN__};
+    skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
+    warnings_exist (
+      sub {
+        $schema->resultset($tbl)->create({
+          starts_at => DateTime->new(year=>2007, month=>12, day=>31 ),
+          created_on => DateTime->new(year=>2006, month=>1, day=>31, hour => 13, minute => 34, second => 56 ),
+        });
+      },
+      qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
+      'Floating timezone warning'
+    );
   };
 
   # This should fail to set
@@ -95,3 +91,5 @@ throws_ok (
   qr/invalid date format/i,
   "Invalid date format exception"
 );
+
+done_testing;

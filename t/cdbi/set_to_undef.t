@@ -1,13 +1,12 @@
 use strict;
 use Test::More;
+
 use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
 BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
-    if $@;
-  plan skip_all => "DateTime required" unless eval { require DateTime };
-  plan tests => 2;
+  eval { require DateTime; DateTime->VERSION(0.55) }
+    or plan skip_all => 'DateTime 0.55 required for this test';
 }
 
 
@@ -31,3 +30,5 @@ is $thing->get( "this" ), undef, 'undef set';
 $thing->discard_changes;
 
 is @warnings, 0, 'no warnings';
+
+done_testing;

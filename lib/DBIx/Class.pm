@@ -3,14 +3,75 @@ package DBIx::Class;
 use strict;
 use warnings;
 
-use MRO::Compat;
+our $VERSION;
+# Always remember to do all digits for the version even if they're 0
+# i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
+# brain damage and presumably various other packaging systems too
+
+# $VERSION declaration must stay up here, ahead of any other package
+# declarations, as to not confuse various modules attempting to determine
+# this ones version, whether that be s.c.o. or Module::Metadata, etc
+$VERSION = '0.08196';
+
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
+BEGIN {
+  package # hide from pause
+    DBIx::Class::_ENV_;
+
+  if ($] < 5.009_005) {
+    require MRO::Compat;
+    *OLD_MRO = sub () { 1 };
+  }
+  else {
+    require mro;
+    *OLD_MRO = sub () { 0 };
+  }
+
+  # ::Runmode would only be loaded by DBICTest, which in turn implies t/
+  *DBICTEST = eval { DBICTest::RunMode->is_author }
+    ? sub () { 1 }
+    : sub () { 0 }
+  ;
+
+  # There was a brief period of p5p insanity when $@ was invisible in a DESTROY
+  *INVISIBLE_DOLLAR_AT = ($] >= 5.013001 and $] <= 5.013007)
+    ? sub () { 1 }
+    : sub () { 0 }
+  ;
+
+  # During 5.13 dev cycle HELEMs started to leak on copy
+  *PEEPEENESS = (defined $ENV{DBICTEST_ALL_LEAKS}
+    # request for all tests would force "non-leaky" illusion and vice-versa
+    ? ! $ENV{DBICTEST_ALL_LEAKS}
+
+    # otherwise confess that this perl is busted ONLY on smokers
+    : do {
+      if (eval { DBICTest::RunMode->is_smoker }) {
+
+        # leaky 5.13.6 (fixed in blead/cefd5c7c)
+        if ($] == '5.013006') { 1 }
+
+        # not sure why this one leaks, but disable anyway - ANDK seems to make it weep
+        elsif ($] == '5.013005') { 1 }
+
+        else { 0 }
+      }
+      else { 0 }
+    }
+  ) ? sub () { 1 } : sub () { 0 };
+
+}
+
 use mro 'c3';
 
 use DBIx::Class::Optional::Dependencies;
 
-use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
+use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
+
+__PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
+__PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve');
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);
@@ -24,13 +85,6 @@ sub mk_classaccessor {
 
 sub component_base_class { 'DBIx::Class' }
 
-# Always remember to do all digits for the version even if they're 0
-# i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
-# brain damage and presumably various other packaging systems too
-$VERSION = '0.08120_1';
-
-$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
-
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
   $class->mk_classdata('__attr_cache' => {})
@@ -42,8 +96,11 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub _attr_cache {
   my $self = shift;
   my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-  my $rest = eval { $self->next::method };
-  return $@ ? $cache : { %$cache, %$rest };
+
+  return {
+    %$cache,
+    %{ $self->maybe::next::method || {} },
+  };
 }
 
 1;
@@ -58,24 +115,30 @@ The community can be found via:
 
 =over
 
-=item * IRC: L<irc.perl.org#dbix-class (click for instant chatroom login)
-|http://mibbit.com/chat/#dbix-class@irc.perl.org>
+=item * Web Site: L<http://www.dbix-class.org/>
+
+=item * IRC: irc.perl.org#dbix-class
+
+=for html
+<a href="http://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
 =item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
 
-=item * SVNWeb: L<http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/0.08>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
 
-=item * SVN: L<http://dev.catalyst.perl.org/repos/bast/DBIx-Class/0.08>
+=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+
+=item * twitter L<http://www.twitter.com/dbix_class>
 
 =back
 
 =head1 SYNOPSIS
 
-Create a schema class called MyDB/Schema.pm:
+Create a schema class called MyApp/Schema.pm:
 
-  package MyDB::Schema;
+  package MyApp::Schema;
   use base qw/DBIx::Class::Schema/;
 
   __PACKAGE__->load_namespaces();
@@ -83,39 +146,39 @@ Create a schema class called MyDB/Schema.pm:
   1;
 
 Create a result class to represent artists, who have many CDs, in
-MyDB/Schema/Result/Artist.pm:
+MyApp/Schema/Result/Artist.pm:
 
 See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
-  package MyDB::Schema::Result::Artist;
+  package MyApp::Schema::Result::Artist;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD', 'artistid');
 
   1;
 
 A result class to represent a CD, which belongs to an artist, in
-MyDB/Schema/Result/CD.pm:
+MyApp/Schema/Result/CD.pm:
 
-  package MyDB::Schema::Result::CD;
+  package MyApp::Schema::Result::CD;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'MyDB::Schema::Artist', 'artistid');
+  __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
 
   1;
 
 Then you can use these classes in your application's code:
 
   # Connect to your database.
-  use MyDB::Schema;
-  my $schema = MyDB::Schema->connect($dbi_dsn, $user, $pass, \%dbi_params);
+  use MyApp::Schema;
+  my $schema = MyApp::Schema->connect($dbi_dsn, $user, $pass, \%dbi_params);
 
   # Query for all artists and put them in an array,
   # or retrieve them as a result set object.
@@ -188,7 +251,8 @@ resultset is used as an iterator it only fetches rows off the statement
 handle as requested in order to minimise memory usage. It has auto-increment
 support for SQLite, MySQL, PostgreSQL, Oracle, SQL Server and DB2 and is
 known to be used in production on at least the first four, and is fork-
-and thread-safe out of the box (although your DBD may not be).
+and thread-safe out of the box (although
+L<your DBD may not be|DBI/Threads and Thread Safety>).
 
 This project is still under rapid development, so large new features may be
 marked EXPERIMENTAL - such APIs are still usable but may have edge bugs.
@@ -218,13 +282,25 @@ is traditional :)
 
 =head1 CONTRIBUTORS
 
-abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
+abraxxa: Alexander Hartmaier <abraxxa@cpan.org>
+
+acca: Alexander Kuznetsov <acca@cpan.org>
 
 aherzog: Adam Herzog <adam@herzogdesigns.com>
+
+Alexander Keusch <cpan@keusch.at>
+
+alnewkirk: Al Newkirk <we@ana.im>
+
+amiri: Amiri Barksdale <amiri@metalabel.com>
+
+amoore: Andrew Moore <amoore@cpan.org>
 
 andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
+
+arc: Aaron Crane <arc@cpan.org>
 
 arcanez: Justin Hunter <justin.d.hunter@gmail.com>
 
@@ -236,13 +312,19 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+bphillips: Brian Phillips <bphillips@cpan.org>
+
 boghead: Bryan Beeley <cpan@beeley.org>
+
+brd: Brad Davis <brd@FreeBSD.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
 brunov: Bruno Vecchi <vecchi.b@gmail.com>
 
 caelum: Rafael Kitover <rkitover@cpan.org>
+
+caldrin: Maik Hentsche <maik.hentsche@amd.com>
 
 castaway: Jess Robinson
 
@@ -260,9 +342,17 @@ dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>
 
+dpetrov: Dimitar Petrov <mitakaa@gmail.com>
+
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
+
+edenc: Eden Cardim <edencardim@gmail.com>
+
+felliott: Fitz Elliott <fitz.elliott@gmail.com>
+
+freetime: Bill Moseley <moseley@hank.org>
 
 frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
 
@@ -270,9 +360,21 @@ goraxe: Gordon Irving <goraxe@cpan.org>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
+Grant Street Group L<http://www.grantstreet.com/>
+
 groditi: Guillermo Roditi <groditi@cpan.org>
 
+Haarg: Graham Knop <haarg@haarg.org>
+
+hobbs: Andrew Rodland <arodland@cpan.org>
+
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
+
+initself: Mike Baas <mike@initselftech.com>
+
+ironcamel: Naveed Massjouni <naveedm9@gmail.com>
+
+jawnsy: Jonathan Yu <jawnsy@cpan.org>
 
 jasonmay: Jason May <jason.a.may@gmail.com>
 
@@ -290,7 +392,11 @@ jon: Jon Schutz <jjschutz@cpan.org>
 
 jshirley: J. Shirley <jshirley@gmail.com>
 
+kaare: Kaare Rasmussen
+
 konobi: Scott McWhirter
+
+littlesavage: Alexey Illarionov <littlesavage@orionet.ru>
 
 lukes: Luke Saunders <luke.saunders@gmail.com>
 
@@ -298,7 +404,13 @@ marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
 
+mattp: Matt Phillips <mattp@cpan.org>
+
 michaelr: Michael Reddick <michael.reddick@gmail.com>
+
+milki: Jonathan Chu <milki@rescomp.berkeley.edu>
+
+mstratman: Mark A. Stratman <stratman@gmail.com>
 
 ned: Neil de Carteret
 
@@ -316,7 +428,7 @@ Numa: Dan Sully <daniel@cpan.org>
 
 ovid: Curtis "Ovid" Poe <ovid@cpan.org>
 
-oyse: Øystein Torget <oystein.torget@dnv.com>
+oyse: E<Oslash>ystein Torget <oystein.torget@dnv.com>
 
 paulm: Paul Makepeace
 
@@ -326,13 +438,21 @@ perigrin: Chris Prather <chris@prather.org>
 
 peter: Peter Collingbourne <peter@pcc.me.uk>
 
+Peter Valdemar ME<oslash>rch <peter@morch.com>
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 plu: Johannes Plunien <plu@cpan.org>
 
+Possum: Daniel LeWarne <possum@cpan.org>
+
 quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
+
+rainboxx: Matthias Dietrich <perl@rb.ly>
+
+rbo: Robert Bohne <rbo@cpan.org>
 
 rbuels: Robert Buels <rmb32@cornell.edu>
 
@@ -344,7 +464,11 @@ rjbs: Ricardo Signes <rjbs@cpan.org>
 
 robkinyon: Rob Kinyon <rkinyon@cpan.org>
 
+Robert Olson <bob@rdolson.org>
+
 Roman: Roman Filippov <romanf@cpan.org>
+
+Sadrak: Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>
 
 sc_: Just Another Perl Hacker
 
@@ -352,17 +476,27 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 
 semifor: Marc Mims <marc@questright.com>
 
+SineSwiper: Brendan Byrd <bbyrd@cpan.org>
+
 solomon: Jared Johnson <jaredj@nmgi.com>
 
 spb: Stephen Bennett <stephen@freenode.net>
 
+Squeeks <squeek@cpan.org>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
+
+talexb: Alex Beamish <talexb@gmail.com>
+
+tamias: Ronald J Kimball <rjk@tamias.net>
 
 teejay : Aaron Trevena <teejay@cpan.org>
 
 Todd Lipcon
 
 Tom Hukins
+
+tonvoon: Ton Voon <tonvoon@cpan.org>
 
 triode: Pete Gamache <gamache@cpan.org>
 
@@ -372,15 +506,21 @@ victori: Victor Igumnov <victori@cpan.org>
 
 wdh: Will Hawes
 
+wesm: Wes Malone <wes@mitsi.com>
+
 willert: Sebastian Willert <willert@cpan.org>
 
 wreis: Wallace Reis <wreis@cpan.org>
+
+xenoterracide: Caleb Cushing <xenoterracide@gmail.com>
+
+yrlnry: Mark Jason Dominus <mjd@plover.com>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 - 2010 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+Copyright (c) 2005 - 2011 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
 as listed above.
 
 =head1 LICENSE

@@ -6,6 +6,20 @@ use base 'DBIx::Class';
 use File::Path;
 use File::Copy;
 use Path::Class;
+use DBIx::Class::Carp;
+use namespace::clean;
+
+carp 'InflateColumn::File has entered a deprecation cycle. This component '
+    .'has a number of architectural deficiencies that can quickly drive '
+    .'your filesystem and database out of sync and is not recommended '
+    .'for further use. It will be retained for backwards '
+    .'compatibility, but no new functionality patches will be accepted. '
+    .'Please consider using the much more mature and actively maintained '
+    .'DBIx::Class::InflateColumn::FS. You can set the environment variable '
+    .'DBIC_IC_FILE_NOWARN to a true value to disable  this warning.'
+unless $ENV{DBIC_IC_FILE_NOWARN};
+
+
 
 __PACKAGE__->load_components(qw/InflateColumn/);
 
@@ -15,7 +29,7 @@ sub register_column {
     return unless defined($info->{is_file_column});
 
     $self->inflate_column($column => {
-        inflate => sub { 
+        inflate => sub {
             my ($value, $obj) = @_;
             $obj->_inflate_file_column($column, $value);
         },
@@ -107,7 +121,17 @@ sub _save_file_column {
 
 =head1 NAME
 
-DBIx::Class::InflateColumn::File -  map files from the Database to the filesystem.
+DBIx::Class::InflateColumn::File -  DEPRECATED (superseded by DBIx::Class::InflateColumn::FS)
+
+=head2 Deprecation Notice
+
+ This component has a number of architectural deficiencies that can quickly
+ drive your filesystem and database out of sync and is not recommended for
+ further use. It will be retained for backwards compatibility, but no new
+ functionality patches will be accepted. Please consider using the much more
+ mature and actively supported DBIx::Class::InflateColumn::FS. You can set
+ the environment variable DBIC_IC_FILE_NOWARN to a true value to disable
+ this warning.
 
 =head1 SYNOPSIS
 
@@ -131,7 +155,7 @@ In your L<DBIx::Class> table class:
             data_type           => "varchar",
             is_file_column      => 1,
             file_column_path    =>'/tmp/uploaded_files',
-            # or for a Catalyst application 
+            # or for a Catalyst application
             # file_column_path  => MyApp->path_to('root','static','files'),
             default_value       => undef,
             is_nullable         => 1,
@@ -145,11 +169,11 @@ In your L<Catalyst::Controller> class:
 FileColumn requires a hash that contains L<IO::File> as handle and the file's
 name as name.
 
-    my $entry = $c->model('MyAppDB::Articles')->create({ 
+    my $entry = $c->model('MyAppDB::Articles')->create({
         subject => 'blah',
-        filename => { 
-            handle => $c->req->upload('myupload')->fh, 
-            filename => $c->req->upload('myupload')->basename 
+        filename => {
+            handle => $c->req->upload('myupload')->fh,
+            filename => $c->req->upload('myupload')->basename
         },
         body => '....'
     });
@@ -159,7 +183,7 @@ name as name.
 And Place the following in your TT template
 
     Article Subject: [% entry.subject %]
-    Uploaded File: 
+    Uploaded File:
     <a href="/static/files/[% entry.id %]/[% entry.filename.filename %]">File</a>
     Body: [% entry.body %]
 

@@ -1,15 +1,8 @@
 use strict;
 use Test::More;
+use Scalar::Util 'refaddr';
+use namespace::clean;
 $| = 1;
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  plan tests => 98;
-}
 
 INIT {
   use lib 't/cdbi/testlib';
@@ -34,7 +27,7 @@ is(Film->__driver, "SQLite", "Driver set correctly");
   eval { my $id = Film->title };
   #like $@, qr/class method/, "Can't get title with no object";
   ok $@, "Can't get title with no object";
-} 
+}
 
 eval { my $duh = Film->insert; };
 like $@, qr/create needs a hashref/, "needs a hashref";
@@ -228,7 +221,7 @@ ok(
 
 # Test that a disconnect doesnt harm anything.
 {
-    # SQLite is loud on disconnect/reconnect. 
+    # SQLite is loud on disconnect/reconnect.
     # This is solved in DBIC but not in ContextualFetch
     local $SIG{__WARN__} = sub {
       warn @_ unless $_[0] =~
@@ -383,23 +376,23 @@ SKIP: {
   # my bad taste is your bad taste
   my $btaste  = Film->retrieve('Bad Taste');
   my $btaste2 = Film->retrieve('Bad Taste');
-  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
+  is refaddr $btaste, refaddr $btaste2,
     "Retrieving twice gives ref to same object";
 
   my ($btaste5) = Film->search(title=>'Bad Taste');
-  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste5),
+  is refaddr $btaste, refaddr $btaste5,
     "Searching also gives ref to same object";
 
   $btaste2->remove_from_object_index;
   my $btaste3 = Film->retrieve('Bad Taste');
-  isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste3),
+  isnt refaddr $btaste2, refaddr $btaste3,
     "Removing from object_index and retrieving again gives new object";
 
   $btaste3->clear_object_index;
   my $btaste4 = Film->retrieve('Bad Taste');
-  isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste4),
+  isnt refaddr $btaste2, refaddr $btaste4,
     "Clearing cache and retrieving again gives new object";
- 
+
   $btaste=Film->insert({
     Title             => 'Bad Taste 2',
     Director          => 'Peter Jackson',
@@ -407,7 +400,9 @@ SKIP: {
     NumExplodingSheep => 2,
   });
   $btaste2 = Film->retrieve('Bad Taste 2');
-  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
+  is refaddr $btaste, refaddr $btaste2,
     "Creating and retrieving gives ref to same object";
- 
+
 }
+
+done_testing;

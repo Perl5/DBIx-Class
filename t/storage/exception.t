@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 
@@ -21,6 +19,7 @@ use DBICTest::Schema;
 
   sub _populate_dbh {
     my $self = shift;
+
     my $death = $self->_dbi_connect_info->[3]{die};
 
     die "storage test died: $death" if $death eq 'before_populate';
@@ -32,12 +31,12 @@ use DBICTest::Schema;
 }
 
 for (qw/before_populate after_populate/) {
-  dies_ok (sub {
+  throws_ok (sub {
     my $schema = DBICTest::Schema->clone;
     $schema->storage_type ('Dying::Storage');
     $schema->connection (DBICTest->_database, { die => $_ });
     $schema->storage->ensure_connected;
-  }, "$_ exception found");
+  }, qr/$_/, "$_ exception found");
 }
 
 done_testing;

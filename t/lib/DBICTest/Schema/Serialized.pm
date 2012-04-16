@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Serialized;
 
 use base qw/DBICTest::BaseResult/;

@@ -1,31 +1,41 @@
 use strict;
 use warnings;
-use lib qw(t/lib);
+
 use Test::More;
-use Test::Exception;
+
+use lib qw(t/lib);
 use DBICTest;
+
+BEGIN {
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
+}
+
+
+if (DBICTest::RunMode->is_smoker) {
+  my $mver = Moose->VERSION;
+  plan skip_all => "A trial version $mver of Moose detected known to break replication - skipping test known to fail"
+    if ($mver >= 1.99 and $mver <= 1.9902);
+}
+
+use Test::Moose;
+use Test::Exception;
 use List::Util 'first';
 use Scalar::Util 'reftype';
 use File::Spec;
 use IO::Handle;
+use Moose();
+use MooseX::Types();
+note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
-BEGIN {
-    eval { require Test::Moose; Test::Moose->import() };
-    plan skip_all => "Need Test::Moose to run this test" if $@;
-      require DBIx::Class;
-
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
-}
+my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
-use Moose();
-use MooseX::Types();
-diag "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
 =head1 HOW TO USE
 
@@ -88,7 +98,7 @@ TESTSCHEMACLASSES: {
             balancer_type=>'::Random',
             balancer_args=>{
               auto_validate_every=>100,
-          master_read_weight => 1
+              master_read_weight => 1
             },
           }
         },
@@ -104,8 +114,11 @@ TESTSCHEMACLASSES: {
         storage_type=> '::DBI::Replicated',
         balancer_type=>'::Random',
         balancer_args=> {
-          auto_validate_every=>100,
-      master_read_weight => 1
+            auto_validate_every=>100,
+            master_read_weight => 1
+        },
+        pool_args=>{
+            maximum_lag=>1,
         },
         deploy_args=>{
           add_drop_table => 1,
@@ -377,7 +390,7 @@ ok @replicant_names, "found replicant names @replicant_names";
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { m{^t/} } @replicant_names;
+  if first { $_ =~ /$var_dir/ } @replicant_names;
 
 isa_ok $replicated->schema->storage->balancer->current_replicant
     => 'DBIx::Class::Storage::DBI';
@@ -425,7 +438,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { m{^t/} } @replicant_names;
+  if first { $_ =~ /$var_dir/ } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 
@@ -597,7 +610,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
         "got last query from a master: $debug{dsn}";
 
     like $fallback_warning, qr/falling back to master/
-        => 'emits falling back to master warning';
+        => 'emits falling back to master debug';
 
     $replicated->schema->storage->debugfh($oldfh);
 }
@@ -608,17 +621,29 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { m{^t/} } @replicant_names;
+  if first { $_ =~ /$var_dir/ } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 
 $replicated->schema->storage->debugobj->silence(0);
 
-ok $replicated->schema->resultset('Artist')->find(2)
-    => 'Returned to replicates';
+{
+    ## catch the fallback to master warning
+    open my $debugfh, '>', \my $return_warning;
+    my $oldfh = $replicated->schema->storage->debugfh;
+    $replicated->schema->storage->debugfh($debugfh);
 
-is $debug{storage_type}, 'REPLICANT',
-    "got last query from a replicant: $debug{dsn}";
+    ok $replicated->schema->resultset('Artist')->find(2)
+        => 'Return to replicants';
+
+    is $debug{storage_type}, 'REPLICANT',
+      "got last query from a replicant: $debug{dsn}";
+
+    like $return_warning, qr/Moved back to slave/
+        => 'emits returning to slave debug';
+
+    $replicated->schema->storage->debugfh($oldfh);
+}
 
 ## Getting slave status tests
 
@@ -734,7 +759,7 @@ ok my $transaction = sub {
         ->schema
         ->populate('Artist', [
             [ qw/artistid name/ ],
-            [ $id, "Children of the Grave"],
+            [ $id, "Children of the Grave $id"],
         ]);
 
     ok my $result = $replicated->schema->resultset('Artist')->find($id)

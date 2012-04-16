@@ -5,11 +5,15 @@ use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
 use DBICTest;
+use DBIC::DebugObj;
+use DBIC::SqlMakerTest;
 
-#plan tests => 5;
-plan 'no_plan';
+my $schema = DBICTest->init_schema;
 
-my $schema = DBICTest->init_schema();
+my ($sql, @bind);
+my $debugobj = DBIC::DebugObj->new (\$sql, \@bind);
+my $orig_debugobj = $schema->storage->debugobj;
+my $orig_debug = $schema->storage->debug;
 
 my $tkfks = $schema->resultset('FourKeys_to_TwoKeys');
 
@@ -48,15 +52,54 @@ my $fks = $schema->resultset ('FourKeys')
                   ->search ({ map { $_ => [1, 2] } qw/foo bar hello goodbye/}, { join => 'fourkeys_to_twokeys' });
 
 is ($fks->count, 4, 'Joined FourKey count correct (2x2)');
+
+$schema->storage->debugobj ($debugobj);
+$schema->storage->debug (1);
 $fks->update ({ read_count => \ 'read_count + 1' });
-$_->discard_changes for ($fa, $fb);
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
 
-is ($fa->read_count, 11, 'Update ran only once on joined resultset');
-is ($fb->read_count, 21, 'Update ran only once on joined resultset');
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'UPDATE fourkeys
+   SET read_count = read_count + 1
+   WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )',
+  [ map { "'$_'" } ( (1) x 4, (2) x 4 ) ],
+  'Correct update-SQL without multicolumn in support',
+);
 
+is ($fa->discard_changes->read_count, 11, 'Update ran only once on joined resultset');
+is ($fb->discard_changes->read_count, 21, 'Update ran only once on joined resultset');
+
+# try the same sql with forced multicolumn in
+$schema->storage->_use_multicolumn_in (1);
+$schema->storage->debugobj ($debugobj);
+$schema->storage->debug (1);
+eval { $fks->update ({ read_count => \ 'read_count + 1' }) }; # this can't actually execute, we just need the "as_query"
+$schema->storage->_use_multicolumn_in (undef);
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'UPDATE fourkeys
+    SET read_count = read_count + 1
+    WHERE (
+      (foo, bar, hello, goodbye) IN (
+        SELECT me.foo, me.bar, me.hello, me.goodbye
+          FROM fourkeys me
+        WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? )
+      )
+    )
+  ',
+  [ map { "'$_'" } ( (1, 2) x 4 ) ],
+  'Correct update-SQL with multicolumn in support',
+);
 
 #
-# Make sure multicolumn in or the equivalen functions correctly
+# Make sure multicolumn in or the equivalent functions correctly
 #
 
 my $sub_rs = $tkfks->search (
@@ -82,13 +125,13 @@ throws_ok (
 $sub_rs->search (
   {},
   {
-    group_by => [ reverse $sub_rs->result_source->primary_columns ],     # reverse to make sure the PK-list comaprison works
+    group_by => [ reverse $sub_rs->result_source->primary_columns ],     # reverse to make sure the PK-list comparison works
   },
 )->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
-            ->get_column ('pilot_sequence')->all 
+            ->get_column ('pilot_sequence')->all
   ],
   [qw/11 21 30 40/],
   'Only two rows incremented',
@@ -101,12 +144,60 @@ $tkfks->search (
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
-            ->get_column ('pilot_sequence')->all 
+            ->get_column ('pilot_sequence')->all
   ],
   [qw/12 22 30 40/],
   'Only two rows incremented (where => scalarref works)',
 );
 
-$sub_rs->delete;
+{
+  my $rs = $schema->resultset('FourKeys_to_TwoKeys')->search (
+    {
+      -or => [
+        { 'me.pilot_sequence' => 12 },
+        { 'me.autopilot'      => 'b' },
+      ],
+    }
+  );
+  lives_ok { $rs->update({ autopilot => 'z' }) }
+    'Update with table name qualifier in -or conditions lives';
+  is_deeply (
+    [ $tkfks->search ({ pilot_sequence => [12, 22]})
+              ->get_column ('autopilot')->all
+    ],
+    [qw/z z/],
+    '... and yields the right data',
+  );
+}
 
+
+$sub_rs->delete;
 is ($tkfks->count, $tkfk_cnt -= 2, 'Only two rows deleted');
+
+# make sure limit-only deletion works
+cmp_ok ($tkfk_cnt, '>', 1, 'More than 1 row left');
+$tkfks->search ({}, { rows => 1 })->delete;
+is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
+
+
+# Make sure prefetch is properly stripped too
+# check with sql-equality, as sqlite will accept bad sql just fine
+$schema->storage->debugobj ($debugobj);
+$schema->storage->debug (1);
+$schema->resultset('CD')->search(
+  { year => { '!=' => 2010 } },
+  { prefetch => 'liner_notes' },
+)->delete;
+
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM cd me WHERE ( year != ? ) ) )',
+  ["'2010'"],
+  'Update on prefetching resultset strips prefetch correctly'
+);
+
+done_testing;

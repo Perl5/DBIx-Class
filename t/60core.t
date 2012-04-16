@@ -10,9 +10,6 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-eval { require DateTime::Format::SQLite };
-my $NO_DTFM = $@ ? 1 : 0;
-
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
 is(@art, 3, "Three artists returned");
@@ -45,6 +42,8 @@ my %fake_dirty = $art->get_dirty_columns();
 is(scalar(keys(%fake_dirty)), 1, '1 fake dirty column');
 ok(grep($_ eq 'name', keys(%fake_dirty)), 'name is fake dirty');
 
+ok($art->update, 'Update run');
+
 my $record_jp = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => 'cds' })->next;
 
 ok($record_jp, "prefetch on same rel okay");
@@ -66,6 +65,8 @@ lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' ); 
 is(@art, 2, 'And then there were two');
 
 is($art->in_storage, 0, "It knows it's dead");
+
+lives_ok { $art->update } 'No changes so update should be OK';
 
 dies_ok ( sub { $art->delete }, "Can't delete twice");
 
@@ -105,7 +106,7 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
-# test that store_column is called once for create() for non sequence columns 
+# test that store_column is called once for create() for non sequence columns
 {
   ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
   is($artist->name, 'X store_column test'); # used to be 'X X store...'
@@ -118,16 +119,15 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
   $artist->delete;
 }
 
-# Test backwards compatibility
-{
-  my $warnings = '';
-  local $SIG{__WARN__} = sub { $warnings .= $_[0] };
+# deprecation of rolled-out search
+warnings_exist {
+  $schema->resultset('Artist')->search_rs(id => 4)
+} qr/\Qsearch( %condition ) is deprecated/, 'Deprecation warning on ->search( %condition )';
 
-  my $artist_by_hash = $schema->resultset('Artist')->find(artistid => 4);
-  is($artist_by_hash->name, 'Man With A Spoon', 'Retrieved correctly');
-  is($artist_by_hash->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
-  like($warnings, qr/deprecated/, 'warned about deprecated find usage');
-}
+# this has been warning for 4 years, killing
+throws_ok {
+  $schema->resultset('Artist')->find(artistid => 4);
+} qr|expects either a column/value hashref, or a list of values corresponding to the columns of the specified unique constraint|;
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
 
@@ -173,13 +173,13 @@ is_deeply( \@cd, [qw/cdid artist title year genreid single_track/], 'column orde
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
-$cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+$cd = $schema->resultset("CD")->search(undef, { include_columns => [ { name => 'artist.name' } ], join => [ 'artist' ] })->find(1);
 
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
 # check if new syntax +columns also works for this
-$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ { name => 'artist.name' } ], join => [ 'artist' ] })->find(1);
 
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
@@ -205,10 +205,21 @@ $new->title('Insert or Update - updated');
 $new->update_or_insert;
 is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
 
-# get_inflated_columns w/relation and accessor alias
 SKIP: {
-    skip "This test requires DateTime::Format::SQLite", 8 if $NO_DTFM;
+    skip "Tests require " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite'), 13
+      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
+    # test get_inflated_columns with objects
+    my $event = $schema->resultset('Event')->search->first;
+    my %edata = $event->get_inflated_columns;
+    is($edata{'id'}, $event->id, 'got id');
+    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
+    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
+    is($edata{'starts_at'}, $event->starts_at, 'got start date');
+    is($edata{'created_on'}, $event->created_on, 'got created date');
+
+
+    # get_inflated_columns w/relation and accessor alias
     isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
     my %tdata = $new->get_inflated_columns;
     is($tdata{'trackid'}, 100, 'got id');
@@ -273,7 +284,7 @@ warnings_exist (sub {
        group_by => [ qw/position title/ ]
     }
   );
-  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');  
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');
 }
 
 my $tag_rs = $schema->resultset('Tag')->search(
@@ -303,15 +314,15 @@ ok($schema->storage(), 'Storage available');
     ]
   });
 
-  $rs->update({ name => 'Test _cond_for_update_delete' });
+  $rs->update({ rank => 6134 });
 
   my $art;
 
   $art = $schema->resultset("Artist")->find(1);
-  is($art->name, 'Test _cond_for_update_delete', 'updated first artist name');
+  is($art->rank, 6134, 'updated first artist rank');
 
   $art = $schema->resultset("Artist")->find(2);
-  is($art->name, 'Test _cond_for_update_delete', 'updated second artist name');
+  is($art->rank, 6134, 'updated second artist rank');
 }
 
 # test source_name
@@ -324,7 +335,7 @@ ok($schema->storage(), 'Storage available');
 
   my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
   is(@artsn, 4, "Four artists returned");
-  
+
   # make sure subclasses that don't set source_name are ok
   ok($schema->source('ArtistSubclass'), 'ArtistSubclass exists');
 }
@@ -349,7 +360,67 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   my $typeinfo = $schema->source("Artist")->column_info('artistid');
   is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
   $schema->source("Artist")->column_info('artistid');
-  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info loaded flag set');
+}
+
+# test columns_info
+{
+  $schema->source("Artist")->{_columns}{'artistid'} = {};
+  $schema->source("Artist")->column_info_from_storage(1);
+  $schema->source("Artist")->{_columns_info_loaded} = 0;
+
+  is_deeply (
+    $schema->source('Artist')->columns_info,
+    {
+      artistid => {
+        data_type => "INTEGER",
+        default_value => undef,
+        is_nullable => 0,
+        size => undef
+      },
+      charfield => {
+        data_type => "char",
+        default_value => undef,
+        is_nullable => 1,
+        size => 10
+      },
+      name => {
+        data_type => "varchar",
+        default_value => undef,
+        is_nullable => 1,
+        is_numeric => 0,
+        size => 100
+      },
+      rank => {
+        data_type => "integer",
+        default_value => 13,
+        is_nullable => 0,
+        size => undef
+      },
+    },
+    'columns_info works',
+  );
+
+  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info loaded flag set');
+
+  is_deeply (
+    $schema->source('Artist')->columns_info([qw/artistid rank/]),
+    {
+      artistid => {
+        data_type => "INTEGER",
+        default_value => undef,
+        is_nullable => 0,
+        size => undef
+      },
+      rank => {
+        data_type => "integer",
+        default_value => 13,
+        is_nullable => 0,
+        size => undef
+      },
+    },
+    'limited columns_info works',
+  );
 }
 
 # test source_info
@@ -392,18 +463,6 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   ok(! exists $priv_columns->{'genreid'}, 'genreid purged from _columns');
 }
 
-# test get_inflated_columns with objects
-SKIP: {
-    skip "This test requires DateTime::Format::SQLite", 5 if $NO_DTFM;
-    my $event = $schema->resultset('Event')->search->first;
-    my %edata = $event->get_inflated_columns;
-    is($edata{'id'}, $event->id, 'got id');
-    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
-    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
-    is($edata{'starts_at'}, $event->starts_at, 'got start date');
-    is($edata{'created_on'}, $event->created_on, 'got created date');
-}
-
 # test resultsource->table return value when setting
 {
     my $class = $schema->class('Event');
@@ -417,6 +476,81 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'new encodes');
   $en_row->insert;
   is($en_row->encoded, 'amliw', 'insert does not encode again');
+}
+
+#make sure multicreate encoding still works
+{
+  my $empl_rs = $schema->resultset('Employee');
+
+  my $empl = $empl_rs->create ({
+    name => 'Secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl->secretkey->encoded, 'ZAH NAC', 'correctly encoding on multicreate');
+
+  my $empl2 = $empl_rs->create ({
+    name => 'Same secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl2->secretkey->encoded, 'ZAH NAC', 'correctly encoding on preexisting multicreate');
+
+  $empl_rs->create ({
+    name => 'cat1',
+    secretkey => {
+      encoded => 'CHEEZBURGER',
+      keyholders => [
+        {
+          name => 'cat2',
+        },
+        {
+          name => 'cat3',
+        },
+      ],
+    },
+  });
+
+  is($empl_rs->find({name => 'cat1'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl1');
+  is($empl_rs->find({name => 'cat2'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl2');
+  is($empl_rs->find({name => 'cat3'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl3');
+
+}
+
+# make sure that obsolete handle-based source tracking continues to work for the time being
+{
+  my $handle = $schema->source('Artist')->handle;
+
+  my $rowdata = { $schema->resultset('Artist')->next->get_columns };
+
+  my $rs = DBIx::Class::ResultSet->new($handle);
+  my $rs_result = $rs->next;
+  isa_ok( $rs_result, 'DBICTest::Artist' );
+  is_deeply (
+    { $rs_result->get_columns },
+    $rowdata,
+    'Correct columns retrieved (rset/source link healthy)'
+  );
+
+  my $row = DBICTest::Artist->new({ -source_handle => $handle });
+  is_deeply(
+    { $row->get_columns },
+    {},
+    'No columns yet'
+  );
+
+  # store_column to fool the _orig_ident tracker
+  $row->store_column('artistid', $rowdata->{artistid});
+  $row->in_storage(1);
+
+  $row->discard_changes;
+  is_deeply(
+    { $row->get_columns },
+    $rowdata,
+    'Storage refetch successful'
+  );
 }
 
 # make sure we got rid of the compat shims

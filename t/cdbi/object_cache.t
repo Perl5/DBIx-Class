@@ -2,15 +2,6 @@ use strict;
 use Test::More;
 $| = 1;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  
-  eval "use DBD::SQLite";
-  plan skip_all => 'needs DBD::SQLite for testing' if $@;
-}
 
 INIT {
     use lib 't/cdbi/testlib';
@@ -41,14 +32,14 @@ ok +Film->create({
 
 {
     Film->nocache(1);
-    
+
     my $film1 = Film->retrieve( "This Is Spinal Tap" );
     my $film2 = Film->retrieve( "This Is Spinal Tap" );
 
     $film1->Director("Marty DiBergi");
     is $film2->Director, "Rob Reiner",
        'caching turned off';
-    
+
     $film1->discard_changes;
 }
 
@@ -80,3 +71,5 @@ ok +Film->create({
 
     $film1->discard_changes;
 }
+
+done_testing;

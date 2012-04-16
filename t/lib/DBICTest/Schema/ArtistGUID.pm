@@ -1,11 +1,11 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::ArtistGUID;
 
 use base qw/DBICTest::BaseResult/;
 
 # test MSSQL uniqueidentifier type
 
-__PACKAGE__->table('artist');
+__PACKAGE__->table('artist_guid');
 __PACKAGE__->add_columns(
   'artistid' => {
     data_type => 'uniqueidentifier' # auto_nextval not necessary for PK

@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::SequenceTest;
 
 use base qw/DBICTest::BaseResult/;
@@ -14,12 +14,12 @@ __PACKAGE__->add_columns(
   'pkid1' => {
     data_type => 'integer',
     auto_nextval => 1,
-    sequence => 'pkid1_seq',
+    sequence => \'"pkid1_seq"',
   },
   'pkid2' => {
     data_type => 'integer',
     auto_nextval => 1,
-    sequence => 'pkid2_seq',
+    sequence => \'pkid2_seq',
   },
   'nonpkid' => {
     data_type => 'integer',

@@ -1,5 +1,5 @@
 #   belongs to t/05components.t
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::ForeignComponent;
 use warnings;
 use strict;

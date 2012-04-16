@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     CDBase;
 
 use strict;

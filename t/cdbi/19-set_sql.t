@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 20);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 use Actor;
@@ -19,7 +9,7 @@ use Actor;
   my @cols = Film->columns('Essential');
   is_deeply \@cols, ['title'], "1 Column in essential";
   is +Film->transform_sql('__ESSENTIAL__'), 'title', '__ESSENTIAL__ expansion';
-  
+
   # This provides a more interesting test
   Film->columns(Essential => qw(title rating));
   is +Film->transform_sql('__ESSENTIAL__'), 'title, rating',
@@ -37,7 +27,7 @@ Film->set_sql(
   SELECT __ESSENTIAL__
   FROM   __TABLE__
   WHERE  __TABLE__.rating = 'PG'
-  ORDER BY title DESC 
+  ORDER BY title DESC
 }
 );
 
@@ -61,7 +51,7 @@ Film->set_sql(
   SELECT __ESSENTIAL__
   FROM   __TABLE__
   WHERE  rating = ?
-  ORDER BY title DESC 
+  ORDER BY title DESC
 }
 );
 
@@ -80,7 +70,7 @@ Film->set_sql(
             WHERE   __IDENTIFIER__
         }
     );
-    
+
     my $film = Film->retrieve_all->first;
     my @found = Film->search_by_id($film->id);
     is @found, 1;
@@ -93,11 +83,11 @@ Film->set_sql(
   Film->set_sql(
     namerate => qq{
     SELECT __ESSENTIAL(f)__
-    FROM   __TABLE(=f)__, __TABLE(Actor=a)__ 
-    WHERE  __JOIN(a f)__    
+    FROM   __TABLE(=f)__, __TABLE(Actor=a)__
+    WHERE  __JOIN(a f)__
     AND    a.name LIKE ?
     AND    f.rating = ?
-    ORDER BY title 
+    ORDER BY title
   }
   );
 
@@ -116,11 +106,11 @@ Film->set_sql(
   Film->set_sql(
     ratename => qq{
     SELECT __ESSENTIAL(f)__
-    FROM   __TABLE(=f)__, __TABLE(Actor=a)__ 
-    WHERE  __JOIN(f a)__    
+    FROM   __TABLE(=f)__, __TABLE(Actor=a)__
+    WHERE  __JOIN(f a)__
     AND    f.rating = ?
     AND    a.name LIKE ?
-    ORDER BY title 
+    ORDER BY title
   }
   );
 
@@ -130,3 +120,4 @@ Film->set_sql(
   is $apg[1]->title, "B", "and B";
 }
 
+done_testing;

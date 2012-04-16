@@ -10,8 +10,9 @@ use DBIx::Class::Storage::DBI;
 
 # !!! do not replace this with done_testing - tests reside in the callbacks
 # !!! number of calls is important
-use Test::More tests => 16;
+use Test::More tests => 17;
 # !!!
+use Test::Warn;
 
 my $schema = DBICTest::Schema->clone;
 
@@ -81,7 +82,7 @@ my $schema = DBICTest::Schema->clone;
 
 {
   ok $schema->connection(
-    sub { DBI->connect(DBICTest->_database) },
+    sub { DBI->connect(DBICTest->_database, undef, undef, { AutoCommit => 0 } ) },
     {
       # method list form
       on_connect_call => [ sub { ok 1, "on_connect_call after DT parser" }, ],
@@ -91,7 +92,10 @@ my $schema = DBICTest::Schema->clone;
 
   ok (! $schema->storage->connected, 'start disconnected');
 
-  $schema->storage->_determine_driver;  # this should connect due to the coderef
+  # this should connect due to the coderef, and also warn due to the false autocommit above
+  warnings_exist {
+    $schema->storage->_determine_driver
+  } qr/The 'RaiseError' of the externally supplied DBI handle is set to false/, 'Warning on clobbered AutoCommit => 0 fired';
 
   ok ($schema->storage->connected, 'determine driver connects');
   $schema->storage->disconnect;

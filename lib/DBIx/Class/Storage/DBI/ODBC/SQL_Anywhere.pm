@@ -2,7 +2,10 @@ package DBIx::Class::Storage::DBI::ODBC::SQL_Anywhere;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI::SQLAnywhere/;
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC
+  DBIx::Class::Storage::DBI::SQLAnywhere
+/;
 use mro 'c3';
 
 1;
@@ -16,6 +19,18 @@ Anywhere through ODBC
 
 All functionality is provided by L<DBIx::Class::Storage::DBI::SQLAnywhere>, see
 that module for details.
+
+=head1 CAVEATS
+
+=head2 uniqueidentifierstr data type
+
+If you use the C<uniqueidentifierstr> type with this driver, your queries may
+fail with:
+
+  Data truncated (SQL-01004)
+
+B<WORKAROUND:> use the C<uniqueidentifier> type instead, it is more efficient
+anyway.
 
 =head1 AUTHOR
 

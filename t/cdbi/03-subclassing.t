@@ -5,16 +5,6 @@ use Test::More;
 # Make sure subclasses can be themselves subclassed
 #----------------------------------------------------------------------
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 6);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -29,3 +19,5 @@ ok my $btaste = Film::Threat->retrieve('Bad Taste'), "subclass retrieve";
 isa_ok $btaste => "Film::Threat";
 isa_ok $btaste => "Film";
 is $btaste->Title, 'Bad Taste', 'subclass get()';
+
+done_testing;

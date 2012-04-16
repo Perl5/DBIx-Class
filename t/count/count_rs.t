@@ -7,8 +7,12 @@ use Test::More;
 use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
+use DBIx::Class::SQLMaker::LimitDialects;
 
-plan tests => 10;
+my ($ROWS, $OFFSET) = (
+   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
+   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+);
 
 my $schema = DBICTest->init_schema();
 
@@ -53,10 +57,17 @@ my $schema = DBICTest->init_schema();
           JOIN track tracks ON tracks.cd = me.cdid
           JOIN cd disc ON disc.cdid = tracks.cd
         WHERE ( ( position = ? OR position = ? ) )
-        LIMIT 3 OFFSET 8
-       ) count_subq
+        LIMIT ? OFFSET ?
+       ) tracks
     )',
-    [ [ position => 1 ], [ position => 2 ] ],
+    [
+      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+        => 1 ],
+      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+        => 2 ],
+      [$ROWS => 3],
+      [$OFFSET => 8],
+    ],
     'count_rs db-side limit applied',
   );
 }
@@ -88,7 +99,7 @@ my $schema = DBICTest->init_schema();
           JOIN artist artist ON artist.artistid = cds.artist
         WHERE tracks.position = ? OR tracks.position = ?
         GROUP BY cds.cdid
-      ) count_subq
+      ) cds
     ',
     [ qw/'1' '2'/ ],
     'count softlimit applied',
@@ -108,10 +119,53 @@ my $schema = DBICTest->init_schema();
           JOIN artist artist ON artist.artistid = cds.artist
         WHERE tracks.position = ? OR tracks.position = ?
         GROUP BY cds.cdid
-        LIMIT 3 OFFSET 4
-      ) count_subq
+        LIMIT ? OFFSET ?
+      ) cds
     )',
-    [ [ 'tracks.position' => 1 ], [ 'tracks.position' => 2 ] ],
+    [
+      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+        => 1 ],
+      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+        => 2 ],
+      [ $ROWS => 3],
+      [$OFFSET => 4],
+    ],
     'count_rs db-side limit applied',
   );
 }
+
+# count with a having clause
+{
+  my $rs = $schema->resultset("Artist")->search(
+    {},
+    {
+      join      => 'cds',
+      group_by  => 'me.artistid',
+      '+select' => [ { max => 'cds.year', -as => 'newest_cd_year' } ],
+      '+as'     => ['newest_cd_year'],
+      having    => { 'newest_cd_year' => '2001' }
+    }
+  );
+
+  my $crs = $rs->count_rs;
+
+  is_same_sql_bind (
+    $crs->as_query,
+    '(SELECT COUNT( * )
+      FROM (
+        SELECT me.artistid, MAX( cds.year ) AS newest_cd_year
+          FROM artist me
+          LEFT JOIN cd cds ON cds.artist = me.artistid
+        GROUP BY me.artistid
+        HAVING newest_cd_year = ?
+      ) me
+    )',
+    [ [ { dbic_colname => 'newest_cd_year' }
+          => '2001' ] ],
+    'count with having clause keeps sql as alias',
+  );
+
+  is ($crs->next, 2, 'Correct artist count (each with one 2001 cd)');
+}
+
+done_testing;

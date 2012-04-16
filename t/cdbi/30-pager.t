@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 6);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -41,7 +31,7 @@ $it->next;
 is( $it->next, undef, "next past end of page ok" );
 
 # second page
-( $pager, $it ) = Film->page( 
+( $pager, $it ) = Film->page(
     {},
     { rows => 3,
       page => 2 }
@@ -50,3 +40,5 @@ is( $it->next, undef, "next past end of page ok" );
 is( $pager->entries_on_this_page, 2, "entries on second page ok" );
 
 is( $it->next->title, "Film 4", "second page first title ok" );
+
+done_testing;

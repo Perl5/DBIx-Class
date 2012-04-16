@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::BooksInLibrary;
 
 use base qw/DBICTest::BaseResult/;
@@ -26,6 +26,8 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('id');
+
+__PACKAGE__->add_unique_constraint (['title']);
 
 __PACKAGE__->resultset_attributes({where => { source => "Library" } });
 

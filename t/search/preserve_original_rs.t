@@ -5,17 +5,13 @@ use Test::More;
 use Test::Exception;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
-use DBICTest;
 
-# use Data::Dumper comparisons to avoid mesing with coderefs
-use Data::Dumper;
-$Data::Dumper::Sortkeys = 1;
+use Storable qw/dclone/;
 
 my $schema = DBICTest->init_schema();
-
-plan tests => 22;
 
 # A search() with prefetch seems to pollute an already joined resultset
 # in a way that offsets future joins (adapted from a test case by Debolaz)
@@ -24,38 +20,38 @@ plan tests => 22;
 
   # test a real-life case - rs is obtained by an implicit m2m join
   $cd_rs = $schema->resultset ('Producer')->first->cds;
-  $attrs = Dumper $cd_rs->{attrs};
+  $attrs = dclone( $cd_rs->{attrs} );
 
   $cd_rs->search ({})->all;
-  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+  is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
   }, 'first prefetching search ok');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
   }, 'second prefetching search ok');
 
 
   # test a regular rs with an empty seen_join injected - it should still work!
   $cd_rs = $schema->resultset ('CD');
   $cd_rs->{attrs}{seen_join}  = {};
-  $attrs = Dumper $cd_rs->{attrs};
+  $attrs = dclone( $cd_rs->{attrs} );
 
   $cd_rs->search ({})->all;
-  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+  is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
   }, 'first prefetching search ok');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
   }, 'second prefetching search ok');
 }
 
@@ -89,3 +85,5 @@ for my $s (qw/a2a artw cd artw_back/) {
 
   is_same_sql_bind ($rs->as_query, $q{$s}{query}, "$s resultset unmodified (as_query matches)" );
 }
+
+done_testing;

@@ -21,6 +21,8 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('id');
 
+__PACKAGE__->has_many (keyholders => 'DBICTest::Schema::Employee', 'encoded');
+
 sub set_column {
   my ($self, $col, $value) = @_;
   if( $col eq 'encoded' ){

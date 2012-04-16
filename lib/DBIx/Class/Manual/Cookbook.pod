@@ -151,7 +151,7 @@ Note that you cannot have bind parameters unless is_virtual is set to true.
 =item * NOTE
 
 If you're using the old deprecated C<< $rsrc_instance->name(\'( SELECT ...') >>
-method for custom SQL execution, you are highly encouraged to update your code 
+method for custom SQL execution, you are highly encouraged to update your code
 to use a virtual view as above. If you do not want to change your code, and just
 want to suppress the deprecation warning when you call
 L<DBIx::Class::Schema/deploy>, add this line to your source definition, so that
@@ -202,7 +202,7 @@ to access the returned value:
   # FROM artist
 
 Note that the C<as> attribute B<has absolutely nothing to do> with the SQL
-syntax C< SELECT foo AS bar > (see the documentation in 
+syntax C< SELECT foo AS bar > (see the documentation in
 L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
 generated SQL via the C<-as> field attribute as follows:
 
@@ -218,10 +218,10 @@ generated SQL via the C<-as> field attribute as follows:
   );
 
   # Equivalent SQL
-  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds 
-  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid 
-  # GROUP BY me.artistid, me.name, me.rank, me.charfield 
-  # ORDER BY amount_of_cds DESC 
+  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds
+  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+  # GROUP BY me.artistid, me.name, me.rank, me.charfield
+  # ORDER BY amount_of_cds DESC
 
 
 If your alias exists as a column in your base class (i.e. it was added with
@@ -292,7 +292,7 @@ See also L</Using SQL functions on the left hand side of a comparison>.
   my $count = $rs->count;
 
   # Equivalent SQL:
-  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq:
+  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) me:
 
 =head2 Grouping results
 
@@ -326,10 +326,10 @@ You can write subqueries relatively easily in DBIC.
   });
 
   my $rs = $schema->resultset('CD')->search({
-    artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
+    artist_id => { -in => $inside_rs->get_column('id')->as_query },
   });
 
-The usual operators ( =, !=, IN, NOT IN, etc.) are supported.
+The usual operators ( '=', '!=', -in, -not_in, etc.) are supported.
 
 B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
@@ -349,7 +349,7 @@ from, select, and +select attributes.
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
-        { artist_id => { '=' => \'me.artist_id' } },
+        { artist_id => { '=' => { -ident => 'me.artist_id' } } },
         { alias => 'inner' }
       )->get_column('year')->max_rs->as_query,
     },
@@ -367,8 +367,8 @@ That creates the following SQL:
 
 =head2 Predefined searches
 
-You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
-and defining often used searches as methods:
+You can define frequently used searches as methods by subclassing
+L<DBIx::Class::ResultSet>:
 
   package My::DBIC::ResultSet::CD;
   use strict;
@@ -413,34 +413,29 @@ Using SQL functions on the left hand side of a comparison is generally not a
 good idea since it requires a scan of the entire table. (Unless your RDBMS
 supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
-it can be accomplished with C<DBIx::Class> when necessary.
-
-If you do not have quoting on, simply include the function in your search
-specification as you would any column:
-
-  $rs->search({ 'YEAR(date_of_birth)' => 1979 });
-
-With quoting on, or for a more portable solution, use literal SQL values with
-placeholders:
+it can be accomplished with C<DBIx::Class> when necessary by resorting to
+literal SQL:
 
   $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
-  $rs->search({
+  $rs->search({ -and => [
     name => 'Bob',
-    -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
-  });
+    \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
+  ]});
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
 
 Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
 should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or
-otherwise it's essentially a dummy string currently (use C<plain_value> as a
-habit). It is used by L<DBIx::Class> to handle special column types.
+return value of the function is the same as the type of the column) or in the
+case of a function it's currently treated as a dummy string (it is a good idea
+to use C<plain_value> or something similar to convey intent). The value is
+currently only significant when handling special column types (BLOBs, arrays,
+etc.), but this may change in the future.
 
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.
@@ -1083,7 +1078,7 @@ If you want to get a filtered result set, you can just add add to $attr as follo
 
  __PACKAGE__->has_many('pages' => 'Page', 'book', { where => { scrap => 0 } } );
 
-=head2 Many-to-many relationships
+=head2 Many-to-many relationship bridges
 
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
@@ -1217,6 +1212,8 @@ callback routine.
 
 =head1 TRANSACTIONS
 
+=head2 Transactions with txn_do
+
 As of version 0.04001, there is improved transaction support in
 L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
@@ -1236,23 +1233,28 @@ example of the recommended way to use it:
     return $genus->species;
   };
 
+  use Try::Tiny;
   my $rs;
-  eval {
+  try {
     $rs = $schema->txn_do($coderef1);
-  };
-
-  if ($@) {                             # Transaction failed
+  } catch {
+    # Transaction failed
     die "the sky is falling!"           #
-      if ($@ =~ /Rollback failed/);     # Rollback failed
+      if ($_ =~ /Rollback failed/);     # Rollback failed
 
     deal_with_failed_transaction();
-  }
+  };
+
+Note: by default C<txn_do> will re-run the coderef one more time if an
+error occurs due to client disconnection (e.g. the server is bounced).
+You need to make sure that your coderef can be invoked multiple times
+without terrible side effects.
 
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
 transaction to fail.
- 
+
 =head2 Nested transactions and auto-savepoints
 
 If savepoints are supported by your RDBMS, it is possible to achieve true
@@ -1267,9 +1269,11 @@ row.
 
   my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
 
-  # Start a transaction. Every database change from here on will only be 
-  # committed into the database if the eval block succeeds.
-  eval {
+  # Start a transaction. Every database change from here on will only be
+  # committed into the database if the try block succeeds.
+  use Try::Tiny;
+  my $exception;
+  try {
     $schema->txn_do(sub {
       # SQL: BEGIN WORK;
 
@@ -1279,7 +1283,7 @@ row.
       for (1..10) {
 
         # Start a nested transaction, which in fact sets a savepoint.
-        eval {
+        try {
           $schema->txn_do(sub {
             # SQL: SAVEPOINT savepoint_0;
 
@@ -1294,8 +1298,7 @@ row.
               #      WHERE ( id = 42 );
             }
           });
-        };
-        if ($@) {
+        } catch {
           # SQL: ROLLBACK TO SAVEPOINT savepoint_0;
 
           # There was an error while creating a $thing. Depending on the error
@@ -1303,23 +1306,26 @@ row.
           # changes related to the creation of this $thing
 
           # Abort the whole job
-          if ($@ =~ /horrible_problem/) {
+          if ($_ =~ /horrible_problem/) {
             print "something horrible happend, aborting job!";
-            die $@;                # rethrow error
+            die $_;                # rethrow error
           }
 
           # Ignore this $thing, report the error, and continue with the
           # next $thing
-          print "Cannot create thing: $@";
+          print "Cannot create thing: $_";
         }
-        # There was no error, so save all changes since the last 
+        # There was no error, so save all changes since the last
         # savepoint.
 
         # SQL: RELEASE SAVEPOINT savepoint_0;
       }
     });
-  };
-  if ($@) {
+  } catch {
+    $exception = $_;
+  }
+
+  if ($caught) {
     # There was an error while handling the $job. Rollback all changes
     # since the transaction started, including the already committed
     # ('released') savepoints. There will be neither a new $job nor any
@@ -1327,7 +1333,7 @@ row.
 
     # SQL: ROLLBACK;
 
-    print "ERROR: $@\n";
+    print "ERROR: $exception\n";
   }
   else {
     # There was no error while handling the $job. Commit all changes.
@@ -1341,11 +1347,21 @@ row.
 
 In this example it might be hard to see where the rollbacks, releases and
 commits are happening, but it works just the same as for plain L<<txn_do>>: If
-the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
+the C<try>-block around C<txn_do> fails, a rollback is issued. If the C<try>
 succeeds, the transaction is committed (or the savepoint released).
 
-While you can get more fine-grained controll using C<svp_begin>, C<svp_release>
+While you can get more fine-grained control using C<svp_begin>, C<svp_release>
 and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
+
+=head2 Simple Transactions with DBIx::Class::Storage::TxnScopeGuard
+
+An easy way to use transactions is with
+L<DBIx::Class::Storage::TxnScopeGuard>. See L</Automatically creating
+related objects> for an example.
+
+Note that unlike txn_do, TxnScopeGuard will only make sure the connection is
+alive when issuing the C<BEGIN> statement. It will not (and really can not)
+retry if the server goes away mid-operations, unlike C<txn_do>.
 
 =head1 SQL
 
@@ -1354,14 +1370,21 @@ and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
 L<DBIx::Class::Schema::Loader> will connect to a database and create a
 L<DBIx::Class::Schema> and associated sources by examining the database.
 
-The recommend way of achieving this is to use the
+The recommend way of achieving this is to use the L<dbicdump> utility or the
+L<Catalyst> helper, as described in
+L<Manual::Intro|DBIx::Class::Manual::Intro/Using DBIx::Class::Schema::Loader>.
+
+Alternatively, use the
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> method:
 
   perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib \
-    -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
+    -e 'make_schema_at("My::Schema", \
+    { db_schema => 'myschema', components => ["InflateColumn::DateTime"] }, \
+    [ "dbi:Pg:dbname=foo", "username", "password" ])'
 
-This will create a tree of files rooted at C<./lib/My/Schema/> containing
-source definitions for all the tables found in the C<foo> database.
+This will create a tree of files rooted at C<./lib/My/Schema/> containing source
+definitions for all the tables found in the C<myschema> schema in the C<foo>
+database.
 
 =head2 Creating DDL SQL
 
@@ -1642,7 +1665,8 @@ brackets, or a C<"> or C<'>:
 
 Check the documentation of your database for the correct quote
 characters to use. C<name_sep> needs to be set to allow the SQL
-generator to put the quotes the correct place.
+generator to put the quotes the correct place, and defaults to
+C<.> if not supplied.
 
 In most cases you should set these as part of the arguments passed to
 L<DBIx::Class::Schema/connect>:
@@ -1667,24 +1691,6 @@ this, you can also overload the C<connection> method for your schema class:
      $rv->storage->sql_maker->name_sep('.');
      return $rv;
  }
-
-=head2 Setting limit dialect for SQL::Abstract::Limit
-
-In some cases, SQL::Abstract::Limit cannot determine the dialect of
-the remote SQL server by looking at the database handle. This is a
-common problem when using the DBD::JDBC, since the DBD-driver only
-know that in has a Java-driver available, not which JDBC driver the
-Java component has loaded.  This specifically sets the limit_dialect
-to Microsoft SQL-server (See more names in SQL::Abstract::Limit
--documentation.
-
-  __PACKAGE__->storage->sql_maker->limit_dialect('mssql');
-
-The JDBC bridge is one way of getting access to a MSSQL server from a platform
-that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
-
-The limit dialect can also be set at connect time by specifying a
-C<limit_dialect> key in the final hash as shown above.
 
 =head2 Working with PostgreSQL array types
 
@@ -1721,17 +1727,119 @@ See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
 placeholders and bind values (subqueries)> for more explanation. Note that
 L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
 the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
-arrayrefs together with the column name, like this: C<< [column_name => value]
->>.
+arrayrefs together with the column name, like this:
+C<< [column_name => value] >>.
+
+=head2 Formatting DateTime objects in queries
+
+To ensure C<WHERE> conditions containing L<DateTime> arguments are properly
+formatted to be understood by your RDBMS, you must use the C<DateTime>
+formatter returned by L<DBIx::Class::Storage::DBI/datetime_parser> to format
+any L<DateTime> objects you pass to L<search|DBIx::Class::ResultSet/search>
+conditions. Any L<Storage|DBIx::Class::Storage> object attached to your
+L<Schema|DBIx::Class::Schema> provides a correct C<DateTime> formatter, so
+all you have to do is:
+
+  my $dtf = $schema->storage->datetime_parser;
+  my $rs = $schema->resultset('users')->search(
+    {
+      signup_date => {
+        -between => [
+          $dtf->format_datetime($dt_start),
+          $dtf->format_datetime($dt_end),
+        ],
+      }
+    },
+  );
+
+Without doing this the query will contain the simple stringification of the
+C<DateTime> object, which almost never matches the RDBMS expectations.
+
+This kludge is necessary only for conditions passed to
+L<DBIx::Class::ResultSet/search>, whereas
+L<create|DBIx::Class::ResultSet/create>,
+L<find|DBIx::Class::ResultSet/find>,
+L<DBIx::Class::Row/update> (but not L<DBIx::Class::ResultSet/update>) are all
+L<DBIx::Class::InflateColumn>-aware and will do the right thing when supplied
+an inflated C<DateTime> object.
+
+=head2 Using Unicode
+
+When using unicode character data there are two alternatives -
+either your database supports unicode characters (including setting
+the utf8 flag on the returned string), or you need to encode/decode
+data appropriately each time a string field is inserted into or
+retrieved from the database. It is better to avoid
+encoding/decoding data and to use your database's own unicode
+capabilities if at all possible.
+
+The L<DBIx::Class::UTF8Columns> component handles storing selected
+unicode columns in a database that does not directly support
+unicode. If used with a database that does correctly handle unicode
+then strange and unexpected data corrupt B<will> occur.
+
+The Catalyst Wiki Unicode page at
+L<http://wiki.catalystframework.org/wiki/tutorialsandhowtos/using_unicode>
+has additional information on the use of Unicode with Catalyst and
+DBIx::Class.
+
+The following databases do correctly handle unicode data:-
+
+=head3 MySQL
+
+MySQL supports unicode, and will correctly flag utf8 data from the
+database if the C<mysql_enable_utf8> is set in the connect options.
+
+  my $schema = My::Schema->connection('dbi:mysql:dbname=test',
+                                      $user, $pass,
+                                      { mysql_enable_utf8 => 1} );
+
+
+When set, a data retrieved from a textual column type (char,
+varchar, etc) will have the UTF-8 flag turned on if necessary. This
+enables character semantics on that string. You will also need to
+ensure that your database / table / column is configured to use
+UTF8. See Chapter 10 of the mysql manual for details.
+
+See L<DBD::mysql> for further details.
+
+=head3 Oracle
+
+Information about Oracle support for unicode can be found in
+L<DBD::Oracle/Unicode>.
+
+=head3 PostgreSQL
+
+PostgreSQL supports unicode if the character set is correctly set
+at database creation time. Additionally the C<pg_enable_utf8>
+should be set to ensure unicode data is correctly marked.
+
+  my $schema = My::Schema->connection('dbi:Pg:dbname=test',
+                                      $user, $pass,
+                                      { pg_enable_utf8 => 1} );
+
+Further information can be found in L<DBD::Pg>.
+
+=head3 SQLite
+
+SQLite version 3 and above natively use unicode internally. To
+correctly mark unicode strings taken from the database, the
+C<sqlite_unicode> flag should be set at connect time (in versions
+of L<DBD::SQLite> prior to 1.27 this attribute was named
+C<unicode>).
+
+  my $schema = My::Schema->connection('dbi:SQLite:/tmp/test.db',
+                                      '', '',
+                                      { sqlite_unicode => 1} );
 
 =head1 BOOTSTRAPPING/MIGRATING
 
 =head2 Easy migration from class-based to schema-based setup
 
 You want to start using the schema-based approach to L<DBIx::Class>
-(see L<SchemaIntro.pod>), but have an established class-based setup with lots
-of existing classes that you don't want to move by hand. Try this nifty script
-instead:
+(see L<DBIx::Class::Manual::Intro/Setting it up manually>), but have an
+established class-based setup with lots of existing classes that you don't
+want to move by hand. Try this nifty script instead:
 
   use MyDB;
   use SQL::Translator;
@@ -1799,18 +1907,26 @@ just looking for this.
 For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
-You can accomplish this by overriding C<store_column>:
+You can accomplish this by wrapping the C<number> accessor with
+L<Class::Method::Modifiers>:
 
-  sub store_column {
-    my ( $self, $name, $value ) = @_;
-    if ($name eq 'number') {
-      $self->squared($value * $value);
+  around number => sub {
+    my ($orig, $self) = (shift, shift);
+
+    if (@_) {
+      my $value = $_[0];
+      $self->squared( $value * $value );
     }
-    $self->next::method($name, $value);
+
+    $self->$orig(@_);
   }
 
-Note that the hard work is done by the call to C<next::method>, which
+Note that the hard work is done by the call to C<< $self->$orig >>, which
 redispatches your call to store_column in the superclass(es).
+
+Generally, if this is a calculation your database can easily do, try
+and avoid storing the calculated value, it is safer to calculate when
+needed, than rely on the data being in sync.
 
 =head2 Automatically creating related objects
 
@@ -1821,12 +1937,27 @@ You can accomplish this by overriding C<insert> on your objects:
   sub insert {
     my ( $self, @args ) = @_;
     $self->next::method(@args);
-    $self->cds->new({})->fill_from_artist($self)->insert;
+    $self->create_related ('cds', \%initial_cd_data );
     return $self;
   }
 
-where C<fill_from_artist> is a method you specify in C<CD> which sets
-values in C<CD> based on the data in the C<Artist> object you pass in.
+If you want to wrap the two inserts in a transaction (for consistency,
+an excellent idea), you can use the awesome
+L<DBIx::Class::Storage::TxnScopeGuard>:
+
+  sub insert {
+    my ( $self, @args ) = @_;
+
+    my $guard = $self->result_source->schema->txn_scope_guard;
+
+    $self->next::method(@args);
+    $self->create_related ('cds', \%initial_cd_data );
+
+    $guard->commit;
+
+    return $self
+  }
+
 
 =head2 Wrapping/overloading a column accessor
 
@@ -1935,7 +2066,7 @@ mechanism:
   sub query_start {
     my $self = shift();
     my $sql = shift();
-    my $params = @_;
+    my @params = @_;
 
     $self->print("Executing $sql: ".join(', ', @params)."\n");
     $start = time();
@@ -1976,6 +2107,47 @@ array:
 You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
 You might want to check out L<DBIx::Class::QueryLog> as well.
+
+=head1 IMPROVING PERFORMANCE
+
+=over
+
+=item *
+
+Install L<Class::XSAccessor> to speed up L<Class::Accessor::Grouped>.
+
+=item *
+
+On Perl 5.8 install L<Class::C3::XS>.
+
+=item *
+
+L<prefetch|DBIx::Class::ResultSet/prefetch> relationships, where possible. See
+L</Using joins and prefetch>.
+
+=item *
+
+Use L<populate|DBIx::Class::ResultSet/populate> in void context to insert data
+when you don't need the resulting L<DBIx::Class::Row> objects, if possible, but
+see the caveats.
+
+When inserting many rows, for best results, populate a large number of rows at a
+time, but not so large that the table is locked for an unacceptably long time.
+
+If using L<create|DBIx::Class::ResultSet/create> instead, use a transaction and
+commit every C<X> rows; where C<X> gives you the best performance without
+locking the table for too long.
+
+=item *
+
+When selecting many rows, if you don't need full-blown L<DBIx::Class::Row>
+objects, consider using L<DBIx::Class::ResultClass::HashRefInflator>.
+
+=item *
+
+See also L</STARTUP SPEED> and L</MEMORY USAGE> in this document.
+
+=back
 
 =head1 STARTUP SPEED
 

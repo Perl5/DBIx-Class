@@ -1,10 +1,15 @@
 use strict;
 use warnings;
 
-use Test::More tests => 12;
+# !!! do not replace this with done_testing - tests reside in the callbacks
+# !!! number of calls is important
+use Test::More tests => 13;
+# !!!
+use Test::Warn;
+use Test::Exception;
 
 use lib qw(t/lib);
-use base 'DBICTest';
+use DBICTest;
 require DBI;
 
 
@@ -29,7 +34,7 @@ is_deeply (
 $schema->storage->disconnect;
 
 ok $schema->connection(
-    sub { DBI->connect(DBICTest->_database) },
+    sub { DBI->connect(DBICTest->_database, undef, undef, { AutoCommit => 0 }) },
     {
         on_connect_do       => [
             'CREATE TABLE TEST_empty (id INTEGER)',
@@ -41,13 +46,19 @@ ok $schema->connection(
     },
 ), 'connection()';
 
+warnings_exist {
+  $schema->storage->ensure_connected
+} qr/The 'RaiseError' of the externally supplied DBI handle is set to false/,
+'Warning on clobbered AutoCommit => 0 fired';
+
 is_deeply (
   $schema->storage->dbh->selectall_arrayref('SELECT * FROM TEST_empty'),
   [ [ 2 ], [ 3 ], [ 7 ] ],
   'on_connect_do() worked'
 );
-eval { $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent'); };
-ok $@, 'Searching for nonexistent table dies';
+dies_ok {
+  $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent');
+} 'Searching for nonexistent table dies';
 
 $schema->storage->disconnect();
 
@@ -66,6 +77,7 @@ $schema->storage->disconnect();
 ok $disconnected, 'on_disconnect_do() called after disconnect()';
 
 isa_ok($cb_args[0], 'DBIx::Class::Storage', 'first arg to on_connect_do hook');
+@cb_args = ();
 
 sub check_exists {
     my $storage = shift;
@@ -75,8 +87,10 @@ sub check_exists {
 
 sub check_dropped {
     my $storage = shift;
-    eval { $storage->dbh->do('SELECT 1 FROM TEST_empty'); };
-    ok $@, 'Reading from dropped table fails';
+
+    dies_ok {
+      $storage->dbh->do('SELECT 1 FROM TEST_empty');
+    } 'Reading from dropped table fails';
     return;
 }
 

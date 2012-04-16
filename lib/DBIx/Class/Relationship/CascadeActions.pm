@@ -3,8 +3,9 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBIx::Class::Carp;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::CascadeActions' => 'DBIx::Class::Relationship' }
   );
@@ -16,15 +17,29 @@ sub delete {
     # be handling this anyway. Assuming we have joins we probably actually
     # *could* do them, but I'd rather not.
 
-  my $ret = $self->next::method(@rest);
-
   my $source = $self->result_source;
   my %rels = map { $_ => $source->relationship_info($_) } $source->relationships;
   my @cascade = grep { $rels{$_}{attrs}{cascade_delete} } keys %rels;
-  foreach my $rel (@cascade) {
-    $self->search_related($rel)->delete_all;
+
+  if (@cascade) {
+    my $guard = $source->schema->txn_scope_guard;
+
+    my $ret = $self->next::method(@rest);
+
+    foreach my $rel (@cascade) {
+      if( my $rel_rs = eval{ $self->search_related($rel) } ) {
+        $rel_rs->delete_all;
+      } else {
+        carp "Skipping cascade delete on relationship '$rel' - related resultsource '$rels{$rel}{class}' is not registered with this schema";
+        next;
+      }
+    }
+
+    $guard->commit;
+    return $ret;
   }
-  return $ret;
+
+  $self->next::method(@rest);
 }
 
 sub update {
@@ -32,22 +47,31 @@ sub update {
   return $self->next::method(@rest) unless ref $self;
     # Because update cascades on a class *really* don't make sense!
 
-  my $ret = $self->next::method(@rest);
-
   my $source = $self->result_source;
   my %rels = map { $_ => $source->relationship_info($_) } $source->relationships;
   my @cascade = grep { $rels{$_}{attrs}{cascade_update} } keys %rels;
-  foreach my $rel (@cascade) {
-    next if (
-      $rels{$rel}{attrs}{accessor}
-        &&
-      $rels{$rel}{attrs}{accessor} eq 'single'
-        &&
-      !exists($self->{_relationship_data}{$rel})
-    );
-    $_->update for grep defined, $self->$rel;
+
+  if (@cascade) {
+    my $guard = $source->schema->txn_scope_guard;
+
+    my $ret = $self->next::method(@rest);
+
+    foreach my $rel (@cascade) {
+      next if (
+        $rels{$rel}{attrs}{accessor}
+          &&
+        $rels{$rel}{attrs}{accessor} eq 'single'
+          &&
+        !exists($self->{_relationship_data}{$rel})
+      );
+      $_->update for grep defined, $self->$rel;
+    }
+
+    $guard->commit;
+    return $ret;
   }
-  return $ret;
+
+  $self->next::method(@rest);
 }
 
 1;

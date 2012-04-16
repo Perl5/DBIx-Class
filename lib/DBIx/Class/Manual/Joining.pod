@@ -1,4 +1,4 @@
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Manual::Joining - Manual on joining tables with DBIx::Class
 
@@ -164,7 +164,7 @@ object will have no 'track_name' accessor:
 Instead C<get_column> must be used:
 
   while(my $row = $search_rs->next) {
-     print $row->get_colum('track_name'); ## WORKS
+     print $row->get_column('track_name'); ## WORKS
   }
 
 =head2 Incomplete related objects
@@ -175,14 +175,14 @@ has a very large field you don't need for the current data
 output. This is better solved by storing that field in a separate
 table which you only join to when needed.
 
-To fetch an incomplete related object, supply the dotted notation to the '+as' attribute: 
+To fetch an incomplete related object, supply the dotted notation to the '+as' attribute:
 
   $schema->resultset('CD')->search(
     { 'Title' => 'Funky CD',
     },
     { join      => 'tracks',
       '+select' => ['tracks.Name'],
-      '+as'     => ['tracks.Name'], 
+      '+as'     => ['tracks.Name'],
       order_by  => ['tracks.id'],
     }
   );
@@ -232,13 +232,13 @@ Which is:
 
 To perform joins using relations of the tables you are joining to, use
 a hashref to indicate the join depth. This can theoretically go as
-deep as you like (warning: contrived examples!): 
+deep as you like (warning: contrived examples!):
 
   join => { room => { table => 'leg' } }
 
 To join two relations at the same level, use an arrayref instead:
 
-  join => { room => [ 'chair', 'table' ] } 
+  join => { room => [ 'chair', 'table' ] }
 
 Or combine the two:
 

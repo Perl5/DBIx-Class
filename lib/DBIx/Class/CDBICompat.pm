@@ -3,7 +3,6 @@ package DBIx::Class::CDBICompat;
 use strict;
 use warnings;
 use base qw/DBIx::Class::Core DBIx::Class::DB/;
-use Carp::Clan qw/^DBIx::Class/;
 
 # Modules CDBICompat needs that DBIx::Class does not.
 my @Extra_Modules = qw(
@@ -16,7 +15,7 @@ my @didnt_load;
 for my $module (@Extra_Modules) {
     push @didnt_load, $module unless eval qq{require $module};
 }
-croak("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
+__PACKAGE__->throw_exception("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
     if @didnt_load;
 
 
@@ -63,7 +62,7 @@ DBIx::Class::CDBICompat - Class::DBI Compatibility layer.
 =head1 DESCRIPTION
 
 DBIx::Class features a fully featured compatibility layer with L<Class::DBI>
-and some common plugins to ease transition for existing CDBI users. 
+and some common plugins to ease transition for existing CDBI users.
 
 This is not a wrapper or subclass of DBIx::Class but rather a series of plugins.  The result being that even though you're using the Class::DBI emulation layer you are still getting DBIx::Class objects.  You can use all DBIx::Class features and methods via CDBICompat.  This allows you to take advantage of DBIx::Class features without having to rewrite your CDBI code.
 
@@ -92,7 +91,7 @@ This plugin will work, but it is more efficiently done using DBIC's native searc
 =head2 Choosing Features
 
 In fact, this class is just a recipe containing all the features emulated.
-If you like, you can choose which features to emulate by building your 
+If you like, you can choose which features to emulate by building your
 own class and loading it like this:
 
   package My::DB;

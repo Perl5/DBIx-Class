@@ -47,8 +47,8 @@ warnings_exist (sub {
 
 # test distinct propagation
 is_deeply (
-  [$rs->search ({}, { distinct => 1 })->get_column ('year')->all],
-  [$rs_year->func('distinct')],
+  [sort $rs->search ({}, { distinct => 1 })->get_column ('year')->all],
+  [sort $rs_year->func('distinct')],
   'distinct => 1 is passed through properly',
 );
 

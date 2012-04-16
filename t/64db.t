@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -13,7 +13,7 @@ plan tests => 4;
 # XXX: Is storage->dbh the only way to get a dbh?
 $schema->storage->txn_begin;
 for (10..15) {
-    $schema->resultset("Artist")->create( { 
+    $schema->resultset("Artist")->create( {
         artistid => $_,
         name => "artist number $_",
     } );
@@ -31,7 +31,7 @@ for (21..30) {
     } );
 }
 $schema->storage->txn_rollback;
-($artist) = $schema->resultset("Artist")->search( artistid => 25 );
+($artist) = $schema->resultset("Artist")->search({ artistid => 25 });
 is($artist, undef, "Rollback ok");
 
 is_deeply (
@@ -47,9 +47,7 @@ is_deeply (
   'Correctly retrieve column info (no size or is_nullable)'
 );
 
-TODO: {
-  local $TODO = 'All current versions of SQLite seem to mis-report is_nullable';
-
+{
   is_deeply (
     get_storage_column_info ($schema->storage, 'artist', qw/size/),
     {

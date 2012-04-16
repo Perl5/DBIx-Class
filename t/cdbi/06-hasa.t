@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 24);
-}
-
 @YA::Film::ISA = 'Film';
 
 #local $SIG{__WARN__} = sub { };
@@ -161,10 +151,11 @@ my $bar = Bar->create({ id => 2, fav => 6 });
 isa_ok($bar->fav, "Foo");
 isa_ok($foo->fav, "Film");
 
-{ 
+{
   my $foo;
   Foo->add_trigger(after_create => sub { $foo = shift->fav });
   my $gwh = Foo->create({ id => 93, fav => 'Good Will Hunting' });
   isa_ok $foo, "Film", "Object in after_create trigger";
 }
 
+done_testing;

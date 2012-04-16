@@ -35,8 +35,8 @@ sub mk_group_accessors {
 
 sub accessor_name_for {
     my ($class, $column) = @_;
-    if ($class->can('accessor_name')) { 
-        return $class->accessor_name($column) 
+    if ($class->can('accessor_name')) {
+        return $class->accessor_name($column)
     }
 
     return $column;
@@ -44,8 +44,8 @@ sub accessor_name_for {
 
 sub mutator_name_for {
     my ($class, $column) = @_;
-    if ($class->can('mutator_name')) { 
-        return $class->mutator_name($column) 
+    if ($class->can('mutator_name')) {
+        return $class->mutator_name($column)
     }
 
     return $column;

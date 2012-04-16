@@ -1,6 +1,6 @@
 # vim: filetype=perl
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -64,39 +64,64 @@ $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(1);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 3"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 3"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->update({group_id=>2});
 ok(
-	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 4"
+  check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 4"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(1);
 $employee->position(3);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 5"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 5"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(2);
 $employee->position(undef);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 6"
+  check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 6"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->update({group_id=>1,position=>undef});
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 7"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 7"
 );
 
+$employee->group_id(2);
+$employee->name('E of the month');
+$employee->update({ employee_id => 666, position => 2 });
+is_deeply(
+  { $employee->get_columns },
+  {
+    employee_id => 666,
+    encoded => undef,
+    group_id => 2,
+    group_id_2 => undef,
+    group_id_3 => undef,
+    name => "E of the month",
+    position => 2
+  },
+  'combined update() worked correctly'
+);
+is_deeply(
+  { $employee->get_columns },
+  { $employee->get_from_storage->get_columns },
+  'object matches database state',
+);
+
+#####
 # multicol tests begin here
+#####
+
 DBICTest::Employee->grouping_column(['group_id_2', 'group_id_3']);
 $employees->delete();
 foreach my $group_id_2 (1..4) {
@@ -154,17 +179,17 @@ $employees = $employees->search(undef,{order_by=>[qw/group_id_2 group_id_3 posit
 $employee = $employees->search({group_id_2=>4, group_id_3=>1})->first;
 $employee->group_id_2(1);
 $employee->update;
-ok( 
+ok(
     check_rs($employees->search_rs({group_id_2=>4, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>1})), 
-    "overloaded multicol update 1" 
+    && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>1})),
+    "overloaded multicol update 1"
 );
 
 $employee = $employees->search({group_id_2=>4, group_id_3=>1})->first;
 $employee->update({group_id_2=>2});
 ok( check_rs($employees->search_rs({group_id_2=>4, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>1})), 
-   "overloaded multicol update 2" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>1})),
+   "overloaded multicol update 2"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>1})->first;
@@ -173,21 +198,21 @@ $employee->group_id_3(3);
 $employee->update();
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>1}))
     && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>3})),
-    "overloaded multicol update 3" 
+    "overloaded multicol update 3"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>1})->first;
 $employee->update({group_id_2=>2, group_id_3=>3});
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>1}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>3})), 
-    "overloaded multicol update 4" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>3})),
+    "overloaded multicol update 4"
 );
 
 $employee = $employees->search({group_id_2=>3, group_id_3=>2})->first;
 $employee->update({group_id_2=>2, group_id_3=>4, position=>2});
 ok( check_rs($employees->search_rs({group_id_2=>3, group_id_3=>2}))
-    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>4})), 
-    "overloaded multicol update 5" 
+    && check_rs($employees->search_rs({group_id_2=>2, group_id_3=>4})),
+    "overloaded multicol update 5"
 );
 
 sub hammer_rs {

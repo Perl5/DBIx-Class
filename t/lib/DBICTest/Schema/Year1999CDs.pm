@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Year1999CDs;
 ## Used in 104view.t
 

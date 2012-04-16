@@ -6,7 +6,8 @@ use warnings;
 use base qw/DBIx::Class::ResultSourceProxy/;
 
 use DBIx::Class::ResultSource::Table;
-use Scalar::Util ();
+use Scalar::Util 'blessed';
+use namespace::clean;
 
 __PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
 
@@ -80,17 +81,18 @@ sub table {
   my ($class, $table) = @_;
   return $class->result_source_instance->name unless $table;
 
-  unless (Scalar::Util::blessed($table) && $table->isa($class->table_class)) {
+  unless (blessed $table && $table->isa($class->table_class)) {
 
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 
     $table = $table_class->new({
-        $class->can('result_source_instance') ?
-          %{$class->result_source_instance||{}} : (),
+        $class->can('result_source_instance')
+          ? %{$class->result_source_instance||{}}
+          : ()
+        ,
         name => $table,
         result_class => $class,
-        source_name => undef,
     });
   }
 

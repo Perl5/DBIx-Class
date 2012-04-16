@@ -3,13 +3,13 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/
-  DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI
-/;
-use mro 'c3';
+use base qw/DBIx::Class::Storage::DBI/;
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
+__PACKAGE__->sql_limit_dialect ('LimitXY');
+__PACKAGE__->sql_quote_char ('`');
+
+__PACKAGE__->_use_multicolumn_in (1);
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -32,6 +32,24 @@ sub _dbh_last_insert_id {
   $dbh->{mysql_insertid};
 }
 
+# here may seem like an odd place to override, but this is the first
+# method called after we are connected *and* the driver is determined
+# ($self is reblessed). See code flow in ::Storage::DBI::_populate_dbh
+sub _run_connection_actions {
+  my $self = shift;
+
+  # default mysql_auto_reconnect to off unless explicitly set
+  if (
+    $self->_dbh->{mysql_auto_reconnect}
+      and
+    ! exists $self->_dbic_connect_attributes->{mysql_auto_reconnect}
+  ) {
+    $self->_dbh->{mysql_auto_reconnect} = 0;
+  }
+
+  $self->next::method(@_);
+}
+
 # we need to figure out what mysql version we're running
 sub sql_maker {
   my $self = shift;
@@ -40,7 +58,7 @@ sub sql_maker {
     my $maker = $self->next::method (@_);
 
     # mysql 3 does not understand a bare JOIN
-    my $mysql_ver = $self->_get_dbh->get_info(18);
+    my $mysql_ver = $self->_dbh_get_info('SQL_DBMS_VER');
     $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
   }
 
@@ -51,22 +69,39 @@ sub sqlt_type {
   return 'MySQL';
 }
 
-sub _svp_begin {
-    my ($self, $name) = @_;
+sub deployment_statements {
+  my $self = shift;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
-    $self->_get_dbh->do("SAVEPOINT $name");
+  $sqltargs ||= {};
+
+  if (
+    ! exists $sqltargs->{producer_args}{mysql_version}
+      and
+    my $dver = $self->_server_info->{normalized_dbms_version}
+  ) {
+    $sqltargs->{producer_args}{mysql_version} = $dver;
+  }
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
-sub _svp_release {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("RELEASE SAVEPOINT $name");
+    $self->_dbh->do("SAVEPOINT $name");
 }
 
-sub _svp_rollback {
+sub _exec_svp_release {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub _exec_svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub is_replicating {
@@ -76,12 +111,6 @@ sub is_replicating {
 
 sub lag_behind_master {
     return shift->_get_dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
-}
-
-# MySql can not do subquery update/deletes, only way is slow per-row operations.
-# This assumes you have set proper transaction isolation and use innodb.
-sub _subq_update_delete {
-  return shift->_per_row_update_delete (@_);
 }
 
 1;
@@ -99,7 +128,12 @@ C<$storage> object into this class.
 
 =head1 DESCRIPTION
 
-This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
+This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>,
+like AutoIncrement column support and savepoints. Also it augments the
+SQL maker to support the MySQL-specific C<STRAIGHT_JOIN> join type, which
+you can use by specifying C<< join_type => 'straight' >> in the
+L<relationship attributes|DBIx::Class::Relationship::Base/join_type>
+
 
 It also provides a one-stop on-connect macro C<set_strict_mode> which sets
 session variables such that MySQL behaves more predictably as far as the

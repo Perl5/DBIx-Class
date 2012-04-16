@@ -1,46 +1,64 @@
 use strict;
-use warnings; 
+use warnings;
+no warnings 'once';
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
+BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
+
 my $schema = DBICTest->init_schema();
 
+my $lfn = file("t/var/sql-$$.log");
+unlink $lfn or die $!
+  if -e $lfn;
+
+# make sure we are testing the vanilla debugger and not ::PrettyPrint
+$schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
-$schema->storage->debugfh(file('t/var/sql.log')->openw);
-
+$schema->storage->debugfh($lfn->openw);
 $schema->storage->debugfh->autoflush(1);
-my $rs = $schema->resultset('CD')->search({});
-$rs->count();
+$schema->resultset('CD')->count;
 
-my $log = file('t/var/sql.log')->openr;
-my $line = <$log>;
-$log->close();
-ok($line =~ /^SELECT COUNT/, 'Log success');
+my @loglines = $lfn->slurp;
+is (@loglines, 1, 'one line of log');
+like($loglines[0], qr/^SELECT COUNT/, 'File log via debugfh success');
 
 $schema->storage->debugfh(undef);
-$ENV{'DBIC_TRACE'} = '=t/var/foo.log';
-$rs = $schema->resultset('CD')->search({});
-$rs->count();
-$log = file('t/var/foo.log')->openr;
-$line = <$log>;
-$log->close();
-ok($line =~ /^SELECT COUNT/, 'Log success');
-$schema->storage->debugobj->debugfh(undef);
-delete($ENV{'DBIC_TRACE'});
+
+{
+  local $ENV{DBIC_TRACE} = "=$lfn";
+  unlink $lfn;
+
+  $schema->resultset('CD')->count;
+
+  my $schema2 = DBICTest->init_schema(no_deploy => 1);
+  $schema2->storage->_do_query('SELECT 1'); # _do_query() logs via standard mechanisms
+
+  my @loglines = $lfn->slurp;
+  is(@loglines, 2, '2 lines of log');
+  like($loglines[0], qr/^SELECT COUNT/, 'Env log from schema1 success');
+  like($loglines[1], qr/^SELECT 1:/, 'Env log from schema2 success');
+
+  $schema->storage->debugobj->debugfh(undef)
+}
+
+END {
+  unlink $lfn;
+}
+
 open(STDERRCOPY, '>&STDERR');
-stat(STDERRCOPY); # nop to get warnings quiet
 close(STDERR);
-eval {
-    $rs = $schema->resultset('CD')->search({});
-    $rs->count();
-};
-ok($@, 'Died on closed FH');
+dies_ok {
+  $schema->resultset('CD')->search({})->count;
+} 'Died on closed FH';
+
 open(STDERR, '>&STDERRCOPY');
 
 # test trace output correctness for bind params

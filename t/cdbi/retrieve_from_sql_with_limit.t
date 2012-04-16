@@ -1,12 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 3);
-}
-
 INIT {
     use lib 't/cdbi/testlib';
     use Film;
@@ -23,3 +17,5 @@ Film->insert({ Title => "Transformers", Director => "Michael Bay"});
     is @films, 2, "retrieve_from_sql with LIMIT";
     is( $_->director, "Peter Jackson" ) for @films;
 }
+
+done_testing;

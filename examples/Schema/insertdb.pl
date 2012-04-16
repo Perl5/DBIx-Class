@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
 
 use MyDatabase::Main;
-use strict;
 
 my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
 

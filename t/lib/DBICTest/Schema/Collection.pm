@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Collection;
 
 use base qw/DBICTest::BaseResult/;
@@ -24,7 +24,7 @@ __PACKAGE__->many_to_many( pointy_objects => collection_object => "object",
                            { where => { "object.type" => "pointy" } }
                          );
 __PACKAGE__->many_to_many( round_objects => collection_object => "object",
-                           { where => { "object.type" => "round" } } 
+                           { where => { "object.type" => "round" } }
                          );
 
 1;

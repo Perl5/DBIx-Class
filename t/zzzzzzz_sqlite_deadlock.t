@@ -2,22 +2,31 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
-use lib 't/lib';
 
-use File::Temp ();
+use lib 't/lib';
+use DBICTest::RunMode;
+
+if ( DBICTest::RunMode->is_plain ) {
+  plan( skip_all => "Skipping test on plain module install" );
+}
+
+use Test::Exception;
 use DBICTest;
-use DBICTest::Schema;
+use File::Temp ();
 
 plan tests => 2;
-my $wait_for = 30;  # how many seconds to wait
+my $wait_for = 120;  # how many seconds to wait
+
+# don't lock anything - this is a tempfile anyway
+$ENV{DBICTEST_LOCK_HOLDER} = -1;
 
 for my $close (0,1) {
 
   my $tmp = File::Temp->new(
     UNLINK => 1,
-    TMPDIR => 1,
-    SUFFIX => '.sqlite',
+    DIR => 't/var',
+    SUFFIX => '.db',
+    TEMPLATE => 'DBIxClass-XXXXXX',
     EXLOCK => 0,  # important for BSD and derivatives
   );
 
@@ -33,8 +42,9 @@ for my $close (0,1) {
 
   lives_ok (sub {
     my $schema = DBICTest::Schema->connect ("DBI:SQLite:$tmp_fn");
+    $schema->storage->dbh_do(sub { $_[1]->do('PRAGMA synchronous = OFF') });
     DBICTest->deploy_schema ($schema);
-    #DBICTest->populate_schema ($schema);
+    DBICTest->populate_schema ($schema);
   });
 
   alarm 0;

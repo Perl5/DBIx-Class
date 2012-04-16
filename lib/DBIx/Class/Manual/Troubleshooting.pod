@@ -51,7 +51,7 @@ L<DBI> version 1.50 and L<DBD::Pg> 1.43 are known to work.
 
 There's likely a syntax error in the table class referred to elsewhere
 in this error message.  In particular make sure that the package
-declaration is correct. For example, for a schema C< MySchema > 
+declaration is correct. For example, for a schema C< MySchema >
 you need to specify a fully qualified namespace: C< package MySchema::MyTable; >.
 
 =head2 syntax error at or near "<something>" ...
@@ -96,7 +96,7 @@ up with the following errors:
 2) syntax error at or near "user" - due to "user" in the JOIN clause
 
 The solution is to enable quoting - see
-L<DBIx::Class::Manual::Cookbook/Setting_quoting_for_the_generated_SQL> for
+L<DBIx::Class::Manual::Cookbook/Setting quoting for the generated SQL> for
 details.
 
 =head2 column "foo DESC" does not exist ...
@@ -112,7 +112,7 @@ should be written as:
   $rs->search( {}, { order_by => { -desc => 'name' } } );
 
 For more ways to express order clauses refer to
-L<SQL::Abstract/ORDER_BY_CLAUSES>
+L<SQL::Abstract/ORDER BY CLAUSES>
 
 =head2 Perl Performance Issues on Red Hat Systems
 
@@ -149,11 +149,11 @@ L<http://rhn.redhat.com/errata/RHBA-2008-0876.html>
 
 =head2 Excessive Memory Allocation with TEXT/BLOB/etc. Columns and Large LongReadLen
 
-It has been observed, using L<DBD::ODBC>, that creating a L<DBIx::Class::Row> 
-object which includes a column of data type TEXT/BLOB/etc. will allocate 
-LongReadLen bytes.  This allocation does not leak, but if LongReadLen 
-is large in size, and many such row objects are created, e.g. as the 
-output of a ResultSet query, the memory footprint of the Perl interpreter 
+It has been observed, using L<DBD::ODBC>, that creating a L<DBIx::Class::Row>
+object which includes a column of data type TEXT/BLOB/etc. will allocate
+LongReadLen bytes.  This allocation does not leak, but if LongReadLen
+is large in size, and many such row objects are created, e.g. as the
+output of a ResultSet query, the memory footprint of the Perl interpreter
 can grow very large.
 
 The solution is to use the smallest practical value for LongReadLen.

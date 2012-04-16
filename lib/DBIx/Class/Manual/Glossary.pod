@@ -7,7 +7,7 @@ DBIx::Class::Manual::Glossary - Clarification of terms used.
 This document lists various terms used in DBIx::Class and attempts to
 explain them.
 
-=head1 TERMS
+=head1 DBIx::Class TERMS
 
 =head2 DB schema
 
@@ -23,23 +23,21 @@ the following L<DSN|DBI/connect>(s):
 =head2 Inflation
 
 The act of turning database row data into objects in
-language-space. DBIx::Class further allows you to inflate your data
-into perl objects which more usefully represent their contents. For
-example: L<DBIx::Class::InflateColumn::DateTime> for datetime or
-timestamp column data.
+language-space. DBIx::Class result classes can be set up to inflate
+your data into perl objects which more usefully represent their
+contents. For example: L<DBIx::Class::InflateColumn::DateTime> for
+datetime or timestamp column data.
 
-=head2 Join
+See also L<DBIx::Class::InflateColumn>.
 
-This is an SQL keyword that gets mentioned a lot. It is used to fetch
-data from more than one table at once, by C<join>ing the tables on
-fields where they have common data.
+=head2 Deflation
 
-=head2 Normalisation
+The opposite of L</Inflation>. Existing perl objects that represent
+column values can be passed to DBIx::Class methods to store into the
+database. For example a L<DateTime> object can be automatically
+deflated into a datetime string for insertion.
 
-A normalised database is a sane database. Each table contains only
-data belonging to one concept, related tables refer to the key field
-or fields of each other. Some links to webpages about normalisation
-can be found in L<DBIx::Class::Manual::FAQ|the FAQ>.
+See L<DBIx::Class::InflateColumn> and other modules in that namespace.
 
 =head2 ORM
 
@@ -59,20 +57,47 @@ condition between the tables.
 A relationship bridge, such as C<many_to_many> defines an accessor to
 retrieve row contents across multiple relationships.
 
-=head2 ResultSet
+The difference between a bridge and a relationship is, that the bridge
+cannot be used to C<join> tables in a C<search>, instead its component
+relationships must be used.
 
-This is an object representing a set of data. It can either be an
-entire table, or the results of a query. The actual data is not held
-in the ResultSet, it is only a description of how to fetch the data.
+=head2 Schema
 
-See also: L<DBIx::Class::ResultSet/METHODS>
+A Schema object represents your entire table collection, plus the
+connection to the database. You can create one or more schema objects,
+connected to various databases, with various users, using the same set
+of table L</Result class> definitions.
+
+At least one L<DBIx::Class::Schema> class is needed per database.
+
+=head2 Result class
+
+A Result class defines both a source of data (usually one per table),
+and the methods that will be available in the L</Row> objects created
+using that source.
+
+One Result class is needed per data source (table, view, query) used
+in your application, they should inherit from L<DBIx::Class::Core>.
 
 =head2 ResultSource
 
-ResultSource objects represent the source of your data, they are also known as
-a table objects. 
+ResultSource objects represent the source of your data, these are
+sometimes (incorrectly) called table objects.
+
+ResultSources do not need to be directly created, a ResultSource
+instance is created for each L</Result class> in your L</Schema>, by
+the proxied methods C<table> and C<add_columns>.
 
 See also: L<DBIx::Class::ResultSource/METHODS>
+
+=head2 ResultSet
+
+This is an object representing a set of conditions to filter data. It
+can either be an entire table, or the results of a query. The actual
+data is not held in the ResultSet, it is only a description of how to
+fetch the data.
+
+See also: L<DBIx::Class::ResultSet/METHODS>
 
 =head2 Record
 
@@ -86,9 +111,28 @@ Row objects contain your actual data. They are returned from ResultSet objects.
 
 See Row.
 
-=head2 Schema
+=head2 join
 
-A Schema object represents your entire table collection, plus the
-connection to the database. You can create one or more schema objects,
-connected to various databases, with various users, using the same set
-of table (ResultSource) definitions.
+=head2 prefetch
+
+
+=head1 SQL TERMS
+
+=head2 Join
+
+This is an SQL keyword, it is used to link multiple tables in one SQL
+statement. This enables us to fetch data from more than one table at
+once, or filter data based on content in another table, without having
+to issue multiple SQL queries.
+
+=head2 Normalisation
+
+A normalised database is a sane database. Each table contains only
+data belonging to one concept, related tables refer to the key field
+or fields of each other. Some links to webpages about normalisation
+can be found in L<DBIx::Class::Manual::FAQ|the FAQ>.
+
+=head2 Related data
+
+In SQL, related data actually refers to data that are normalised into
+the same table. (Yes. DBIC does mis-use this term).

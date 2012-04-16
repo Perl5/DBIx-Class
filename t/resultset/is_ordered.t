@@ -3,7 +3,6 @@ use warnings;
 
 use lib qw(t/lib);
 use Test::More;
-use Test::Exception;
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
@@ -37,11 +36,11 @@ ok !$rs->is_ordered, 'vanilla resultset is not ordered';
 
 # More complicated ordering
 {
-  my $ordered = $rs->search(undef, { 
+  my $ordered = $rs->search(undef, {
     order_by => [
-      { -asc => 'artistid' }, 
+      { -asc => 'artistid' },
       { -desc => 'name' },
-    ] 
+    ]
   });
   ok $ordered->is_ordered, 'more complicated resultset ordering is_ordered';
 }

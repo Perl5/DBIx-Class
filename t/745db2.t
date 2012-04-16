@@ -3,8 +3,13 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_db2')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_db2');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_DB2_${_}" } qw/DSN USER PASS/};
 
@@ -15,7 +20,25 @@ plan skip_all => 'Set $ENV{DBICTEST_DB2_DSN}, _USER and _PASS to run this test'
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
+my $name_sep = $schema->storage->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR');
+
 my $dbh = $schema->storage->dbh;
+
+# test RNO and name_sep detection
+
+is $schema->storage->sql_maker->name_sep, $name_sep,
+  'name_sep detection';
+
+my $have_rno = try {
+  $dbh->selectrow_array(
+"SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
+  );
+  1;
+};
+
+is $schema->storage->sql_maker->limit_dialect,
+  ($have_rno ? 'RowNumberOver' : 'FetchFirst'),
+  'limit_dialect detection';
 
 eval { $dbh->do("DROP TABLE artist") };
 
@@ -66,12 +89,44 @@ my $lim = $ars->search( {},
 is( $lim->count, 2, 'ROWS+OFFSET count ok' );
 is( $lim->all, 2, 'Number of ->all objects matches count' );
 
+# Limit with select-lock
+TODO: {
+  local $TODO = "Seems we can't SELECT ... FOR ... on subqueries";
+  lives_ok {
+    $schema->txn_do (sub {
+      isa_ok (
+        $schema->resultset('Artist')->find({artistid => 1}, {for => 'update', rows => 1}),
+        'DBICTest::Schema::Artist',
+      );
+    });
+  } 'Limited FOR UPDATE select works';
+}
+
 # test iterator
 $lim->reset;
 is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
+# test FetchFirst limit dialect syntax
+{
+  local $schema->storage->sql_maker->{limit_dialect} = 'FetchFirst';
+
+  my $lim = $ars->search({}, {
+    rows => 3,
+    offset => 2,
+    order_by => 'artistid',
+  });
+
+  is $lim->count, 3, 'fetch first limit count ok';
+
+  is $lim->all, 3, 'fetch first number of ->all objects matches count';
+
+  is $lim->next->artistid, 3, 'iterator->next ok';
+  is $lim->next->artistid, 66, 'iterator->next ok';
+  is $lim->next->artistid, 101, 'iterator->next ok';
+  is $lim->next, undef, 'iterator->next past end of resultset ok';
+}
 
 my $test_type_info = {
     'artistid' => {
@@ -104,6 +159,7 @@ done_testing;
 
 # clean up our mess
 END {
-    my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do("DROP TABLE artist") if $dbh;
+  my $dbh = eval { $schema->storage->_dbh };
+  $dbh->do("DROP TABLE artist") if $dbh;
+  undef $schema;
 }

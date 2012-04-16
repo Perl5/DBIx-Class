@@ -1,16 +1,6 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
-    next;
-  }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 37);
-}
-
 use lib 't/cdbi/testlib';
 use Film;
 
@@ -94,3 +84,5 @@ my @film  = (
   is $it, 0;
   ok !$it, "iterator returns false when no results";
 }
+
+done_testing;

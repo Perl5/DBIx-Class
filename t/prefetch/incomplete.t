@@ -1,12 +1,10 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-
-plan tests => 9;
 
 my $schema = DBICTest->init_schema();
 
@@ -102,3 +100,14 @@ lives_ok(sub {
   is ($cd->artist->name, 'Random Boy Band', 'Artist object has correct name');
 
 }, 'implicit keyless prefetch works');
+
+# sane error
+throws_ok(
+  sub {
+    $schema->resultset('Track')->search({}, { join => { cd => 'artist' }, '+columns' => 'artist.name' } )->next;
+  },
+  qr|\QCan't inflate manual prefetch into non-existent relationship 'artist' from 'Track', check the inflation specification (columns/as) ending in 'artist.name'|,
+  'Sensible error message on mis-specified "as"',
+);
+
+done_testing;

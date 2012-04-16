@@ -1,18 +1,15 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest->init_schema();
-
-plan tests => 10;
-
 # Test various uses of passing an object to find, create, and update on a single
 # rel accessor
 {
+  my $schema = DBICTest->init_schema();
   my $artist = $schema->resultset("Artist")->find(1);
 
   my $cd = $schema->resultset("CD")->find_or_create({
@@ -42,23 +39,23 @@ plan tests => 10;
   is($track->get_column('cd'), $another_cd->cdid, 'track matches another CD after update');
 }
 
-$schema = DBICTest->init_schema();
 
 {
-	my $artist = $schema->resultset('Artist')->create({ artistid => 666, name => 'bad religion' });
-	my $cd = $schema->resultset('CD')->create({ cdid => 187, artist => 1, title => 'how could hell be any worse?', year => 1982, genreid => undef });
+  my $schema = DBICTest->init_schema();
+  my $artist = $schema->resultset('Artist')->create({ artistid => 666, name => 'bad religion' });
+  my $cd = $schema->resultset('CD')->create({ cdid => 187, artist => 1, title => 'how could hell be any worse?', year => 1982, genreid => undef });
 
-	ok(!defined($cd->get_column('genreid')), 'genreid is NULL');  #no accessor was defined for this column
-	ok(!defined($cd->genre), 'genre accessor returns undef');
+  ok(!defined($cd->get_column('genreid')), 'genreid is NULL');  #no accessor was defined for this column
+  ok(!defined($cd->genre), 'genre accessor returns undef');
 }
-
-$schema = DBICTest->init_schema();
 
 {
-	my $artist = $schema->resultset('Artist')->create({ artistid => 666, name => 'bad religion' });
-	my $genre = $schema->resultset('Genre')->create({ genreid => 88, name => 'disco' });
-	my $cd = $schema->resultset('CD')->create({ cdid => 187, artist => 1, title => 'how could hell be any worse?', year => 1982 });
+  my $schema = DBICTest->init_schema();
+  my $artist = $schema->resultset('Artist')->create({ artistid => 666, name => 'bad religion' });
+  my $genre = $schema->resultset('Genre')->create({ genreid => 88, name => 'disco' });
+  my $cd = $schema->resultset('CD')->create({ cdid => 187, artist => 1, title => 'how could hell be any worse?', year => 1982 });
 
-	dies_ok { $cd->genre } 'genre accessor throws without column';
+  dies_ok { $cd->genre } 'genre accessor throws without column';
 }
 
+done_testing;

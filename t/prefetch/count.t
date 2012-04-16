@@ -73,7 +73,8 @@ is_same_sql_bind (
       JOIN track tracks ON tracks.cd = cds.cdid
     WHERE ( me.artistid = ? )
   )',
-  [ [ 'me.artistid' => 4 ] ],
+  [ [ { sqlt_datatype => 'integer', dbic_colname => 'me.artistid' }
+      => 4 ] ],
 );
 
 

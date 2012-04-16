@@ -2,6 +2,8 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
+use Try::Tiny;
+use namespace::clean;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
@@ -22,12 +24,12 @@ L<DBD::Sybase>
 sub _rebless {
   my $self = shift;
 
-  my $dbtype = eval {
-    @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  my $dbtype;
+  try {
+    $dbtype = @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  } catch {
+    $self->throw_exception("Unable to estable connection to determine database type: $_")
   };
-
-  $self->throw_exception("Unable to estable connection to determine database type: $@")
-    if $@;
 
   if ($dbtype) {
     $dbtype =~ s/\W/_/gi;
@@ -43,6 +45,31 @@ sub _rebless {
   }
 }
 
+sub _init {
+  # once the driver is determined see if we need to insert the DBD::Sybase w/ FreeTDS fixups
+  # this is a dirty version of "instance role application", \o/ DO WANT Moo \o/
+  my $self = shift;
+  if (! $self->isa('DBIx::Class::Storage::DBI::Sybase::FreeTDS') and $self->_using_freetds) {
+    require DBIx::Class::Storage::DBI::Sybase::FreeTDS;
+
+    my @isa = @{mro::get_linear_isa(ref $self)};
+    my $class = shift @isa; # this is our current ref
+
+    my $trait_class = $class . '::FreeTDS';
+    mro::set_mro ($trait_class, 'c3');
+    no strict 'refs';
+    @{"${trait_class}::ISA"} = ($class, 'DBIx::Class::Storage::DBI::Sybase::FreeTDS', @isa);
+
+    bless ($self, $trait_class);
+
+    Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
+    $self->_init(@_);
+  }
+
+  $self->next::method(@_);
+}
+
 sub _ping {
   my $self = shift;
 
@@ -51,19 +78,27 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
+# FIXME if the main connection goes stale, does opening another for this statement
+# really determine anything?
+
   if ($dbh->{syb_no_child_con}) {
-# if extra connections are not allowed, then ->ping is reliable
-    my $ping = eval { $dbh->ping };
-    return $@ ? 0 : $ping;
+    return try {
+      $self->_connect(@{$self->_dbi_connect_info || [] })
+        ->do('select 1');
+      1;
+    }
+    catch {
+      0;
+    };
   }
 
-  eval {
-# XXX if the main connection goes stale, does opening another for this statement
-# really determine anything?
+  return try {
     $dbh->do('select 1');
+    1;
+  }
+  catch {
+    0;
   };
-
-  return $@ ? 0 : 1;
 }
 
 sub _set_max_connect {
@@ -82,41 +117,19 @@ sub _set_max_connect {
   }
 }
 
-=head2 using_freetds
-
-Whether or not L<DBD::Sybase> was compiled against FreeTDS. If false, it means
-the Sybase OpenClient libraries were used.
-
-=cut
-
-sub using_freetds {
+# Whether or not DBD::Sybase was compiled against FreeTDS. If false, it means
+# the Sybase OpenClient libraries were used.
+sub _using_freetds {
   my $self = shift;
-
-  return $self->_get_dbh->{syb_oc_version} =~ /freetds/i;
+  return ($self->_get_dbh->{syb_oc_version}||'') =~ /freetds/i;
 }
 
-=head2 set_textsize
-
-When using FreeTDS and/or MSSQL, C<< $dbh->{LongReadLen} >> is not available,
-use this function instead. It does:
-
-  $dbh->do("SET TEXTSIZE $bytes");
-
-Takes the number of bytes, or uses the C<LongReadLen> value from your
-L<DBIx::Class/connect_info> if omitted, lastly falls back to the C<32768> which
-is the L<DBD::Sybase> default.
-
-=cut
-
-sub set_textsize {
-  my $self = shift;
-  my $text_size = shift ||
-    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
-    32768; # the DBD::Sybase default
-
-  return unless defined $text_size;
-
-  $self->_dbh->do("SET TEXTSIZE $text_size");
+# Either returns the FreeTDS version against which DBD::Sybase was compiled,
+# 0 if can't be determined, or undef otherwise
+sub _using_freetds_version {
+  my $inf = shift->_get_dbh->{syb_oc_version};
+  return undef unless ($inf||'') =~ /freetds/i;
+  return $inf =~ /v([0-9\.]+)/ ? $1 : 0;
 }
 
 1;

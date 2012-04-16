@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 # use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
 BEGIN {
@@ -10,6 +10,8 @@ BEGIN {
 
 use Test::More;
 use Test::Exception;
+use Scalar::Util 'weaken';
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
@@ -18,47 +20,57 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my @storage_types = (
-  'DBI::Sybase::Microsoft_SQL_Server',
-  'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
-);
-my $storage_idx = -1;
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mssql_sybase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mssql_sybase');
+
+{
+  my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};
+  ok ($srv_ver, 'Got a test server version on fresh schema: ' . ($srv_ver||'???') );
+}
+
 my $schema;
 
-my $NUMBER_OF_TESTS_IN_BLOCK = 18;
-for my $storage_type (@storage_types) {
-  $storage_idx++;
+my $testdb_supports_placeholders = DBICTest::Schema->connect($dsn, $user, $pass)
+                                                    ->storage
+                                                     ->_supports_typeless_placeholders;
+my @test_storages = (
+  $testdb_supports_placeholders ? 'DBI::Sybase::Microsoft_SQL_Server' : (),
+  'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
+);
 
-  $schema = DBICTest::Schema->clone;
+for my $storage_type (@test_storages) {
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-  $schema->connection($dsn, $user, $pass);
-
-  if ($storage_idx != 0) { # autodetect
-    no warnings 'redefine';
-    local *DBIx::Class::Storage::DBI::_typeless_placeholders_supported =
-      sub { 0 };
-#    $schema->storage_type("::$storage_type");
-    $schema->storage->ensure_connected;
-  }
-  else {
-    $schema->storage->ensure_connected;
+  if ($storage_type =~ /NoBindVars\z/) {
+    # since we want to use the nobindvar - disable the capability so the
+    # rebless happens to the correct class
+    $schema->storage->_use_typeless_placeholders (0);
   }
 
-  if ($storage_idx == 0 && ref($schema->storage) =~ /NoBindVars\z/) {
-    my $tb = Test::More->builder;
-    $tb->skip('no placeholders') for 1..$NUMBER_OF_TESTS_IN_BLOCK;
-    next;
+  local $ENV{DBIC_MSSQL_FREETDS_LOWVER_NOWARN} = 1; # disable nobindvars warning
+
+  $schema->storage->ensure_connected;
+
+  if ($storage_type =~ /NoBindVars\z/) {
+    is $schema->storage->disable_sth_caching, 1,
+      'prepare_cached disabled for NoBindVars';
   }
 
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
-# start disconnected to test reconnection
-  $schema->storage->_dbh->disconnect;
+  SKIP: {
+    skip 'This version of DBD::Sybase segfaults on disconnect', 1 if DBD::Sybase->VERSION < 1.08;
 
-  my $dbh;
-  lives_ok (sub {
-    $dbh = $schema->storage->dbh;
-  }, 'reconnect works');
+    # start disconnected to test _ping
+    $schema->storage->_dbh->disconnect;
+
+    lives_ok {
+      $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
+    } '_ping works';
+  }
+
+  my $dbh = $schema->storage->dbh;
 
   $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
       DROP TABLE artist");
@@ -110,10 +122,10 @@ for my $storage_type (@storage_types) {
      amount MONEY NULL
   )
 SQL
-
-  });
+   });
 
   my $rs = $schema->resultset('Money');
+  weaken(my $rs_cp = $rs);  # nested closure refcounting is an utter mess in perl
 
   my $row;
   lives_ok {
@@ -136,41 +148,148 @@ SQL
   is $rs->find($row->id)->amount,
     undef, 'updated money value to NULL round-trip';
 
-  $rs->create({ amount => 300 }) for (1..3);
-
-  # test multiple active statements
-  lives_ok {
-    my $artist_rs = $schema->resultset('Artist');
-    while (my $row = $rs->next) {
-      my $artist = $artist_rs->next;
-    }
-    $rs->reset;
-  } 'multiple active statements';
-
   $rs->delete;
 
   # test simple transaction with commit
   lives_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs_cp->create({ amount => 300 });
     });
   } 'simple transaction';
 
-  cmp_ok $rs->first->amount, '==', 400, 'committed';
-  $rs->reset;
+  cmp_ok $rs->first->amount, '==', 300, 'committed';
 
+  $rs->reset;
   $rs->delete;
 
   # test rollback
   throws_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs_cp->create({ amount => 700 });
       die 'mtfnpy';
     });
   } qr/mtfnpy/, 'simple failed txn';
 
   is $rs->first, undef, 'rolled back';
+
   $rs->reset;
+  $rs->delete;
+
+  # test multiple active statements
+  {
+    $rs->create({ amount => 800 + $_ }) for 1..3;
+
+    my @map = (
+      [ 'Artist 1', '801.00' ],
+      [ 'Artist 2', '802.00' ],
+      [ 'Artist 3', '803.00' ]
+    );
+
+    my $artist_rs = $schema->resultset('Artist')->search({
+      name => { -like => 'Artist %' }
+    });;
+
+    my $i = 0;
+
+    while (my $money_row = $rs->next) {
+      my $artist_row = $artist_rs->next;
+
+      is_deeply [ $artist_row->name, $money_row->amount ], $map[$i++],
+        'multiple active statements';
+    }
+    $rs->reset;
+    $rs->delete;
+  }
+
+  # test transaction handling on a disconnected handle
+  my $wrappers = {
+    no_transaction => sub { shift->() },
+    txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
+    txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
+    txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
+  };
+  for my $wrapper (keys %$wrappers) {
+    $rs->delete;
+
+    # a reconnect should trigger on next action
+    $schema->storage->_get_dbh->disconnect;
+
+
+    lives_and {
+      $wrappers->{$wrapper}->( sub {
+        $rs_cp->create({ amount => 900 + $_ }) for 1..3;
+      });
+      is $rs->count, 3;
+    } "transaction on disconnected handle with $wrapper wrapper";
+  }
+
+  TODO: {
+    local $TODO = 'Transaction handling with multiple active statements will '
+                 .'need eager cursor support.';
+
+    # test transaction handling on a disconnected handle with multiple active
+    # statements
+    my $wrappers = {
+      no_transaction => sub { shift->() },
+      txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
+      txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
+      txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
+    };
+    for my $wrapper (keys %$wrappers) {
+      $rs->reset;
+      $rs->delete;
+      $rs->create({ amount => 1000 + $_ }) for (1..3);
+
+      my $artist_rs = $schema->resultset('Artist')->search({
+        name => { -like => 'Artist %' }
+      });;
+
+      $rs->next;
+
+      my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
+
+      weaken(my $a_rs_cp = $artist_rs);
+
+      lives_and {
+        my @results;
+        $wrappers->{$wrapper}->( sub {
+          while (my $money = $rs_cp->next) {
+            my $artist = $a_rs_cp->next;
+            push @results, [ $artist->name, $money->amount ];
+          };
+        });
+
+        is_deeply \@results, $map;
+      } "transactions with multiple active statement with $wrapper wrapper";
+    }
+  }
+
+  # test RNO detection when version detection fails
+  SKIP: {
+    my $storage = $schema->storage;
+    my $version = $storage->_server_info->{normalized_dbms_version};
+
+    skip 'could not detect SQL Server version', 1 if not defined $version;
+
+    my $have_rno = $version >= 9 ? 1 : 0;
+
+    local $storage->{_dbh_details}{info} = {}; # delete cache
+
+    my $rno_detected =
+      ($storage->sql_limit_dialect eq 'RowNumberOver') ? 1 : 0;
+
+    ok (($have_rno == $rno_detected),
+      'row_number() over support detected correctly');
+  }
+
+  {
+    my $schema = DBICTest::Schema->clone;
+    $schema->connection($dsn, $user, $pass);
+
+    like $schema->storage->sql_maker->{limit_dialect},
+      qr/^(?:Top|RowNumberOver)\z/,
+      'sql_maker is correct on unconnected schema';
+  }
 }
 
 # test op-induced autoconnect
@@ -183,6 +302,31 @@ lives_ok (sub {
   is ($artist->id, 1, 'Artist retrieved successfully');
 }, 'Query-induced autoconnect works');
 
+# test AutoCommit=0
+{
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+  my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
+
+  my $rs = $schema2->resultset('Money');
+
+  $rs->delete;
+  $schema2->txn_commit;
+
+  is $rs->count, 0, 'initially empty'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 3000 });
+  $schema2->txn_rollback;
+
+  is $rs->count, 0, 'rolled back in AutoCommit=0'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 4000 });
+  $schema2->txn_commit;
+
+  cmp_ok $rs->first->amount, '==', 4000, 'committed in AutoCommit=0';
+}
+
 done_testing;
 
 # clean up our mess
@@ -192,4 +336,6 @@ END {
     $dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL DROP TABLE cd");
     $dbh->do("IF OBJECT_ID('money_test', 'U') IS NOT NULL DROP TABLE money_test");
   }
+
+  undef $schema;
 }

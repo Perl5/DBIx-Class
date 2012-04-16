@@ -103,7 +103,7 @@ $rs = $schema->resultset('CD')->search({},
 
 is_same_sql_bind (
   $rs->as_query,
-  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
+  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
   [],
   'Use of columns attribute results in proper sql'
 );
@@ -164,5 +164,69 @@ is_deeply(
   },
   'columns/select/as fold properly on sub-searches',
 );
+
+# *very* esoteric use-case, yet valid (the "empty" object should not be undef):
+$rs = $schema->resultset('Artist');
+$rs->create({ artistid => 69, name => 'Ranetki' });
+
+my $relations_or_1_count =
+  $rs->search_related('cds')->count
+    +
+  $rs->search({ 'cds.cdid' => undef }, { join => 'cds' })->count
+;
+
+my $weird_rs = $rs->search({}, {
+  order_by => { -desc => [ 'me.artistid', 'cds.cdid' ] },
+  columns => [{ cd_title => 'cds.title', cd_year => 'cds.year' }],
+  join => 'cds',
+});
+
+my $weird_rs_hri = $weird_rs->search({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' });
+
+for my $rs ($weird_rs, $weird_rs_hri) {
+  is ($rs->count, $relations_or_1_count, 'count on rhs data injection matches');
+
+  my @all;
+  while (my $r = $rs->next) {
+    push @all, $r;
+  }
+
+  is (scalar @all, $relations_or_1_count, 'object count on rhs data injection matches');
+  is_deeply (
+    ( $rs->result_class eq 'DBIx::Class::ResultClass::HashRefInflator'
+        ? \@all
+        : [ map { +{$_->get_columns} } @all ]
+    ),
+    [
+      {
+        cd_title => undef,
+        cd_year => undef,
+      },
+      {
+        cd_title => "Come Be Depressed With Us",
+        cd_year => 1998,
+      },
+      {
+        cd_title => "Generic Manufactured Singles",
+        cd_year => 2001,
+      },
+      {
+        cd_title => "Caterwaulin' Blues",
+        cd_year => 1997,
+      },
+      {
+        cd_title => "Forkful of bees",
+        cd_year => 2001,
+      },
+      {
+        cd_title => "Spoonful of bees",
+        cd_year => 1999,
+      },
+    ],
+    'Correct data retrieved'
+  );
+
+  is_deeply( [ $rs->all ], \@all, '->all matches' );
+}
 
 done_testing;

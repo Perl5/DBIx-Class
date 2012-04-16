@@ -3,9 +3,11 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
+use Try::Tiny;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::HasOne' => 'DBIx::Class::Relationship' }
   );
@@ -30,7 +32,7 @@ sub _has_one {
       "${class} has none"
     ) if !defined $pri && (!defined $cond || !length $cond);
 
-    my $f_class_loaded = eval { $f_class->columns };
+    my $f_class_loaded = try { $f_class->columns };
     my ($f_key,$too_many,$guess);
     if (defined $cond && length $cond) {
       $f_key = $cond;
@@ -47,11 +49,15 @@ sub _has_one {
     ) if $f_class_loaded && !$f_class->has_column($f_key);
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
-  $class->_validate_cond($cond);
+  $class->_validate_has_one_condition($cond);
+
+  my $default_cascade = ref $cond eq 'CODE' ? 0 : 1;
+
   $class->add_relationship($rel, $f_class,
    $cond,
    { accessor => 'single',
-     cascade_update => 1, cascade_delete => 1,
+     cascade_update => $default_cascade,
+     cascade_delete => $default_cascade,
      ($join_type ? ('join_type' => $join_type) : ()),
      %{$attrs || {}} });
   1;
@@ -60,10 +66,10 @@ sub _has_one {
 sub _get_primary_key {
   my ( $class, $target_class ) = @_;
   $target_class ||= $class;
-  my ($pri, $too_many) = eval { $target_class->_pri_cols };
-  $class->throw_exception(
-    "Can't infer join condition on ${target_class}: $@"
-  ) if $@;
+  my ($pri, $too_many) = try { $target_class->_pri_cols }
+    catch {
+      $class->throw_exception("Can't infer join condition on ${target_class}: $_");
+    };
 
   $class->throw_exception(
     "might_have/has_one can only infer join for a single primary key; ".
@@ -72,7 +78,7 @@ sub _get_primary_key {
   return $pri;
 }
 
-sub _validate_cond {
+sub _validate_has_one_condition {
   my ($class, $cond )  = @_;
 
   return if $ENV{DBIC_DONT_VALIDATE_RELS};
@@ -84,6 +90,8 @@ sub _validate_cond {
     # warning
     return unless $self_id =~ /^self\.(.*)$/;
     my $key = $1;
+    $class->throw_exception("Defining rel on ${class} that includes ${key} but no such column defined here yet")
+        unless $class->has_column($key);
     my $column_info = $class->column_info($key);
     if ( $column_info->{is_nullable} ) {
       carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key). This might indicate an incorrect use of those relationship helpers instead of belongs_to.');

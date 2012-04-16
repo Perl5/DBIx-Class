@@ -4,37 +4,21 @@
   - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
 
 2006-03-25 by mst
-  - find a way to un-wantarray search without breaking compat
   - delay relationship setup if done via ->load_classes
   - double-sided relationships
   - make short form of class specifier in relationships work
 
-2006-01-31 by bluefeet
- - Create a DBIx::Class::FilterColumn to replace inflate/deflate. This 
-   component would provide a new syntax for filtering column update and 
-   retrieval through a simple syntax. The syntax would be:
-   __PACKAGE__->add_columns(phone => { set=>sub{ ... }, get=>sub{ ... } }); 
-   We should still support the old inflate/deflate syntax, but this new 
-   way should be recommended. 
-
 2006-03-18 by bluefeet
  - Support table locking.
-
-2006-03-21 by bluefeet
- - When subclassing a dbic class make it so you don't have to do 
-   __PACKAGE__->table(__PACKAGE__->table()); for the result set to 
-   return the correct object type.
 
 2006-05-25 by mst (TODOed by bluefeet)
  Add the search attributes "limit" and "rows_per_page".
  limit: work as expected just like offset does
  rows_per_page: only be used if you used the page attr or called $rs->page
- rows: modify to be an alias that gets used to populate either as appropriate, 
+ rows: modify to be an alias that gets used to populate either as appropriate,
        if you haven't specified one of the others
 
 2008-10-30 by ribasushi
   - Rewrite the test suite to rely on $schema->deploy, allowing for seamless
     testing of various RDBMS using the same tests
-  - Automatically infer quote_char/name_sep from $schema->storage
-  - Fix and properly test chained search attribute merging
   - Recursive update() (all code seems to be already available)

@@ -3,7 +3,9 @@ package DBIx::Class::InflateColumn::DateTime;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
+use Try::Tiny;
+use namespace::clean;
 
 =head1 NAME
 
@@ -11,7 +13,7 @@ DBIx::Class::InflateColumn::DateTime - Auto-create DateTime objects from date an
 
 =head1 SYNOPSIS
 
-Load this component and then declare one or more 
+Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
@@ -62,9 +64,9 @@ use C<DateTime::Format::ISO8601> thusly:
 
 =head1 DESCRIPTION
 
-This module figures out the type of DateTime::Format::* class to 
-inflate/deflate with based on the type of DBIx::Class::Storage::DBI::* 
-that you are using.  If you switch from one database to a different 
+This module figures out the type of DateTime::Format::* class to
+inflate/deflate with based on the type of DBIx::Class::Storage::DBI::*
+that you are using.  If you switch from one database to a different
 one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
@@ -107,83 +109,84 @@ the C<datetime_undef_if_invalid> option in the column info:
 
 sub register_column {
   my ($self, $column, $info, @rest) = @_;
+
   $self->next::method($column, $info, @rest);
-  return unless defined($info->{data_type});
 
-  my $type;
-
-  for (qw/date datetime timestamp/) {
+  my $requested_type;
+  for (qw/datetime timestamp date/) {
     my $key = "inflate_${_}";
+    if (exists $info->{$key}) {
 
-    next unless exists $info->{$key};
-    return unless $info->{$key};
+      # this bailout is intentional
+      return unless $info->{$key};
 
-    $type = $_;
-    last;
-  }
-
-  unless ($type) {
-    $type = lc($info->{data_type});
-    if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
-      $type = "timestamp";
-      $info->{_ic_dt_method} ||= "timestamp_with_timezone";
-    } elsif ($type eq "timestamp without time zone") {
-      $type = "timestamp";
-      $info->{_ic_dt_method} ||= "timestamp_without_timezone";
-    } elsif ($type eq "smalldatetime") {
-      $type = "datetime";
-      $info->{_ic_dt_method} ||= "datetime";
+      $requested_type = $_;
+      last;
     }
   }
 
-  if ( defined $info->{extra}{timezone} ) {
-    carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
-         "please put it directly into the '$column' column definition.";
-    $info->{timezone} = $info->{extra}{timezone} unless defined $info->{timezone};
+  return if (!$requested_type and !$info->{data_type});
+
+  my $data_type = lc( $info->{data_type} || '' );
+
+  # _ic_dt_method will follow whatever the registration requests
+  # thus = instead of ||=
+  if ($data_type eq 'timestamp with time zone' || $data_type eq 'timestamptz') {
+    $info->{_ic_dt_method} = 'timestamp_with_timezone';
+  }
+  elsif ($data_type eq 'timestamp without time zone') {
+    $info->{_ic_dt_method} = 'timestamp_without_timezone';
+  }
+  elsif ($data_type eq 'smalldatetime') {
+    $info->{_ic_dt_method} = 'smalldatetime';
+  }
+  elsif ($data_type =~ /^ (?: date | datetime | timestamp ) $/x) {
+    $info->{_ic_dt_method} = $data_type;
+  }
+  elsif ($requested_type) {
+    $info->{_ic_dt_method} = $requested_type;
+  }
+  else {
+    return;
   }
 
-  if ( defined $info->{extra}{locale} ) {
-    carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
-         "please put it directly into the '$column' column definition.";
-    $info->{locale} = $info->{extra}{locale} unless defined $info->{locale};
-  }
-
-  my $undef_if_invalid = $info->{datetime_undef_if_invalid};
-
-  if ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp') {
-    # This shallow copy of %info avoids t/52_cycle.t treating
-    # the resulting deflator as a circular reference.
-    my %info = ( '_ic_dt_method' => $type , %{ $info } );
-
-    if (defined $info->{extra}{floating_tz_ok}) {
-      carp "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
-           "please put it directly into the '$column' column definition.";
-      $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
+  if ($info->{extra}) {
+    for my $slot (qw/timezone locale floating_tz_ok/) {
+      if ( defined $info->{extra}{$slot} ) {
+        carp "Putting $slot into extra => { $slot => '...' } has been deprecated, ".
+             "please put it directly into the '$column' column definition.";
+        $info->{$slot} = $info->{extra}{$slot} unless defined $info->{$slot};
+      }
     }
-
-    $self->inflate_column(
-      $column =>
-        {
-          inflate => sub {
-            my ($value, $obj) = @_;
-
-            my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            if (my $err = $@ ) {
-              return undef if ($undef_if_invalid);
-              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
-            }
-
-            return $obj->_post_inflate_datetime( $dt, \%info );
-          },
-          deflate => sub {
-            my ($value, $obj) = @_;
-
-            $value = $obj->_pre_deflate_datetime( $value, \%info );
-            $obj->_deflate_from_datetime( $value, \%info );
-          },
-        }
-    );
   }
+
+  # shallow copy to avoid unfounded(?) Devel::Cycle complaints
+  my $infcopy = {%$info};
+
+  $self->inflate_column(
+    $column =>
+      {
+        inflate => sub {
+          my ($value, $obj) = @_;
+
+          # propagate for error reporting
+          $infcopy->{__dbic_colname} = $column;
+
+          my $dt = $obj->_inflate_to_datetime( $value, $infcopy );
+
+          return (defined $dt)
+            ? $obj->_post_inflate_datetime( $dt, $infcopy )
+            : undef
+          ;
+        },
+        deflate => sub {
+          my ($value, $obj) = @_;
+
+          $value = $obj->_pre_deflate_datetime( $value, $infcopy );
+          $obj->_deflate_from_datetime( $value, $infcopy );
+        },
+      }
+  );
 }
 
 sub _flate_or_fallback
@@ -192,8 +195,16 @@ sub _flate_or_fallback
 
   my $parser = $self->_datetime_parser;
   my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
-  my $method = $parser->can($preferred_method) ? $preferred_method : sprintf($method_fmt, 'datetime');
-  return $parser->$method($value);
+  my $method = $parser->can($preferred_method) || sprintf($method_fmt, 'datetime');
+
+  return try {
+    $parser->$method($value);
+  }
+  catch {
+    $self->throw_exception ("Error while inflating ${value} for $info->{__dbic_colname} on ${self}: $_")
+      unless $info->{datetime_undef_if_invalid};
+    undef;  # rv
+  };
 }
 
 sub _inflate_to_datetime {
@@ -290,11 +301,11 @@ use the old way you'll see a warning - please fix your code then!
 
 =over 4
 
-=item More information about the add_columns method, and column metadata, 
+=item More information about the add_columns method, and column metadata,
       can be found in the documentation for L<DBIx::Class::ResultSource>.
 
 =item Further discussion of problems inherent to the Floating timezone:
-      L<Floating DateTimes|DateTime/Floating_DateTimes> 
+      L<Floating DateTimes|DateTime/Floating DateTimes>
       and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
 =back

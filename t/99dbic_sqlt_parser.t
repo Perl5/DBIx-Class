@@ -3,10 +3,10 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Scalar::Util ();
+
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::Schema;
-use Scalar::Util ();
 
 BEGIN {
   require DBIx::Class;
@@ -18,19 +18,28 @@ BEGIN {
 # Test for SQLT-related leaks
 {
   my $s = DBICTest::Schema->clone;
-  my $sqlt_schema = create_schema ({ schema => $s });
+
+  my @schemas = (
+    create_schema ({ schema => $s }),
+    create_schema ({ args => { parser_args => { 'DBIx::Class::Schema' => $s } } }),
+    create_schema ({ args => { parser_args => { 'DBIx::Schema' => $s } } }),
+    create_schema ({ args => { parser_args => { package => $s } } }),
+  );
+
   Scalar::Util::weaken ($s);
 
   ok (!$s, 'Schema not leaked');
 
-  isa_ok ($sqlt_schema, 'SQL::Translator::Schema', 'SQLT schema object produced');
+  isa_ok ($_, 'SQL::Translator::Schema', "SQLT schema object $_ produced")
+    for @schemas;
 }
 
 # make sure classname-style works
 lives_ok { isa_ok (create_schema ({ schema => 'DBICTest::Schema' }), 'SQL::Translator::Schema', 'SQLT schema object produced') };
 
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema( no_deploy => 1 );
+
 # Dummy was yanked out by the sqlt hook test
 # CustomSql tests the horrific/deprecated ->name(\$sql) hack
 # YearXXXXCDs are views
@@ -134,6 +143,69 @@ lives_ok (sub {
 
 });
 
+{
+  package DBICTest::PartialSchema;
+
+  use base qw/DBIx::Class::Schema/;
+
+  __PACKAGE__->load_classes(
+    { 'DBICTest::Schema' => [qw/
+      CD
+      Track
+      Tag
+      Producer
+      CD_to_Producer
+    /]}
+  );
+}
+
+{
+  my $partial_schema = DBICTest::PartialSchema->connect(DBICTest->_database);
+
+  lives_ok (sub {
+    my $sqlt_schema = do {
+
+      local $SIG{__WARN__} = sub {
+        warn @_
+          unless $_[0] =~ /Ignoring relationship .+ related resultsource .+ is not registered with this schema/
+      };
+
+      create_schema({ schema => $partial_schema });
+    };
+
+    my @tables = $sqlt_schema->get_tables;
+
+    is_deeply (
+      [sort map { $_->name } @tables],
+      [qw/cd cd_to_producer producer tags track/],
+      'partial dbic schema parsing ok',
+    );
+
+    # the primary key is currently unnamed in sqlt - adding below
+    my %constraints_for_table = (
+      producer =>       [qw/prod_name                                                         /],
+      tags =>           [qw/tagid_cd tagid_cd_tag tags_fk_cd tags_tagid_tag tags_tagid_tag_cd /],
+      track =>          [qw/track_cd_position track_cd_title track_fk_cd                      /],
+      cd =>             [qw/cd_artist_title cd_fk_single_track                                /],
+      cd_to_producer => [qw/cd_to_producer_fk_cd cd_to_producer_fk_producer                   /],
+    );
+
+    for my $table (@tables) {
+      my $tablename = $table->name;
+      my @constraints = $table->get_constraints;
+      is_deeply (
+        [ sort map { $_->name } @constraints ],
+
+        # the primary key (present on all loaded tables) is currently named '' in sqlt
+        # subject to future changes
+        [ '', @{$constraints_for_table{$tablename}} ],
+
+        "constraints of table '$tablename' ok",
+      );
+    }
+  }, 'partial schema tests successful');
+}
+
 done_testing;
 
 sub create_schema {
@@ -143,7 +215,7 @@ sub create_schema {
   my $additional_sqltargs = $args->{args} || {};
 
   my $sqltargs = {
-    add_drop_table => 1, 
+    add_drop_table => 1,
     ignore_constraint_names => 1,
     ignore_index_names => 1,
     %{$additional_sqltargs}

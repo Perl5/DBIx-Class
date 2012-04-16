@@ -1,11 +1,7 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 
 use Test::More;
-
-plan ( tests => 1 );
 
 use lib qw(t/lib);
 use DBICTest;
@@ -22,3 +18,5 @@ my $schema = DBICTest->init_schema();
     my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $squery } } );
     is($subsel_rs->count, $rs->count, 'Subselect on PK got the same row count');
 }
+
+done_testing;

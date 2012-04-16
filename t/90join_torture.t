@@ -133,7 +133,7 @@ my $merge_rs_2 = $schema->resultset("Artist")->search({ }, { join => 'cds' })->s
 is(scalar(@{$merge_rs_2->{attrs}->{join}}), 1, 'only one join kept when inherited');
 my $merge_rs_2_cd = $merge_rs_2->next;
 
-eval {
+lives_ok (sub {
 
   my @rs_with_prefetch = $schema->resultset('TreeLike')
                                 ->search(
@@ -142,14 +142,68 @@ eval {
     prefetch => [ 'parent', { 'children' => 'parent' } ],
     });
 
-};
-
-ok(!$@, "pathological prefetch ok");
+}, 'pathological prefetch ok');
 
 my $rs = $schema->resultset("Artist")->search({}, { join => 'twokeys' });
 my $second_search_rs = $rs->search({ 'cds_2.cdid' => '2' }, { join =>
 ['cds', 'cds'] });
 is(scalar(@{$second_search_rs->{attrs}->{join}}), 3, 'both joins kept');
 ok($second_search_rs->next, 'query on double joined rel runs okay');
+
+# test joinmap pruner
+lives_ok ( sub {
+  my $rs = $schema->resultset('Artwork')->search (
+    {
+    },
+    {
+      distinct => 1,
+      join => [
+        { artwork_to_artist => 'artist' },
+        { cd => 'artist' },
+      ],
+    },
+  );
+
+  is_same_sql_bind (
+    $rs->count_rs->as_query,
+    '(
+      SELECT COUNT( * )
+        FROM (
+          SELECT me.cd_id
+            FROM cd_artwork me
+            JOIN cd cd ON cd.cdid = me.cd_id
+            JOIN artist artist_2 ON artist_2.artistid = cd.artist
+          GROUP BY me.cd_id
+        ) me
+    )',
+    [],
+  );
+
+  ok (defined $rs->count);
+});
+
+# make sure multiplying endpoints do not lose heir join-path
+lives_ok (sub {
+  my $rs = $schema->resultset('CD')->search (
+    { },
+    { join => { artwork => 'images' } },
+  )->get_column('cdid');
+
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT me.cdid
+        FROM cd me
+        LEFT JOIN cd_artwork artwork
+          ON artwork.cd_id = me.cdid
+        LEFT JOIN images images
+          ON images.artwork_id = artwork.cd_id
+    )',
+    [],
+  );
+
+  # execution
+  $rs->next;
+});
 
 done_testing;

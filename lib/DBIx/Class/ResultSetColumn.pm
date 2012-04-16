@@ -4,10 +4,11 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use DBIx::Class::Exception;
-use List::Util;
+
+# not importing first() as it will clash with our own method
+use List::Util ();
 
 =head1 NAME
 
@@ -46,6 +47,7 @@ sub new {
 
   my $orig_attrs = $rs->_resolved_attrs;
   my $alias = $rs->current_source_alias;
+  my $rsrc = $rs->result_source;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -56,22 +58,28 @@ sub new {
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
-  my $new_parent_rs;
+  my ($new_parent_rs, $colmap);
+  for ($rsrc->columns, $column) {
+    if ($_ =~ /^ \Q$alias\E \. ([^\.]+) $ /x) {
+      $colmap->{$_} = $1;
+    }
+    elsif ($_ !~ /\./) {
+      $colmap->{"$alias.$_"} = $_;
+      $colmap->{$_} = $_;
+    }
+  }
+
   # analyze the order_by, and see if it is done over a function/nonexistentcolumn
   # if this is the case we will need to wrap a subquery since the result of RSC
   # *must* be a single column select
-  my %collist = map 
-    { $_ => 1, ($_ =~ /\./) ? () : ( "$alias.$_" => 1 ) }
-    ($rs->result_source->columns, $column)
-  ;
   if (
     scalar grep
-      { ! $collist{$_} }
-      ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
+      { ! exists $colmap->{$_->[0]} }
+      ( $rsrc->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) )
   ) {
     # nuke the prefetch before collapsing to sql
     my $subq_rs = $rs->search;
-    $subq_rs->{attrs}{join} = $subq_rs->_merge_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
+    $subq_rs->{attrs}{join} = $subq_rs->_merge_joinpref_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
     $new_parent_rs = $subq_rs->as_subselect_rs;
   }
 
@@ -82,30 +90,17 @@ sub new {
   # rs via the _resolved_attrs trick - we need to retain the separation between
   # +select/+as and select/as. At the same time we want to preserve any joins that the
   # prefetch would otherwise generate.
-  $new_attrs->{join} = $rs->_merge_attr( $new_attrs->{join}, delete $new_attrs->{prefetch} );
+  $new_attrs->{join} = $rs->_merge_joinpref_attr( $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
   if (!$orig_attrs->{group_by} && $orig_attrs->{collapse}) {
 
-    # scan for a constraint that would contain our column only - that'd be proof
-    # enough it is unique
-    my $constraints = { $rs->result_source->unique_constraints };
-    for my $constraint_columns ( values %$constraints ) {
-
-      next unless @$constraint_columns == 1;
-
-      my $col = $constraint_columns->[0];
-      my $fqcol = join ('.', $new_attrs->{alias}, $col);
-
-      if ($col eq $select or $fqcol eq $select) {
-        $new_attrs->{group_by} = [ $select ];
-        delete $new_attrs->{distinct}; # it is ignored when group_by is present
-        last;
-      }
+    if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
+      $new_attrs->{group_by} = [ $select ];
+      delete $new_attrs->{distinct}; # it is ignored when group_by is present
     }
-
-    if (!$new_attrs->{group_by}) {
+    else {
       carp (
           "Attempting to retrieve non-unique column '$column' on a resultset containing "
         . 'one-to-many joins will return duplicate results.'
@@ -148,7 +143,7 @@ sub as_query { return shift->_resultset->as_query(@_) }
 Returns the next value of the column in the resultset (or C<undef> if
 there is none).
 
-Much like L<DBIx::Class::ResultSet/next> but just returning the 
+Much like L<DBIx::Class::ResultSet/next> but just returning the
 one value.
 
 =cut
@@ -440,7 +435,7 @@ sub func_rs {
 
 See L<DBIx::Class::Schema/throw_exception> for details.
 
-=cut 
+=cut
 
 sub throw_exception {
   my $self=shift;

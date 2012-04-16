@@ -4,11 +4,13 @@ use strict;
 use warnings;
 
 use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util ();
-use File::Spec;
-use Sub::Name ();
-use Module::Find();
+use DBIx::Class::Carp;
+use Try::Tiny;
+use Scalar::Util qw/weaken blessed/;
+use Sub::Name 'subname';
+use B 'svref_2object';
+use DBIx::Class::GlobalDestruction;
+use namespace::clean;
 
 use base qw/DBIx::Class/;
 
@@ -75,20 +77,32 @@ particular which module inherits off which.
   __PACKAGE__->load_namespaces();
 
   __PACKAGE__->load_namespaces(
-   result_namespace => 'Res',
-   resultset_namespace => 'RSet',
-   default_resultset_class => '+MyDB::Othernamespace::RSet',
- );
+     result_namespace => 'Res',
+     resultset_namespace => 'RSet',
+     default_resultset_class => '+MyDB::Othernamespace::RSet',
+  );
 
-With no arguments, this method uses L<Module::Find> to load all your
-Result classes from a sub-namespace F<Result> under your Schema class'
-namespace, i.e. with a Schema of I<MyDB::Schema> all files in
-I<MyDB::Schema::Result> are assumed to be Result classes.
+With no arguments, this method uses L<Module::Find> to load all of the
+Result and ResultSet classes under the namespace of the schema from
+which it is called.  For example, C<My::Schema> will by default find
+and load Result classes named C<My::Schema::Result::*> and ResultSet
+classes named C<My::Schema::ResultSet::*>.
 
-It also finds all ResultSet classes in the namespace F<ResultSet> and
-loads them into the appropriate Result classes using for you. The
-matching is done by assuming the package name of the ResultSet class
-is the same as that of the Result class.
+ResultSet classes are associated with Result class of the same name.
+For example, C<My::Schema::Result::CD> will get the ResultSet class
+C<My::Schema::ResultSet::CD> if it is present.
+
+Both Result and ResultSet namespaces are configurable via the
+C<result_namespace> and C<resultset_namespace> options.
+
+Another option, C<default_resultset_class> specifies a custom default
+ResultSet class for Result classes with no corresponding ResultSet.
+
+All of the namespace and classname options are by default relative to
+the schema classname.  To specify a fully-qualified name, prefix it
+with a literal C<+>.  For example, C<+Other::NameSpace::Result>.
+
+=head3 Warnings
 
 You will be warned if ResultSet classes are discovered for which there
 are no matching Result classes like this:
@@ -98,22 +112,10 @@ are no matching Result classes like this:
 If a Result class is found to already have a ResultSet class set using
 L</resultset_class> to some other class, you will be warned like this:
 
-  We found ResultSet class '$rs_class' for '$result', but it seems 
+  We found ResultSet class '$rs_class' for '$result', but it seems
   that you had already set '$result' to use '$rs_set' instead
 
-Both of the sub-namespaces are configurable if you don't like the defaults,
-via the options C<result_namespace> and C<resultset_namespace>.
-
-If (and only if) you specify the option C<default_resultset_class>, any found
-Result classes for which we do not find a corresponding
-ResultSet class will have their C<resultset_class> set to
-C<default_resultset_class>.
-
-All of the namespace and classname options to this method are relative to
-the schema classname by default.  To specify a fully-qualified name, prefix
-it with a literal C<+>.
-
-Examples:
+=head3 Examples
 
   # load My::Schema::Result::CD, My::Schema::Result::Artist,
   #    My::Schema::ResultSet::CD, etc...
@@ -135,10 +137,10 @@ Examples:
     resultset_namespace => '+Another::Place::RSets',
   );
 
-If you'd like to use multiple namespaces of each type, simply use an arrayref
-of namespaces for that option.  In the case that the same result
-(or resultset) class exists in multiple namespaces, the latter entries in
-your list of namespaces will override earlier ones.
+To search multiple namespaces for either Result or ResultSet classes,
+use an arrayref of namespaces for that option.  In the case that the
+same result (or resultset) class exists in multiple namespaces, later
+entries in the list of namespaces will override earlier ones.
 
   My::Schema->load_namespaces(
     # My::Schema::Results_C::Foo takes precedence over My::Schema::Results_B::Foo :
@@ -165,6 +167,7 @@ sub _findallmod {
   my $proto = shift;
   my $ns = shift || ref $proto || $proto;
 
+  require Module::Find;
   my @mods = Module::Find::findallmod($ns);
 
   # try to untaint module names. mods where this fails
@@ -194,17 +197,16 @@ sub _map_namespaces {
 # returns the result_source_instance for the passed class/object,
 # or dies with an informative message (used by load_namespaces)
 sub _ns_get_rsrc_instance {
-  my $class = shift;
-  my $rs = ref ($_[0]) || $_[0];
+  my $me = shift;
+  my $rs_class = ref ($_[0]) || $_[0];
 
-  if ($rs->can ('result_source_instance') ) {
-    return $rs->result_source_instance;
-  }
-  else {
-    $class->throw_exception (
-      "Attempt to load_namespaces() class $rs failed - are you sure this is a real Result Class?"
+  return try {
+    $rs_class->result_source_instance
+  } catch {
+    $me->throw_exception (
+      "Attempt to load_namespaces() class $rs_class failed - are you sure this is a real Result Class?: $_"
     );
-  }
+  };
 }
 
 sub load_namespaces {
@@ -236,12 +238,14 @@ sub load_namespaces {
 
   my @to_register;
   {
-    no warnings 'redefine';
-    local *Class::C3::reinitialize = sub { };
-    use warnings 'redefine';
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
 
     # ensure classes are loaded and attached in inheritance order
-    $class->ensure_class_loaded($_) foreach(values %results);
+    for my $res (values %results) {
+      $class->ensure_class_loaded($res);
+    }
     my %inh_idx;
     my @subclass_last = sort {
 
@@ -271,6 +275,10 @@ sub load_namespaces {
       }
       elsif($rs_class ||= $default_resultset_class) {
         $class->ensure_class_loaded($rs_class);
+        if(!$rs_class->isa("DBIx::Class::ResultSet")) {
+            carp "load_namespaces found ResultSet class $rs_class that does not subclass DBIx::Class::ResultSet";
+        }
+
         $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
       }
 
@@ -285,7 +293,8 @@ sub load_namespaces {
       . 'corresponding Result class';
   }
 
-  Class::C3->reinitialize;
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
+
   $class->register_class(@$_) for (@to_register);
 
   return;
@@ -315,7 +324,7 @@ need to add C<no warnings 'qw';> before your load_classes call.
 If any classes found do not appear to be Result class files, you will
 get the following warning:
 
-   Failed to load $comp_class. Can't find source_name method. Is 
+   Failed to load $comp_class. Can't find source_name method. Is
    $comp_class really a full DBIC result class? Fix it, move it elsewhere,
    or make your load_classes call more specific.
 
@@ -368,7 +377,9 @@ sub load_classes {
   my @to_register;
   {
     no warnings qw/redefine/;
-    local *Class::C3::reinitialize = sub { };
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
+
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
@@ -385,11 +396,10 @@ sub load_classes {
       }
     }
   }
-  Class::C3->reinitialize;
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   foreach my $to (@to_register) {
     $class->register_class(@$to);
-    #  if $class->can('result_source_instance');
   }
 }
 
@@ -431,14 +441,13 @@ L<DBIx::Class::Storage::DBI::Replicated> for an example of this.
 
 =back
 
-If C<exception_action> is set for this class/object, L</throw_exception>
-will prefer to call this code reference with the exception as an argument,
-rather than L<DBIx::Class::Exception/throw>.
+When L</throw_exception> is invoked and L</exception_action> is set to a code
+reference, this reference will be called instead of
+L<DBIx::Class::Exception/throw>, with the exception message passed as the only
+argument.
 
-Your subroutine should probably just wrap the error in the exception
-object/class of your choosing and rethrow.  If, against all sage advice,
-you'd like your C<exception_action> to suppress a particular exception
-completely, simply have it return true.
+Your custom throw code B<must> rethrow the exception, as L</throw_exception> is
+an integral part of DBIC's internal execution control flow.
 
 Example:
 
@@ -451,9 +460,6 @@ Example:
    # or:
    my $schema_obj = My::Schema->connect( .... );
    $schema_obj->exception_action(sub { My::ExceptionClass->throw(@_) });
-
-   # suppress all exceptions, like a moron:
-   $schema_obj->exception_action(sub { 1 });
 
 =head2 stacktrace
 
@@ -475,11 +481,11 @@ is true.
 
 =back
 
-An optional sub which you can declare in your own Schema class that will get 
+An optional sub which you can declare in your own Schema class that will get
 passed the L<SQL::Translator::Schema> object when you deploy the schema via
 L</create_ddl_dir> or L</deploy>.
 
-For an example of what you can do with this, see 
+For an example of what you can do with this, see
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
 Note that sqlt_deploy_hook is called by L</deployment_statements>, which in turn
@@ -581,7 +587,13 @@ source name.
 =cut
 
 sub source {
-  my ($self, $moniker) = @_;
+  my $self = shift;
+
+  $self->throw_exception("source() expects a source name")
+    unless @_;
+
+  my $moniker = shift;
+
   my $sreg = $self->source_registrations;
   return $sreg->{$moniker} if exists $sreg->{$moniker};
 
@@ -651,7 +663,7 @@ sub txn_do {
 
 =head2 txn_scope_guard
 
-Runs C<txn_scope_guard> on the schema's storage. See 
+Runs C<txn_scope_guard> on the schema's storage. See
 L<DBIx::Class::Storage/txn_scope_guard>.
 
 =cut
@@ -669,7 +681,7 @@ sub txn_scope_guard {
 
 Begins a transaction (does nothing if AutoCommit is off). Equivalent to
 calling $schema->storage->txn_begin. See
-L<DBIx::Class::Storage::DBI/"txn_begin"> for more information.
+L<DBIx::Class::Storage/"txn_begin"> for more information.
 
 =cut
 
@@ -685,7 +697,7 @@ sub txn_begin {
 =head2 txn_commit
 
 Commits the current transaction. Equivalent to calling
-$schema->storage->txn_commit. See L<DBIx::Class::Storage::DBI/"txn_commit">
+$schema->storage->txn_commit. See L<DBIx::Class::Storage/"txn_commit">
 for more information.
 
 =cut
@@ -703,7 +715,7 @@ sub txn_commit {
 
 Rolls back the current transaction. Equivalent to calling
 $schema->storage->txn_rollback. See
-L<DBIx::Class::Storage::DBI/"txn_rollback"> for more information.
+L<DBIx::Class::Storage/"txn_rollback"> for more information.
 
 =cut
 
@@ -737,7 +749,7 @@ found in L<DBIx::Class::Storage::DBI>.
 
 Pass this method a resultsource name, and an arrayref of
 arrayrefs. The arrayrefs should contain a list of column names,
-followed by one or many sets of matching data for the given columns. 
+followed by one or many sets of matching data for the given columns.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a fast method. However, insert_bulk currently
@@ -757,16 +769,16 @@ e.g.
     ...
   ]);
 
-Since wantarray context is basically the same as looping over $rs->create(...) 
+Since wantarray context is basically the same as looping over $rs->create(...)
 you won't see any performance benefits and in this case the method is more for
 convenience. Void context sends the column information directly to storage
-using <DBI>s bulk insert method. So the performance will be much better for 
+using <DBI>s bulk insert method. So the performance will be much better for
 storages that support this method.
 
-Because of this difference in the way void context inserts rows into your 
+Because of this difference in the way void context inserts rows into your
 database you need to note how this will effect any loaded components that
-override or augment insert.  For example if you are using a component such 
-as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use 
+override or augment insert.  For example if you are using a component such
+as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use
 wantarray context if you want the PKs automatically created.
 
 =cut
@@ -780,7 +792,7 @@ sub populate {
         $rs->populate($data);
     }
   } else {
-      $self->throw_exception("$name is not a resultset"); 
+      $self->throw_exception("$name is not a resultset");
   }
 }
 
@@ -808,15 +820,19 @@ sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
 
-  my ($storage_class, $args) = ref $self->storage_type ? 
+  my ($storage_class, $args) = ref $self->storage_type ?
     ($self->_normalize_storage_type($self->storage_type),{}) : ($self->storage_type, {});
 
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
-  eval { $self->ensure_class_loaded ($storage_class) };
-  $self->throw_exception(
-    "No arguments to load_classes and couldn't load ${storage_class} ($@)"
-  ) if $@;
+  try {
+    $self->ensure_class_loaded ($storage_class);
+  }
+  catch {
+    $self->throw_exception(
+      "Unable to load storage class ${storage_class}: $_"
+    );
+  };
   my $storage = $storage_class->new($self=>$args);
   $storage->connect_info(\@info);
   $self->storage($storage);
@@ -888,31 +904,51 @@ will produce the output
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
+
   my $schema = $self->clone;
+
+  $schema->source_registrations({});
+
+  # the original class-mappings must remain - otherwise
+  # reverse_relationship_info will not work
+  #$schema->class_mappings({});
+
   {
     no warnings qw/redefine/;
-#    local *Class::C3::reinitialize = sub { };
-    foreach my $moniker ($schema->sources) {
-      my $source = $schema->source($moniker);
+    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
+    use warnings qw/redefine/;
+
+    no strict qw/refs/;
+    foreach my $moniker ($self->sources) {
+      my $orig_source = $self->source($moniker);
+
       my $target_class = "${target}::${moniker}";
-      $self->inject_base(
-        $target_class => $source->result_class, ($base ? $base : ())
+      $self->inject_base($target_class, $orig_source->result_class, ($base || ()) );
+
+      # register_source examines result_class, and then returns us a clone
+      my $new_source = $schema->register_source($moniker, bless
+        { %$orig_source, result_class => $target_class },
+        ref $orig_source,
       );
-      $source->result_class($target_class);
-      $target_class->result_source_instance($source)
-        if $target_class->can('result_source_instance');
-     $schema->register_source($moniker, $source);
+
+      if ($target_class->can('result_source_instance')) {
+        # give the class a schema-less source copy
+        $target_class->result_source_instance( bless
+          { %$new_source, schema => ref $new_source->{schema} || $new_source->{schema} },
+          ref $new_source,
+        );
+      }
     }
-  }
-#  Class::C3->reinitialize();
-  {
-    no strict 'refs';
-    no warnings 'redefine';
+
     foreach my $meth (qw/class source resultset/) {
-      *{"${target}::${meth}"} = Sub::Name::subname "${target}::${meth}" =>
+      no warnings 'redefine';
+      *{"${target}::${meth}"} = subname "${target}::${meth}" =>
         sub { shift->schema->$meth(@_) };
     }
   }
+
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
   return $schema;
 }
 
@@ -925,9 +961,9 @@ sub setup_connection_class {
 
 =head2 svp_begin
 
-Creates a new savepoint (does nothing outside a transaction). 
+Creates a new savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_begin.  See
-L<DBIx::Class::Storage::DBI/"svp_begin"> for more information.
+L<DBIx::Class::Storage/"svp_begin"> for more information.
 
 =cut
 
@@ -942,9 +978,9 @@ sub svp_begin {
 
 =head2 svp_release
 
-Releases a savepoint (does nothing outside a transaction). 
+Releases a savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_release.  See
-L<DBIx::Class::Storage::DBI/"svp_release"> for more information.
+L<DBIx::Class::Storage/"svp_release"> for more information.
 
 =cut
 
@@ -959,9 +995,9 @@ sub svp_release {
 
 =head2 svp_rollback
 
-Rollback to a savepoint (does nothing outside a transaction). 
+Rollback to a savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_rollback.  See
-L<DBIx::Class::Storage::DBI/"svp_rollback"> for more information.
+L<DBIx::Class::Storage/"svp_rollback"> for more information.
 
 =cut
 
@@ -978,31 +1014,54 @@ sub svp_rollback {
 
 =over 4
 
+=item Arguments: %attrs?
+
 =item Return Value: $new_schema
 
 =back
 
 Clones the schema and its associated result_source objects and returns the
-copy.
+copy. The resulting copy will have the same attributes as the source schema,
+except for those attributes explicitly overriden by the provided C<%attrs>.
 
 =cut
 
 sub clone {
-  my ($self) = @_;
-  my $clone = { (ref $self ? %$self : ()) };
+  my $self = shift;
+
+  my $clone = {
+      (ref $self ? %$self : ()),
+      (@_ == 1 && ref $_[0] eq 'HASH' ? %{ $_[0] } : @_),
+  };
   bless $clone, (ref $self || $self);
 
-  $clone->class_mappings({ %{$clone->class_mappings} });
-  $clone->source_registrations({ %{$clone->source_registrations} });
-  foreach my $moniker ($self->sources) {
-    my $source = $self->source($moniker);
+  $clone->$_(undef) for qw/class_mappings source_registrations storage/;
+
+  $clone->_copy_state_from($self);
+
+  return $clone;
+}
+
+# Needed in Schema::Loader - if you refactor, please make a compatibility shim
+# -- Caelum
+sub _copy_state_from {
+  my ($self, $from) = @_;
+
+  $self->class_mappings({ %{$from->class_mappings} });
+  $self->source_registrations({ %{$from->source_registrations} });
+
+  foreach my $moniker ($from->sources) {
+    my $source = $from->source($moniker);
     my $new = $source->new($source);
     # we use extra here as we want to leave the class_mappings as they are
     # but overwrite the source_registrations entry with the new source
-    $clone->register_extra_source($moniker => $new);
+    $self->register_extra_source($moniker => $new);
   }
-  $clone->storage->set_schema($clone) if $clone->storage;
-  return $clone;
+
+  if ($from->storage) {
+    $self->storage($from->storage);
+    $self->storage->set_schema($self);
+  }
 }
 
 =head2 throw_exception
@@ -1013,18 +1072,36 @@ sub clone {
 
 =back
 
-Throws an exception. Defaults to using L<Carp::Clan> to report errors from
-user's perspective.  See L</exception_action> for details on overriding
+Throws an exception. Obeys the exemption rules of L<DBIx::Class::Carp> to report
+errors from outer-user's perspective. See L</exception_action> for details on overriding
 this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>'s
 default behavior will provide a detailed stack trace.
 
 =cut
 
+my $false_exception_action_warned;
 sub throw_exception {
   my $self = shift;
 
-  DBIx::Class::Exception->throw($_[0], $self->stacktrace)
-    if !$self->exception_action || !$self->exception_action->(@_);
+  if (my $act = $self->exception_action) {
+    if ($act->(@_)) {
+      DBIx::Class::Exception->throw(
+          "Invocation of the exception_action handler installed on $self did *not*"
+        .' result in an exception. DBIx::Class is unable to function without a reliable'
+        .' exception mechanism, ensure that exception_action does not hide exceptions'
+        ." (original error: $_[0])"
+      );
+    }
+    elsif(! $false_exception_action_warned++) {
+      carp (
+          "The exception_action handler installed on $self returned false instead"
+        .' of throwing an exception. This behavior has been deprecated, adjust your'
+        .' handler to always rethrow the supplied error.'
+      );
+    }
+  }
+
+  DBIx::Class::Exception->throw($_[0], $self->stacktrace);
 }
 
 =head2 deploy
@@ -1043,8 +1120,8 @@ to have the SQL produced include a C<DROP TABLE> statement for each table
 created. For quoting purposes supply C<quote_table_names> and
 C<quote_field_names>.
 
-Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
-ref or an array ref, containing a list of source to deploy. If present, then 
+Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash
+ref or an array ref, containing a list of source to deploy. If present, then
 only the sources listed will get deployed. Furthermore, you can use the
 C<add_fk_index> parser parameter to prevent the parser from creating an index for each
 FK.
@@ -1091,7 +1168,7 @@ sub deployment_statements {
 
 =back
 
-A convenient shortcut to 
+A convenient shortcut to
 C<< $self->storage->create_ddl_dir($self, @args) >>.
 
 Creates an SQL file based on the Schema, for each of the specified
@@ -1132,7 +1209,7 @@ format.
     my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
 
  In recent versions variables $dir and $version were reversed in order to
- bring the signature in line with other Schema/Storage methods. If you 
+ bring the signature in line with other Schema/Storage methods. If you
  really need to maintain backward compatibility, you can do the following
  in any overriding methods:
 
@@ -1143,17 +1220,19 @@ format.
 sub ddl_filename {
   my ($self, $type, $version, $dir, $preversion) = @_;
 
-  my $filename = ref($self);
-  $filename =~ s/::/-/g;
-  $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
-  $filename =~ s/$version/$preversion-$version/ if($preversion);
+  require File::Spec;
 
-  return $filename;
+  $version = "$preversion-$version" if $preversion;
+
+  my $class = blessed($self) || $self;
+  $class =~ s/::/-/g;
+
+  return File::Spec->catfile($dir, "$class-$version-$type.sql");
 }
 
 =head2 thaw
 
-Provided as the recommended way of thawing schema objects. You can call 
+Provided as the recommended way of thawing schema objects. You can call
 C<Storable::thaw> directly if you wish, but the thawed objects will not have a
 reference to any schema, so are rather useless.
 
@@ -1162,18 +1241,20 @@ reference to any schema, so are rather useless.
 sub thaw {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  require Storable;
   return Storable::thaw($obj);
 }
 
 =head2 freeze
 
-This doesn't actually do anything more than call L<Storable/freeze>, it is just
+This doesn't actually do anything more than call L<Storable/nfreeze>, it is just
 provided here for symmetry.
 
 =cut
 
 sub freeze {
-  return Storable::freeze($_[1]);
+  require Storable;
+  return Storable::nfreeze($_[1]);
 }
 
 =head2 dclone
@@ -1195,6 +1276,7 @@ objects so their references to the schema object
 sub dclone {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  require Storable;
   return Storable::dclone($obj);
 }
 
@@ -1230,7 +1312,7 @@ sub schema_version {
 
 =back
 
-This method is called by L</load_namespaces> and L</load_classes> to install the found classes into your Schema. You should be using those instead of this one. 
+This method is called by L</load_namespaces> and L</load_classes> to install the found classes into your Schema. You should be using those instead of this one.
 
 You will only need this method if you have your Result classes in
 files which are not named after the packages (or all in the same
@@ -1263,11 +1345,7 @@ moniker.
 
 =cut
 
-sub register_source {
-  my $self = shift;
-
-  $self->_register_source(@_);
-}
+sub register_source { shift->_register_source(@_) }
 
 =head2 unregister_source
 
@@ -1281,11 +1359,7 @@ Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
 
 =cut
 
-sub unregister_source {
-  my $self = shift;
-
-  $self->_unregister_source(@_);
-}
+sub unregister_source { shift->_unregister_source(@_) }
 
 =head2 register_extra_source
 
@@ -1295,52 +1369,84 @@ sub unregister_source {
 
 =back
 
-As L</register_source> but should be used if the result class already 
+As L</register_source> but should be used if the result class already
 has a source and you want to register an extra one.
 
 =cut
 
-sub register_extra_source {
-  my $self = shift;
-
-  $self->_register_source(@_, { extra => 1 });
-}
+sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
-  my $orig_source = $source;
-
   $source = $source->new({ %$source, source_name => $moniker });
-  $source->schema($self);
-  Scalar::Util::weaken($source->{schema}) if ref($self);
 
-  my $rs_class = $source->result_class;
+  $source->schema($self);
+  weaken $source->{schema} if ref($self);
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
 
-  return if ($params->{extra});
-  return unless defined($rs_class) && $rs_class->can('result_source_instance');
+  return $source if $params->{extra};
 
-  my %map = %{$self->class_mappings};
-  if (
-    exists $map{$rs_class}
-      and
-    $map{$rs_class} ne $moniker
-      and
-    $rs_class->result_source_instance ne $orig_source
-  ) {
-    carp "$rs_class already has a source, use register_extra_source for additional sources";
+  my $rs_class = $source->result_class;
+  if ($rs_class and my $rsrc = try { $rs_class->result_source_instance } ) {
+    my %map = %{$self->class_mappings};
+    if (
+      exists $map{$rs_class}
+        and
+      $map{$rs_class} ne $moniker
+        and
+      $rsrc ne $_[2]  # orig_source
+    ) {
+      carp
+        "$rs_class already had a registered source which was replaced by this call. "
+      . 'Perhaps you wanted register_extra_source(), though it is more likely you did '
+      . 'something wrong.'
+      ;
+    }
+
+    $map{$rs_class} = $moniker;
+    $self->class_mappings(\%map);
   }
-  $map{$rs_class} = $moniker;
-  $self->class_mappings(\%map);
+
+  return $source;
+}
+
+my $global_phase_destroy;
+sub DESTROY {
+  return if $global_phase_destroy ||= in_global_destruction;
+
+  my $self = shift;
+  my $srcs = $self->source_registrations;
+
+  for my $moniker (keys %$srcs) {
+    # find first source that is not about to be GCed (someone other than $self
+    # holds a reference to it) and reattach to it, weakening our own link
+    #
+    # during global destruction (if we have not yet bailed out) this should throw
+    # which will serve as a signal to not try doing anything else
+    # however beware - on older perls the exception seems randomly untrappable
+    # due to some weird race condition during thread joining :(((
+    if (ref $srcs->{$moniker} and svref_2object($srcs->{$moniker})->REFCNT > 1) {
+      local $@;
+      eval {
+        $srcs->{$moniker}->schema($self);
+        weaken $srcs->{$moniker};
+        1;
+      } or do {
+        $global_phase_destroy = 1;
+      };
+
+      last;
+    }
+  }
 }
 
 sub _unregister_source {
     my ($self, $moniker) = @_;
-    my %reg = %{$self->source_registrations}; 
+    my %reg = %{$self->source_registrations};
 
     my $source = delete $reg{$moniker};
     $self->source_registrations(\%reg);
@@ -1386,52 +1492,51 @@ more information.
 
 =cut
 
-{
-  my $warn;
+sub compose_connection {
+  my ($self, $target, @info) = @_;
 
-  sub compose_connection {
-    my ($self, $target, @info) = @_;
+  carp_once "compose_connection deprecated as of 0.08000"
+    unless $INC{"DBIx/Class/CDBICompat.pm"};
 
-    carp "compose_connection deprecated as of 0.08000"
-      unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
-
-    my $base = 'DBIx::Class::ResultSetProxy';
-    eval "require ${base};";
-    $self->throw_exception
-      ("No arguments to load_classes and couldn't load ${base} ($@)")
-        if $@;
-
-    if ($self eq $target) {
-      # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
-      foreach my $moniker ($self->sources) {
-        my $source = $self->source($moniker);
-        my $class = $source->result_class;
-        $self->inject_base($class, $base);
-        $class->mk_classdata(resultset_instance => $source->resultset);
-        $class->mk_classdata(class_resolver => $self);
-      }
-      $self->connection(@info);
-      return $self;
-    }
-
-    my $schema = $self->compose_namespace($target, $base);
-    {
-      no strict 'refs';
-      my $name = join '::', $target, 'schema';
-      *$name = Sub::Name::subname $name, sub { $schema };
-    }
-
-    $schema->connection(@info);
-    foreach my $moniker ($schema->sources) {
-      my $source = $schema->source($moniker);
-      my $class = $source->result_class;
-      #warn "$moniker $class $source ".$source->storage;
-      $class->mk_classdata(result_source_instance => $source);
-      $class->mk_classdata(resultset_instance => $source->resultset);
-      $class->mk_classdata(class_resolver => $schema);
-    }
-    return $schema;
+  my $base = 'DBIx::Class::ResultSetProxy';
+  try {
+    eval "require ${base};"
   }
+  catch {
+    $self->throw_exception
+      ("No arguments to load_classes and couldn't load ${base} ($_)")
+  };
+
+  if ($self eq $target) {
+    # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
+    foreach my $moniker ($self->sources) {
+      my $source = $self->source($moniker);
+      my $class = $source->result_class;
+      $self->inject_base($class, $base);
+      $class->mk_classdata(resultset_instance => $source->resultset);
+      $class->mk_classdata(class_resolver => $self);
+    }
+    $self->connection(@info);
+    return $self;
+  }
+
+  my $schema = $self->compose_namespace($target, $base);
+  {
+    no strict 'refs';
+    my $name = join '::', $target, 'schema';
+    *$name = subname $name, sub { $schema };
+  }
+
+  $schema->connection(@info);
+  foreach my $moniker ($schema->sources) {
+    my $source = $schema->source($moniker);
+    my $class = $source->result_class;
+    #warn "$moniker $class $source ".$source->storage;
+    $class->mk_classdata(result_source_instance => $source);
+    $class->mk_classdata(resultset_instance => $source->resultset);
+    $class->mk_classdata(class_resolver => $schema);
+  }
+  return $schema;
 }
 
 1;

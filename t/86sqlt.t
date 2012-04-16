@@ -5,6 +5,8 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+use Scalar::Util 'blessed';
+
 BEGIN {
   require DBIx::Class;
   plan skip_all =>
@@ -20,13 +22,11 @@ sub DBICTest::Schema::deployment_statements {
   return $self->next::method(@_);
 }
 
-my $schema = DBICTest->init_schema (no_deploy => 1);
-
 
 # Check deployment statements ctx sensitivity
 {
+  my $schema = DBICTest->init_schema (no_deploy => 1);
   my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
-
 
   my $statements = $schema->deployment_statements;
   like (
@@ -50,10 +50,45 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
   );
 }
 
+{
+  # use our own throw-away schema, since we'll be deploying twice
+  my $schema = DBICTest->init_schema (no_deploy => 1);
 
+  my $deploy_hook_called = 0;
+  $custom_deployment_statements_called = 0;
+
+  # add a temporary sqlt_deploy_hook to a source
+  local $DBICTest::Schema::Track::hook_cb = sub {
+    my ($class, $sqlt_table) = @_;
+
+    $deploy_hook_called = 1;
+
+    is ($class, 'DBICTest::Track', 'Result class passed to plain hook');
+
+    is (
+      $sqlt_table->schema->translator->producer_type,
+      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      'Production type passed to translator object',
+    );
+  };
+
+  my $component_deploy_hook_called = 0;
+  local $DBICTest::DeployComponent::hook_cb = sub {
+    $component_deploy_hook_called = 1;
+  };
+
+  $schema->deploy; # do not remove, this fires the is() test in the callback above
+  ok($deploy_hook_called, 'deploy hook got called');
+  ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
+  ok($component_deploy_hook_called, 'component deploy hook got called');
+}
+
+my $schema = DBICTest->init_schema (no_deploy => 1);
 
 {
   my $deploy_hook_called = 0;
+  $custom_deployment_statements_called = 0;
+  my $sqlt_type = $schema->storage->sqlt_type;
 
   # replace the sqlt calback with a custom version ading an index
   $schema->source('Track')->sqlt_deploy_callback(sub {
@@ -63,11 +98,11 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 
     is (
       $sqlt_table->schema->translator->producer_type,
-      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      join ('::', 'SQL::Translator::Producer', $sqlt_type),
       'Production type passed to translator object',
     );
 
-    if ($schema->storage->sqlt_type eq 'SQLite' ) {
+    if ($sqlt_type eq 'SQLite' ) {
       $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
         or die $sqlt_table->error;
     }
@@ -81,7 +116,7 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 }
 
 
-my $translator = SQL::Translator->new( 
+my $translator = SQL::Translator->new(
   parser_args => {
     'DBIx::Schema' => $schema,
   },
@@ -125,15 +160,15 @@ my %fk_constraints = (
     {
       'display' => 'twokeys->cd',
       'name' => 'twokeys_fk_cd', 'index_name' => 'twokeys_idx_cd',
-      'selftable' => 'twokeys', 'foreigntable' => 'cd', 
-      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
+      'selftable' => 'twokeys', 'foreigntable' => 'cd',
+      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       'noindex'  => 1,
       on_delete => '', on_update => '', deferrable => 0,
     },
     {
       'display' => 'twokeys->artist',
       'name' => 'twokeys_fk_artist', 'index_name' => 'twokeys_idx_artist',
-      'selftable' => 'twokeys', 'foreigntable' => 'artist', 
+      'selftable' => 'twokeys', 'foreigntable' => 'artist',
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
@@ -144,16 +179,16 @@ my %fk_constraints = (
     {
       'display' => 'fourkeys_to_twokeys->twokeys',
       'name' => 'fourkeys_to_twokeys_fk_t_artist_t_cd', 'index_name' => 'fourkeys_to_twokeys_idx_t_artist_t_cd',
-      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
-      'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
+      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys',
+      'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'fourkeys_to_twokeys_idx_f_foo_f_bar_f_hello_f_goodbye',
       'name' => 'fourkeys_to_twokeys_fk_f_foo_f_bar_f_hello_f_goodbye',
-      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
+      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys',
       'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
-      'foreigncols' => [qw(foo bar hello goodbye)], 
+      'foreigncols' => [qw(foo bar hello goodbye)],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],
@@ -163,14 +198,14 @@ my %fk_constraints = (
     {
       'display' => 'cd_to_producer->cd',
       'name' => 'cd_to_producer_fk_cd', 'index_name' => 'cd_to_producer_idx_cd',
-      'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
+      'selftable' => 'cd_to_producer', 'foreigntable' => 'cd',
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'cd_to_producer->producer',
       'name' => 'cd_to_producer_fk_producer', 'index_name' => 'cd_to_producer_idx_producer',
-      'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
+      'selftable' => 'cd_to_producer', 'foreigntable' => 'producer',
       'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
       on_delete => '', on_update => '', deferrable => 1,
     },
@@ -181,14 +216,14 @@ my %fk_constraints = (
     {
       'display' => 'self_ref_alias->self_ref for self_ref',
       'name' => 'self_ref_alias_fk_self_ref', 'index_name' => 'self_ref_alias_idx_self_ref',
-      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
+      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref',
       'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'self_ref_alias->self_ref for alias',
       'name' => 'self_ref_alias_fk_alias', 'index_name' => 'self_ref_alias_idx_alias',
-      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
+      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref',
       'selfcols'  => ['alias'], 'foreigncols' => ['id'],
       on_delete => '', on_update => '', deferrable => 1,
     },
@@ -199,7 +234,7 @@ my %fk_constraints = (
     {
       'display' => 'cd->artist',
       'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
-      'selftable' => 'cd', 'foreigntable' => 'artist', 
+      'selftable' => 'cd', 'foreigntable' => 'artist',
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
@@ -210,14 +245,14 @@ my %fk_constraints = (
     {
       'display' => 'artist_undirected_map->artist for id1',
       'name' => 'artist_undirected_map_fk_id1', 'index_name' => 'artist_undirected_map_idx_id1',
-      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
+      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist',
       'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
       on_delete => 'RESTRICT', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'artist_undirected_map->artist for id2',
       'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'artist_undirected_map_idx_id2',
-      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
+      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist',
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
       on_delete => '', on_update => '', deferrable => 1,
     },
@@ -228,7 +263,7 @@ my %fk_constraints = (
     {
       'display' => 'track->cd',
       'name' => 'track_fk_cd', 'index_name' => 'track_idx_cd',
-      'selftable' => 'track', 'foreigntable' => 'cd', 
+      'selftable' => 'track', 'foreigntable' => 'cd',
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
@@ -239,7 +274,7 @@ my %fk_constraints = (
     {
       'display' => 'treelike->treelike for parent',
       'name' => 'treelike_fk_parent', 'index_name' => 'treelike_idx_parent',
-      'selftable' => 'treelike', 'foreigntable' => 'treelike', 
+      'selftable' => 'treelike', 'foreigntable' => 'treelike',
       'selfcols'  => ['parent'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
@@ -250,7 +285,7 @@ my %fk_constraints = (
     {
       'display' => 'twokeytreelike->twokeytreelike for parent1,parent2',
       'name' => 'twokeytreelike_fk_parent1_parent2', 'index_name' => 'twokeytreelike_idx_parent1_parent2',
-      'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike', 
+      'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike',
       'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
       on_delete => '', on_update => '', deferrable => 1,
     },
@@ -261,7 +296,7 @@ my %fk_constraints = (
     {
       'display' => 'tags->cd',
       'name' => 'tags_fk_cd', 'index_name' => 'tags_idx_cd',
-      'selftable' => 'tags', 'foreigntable' => 'cd', 
+      'selftable' => 'tags', 'foreigntable' => 'cd',
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
@@ -272,7 +307,7 @@ my %fk_constraints = (
     {
       'display' => 'bookmark->link',
       'name' => 'bookmark_fk_link', 'index_name' => 'bookmark_idx_link',
-      'selftable' => 'bookmark', 'foreigntable' => 'link', 
+      'selftable' => 'bookmark', 'foreigntable' => 'link',
       'selfcols'  => ['link'], 'foreigncols' => ['id'],
       on_delete => 'SET NULL', on_update => 'CASCADE', deferrable => 1,
     },
@@ -282,8 +317,8 @@ my %fk_constraints = (
     {
       'display' => 'forceforeign->artist',
       'name' => 'forceforeign_fk_artist', 'index_name' => 'forceforeign_idx_artist',
-      'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
-      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'], 
+      'selftable' => 'forceforeign', 'foreigntable' => 'artist',
+      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
       'noindex'  => 1,
       on_delete => '', on_update => '', deferrable => 1,
     },
@@ -353,7 +388,7 @@ SKIP: {
     skip ('Artist sqlt_deploy_hook is only called with an SQLite backend', 1)
         if $schema->storage->sqlt_type ne 'SQLite';
 
-    ok( ( grep 
+    ok( ( grep
         { $_->name eq 'artist_name_hookidx' }
         $tschema->get_table('artist')->get_indices
     ), 'sqlt_deploy_hook fired within a resultsource');
@@ -454,7 +489,7 @@ sub get_index {
 
  CAND_INDEX:
   for my $cand_index ( $table->get_indices ) {
-   
+
     next CAND_INDEX if $index->{name} && $cand_index->name ne $index->{name}
                     || $index->{type} && $cand_index->type ne $index->{type};
 

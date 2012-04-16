@@ -29,7 +29,8 @@ converted to:
 
   CAST(? as $mapped_type)
 
-This option can also be enabled in L<DBIx::Class::Storage::DBI/connect_info> as:
+This option can also be enabled in
+L<connect_info|DBIx::Class::Storage::DBI/connect_info> as:
 
   on_connect_call => ['set_auto_cast']
 
@@ -37,7 +38,6 @@ This option can also be enabled in L<DBIx::Class::Storage::DBI/connect_info> as:
 
 sub _prep_for_execute {
   my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method (@_);
 
@@ -45,20 +45,12 @@ sub _prep_for_execute {
 # gets skippeed.
   if ($self->auto_cast && @$bind) {
     my $new_sql;
-    my @sql_part = split /\?/, $sql;
-    my $col_info = $self->_resolve_column_info($ident,[ map $_->[0], @$bind ]);
-
-    foreach my $bound (@$bind) {
-      my $col = $bound->[0];
-      my $type = $self->_native_data_type($col_info->{$col}{data_type});
-
-      foreach my $data (@{$bound}[1..$#$bound]) {
-        $new_sql .= shift(@sql_part) .
-          ($type ? "CAST(? AS $type)" : '?');
-      }
+    my @sql_part = split /\?/, $sql, scalar @$bind + 1;
+    for (@$bind) {
+      my $cast_type = $self->_native_data_type($_->[0]{sqlt_datatype});
+      $new_sql .= shift(@sql_part) . ($cast_type ? "CAST(? AS $cast_type)" : '?');
     }
-    $new_sql .= join '', @sql_part;
-    $sql = $new_sql;
+    $sql = $new_sql . shift @sql_part;
   }
 
   return ($sql, $bind);
@@ -76,7 +68,7 @@ Used as:
 
     on_connect_call => ['set_auto_cast']
 
-in L<DBIx::Class::Storage::DBI/connect_info>.
+in L<connect_info|DBIx::Class::Storage::DBI/connect_info>.
 
 =cut
 

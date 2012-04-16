@@ -1,7 +1,6 @@
 use warnings;
 
 use Test::More;
-use Test::Exception;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 use DBICTest;
@@ -39,7 +38,7 @@ is_same_sql_bind (
       JOIN artist artist ON artist.artistid = me.artist
       LEFT JOIN cd cds ON cds.artist = artist.artistid
       LEFT JOIN artist artist_2 ON artist_2.artistid = cds.artist
-    ORDER BY cds.artist, cds.year
+    ORDER BY cds.artist, cds.year ASC
   )',
   [],
 );

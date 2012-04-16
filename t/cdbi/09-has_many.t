@@ -1,15 +1,6 @@
 use strict;
 use Test::More;
 
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => 'Class::Trigger and DBIx::ContextualFetch required' if $@;
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 31);
-}
-
-
 use lib 't/cdbi/testlib';
 use Film;
 use Actor;
@@ -125,3 +116,5 @@ is($as->Name, 'Arnold Schwarzenegger', "Arnie's still Arnie");
 
     is_deeply [sort map { $_->id } $other_thing->things], [1,2];
 }
+
+done_testing;

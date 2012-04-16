@@ -96,10 +96,31 @@ this will attempt to upgrade the database from its current version to the curren
 schema version using a diff from your I<upgrade_directory>. If a suitable diff is
 not found then no upgrade is possible.
 
-NB: At the moment, only SQLite and MySQL are supported. This is due to
-spotty behaviour in the SQL::Translator producers, please help us by
-enhancing them. Ask on the mailing list or IRC channel for details (community details
-in L<DBIx::Class>).
+=head1 SEE ALSO
+
+L<DBIx::Class::DeploymentHandler> is a much more powerful alternative to this
+module.  Examples of things it can do that this module cannot do include
+
+=over
+
+=item *
+
+Downgrades in addition to upgrades
+
+=item *
+
+Multiple sql files files per upgrade/downgrade/install
+
+=item *
+
+Perl scripts allowed for upgrade/downgrade/install
+
+=item *
+
+Just one set of files needed for upgrade, unlike this module where one might
+need to generate C<factorial(scalar @versions)>
+
+=back
 
 =head1 GETTING STARTED
 
@@ -180,8 +201,10 @@ use strict;
 use warnings;
 use base 'DBIx::Class::Schema';
 
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Time::HiRes qw/gettimeofday/;
+use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -225,7 +248,7 @@ sub install
 
   # must be called on a fresh database
   if ($self->get_db_version()) {
-    carp 'Install not possible as versions table already exists in database';
+      $self->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
   }
 
   # default to current version if none passed
@@ -323,7 +346,7 @@ sub upgrade {
 
     # db and schema at same version. do nothing
     if ( $db_version eq $self->schema_version ) {
-        carp "Upgrade not necessary\n";
+        carp 'Upgrade not necessary';
         return;
     }
 
@@ -394,7 +417,7 @@ sub upgrade_single_step
 
   # db and schema at same version. do nothing
   if ($db_version eq $target_version) {
-    carp "Upgrade not necessary\n";
+    carp 'Upgrade not necessary';
     return;
   }
 
@@ -414,7 +437,7 @@ sub upgrade_single_step
   $self->create_upgrade_path({ upgrade_file => $upgrade_file });
 
   unless (-f $upgrade_file) {
-    carp "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
+    carp "Upgrade not possible, no upgrade file found ($upgrade_file), please create one";
     return;
   }
 
@@ -503,7 +526,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
+    my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
@@ -558,30 +581,30 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect($_[3]);
+  $self->_on_connect();
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self, $args) = @_;
+  my ($self) = @_;
 
-  $args = {} unless $args;
+  my $conn_info = $self->storage->connect_info;
+  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
-  $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
 
   # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
+  return if ($conn_attrs->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $conn_attrs->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = $vschema_compat->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
-      $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+      $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
 
@@ -589,18 +612,18 @@ sub _on_connect
 
   if($pversion eq $self->schema_version)
     {
-#         carp "This version is already installed\n";
+        #carp "This version is already installed";
         return 1;
     }
 
   if(!$pversion)
     {
-        carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
+        carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.";
         return 1;
     }
 
   carp "Versions out of sync. This is " . $self->schema_version .
-    ", your database contains version $pversion, please call upgrade on your Schema.\n";
+    ", your database contains version $pversion, please call upgrade on your Schema.";
 }
 
 # is this just a waste of time? if not then merge with DBI.pm
@@ -661,7 +684,7 @@ sub _create_db_to_schema_diff {
   print $file $diff;
   close($file);
 
-  carp "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
+  carp "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.";
 }
 
 
@@ -681,13 +704,13 @@ sub _set_db_version {
   # This is necessary since there are legitimate cases when upgrades can happen
   # back to back within the same second. This breaks things since we relay on the
   # ability to sort by the 'installed' value. The logical choice of an autoinc
-  # is not possible, as it will break multiple legacy installations. Also it is 
+  # is not possible, as it will break multiple legacy installations. Also it is
   # not possible to format the string sanely, as the column is a varchar(20).
   # The 'v' character is added to the front of the string, so that any version
   # formatted by this new function will sort _after_ any existing 200... strings.
   my @tm = gettimeofday();
   my @dt = gmtime ($tm[0]);
-  my $o = $vtable->create({ 
+  my $o = $vtable->create({
     version => $version,
     installed => sprintf("v%04d%02d%02d_%02d%02d%02d.%03.0f",
       $dt[5] + 1900,
@@ -696,7 +719,7 @@ sub _set_db_version {
       $dt[2],
       $dt[1],
       $dt[0],
-      $tm[1] / 1000, # convert to millisecs, format as up/down rounded int above
+      int($tm[1] / 1000), # convert to millisecs
     ),
   });
 }
@@ -709,12 +732,12 @@ sub _read_sql_file {
   my @data = split /\n/, join '', <$fh>;
   close $fh;
 
-  @data = grep {
-     $_ &&
-     !/^--/ &&
-     !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/m
-  } split /;/,
-     join '', @data;
+  @data = split /;/,
+     join '',
+       grep { $_ &&
+              !/^--/  &&
+              !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/mi }
+         @data;
 
   return \@data;
 }
@@ -723,12 +746,12 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = eval {
-        $rs->search({ 1, 0 })->count;
+    return try {
+      $rs->search(\'1=0')->cursor->next;
+      1;
+    } catch {
+      0;
     };
-    return 0 if $@ || !defined $c;
-
-    return 1;
 }
 
 1;

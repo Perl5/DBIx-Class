@@ -6,7 +6,7 @@ use warnings;
 use base qw( DBIx::Class::Storage::DBI::Oracle::Generic );
 use mro 'c3';
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::OracleJoins');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::OracleJoins');
 
 1;
 
@@ -21,9 +21,8 @@ support (instead of ANSI).
 
 =head1 PURPOSE
 
-This module was originally written to support Oracle < 9i where ANSI joins
-weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.
+This module is used with Oracle < 9.0 due to lack of support for standard
+ANSI join syntax.
 
 =head1 SYNOPSIS
 
@@ -48,7 +47,7 @@ it's already too late.
 
 =head1 METHODS
 
-See L<DBIx::Class::SQLAHacks::OracleJoins> for implementation details.
+See L<DBIx::Class::SQLMaker::OracleJoins> for implementation details.
 
 =head1 BUGS
 
@@ -59,9 +58,9 @@ Probably lots more.
 
 =over
 
-=item L<DBIx::Class::SQLAHacks>
+=item L<DBIx::Class::SQLMaker>
 
-=item L<DBIx::Class::SQLAHacks::OracleJoins>
+=item L<DBIx::Class::SQLMaker::OracleJoins>
 
 =item L<DBIx::Class::Storage::DBI::Oracle::Generic>
 

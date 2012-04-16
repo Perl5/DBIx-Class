@@ -12,6 +12,8 @@ use mro 'c3';
 sub _init {
   my $self = shift;
   $self->disable_sth_caching(1);
+
+  $self->next::method(@_);
 }
 
 1;

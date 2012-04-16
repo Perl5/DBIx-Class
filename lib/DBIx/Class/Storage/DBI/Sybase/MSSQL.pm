@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::Sybase::MSSQL;
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 
 carp 'Setting of storage_type is redundant as connections through DBD::Sybase'
     .' are now properly recognized and reblessed into the appropriate subclass'
@@ -36,11 +36,6 @@ This subclass supports MSSQL connected via L<DBD::Sybase>.
 
   $schema->storage_type('::DBI::Sybase::MSSQL');
   $schema->connect_info('dbi:Sybase:....', ...);
-
-=head1 BUGS
-
-Currently, this doesn't work right unless you call C<Class::C3::reinitialize()>
-after connecting.
 
 =head1 AUTHORS
 

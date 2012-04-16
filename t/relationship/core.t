@@ -79,19 +79,20 @@ my $track = $schema->resultset("Track")->create( {
 } );
 $track->set_from_related( cd => $cd );
 
+# has_relationship
+ok(! $track->has_relationship( 'foo' ), 'Track has no relationship "foo"');
+ok($track->has_relationship( 'disc' ), 'Track has relationship "disk"' );
+
 is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 
 $track->set_from_related( cd => undef );
 
 ok( !defined($track->cd), 'set_from_related with undef ok');
 
-TODO: {
-    local $TODO = 'accessing $object->rel and set_from_related';
-    my $track = $schema->resultset("Track")->new( {} );
-    $track->cd;
-    $track->set_from_related( cd => $cd ); 
-    ok ($track->cd, 'set_from_related ok after using the accessor' );
-};
+$track = $schema->resultset("Track")->new( {} );
+$track->cd;
+$track->set_from_related( cd => $cd );
+ok ($track->cd, 'set_from_related ok after using the accessor' );
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
 $track = $schema->resultset("Track")->create( {
@@ -101,7 +102,7 @@ $track = $schema->resultset("Track")->create( {
 } );
 $track->update_from_related( cd => $cd );
 
-my $t_cd = ($schema->resultset("Track")->search( cd => 4, title => 'Hidden Track 2' ))[0]->cd;
+my $t_cd = ($schema->resultset("Track")->search({ cd => 4, title => 'Hidden Track 2' }))[0]->cd;
 
 is( $t_cd->cdid, 4, 'update_from_related ok' );
 
@@ -120,7 +121,7 @@ is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
 is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
 
 $artist->delete_related( cds => { title => 'Greatest Hits' });
-cmp_ok( $schema->resultset("CD")->search( title => 'Greatest Hits' ), '==', 0, 'delete_related ok' );
+cmp_ok( $schema->resultset("CD")->search({ title => 'Greatest Hits' }), '==', 0, 'delete_related ok' );
 
 # find_or_new_related with an existing record
 $cd = $artist->find_or_new_related( 'cds', { title => 'Big Flop' } );
@@ -143,8 +144,8 @@ my $newartist = $cd->find_or_new_related( 'artist', {
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-lives_ok( 
-    sub { 
+lives_ok(
+    sub {
         my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
         my $new_related_link = $new_bookmark->new_related( 'link', {} );
     },
@@ -155,20 +156,18 @@ lives_ok(
 TODO: {
   local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
-  eval {
+  throws_ok {
       DBICTest::Schema::Artist->add_relationship(
           tracks => 'DBICTest::Schema::Track',
           { 'foreign.cd' => 'self.cdid' }
       );
-  };
-  like($@, qr/Unknown column/, 'failed when creating a rel with invalid key, ok');
+  } qr/Unknown column/, 'failed when creating a rel with invalid key, ok';
 }
-  
+
 # another bogus relationship using no join condition
-eval {
+throws_ok {
     DBICTest::Schema::Artist->add_relationship( tracks => 'DBICTest::Track' );
-};
-like($@, qr/join condition/, 'failed when creating a rel without join condition, ok');
+} qr/join condition/, 'failed when creating a rel without join condition, ok';
 
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
@@ -176,7 +175,7 @@ my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 is( $cd->producers_sorted->next->name, 'Bob The Builder',
     'sorted many_to_many ok' );
-is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype',
+is( $cd->producers_sorted({producerid => 3})->next->name, 'Fred The Phenotype',
     'sorted many_to_many with search condition ok' );
 
 $cd = $schema->resultset('CD')->find(2);
@@ -209,22 +208,23 @@ is( $prod_rs->first->name, 'Testy McProducer',
 $cd->add_to_producers({ name => 'Jack Black' });
 is( $prod_rs->count(), 2, 'many_to_many add_to_$rel($hash) count ok' );
 $cd->set_producers($schema->resultset('Producer')->all);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(@objs) count ok' );
 $cd->set_producers($schema->resultset('Producer')->find(1));
 is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->all]);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);
 is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
 
-eval { $cd->remove_from_producers({ fake => 'hash' }); };
-like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );
+throws_ok {
+  $cd->remove_from_producers({ fake => 'hash' })
+} qr/needs an object/, 'remove_from_$rel($hash) dies correctly';
 
-eval { $cd->add_to_producers(); };
-like( $@, qr/needs an object or hashref/,
-      'add_to_$rel(undef) dies correctly' );
+throws_ok {
+  $cd->add_to_producers()
+} qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly';
 
 # many_to_many stresstest
 my $twokey = $schema->resultset('TwoKeys')->find(1,1);
@@ -246,10 +246,9 @@ is( $twokey->fourkeys_to_twokeys->count, 0,
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
 is($undef_artist_cd->search_related('artist')->count, 0, '0=1 search when FK does not exist and object not yet in db');
-eval{ 
+lives_ok {
      $undef_artist_cd->related_resultset('artist')->new({name => 'foo'});
-};
-is( $@, '', "Object created on a resultset related to not yet inserted object");
+} 'Object created on a resultset related to not yet inserted object';
 lives_ok{
   $schema->resultset('Artwork')->new_result({})->cd;
 } 'undef_on_null_fk does not choke on empty conds';
@@ -272,7 +271,8 @@ is_same_sql_bind (
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',
-  [[artistid => 1]],
+  [[ { sqlt_datatype => 'integer', dbic_colname => 'artistid' }
+      => 1 ]],
   'expected join sql produced',
 );
 
@@ -313,7 +313,7 @@ my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
 
-# check that relationships below left join relationships are forced to left joins 
+# check that relationships below left join relationships are forced to left joins
 # when traversing multiple belongs_to
 my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
 is($cds->count, 1, "subjoins under left joins force_left (string)");
