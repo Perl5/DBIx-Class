@@ -1769,21 +1769,13 @@ sub _rs_update_delete {
   ) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
-    # at all. What this code tries to do (badly) is to generate a condition
-    # with the qualifiers removed, by exploiting the quote mechanism of sqla
-    #
-    # this is atrocious and should be replaced by normal sqla introspection
-    # one sunny day
-    my ($sql, @bind) = do {
-      my $sqla = $rsrc->storage->sql_maker;
-      local $sqla->{_dequalify_idents} = 1;
-      $sqla->_recurse_where($self->{cond});
-    } if $self->{cond};
-
+    # at all. Tell SQLMaker to dequalify idents via a gross hack.
+    my $sqla = $rsrc->storage->sql_maker;
+    local $sqla->{_dequalify_idents} = 1;
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
-      $self->{cond} ? \[$sql, @bind] : (),
+      $self->{cond},
     );
   }
 
