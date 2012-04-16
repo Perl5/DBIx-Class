@@ -16,7 +16,13 @@ my $schema = DBICTest::Schema->connect ('dbi:SQLite::memory:');
 $schema->deploy;
 
 my $rs = $schema->resultset ('Artist');
-$rs->populate ([ map { { name => "Art_$_"} } (1 .. 10000) ]);
+
+my $hri_rs = $rs->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' } );
+
+#DB::enable_profile();
+#my @foo = $hri_rs->all;
+#DB::disable_profile();
+#exit;
 
 my $dbh = $schema->storage->dbh;
 my $sql = sprintf ('SELECT %s FROM %s %s',
@@ -25,14 +31,19 @@ my $sql = sprintf ('SELECT %s FROM %s %s',
   $rs->_resolved_attrs->{alias},
 );
 
-my $compdbi = sub {
-  my @r = $schema->storage->dbh->selectall_arrayref ('SELECT * FROM ' . ${$rs->as_query}->[0] )
-} if $rs->can ('as_query');
+for (1,10,20,50,200,2500,10000) {
+  $rs->delete;
+  $rs->populate ([ map { { name => "Art_$_"} } (1 .. $_) ]);
+  print "\nRetrieval of $_ rows\n";
+  bench();
+}
 
-cmpthese(-3, {
-  Cursor => sub { $rs->reset; my @r = $rs->cursor->all },
-  HRI => sub { $rs->reset; my @r = $rs->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' } )->all },
-  RowObj => sub { $rs->reset; my @r = $rs->all },
-  RawDBI => sub { my @r = $dbh->selectall_arrayref ($sql) },
-  $compdbi ? (CompDBI => $compdbi) : (),
-});
+sub bench {
+  cmpthese(-3, {
+    Cursor => sub { my @r = $rs->cursor->all },
+    HRI => sub { my @r = $hri_rs->all },
+    RowObj => sub { my @r = $rs->all },
+    DBI_AoH => sub { my @r = @{ $dbh->selectall_arrayref ($sql, { Slice => {} }) } },
+    DBI_AoA=> sub { my @r = @{ $dbh->selectall_arrayref ($sql) } },
+  });
+}

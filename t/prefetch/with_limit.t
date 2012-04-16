@@ -81,7 +81,7 @@ is_same_sql_bind (
     WHERE artwork.cd_id IS NULL
        OR tracks.title != ?
     GROUP BY me.artistid + ?, me.artistid, me.name, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
-    ORDER BY name DESC, cds.artist, cds.year ASC
+    ORDER BY name DESC
   )',
   [
     $bind_int_resolved->(),  # outer select
@@ -183,6 +183,7 @@ is_same_sql_bind (
           FROM cd me
           JOIN artist artist ON artist.artistid = me.artist
         WHERE ( ( artist.name = ? AND me.year = ? ) )
+        ORDER BY me.cdid
         LIMIT ?
       ) me
       LEFT JOIN track tracks
@@ -190,7 +191,7 @@ is_same_sql_bind (
       JOIN artist artist
         ON artist.artistid = me.artist
     WHERE ( ( artist.name = ? AND me.year = ? ) )
-    ORDER BY tracks.cd
+    ORDER BY me.cdid
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'artist.name' } => 'foo' ],

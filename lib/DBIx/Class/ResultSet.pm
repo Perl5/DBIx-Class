@@ -829,7 +829,7 @@ sub find {
 
   # Run the query, passing the result_class since it should propagate for find
   my $rs = $self->search ($final_cond, {result_class => $self->result_class, %$attrs});
-  if (keys %{$rs->_resolved_attrs->{collapse}}) {
+  if ($rs->_resolved_attrs->{collapse}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
     return $row;
@@ -1038,11 +1038,9 @@ sub single {
 
   my $attrs = $self->_resolved_attrs_copy;
 
-  if (keys %{$attrs->{collapse}}) {
-    $self->throw_exception(
-      'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
-    );
-  }
+  $self->throw_exception(
+    'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
+  ) if $attrs->{collapse};
 
   if ($where) {
     if (defined $attrs->{where}) {
@@ -1056,12 +1054,13 @@ sub single {
     }
   }
 
-  my @data = $self->result_source->storage->select_single(
+  my $data = [ $self->result_source->storage->select_single(
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
-  );
-
-  return (@data ? ($self->_construct_object(@data))[0] : undef);
+  )];
+  return undef unless @$data;
+  $self->{stashed_rows} = [ $data ];
+  $self->_construct_objects->[0];
 }
 
 
@@ -1218,161 +1217,156 @@ first record from the resultset.
 
 sub next {
   my ($self) = @_;
+
   if (my $cache = $self->get_cache) {
     $self->{all_cache_position} ||= 0;
     return $cache->[$self->{all_cache_position}++];
   }
+
   if ($self->{attrs}{cache}) {
     delete $self->{pager};
     $self->{all_cache_position} = 1;
     return ($self->all)[0];
   }
-  if ($self->{stashed_objects}) {
-    my $obj = shift(@{$self->{stashed_objects}});
-    delete $self->{stashed_objects} unless @{$self->{stashed_objects}};
-    return $obj;
-  }
-  my @row = (
-    exists $self->{stashed_row}
-      ? @{delete $self->{stashed_row}}
-      : $self->cursor->next
-  );
-  return undef unless (@row);
-  my ($row, @more) = $self->_construct_object(@row);
-  $self->{stashed_objects} = \@more if @more;
-  return $row;
+
+  return shift(@{$self->{stashed_objects}}) if @{ $self->{stashed_objects}||[] };
+
+  $self->{stashed_objects} = $self->_construct_objects
+    or return undef;
+
+  return shift @{$self->{stashed_objects}};
 }
 
-sub _construct_object {
-  my ($self, @row) = @_;
+# Constructs as many objects as it can in one pass while respecting
+# cursor laziness. Several modes of operation:
+#
+# * Always builds everything present in @{$self->{stashed_rows}}
+# * If called with $fetch_all true - pulls everything off the cursor and
+#   builds all objects in one pass
+# * If $self->_resolved_attrs->{collapse} is true, checks the order_by
+#   and if the resultset is ordered properly by the left side:
+#   * Fetches stuff off the cursor until the "master object" changes,
+#     and saves the last extra row (if any) in @{$self->{stashed_rows}}
+#   OR
+#   * Just fetches, and collapses/constructs everything as if $fetch_all
+#     was requested (there is no other way to collapse except for an
+#     eager cursor)
+# * If no collapse is requested - just get the next row, construct and
+#   return
+sub _construct_objects {
+  my ($self, $fetch_all) = @_;
 
-  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row)
-    or return ();
-  my @new = $self->result_class->inflate_result($self->result_source, @$info);
-  @new = $self->{_attrs}{record_filter}->(@new)
-    if exists $self->{_attrs}{record_filter};
-  return @new;
-}
+  my $rsrc = $self->result_source;
+  my $attrs = $self->_resolved_attrs;
+  my $cursor = $self->cursor;
 
-sub _collapse_result {
-  my ($self, $as_proto, $row) = @_;
-
-  my @copy = @$row;
-
-  # 'foo'         => [ undef, 'foo' ]
-  # 'foo.bar'     => [ 'foo', 'bar' ]
-  # 'foo.bar.baz' => [ 'foo.bar', 'baz' ]
-
-  my @construct_as = map { [ (/^(?:(.*)\.)?([^.]+)$/) ] } @$as_proto;
-
-  my %collapse = %{$self->{_attrs}{collapse}||{}};
-
-  my @pri_index;
-
-  # if we're doing collapsing (has_many prefetch) we need to grab records
-  # until the PK changes, so fill @pri_index. if not, we leave it empty so
-  # we know we don't have to bother.
-
-  # the reason for not using the collapse stuff directly is because if you
-  # had for e.g. two artists in a row with no cds, the collapse info for
-  # both would be NULL (undef) so you'd lose the second artist
-
-  # store just the index so we can check the array positions from the row
-  # without having to contruct the full hash
-
-  if (keys %collapse) {
-    my %pri = map { ($_ => 1) } $self->result_source->_pri_cols;
-    foreach my $i (0 .. $#construct_as) {
-      next if defined($construct_as[$i][0]); # only self table
-      if (delete $pri{$construct_as[$i][1]}) {
-        push(@pri_index, $i);
-      }
-      last unless keys %pri; # short circuit (Johnny Five Is Alive!)
-    }
+  # this will be used as both initial raw-row collector AND as a RV of
+  # _construct_objects. Not regrowing the array twice matters a lot...
+  # a suprising amount actually
+  my $rows = (delete $self->{stashed_rows}) || [];
+  if ($fetch_all) {
+    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+    $rows = [ @$rows, $cursor->all ];
   }
+  elsif (!$attrs->{collapse}) {
+    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+    push @$rows, do { my @r = $cursor->next; @r ? \@r : () }
+      unless @$rows;
+  }
+  else {
+    $attrs->{_ordered_for_collapse} ||= (!$attrs->{order_by}) ? undef : do {
+      my $st = $rsrc->schema->storage;
+      my @ord_cols = map
+        { $_->[0] }
+        ( $st->_extract_order_criteria($attrs->{order_by}) )
+      ;
 
-  # no need to do an if, it'll be empty if @pri_index is empty anyway
+      my $colinfos = $st->_resolve_column_info($attrs->{from}, \@ord_cols);
 
-  my %pri_vals = map { ($_ => $copy[$_]) } @pri_index;
-
-  my @const_rows;
-
-  do { # no need to check anything at the front, we always want the first row
-
-    my %const;
-
-    foreach my $this_as (@construct_as) {
-      $const{$this_as->[0]||''}{$this_as->[1]} = shift(@copy);
-    }
-
-    push(@const_rows, \%const);
-
-  } until ( # no pri_index => no collapse => drop straight out
-      !@pri_index
-    or
-      do { # get another row, stash it, drop out if different PK
-
-        @copy = $self->cursor->next;
-        $self->{stashed_row} = \@copy;
-
-        # last thing in do block, counts as true if anything doesn't match
-
-        # check xor defined first for NULL vs. NOT NULL then if one is
-        # defined the other must be so check string equality
-
-        grep {
-          (defined $pri_vals{$_} ^ defined $copy[$_])
-          || (defined $pri_vals{$_} && ($pri_vals{$_} ne $copy[$_]))
-        } @pri_index;
-      }
-  );
-
-  my $alias = $self->{attrs}{alias};
-  my $info = [];
-
-  my %collapse_pos;
-
-  my @const_keys;
-
-  foreach my $const (@const_rows) {
-    scalar @const_keys or do {
-      @const_keys = sort { length($a) <=> length($b) } keys %$const;
-    };
-    foreach my $key (@const_keys) {
-      if (length $key) {
-        my $target = $info;
-        my @parts = split(/\./, $key);
-        my $cur = '';
-        my $data = $const->{$key};
-        foreach my $p (@parts) {
-          $target = $target->[1]->{$p} ||= [];
-          $cur .= ".${p}";
-          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) {
-            # collapsing at this point and on final part
-            my $pos = $collapse_pos{$cur};
-            CK: foreach my $ck (@ckey) {
-              if (!defined $pos->{$ck} || $pos->{$ck} ne $data->{$ck}) {
-                $collapse_pos{$cur} = $data;
-                delete @collapse_pos{ # clear all positioning for sub-entries
-                  grep { m/^\Q${cur}.\E/ } keys %collapse_pos
-                };
-                push(@$target, []);
-                last CK;
-              }
-            }
-          }
-          if (exists $collapse{$cur}) {
-            $target = $target->[-1];
-          }
+      for (0 .. $#ord_cols) {
+        if (
+          ! $colinfos->{$ord_cols[$_]}
+            or
+          $colinfos->{$ord_cols[$_]}{-result_source} != $rsrc
+        ) {
+          splice @ord_cols, $_;
+          last;
         }
-        $target->[0] = $data;
-      } else {
-        $info->[0] = $const->{$key};
       }
+
+      # since all we check here are the start of the order_by belonging to the
+      # top level $rsrc, a present identifying set will mean that the resultset
+      # is ordered by its leftmost table in a tsable manner
+      (@ord_cols and $rsrc->_identifying_column_set({ map
+        { $colinfos->{$_}{-colname} => $colinfos->{$_} }
+        @ord_cols
+      })) ? 1 : 0;
+    };
+
+    if ($attrs->{_ordered_for_collapse}) {
+      push @$rows, do { my @r = $cursor->next; @r ? \@r : () };
+    }
+    # instead of looping over ->next, use ->all in stealth mode
+    # FIXME - encapsulation breach, got to be a better way
+    elsif (! $cursor->{done}) {
+      push @$rows, $cursor->all;
+      $cursor->{done} = 1;
+      $fetch_all = 1;
     }
   }
 
-  return $info;
+  return undef unless @$rows;
+
+  my $res_class = $self->result_class;
+  my $inflator = $res_class->can ('inflate_result')
+    or $self->throw_exception("Inflator $res_class does not provide an inflate_result() method");
+
+  my $infmap = $attrs->{as};
+
+  if (!$attrs->{collapse} and $attrs->{_single_object_inflation}) {
+    # construct a much simpler array->hash folder for the one-table cases right here
+
+    # FIXME SUBOPTIMAL this is a very very very hot spot
+    # while rather optimal we can *still* do much better, by
+    # building a smarter [Row|HRI]::inflate_result(), and
+    # switch to feeding it data via a much leaner interface
+    #
+    # crude unscientific benchmarking indicated the shortcut eval is not worth it for
+    # this particular resultset size
+    if (@$rows < 60) {
+      my @as_idx = 0..$#$infmap;
+      for my $r (@$rows) {
+        $r = $inflator->($res_class, $rsrc, { map { $infmap->[$_] => $r->[$_] } @as_idx } );
+      }
+    }
+    else {
+      eval sprintf (
+        '$_ = $inflator->($res_class, $rsrc, { %s }) for @$rows',
+        join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
+      );
+    }
+  }
+  else {
+    ($self->{_row_parser} ||= eval sprintf 'sub { %s }', $rsrc->_mk_row_parser({
+      inflate_map => $infmap,
+      selection => $attrs->{select},
+      collapse => $attrs->{collapse},
+    }) or die $@)->($rows, $fetch_all ? () : (
+      # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+      sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
+      ($self->{stashed_rows} = []),                 # where does it stuff excess
+    ));  # modify $rows in-place, shrinking/extending as necessary
+
+    $_ = $inflator->($res_class, $rsrc, @$_) for @$rows;
+
+  }
+
+  # CDBI compat stuff
+  if ($attrs->{record_filter}) {
+    $_ = $attrs->{record_filter}->($_) for @$rows;
+  }
+
+  return $rows;
 }
 
 =head2 result_source
@@ -1449,8 +1443,7 @@ sub count {
 
   # this is a little optimization - it is faster to do the limit
   # adjustments in software, instead of a subquery
-  my $rows = delete $attrs->{rows};
-  my $offset = delete $attrs->{offset};
+  my ($rows, $offset) = delete @{$attrs}{qw/rows offset/};
 
   my $crs;
   if ($self->_has_resolved_attr (qw/collapse group_by/)) {
@@ -1521,7 +1514,6 @@ sub _count_rs {
   # overwrite the selector (supplied by the storage)
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
   $tmp_attrs->{as} = 'count';
-  delete @{$tmp_attrs}{qw/columns/};
 
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
@@ -1543,7 +1535,7 @@ sub _count_subq_rs {
 
   # if we multi-prefetch we group_by something unique, as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
-  if ( keys %{$attrs->{collapse}}  ) {
+  if ( $attrs->{collapse}  ) {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } @{
       $rsrc->_identifying_column_set || $self->throw_exception(
         'Unable to construct a unique group_by criteria properly collapsing the '
@@ -1660,33 +1652,22 @@ Returns all elements in the resultset.
 sub all {
   my $self = shift;
   if(@_) {
-      $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
+    $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
   }
 
-  return @{ $self->get_cache } if $self->get_cache;
+  delete @{$self}{qw/stashed_rows stashed_objects/};
 
-  my @obj;
-
-  if (keys %{$self->_resolved_attrs->{collapse}}) {
-    # Using $self->cursor->all is really just an optimisation.
-    # If we're collapsing has_many prefetches it probably makes
-    # very little difference, and this is cleaner than hacking
-    # _construct_object to survive the approach
-    $self->cursor->reset;
-    my @row = $self->cursor->next;
-    while (@row) {
-      push(@obj, $self->_construct_object(@row));
-      @row = (exists $self->{stashed_row}
-               ? @{delete $self->{stashed_row}}
-               : $self->cursor->next);
-    }
-  } else {
-    @obj = map { $self->_construct_object(@$_) } $self->cursor->all;
+  if (my $c = $self->get_cache) {
+    return @$c;
   }
 
-  $self->set_cache(\@obj) if $self->{attrs}{cache};
+  $self->cursor->reset;
 
-  return @obj;
+  my $objs = $self->_construct_objects('fetch_all') || [];
+
+  $self->set_cache($objs) if $self->{attrs}{cache};
+
+  return @$objs;
 }
 
 =head2 reset
@@ -1707,7 +1688,9 @@ another query.
 
 sub reset {
   my ($self) = @_;
-  delete $self->{_attrs} if exists $self->{_attrs};
+
+  delete @{$self}{qw/_attrs stashed_rows stashed_objects/};
+
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
@@ -1810,7 +1793,7 @@ sub _rs_update_delete {
   my $existing_group_by = delete $attrs->{group_by};
 
   # make a new $rs selecting only the PKs (that's all we really need for the subq)
-  delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
+  delete @{$attrs}{qw/collapse select _prefetch_selector_range as/};
   $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
   $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
   my $subrs = (ref $self)->new($rsrc, $attrs);
@@ -2257,7 +2240,7 @@ sub pager {
   # throw away the paging flags and re-run the count (possibly
   # with a subselect) to get the real total count
   my $count_attrs = { %$attrs };
-  delete $count_attrs->{$_} for qw/rows offset page pager/;
+  delete @{$count_attrs}{qw/rows offset page pager/};
 
   my $total_rs = (ref $self)->new($self->result_source, $count_attrs);
 
@@ -3038,7 +3021,7 @@ sub related_resultset {
 
     if (my $cache = $self->get_cache) {
       if ($cache->[0] && $cache->[0]->related_resultset($rel)->get_cache) {
-        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache} }
+        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache||[]} }
                         @$cache ];
       }
     }
@@ -3341,14 +3324,10 @@ sub _resolved_attrs {
     if $attrs->{select};
 
   # assume all unqualified selectors to apply to the current alias (legacy stuff)
-  for (@sel) {
-    $_ = (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_";
-  }
+  $_ = (ref $_ or $_ =~ /\./) ? $_ : "$alias.$_" for @sel;
 
-  # disqualify all $alias.col as-bits (collapser mandated)
-  for (@as) {
-    $_ = ($_ =~ /^\Q$alias.\E(.+)$/) ? $1 : $_;
-  }
+  # disqualify all $alias.col as-bits (inflate-map mandated)
+  $_ = ($_ =~ /^\Q$alias.\E(.+)$/) ? $1 : $_ for @as;
 
   # de-duplicate the result (remove *identical* select/as pairs)
   # and also die on duplicate {as} pointing to different {select}s
@@ -3435,15 +3414,17 @@ sub _resolved_attrs {
     }
   }
 
-  $attrs->{collapse} ||= {};
-  if ($attrs->{prefetch}) {
+  # generate selections based on the prefetch helper
+  my $prefetch;
+  $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} )
+    if defined $attrs->{prefetch};
+
+  if ($prefetch) {
 
     $self->throw_exception("Unable to prefetch, resultset contains an unnamed selector $attrs->{_dark_selector}{string}")
       if $attrs->{_dark_selector};
 
-    my $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} );
-
-    my $prefetch_ordering = [];
+    $attrs->{collapse} = 1;
 
     # this is a separate structure (we don't look in {from} directly)
     # as the resolver needs to shift things off the lists to work
@@ -3466,8 +3447,7 @@ sub _resolved_attrs {
       }
     }
 
-    my @prefetch =
-      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
+    my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map );
 
     # we need to somehow mark which columns came from prefetch
     if (@prefetch) {
@@ -3477,11 +3457,40 @@ sub _resolved_attrs {
 
     push @{ $attrs->{select} }, (map { $_->[0] } @prefetch);
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
-
-    push( @{$attrs->{order_by}}, @$prefetch_ordering );
-    $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
 
+  $attrs->{_single_object_inflation} = ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}};
+
+  # run through the resulting joinstructure (starting from our current slot)
+  # and unset collapse if proven unnesessary
+  if ($attrs->{collapse} && ref $attrs->{from} eq 'ARRAY') {
+
+    if (@{$attrs->{from}} > 1) {
+
+      # find where our table-spec starts and consider only things after us
+      my @fromlist = @{$attrs->{from}};
+      while (@fromlist) {
+        my $t = shift @fromlist;
+        $t = $t->[0] if ref $t eq 'ARRAY';  #me vs join from-spec mismatch
+        last if ($t->{-alias} && $t->{-alias} eq $alias);
+      }
+
+      for (@fromlist) {
+        $attrs->{collapse} = ! $_->[0]{-is_single}
+          and last;
+      }
+    }
+    else {
+      # no joins - no collapse
+      $attrs->{collapse} = 0;
+    }
+  }
+
+  if (! $attrs->{order_by} and $attrs->{collapse}) {
+    # default order for collapsing unless the user asked for something
+    $attrs->{order_by} = [ map { "$alias.$_" } $source->primary_columns ];
+    $attrs->{_ordered_for_collapse} = 1;
+  }
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
@@ -3703,7 +3712,8 @@ sub STORABLE_freeze {
   my $to_serialize = { %$self };
 
   # A cursor in progress can't be serialized (and would make little sense anyway)
-  delete $to_serialize->{cursor};
+  # the parser can be regenerated (and can't be serialized)
+  delete @{$to_serialize}{qw/cursor _row_parser/};
 
   # nor is it sensical to store a not-yet-fired-count pager
   if ($to_serialize->{pager} and ref $to_serialize->{pager}{total_entries} eq 'CODE') {

@@ -2175,8 +2175,8 @@ sub _select_args {
   # see if we need to tear the prefetch apart otherwise delegate the limiting to the
   # storage, unless software limit was requested
   if (
-    #limited has_many
-    ( $attrs->{rows} && keys %{$attrs->{collapse}} )
+    # limited collapsing has_many
+    ( $attrs->{rows} && $attrs->{collapse} )
        ||
     # grouped prefetch (to satisfy group_by == select)
     ( $attrs->{group_by}
