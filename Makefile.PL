@@ -148,9 +148,13 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
   # string-eval, not do(), because we need to provide the
   # $reqs and $*_requires lexicals to the included file
   # (some includes *do* modify $reqs above)
-  for (sort glob ( File::Spec->catfile('maint', 'Makefile.PL.inc', '*') ) ) {
-    eval scalar do { local (@ARGV, $/) = $_; <> }
-      or die ($@ || $!);
+  for my $inc (sort glob ( File::Spec->catfile('maint', 'Makefile.PL.inc', '*') ) ) {
+    my $src = do { local (@ARGV, $/) = $inc; <> } or die $!;
+    eval "use warnings; use strict; $src" or die sprintf
+      "Failed execution of %s: %s\n",
+      $inc,
+      ($@ || $! || 'Unknown error'),
+    ;
   }
 }
 else {
