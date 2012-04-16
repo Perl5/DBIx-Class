@@ -92,6 +92,19 @@ do_creates($dbh);
 
   $schema->resultset('Artist')->find({ name => 'cycle-root' })
     ->update({ parentid => { -ident => 'artistid' } });
+
+  # begin tests
+  {
+    my $search_stuff = {
+      with_recursive => {
+        -columns    => [qw( artistid parentid name rank )],
+        -initial    => $schema->resultset('Artist')->find({ name => 'root' }),
+        -recursive  => $schema->resultset('Artist')->search({}),
+      }
+    };
+    # select the whole tree
+    my $rs = $schema->resultset('Artist')->search({}, $search_stuff);
+  }
 }
 
 sub do_creates {

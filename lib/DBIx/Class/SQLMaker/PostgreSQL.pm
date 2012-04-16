@@ -8,6 +8,10 @@ use base qw( DBIx::Class::SQLMaker );
 sub new {
   my $self = shift;
   my %opts = (ref $_[0] eq 'HASH') ? %{$_[0]} : @_;
+  push @{$opts{special_ops}}, {
+    regex => qr/^with_recursive$/i,
+    handler => '_with_recursive',
+  };
 
   $self->next::method(\%opts);
 }
@@ -20,6 +24,7 @@ sub _assemble_binds {
 
 sub _parse_rs_attrs {
   my $self = shift;
+  warn "INSIDE RS ATTRS";
   my ($rs_attrs) = @_;
 
   my ($cb_sql, @cb_bind) = $self->_with_recursive($rs_attrs);
@@ -30,14 +35,10 @@ sub _parse_rs_attrs {
   return "$cb_sql $sql";
 }
 
-# with_recursive =>{
-#   -columns => [ ... ],
-#   -nrt     => $blargh->search....
-#   -rt      => $blargh->search...
-#   -union_all 1|0
 sub _with_recursive {
   my ($self, $attrs) = @_;
 
+  warn "INSIDE WITH RECURSIVE";
   my $sql = '';
   my @bind;
 
@@ -45,8 +46,8 @@ sub _with_recursive {
     if ( $attrs->{'with_recursive'} ) {
       my $with_recursive = $attrs->{'with_recursive'};
       my @fields = @{$with_recursive->{'-columns'}};
-      my $nrt    = $with_recursive->{'-nrt'};
-      my $rt     = $with_recursive->{'-rt'};
+      my $nrt    = $with_recursive->{'-initial'};
+      my $rt     = $with_recursive->{'-recursive'};
       my $union  = $with_recursive->{'-union_all'};
 #      my ($wr, @wb) = $self->_recurse_where( $attrs->{'with_recursive'} );
       my ($with_nrt_sql, @with_nrt_bind) = $nrt->as_query;
@@ -56,10 +57,10 @@ sub _with_recursive {
       $sql .= $self->_sqlcase(' with recursive ') . ' temp_wr_query ' . '(' .
               join(', ', @fields) . ') ' . $self->_sqlcase('as') . ' ( ';
       $sql .= $with_nrt_sql;
-      $sql .= $self->_sqlcase(' union all ');
+      $sql .= $self->_sqlcase(' union all ') if $union;
       $sql .= $with_rt_sql;
       $sql .= ' ) ';
-
+      warn "SQL $sql";
       return ($sql, @bind);
     }
   }
