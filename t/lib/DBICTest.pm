@@ -60,7 +60,7 @@ our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
 
-    my $lockpath = File::Spec->tmpdir . '/.dbictest_global.lock';
+    my $lockpath = File::Spec->catfile(File::Spec->tmpdir, '.dbictest_global.lock');
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
