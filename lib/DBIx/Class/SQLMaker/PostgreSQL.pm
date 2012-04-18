@@ -1,4 +1,4 @@
-package
+package # hide from PAUSE
   DBIx::Class::SQLMaker::PostgreSQL;
 
 use strict;
@@ -66,6 +66,6 @@ sub _with_recursive {
   }
 
   return wantarray ? ($sql, @bind) : $sql;
-
 }
+
 1;
