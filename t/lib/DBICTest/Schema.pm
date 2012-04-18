@@ -9,8 +9,7 @@ use base 'DBIx::Class::Schema';
 
 use Fcntl qw/:DEFAULT :seek :flock/;
 use Time::HiRes 'sleep';
-use Path::Class::File;
-use File::Spec;
+use DBICTest::RunMode;
 use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry local_umask/;
 use namespace::clean;
 
@@ -150,9 +149,13 @@ sub connection {
     # Also if there is no connection - there is no lock to be had
     if ($locktype and (!$locker or $locker->{type} ne $locktype)) {
 
-      warn "$$ $0 $locktype" if $locktype eq 'generic' or $locktype eq 'SQLite';
+      warn "$$ $0 $locktype" if (
+        ($locktype eq 'generic' or $locktype eq 'SQLite')
+          and
+        DBICTest::RunMode->is_author
+      );
 
-      my $lockpath = File::Spec->tmpdir . "/.dbictest_$locktype.lock";
+      my $lockpath = DBICTest::RunMode->tmpdir->file(".dbictest_$locktype.lock");
 
       my $lock_fh;
       {

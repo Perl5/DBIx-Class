@@ -16,8 +16,34 @@ BEGIN {
 }
 
 use Path::Class qw/file dir/;
+use File::Spec;
 
 _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
+
+# PathTools has a bug where on MSWin32 it will often return / as a tmpdir.
+# This is *really* stupid and the result of having our lockfiles all over
+# the place is also rather obnoxious. So we use our own heuristics instead
+# https://rt.cpan.org/Ticket/Display.html?id=76663
+my $tmpdir;
+sub tmpdir {
+  $tmpdir ||= do {
+
+    my $dir = dir(File::Spec->tmpdir);
+
+    my @parts = File::Spec->splitdir($dir);
+    if (@parts == 2 and $parts[1] eq '') {
+      # This means we were give the root dir (C:\ or something equally unacceptable)
+      # Replace with our local project tmpdir. This will make multiple runs
+      # from different runs conflict with each other, but is much better than
+      # polluting the root dir with random crap
+      $dir = _find_co_root()->subdir('t')->subdir('var');
+      $dir->mkpath;
+    }
+
+    $dir;
+  };
+}
+
 
 # Die if the author did not update his makefile
 #
