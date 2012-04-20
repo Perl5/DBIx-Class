@@ -69,7 +69,7 @@ sub test_dbicadmin {
 
         my ($perl) = $^X =~ /(.*)/;
 
-        open(my $fh, "-|",  ( $perl, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  ( $perl, '-MDBICTest::RunMode', 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -108,5 +108,5 @@ sub test_exec {
     }
   }
 
-  system ($perl, @args);
+  system ($perl, '-MDBICTest::RunMode', @args);
 }

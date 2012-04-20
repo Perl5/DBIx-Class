@@ -26,7 +26,7 @@ _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
 # https://rt.cpan.org/Ticket/Display.html?id=76663
 my $tmpdir;
 sub tmpdir {
-  $tmpdir ||= do {
+  dir ($tmpdir ||= do {
 
     my $dir = dir(File::Spec->tmpdir);
 
@@ -40,8 +40,8 @@ sub tmpdir {
       $dir->mkpath;
     }
 
-    $dir;
-  };
+    $dir->stringify;
+  });
 }
 
 
