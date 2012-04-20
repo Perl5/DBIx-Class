@@ -149,10 +149,10 @@ my $tests = {
     my $ordered_sql = '(
       SELECT me.id, owner__id, owner__name, bar, baz
         FROM (
-          SELECT me.id, owner__id, owner__name, bar, baz, ROW_NUMBER() OVER( ORDER BY ORDER__BY__1, ORDER__BY__2 ) AS rno__row__index
+          SELECT me.id, owner__id, owner__name, bar, baz, ROW_NUMBER() OVER( ORDER BY ORDER__BY__001, ORDER__BY__002 ) AS rno__row__index
             FROM (
               SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz,
-                     ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
+                     ? / ? AS ORDER__BY__001, ? AS ORDER__BY__002
                 FROM books me
                 JOIN owners owner
                   ON owner.id = me.owner
@@ -373,9 +373,9 @@ my $tests = {
       '(
         SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, owner__id, owner__name, bar, baz, ORDER__BY__1, ORDER__BY__2
+            SELECT me.id, owner__id, owner__name, bar, baz, ORDER__BY__001, ORDER__BY__002
               FROM (
-                SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
+                SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__001, ? AS ORDER__BY__002
                   FROM books me
                   JOIN owners owner
                     ON owner.id = me.owner
@@ -385,10 +385,10 @@ my $tests = {
                 ORDER BY ? / ?, ?
                 FETCH FIRST 7 ROWS ONLY
               ) me
-            ORDER BY ORDER__BY__1 DESC, ORDER__BY__2 DESC
+            ORDER BY ORDER__BY__001 DESC, ORDER__BY__002 DESC
             FETCH FIRST 4 ROWS ONLY
           ) me
-        ORDER BY ORDER__BY__1, ORDER__BY__2
+        ORDER BY ORDER__BY__001, ORDER__BY__002
       )',
       [
         @select_bind,
@@ -464,9 +464,9 @@ my $tests = {
       '(
         SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT TOP 4 me.id, owner__id, owner__name, bar, baz, ORDER__BY__1, ORDER__BY__2
+            SELECT TOP 4 me.id, owner__id, owner__name, bar, baz, ORDER__BY__001, ORDER__BY__002
               FROM (
-                SELECT TOP 7 me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__1, ? AS ORDER__BY__2
+                SELECT TOP 7 me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, ? / ? AS ORDER__BY__001, ? AS ORDER__BY__002
                   FROM books me
                   JOIN owners owner
                     ON owner.id = me.owner
@@ -475,9 +475,9 @@ my $tests = {
                 HAVING ?
                 ORDER BY ? / ?, ?
               ) me
-            ORDER BY ORDER__BY__1 DESC, ORDER__BY__2 DESC
+            ORDER BY ORDER__BY__001 DESC, ORDER__BY__002 DESC
           ) me
-        ORDER BY ORDER__BY__1, ORDER__BY__2
+        ORDER BY ORDER__BY__001, ORDER__BY__002
       )',
       [
         @select_bind,
