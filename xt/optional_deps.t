@@ -119,7 +119,7 @@ is_deeply(
 is_deeply(
   DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_pg'),
   {
-    'Sys::SigAction' => '0',
+    $^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : (),
     'DBD::Pg'        => '2.009002',
   }, 'optional dependencies for testing Postgres with ENV var ok');
 
