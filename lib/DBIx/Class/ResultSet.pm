@@ -1885,7 +1885,10 @@ sub _rs_update_delete {
     # make a new $rs selecting only the PKs (that's all we really need for the subq)
     delete $attrs->{$_} for qw/select as collapse _related_results_construction/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
-    $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
+
+    # this will be consumed by the pruner waaaaay down the stack
+    $attrs->{_force_prune_multiplying_joins} = 1;
+
     my $subrs = (ref $self)->new($rsrc, $attrs);
 
     if (@$idcols == 1) {

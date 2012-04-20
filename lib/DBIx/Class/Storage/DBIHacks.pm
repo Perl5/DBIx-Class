@@ -24,7 +24,7 @@ use namespace::clean;
 #
 sub _prune_unused_joins {
   my $self = shift;
-  my ($from, $select, $where, $attrs, $ignore_multiplication) = @_;
+  my ($from, $select, $where, $attrs) = @_;
 
   return $from unless $self->_use_join_optimizer;
 
@@ -40,7 +40,7 @@ sub _prune_unused_joins {
   # a grouped set will not be affected by amount of rows. Thus any
   # {multiplying} joins can go
   delete $aliastypes->{multiplying}
-    if $ignore_multiplication or $attrs->{group_by};
+    if $attrs->{_force_prune_multiplying_joins} or $attrs->{group_by};
 
   my @newfrom = $from->[0]; # FROM head is always present
 
@@ -175,7 +175,9 @@ sub _adjust_select_args_for_complex_prefetch {
     local $self->{_use_join_optimizer} = 1;
 
     # throw away multijoins since we def. do not care about those inside the subquery
-    my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs, 'ignore_multiplication');
+    my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
+      %$inner_attrs, _force_prune_multiplying_joins => 1
+    });
 
     my $inner_aliastypes =
       $self->_resolve_aliastypes_from_select_args( $inner_from, $inner_select, $where, $inner_attrs );
