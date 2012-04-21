@@ -3487,6 +3487,7 @@ sub _resolved_attrs {
     # default order for collapsing unless the user asked for something
     $attrs->{order_by} = [ map { "$alias.$_" } $source->primary_columns ];
     $attrs->{_ordered_for_collapse} = 1;
+    $attrs->{_order_is_artificial} = 1;
   }
 
   # if both page and offset are specified, produce a combined offset

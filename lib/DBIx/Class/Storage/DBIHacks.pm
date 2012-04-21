@@ -72,13 +72,15 @@ sub _adjust_select_args_for_complex_prefetch {
   $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');
 
-
   # generate inner/outer attribute lists, remove stuff that doesn't apply
   my $outer_attrs = { %$attrs };
   delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
   my $inner_attrs = { %$attrs, _is_internal_subuery => 1 };
   delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range select as/;
+
+  # if the user did not request it, there is no point using it inside
+  delete $inner_attrs->{order_by} if delete $inner_attrs->{_order_is_artificial};
 
   # generate the inner/outer select lists
   # for inside we consider only stuff *not* brought in by the prefetch
