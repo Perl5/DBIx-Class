@@ -18,6 +18,8 @@ Revision history for DBIx::Class
           - Nomalization of retrieved GUID values
 
     * Fixes
+        - Fix complex has_many prefetch with resultsets not selecting identity
+          columns from the root result source
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
         - Fix "Skimming limit" dialects (Top, FetchFirst) to properly check
           the order_by criteria for stability
