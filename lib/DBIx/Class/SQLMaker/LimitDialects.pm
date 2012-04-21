@@ -383,18 +383,6 @@ sub _prep_for_skimming_limit {
       # Whatever order bindvals there are, they will be realiased and
       # reselected, and need to show up at end of the initial inner select
       push @{$self->{select_bind}}, @{$self->{order_bind}};
-
-      # if this is a part of something bigger, we need to add back all
-      # the extra order_by's, as they may be relied upon by the outside
-      # of a prefetch or something
-      if ($rs_attrs->{_is_internal_subuery}) {
-        $sq_attrs->{selection_outer} .= sprintf ", $extra_order_sel->{$_} AS $_"
-          for sort
-            { $extra_order_sel->{$a} cmp $extra_order_sel->{$b} }
-              grep { $_ !~ /[^\w\-]/ }  # ignore functions
-              keys %$extra_order_sel
-        ;
-      }
     }
 
     # and this is order re-alias magic

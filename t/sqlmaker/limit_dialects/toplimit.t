@@ -192,7 +192,7 @@ is_same_sql_bind (
   $books_45_and_owners->search ({}, { group_by => 'title', order_by => 'title' })->as_query,
   '(SELECT me.id, me.source, me.owner, me.price, owner.id, owner.name
       FROM (
-        SELECT me.id, me.source, me.owner, me.price, ORDER__BY__001 AS title
+        SELECT me.id, me.source, me.owner, me.price
           FROM (
             SELECT TOP 2
                 me.id, me.source, me.owner, me.price, ORDER__BY__001

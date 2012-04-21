@@ -76,7 +76,7 @@ sub _adjust_select_args_for_complex_prefetch {
   my $outer_attrs = { %$attrs };
   delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
-  my $inner_attrs = { %$attrs, _is_internal_subuery => 1 };
+  my $inner_attrs = { %$attrs };
   delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range select as/;
 
   # if the user did not request it, there is no point using it inside
