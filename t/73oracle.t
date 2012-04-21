@@ -423,13 +423,12 @@ sub _run_tests {
   );
 
 # test complex join (exercise orajoins)
-  lives_ok {
-    my @hri = $schema->resultset('CD')->search(
+  lives_ok { is_deeply (
+    $schema->resultset('CD')->search(
       { 'artist.name' => 'pop_art_1', 'me.cdid' => { '!=', 999} },
       { join => 'artist', prefetch => 'tracks', rows => 4, order_by => 'tracks.trackid' }
-    )->hri_dump->all;
-
-    my $expect = [{
+    )->all_hri,
+    [{
       artist => 1,
       cdid => 1,
       genreid => undef,
@@ -454,15 +453,9 @@ sub _run_tests {
         },
       ],
       year => 2003
-    }];
-
-    is_deeply (
-      \@hri,
-      $expect,
-      'Correct set of data prefetched',
-    );
-
-  } 'complex prefetch ok';
+    }],
+    'Correct set of data prefetched',
+  ) } 'complex prefetch ok';
 
 # test sequence detection from a different schema
   SKIP: {

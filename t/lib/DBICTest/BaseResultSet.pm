@@ -6,8 +6,8 @@ use warnings;
 
 use base qw/DBIx::Class::ResultSet/;
 
-sub hri_dump {
-  return shift->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' });
+sub all_hri {
+  return [ shift->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' })->all ];
 }
 
 1;

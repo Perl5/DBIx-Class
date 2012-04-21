@@ -69,7 +69,7 @@ is_same_sql_bind(
 # cds belong to the second and third artist, respectively, and there's no sixth
 # row
 is_deeply (
-  [ $filtered_cd_rs->hri_dump ],
+  $filtered_cd_rs->all_hri,
   [
     {
       'artist' => '2',
