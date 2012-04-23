@@ -5,7 +5,7 @@ use strict;
 use warnings;
 no warnings 'qw';
 
-use base 'DBIx::Class::Schema';
+use base 'DBICTest::BaseSchema';
 
 use Fcntl qw/:DEFAULT :seek :flock/;
 use Time::HiRes 'sleep';

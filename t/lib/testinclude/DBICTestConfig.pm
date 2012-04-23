@@ -1,5 +1,5 @@
 package DBICTestConfig;
-use base 'DBIx::Class::Schema';
+use base 'DBICTest::BaseSchema';
 
 sub connect {
   my($self, @opt) = @_;

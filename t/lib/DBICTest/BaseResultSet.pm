@@ -4,7 +4,10 @@ package #hide from pause
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::ResultSet/;
+# must load before any DBIx::Class* namespaces
+use DBICTest::RunMode;
+
+use base 'DBIx::Class::ResultSet';
 
 sub all_hri {
   return [ shift->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' })->all ];

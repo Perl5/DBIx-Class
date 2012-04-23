@@ -44,7 +44,7 @@ __PACKAGE__->add_columns
 __PACKAGE__->set_primary_key('Version');
 
 package DBICVersion::Schema;
-use base 'DBIx::Class::Schema';
+use base 'DBICTest::BaseSchema';
 use strict;
 use warnings;
 
