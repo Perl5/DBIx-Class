@@ -9,7 +9,7 @@ use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
 use Sub::Name 'subname';
 use B 'svref_2object';
-use DBIx::Class::GlobalDestruction;
+use Devel::GlobalDestruction;
 use namespace::clean;
 
 use base qw/DBIx::Class/;

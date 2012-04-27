@@ -40,6 +40,7 @@ BEGIN {
     B
     locale
 
+    Devel::GlobalDestruction
     namespace::clean
     Try::Tiny
     Context::Preserve

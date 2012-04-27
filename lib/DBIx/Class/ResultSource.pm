@@ -10,7 +10,7 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
-use DBIx::Class::GlobalDestruction;
+use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
 use Scalar::Util qw/blessed weaken isweak/;

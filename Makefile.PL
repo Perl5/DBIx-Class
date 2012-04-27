@@ -61,6 +61,7 @@ my $runtime_requires = {
   'Context::Preserve'        => '0.01',
   'Data::Dumper::Concise'    => '2.020',
   'Data::Page'               => '2.00',
+  'Devel::GlobalDestruction' => '0',
   'Hash::Merge'              => '0.12',
   'Moo'                      => '0.009014',
   'MRO::Compat'              => '0.09',
