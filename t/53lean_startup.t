@@ -38,8 +38,6 @@ BEGIN {
     Exporter
 
     B
-    locale
-
     Devel::GlobalDestruction
     namespace::clean
     Try::Tiny

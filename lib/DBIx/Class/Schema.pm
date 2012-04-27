@@ -168,12 +168,9 @@ sub _findallmod {
   my $ns = shift || ref $proto || $proto;
 
   require Module::Find;
-  my @mods = Module::Find::findallmod($ns);
 
-  # try to untaint module names. mods where this fails
-  # are left alone so we don't have to change the old behavior
-  no locale; # localized \w doesn't untaint expression
-  return map { $_ =~ m/^( (?:\w+::)* \w+ )$/x ? $1 : $_ } @mods;
+  # untaint result
+  return map { $_ =~ /(.+)/ } Module::Find::findallmod($ns);
 }
 
 # returns a hash of $shortname => $fullname for every package
