@@ -111,6 +111,7 @@ unless (DBICTest::RunMode->is_plain) {
   require DBI;
   require DBD::SQLite;
   require FileHandle;
+  require Moo;
 
   %$weak_registry = ();
 }

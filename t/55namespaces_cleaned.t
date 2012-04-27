@@ -79,9 +79,6 @@ my $skip_idx = { map { $_ => 1 } (
   # this subclass is expected to inherit whatever crap comes
   # from the parent
   'DBIx::Class::ResultSet::Pager',
-
-  # Moo does not name its generated methods, fix pending
-  'DBIx::Class::Storage::BlockRunner',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
