@@ -156,8 +156,9 @@ of information that it may be useful to have -- just pass C<add_columns> a hash:
                          );
 
 DBIx::Class doesn't directly use most of this data yet, but various related
-modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you to
-create your database tables from your Schema, instead of the other way around.
+modules such as L<HTML::FormHandler::Model::DBIC> make use of it.
+Also it allows you to create your database tables from your Schema,
+instead of the other way around.
 See L<DBIx::Class::Schema/deploy> for details.
 
 See L<DBIx::Class::ResultSource> for more details of the possible column
