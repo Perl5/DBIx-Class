@@ -249,6 +249,12 @@ command immediately before C<JOIN>.
 
 =item proxy =E<gt> $column | \@columns | \%column
 
+The 'proxy' attribute can be used to retrieve values, and to perform
+updates if the relationship has 'cascade_update' set. The 'might_have'
+and 'has_one' relationships have this set by default; if you want a proxy
+to update across a 'belongs_to' relationship, you must set the attribute
+yourself.
+
 =over 4
 
 =item \@columns
@@ -266,6 +272,14 @@ Then, assuming MyApp::Schema::LinerNotes has an accessor named notes, you can do
   my $cd = MyApp::Schema::CD->find(1);
   $cd->notes('Notes go here'); # set notes -- LinerNotes object is
                                # created if it doesn't exist
+
+For a 'belongs_to relationship, note the 'cascade_update':
+
+  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd,
+      { proxy => ['title'], cascade_update => 1 }
+  );
+  $track->title('New Title');
+  $track->update; # updates title in CD
 
 =item \%column
 
@@ -330,6 +344,10 @@ By default, DBIx::Class cascades updates across C<has_one> and
 C<might_have> relationships. You can disable this behaviour on a
 per-relationship basis by supplying C<< cascade_update => 0 >> in
 the relationship attributes.
+
+The C<belongs_to> relationship does not update across relationships
+by default, so if you have a 'proxy' attribute on a belongs_to and want to
+use 'update' on it, you muse set C<< cascade_update => 1 >>.
 
 This is not a RDMS style cascade update - it purely means that when
 an object has update called on it, all the related objects also
