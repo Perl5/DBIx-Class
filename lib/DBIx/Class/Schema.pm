@@ -1565,9 +1565,9 @@ sub source_tree {
        $table_name = $$table_name if ref $table_name eq 'SCALAR';
 
        # It's possible to have multiple DBIC sources using the same table
-       next if $tables{$table_name};
+       next if $tables{$moniker};
 
-       $tables{$table_name}{source} = $source;
+       $tables{$moniker}{source} = $source;
 
        foreach my $rel (sort $source->relationships) {
            my $rel_info = $source->relationship_info($rel);
@@ -1617,7 +1617,7 @@ sub source_tree {
                   \@keys, [$source->primary_columns]);
            }
 
-           $tables{$table_name}{foreign_table_deps}{$rel_table}++
+           $tables{$moniker}{foreign_table_deps}{$rel_table}++
               if $fk_constraint && @keys
                  # calculate dependencies: do not consider deferrable constraints and
                  # self-references for dependency calculations
