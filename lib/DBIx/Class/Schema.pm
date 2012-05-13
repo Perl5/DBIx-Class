@@ -1536,6 +1536,16 @@ sub compose_connection {
   return $schema;
 }
 
+sub r_sources {
+   my $self = shift;
+
+   my %sref = %{$self->source_registrations};
+
+   return {
+      map { $sref{$_} => $_ } keys %sref
+   }
+}
+
 sub source_tree {
    my $self = shift;
    my $args = shift;
@@ -1555,19 +1565,15 @@ sub source_tree {
       grep { !$limit_sources{$_} }
       $self->sources;
 
-   my %tables;
+   my %r_sources = %{$self->r_sources};
+   my %sources;
    foreach my $moniker (sort keys %table_monikers) {
        my $source = $self->source($moniker);
-       my $table_name = $source->name;
-
-       # FIXME - this isn't the right way to do it, but sqlt does not
-       # support quoting properly to be signaled about this
-       $table_name = $$table_name if ref $table_name eq 'SCALAR';
 
        # It's possible to have multiple DBIC sources using the same table
-       next if $tables{$moniker};
+       next if $sources{$moniker};
 
-       $tables{$moniker}{source} = $source;
+       $sources{$moniker}{source} = $source;
 
        foreach my $rel (sort $source->relationships) {
            my $rel_info = $source->relationship_info($rel);
@@ -1583,11 +1589,7 @@ sub source_tree {
            # related sources might be excluded via a {sources} filter or might be views
            next unless exists $table_monikers{$relsource->source_name};
 
-           my $rel_table = $relsource->name;
-
-           # FIXME - this isn't the right way to do it, but sqlt does not
-           # support quoting properly to be signaled about this
-           $rel_table = $$rel_table if ref $rel_table eq 'SCALAR';
+           my $rel_moniker = $r_sources{$relsource};
 
            # Force the order of @cond to match the order of ->add_columns
            my $idx;
@@ -1617,18 +1619,18 @@ sub source_tree {
                   \@keys, [$source->primary_columns]);
            }
 
-           $tables{$moniker}{foreign_table_deps}{$rel_table}++
+           $sources{$moniker}{foreign_table_deps}{$rel_moniker}++
               if $fk_constraint && @keys
                  # calculate dependencies: do not consider deferrable constraints and
                  # self-references for dependency calculations
                  && !$rel_info->{attrs}{is_deferrable}
-                 && $rel_table && $rel_table ne $table_name
+                 && $rel_moniker && $rel_moniker ne $moniker
 
        }
    }
 
    return {
-     map { $_ => $self->_resolve_deps ($_, \%tables) } (keys %tables)
+     map { $_ => $self->_resolve_deps ($_, \%sources) } (keys %sources)
    }
 }
 

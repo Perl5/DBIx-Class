@@ -7,68 +7,89 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema( no_connect => 1, no_deploy => 1 );
 
+use Devel::Dwarn;
+
 is_deeply($schema->source_tree, {
   Artist => {},
   ArtistSubclass => {},
   ArtistUndirectedMap => {
-    artist => 1
+    Artist => 1
   },
   Artwork => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   Artwork_to_Artist => {
-    artist => 1,
-    cd_artwork => 1
+    Artist => 1,
+    Artwork => 1,
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   BindType => {},
   Bookmark => {
-    link => 1
+    Link => 1
   },
   BooksInLibrary => {
-    owners => 1
+    Owners => 1
   },
   CD => {
-    genre => 1,
-    track => 1
+    Genre => 1,
+    Track => 1
   },
   CD_to_Producer => {
-    cd => 1,
-    producer => 1
+    CD => 1,
+    Genre => 1,
+    Producer => 1,
+    Track => 1
   },
   Collection => {},
   CollectionObject => {
-    collection => 1,
-    typed_object => 1
+    Collection => 1,
+    TypedObject => 1
   },
   CustomSql => {},
   Dummy => {},
   Employee => {
-    encoded => 1
+    Encoded => 1
   },
   Encoded => {},
   Event => {},
   EventTZ => {},
   ForceForeign => {
-    artist => 1
+    Artist => 1
   },
   FourKeys => {},
   FourKeys_to_TwoKeys => {
-    fourkeys => 1,
-    twokeys => 1
+    Artist => 1,
+    CD => 1,
+    FourKeys => 1,
+    Genre => 1,
+    Track => 1,
+    TwoKeys => 1
   },
   Genre => {},
   Image => {
-    cd_artwork => 1
+    Artwork => 1,
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   LinerNotes => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   Link => {},
   LyricVersion => {
-    lyrics => 1
+    CD => 1,
+    Lyrics => 1,
+    Track => 1
   },
   Lyrics => {
-    track => 1
+    CD => 1,
+    Track => 1
   },
   Money => {},
   NoPrimaryKey => {},
@@ -77,23 +98,27 @@ is_deeply($schema->source_tree, {
   Producer => {},
   SelfRef => {},
   SelfRefAlias => {
-    self_ref => 1
+    SelfRef => 1
   },
   SequenceTest => {},
   Serialized => {},
   SourceNameArtists => {},
   Tag => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   TimestampPrimaryKey => {},
   Track => {
-    cd => 1
+    CD => 1
   },
   TreeLike => {},
   TwoKeyTreeLike => {},
   TwoKeys => {
-    artist => 1,
-    cd => 1
+    Artist => 1,
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   TypedObject => {}
 }, 'got correct source tree');
@@ -104,63 +129,78 @@ my $sans_TwoKeys = {
   Artist => {},
   ArtistSubclass => {},
   ArtistUndirectedMap => {
-    artist => 1
+    Artist => 1
   },
   Artwork => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   Artwork_to_Artist => {
-    artist => 1,
-    cd_artwork => 1
+    Artist => 1,
+    Artwork => 1,
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   BindType => {},
   Bookmark => {
-    link => 1
+    Link => 1
   },
   BooksInLibrary => {
-    owners => 1
+    Owners => 1
   },
   CD => {
-    genre => 1,
-    track => 1
+    Genre => 1,
+    Track => 1
   },
   CD_to_Producer => {
-    cd => 1,
-    producer => 1
+    CD => 1,
+    Genre => 1,
+    Producer => 1,
+    Track => 1
   },
   Collection => {},
   CollectionObject => {
-    collection => 1,
-    typed_object => 1
+    Collection => 1,
+    TypedObject => 1
   },
   CustomSql => {},
   Dummy => {},
   Employee => {
-    encoded => 1
+    Encoded => 1
   },
   Encoded => {},
   Event => {},
   EventTZ => {},
   ForceForeign => {
-    artist => 1
+    Artist => 1
   },
   FourKeys => {},
   FourKeys_to_TwoKeys => {
-    fourkeys => 1
+    FourKeys => 1
   },
   Genre => {},
   Image => {
-    cd_artwork => 1
+    Artwork => 1,
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   LinerNotes => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   Link => {},
   LyricVersion => {
-    lyrics => 1
+    CD => 1,
+    Lyrics => 1,
+    Track => 1
   },
   Lyrics => {
-    track => 1
+    CD => 1,
+    Track => 1
   },
   Money => {},
   NoPrimaryKey => {},
@@ -169,17 +209,19 @@ my $sans_TwoKeys = {
   Producer => {},
   SelfRef => {},
   SelfRefAlias => {
-    self_ref => 1
+    SelfRef => 1
   },
   SequenceTest => {},
   Serialized => {},
   SourceNameArtists => {},
   Tag => {
-    cd => 1
+    CD => 1,
+    Genre => 1,
+    Track => 1
   },
   TimestampPrimaryKey => {},
   Track => {
-    cd => 1
+    CD => 1
   },
   TreeLike => {},
   TwoKeyTreeLike => {},
@@ -198,6 +240,6 @@ is_deeply(
    'got correct source tree with limit_sources => { ... }',
 );
 
-# We probably also want a "collapsed" tree
+# We probably also want a "collapsed" tree thingy
 
 done_testing;
