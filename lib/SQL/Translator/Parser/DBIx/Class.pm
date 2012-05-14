@@ -269,9 +269,7 @@ sub parse {
     }
 
     # attach the tables to the schema in dependency order
-    my $dependencies = {
-      map { $_ => _resolve_deps ($_, \%tables) } (keys %tables)
-    };
+    my $dependencies = _get_deps($dbicschema, 'Table');
 
     for my $table (sort
       {
@@ -303,11 +301,7 @@ EOW
     my %views;
     my @views = map { $dbicschema->source($_) } keys %view_monikers;
 
-    my $view_dependencies = {
-        map {
-            $_ => _resolve_deps( $dbicschema->source($_), \%view_monikers )
-          } ( keys %view_monikers )
-    };
+    my $view_dependencies = _get_deps($dbicschema, 'View');
 
     my @view_sources =
       sort {
@@ -352,55 +346,26 @@ EOW
     return 1;
 }
 
-#
-# Quick and dirty dependency graph calculator
-#
-sub _resolve_deps {
-    my ( $question, $answers, $seen ) = @_;
-    my $ret = {};
-    $seen ||= {};
-    my @deps;
+sub _get_deps {
+   my $schema = shift;
+   my $type   = shift;
 
-    # copy and bump all deps by one (so we can reconstruct the chain)
-    my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
-    if ( blessed($question)
-        && $question->isa('DBIx::Class::ResultSource::View') )
-    {
-        $seen{ $question->result_class } = 1;
-        @deps = keys %{ $question->{deploy_depends_on} };
-    }
-    else {
-        $seen{$question} = 1;
-        @deps = keys %{ $answers->{$question}{foreign_table_deps} };
-    }
+   my %sources =
+      map $_->[0],
+      grep { $_->[1]->isa("DBIx::Class::ResultSource::$type") }
+      map +[$_, $schema->source($_)],
+      $schema->sources;
 
-    for my $dep (@deps) {
-        if ( $seen->{$dep} ) {
-            return {};
-        }
-        my $next_dep;
-
-        if ( blessed($question)
-            && $question->isa('DBIx::Class::ResultSource::View') )
-        {
-            no warnings 'uninitialized';
-            my ($next_dep_source_name) =
-              grep {
-                $question->schema->source($_)->result_class eq $dep
-                  && !( $question->schema->source($_)
-                    ->isa('DBIx::Class::ResultSource::Table') )
-              } @{ [ $question->schema->sources ] };
-            return {} unless $next_dep_source_name;
-            $next_dep = $question->schema->source($next_dep_source_name);
-        }
-        else {
-            $next_dep = $dep;
-        }
-        my $subdeps = _resolve_deps( $next_dep, $answers, \%seen );
-        $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
-        ++$ret->{$dep};
-    }
-    return $ret;
+   my %s_dep = %{$schema->source_tree({ limit_sources => \%sources })};
+   my %t_deps;
+   for my $s (keys %s_dep) {
+      $t_deps{$schema->source($s)->name} = {
+         map {
+            $schema->source($_)->name => 1,
+         } keys %{$s_dep{$s}}
+      };
+   }
+   \%t_deps
 }
 
 1;
