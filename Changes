@@ -34,6 +34,7 @@ Revision history for DBIx::Class
           - Transaction support
           - Support for VARCHAR(MAX)/VARBINARY(MAX)/NVARCHAR(MAX) datatypes
           - Nomalization of retrieved GUID values
+        - Added flag for correctly introspecting foreign key relationships
 
     * Fixes
         - Fix complex has_many prefetch with resultsets not selecting identity

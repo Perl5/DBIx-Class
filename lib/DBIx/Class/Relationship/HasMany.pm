@@ -51,6 +51,9 @@ sub has_many {
 
   my $default_cascade = ref $cond eq 'CODE' ? 0 : 1;
 
+  $attrs->{is_foreign_rel} = 0
+    if not exists $attrs->{is_foreign_rel};
+
   $class->add_relationship($rel, $f_class, $cond, {
     accessor => 'multi',
     join_type => 'LEFT',

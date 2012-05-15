@@ -309,6 +309,15 @@ related object, but you also want the relationship accessor to double as
 a column accessor). For C<multi> accessors, an add_to_* method is also
 created, which calls C<create_related> for the relationship.
 
+=item is_foreign_rel
+
+This is automatically set for all of the relationship helper methods.  This is
+basically a flag that allows us to correctly introspect true foreign keys;
+or to be clear, this flag says "this relationship includes columns that point
+to another table."
+Do not confuse this with L</is_foreign_key_constraint> which serves a different
+purpose.
+
 =item is_foreign_key_constraint
 
 If you are using L<SQL::Translator> to create SQL for you and you find that it
