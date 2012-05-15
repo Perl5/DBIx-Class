@@ -440,6 +440,35 @@ etc.), but this may change in the future.
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.
 
+=head2 Software Limits
+
+When your RDBMS does not have a working SQL limit mechanism (e.g. Sybase ASE)
+and L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ> is either too slow or does
+not work at all, you can try the
+L<software_limit|DBIx::Class::ResultSet/software_limit>
+L<DBIx::Class::ResultSet> attribute, which skips over records to simulate limits
+in the Perl layer.
+
+For example:
+
+  my $paged_rs = $rs->search({}, {
+    rows => 25,
+    page => 3,
+    order_by => [ 'me.last_name' ],
+    software_limit => 1,
+  });
+
+You can set it as a default for your schema by placing the following in your
+C<Schema.pm>:
+
+  __PACKAGE__->default_resultset_attributes({ software_limit => 1 });
+
+B<WARNING:> If you are dealing with large resultsets and your L<DBI> or
+ODBC/ADO driver does not have proper cursor support (i.e. it loads the whole
+resultset into memory) then this feature will be extremely slow and use huge
+amounts of memory at best, and may cause your process to run out of memory and
+cause instability on your server at worst, beware!
+
 =head1 JOINS AND PREFETCHING
 
 =head2 Using joins and prefetch
