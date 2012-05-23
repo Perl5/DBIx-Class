@@ -427,7 +427,7 @@ important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
 on all your result sources B<even if the underlying RDBMS does not have one>.
 In a pinch one can always declare each row identifiable by all its columns:
 
- __PACKAGE__->set_primary_keys (__PACKAGE__->columns);
+ __PACKAGE__->set_primary_key(__PACKAGE__->columns);
 
 Note that DBIx::Class is smart enough to store a copy of the PK values before
 any row-object changes take place, so even if you change the values of PK
