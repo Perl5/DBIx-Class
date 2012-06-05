@@ -36,12 +36,13 @@ L<DBIx::Class::Storage::DBI::MSSQL>.
 
   sudo aptitude install tdsodbc libdbd-odbc-perl unixodbc
 
-In case it is not already there put the following in C</etc/odbcinst.ini>:
+In case it is not already there put the following (adjust for non-64bit arch) in
+C</etc/odbcinst.ini>:
 
   [FreeTDS]
   Description = FreeTDS
-  Driver      = /usr/lib/odbc/libtdsodbc.so
-  Setup       = /usr/lib/odbc/libtdsS.so
+  Driver      = /usr/lib/x86_64-linux-gnu/odbc/libtdsodbc.so
+  Setup       = /usr/lib/x86_64-linux-gnu/odbc/libtdsS.so
   UsageCount  = 1
 
 Set your C<$dsn> in L<connect_info|DBIx::Class::Storage::DBI/connect_info> as follows:
