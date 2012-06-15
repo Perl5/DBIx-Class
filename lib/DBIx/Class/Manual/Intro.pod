@@ -397,7 +397,7 @@ attributes:
 
   my @albums = My::Schema->resultset('Album')->search(
     { artist => 'Bob Marley' },
-    { rows => 2, order_by => 'year DESC' }
+    { rows => 2, order_by => { -desc => 'year' } }
   );
 
 C<@albums> then holds the two most recent Bob Marley albums.
