@@ -9,7 +9,7 @@ use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry local_umas
 use Carp;
 use Path::Class::File ();
 use File::Spec;
-use Fcntl qw/:flock/;
+use Fcntl qw/:DEFAULT :flock/;
 
 =head1 NAME
 
@@ -64,7 +64,7 @@ sub import {
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
-      open ($global_lock_fh, '>', $lockpath)
+      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT)
         or die "Unable to open $lockpath: $!";
     }
 
