@@ -17,6 +17,7 @@ BEGIN {
 name     'DBIx-Class';
 perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
+Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
 
 tests_recursive (qw|
     t
