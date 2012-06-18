@@ -1,6 +1,10 @@
 use strict;
 use warnings;
 
+BEGIN {
+  require threads if $^O eq 'MSWin32'; # preload due to fork errors
+}
+
 use Test::More;
 use Test::Warn;
 use Test::Exception;
