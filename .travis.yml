@@ -1,0 +1,30 @@
+language: perl
+perl:
+   - "5.14"
+   - "5.12"
+   - "5.10"
+
+### TODO: Add in all of the various databases that Travis has access to,
+###       and set the DBICTEST_*_DSN, _USER, _PASS env variables.
+###    MySQL, PostgreSQL, Firebird, SQL Anywhere
+
+install:
+   # Deal with all of the dependancies, quickly and quietly
+   - cpanm --quiet --notest Module::Install
+   - perl Makefile.PL --alldeps
+   - make listalldeps | cpanm --quiet --notest
+   
+   ### FIXME: Development releases need a nicer way of installing ###
+   - cpanm FREW/SQL-Abstract-1.73_01.tar.gz
+script:
+   # Make sure we don't run Makefile.PL without --alldeps
+   - make test
+
+# whitelist
+branches:
+   only:
+     - master
+
+notifications:
+   irc: "irc.perl.org#dbix-class"
+   
