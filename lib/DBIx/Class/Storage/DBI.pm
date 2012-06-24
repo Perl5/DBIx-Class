@@ -1075,7 +1075,16 @@ sub _server_info {
 
     $info = {};
 
-    my $server_version = try { $self->_get_server_version };
+    my $server_version;
+    try {
+      $server_version = $self->_get_server_version;
+    }
+    catch {
+      if ($self->{_in_determine_driver}) {
+        $self->throw_exception($_);
+      }
+      $server_version = undef;
+    };
 
     if (defined $server_version) {
       $info->{dbms_version} = $server_version;
@@ -1119,7 +1128,19 @@ sub _dbh_get_info {
       unless defined $info;
   }
 
-  return try { $self->_get_dbh->get_info($info) } || undef;
+  my $res;
+  
+  try {
+    $res = $self->_get_dbh->get_info($info);
+  }
+  catch {
+    if ($self->{_in_determine_driver}) {
+      $self->throw_exception($_);
+    }
+    $res = undef;
+  };
+
+  return $res;
 }
 
 sub _determine_driver {
