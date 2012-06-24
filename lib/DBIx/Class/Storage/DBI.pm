@@ -2958,6 +2958,13 @@ sub _is_text_lob_type {
                         |national\s*character\s*varying))\z/xi);
 }
 
+# Determine if a data_type is some type of a binary type
+sub _is_binary_type {
+  my ($self, $data_type) = @_;
+  $data_type && ($self->_is_binary_lob_type($data_type)
+    || $data_type =~ /(?:var)?(?:binary|bit|graphic)(?:\s*varying)?/i);
+}
+
 1;
 
 =head1 USAGE NOTES

@@ -49,7 +49,7 @@ sub _dbh_next {
   my $select = $self->args->[1];
 
   _normalize_guids($select, $col_infos, \@row, $storage);
-  _strip_trailing_binary_nulls($select, $col_infos, \@row);
+  _strip_trailing_binary_nulls($select, $col_infos, \@row, $storage);
 
   return @row;
 }
@@ -67,7 +67,7 @@ sub _dbh_all {
 
   for (@rows) {
     _normalize_guids($select, $col_infos, $_, $storage);
-    _strip_trailing_binary_nulls($select, $col_infos, $_);
+    _strip_trailing_binary_nulls($select, $col_infos, $_, $storage);
   }
 
   return @rows;

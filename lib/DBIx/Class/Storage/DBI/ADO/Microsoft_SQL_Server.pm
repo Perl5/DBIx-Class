@@ -144,7 +144,7 @@ sub select_single {
 
   _normalize_guids($select, $col_infos, \@row, $self);
 
-  _strip_trailing_binary_nulls($select, $col_infos, \@row);
+  _strip_trailing_binary_nulls($select, $col_infos, \@row, $self);
 
   return @row;
 }
