@@ -8,9 +8,10 @@ use lib qw(t/lib);
 use DBICTest;
 
 BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
+  require DBIx::Class;
+  plan skip_all => 'Test needs ' .
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_admin_script')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('test_admin_script');
 }
 
 $ENV{PATH} = '';
@@ -33,16 +34,20 @@ cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC sche
 test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --config=t/lib/admincfgtest.json --config-stanza=Model::Gort --deploy|);
 cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
-for my $js (@json_backends) {
+TODO: {
+  local $TODO = 'these tests need to be fixed for Win32' if $^O eq 'MSWin32';
 
-    eval {JSON::Any->import ($js) };
-    SKIP: {
-        skip ("JSON backend $js is not available, skip testing", 1) if $@;
+  for my $js (@json_backends) {
 
-        $ENV{JSON_ANY_ORDER} = $js;
-        eval { test_dbicadmin () };
-        diag $@ if $@;
-    }
+      eval {JSON::Any->import ($js) };
+      SKIP: {
+          skip ("JSON backend $js is not available, skip testing", 1) if $@;
+
+          $ENV{JSON_ANY_ORDER} = $js;
+          eval { test_dbicadmin () };
+          diag $@ if $@;
+      }
+  }
 }
 
 done_testing();
@@ -90,23 +95,15 @@ sub default_args {
   );
 }
 
-# Why do we need this crap? Apparently MSWin32 can not pass through quotes properly
-# (sometimes it will and sometimes not, depending on what compiler was used to build
-# perl). So we go the extra mile to escape all the quotes. We can't also use ' instead
-# of ", because JSON::XS (proudly) does not support "malformed JSON" as the author
-# calls it. Bleh.
-#
 sub test_exec {
   my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ('script/dbicadmin', @_);
+  my @args = ($perl, '-MDBICTest::RunMode', 'script/dbicadmin', @_);
 
-  if ( $^O eq 'MSWin32' ) {
-    $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
-    for (@args) {
-      $_ =~ s/"/\\"/g;
-    }
+  if ($^O eq 'MSWin32') {
+    require Win32::ShellQuote; # included in test optdeps
+    @args = Win32::ShellQuote::quote_system_list(@args);
   }
 
-  system ($perl, '-MDBICTest::RunMode', @args);
+  system @args;
 }

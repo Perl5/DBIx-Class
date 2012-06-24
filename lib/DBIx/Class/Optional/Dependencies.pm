@@ -32,6 +32,13 @@ my $admin_basic = {
   'namespace::autoclean'          => '0.09',
 };
 
+my $admin_script = {
+  %$moose_basic,
+  %$admin_basic,
+  'Getopt::Long::Descriptive' => '0.081',
+  'Text::CSV'                 => '1.16',
+};
+
 my $datetime_basic = {
   'DateTime'                      => '0.55',
   'DateTime::Format::Strptime'    => '1.2',
@@ -131,15 +138,19 @@ my $reqs = {
 
   admin_script => {
     req => {
-      %$moose_basic,
-      %$admin_basic,
-      'Getopt::Long::Descriptive' => '0.081',
-      'Text::CSV'                 => '1.16',
+      %$admin_script,
     },
     pod => {
       title => 'dbicadmin',
       desc => 'Modules required for the CLI DBIx::Class interface dbicadmin',
     },
+  },
+
+  test_admin_script => {
+    req => {
+      %$admin_script,
+      ($^O eq 'MSWin32' ? ('Win32::ShellQuote' => 0) : ()),
+    }
   },
 
   deploy => {
