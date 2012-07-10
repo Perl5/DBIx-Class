@@ -1,0 +1,20 @@
+[10:37:58] <mst> "the if stuff"
+[10:38:06] <frew> mst: carp_once_if vs carp_once
+[10:39:11] <mst> k
+[11:03:20] <mst> frew: isn't is_foreign_rel really is_owned_by_relationship ?
+[11:03:37] <mst> as soon as you say 'foreign' my brain jumps to db-level FK
+[11:03:51] <mst> so is_owned_by_relationship or something to go with is_foreign_key_relationship seems sanish
+[11:05:54] <frew> mst: fine with me
+[11:07:46] <mst> hm
+[12:07:04] <mst> frew: hmm
+[12:07:15] <frew> mst: ??
+[12:07:24] <mst> frew: is_self_owns_foreign_rel ?
+[12:07:29] <mst> trying to find something self documenting
+[12:08:02] <frew> I wonder if we could get dep in there somewhere
+[12:08:11] <frew> because yeah, own, depends, something like that
+[12:08:29] <frew> does_other_depend_on_rel
+[12:08:31] <mst> relationship_target_owns_me ?
+[12:08:42] <arcanez> that was rather unprofessional throwing dhoss under the bus.
+[12:08:50] <frew> mst: I like that
+[12:08:55] <arcanez> all_your_target_are_belong_to_me
+[12:09:08] <frew> mst: I like that one a lot
