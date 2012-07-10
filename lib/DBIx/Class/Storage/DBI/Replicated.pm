@@ -20,6 +20,8 @@ use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
+=encoding utf8
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Replicated - BETA Replicated database support
