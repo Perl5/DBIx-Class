@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.08197_01 2012-05-30 02:15 (UTC)
+0.08197 2012-07-10 10:32 (UTC)
     * New Features / Changes
         - Issue a warning when DateTime objects are passed to ->search
         - Fast populate() in void context is now even more efficient by
