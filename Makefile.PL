@@ -70,7 +70,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.20',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.73_01',
+  'SQL::Abstract'            => '1.73',
   'Try::Tiny'                => '0.04',
 
   # dual-life corelibs needing a specific bugfixed version
