@@ -53,8 +53,8 @@ sub _has_one {
 
   my $default_cascade = ref $cond eq 'CODE' ? 0 : 1;
 
-  $attrs->{is_foreign_rel} = 0
-    if not $attrs->{is_foreign_rel};
+  $attrs->{relationship_target_owns_me} = 0
+    if not $attrs->{relationship_target_owns_me};
 
   $class->add_relationship($rel, $f_class,
    $cond,

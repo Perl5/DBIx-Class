@@ -309,7 +309,7 @@ related object, but you also want the relationship accessor to double as
 a column accessor). For C<multi> accessors, an add_to_* method is also
 created, which calls C<create_related> for the relationship.
 
-=item is_foreign_rel
+=item relationship_target_owns_me
 
 This is automatically set for all of the relationship helper methods.  This is
 basically a flag that allows us to correctly introspect true foreign keys;

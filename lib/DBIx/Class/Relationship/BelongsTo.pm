@@ -18,8 +18,8 @@ sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
   # assume a foreign key contraint unless defined otherwise
-  $attrs->{is_foreign_key_constraint} = 1
-    if not $attrs->{is_foreign_key_constraint};
+  $attrs->{relationship_target_owns_me} = 1
+    if not $attrs->{relationship_target_owns_me};
 
   $attrs->{is_foreign_rel} = 1
     if not exists $attrs->{is_foreign_rel};
