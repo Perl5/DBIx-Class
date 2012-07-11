@@ -40,10 +40,10 @@ a subselect_rs.
 
 So maybe I'd expect something like
 
-DELETE FROM step
-WHERE id IN (
-  SELECT id FROM step
-  JOIN stage ON (step.stage_id = stage.id)
-  WHERE step.file_id = ?
-  AND stage.name = 'Final'
-);
+   DELETE FROM step
+   WHERE id IN (
+     SELECT id FROM step
+     JOIN stage ON (step.stage_id = stage.id)
+     WHERE step.file_id = ?
+     AND stage.name = 'Final'
+   );
