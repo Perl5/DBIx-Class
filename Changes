@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.08198 2012-07-11 03:43 (UTC)
+    * Fixes
+        - Fix a number of Win32 Test issues
+        - Fix silent Oracle connection failures
+
 0.08197 2012-07-10 10:32 (UTC)
     * New Features / Changes
         - Issue a warning when DateTime objects are passed to ->search

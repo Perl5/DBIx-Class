@@ -1129,7 +1129,7 @@ sub _dbh_get_info {
   }
 
   my $res;
-  
+
   try {
     $res = $self->_get_dbh->get_info($info);
   }
