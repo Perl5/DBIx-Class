@@ -1,0 +1,49 @@
+Toby Corkindale toby@dryft.net to DBIx::Class
+Hi,
+I discovered what smells like a bug in the as_subselect_rs codepath,
+but it may just me doing it wrong..
+
+The Perl code looks like this:
+
+    $schema->resultset('Step')->search(
+        {
+            file_id => $file_id,
+            'stage.name' => 'Final',
+        },
+        { join => 'stage' }
+    )->as_subselect_rs->delete;
+
+However the generated SQL is simply:
+
+    DELETE FROM step WHERE ( file_id = ? )
+
+It seems to have lost the join altogether.
+
+This was on version 0.08196 but I can try on a later one in a moment.
+
+...
+
+Just confirming it still happens on 0.08198.
+
+...
+
+If it helps, the SQL I would have expected would be something like:
+
+      DELETE FROM step
+      USING stage
+      WHERE step.stage_id = stage.id
+      AND stage.name = 'Final'
+      AND step.file_id = ?
+
+Although now I think about it, it's probably hard to get to that from
+a subselect_rs.
+
+So maybe I'd expect something like
+
+DELETE FROM step
+WHERE id IN (
+  SELECT id FROM step
+  JOIN stage ON (step.stage_id = stage.id)
+  WHERE step.file_id = ?
+  AND stage.name = 'Final'
+);
