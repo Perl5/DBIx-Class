@@ -553,6 +553,14 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   );
 }
 
+# test to make sure that calling ->new() on a resultset object gives
+# us a row object
+{
+    my $new_artist = $schema->resultset('Artist')->new({});
+    isa_ok( $new_artist, 'DBIx::Class::Row', '$rs->new gives a row object' );
+}
+
+
 # make sure we got rid of the compat shims
 SKIP: {
     my $remove_version = 0.083;
