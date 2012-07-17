@@ -4,13 +4,16 @@ use strict;
 use warnings;
 
 use base qw/Class::Accessor::Grouped/;
-use Scalar::Util qw/weaken/;
+use Scalar::Util qw/weaken blessed/;
 use namespace::clean;
 
 my $successfully_loaded_components;
 
 sub get_component_class {
   my $class = $_[0]->get_inherited($_[1]);
+
+  # It's already an object, just go for it.
+  return $class if blessed $class;
 
   if (defined $class and ! $successfully_loaded_components->{$class} ) {
     $_[0]->ensure_class_loaded($class);
