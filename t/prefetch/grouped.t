@@ -179,7 +179,7 @@ for ($cd_rs->all) {
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( me.cdid IS NOT NULL )
-      ORDER BY track_count DESC, maxtr ASC
+      ORDER BY track_count DESC, maxtr ASC, tracks.cd
     )',
     [[$ROWS => 2]],
     'next() query generated expected SQL',
@@ -227,7 +227,7 @@ for ($cd_rs->all) {
           ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
-      ORDER BY cdid
+      ORDER BY cdid, tags.cd, tags.tag
     )',
     [],
     'Prefetch + distinct resulted in correct group_by',
@@ -296,7 +296,6 @@ for ($cd_rs->all) {
             GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
           ) me
           JOIN artist artist ON artist.artistid = me.artist
-          ORDER BY me.cdid
       )',
       [],
     );
@@ -328,7 +327,6 @@ for ($cd_rs->all) {
         WHERE ( tracks.title != ? )
         GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
                  artist.artistid, artist.name, artist.rank, artist.charfield
-        ORDER BY me.cdid
       )',
       [ map { [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'tracks.title' }
             => 'ugabuganoexist' ] } (1,2)
@@ -355,7 +353,7 @@ for ($cd_rs->all) {
             ORDER BY tags.tag ASC LIMIT ?)
             me
           LEFT JOIN tags tags ON tags.cd = me.cdid
-         ORDER BY tags.tag ASC
+         ORDER BY tags.tag ASC, tags.cd, tags.tag
         )
     }, [[$ROWS => 1]]);
 }

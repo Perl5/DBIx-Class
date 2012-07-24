@@ -65,7 +65,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [
         [ { sqlt_datatype => 'integer' } => 3 ],
@@ -107,7 +107,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],
@@ -147,7 +147,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],
@@ -187,7 +187,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [
         [ { sqlt_datatype => 'integer' } => 3 ],
@@ -290,7 +290,7 @@ my $tests = {
             ) me
             LEFT JOIN books books
               ON books.owner = me.id
-          ORDER BY me.id
+          ORDER BY books.owner
         )',
         [
           [ { sqlt_datatype => 'integer' } => 2 ],
@@ -408,7 +408,7 @@ my $tests = {
             ) me
             LEFT JOIN books books
               ON books.owner = me.id
-          ORDER BY me.id
+          ORDER BY books.owner
         )',
         [
           [ { sqlt_datatype => 'integer' } => 2 ],
@@ -527,7 +527,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [],
     ],
@@ -634,7 +634,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY books.owner
       )',
       [],
     ],
@@ -764,7 +764,7 @@ my $tests = {
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY me.id, books.owner
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],

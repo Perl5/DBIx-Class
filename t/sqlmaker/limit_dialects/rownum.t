@@ -146,7 +146,7 @@ for my $test_set (
         { id => 'foo.id' },
         { 'ends_with_me.id' => 'ends_with_me.id' },
       ],
-      order_by => [qw( year artist title )],
+      order_by => [qw( artist title )],
     }),
     sql => '(
       SELECT id, ends_with_me__id
@@ -156,7 +156,7 @@ for my $test_set (
           SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
             FROM cd me
           WHERE id = ?
-          ORDER BY year, artist, title
+          ORDER BY artist, title
         ) me
         WHERE ROWNUM <= ?
       ) me

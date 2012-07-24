@@ -253,11 +253,6 @@ sub make_hash_struc {
     my $rs = shift;
 
     my $struc = {};
-    # all of these ought to work, but do not for some reason
-    # a noop cloning search() pollution?
-    #foreach my $art ( $rs->search({}, { order_by => 'me.artistid' })->all ) {
-    #foreach my $art ( $rs->search({}, {})->all ) {
-    #foreach my $art ( $rs->search()->all ) {
     foreach my $art ( $rs->all ) {
         foreach my $cd ( $art->cds ) {
             foreach my $track ( $cd->tracks ) {

@@ -94,7 +94,7 @@ sub new {
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$orig_attrs->{group_by} && $orig_attrs->{collapse}) {
+  if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
 
     if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
       $new_attrs->{group_by} = [ $select ];

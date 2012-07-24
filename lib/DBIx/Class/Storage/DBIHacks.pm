@@ -77,10 +77,16 @@ sub _adjust_select_args_for_complex_prefetch {
   delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
   my $inner_attrs = { %$attrs };
-  delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range select as/;
+  delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range _collapse_order_by select as/;
 
-  # if the user did not request it, there is no point using it inside
-  delete $inner_attrs->{order_by} if delete $inner_attrs->{_order_is_artificial};
+  # bring over all non-collapse-induced order_by into the inner query (if any)
+  # the outer one will have to keep them all
+  delete $inner_attrs->{order_by};
+  if (my $ord_cnt = @{$outer_attrs->{order_by}} - @{$outer_attrs->{_collapse_order_by}} ) {
+    $inner_attrs->{order_by} = [
+      @{$outer_attrs->{order_by}}[ 0 .. $ord_cnt - 1]
+    ];
+  }
 
   # generate the inner/outer select lists
   # for inside we consider only stuff *not* brought in by the prefetch

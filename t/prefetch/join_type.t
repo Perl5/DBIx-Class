@@ -38,7 +38,7 @@ is_same_sql_bind (
       JOIN artist artist ON artist.artistid = me.artist
       LEFT JOIN cd cds ON cds.artist = artist.artistid
       LEFT JOIN artist artist_2 ON artist_2.artistid = cds.artist
-    ORDER BY me.cdid
+    ORDER BY cds.artist, cds.year ASC
   )',
   [],
 );

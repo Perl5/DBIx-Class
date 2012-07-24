@@ -22,8 +22,8 @@ my $filtered_cd_rs = $artist_rs->search_related('cds_unordered',
   { "$ar.rank" => 13 },
   {
     prefetch => [ 'tracks' ],
-    order_by => [ 'tracks.position DESC', { -asc => "$ar.name" }, "$ar.artistid DESC" ],
-    offset   => 13,
+    order_by => [ { -asc => "$ar.name" }, "$ar.artistid DESC" ],
+    offset   => 3,
     rows     => 3,
   },
 );
@@ -39,10 +39,8 @@ is_same_sql_bind(
           FROM artist me
           JOIN cd cds_unordered
             ON cds_unordered.artist = me.artistid
-          LEFT JOIN track tracks
-            ON tracks.cd = cds_unordered.cdid
         WHERE ( me.rank = ? )
-        ORDER BY tracks.position DESC, me.name ASC, me.artistid DESC
+        ORDER BY me.name ASC, me.artistid DESC
         LIMIT ?
         OFFSET ?
       ) cds_unordered
@@ -50,12 +48,12 @@ is_same_sql_bind(
       LEFT JOIN track tracks
         ON tracks.cd = cds_unordered.cdid
     WHERE ( me.rank = ? )
-    ORDER BY tracks.position DESC, me.name ASC, me.artistid DESC
+    ORDER BY me.name ASC, me.artistid DESC, tracks.cd
   )},
   [
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
     [ $ROWS => 3 ],
-    [ $OFFSET => 13 ],
+    [ $OFFSET => 3 ],
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
   ],
   'correct SQL on limited prefetch over search_related ordered by root',
@@ -82,9 +80,9 @@ is_deeply (
           'cd' => '4',
           'last_updated_at' => undef,
           'last_updated_on' => undef,
-          'position' => '3',
-          'title' => 'No More Ideas',
-          'trackid' => '12'
+          'position' => '1',
+          'title' => 'Boring Name',
+          'trackid' => '10'
         },
         {
           'cd' => '4',
@@ -98,9 +96,9 @@ is_deeply (
           'cd' => '4',
           'last_updated_at' => undef,
           'last_updated_on' => undef,
-          'position' => '1',
-          'title' => 'Boring Name',
-          'trackid' => '10'
+          'position' => '3',
+          'title' => 'No More Ideas',
+          'trackid' => '12'
         }
       ],
       'year' => '2001'
@@ -116,6 +114,14 @@ is_deeply (
           'cd' => '5',
           'last_updated_at' => undef,
           'last_updated_on' => undef,
+          'position' => '1',
+          'title' => 'Sad',
+          'trackid' => '13'
+        },
+        {
+          'cd' => '5',
+          'last_updated_at' => undef,
+          'last_updated_on' => undef,
           'position' => '3',
           'title' => 'Suicidal',
           'trackid' => '15'
@@ -127,14 +133,6 @@ is_deeply (
           'position' => '2',
           'title' => 'Under The Weather',
           'trackid' => '14'
-        },
-        {
-          'cd' => '5',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '1',
-          'title' => 'Sad',
-          'trackid' => '13'
         }
       ],
       'year' => '1998'

@@ -1139,28 +1139,56 @@ sub inflate_result {
 
   foreach my $pre (keys %{$prefetch||{}}) {
 
-    my @pre_vals;
-    @pre_vals = (ref $prefetch->{$pre}[0] eq 'ARRAY')
-      ? @{$prefetch->{$pre}} : $prefetch->{$pre}
-    if @{$prefetch->{$pre}};
+    my (@pre_vals, $is_multi);
+    if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
+      $is_multi = 1;
+      @pre_vals = @{$prefetch->{$pre}};
+    }
+    else {
+      @pre_vals = $prefetch->{$pre};
+    }
 
-    my $pre_source = $source->related_source($pre);
+    my $pre_source = try {
+      $source->related_source($pre)
+    }
+    catch {
+      $class->throw_exception(sprintf
+
+        "Can't inflate manual prefetch into non-existent relationship '%s' from '%s', "
+      . "check the inflation specification (columns/as) ending in '%s.%s'.",
+
+        $pre,
+        $source->source_name,
+        $pre,
+        (keys %{$pre_vals[0][0]})[0] || 'something.something...',
+      );
+    };
 
     my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
-      or $class->throw_exception("No accessor type declared for prefetched relationship '$pre'");
+      or $class->throw_exception("No accessor type declared for prefetched $pre");
+
+    if (! $is_multi and $accessor eq 'multi') {
+      $class->throw_exception("Manual prefetch (via select/columns) not supported with accessor 'multi'");
+    }
 
     my @pre_objects;
     for my $me_pref (@pre_vals) {
 
-      # FIXME SUBOPTIMAL - the new row parsers can very well optimize
-      # this away entirely, and *never* return such empty rows.
-      # For now we maintain inflate_result API backcompat, see
-      # t/resultset/inflate_result_api.t
-      next unless first { defined $_ } values %{$me_pref->[0]};
+        # FIXME - this should not be necessary
+        # the collapser currently *could* return bogus elements with all
+        # columns set to undef
+        my $has_def;
+        for (values %{$me_pref->[0]}) {
+          if (defined $_) {
+            $has_def++;
+            last;
+          }
+        }
+        next unless $has_def;
 
-      push @pre_objects, $pre_source->result_class->inflate_result(
-        $pre_source, @$me_pref
-      );
+        push @pre_objects, $pre_source->result_class->inflate_result(
+          $pre_source, @$me_pref
+        );
     }
 
     if ($accessor eq 'single') {

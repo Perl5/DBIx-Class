@@ -363,16 +363,6 @@ for my $slot (keys %$weak_registry) {
     delete $weak_registry->{$slot}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
   }
-  elsif (
-    $slot =~ /^Data::Dumper/
-      and
-    $weak_registry->{$slot}{stacktrace} =~ /\QDBIx::Class::ResultSource::RowParser::_mk_row_parser/
-  ) {
-    # there should be only one D::D object (used to construct the rowparser)
-    # more would indicate trouble
-    delete $weak_registry->{$slot}
-      unless $cleared->{mk_row_parser_dd_singleton}++;
-  }
   elsif (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and $slot =~ /^__TxnScopeGuard__FIXUP__/) {
     delete $weak_registry->{$slot}
   }
