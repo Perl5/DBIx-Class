@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+0.08198_01 2012-07-25 (UTC)
+    * Fixes
+        - Roll back incomplete (and broken) internal changes - restore prefetch functionality
+
 0.08198 2012-07-11 03:43 (UTC)
     * Fixes
         - Fix a number of Win32 Test issues
