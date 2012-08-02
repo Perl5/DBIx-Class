@@ -6,7 +6,7 @@ use warnings;
 
 use base 'DBIx::Class::Core';
 
-__PACKAGE__->table('left_right');
+__PACKAGE__->table('prefetchbug_left_right');
 __PACKAGE__->add_columns(
     left_id => { data_type => 'integer' },
     right_id => { data_type => 'integer' },
