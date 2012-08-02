@@ -2,13 +2,12 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;
-
-plan tests => 44;
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
@@ -227,6 +226,13 @@ $rs->create({ artistid => 5, name => 'Emo 4ever' });
 @artists = $rs->search(undef, { prefetch => 'cds', order_by => 'artistid' });
 is(scalar @artists, 5, 'has_many prefetch with adjacent empty rows ok');
 
+lives_ok { @artists = $rs->search(undef, {
+        join => ['cds'],
+        prefetch => [],
+        rows => 20,
+    });
+} 'join and empty prefetch ok';
+
 # -------------
 #
 # Tests for multilevel has_many prefetch
@@ -292,3 +298,5 @@ is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
+
+done_testing;
