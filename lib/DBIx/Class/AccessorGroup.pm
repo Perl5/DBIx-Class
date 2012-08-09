@@ -44,9 +44,9 @@ DBIx::Class::AccessorGroup - See Class::Accessor::Grouped
 
 This class now exists in its own right on CPAN as Class::Accessor::Grouped
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

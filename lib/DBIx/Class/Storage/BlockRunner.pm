@@ -219,9 +219,9 @@ sub _run {
   };
 }
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-see L<DBIx::Class>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

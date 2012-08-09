@@ -40,9 +40,9 @@ no matter the database version, add
 
 to your Schema class.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-David Jack Olrik C<< <djo@cpan.org> >>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

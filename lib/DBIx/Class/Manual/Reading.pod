@@ -163,15 +163,12 @@ Examples and explaining paragraphs can be repeated as necessary.
 
 =back
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-see L<DBIx::Class>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-
-

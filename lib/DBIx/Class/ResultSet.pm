@@ -4341,6 +4341,14 @@ Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
 ... FOR SHARED. If \$scalar is passed, this is taken directly and embedded in the
 query.
 
+=head1 AUTHOR AND CONTRIBUTORS
+
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
 =cut
 
 1;

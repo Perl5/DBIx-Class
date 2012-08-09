@@ -844,9 +844,9 @@ Removes the link between the current object and the related object. Note that
 the related object itself won't be deleted unless you call ->delete() on
 it. This method just removes the link between the two objects.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
