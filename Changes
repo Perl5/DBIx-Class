@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.08199 2012-08-22 (UTC)
+    same as devrel
+
 0.08198_01 2012-07-25 (UTC)
     * Fixes
         - Roll back incomplete (and broken) internal changes - restore prefetch functionality
