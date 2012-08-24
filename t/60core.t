@@ -555,10 +555,11 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 
 # make sure we got rid of the compat shims
 SKIP: {
-    skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;
+    my $remove_version = 0.083;
+    skip "Remove in $remove_version", 3 if $DBIx::Class::VERSION < $remove_version;
 
     for (qw/compare_relationship_keys pk_depends_on resolve_condition/) {
-      ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
+      ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource, removed before $remove_version");
     }
 }
 
