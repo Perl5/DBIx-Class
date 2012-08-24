@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Change one of the new tests for the previous release to not require
+          SQL::Translator
+
 0.08199 2012-08-22 (UTC)
     same as devrel
 
