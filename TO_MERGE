@@ -1,3 +1,18 @@
 I think this looks good refactoring wise but there's no comment or
 documentation as to what the source_tree method is for or why you'd
 actually want to call it - add that and I think it's probably good.
+
+There is an actual method called r_sources() on schema. Please call it
+something sensible or privatize.
+$args is taken as a hashref only - it is customary for DBIC methods to
+take both a hashref and a hashref-as-list
+
+The returned structure needs a massive rework, instead of the nondescript '1',
+you need to return something more elaborate. Consider:
+- One might want to know which dependencies are views and which are tables
+- One might want to know the types of relationships (optional/hard dep)
+- One might want to know which dependencies are direct and which are deps of
+  deps (this last bit was actually present in the code that was ripped out,
+  in a sense what we have now is loss of functionality)
+
+
