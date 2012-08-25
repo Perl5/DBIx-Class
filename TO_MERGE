@@ -1,5 +1,2 @@
-This branch seems to've removed a large chunk of Relationship::Base docs
-and there's a whitespace typo in the changes.
-
 The functionality, however, seems fine, though I'd like ribasushi to
 double check it before merging.
