@@ -17,17 +17,3 @@ impossible to pass in an explicit negative. 7fc30cfd82 claims that I requested
 this - I was asking for a change from exists to undef (with the idea that
 passing an undef in would negate an inherited value, and reinvoke the default
 determination)
-
-* I am still firmly on the opinion that relationship_target_owns_me is an
-extremely ugly name. If we want to be both descriptive and fall within a
-sane coherent framework we need to rename the rest. Renaming doesn't mean the
-old names are not supported, it simply means that the docs and examples are
-updated, and that fallbacks for the old names are added in.
-
-owned_by|maybe_owned_by <==> owns_one|maybe_owns_one|owns_many (or perhaps
-                                                     owns_some to indicate 0:M)
-
-Then the logical attr name would be owned_by_target
-
-I won't bikeshed the names anymore, if you elect to merge them this way I
-reserve the right to laugh at you any time a confused soul complains yet again.
