@@ -17,3 +17,9 @@ impossible to pass in an explicit negative. 7fc30cfd82 claims that I requested
 this - I was asking for a change from exists to undef (with the idea that
 passing an undef in would negate an inherited value, and reinvoke the default
 determination)
+
+* After an offline discussion both mst and riba agreed that the current 
+relationship definition framework is bollocks anyway, and introducing a new
+concept (owned) will make things even messier. Instead we settled on a flag
+of is_belongs_to => 1/0, which should be sufficient for the time being, and
+for what frew needed it for
