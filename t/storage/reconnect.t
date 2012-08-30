@@ -15,7 +15,7 @@ my $db_tmp  = "$db_orig.tmp";
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 # Make sure we're connected by doing something
-my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
+my @art = $schema->resultset("Artist")->search({ }, { order_by => { -desc => 'name' }});
 cmp_ok(@art, '==', 3, "Three artists returned");
 
 # Disconnect the dbh, and be sneaky about it
@@ -32,7 +32,7 @@ cmp_ok(@art, '==', 3, "Three artists returned");
 #   2. It catches the exception, checks ->{Active}/->ping, sees the disconnected state...
 #   3. Reconnects, and retries the operation
 #   4. Success!
-my @art_two = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
+my @art_two = $schema->resultset("Artist")->search({ }, { order_by => { -desc => 'name' }});
 cmp_ok(@art_two, '==', 3, "Three artists returned");
 
 ### Now, disconnect the dbh, and move the db file;
@@ -49,7 +49,7 @@ close $db_file;
   # Catch the DBI connection error
   local $SIG{__WARN__} = sub {};
   throws_ok {
-    my @art_three = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+    my @art_three = $schema->resultset("Artist")->search( {}, { order_by => { -desc => 'name' } } );
   }  qr/not a database/, 'The operation failed';
 }
 
@@ -63,7 +63,7 @@ move( $db_tmp, $db_orig )
 ### Try the operation again... this time, it should succeed
 my @art_four;
 lives_ok {
-    @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+    @art_four = $schema->resultset("Artist")->search( {}, { order_by => { -desc => 'name' } } );
 } 'The operation succeeded';
 cmp_ok( @art_four, '==', 3, "Three artists returned" );
 
