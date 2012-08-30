@@ -28,6 +28,9 @@ __PACKAGE__->mk_group_accessors('inherited' => qw/
   _unsatisfied_deferred_constraints_autorollback
 /);
 
+# I would change this to something that makes sense, like
+# _autorollback_on_deferred_constraint_violation
+# also setting it to an explicit 0 is silly
 # see with_deferred_fk_checks
 __PACKAGE__->_unsatisfied_deferred_constraints_autorollback(0);
 
@@ -863,6 +866,9 @@ in MySQL's case disabled entirely.
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
+  # now this has a lot of logic built in, including an unconditional
+  # try/catch block on top. If code ends up nesting with_deferred_fk_checks
+  # blocks - lots of crap will go wrong. We need a test for nesting too.
   if ($self->can('_set_constraints_deferred') &&
       $self->can('_set_constraints_immediate')) {
 
@@ -871,6 +877,7 @@ sub with_deferred_fk_checks {
     return try {
       my $guard = $self->txn_scope_guard;
       $self->_set_constraints_deferred;
+      # why { $sub->() } and not just $sub ?
       preserve_context { $sub->() } after => sub {
         my $e;
         eval {
@@ -879,10 +886,22 @@ sub with_deferred_fk_checks {
         if ($@) {
           if ($self->_unsatisfied_deferred_constraints_autorollback) {
             $guard->{inactivated} = 1; # DO NOT ROLLBACK
+
+            # *POSSIBLY* a code smell
+            # perhaps this shouldn't be here at all, ::Storage::txn_commit
+            # (which is called on all commits, including guards) should know to
+            # check for "am I in a deferred state" and "do I auto-rollback"
+            # and then do all the reductions on its own
             $self->{transaction_depth}--;
           }
           $e = $@;
         }
+
+        # some engines (e.g. Pg) auto-unset deferred txns on rollback
+        # there should be an extra storage flag, and a provision to
+        # avoid this entire eval invoking a noop
+        # also the semantic is not clear what happens when an autorollback
+        # happens in the midst of a nested savepoint. Need more tests
         eval {
           $tried_to_reset_constraints = 1;
           $self->_set_constraints_immediate;
@@ -900,6 +919,8 @@ sub with_deferred_fk_checks {
     }
     catch {
       my $e = $_;
+
+      # same commend as on the eval above
       if (not $tried_to_reset_constraints) {
         eval {
           $self->_set_constraints_immediate;

@@ -34,6 +34,8 @@ sub _set_constraints_deferred {
 # transaction" so that they can be checked.
 
 sub _set_constraints_immediate {
+  # the semantic is not clear what happens when an autorollback happens in the
+  # midst of a nested savepoint (txn_depth is set all the same). Moar tests
   $_[0]->_do_query('SET CONSTRAINTS ALL IMMEDIATE') if $_[0]->transaction_depth;
 }
 

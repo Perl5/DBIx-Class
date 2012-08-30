@@ -50,12 +50,21 @@ sub _set_constraints_immediate {
 # fix it up here by doing a manual $dbh->do("COMMIT WORK"), propagating the
 # exception, and resetting the $dbh->{AutoCommit} attribute.
 
+# this crap is now exeuted on *every* commit, be it deferred constraints or not
+# moreover there is no DBD version check - the workaround will remain here
+# forever and ever until someone decides to profile it
+# so far the general way of doing this was to use the current CPAN available
+# version, and keep bumping it as DBDs are released with the bug outstanding.
+# of course having an explicit test for this helps - we do not have one
 sub _exec_txn_commit {
   my $self = shift;
 
   my $tried_resetting_autocommit = 0;
 
   try {
+    # what the fuck?! what's wrong with $dbh->commit for the *general* case?
+    # where is the detailed comment explaining why the violation of DBI
+    # internals? (the 2 lines above o not count as sufficient explanation)
     $self->_dbh->do('COMMIT WORK');
     if ($self->_dbh_autocommit && $self->transaction_depth == 1) {
       eval {

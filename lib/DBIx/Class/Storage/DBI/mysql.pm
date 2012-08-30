@@ -17,6 +17,8 @@ __PACKAGE__->_use_multicolumn_in (1);
 # We turn FOREIGN_KEY_CHECKS off, do a transaction, then turn them back on right
 # before the COMMIT so that they can be checked during the COMMIT.
 
+# nothing tests this hypothesis, why?
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
