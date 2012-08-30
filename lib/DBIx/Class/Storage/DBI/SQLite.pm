@@ -8,6 +8,7 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util 'looks_like_number';
+use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -89,6 +90,11 @@ sub _exec_svp_rollback {
   local $self->_dbh->{AutoCommit} = $self->_dbh->{AutoCommit};
 
   $self->_dbh->do("ROLLBACK TRANSACTION TO SAVEPOINT $name");
+}
+
+sub _ping {
+  my $self = shift;
+  try { $self->_dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 };
 }
 
 sub deployment_statements {
