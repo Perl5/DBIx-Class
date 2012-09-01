@@ -1,8 +1,5 @@
 Revision history for DBIx::Class
 
-    * Fixes
-        - Fix t/storage/reconnect.t when run as root
-
 0.08200 2012-08-24 (UTC)
     * Fixes
         - Change one of the new tests for the previous release to not require
