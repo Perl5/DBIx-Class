@@ -54,8 +54,9 @@ chmod 0000, $db_orig;
     } 'The operation failed';
 }
 
-# otherwise can't unlink the fake db file
-$schema->storage->_dbh->disconnect if $^O eq 'MSWin32';
+# otherwise win32 can't unlink the fake db file
+# as root sqlite will have the file open and won't reconnect
+$schema->storage->_dbh->disconnect if $^O eq 'MSWin32' or $> == 0;
 
 ### Now, move the db file back to the correct name
 unlink($db_orig) or die "could not delete $db_orig: $!";
