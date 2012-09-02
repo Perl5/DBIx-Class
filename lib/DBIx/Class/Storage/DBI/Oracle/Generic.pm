@@ -434,6 +434,9 @@ sub bind_attribute_by_data_type {
     # things like Class::Unload work (unlikely but possible)
     unless ($DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__) {
 
+      # the changelog claims this is solved... why is it still here then...?
+      # was it actually tested?
+
       # no earlier - no later
       if ($DBD::Oracle::VERSION eq '1.23') {
         $self->throw_exception(
@@ -459,6 +462,9 @@ sub bind_attribute_by_data_type {
 sub _empty_lob {
   my ($self, $source, $col) = @_;
 
+  # this is "empty" stuff anyway, are you sure Oracle differentiates between
+  # empty binary and empty character lob? If it doesn't matter - you can save
+  # lots of calls here
   return $self->_is_text_lob_type($source->column_info($col)->{data_type}) ?
     \'EMPTY_CLOB()' : \'EMPTY_BLOB()';
 }
@@ -466,22 +472,39 @@ sub _empty_lob {
 sub _write_lobs {
   my ($self, $source, $lobs, $where) = @_;
 
+  # more descriptive varnames, I suspect @blob_column_names is what this is?
   my @lobs = keys %$lobs;
 
   local $self->_prepare_attributes->{ora_auto_lob} = 0;
 
+  # for => 'update' *without* an enclosing txn (via a guard) will lock
+  # stuff up for potentially the rest of the connection
+  # while you seem to open a txn in the calling WriteLOBs.pm, the risk is
+  # too great - this place needs a ->transaction_depth check with an
+  # exception if not the case. It's a 'simple' (XSA) acessor, so not
+  # a horrible speed hit
   my $cursor = $self->select($source, \@lobs, $where, { for => 'update' });
 
   my $dbh = $self->_get_dbh;
 
   while (my @locators = $cursor->next) {
     my %lobs;
+    # are you kidding me? :)
+    #  VVVVVVV
     @lobs{@lobs} = @locators;
 
     foreach my $lob (@lobs) {
       my $data = \$lobs->{$lob};
 
+      # This is silent data corruption, goes against the philosophy of
+      # dbic. You already asked the user to pre-truncate in the docs,
+      # instead of helpfully thrashing user's data, let Oracle throw a
+      # damned exception
+      # I may be wrong however, as ora_lob_trim does not document what
+      # a size of 0 even means, nor is it present anywhere in the docs.
+      # so if it means something else - mea culpa
       $dbh->ora_lob_trim($lobs{$lob}, 0);
+
       $dbh->ora_lob_write($lobs{$lob}, 1, $$data);
     }
   }

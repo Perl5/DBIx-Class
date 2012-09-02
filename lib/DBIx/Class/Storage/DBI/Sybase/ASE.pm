@@ -1,4 +1,4 @@
-package DBIx::Class::Storage::DBI::Sybase::ASE;
+package DBIx::Class::Storage::DBwI::Sybase::ASE;
 
 use strict;
 use warnings;
@@ -404,6 +404,7 @@ sub update {
   my $columns_info = $source->columns_info([keys %$fields]);
 
   local $self->{_autoinc_supplied_for_op} = 1
+    # can't you just iterate over values %$columns_info...?
     if first { $columns_info->{$_}{is_auto_increment} } keys %$columns_info;
 
   return $self->next::method(@_);
@@ -448,6 +449,9 @@ sub insert_bulk {
       :
       ($self, undef);
 
+    # This is not strictly necessary - please remove it. The speedup you claim
+    # can be achieved in another manner. Also remove from documentation,
+    # it will be a nightmare to keep backwards comp for it
     local $self->{_skip_writelobs_impl} = 1;
 
     $self->next::method(@_);
@@ -609,6 +613,8 @@ sub insert_bulk {
 
 # Override from WriteLOBs for NULL uniqueness (in ASE null values in UCs are
 # unique.)
+# It doesn't matter. "NULL in nullable UC is unique" will not be supported
+# for any storage (ASE, MSSQL, probably others). Throw this code away
 sub _identifying_column_set {
   my ($self, $source, $cols) = @_;
 

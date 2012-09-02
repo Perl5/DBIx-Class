@@ -58,6 +58,8 @@ C<insert>, C<update> and C<insert_bulk>.
 #
 # to shortcircuit the inherited ones for a minor speedup.
 
+# Ugh! why is this heavy method necessary at all...? You only use it locally
+# Please throw it away, see notes on usage-sites
 sub _is_lob_column {
   my ($self, $source, $column) = @_;
 
@@ -72,6 +74,8 @@ sub _is_lob_column {
 #
 # Returns true if any of %fields are non-empty LOBs.
 
+# there is a *single* callsite for this method in the entire codebase - stop
+# prematurely generalizing
 sub _have_lob_fields {
   my ($self, $source, $fields) = @_;
 
@@ -93,12 +97,19 @@ sub _have_lob_fields {
 # Replace LOB fields with L</_empty_lob> values, and return any non-empty ones as
 # a hash keyed by field name.
 
+# more descriptive name please, something to the effect of _extract_supplied_lobs
+# see more comments in _remove_lob_fields below
+# this is effectively a semi-exposed API
 sub _replace_lob_fields {
   my ($self, $source, $fields) = @_;
 
   my %lob_cols;
 
   for my $col (keys %$fields) {
+    # this is a retarded interface - what is the point of doing the work via 
+    # $source repeatedly, you have $source->columns_info already. Furthermore
+    # all _is_lob_column does is call _is_lob_type on the 'colinfo'
+    # Please inline.
     if ($self->_is_lob_column($source, $col)) {
       my $lob_val = delete $fields->{$col};
       if (not defined $lob_val) {
@@ -128,12 +139,16 @@ sub _replace_lob_fields {
 # Remove LOB fields from %fields entirely, and return any non-empty ones as a
 # hash keyed by field name.
 
+
+# this method is almost identical to _replace_lob_fields - fold the two together,
+# and simply add an extra flag to tge sig. $replace_lobs_with_empty_placeholders
 sub _remove_lob_fields {
   my ($self, $source, $fields) = @_;
 
   my %lob_cols;
 
   for my $col (keys %$fields) {
+    # identical comment as in _replace_lob_fields above
     if ($self->_is_lob_column($source, $col)) {
       my $lob_val = delete $fields->{$col};
       if (not defined $lob_val) {
@@ -161,6 +176,10 @@ sub _remove_lob_fields {
 #
 # Returns a set of rows of LOB values with the LOBs in the original positions
 # they were in @data.
+
+# TO-DISCUSS:
+# I need to merge something else that will obviate this method. Leave this
+# note intact for next round of review
 
 sub _replace_lob_fields_array {
   my ($self, $source, $cols, $data) = @_;
@@ -202,6 +221,9 @@ sub _replace_lob_fields_array {
 #
 # The @lobs array is as prepared by L</_replace_lob_fields_array> above.
 
+# TO-DISCUSS:
+# I need to merge something else that will obviate this method. Leave this
+# note intact for next round of review
 sub _write_lobs_array {
   my ($self, $source, $lobs, $cols, $data) = @_;
 
@@ -229,6 +251,10 @@ sub _write_lobs_array {
 }
 
 # Proxy for ResultSource, for overriding in ASE
+#
+# this will not go into DBIC. Not negotiable. See comments in Sybase::ASE
+# and throw away
+#
 sub _identifying_column_set {
   my ($self, $source, @args) = @_;
   return $source->_identifying_column_set(@args);
@@ -251,6 +277,16 @@ sub _identifying_column_set {
 #
 # Uses _identifying_column_set from DBIx::Class::ResultSource.
 
+# this is not the place
+# put the low-level implementation into ResultSource (something like
+# $rsrc->_identity_condition($hashref_of_data)
+# the use it in both $storage, and in DBIC::PK.pm, which as a bonus will
+# allow you to $row->update/delete as long as *any* UC is met, not just
+# on PK
+# *DO NOT* do this as part of this commit, do it separately to facilitate
+# review, and then rebase your work on top of it
+#
+# as a result this method is ultimately a throwaway
 sub _ident_cond_for_cols {
   my ($self, $source, $row) = @_;
 
@@ -274,6 +310,8 @@ sub _ident_cond_for_cols {
 sub insert {
   my $self = shift;
 
+  # as noted earlier - remove this optimization until we figure
+  # out we really need it. Dedocument as well
   return $self->next::method(@_) if $self->{_skip_writelobs_impl};
 
   my ($source, $to_insert) = @_;
@@ -288,6 +326,7 @@ sub insert {
 
   my $row = { %$to_insert, %$updated_cols };
 
+  # this will get replaced by $source->_identity_condition($row)
   my $where = $self->_ident_cond_for_cols($source, $row)
     or $self->throw_exception(
       'Could not identify row for LOB insert '
@@ -304,6 +343,8 @@ sub insert {
 sub update {
   my $self = shift;
 
+  # as noted earlier - remove this optimization until we figure
+  # out we really need it. Dedocument as well
   return $self->next::method(@_) if $self->{_skip_writelobs_impl};
 
   my ($source, $fields, $where, @rest) = @_;
@@ -312,20 +353,26 @@ sub update {
 
   return $self->next::method(@_) unless $lobs;
 
+  # this will get replaced by $source->_identity_condition($row)
   my @key_cols = @{ $self->_identifying_column_set($source) || [] }
     or $self->throw_exception(
          'must be able to uniquely identify rows for LOB updates'
        );
 
+  # This is bogus. What needs to happen is $writer_storage needs to
+  # override the accessor, and check $main_schema (which it holds a
+  # weakref to) too much action at a distance here
   my $autoinc_supplied_for_op = $self->_autoinc_supplied_for_op;
-
   $self = $self->_writer_storage if $self->can('_writer_storage'); # for ASE
-
   local $self->{_autoinc_supplied_for_op} = $autoinc_supplied_for_op
     if $autoinc_supplied_for_op;
 
   my $guard = $self->txn_scope_guard;
 
+
+  # why two scopes both localising the same thing to the same value?
+  # something doesn't look right here, please rewrite
+  # TO_DISCUSS: pending another round of review once rewritten
   my ($cursor, @rows);
   {
     local $self->{_autoinc_supplied_for_op} = 0;
@@ -358,6 +405,7 @@ sub update {
   return $count;
 }
 
+# TO_DISCUSS: pending another round of review
 sub insert_bulk {
   my $self = shift;
 
