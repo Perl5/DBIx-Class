@@ -207,7 +207,7 @@ sub new {
   END {
     local $?; # just in case the DBI destructor changes it somehow
 
-    # destroy just the object if not native to this process/thread
+    # destroy just the object if not native to this process
     $_->_verify_pid for (grep
       { defined $_ }
       values %seek_and_destroy
@@ -233,7 +233,7 @@ sub DESTROY {
   my $self = shift;
 
   # some databases spew warnings on implicit disconnect
-  $self->_verify_pid;
+  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   local $SIG{__WARN__} = sub {};
   $self->_dbh(undef);
 
@@ -885,7 +885,7 @@ sub connected {
 sub _seems_connected {
   my $self = shift;
 
-  $self->_verify_pid;
+  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
 
   my $dbh = $self->_dbh
     or return 0;
@@ -933,7 +933,7 @@ sub dbh {
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
   my $self = shift;
-  $self->_verify_pid;
+  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
@@ -1007,7 +1007,7 @@ sub _populate_dbh {
 
   $self->_dbh($self->_connect(@info));
 
-  $self->_conn_pid($$) if $^O ne 'MSWin32'; # on win32 these are in fact threads
+  $self->_conn_pid($$) unless DBIx::Class::_ENV_::BROKEN_FORK; # on win32 these are in fact threads
 
   $self->_determine_driver;
 
@@ -1366,7 +1366,7 @@ sub _exec_txn_begin {
 sub txn_commit {
   my $self = shift;
 
-  $self->_verify_pid if $self->_dbh;
+  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $self->throw_exception("Unable to txn_commit() on a disconnected storage")
     unless $self->_dbh;
 
@@ -1397,7 +1397,7 @@ sub _exec_txn_commit {
 sub txn_rollback {
   my $self = shift;
 
-  $self->_verify_pid if $self->_dbh;
+  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $self->throw_exception("Unable to txn_rollback() on a disconnected storage")
     unless $self->_dbh;
 
@@ -1430,7 +1430,7 @@ for my $meth (qw/svp_begin svp_release svp_rollback/) {
   no strict qw/refs/;
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     my $self = shift;
-    $self->_verify_pid if $self->_dbh;
+    $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
     $self->throw_exception("Unable to $meth() on a disconnected storage")
       unless $self->_dbh;
     $self->next::method(@_);

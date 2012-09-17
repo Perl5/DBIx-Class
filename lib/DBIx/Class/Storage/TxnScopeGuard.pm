@@ -111,7 +111,7 @@ sub DESTROY {
   return if $self->{inactivated};
 
   # if our dbh is not ours anymore, the $dbh weakref will go undef
-  $self->{storage}->_verify_pid;
+  $self->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   return unless $self->{dbh};
 
   my $exception = $@ if (

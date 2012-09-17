@@ -32,6 +32,9 @@ BEGIN {
     strict
     warnings
 
+    constant
+    Config
+
     base
     mro
     overload

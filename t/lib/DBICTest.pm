@@ -189,7 +189,7 @@ sub _database {
 }
 
 sub __mk_disconnect_guard {
-  return if DBIx::Class::_ENV_::PEEPEENESS(); # leaks handles, delaying DESTROY, can't work right
+  return if DBIx::Class::_ENV_::PEEPEENESS; # leaks handles, delaying DESTROY, can't work right
 
   my $db_file = shift;
   return unless -f $db_file;
