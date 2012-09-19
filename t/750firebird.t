@@ -255,6 +255,14 @@ EOF
     } 'inferring generator from trigger source works';
   }
 
+  # at this point there should be no active statements
+  # (finish() was called everywhere, either explicitly via
+  # reset() or on DESTROY)
+  for (keys %{$schema->storage->dbh->{CachedKids}}) {
+    fail("Unreachable cached statement still active: $_")
+      if $schema->storage->dbh->{CachedKids}{$_}->FETCH('Active');
+  }
+
 # test blobs (stolen from 73oracle.t)
   eval { $dbh->do('DROP TABLE "bindtype_test"') };
   $dbh->do(q[

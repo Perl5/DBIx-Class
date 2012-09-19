@@ -37,37 +37,51 @@ for the inner cursor class.
 
 =cut
 
-sub _dbh_next {
-  my ($storage, $dbh, $self) = @_;
+sub next {
+  my $self = shift;
 
-  my $next = $self->next::can;
+  my @row = $self->next::method(@_);
 
-  my @row = $next->(@_);
+  $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]);
 
-  my $col_infos = $storage->_resolve_column_info($self->args->[0]);
+  _normalize_guids(
+    $self->args->[1],
+    $self->{_colinfos},
+    \@row,
+    $self->storage
+  );
 
-  my $select = $self->args->[1];
-
-  _normalize_guids($select, $col_infos, \@row, $storage);
-  _strip_trailing_binary_nulls($select, $col_infos, \@row, $storage);
+  _strip_trailing_binary_nulls(
+    $self->args->[1],
+    $self->{_colinfos},
+    \@row,
+    $self->storage
+  );
 
   return @row;
 }
 
-sub _dbh_all {
-  my ($storage, $dbh, $self) = @_;
+sub all {
+  my $self = shift;
 
-  my $next = $self->next::can;
+  my @rows = $self->next::method(@_);
 
-  my @rows = $next->(@_);
-
-  my $col_infos = $storage->_resolve_column_info($self->args->[0]);
-
-  my $select = $self->args->[1];
+  $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]);
 
   for (@rows) {
-    _normalize_guids($select, $col_infos, $_, $storage);
-    _strip_trailing_binary_nulls($select, $col_infos, $_, $storage);
+    _normalize_guids(
+      $self->args->[1],
+      $self->{_colinfos},
+      $_,
+      $self->storage
+    );
+
+    _strip_trailing_binary_nulls(
+      $self->args->[1],
+      $self->{_colinfos},
+      $_,
+      $self->storage
+    );
   }
 
   return @rows;

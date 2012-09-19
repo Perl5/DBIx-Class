@@ -1,6 +1,12 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Massively optimize codepath around ->cursor(), over 10x speedup
+          on some workloads
+
     * Fixes
+        - Fix open cursors silently resetting when inherited across a fork
+          or a thread
         - Fix duplicated selected columns when calling 'count' when a same
           aggregate function is used more than once in a 'having' clause
           (RT#83305)
