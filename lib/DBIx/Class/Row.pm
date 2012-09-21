@@ -714,7 +714,10 @@ sub has_relationship_loaded {
   $self->throw_exception( "has_relationship_loaded needs a relationship name" )
     unless defined $rel;
 
-  return exists $self->{related_resultsets}->{$rel};
+  # _relationship_data gets populated from related_resultsets when the rel
+  # accessor is called
+  return exists $self->{_relationship_data}->{$rel}
+      || exists $self->{related_resultsets}->{$rel};
 }
 
 =head2 get_columns

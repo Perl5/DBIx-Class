@@ -4,6 +4,8 @@ use warnings;
 use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
+use Data::Dumper::Concise;
+local $Data::Dumper::Maxdepth = 3;
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
@@ -35,14 +37,37 @@ ok !$row->has_relationship_loaded($_), "vanilla row has no loaded relationship '
 # Prefetch of single has_many relationship
 {
   my $prefetched_rs = $rs->search_rs(undef, { prefetch => 'tracks' });
-  my $cd_without_tracks = $prefetched_rs->create({
+  my $cd_with_tracks = $prefetched_rs->find(2);
+  ok $cd_with_tracks->has_relationship_loaded('tracks'), 'has_many relationship with related rows detected by has_relationship_loaded';
+
+  # New without related rows
+  my $new_cd_without_tracks = $rs->create({
     artist => 1,
     title  => 'Empty CD',
     year   => 2012,
   });
-  ok $cd_without_tracks->has_relationship_loaded('tracks'), 'has_many relationship without related row detected by has_relationship_loaded';
-  my $cd_with_tracks = $prefetched_rs->find(2);
-  ok $cd_with_tracks->has_relationship_loaded('tracks'), 'has_many relationship with related row detected by has_relationship_loaded';
+  ok !$new_cd_without_tracks->has_relationship_loaded('tracks'), 'has_many relationship without related rows for new object detected by has_relationship_loaded';
+
+  my $new_cd_with_tracks = $rs->create({
+    artist => 1,
+    title  => 'Non-empty CD',
+    year   => 2012,
+    tracks => [
+      {
+        position => 1,
+        title    => 'first track',
+      },
+      {
+        position => 2,
+        title    => 'second track',
+      },
+    ],
+  });
+
+  ok $new_cd_with_tracks->has_relationship_loaded('tracks'), 'has_many relationship with related rows for new object detected by has_relationship_loaded';
+
+  my $cd_without_tracks = $prefetched_rs->find($new_cd_without_tracks->id);
+  ok $cd_without_tracks->has_relationship_loaded('tracks'), 'has_many relationship without related rows detected by has_relationship_loaded';
 }
 
 # Prefetch of multiple relationships
