@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
+use Time::HiRes 'time';
 use Config;
 
 use lib qw(t/lib);
@@ -42,6 +43,77 @@ use DBICTest;
     undef,
     'rollback from inner transaction';
 }
+
+# check that we work somewhat OK with braindead SQLite transaction handling
+#
+# As per https://metacpan.org/source/ADAMK/DBD-SQLite-1.37/lib/DBD/SQLite.pm#L921
+# SQLite does *not* try to synchronize
+
+for my $prefix_comment (qw/Begin_only Commit_only Begin_and_Commit/) {
+  note "Testing with comment prefixes on $prefix_comment";
+
+  # FIXME warning won't help us for the time being
+  # perhaps when (if ever) DBD::SQLite gets fixed,
+  # we can do something extra here
+  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /Internal transaction state .+? does not seem to match/ }
+    unless $ENV{TEST_VERBOSE};
+
+  my ($c_begin, $c_commit) = map { $prefix_comment =~ $_ ? 1 : 0 } (qr/Begin/, qr/Commit/);
+
+  my $schema = DBICTest->init_schema( no_deploy => 1 );
+  my $ars = $schema->resultset('Artist');
+
+  ok (! $schema->storage->connected, 'No connection yet');
+
+  $schema->storage->dbh->do(<<'DDL');
+CREATE TABLE artist (
+  artistid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100),
+  rank integer DEFAULT 13,
+  charfield char(10) NULL
+);
+DDL
+
+  my $artist = $ars->create({ name => 'Artist_' . time() });
+  is ($ars->count, 1, 'Inserted artist ' . $artist->name);
+
+  ok ($schema->storage->connected, 'Connected');
+  ok ($schema->storage->_dbh->{AutoCommit}, 'DBD not in txn yet');
+
+  $schema->storage->dbh->do(join "\n",
+    $c_begin ? '-- comment' : (),
+    'BEGIN TRANSACTION'
+  );
+  ok ($schema->storage->connected, 'Still connected');
+  {
+    local $TODO = 'SQLite is retarded wrt detecting BEGIN' if $c_begin;
+    ok (! $schema->storage->_dbh->{AutoCommit}, "DBD aware of txn begin with comments on $prefix_comment");
+  }
+
+  $schema->storage->dbh->do(join "\n",
+    $c_commit ? '-- comment' : (),
+    'COMMIT'
+  );
+  ok ($schema->storage->connected, 'Still connected');
+  {
+    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if $c_commit;
+    ok ($schema->storage->_dbh->{AutoCommit}, "DBD aware txn ended with comments on $prefix_comment");
+  }
+
+  is ($ars->count, 1, 'Inserted artists still there');
+
+  {
+    # this never worked in the 1st place
+    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if ! $c_begin and $c_commit;
+
+    lives_ok {
+      $schema->storage->txn_do (sub {
+        ok ($ars->find({ name => $artist->name }), "Artist still where we left it after cycle with comments on $prefix_comment");
+      });
+    } "Succesfull transaction with comments on $prefix_comment";
+  }
+}
+
 
 my $schema = DBICTest->init_schema();
 

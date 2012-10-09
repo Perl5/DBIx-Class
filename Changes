@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Really fix inadequate $dbh->ping SQLite implementation (what shipped
+          in 0.08201 tickled other deficiencies in DBD::SQLite itself)
+
 0.08202 2012-10-06
     * Re-dist due to murphy strike
 
