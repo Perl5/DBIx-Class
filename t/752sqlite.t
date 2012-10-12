@@ -68,28 +68,28 @@ $schema->storage->dbh_do(sub {
 
 # test upper/lower boundaries for sqlite and some values inbetween
 # range is -(2**63) .. 2**63 - 1
-for my $bi (qw/
-  -9223372036854775808
-  -9223372036854775807
-  -8694837494948124658
-  -6848440844435891639
-  -5664812265578554454
-  -5380388020020483213
-  -2564279463598428141
-  2442753333597784273
-  4790993557925631491
-  6773854980030157393
-  7627910776496326154
-  8297530189347439311
-  9223372036854775806
-  9223372036854775807
-/) {
-  $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-  is ($row->bigint, $bi, "value in object correct ($bi)");
+SKIP: {
+  skip 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail with DBD::SQLite < 1.37', 1
+    if ($Config{ivsize} < 8 and ! eval { DBD::SQLite->VERSION(1.37); 1 });
 
-  TODO: {
-    local $TODO = 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail'
-      unless $Config{ivsize} >= 8;
+  for my $bi (qw/
+    -9223372036854775808
+    -9223372036854775807
+    -8694837494948124658
+    -6848440844435891639
+    -5664812265578554454
+    -5380388020020483213
+    -2564279463598428141
+    2442753333597784273
+    4790993557925631491
+    6773854980030157393
+    7627910776496326154
+    8297530189347439311
+    9223372036854775806
+    9223372036854775807
+  /) {
+    $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
+    is ($row->bigint, $bi, "value in object correct ($bi)");
 
     $row->discard_changes;
     is ($row->bigint, $bi, "value in database correct ($bi)");
