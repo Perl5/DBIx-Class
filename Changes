@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08202_01 2012-10-15
     * Fixes
         - Really fix inadequate $dbh->ping SQLite implementation (what shipped
           in 0.08201 tickled other deficiencies in DBD::SQLite itself)
