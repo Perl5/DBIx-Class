@@ -4324,12 +4324,13 @@ L<DBIx::Class::Manual::Cookbook>.
 
 =over 4
 
-=item Value: ( 'update' | 'shared' )
+=item Value: ( 'update' | 'shared' | \$scalar )
 
 =back
 
 Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
-... FOR SHARED.
+... FOR SHARED. If \$scalar is passed, this is taken directly and embedded in the
+query.
 
 =cut
 

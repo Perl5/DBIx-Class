@@ -238,7 +238,15 @@ my $for_syntax = {
 };
 sub _lock_select {
   my ($self, $type) = @_;
-  my $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
+
+  my $sql;
+  if (ref($type) eq 'SCALAR') {
+    $sql = "FOR $$type";
+  }
+  else {
+    $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
+  }
+
   return " $sql";
 }
 
