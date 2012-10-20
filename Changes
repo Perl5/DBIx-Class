@@ -1,8 +1,12 @@
 Revision history for DBIx::Class
 
+0.08203_01 2012-10-18 13:57 (UTC)
+    * Fixes
+        - Fix test failure on perl 5.8
+
 0.08203 2012-10-18
 
-No changes since 0.08202_01
+    No changes since 0.08202_01
 
 0.08202_01 2012-10-15
     * Fixes
