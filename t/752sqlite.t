@@ -106,10 +106,11 @@ DDL
     # this never worked in the 1st place
     local $TODO = 'SQLite is retarded wrt detecting COMMIT' if ! $c_begin and $c_commit;
 
+    # odd argument passing, because such nested crefs leak on 5.8
     lives_ok {
       $schema->storage->txn_do (sub {
-        ok ($ars->find({ name => $artist->name }), "Artist still where we left it after cycle with comments on $prefix_comment");
-      });
+        ok ($_[0]->find({ name => $_[1] }), "Artist still where we left it after cycle with comments on $prefix_comment");
+      }, $ars, $artist->name );
     } "Succesfull transaction with comments on $prefix_comment";
   }
 }
