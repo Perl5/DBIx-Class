@@ -4293,7 +4293,7 @@ attribute, this setting is ignored and an appropriate warning is issued.
 Adds to the WHERE clause.
 
   # only return rows WHERE deleted IS NULL for all searches
-  __PACKAGE__->resultset_attributes({ where => { deleted => undef } }); )
+  __PACKAGE__->resultset_attributes({ where => { deleted => undef } });
 
 Can be overridden by passing C<< { where => undef } >> as an attribute
 to a resultset.
