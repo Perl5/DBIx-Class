@@ -354,8 +354,8 @@ from, select, and +select attributes.
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
-        { artist_id => { '=' => { -ident => 'me.artist_id' } } },
-        { alias => 'inner' }
+        { artist_id => { -ident => 'me.artist_id' } },
+        { alias => 'sub_query' }
       )->get_column('year')->max_rs->as_query,
     },
   });
@@ -364,11 +364,11 @@ That creates the following SQL:
 
   SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
     FROM cd me
-   WHERE year = (
-      SELECT MAX(inner.year)
-        FROM cd inner
-       WHERE artist_id = me.artist_id
-      )
+  WHERE year = (
+    SELECT MAX(sub_query.year)
+      FROM cd sub_query
+    WHERE artist_id = me.artist_id
+  )
 
 =head2 Predefined searches
 
