@@ -6,6 +6,8 @@ Revision history for DBIx::Class
     * Fixes
         - Fix unique constraint violations in Ordered.pm blanket movement
           (RT#79773, rolls back short-sighted 5e6fde33e)
+        - Fix API mismatch between new_result() and new_related() (originally
+          broken by fea3d045)
         - Fix test failure on perl 5.8
 
 0.08203 2012-10-18

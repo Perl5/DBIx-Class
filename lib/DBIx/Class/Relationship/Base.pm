@@ -571,7 +571,7 @@ on it.
 =cut
 
 sub new_related {
-  my ($self, $rel, $values, $attrs) = @_;
+  my ($self, $rel, $values) = @_;
 
   # FIXME - this is a bad position for this (also an identical copy in
   # set_from_related), but I have no saner way to hook, and I absolutely
@@ -600,8 +600,7 @@ sub new_related {
     }
   }
 
-  my $row = $self->search_related($rel)->new($values, $attrs);
-  return $row;
+  return $self->search_related($rel)->new_result($values);
 }
 
 =head2 create_related

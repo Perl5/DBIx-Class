@@ -207,11 +207,23 @@ automatically get one from e.g. a L</search> called in scalar context:
 
   my $rs = $schema->resultset('CD')->search({ title => '100th Window' });
 
-IMPORTANT: If called on an object, proxies to new_result instead so
+=over
+
+=item WARNING
+
+If called on an object, proxies to L</new_result> instead, so
 
   my $cd = $schema->resultset('CD')->new({ title => 'Spoon' });
 
-will return a CD object, not a ResultSet.
+will return a CD object, not a ResultSet, and is equivalent to:
+
+  my $cd = $schema->resultset('CD')->new_result({ title => 'Spoon' });
+
+Please also keep in mind that many internals call C<new_result> directly,
+so overloading this method with the idea of intercepting new result object
+creation B<will not work>. See also warning pertaining to L</create>.
+
+=back
 
 =cut
 
@@ -2308,7 +2320,11 @@ Passes the hashref of input on to L<DBIx::Class::Row/new>.
 
 sub new_result {
   my ($self, $values) = @_;
-  $self->throw_exception( "new_result needs a hash" )
+
+  $self->throw_exception( "new_result takes only one argument - a hashref of values" )
+    if @_ > 2;
+
+  $self->throw_exception( "new_result expects a hashref" )
     unless (ref $values eq 'HASH');
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
@@ -2643,7 +2659,8 @@ it is a simple shortcut for C<< $self->new_result($attrs)->insert >>, a
 lot of the internals simply never call it, so your override will be
 bypassed more often than not. Override either L<new|DBIx::Class::Row/new>
 or L<insert|DBIx::Class::Row/insert> depending on how early in the
-L</create> process you need to intervene.
+L</create> process you need to intervene. See also warning pertaining to
+L</new>.
 
 =back
 
