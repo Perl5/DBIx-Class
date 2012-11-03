@@ -449,6 +449,11 @@ C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 around connect_info => sub {
   my ($next, $self, $info, @extra) = @_;
 
+  $self->throw_exception(
+    'connect_info can not be retrieved from a replicated storage - '
+  . 'accessor must be called on a specific pool instance'
+  ) unless defined $info;
+
   my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 
   my %opts;
