@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - SQLMaker now accepts \'literal' with the 'for' rs attribute as an
           override to the builtin FOR options
     * Fixes
+        - Fix unique constraint violations in Ordered.pm blanket movement
+          (RT#79773, rolls back short-sighted 5e6fde33e)
         - Fix test failure on perl 5.8
 
 0.08203 2012-10-18
