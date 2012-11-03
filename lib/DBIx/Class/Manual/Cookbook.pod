@@ -117,7 +117,12 @@ almost like you would define a regular ResultSource.
 
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
-  # ->table, ->add_columns, etc.
+  # For the time being this is necessary even for virtual views
+  __PACKAGE__->table($view_name);
+
+  #
+  # ->add_columns, etc.
+  #
 
   # do not attempt to deploy() this view
   __PACKAGE__->result_source_instance->is_virtual(1);
