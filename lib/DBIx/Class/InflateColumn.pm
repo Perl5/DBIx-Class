@@ -11,11 +11,17 @@ DBIx::Class::InflateColumn - Automatically create references from column data
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->inflate_column('column_name', {
-        inflate => sub { ... },
-        deflate => sub { ... },
-    });
+  # In your table classes
+  __PACKAGE__->inflate_column('column_name', {
+    inflate => sub {
+      my ($raw_value_from_db, $result_object) = @_;
+      ...
+    },
+    deflate => sub {
+      my ($inflated_value_from_user, $result_object) = @_;
+      ...
+    },
+  });
 
 =head1 DESCRIPTION
 
@@ -54,20 +60,25 @@ named C<insert_time>, you could inflate the column in the
 corresponding table class using something like:
 
     __PACKAGE__->inflate_column('insert_time', {
-        inflate => sub { DateTime::Format::Pg->parse_datetime(shift); },
-        deflate => sub { DateTime::Format::Pg->format_datetime(shift); },
+        inflate => sub {
+          my ($insert_time_raw_value, $event_result_object) = @_;
+          DateTime->from_epoch( epoch => $insert_time_raw_value );
+        },
+        deflate => sub {
+          my ($insert_time_dt_object, $event_result_object) = @_;
+          $insert_time_dt_object->epoch;
+        },
     });
 
-(Replace L<DateTime::Format::Pg> with the appropriate module for your
-database, or consider L<DateTime::Format::DBI>.)
-
 The coderefs you set for inflate and deflate are called with two parameters,
-the first is the value of the column to be inflated/deflated, the second is the
-row object itself. Thus you can call C<< ->result_source->schema->storage->dbh >> in your inflate/defalte subs, to feed to L<DateTime::Format::DBI>.
+the first is the value of the column to be inflated/deflated, the second is
+the result object itself.
 
 In this example, calls to an event's C<insert_time> accessor return a
-L<DateTime> object. This L<DateTime> object is later "deflated" when
-used in the database layer.
+L<DateTime> object. This L<DateTime> object is later "deflated" back
+to the integer epoch representation when used in the database layer.
+For a much more thorough handling of the above example, please see
+L<DBIx::Class::DateTime::Epoch>
 
 =cut
 
