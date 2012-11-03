@@ -5,18 +5,11 @@ Revision history for DBIx::Class
         - Fix test failure on perl 5.8
 
 0.08203 2012-10-18
-
-    No changes since 0.08202_01
-
-0.08202_01 2012-10-15
     * Fixes
         - Really fix inadequate $dbh->ping SQLite implementation (what shipped
           in 0.08201 tickled other deficiencies in DBD::SQLite itself)
 
 0.08202 2012-10-06
-    * Re-dist due to murphy strike
-
-0.08201 2012-10-05 (UTC)
     * Fixes
         - Replace inadequate $dbh->ping SQLite implementation with our own,
           fixes RT#78420
@@ -27,9 +20,6 @@ Revision history for DBIx::Class
           SQL::Translator
 
 0.08199 2012-08-22 (UTC)
-    same as devrel
-
-0.08198_01 2012-07-25 (UTC)
     * Fixes
         - Roll back incomplete (and broken) internal changes - restore prefetch functionality
 
