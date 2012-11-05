@@ -54,7 +54,7 @@ my $runtime_requires = {
   'Sub::Name'                => '0.04',
 
   # pure-perl (FatPack-able) libs
-  'Class::Accessor::Grouped' => '0.10002',
+  'Class::Accessor::Grouped' => '0.10005',
   'Class::C3::Componentised' => '1.0009',
   'Class::Inspector'         => '1.24',
   'Class::Method::Modifiers' => '1.06',

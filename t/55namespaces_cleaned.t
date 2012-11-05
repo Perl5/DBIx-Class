@@ -117,17 +117,10 @@ for my $mod (@modules) {
       my $gv = svref_2object($all_method_like{$name})->GV;
       my $origin = $gv->STASH->NAME;
 
-      TODO: {
-        local $TODO;
-        if ($name =~ /^__CAG_/) {
-          $TODO = 'CAG does not clean its BEGIN constants';
-        }
-
-        is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
-          ? ''
-          : " (inherited by $mod)"
-        ));
-      }
+      is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
+        ? ''
+        : " (inherited by $mod)"
+      ));
 
       next if $seen->{"${origin}:${name}"}++;
 
