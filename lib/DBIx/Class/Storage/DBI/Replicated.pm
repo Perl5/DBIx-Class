@@ -341,6 +341,10 @@ my $method_dispatch = {
     _dbh_details
     _dbh_get_info
 
+    _determine_connector_driver
+    _describe_connection
+    _warn_undetermined_driver
+
     sql_limit_dialect
     sql_quote_char
     sql_name_sep

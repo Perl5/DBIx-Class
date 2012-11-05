@@ -9,6 +9,9 @@ Revision history for DBIx::Class
         - Fix API mismatch between new_result() and new_related() (originally
           broken by fea3d045)
         - Fix test failure on perl 5.8
+    * Misc
+        - Much more extensive diagnostics when a new RDBMS/DSN combination is
+          encountered (RT#80431)
 
 0.08203 2012-10-18
     * Fixes
