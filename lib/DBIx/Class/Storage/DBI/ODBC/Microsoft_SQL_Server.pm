@@ -143,7 +143,7 @@ sub connect_call_use_mars {
     }
 
     if (my ($data_source) = $dsn =~ /^dbi:ODBC:([\w-]+)\z/i) { # prefix with DSN
-      warn "Bare DSN in ODBC connect string, rewriting as 'dsn=$data_source'"
+      carp_unique "Bare DSN in ODBC connect string, rewriting as 'dsn=$data_source'"
           ." for MARS\n";
       $dsn = "dbi:ODBC:dsn=$data_source";
     }

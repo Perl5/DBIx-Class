@@ -154,7 +154,7 @@ sub parse {
 
             my $relsource = try { $source->related_source($rel) };
             unless ($relsource) {
-              warn "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              carp "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
               next;
             };
 
