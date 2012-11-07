@@ -9,6 +9,8 @@ Revision history for DBIx::Class
         - Fix hash-randomization test issues (RT#81638)
         - Disallow erroneous calling of connect_info on a replicated storage
           (RT#78436)
+    * Misc
+        - Improve the populate docs in ::Schema and ::ResultSet
 
 0.08204 2012-11-08
     * New Features / Changes

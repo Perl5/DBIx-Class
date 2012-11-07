@@ -2038,28 +2038,55 @@ sub delete_all {
 
 =over 4
 
-=item Arguments: \@data;
+=item Arguments: [ \@column_list, \@row_values+ ] | [ \%col_data+ ]
+
+=item Return Value: L<\@result_objects|DBIx::Class::Manual::ResultClass> (scalar context) | L<@result_objects|DBIx::Class::Manual::ResultClass> (list context)
 
 =back
 
-Accepts either an arrayref of hashrefs or alternatively an arrayref of arrayrefs.
-For the arrayref of hashrefs style each hashref should be a structure suitable
-for submitting to a $resultset->create(...) method.
+Accepts either an arrayref of hashrefs or alternatively an arrayref of
+arrayrefs.
 
-In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a faster method.
+=over
 
-Otherwise, each set of data is inserted into the database using
-L<DBIx::Class::ResultSet/create>, and the resulting objects are
-accumulated into an array. The array itself, or an array reference
-is returned depending on scalar or list context.
+=item NOTE
 
-Example:  Assuming an Artist Class that has many CDs Classes relating:
+The context of this method call has an important effect on what is
+submitted to storage. In void context data is fed directly to fastpath
+insertion routines provided by the underlying storage (most often
+L<DBI/execute_for_fetch>), bypassing the L<new|DBIx::Class::Row/new> and
+L<insert|DBIx::Class::Row/insert> calls on the
+L<Result|DBIx::Class::Manual::ResultClass> class, including any
+augmentation of these methods provided by components. For example if you
+are using something like L<DBIx::Class::UUIDColumns> to create primary
+keys for you, you will find that your PKs are empty.  In this case you
+will have to explicitly force scalar or list context in order to create
+those values.
 
-  my $Artist_rs = $schema->resultset("Artist");
+=back
 
-  ## Void Context Example
-  $Artist_rs->populate([
+In non-void (scalar or list) context, this method is simply a wrapper
+for L</create>. Depending on list or scalar context either a list of
+L<Result|DBIx::Class::Manual::ResultClass> objects or an arrayref
+containing these objects is returned.
+
+When supplying data in "arrayref of arrayrefs" invocation style, the
+first element should be a list of column names and each subsequent
+element should be a data value in the earlier specified column order.
+For example:
+
+  $Arstist_rs->populate([
+    [ qw( artistid name ) ],
+    [ 100, 'A Formally Unknown Singer' ],
+    [ 101, 'A singer that jumped the shark two albums ago' ],
+    [ 102, 'An actually cool singer' ],
+  ]);
+
+For the arrayref of hashrefs style each hashref should be a structure
+suitable for passing to L</create>. Multi-create is also permitted with
+this syntax.
+
+  $schema->resultset("Artist")->populate([
      { artistid => 4, name => 'Manufactured Crap', cds => [
         { title => 'My First CD', year => 2006 },
         { title => 'Yet More Tweeny-Pop crap', year => 2007 },
@@ -2073,37 +2100,11 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
      },
   ]);
 
-  ## Array Context Example
-  my ($ArtistOne, $ArtistTwo, $ArtistThree) = $Artist_rs->populate([
-    { name => "Artist One"},
-    { name => "Artist Two"},
-    { name => "Artist Three", cds=> [
-    { title => "First CD", year => 2007},
-    { title => "Second CD", year => 2008},
-  ]}
-  ]);
-
-  print $ArtistOne->name; ## response is 'Artist One'
-  print $ArtistThree->cds->count ## reponse is '2'
-
-For the arrayref of arrayrefs style,  the first element should be a list of the
-fieldsnames to which the remaining elements are rows being inserted.  For
-example:
-
-  $Arstist_rs->populate([
-    [qw/artistid name/],
-    [100, 'A Formally Unknown Singer'],
-    [101, 'A singer that jumped the shark two albums ago'],
-    [102, 'An actually cool singer'],
-  ]);
-
-Please note an important effect on your data when choosing between void and
-wantarray context. Since void context goes straight to C<insert_bulk> in
-L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
-C<insert>.  So if you are using something like L<DBIx-Class-UUIDColumns> to
-create primary keys for you, you will find that your PKs are empty.  In this
-case you will have to use the wantarray context in order to create those
-values.
+If you attempt a void-context multi-create as in the example above (each
+Artist also has the related list of CDs), and B<do not> supply the
+necessary autoinc foreign key information, this method will proxy to the
+less efficient L</create>, and then throw the Result objects away. In this
+case there are obviously no benefits to using this method over L</create>.
 
 =cut
 
