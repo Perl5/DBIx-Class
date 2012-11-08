@@ -2598,7 +2598,6 @@ This can be applied recursively, and will work correctly for a structure
 with an arbitrary depth and width, as long as the relationships actually
 exists and the correct column data has been supplied.
 
-
 Instead of hashrefs of plain related data (key/value pairs), you may
 also pass new or inserted objects. New objects (not inserted yet, see
 L</new>), will be inserted into their appropriate tables.
@@ -2721,7 +2720,7 @@ database!
     year   => 2005,
   });
 
-  if( $cd->in_storage ) {
+  if( !$cd->in_storage ) {
       # do some stuff
       $cd->insert;
   }
@@ -2791,20 +2790,6 @@ If you need to know if an existing row was updated or a new one created use
 L</update_or_new> and L<DBIx::Class::Row/in_storage> instead. Don't forget
 to call L<DBIx::Class::Row/insert> to save the newly created row to the
 database!
-
-  my $cd = $schema->resultset('CD')->update_or_new(
-    {
-      artist => 'Massive Attack',
-      title  => 'Mezzanine',
-      year   => 1998,
-    },
-    { key => 'cd_artist_title' }
-  );
-
-  if( $cd->in_storage ) {
-      # do some stuff
-      $cd->insert;
-  }
 
 =cut
 
