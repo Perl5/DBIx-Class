@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08204 2012-11-08
     * New Features / Changes
         - SQLMaker now accepts \'literal' with the 'for' rs attribute as an
           override to the builtin FOR options
