@@ -1,30 +1,60 @@
 language: perl
 perl:
+   - "5.16"
    - "5.14"
    - "5.12"
    - "5.10"
 
-### TODO: Add in all of the various databases that Travis has access to,
-###       and set the DBICTEST_*_DSN, _USER, _PASS env variables.
-###    MySQL, PostgreSQL, Firebird, SQL Anywhere
-
+# Deal with all of the dependancies, quickly and quietly
 install:
-   # Deal with all of the dependancies, quickly and quietly
-   - cpanm --quiet --notest Module::Install
+   - export RELEASE_TESTING=1 AUTOMATED_TESTING=1 AUTHOR_TESTING=1 HARNESS_OPTIONS=j10:c HARNESS_TIMER=1
    - perl Makefile.PL --alldeps
-   - make listalldeps | cpanm --quiet --notest
-   
-   ### FIXME: Development releases need a nicer way of installing ###
-   - cpanm FREW/SQL-Abstract-1.73_01.tar.gz
+
+   # Install modules that typically appear in more than one dep
+   - echo -e 'DBI\nMoo\nDateTime::Format::Strptime' | xargs -n 1 -P 10 cpanm --quiet --notest
+
+   # Superfast parallelized dependancy installs
+   - make listalldeps | xargs -n 6 -P 10 cpanm --quiet --notest
+
+# DBICTEST extra database tests
+before_script:
+   # Install required DBDs
+   - echo -e 'DBD::Pg\nDBD::mysql\nSys::SigAction' | xargs -n 1 -P 10 cpanm --quiet --notest
+
+   # Set up DBICTEST vars
+   - export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'    DBICTEST_PG_USER=postgres DBICTEST_PG_PASS=''
+   - export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1' DBICTEST_MYSQL_USER=root  DBICTEST_MYSQL_PASS=''
+   ### Disabling for now until we figure out the weird Firebird test failure, and why DBD::Firebird doesn't install ###
+   #- export DBICTEST_FIREBIRD_DSN='dbi:Firebird:db=/var/lib/firebird/2.5/data/employee.fdb' DBICTEST_FIREBIRD_USER=SYSDBA DBICTEST_FIREBIRD_PASS=masterkey
+
+   # Set up databases for already-installed platforms
+   - mysql -e 'create database dbic_test;'
+   - psql -c 'create database dbic_test;' -U postgres
+
+   # Database install for Firebird
+   #- sudo apt-get -y install firebird2.5-super firebird2.5-examples
+   #- sudo perl -pi -e 's/\=no/=yes/;' /etc/default/firebird2.5
+   #- sudo /etc/init.d/firebird2.5-super start
+   #- cd /usr/share/doc/firebird2.5-examples/examples/empbuild/
+   #- sudo gunzip employee.fdb.gz
+   #- sudo chown firebird.firebird employee.fdb
+   #- sudo mv employee.fdb /var/lib/firebird/2.5/data/
+   #- cd -
+
 script:
-   # Make sure we don't run Makefile.PL without --alldeps
+   # Override default to make sure we don't run Makefile.PL without --alldeps
    - make test
 
-# whitelist
-branches:
-   only:
-     - master
+# Uncomment for cpanm install failures
+#after_failure:
+#   - tail -100 /home/travis/.cpanm/build.log
 
 notifications:
-   irc: "irc.perl.org#dbix-class"
-   
+   irc:
+      channels:
+         - "irc.perl.org#dbic-smoke"
+      template:
+         - "%{branch}#%{build_number} by %{author}: %{message} (%{build_url})"
+      on_success: change
+      on_failure: always
+      use_notice: true
