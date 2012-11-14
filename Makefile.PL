@@ -30,7 +30,7 @@ install_script (qw|
 homepage 'http://www.dbix-class.org/';
 resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git';
+resources 'repository'  => 'https://github.com/dbsrgits/DBIx-Class';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class';
 

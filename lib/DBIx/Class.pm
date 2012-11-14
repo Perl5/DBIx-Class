@@ -108,8 +108,6 @@ The community can be found via:
 
 =over
 
-=item * Web Site: L<http://www.dbix-class.org/>
-
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
@@ -117,13 +115,25 @@ The community can be found via:
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
+=item * Twitter L<http://www.twitter.com/dbix_class>
+
+=item * Web Site: L<http://www.dbix-class.org/>
+
 =item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+=back
+
+The project is maintained in a git repository, accessible from the following sources:
+
+=over
 
 =item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
-=item * twitter L<http://www.twitter.com/dbix_class>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+
+=item * github mirror: L<https://github.com/dbsrgits/DBIx-Class>
+
+=item * authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
 
 =back
 
