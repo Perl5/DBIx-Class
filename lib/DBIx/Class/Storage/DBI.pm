@@ -198,10 +198,9 @@ sub new {
   my %seek_and_destroy;
 
   sub _arm_global_destructor {
-    my $self = shift;
-    my $key = refaddr ($self);
-    $seek_and_destroy{$key} = $self;
-    weaken ($seek_and_destroy{$key});
+    weaken (
+      $seek_and_destroy{ refaddr($_[0]) } = $_[0]
+    );
   }
 
   END {
@@ -218,14 +217,18 @@ sub new {
     # As per DBI's recommendation, DBIC disconnects all handles as
     # soon as possible (DBIC will reconnect only on demand from within
     # the thread)
-    for (values %seek_and_destroy) {
-      next unless $_;
+    my @instances = grep { defined $_ } values %seek_and_destroy;
+    for (@instances) {
       $_->{_dbh_gen}++;  # so that existing cursors will drop as well
       $_->_dbh(undef);
 
       $_->transaction_depth(0);
       $_->savepoints([]);
     }
+
+    # properly renumber all existing refs
+    %seek_and_destroy = ();
+    $_->_arm_global_destructor for @instances;
   }
 }
 

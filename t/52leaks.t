@@ -47,7 +47,8 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use Scalar::Util 'refaddr';
 use DBIx::Class;
 use B 'svref_2object';
 BEGIN {
@@ -257,8 +258,11 @@ my @compose_ns_classes;
 
     leaky_resultset => $rs_bind_circref,
     leaky_resultset_cond => $cond_rowobj,
-    leaky_resultset_member => $rs_bind_circref->next,
   };
+
+  # this needs to fire, even if it can't find anything
+  # see FIXME below
+  $rs_bind_circref->next;
 
   require Storable;
   %$base_collection = (

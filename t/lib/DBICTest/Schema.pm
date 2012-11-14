@@ -10,7 +10,8 @@ use base 'DBICTest::BaseSchema';
 use Fcntl qw/:DEFAULT :seek :flock/;
 use Time::HiRes 'sleep';
 use DBICTest::RunMode;
-use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry local_umask/;
+use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util 'local_umask';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => 'custom_attr');
