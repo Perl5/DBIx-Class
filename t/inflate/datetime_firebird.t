@@ -7,47 +7,35 @@ use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_INTERBASE_${_}" } qw/DSN USER PASS/};
-my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
+my $env2optdep = {
+  DBICTEST_FIREBIRD => 'test_rdbms_firebird',
+  DBICTEST_FIREBIRD_INTERBASE => 'test_rdbms_firebird_interbase',
+  DBICTEST_FIREBIRD_ODBC => 'test_rdbms_firebird_odbc',
+};
 
-plan skip_all => 'Test needs ' .
-  (join ' and ', map { $_ ? $_ : () }
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
-    (join ' or ', map { $_ ? $_ : () }
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird'),
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_interbase'),
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_firebird_odbc')))
-  unless
-    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
-    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird')
-    or
-    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_interbase')
-    or
-    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_firebird_odbc'))
-      or (not $dsn || $dsn2 || $dsn3);
+plan skip_all => join (' ',
+  'Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}',
+  'and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},',
+  '_USER and _PASS to run these tests.',
 
-if (not ($dsn || $dsn2)) {
-  plan skip_all => <<'EOF';
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
-and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
-_USER and _PASS to run this test'.
-Warning: This test drops and creates a table called 'event'";
-EOF
-}
+  "WARNING: This test drops and creates a table called 'event'",
+) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
 
-my @info = (
-  [ $dsn,  $user,  $pass  ],
-  [ $dsn2, $user2, $pass2 ],
-  [ $dsn3, $user3, $pass3 ],
-);
+plan skip_all => ( 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('test_dt') )
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 my $schema;
 
-foreach my $conn_idx (0..$#info) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
+for my $prefix (keys %$env2optdep) { SKIP: {
+
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   next unless $dsn;
+
+  note "Testing with ${prefix}_DSN";
+
+  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
+    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     quote_char => '"',
@@ -89,7 +77,7 @@ SQL
     'fractional part of a second survived';
 
   is $row->starts_at, $date_only, 'DATE as DateTime roundtrip';
-}
+} }
 
 done_testing;
 
