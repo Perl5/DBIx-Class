@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * Fixes
         - More robust behavior under heavily threaded environments - make
           sure we do not have refaddr reuse in the global storage registry
+        - Fix failing test on 5.8 under Win32 (RT#81114)
 
 0.08204 2012-11-08
     * New Features / Changes

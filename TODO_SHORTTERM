@@ -1,6 +1,3 @@
-* 8bab2062 preloading threads.pm is absolute bullshit - remove and find out
-the real problem (might very well be a Moo bug). But seriously - preloading
-threads.pm in a BEGIN block?!?!?!
 * 50e6c52e reenable the test and investigate. A blatant skip is fucking
 bullshit
 * a0361822 reenable the win32 test - if it no longer fails for anyone - how

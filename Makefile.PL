@@ -42,9 +42,6 @@ my $runtime_requires = {
   # FIXME - temporary, needs throwing out for something more efficient
   'Data::Compare'            => '1.22',
 
-  # Moo does not yet depend on this higher version
-  'strictures'               => '1.003001',
-
   # DBI itself should be capable of installation and execution in pure-perl
   # mode. However it has never been tested yet, so consider XS for the time
   # being
@@ -64,7 +61,7 @@ my $runtime_requires = {
   'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0',
   'Hash::Merge'              => '0.12',
-  'Moo'                      => '0.009100',
+  'Moo'                      => '1.000006',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'namespace::clean'         => '0.20',
