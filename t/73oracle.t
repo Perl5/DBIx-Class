@@ -91,6 +91,13 @@ is (
   'insert returning capability guessed correctly'
 );
 
+isa_ok (DBICTest::Schema->connect($dsn, $user, $pass)->storage->sql_maker, 'DBIx::Class::SQLMaker::Oracle');
+
+# see if determining a driver with bad credentials throws propely
+throws_ok {
+  DBICTest::Schema->connect($dsn, "BORKED BORKED USER $user", $pass)->storage->sql_maker;
+} qr/DBI Connection failed/;
+
 ##########
 # the recyclebin (new for 10g) sometimes comes in the way
 my $on_connect_sql = $v >= 10 ? ["ALTER SESSION SET recyclebin = OFF"] : [];

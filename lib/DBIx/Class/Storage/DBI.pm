@@ -1078,15 +1078,15 @@ sub _server_info {
 
     $info = {};
 
-    my $server_version;
-    try {
-      $server_version = $self->_get_server_version;
-    }
-    catch {
-      if ($self->{_in_determine_driver}) {
-        $self->throw_exception($_);
-      }
-      $server_version = undef;
+    my $server_version = try {
+      $self->_get_server_version
+    } catch {
+      # driver determination *may* use this codepath
+      # in which case we must rethrow
+      $self->throw_exception($_) if $self->{_in_determine_driver};
+
+      # $server_version on failure
+      undef;
     };
 
     if (defined $server_version) {
@@ -1131,19 +1131,7 @@ sub _dbh_get_info {
       unless defined $info;
   }
 
-  my $res;
-
-  try {
-    $res = $self->_get_dbh->get_info($info);
-  }
-  catch {
-    if ($self->{_in_determine_driver}) {
-      $self->throw_exception($_);
-    }
-    $res = undef;
-  };
-
-  return $res;
+  return $self->_get_dbh->get_info($info);
 }
 
 sub _describe_connection {

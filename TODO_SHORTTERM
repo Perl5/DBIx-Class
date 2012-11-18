@@ -5,7 +5,5 @@ threads.pm in a BEGIN block?!?!?!
 bullshit
 * a0361822 reenable the win32 test - if it no longer fails for anyone - how
 will we ever fix it?
-* 461c7168 has two places where it sets a brand new lexical to undef. Please
-remove for the sanity of future maintainers (avoid the "why is this here?!")
 * a48693f4 adds 5 files for a test that may even be the same as that from
 571df676 - please rewrite using the existing schema and delete the rest
