@@ -1760,18 +1760,15 @@ sub _rs_update_delete {
 
   my $attrs = { %{$self->_resolved_attrs} };
 
-  # "needs" is a strong word here - if the subquery is part of an IN clause - no point of
-  # even adding the group_by. It will really be used only when composing a poor-man's
-  # multicolumn-IN equivalent OR set
-  my $needs_group_by_subq = defined $attrs->{group_by};
+  my $existing_group_by = delete $attrs->{group_by};
+  my $needs_subq = defined $existing_group_by;
 
-  # simplify the joinmap and maybe decide if a grouping (and thus subquery) is necessary
-  my $relation_classifications;
+  # simplify the joinmap and maybe decide if a subquery is necessary
+  my $relation_classifications = {};
+
   if (ref($attrs->{from}) eq 'ARRAY') {
-    if (@{$attrs->{from}} == 1) {
-      # not a fucking JOIN at all, quit with the dickery
-      $relation_classifications = {};
-    } else {
+    # if we already know we need a subq, no point of classifying relations
+    if (!$needs_subq and @{$attrs->{from}} > 1) {
       $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
 
       $relation_classifications = $storage->_resolve_aliastypes_from_select_args (
@@ -1779,32 +1776,33 @@ sub _rs_update_delete {
         $attrs->{select},
         $cond,
         $attrs
-      ) unless $needs_group_by_subq;  # we already know we need a group, no point of resolving them
+      );
     }
   }
   else {
-    $needs_group_by_subq ||= 1; # if {from} is unparseable assume the worst
+    $needs_subq ||= 1; # if {from} is unparseable assume the worst
   }
 
-  $needs_group_by_subq ||= exists $relation_classifications->{multiplying};
-
-  # if no subquery - life is easy-ish
-  unless (
-    $needs_group_by_subq
-      or
-    keys %$relation_classifications # if any joins at all - need to wrap a subq
-      or
-    $self->_has_resolved_attr(qw/rows offset/) # limits call for a subq
+  # do we need anything like a subquery?
+  if (
+    ! $needs_subq
+      and
+    ! keys %{ $relation_classifications->{restricting} || {} }
+      and
+    ! $self->_has_resolved_attr(qw/rows offset/) # limits call for a subq
   ) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
-    my $sqla = $rsrc->storage->sql_maker;
-    local $sqla->{_dequalify_idents} = 1;
+    my $cond = do {
+      my $sqla = $rsrc->storage->sql_maker;
+      local $sqla->{_dequalify_idents} = 1;
+      \[ $sqla->_recurse_where($self->{cond}) ];
+    };
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
-      $self->{cond},
+      $cond,
     );
   }
 
@@ -1816,7 +1814,6 @@ sub _rs_update_delete {
       $rsrc->source_name,
     )
   );
-  my $existing_group_by = delete $attrs->{group_by};
 
   # make a new $rs selecting only the PKs (that's all we really need for the subq)
   delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
@@ -1847,13 +1844,15 @@ sub _rs_update_delete {
     );
   }
   else {
+
     # if all else fails - get all primary keys and operate over a ORed set
     # wrap in a transaction for consistency
     # this is where the group_by starts to matter
-    my $subq_group_by;
-    if ($needs_group_by_subq) {
-      $subq_group_by = $attrs->{columns};
-
+    if (
+      $existing_group_by
+        or
+      keys %{ $relation_classifications->{multiplying} || {} }
+    ) {
       # make sure if there is a supplied group_by it matches the columns compiled above
       # perfectly. Anything else can not be sanely executed on most databases so croak
       # right then and there
@@ -1866,7 +1865,7 @@ sub _rs_update_delete {
         if (
           join ("\x00", sort @current_group_by)
             ne
-          join ("\x00", sort @$subq_group_by )
+          join ("\x00", sort @{$attrs->{columns}} )
         ) {
           $self->throw_exception (
             "You have just attempted a $op operation on a resultset which does group_by"
@@ -1877,12 +1876,14 @@ sub _rs_update_delete {
           );
         }
       }
+
+      $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
     }
 
     my $guard = $storage->txn_scope_guard;
 
     my @op_condition;
-    for my $row ($subrs->search({}, { group_by => $subq_group_by })->cursor->all) {
+    for my $row ($subrs->cursor->all) {
       push @op_condition, { map
         { $idcols->[$_] => $row->[$_] }
         (0 .. $#$idcols)

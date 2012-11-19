@@ -17,10 +17,11 @@ my $orig_debug = $schema->storage->debug;
 
 my $tkfks = $schema->resultset('FourKeys_to_TwoKeys');
 
-my ($fa, $fb) = $tkfks->related_resultset ('fourkeys')->populate ([
+my ($fa, $fb, $fc) = $tkfks->related_resultset ('fourkeys')->populate ([
   [qw/foo bar hello goodbye sensors read_count/],
   [qw/1   1   1     1       a       10         /],
   [qw/2   2   2     2       b       20         /],
+  [qw/1   1   1     2       c       30         /],
 ]);
 
 # This is already provided by DBICTest
@@ -48,8 +49,12 @@ is ($tkfks->count, $tkfk_cnt += 4, 'FourKeys_to_TwoKeys populated succesfully');
 #
 
 # create a resultset matching $fa and $fb only
-my $fks = $schema->resultset ('FourKeys')
-                  ->search ({ map { $_ => [1, 2] } qw/foo bar hello goodbye/}, { join => 'fourkeys_to_twokeys' });
+my $fks = $schema->resultset ('FourKeys')->search (
+  {
+    sensors => { '!=', 'c' },
+    ( map { $_ => [1, 2] } qw/foo bar hello goodbye/ ),
+  }, { join => 'fourkeys_to_twokeys'}
+);
 
 is ($fks->count, 4, 'Joined FourKey count correct (2x2)');
 
@@ -64,13 +69,38 @@ is_same_sql_bind (
   \@bind,
   'UPDATE fourkeys
    SET read_count = read_count + 1
-   WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )',
-  [ map { "'$_'" } ( (1) x 4, (2) x 4 ) ],
-  'Correct update-SQL without multicolumn in support',
+   WHERE ( ( ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ? ) )
+  ',
+  [ ("'1'", "'2'") x 4, "'c'" ],
+  'Correct update-SQL with multijoin with pruning',
 );
 
-is ($fa->discard_changes->read_count, 11, 'Update ran only once on joined resultset');
-is ($fb->discard_changes->read_count, 21, 'Update ran only once on joined resultset');
+is ($fa->discard_changes->read_count, 11, 'Update ran only once on discard-join resultset');
+is ($fb->discard_changes->read_count, 21, 'Update ran only once on discard-join resultset');
+is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+
+# make the multi-join stick
+$fks = $fks->search({ 'fourkeys_to_twokeys.pilot_sequence' => { '!=' => 666 } });
+
+$schema->storage->debugobj ($debugobj);
+$schema->storage->debug (1);
+$fks->update ({ read_count => \ 'read_count + 1' });
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'UPDATE fourkeys
+   SET read_count = read_count + 1
+   WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )',
+  [ map { "'$_'" } ( (1) x 4, (2) x 4 ) ],
+  'Correct update-SQL with multijoin without pruning',
+);
+
+is ($fa->discard_changes->read_count, 12, 'Update ran only once on joined resultset');
+is ($fb->discard_changes->read_count, 22, 'Update ran only once on joined resultset');
+is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 # try the same sql with forced multicolumn in
 $schema->storage->_use_multicolumn_in (1);
@@ -90,11 +120,20 @@ is_same_sql_bind (
       (foo, bar, hello, goodbye) IN (
         SELECT me.foo, me.bar, me.hello, me.goodbye
           FROM fourkeys me
-        WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? )
+          LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys ON
+                fourkeys_to_twokeys.f_bar = me.bar
+            AND fourkeys_to_twokeys.f_foo = me.foo
+            AND fourkeys_to_twokeys.f_goodbye = me.goodbye
+            AND fourkeys_to_twokeys.f_hello = me.hello
+        WHERE fourkeys_to_twokeys.pilot_sequence != ? AND ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
       )
     )
   ',
-  [ map { "'$_'" } ( (1, 2) x 4 ) ],
+  [
+    "'666'",
+    ("'1'", "'2'") x 4,
+    "'c'",
+  ],
   'Correct update-SQL with multicolumn in support',
 );
 
@@ -180,24 +219,67 @@ $tkfks->search ({}, { rows => 1 })->delete;
 is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
 
 
-# Make sure prefetch is properly stripped too
-# check with sql-equality, as sqlite will accept bad sql just fine
+# check with sql-equality, as sqlite will accept most bad sql just fine
 $schema->storage->debugobj ($debugobj);
 $schema->storage->debug (1);
-$schema->resultset('CD')->search(
-  { year => { '!=' => 2010 } },
-  { prefetch => 'liner_notes' },
-)->delete;
+
+{
+  my $rs = $schema->resultset('CD')->search(
+    { 'me.year' => { '!=' => 2010 } },
+  );
+
+  $rs->search({}, { join => 'liner_notes' })->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM cd WHERE ( year != ? )',
+    ["'2010'"],
+    'Non-restricting multijoins properly thrown out'
+  );
+
+  $rs->search({}, { prefetch => 'liner_notes' })->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM cd WHERE ( year != ? )',
+    ["'2010'"],
+    'Non-restricting multiprefetch thrown out'
+  );
+
+  $rs->search({}, { prefetch => 'artist' })->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM cd me JOIN artist artist ON artist.artistid = me.artist WHERE ( me.year != ? ) ) )',
+    ["'2010'"],
+    'Restricting prefetch left in, selector thrown out'
+  );
+
+  $rs->result_source->name('schema_qualified.cd');
+  # this is expected to fail - we only want to collect the generated SQL
+  eval { $rs->delete };
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM schema_qualified.cd WHERE ( year != ? )',
+    ["'2010'"],
+    'delete with fully qualified table name and subquery correct'
+  );
+
+  eval { $rs->search({}, { prefetch => 'artist' })->delete };
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM schema_qualified.cd WHERE ( cdid IN ( SELECT me.cdid FROM schema_qualified.cd me JOIN artist artist ON artist.artistid = me.artist WHERE ( me.year != ? ) ) )',
+    ["'2010'"],
+    'delete with fully qualified table name and subquery correct'
+  );
+
+  $rs->result_source->name('cd');
+}
 
 $schema->storage->debugobj ($orig_debugobj);
 $schema->storage->debug ($orig_debug);
 
-is_same_sql_bind (
-  $sql,
-  \@bind,
-  'DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM cd me WHERE ( year != ? ) ) )',
-  ["'2010'"],
-  'Update on prefetching resultset strips prefetch correctly'
-);
 
 done_testing;
