@@ -9,6 +9,8 @@ Revision history for DBIx::Class
     * Fixes
         - When performing resultset update/delete only strip condition
           qualifiers - leave the source name alone (RT#80015, RT#78844)
+        - Fix incorrect behavior on resultset update/delete invoked on
+          composite resultsets (e.g. as_subselect_rs)
         - More robust behavior under heavily threaded environments - make
           sure we do not have refaddr reuse in the global storage registry
         - Fix failing test on 5.8 under Win32 (RT#81114)

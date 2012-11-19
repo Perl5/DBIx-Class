@@ -4,6 +4,13 @@ use warnings;
 use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
+
+use DBICTest::Schema::CD;
+BEGIN {
+  # the default scalarref table name will not work well for this test
+  DBICTest::Schema::CD->table('cd');
+}
+
 use DBICTest;
 use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
@@ -267,6 +274,7 @@ $schema->storage->debug (1);
     'delete with fully qualified table name and subquery correct'
   );
 
+  # this is expected to fail - we only want to collect the generated SQL
   eval { $rs->search({}, { prefetch => 'artist' })->delete };
   is_same_sql_bind (
     $sql,
@@ -277,10 +285,40 @@ $schema->storage->debug (1);
   );
 
   $rs->result_source->name('cd');
+
+  # check that as_subselect_rs works ok
+  # inner query is untouched, then a selector
+  # and an IN condition
+  $schema->resultset('CD')->search({
+    'me.cdid' => 1,
+    'artist.name' => 'partytimecity',
+  }, {
+    join => 'artist',
+  })->as_subselect_rs->delete;
+
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    '
+      DELETE FROM cd
+      WHERE (
+        cdid IN (
+          SELECT me.cdid
+            FROM (
+              SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+                FROM cd me
+                JOIN artist artist ON artist.artistid = me.artist
+              WHERE artist.name = ? AND me.cdid = ?
+            ) me
+        )
+      )
+    ',
+    ["'partytimecity'", "'1'"],
+    'Delete from as_subselect_rs works correctly'
+  );
 }
 
 $schema->storage->debugobj ($orig_debugobj);
 $schema->storage->debug ($orig_debug);
-
 
 done_testing;

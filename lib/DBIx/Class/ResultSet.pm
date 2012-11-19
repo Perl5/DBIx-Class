@@ -1761,37 +1761,47 @@ sub _rs_update_delete {
 
   my $attrs = { %{$self->_resolved_attrs} };
 
+  my $join_classifications;
   my $existing_group_by = delete $attrs->{group_by};
-  my $needs_subq = defined $existing_group_by;
 
-  # simplify the joinmap and maybe decide if a subquery is necessary
-  my $relation_classifications = {};
+  # do we need a subquery for any reason?
+  my $needs_subq = (
+    defined $existing_group_by
+      or
+    # if {from} is unparseable wrap a subq
+    ref($attrs->{from}) ne 'ARRAY'
+      or
+    # limits call for a subq
+    $self->_has_resolved_attr(qw/rows offset/)
+  );
 
-  if (ref($attrs->{from}) eq 'ARRAY') {
-    # if we already know we need a subq, no point of classifying relations
-    if (!$needs_subq and @{$attrs->{from}} > 1) {
-      $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
+  # simplify the joinmap, so we can further decide if a subq is necessary
+  if (!$needs_subq and @{$attrs->{from}} > 1) {
+    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
 
-      $relation_classifications = $storage->_resolve_aliastypes_from_select_args (
+    # check if there are any joins left after the prune
+    if ( @{$attrs->{from}} > 1 ) {
+      $join_classifications = $storage->_resolve_aliastypes_from_select_args (
         [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
         $attrs->{select},
         $cond,
         $attrs
       );
+
+      # any non-pruneable joins imply subq
+      $needs_subq = scalar keys %{ $join_classifications->{restricting} || {} };
     }
   }
-  else {
-    $needs_subq ||= 1; # if {from} is unparseable assume the worst
-  }
+
+  # check if the head is composite (by now all joins are thrown out unless $needs_subq)
+  $needs_subq ||= (
+    (ref $attrs->{from}[0]) ne 'HASH'
+      or
+    ref $attrs->{from}[0]{ $attrs->{from}[0]{-alias} }
+  );
 
   # do we need anything like a subquery?
-  if (
-    ! $needs_subq
-      and
-    ! keys %{ $relation_classifications->{restricting} || {} }
-      and
-    ! $self->_has_resolved_attr(qw/rows offset/) # limits call for a subq
-  ) {
+  unless ($needs_subq) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
@@ -1800,6 +1810,7 @@ sub _rs_update_delete {
       local $sqla->{_dequalify_idents} = 1;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };
+
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
@@ -1845,11 +1856,11 @@ sub _rs_update_delete {
 
     # if all else fails - get all primary keys and operate over a ORed set
     # wrap in a transaction for consistency
-    # this is where the group_by starts to matter
+    # this is where the group_by/multiplication starts to matter
     if (
       $existing_group_by
         or
-      keys %{ $relation_classifications->{multiplying} || {} }
+      keys %{ $join_classifications->{multiplying} || {} }
     ) {
       # make sure if there is a supplied group_by it matches the columns compiled above
       # perfectly. Anything else can not be sanely executed on most databases so croak
