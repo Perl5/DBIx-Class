@@ -11,6 +11,10 @@ Revision history for DBIx::Class
           qualifiers - leave the source name alone (RT#80015, RT#78844)
         - Fix incorrect behavior on resultset update/delete invoked on
           composite resultsets (e.g. as_subselect_rs)
+        - Fix update/delete operations referencing the updated table failing
+          on MySQL, due to its refusal to modify a table being directly
+          queried. As a workaround induce in-memory temp-table creation
+          (RT#81378, RT#81897)
         - More robust behavior under heavily threaded environments - make
           sure we do not have refaddr reuse in the global storage registry
         - Fix failing test on 5.8 under Win32 (RT#81114)

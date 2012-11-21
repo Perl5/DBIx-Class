@@ -5,6 +5,9 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
+use List::Util 'first';
+use namespace::clean;
+
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
 __PACKAGE__->sql_quote_char ('`');
@@ -30,6 +33,56 @@ sub connect_call_set_strict_mode {
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};
+}
+
+sub _prep_for_execute {
+  my $self = shift;
+  #(my $op, $ident, $args) = @_;
+
+  # Only update and delete need special double-subquery treatment
+  # Insert referencing the same table (i.e. SELECT MAX(id) + 1) seems
+  # to work just fine on MySQL
+  return $self->next::method(@_) if ( $_[0] eq 'select' or $_[0] eq 'insert' );
+
+
+  # FIXME FIXME FIXME - this is a terrible, gross, incomplete hack
+  # it should be trivial for mst to port this to DQ (and a good
+  # exercise as well, since we do not yet have such wide tree walking
+  # in place). For the time being this will work in limited cases,
+  # mainly complex update/delete, which is really all we want it for
+  # currently (allows us to fix some bugs without breaking MySQL in
+  # the process, and is also crucial for Shadow to be usable)
+
+  # extract the source name, construct modification indicator re
+  my $sm = $self->sql_maker;
+
+  my $target_name = $_[1]->from;
+
+  if (ref $target_name) {
+    if (
+      ref $target_name eq 'SCALAR'
+        and
+      $$target_name =~ /^ (?:
+          \` ( [^`]+ ) \` #`
+        | ( [\w\-]+ )
+      ) $/x
+    ) {
+      # this is just a plain-ish name, which has been literal-ed for
+      # whatever reason
+      $target_name = first { defined $_ } ($1, $2);
+    }
+    else {
+      # this is something very complex, perhaps a custom result source or whatnot
+      # can't deal with it
+      undef $target_name;
+    }
+  }
+
+  local $sm->{_modification_target_referenced_re} =
+      qr/ (?<!DELETE) [\s\)] FROM \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
+    if $target_name;
+
+  $self->next::method(@_);
 }
 
 # here may seem like an odd place to override, but this is the first

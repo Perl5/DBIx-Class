@@ -75,6 +75,11 @@ my $runtime_requires = {
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.73',
   'Try::Tiny'                => '0.07',
+
+  # Technically this is not a core dependency - it is only required
+  # by the MySQL codepath. However this particular version is bundled
+  # since 5.10.0 and is a pure-perl module anyway - let it slide
+  'Text::Balanced'           => '2.00',
 };
 
 my $build_requires = {

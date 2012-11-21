@@ -17,8 +17,6 @@ plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missin
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
-#warn "$dsn $user $pass";
-
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
@@ -294,6 +292,47 @@ NULLINSEARCH: {
       join => 'books', group_by => [ 'me.id', 'books.id' ]
     })->count();
   }, 'count on grouped columns with the same name does not throw');
+}
+
+# a more contrived^Wcomplicated self-referential double-subquery test
+{
+  my $rs = $schema->resultset('Artist')->search({ name => { -like => 'baby_%' } });
+
+  $rs->populate([map { [$_] } ('name', map { "baby_$_" } (1..10) ) ]);
+
+  my ($count_sql, @count_bind) = @${$rs->count_rs->as_query};
+
+  my $complex_rs = $schema->resultset('Artist')->search(
+    { artistid => {
+      -in => $rs->get_column('artistid')
+                  ->as_query
+    } },
+  );
+
+  $complex_rs->update({ name => \[ "CONCAT( `name`, '_bell_out_of_', $count_sql )", @count_bind ] });
+
+  for (1..10) {
+    is (
+      $schema->resultset('Artist')->search({ name => "baby_${_}_bell_out_of_10" })->count,
+      1,
+      "Correctly updated babybell $_",
+    );
+  }
+
+  my $ac = $schema->resultset('Artist')->count_rs;
+  my $old_count = $ac->next;
+  $ac->reset;
+
+  my $orig_debug = $schema->storage->debug;
+  $schema->storage->debug(1);
+  my $query_count = 0;
+  $schema->storage->debugcb(sub { $query_count++ });
+  $complex_rs->delete;
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug($orig_debug);
+
+  is ($query_count, 1, 'One delete query fired');
+  is ($old_count - $ac->next, 10, '10 Artists correctly deleted');
 }
 
 ZEROINSEARCH: {
