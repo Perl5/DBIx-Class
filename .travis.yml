@@ -1,60 +1,109 @@
-language: perl
-perl:
-   - "5.16"
-   - "5.14"
-   - "5.12"
-   - "5.10"
+# Some overall notes on how this works
+#
+# * We smoke using the system provided latest, and custom built "oddball perls"
+# The reason for not having a blanket matrix is to conserve travis resources
+# as a full DBIC depchain isn't cheap
+#
+# * Minimum perl officially supported by DBIC is 5.8.3. This *includes* the
+# basic depchain. On failure either attempt to fix it or bring it to the
+# attention of ribasushi. *DO NOT* disable 5.8 testing - it is here for a
+# reason
+#
+# * The matrix is built from two main modes - CLEANTEST = [true|false]. In
+# the first case we test with minimal deps available, and skip everything
+# listed in DBIC::OptDesps. Without CLEANTEST we bring the armada of RDBMS
+# and install the maximum possible set of deps and configs
+#
+# * All builds/tests run under NUMTHREADS number of threads.
+#
+# * The way .travis.yml is fed to the command controller is idiotic - it
+# makes using multiline `bash -c` statements impossible. Therefore to
+# aid readability (our travis logic is rather complex), the bulk of
+# functionality is moved to a script. More about the problem (and the
+# WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
+#
 
-# Deal with all of the dependancies, quickly and quietly
-install:
-   - export RELEASE_TESTING=1 AUTOMATED_TESTING=1 AUTHOR_TESTING=1 HARNESS_OPTIONS=j10:c HARNESS_TIMER=1
-   - perl Makefile.PL --alldeps
-
-   # Install modules that typically appear in more than one dep
-   - echo -e 'DBI\nMoo\nDateTime::Format::Strptime' | xargs -n 1 -P 10 cpanm --quiet --notest
-
-   # Superfast parallelized dependancy installs
-   - make listalldeps | xargs -n 6 -P 10 cpanm --quiet --notest
-
-# DBICTEST extra database tests
-before_script:
-   # Install required DBDs
-   - echo -e 'DBD::Pg\nDBD::mysql\nSys::SigAction' | xargs -n 1 -P 10 cpanm --quiet --notest
-
-   # Set up DBICTEST vars
-   - export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'    DBICTEST_PG_USER=postgres DBICTEST_PG_PASS=''
-   - export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1' DBICTEST_MYSQL_USER=root  DBICTEST_MYSQL_PASS=''
-   ### Disabling for now until we figure out the weird Firebird test failure, and why DBD::Firebird doesn't install ###
-   #- export DBICTEST_FIREBIRD_DSN='dbi:Firebird:db=/var/lib/firebird/2.5/data/employee.fdb' DBICTEST_FIREBIRD_USER=SYSDBA DBICTEST_FIREBIRD_PASS=masterkey
-
-   # Set up databases for already-installed platforms
-   - mysql -e 'create database dbic_test;'
-   - psql -c 'create database dbic_test;' -U postgres
-
-   # Database install for Firebird
-   #- sudo apt-get -y install firebird2.5-super firebird2.5-examples
-   #- sudo perl -pi -e 's/\=no/=yes/;' /etc/default/firebird2.5
-   #- sudo /etc/init.d/firebird2.5-super start
-   #- cd /usr/share/doc/firebird2.5-examples/examples/empbuild/
-   #- sudo gunzip employee.fdb.gz
-   #- sudo chown firebird.firebird employee.fdb
-   #- sudo mv employee.fdb /var/lib/firebird/2.5/data/
-   #- cd -
-
-script:
-   # Override default to make sure we don't run Makefile.PL without --alldeps
-   - make test
-
-# Uncomment for cpanm install failures
-#after_failure:
-#   - tail -100 /home/travis/.cpanm/build.log
+# smoke only specific branches to a) not overload the queue and b) not
+# overspam the notification channels
+branches:
+  only:
+    - master
+    - /^topic\//
+    - /^smoke\//
 
 notifications:
-   irc:
-      channels:
-         - "irc.perl.org#dbic-smoke"
-      template:
-         - "%{branch}#%{build_number} by %{author}: %{message} (%{build_url})"
-      on_success: change
-      on_failure: always
-      use_notice: true
+  irc:
+    channels:
+      - "irc.perl.org#dbic-smoke"
+    template:
+      - "%{branch}#%{build_number} by %{author}: %{message} (%{build_url})"
+    on_success: change
+    on_failure: always
+    use_notice: true
+
+  email:
+    - ribasushi@cpan.org
+    # Temporary - if it proves to be too noisy, we'll shut it off
+    - dbix-class-devel@lists.scsys.co.uk
+
+language: perl
+
+perl:
+  - "5.16"
+
+env:
+  - CLEANTEST=false
+  - CLEANTEST=true
+
+matrix:
+  include:
+    # minimum supported with threads
+    - perl: 5.8.5_thr
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads"
+        - BREWVER=5.8.5
+
+    # minimum supported without threads
+    - perl: 5.8.3_nt
+      env:
+        - CLEANTEST=false
+        - BREWOPTS=""
+        - BREWVER=5.8.3
+
+    # this is the perl suse ships
+    - perl: 5.10.0_thr_dbg
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-DDEBUGGING -Duseithreads"
+        - BREWVER=5.10.0
+
+    # this particular perl is quite widespread
+    - perl: 5.8.8_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.8.8
+
+
+before_install:
+  # Do not make this part of the env-matrix
+  # different boxes we run on have different amount of hw threads
+  # hence why we need to query
+  # result is 1.5 times the physical threads
+  - export NUMTHREADS=$(( ( $(cut -f 2 -d '-' /sys/devices/system/cpu/online) + 1 ) * 15 / 10  ))
+
+install:
+  # Build and switch to a custom perl if requested
+  # Set the environment based on CLEANTEST
+  # Preinstall/install deps
+  #
+  # sourcing the file is *EXTREMELY* important - otherwise
+  # no envvars will survive
+  - source maint/travis-ci_prepare_env
+
+script:
+  # either a plain 'make test' OR a shuffled prove torture
+  - export HARNESS_TIMER=1 HARNESS_OPTIONS=c:j$NUMTHREADS
+  # use the random order test plan unless CLEANTEST
+  - test "$CLEANTEST" = "true" && make test || prove -lrswj$NUMTHREADS t xt

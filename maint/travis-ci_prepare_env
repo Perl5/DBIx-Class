@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# * The way .travis.yml is fed to the command controller is idiotic - it
+# makes using multiline `bash -c` statements impossible. Therefore to
+# aid readability (our travis logic is rather complex), the bulk of
+# functionality is moved to a script. More about the problem here:
+# https://github.com/travis-ci/travis-ci/issues/497
+
+set -e
+
+if [[ "$TRAVIS" != "true" ]] ; then
+  echo "Running this script makes no sense outside of travis-ci"
+  exit 1
+fi
+
+#
+# Current dir is the root of the DBIC checkout (make sure to
+# come back there if moving around before end of this script)
+#
+# envvars available for us:
+#
+# NUMTHREADS = { number}
+#   dynamically determined amount of threads we want to run on this
+#   smoker concurrently
+#
+# CLEANTEST = [ true | false ]
+#   controls whether we simulate a "user-side" install experience
+#   that is - no author deps and no M::I installation
+#
+# BREWVER = { tripple dotted perl version, e.g. 5.8.3 }
+#   brew a custom perl version such and such
+#
+# BREWOPTS = { string to be fed unquoted to perlbrew, e.g. -Duseithreads }
+#   build options for perlbrew
+#
+
+if [[ -n "$BREWVER" ]] ; then
+  perlbrew install --as $BREWVER --notest $BREWOPTS -j $NUMTHREADS perl-$BREWVER
+  perlbrew use $BREWVER
+fi
+
+export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1
+
+# configure CPAN.pm - older versions get tickled by M::AI and
+# go into an endless loop when trying to autoconf themselves
+perl -e '
+  require CPAN;
+  require CPAN::FirstTime;
+  *CPAN::FirstTime::conf_sites = sub {};
+  CPAN::Config->load;
+  $CPAN::Config->{urllist} = [ "http://cpan.cpantesters.org/" ];
+  CPAN::Config->commit;
+' &> /dev/null
+
+# if this won't be a CLEANTEST (i.e. no deps) - run basic tests using SQLT
+# and set up whatever databases necessary
+if [[ "$CLEANTEST" != "true" ]]; then
+  # extra debian stuff
+  sudo apt-get -y install memcached firebird2.5-super
+  echo -e '\v'
+  echo
+
+  export DBICTEST_SQLT_DEPLOY=1
+
+  # memcached
+  export DBICTEST_MEMCACHED=127.0.0.1:11211
+
+  # mysql
+  mysql -e 'create database dbic_test;'
+  export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
+  export DBICTEST_MYSQL_USER=root
+
+  # pg
+  psql -c 'create database dbic_test;' -U postgres
+  export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
+  export DBICTEST_PG_USER=postgres
+
+  # firebird
+  sudo perl -pi -e 's/\=no/=yes/' /etc/default/firebird2.5
+  sudo /etc/init.d/firebird2.5-super start
+  # FIXME: todo
+  #sudo gsec -add dbic_test -pw 123
+  #export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test
+  #export DBICTEST_FIREBIRD_USER=dbic_test
+  #export DBICTEST_FIREBIRD_PASS=123
+  #export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test
+  #export DBICTEST_FIREBIRD_INTERBASE_USER=dbic_test
+  #export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+
+  # oracle
+  # FIXME: todo
+  #DBICTEST_ORA_DSN=dbi:Oracle:host=localhost;sid=XE
+  #DBICTEST_ORA_USER=dbic_test
+  #DBICTEST_ORA_PASS=123
+  #DBICTEST_ORA_EXTRAUSER_DSN=dbi:Oracle:host=localhost;sid=XE
+  #DBICTEST_ORA_EXTRAUSER_USER=dbic_test_extra
+  #DBICTEST_ORA_EXTRAUSER_PASS=123
+  #ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/client
+fi
+
+installdeps() {
+  if [[ -z "$@" ]] ; then return; fi
+
+  echo -n "Installing $@... "
+  # FIXME
+  # the --reinstall is here because for some reason e.g. `cpanm Carp` does
+  # not install a newer Carp since it already exists on the system
+  # investigation pending
+  if ! OUT=$( echo "$@" | xargs -n 1 -P $NUMTHREADS cpanm --reinstall --verbose --notest 2>&1 ) ; then
+    EX=$?
+    echo "FAILED !!!"
+    echo "$OUT"
+    exit $?
+  else
+    echo "done."
+  fi
+}
+
+# Install *hard dep* modules that typically appear in more than one dep
+#
+# *NEVER* add optional depenencies here - will make CLEANTEST=true smokes useless
+#
+# do it in several passes to minimize amount of cross-deps installing multiple
+# times, and to avoid module re-architecture breaking another install
+# (e.g. once Carp is upgraded there's no more Carp::Heavy)
+#
+installdeps $(cpanm --notest --quiet --showdeps Module::Build)
+installdeps Test::Exception Test::Fatal Module::Runtime Carp
+installdeps Sub::Name multidimensional namespace::clean Class::XSAccessor MRO::Compat
+installdeps DBI Moo Class::Accessor::Grouped
+
+if [[ "$CLEANTEST" = "true" ]]; then
+  # get the last inc/ off cpan - we will get rid of MI
+  # soon enough, but till then this will do
+  # the point is to have a *really* clean perl (the ones
+  # we build are guaranteed to be clean, without side
+  # effects from travis preinstalls)
+  #
+  # FIXME - not yet implemented - not sure how to reliably
+  # feed to wget this location: http://cpansearch.perl.org/src/GETTY/DBIx-Class-0.08204/inc/
+  echo TODOOOO - M::I is not supposed to be installed here - this test is useless now
+  installdeps Module::Install
+else
+  # we will be running all tests, preinstall MOAR stuff
+  installdeps Module::Install DateTime::Format::Strptime MooseX::Types JSON::Any Class::DBI
+fi
+
+# install the rest
+perl Makefile.PL
+installdeps $(make listalldeps)
+
+# FIXME - for some reason the above invocation does not upgrade outdated
+# core libs - just punt and install the remainder by hand (these run tests)
+# This snippet should not be here at all
+perl Makefile.PL &> /dev/null
+make installdeps
+
+# announce what are we running
+perl -V
+echo "Using $NUMTHREADS Travis-CI concurrent processes"
+
+# make sure we got everything we need
+perl Makefile.PL &> /dev/null
+if [[ -n "$(make listdeps)" ]] ; then
+  echo "Not all deps installed - something went wrong :("
+  make listdeps
+  exit 1
+fi
