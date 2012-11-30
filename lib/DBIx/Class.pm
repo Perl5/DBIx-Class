@@ -135,6 +135,11 @@ The project is maintained in a git repository, accessible from the following sou
 
 =item * authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
 
+=item * Travis-CI log: L<http://travis-ci.org/dbsrgits/dbix-class/builds>
+
+=for html
+<img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+
 =back
 
 =head1 SYNOPSIS
