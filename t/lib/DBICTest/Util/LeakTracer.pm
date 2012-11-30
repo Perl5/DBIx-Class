@@ -53,9 +53,10 @@ sub CLONE {
   for my $reg (@individual_regs) {
     my @live_slots = grep { defined $reg->{$_}{weakref} } keys %$reg
       or next;
+
     my @live_instances = @{$reg}{@live_slots};
 
-    %$reg = ();
+    $reg = {};  # get a fresh hashref in the new thread ctx
     weaken( $reg_of_regs{refaddr($reg)} = $reg );
 
     while (@live_slots) {
