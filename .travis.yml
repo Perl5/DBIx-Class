@@ -23,13 +23,15 @@
 # WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
 #
 
-# smoke only specific branches to a) not overload the queue and b) not
+# Smoke only specific branches to a) not overload the queue and b) not
 # overspam the notification channels
+# Furthermore if the branch is ^topic/ - the custom compiled smokes will
+# not run at all, again in order to conserve queue resources
 branches:
   only:
     - master
-    - /^topic\//
     - /^smoke\//
+    - /^topic\//
 
 notifications:
   irc:
@@ -103,7 +105,9 @@ install:
   - source maint/travis-ci_prepare_env
 
 script:
-  # either a plain 'make test' OR a shuffled prove torture
   - export HARNESS_TIMER=1 HARNESS_OPTIONS=c:j$NUMTHREADS
+
+  # either a plain 'make test' OR a shuffled prove torture
   # use the random order test plan unless CLEANTEST
-  - test "$CLEANTEST" = "true" && make test || prove -lrswj$NUMTHREADS t xt
+  # prepare_env may have short-circuited the test entirely
+  - test -n "$SHORT_CIRCUIT_SMOKE" || (test "$CLEANTEST" = "true" && make test || prove -lrswj$NUMTHREADS t xt)
