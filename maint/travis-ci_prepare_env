@@ -38,6 +38,7 @@ if [[ -n "$BREWVER" ]] ; then
   # if this is not master and not a smoke/ branch - cancel all testing
   if [[ "$TRAVIS_BRANCH" =~ "topic/" ]]; then
     export SHORT_CIRCUIT_SMOKE=1
+    sleep 20  # give the console time to attach, otherwise it hangs
     return  # this is like an `exit 0` in sourcing
   fi
 
@@ -48,8 +49,41 @@ fi
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1
 export PERL_CPANM_OPT="$( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 
+installdeps() {
+  if [[ -z "$@" ]] ; then return; fi
+
+  # The reason we do things so "non-interactively" is that xargs -P will have the
+  # latest cpanm instance overwrite the buildlog. There seems to be no way to
+  # specify a custom buildlog, hence we just collect the verbose output
+  # and display it in case of failure
+  echo -n "Installing $@... "
+  if ! OUT=$( echo "$@" | xargs -n 1 -P $NUMTHREADS cpanm --verbose --no-interactive --notest --no-man-pages 2>&1 ) ; then
+    EX=$?
+    echo "FAILED !!!"
+    echo "$OUT"
+    exit $?
+  else
+    echo "done."
+  fi
+}
+
+# Install *hard dep* modules that typically appear in more than one dep
+#
+# *NEVER* add optional depenencies here - will make CLEANTEST=true smokes useless
+#
+# do it in several passes to minimize amount of cross-deps installing multiple
+# times, and to avoid module re-architecture breaking another install
+# (e.g. once Carp is upgraded there's no more Carp::Heavy)
+#
+installdeps $(cpanm --notest --quiet --showdeps Module::Build)
+installdeps Test::Exception Test::Fatal Module::Runtime Carp
+installdeps Sub::Name multidimensional namespace::clean Class::XSAccessor MRO::Compat
+installdeps DBI Moo Class::Accessor::Grouped
+
 # configure CPAN.pm - older versions get tickled by M::AI and
 # go into an endless loop when trying to autoconf themselves
+# we are not *supposed* to actually use it, this is just a
+# precaution
 perl -e '
   require CPAN;
   require CPAN::FirstTime;
@@ -59,15 +93,28 @@ perl -e '
   CPAN::Config->commit;
 ' &> /dev/null
 
-# if this won't be a CLEANTEST (i.e. no deps) - run basic tests using SQLT
-# and set up whatever databases necessary
-if [[ "$CLEANTEST" != "true" ]]; then
+if [[ "$CLEANTEST" = "true" ]]; then
+  # get the last inc/ off cpan - we will get rid of MI
+  # soon enough, but till then this will do
+  # the point is to have a *really* clean perl (the ones
+  # we build are guaranteed to be clean, without side
+  # effects from travis preinstalls)
+  #
+  # FIXME - not yet implemented - not sure how to reliably
+  # feed to wget this location: http://cpansearch.perl.org/src/GETTY/DBIx-Class-0.08204/inc/
+  echo TODOOOO - M::I is not supposed to be installed here - this test is useless now
+  installdeps Module::Install
+else
+  # we will be running all tests - preinstall MOAR stuff, run basic tests using SQLT
+  # and set up whatever databases necessary
+  installdeps Module::Install DateTime::Format::Strptime MooseX::Types JSON::Any Class::DBI
+
+  export DBICTEST_SQLT_DEPLOY=1
+
   # extra debian stuff
   sudo apt-get -y install memcached firebird2.5-super
   echo -e '\v'
   echo
-
-  export DBICTEST_SQLT_DEPLOY=1
 
   # memcached
   export DBICTEST_MEMCACHED=127.0.0.1:11211
@@ -103,49 +150,6 @@ if [[ "$CLEANTEST" != "true" ]]; then
   #DBICTEST_ORA_EXTRAUSER_USER=dbic_test_extra
   #DBICTEST_ORA_EXTRAUSER_PASS=123
   #ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/client
-fi
-
-installdeps() {
-  if [[ -z "$@" ]] ; then return; fi
-
-  echo -n "Installing $@... "
-  if ! OUT=$( echo "$@" | xargs -n 1 -P $NUMTHREADS cpanm --verbose --notest 2>&1 ) ; then
-    EX=$?
-    echo "FAILED !!!"
-    echo "$OUT"
-    exit $?
-  else
-    echo "done."
-  fi
-}
-
-# Install *hard dep* modules that typically appear in more than one dep
-#
-# *NEVER* add optional depenencies here - will make CLEANTEST=true smokes useless
-#
-# do it in several passes to minimize amount of cross-deps installing multiple
-# times, and to avoid module re-architecture breaking another install
-# (e.g. once Carp is upgraded there's no more Carp::Heavy)
-#
-installdeps $(cpanm --notest --quiet --showdeps Module::Build)
-installdeps Test::Exception Test::Fatal Module::Runtime Carp
-installdeps Sub::Name multidimensional namespace::clean Class::XSAccessor MRO::Compat
-installdeps DBI Moo Class::Accessor::Grouped
-
-if [[ "$CLEANTEST" = "true" ]]; then
-  # get the last inc/ off cpan - we will get rid of MI
-  # soon enough, but till then this will do
-  # the point is to have a *really* clean perl (the ones
-  # we build are guaranteed to be clean, without side
-  # effects from travis preinstalls)
-  #
-  # FIXME - not yet implemented - not sure how to reliably
-  # feed to wget this location: http://cpansearch.perl.org/src/GETTY/DBIx-Class-0.08204/inc/
-  echo TODOOOO - M::I is not supposed to be installed here - this test is useless now
-  installdeps Module::Install
-else
-  # we will be running all tests, preinstall MOAR stuff
-  installdeps Module::Install DateTime::Format::Strptime MooseX::Types JSON::Any Class::DBI
 fi
 
 # install the rest

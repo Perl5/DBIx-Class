@@ -90,7 +90,6 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
         - BREWVER=5.8.8
 
-
 before_install:
   # Do not make this part of the env-matrix
   # different boxes we run on have different amount of hw threads
