@@ -111,37 +111,77 @@ else
 
   export DBICTEST_SQLT_DEPLOY=1
 
-  # extra debian stuff
-  sudo apt-get -y install memcached firebird2.5-super
-  echo -e '\v'
-  echo
+### apt-get invocation - faster to grab everything at once
+  #
+  # FIXME these debconf lines should automate the firebird config but do not :(((
+  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
+  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
-  # memcached
+  sudo apt-get install -y memcached firebird2.5-super firebird2.5-dev expect
+
+### memcached
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
-  # mysql
+### mysql
   mysql -e 'create database dbic_test;'
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
-  # pg
+### pg
   psql -c 'create database dbic_test;' -U postgres
   export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
   export DBICTEST_PG_USER=postgres
 
-  # firebird
-  sudo perl -pi -e 's/\=no/=yes/' /etc/default/firebird2.5
-  sudo /etc/init.d/firebird2.5-super start
-  # FIXME: todo
-  #sudo gsec -add dbic_test -pw 123
-  #export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test
-  #export DBICTEST_FIREBIRD_USER=dbic_test
-  #export DBICTEST_FIREBIRD_PASS=123
-  #export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test
-  #export DBICTEST_FIREBIRD_INTERBASE_USER=dbic_test
-  #export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+### firebird
+  # poor man's deb config
+  echo -n "Re-configuring firebird... "
+  if ! OUT=$(
+    sync
+    DEBIAN_FRONTEND=text sudo expect -c '
+      spawn dpkg-reconfigure --frontend=text firebird2.5-super
+      expect "Enable Firebird server?"
+      send "\177\177\177\177yes\r"
+      expect "Password for SYSDBA"
+      send "123\r"
+      sleep 1
+      wait
+      sleep 1
+    '
+    # restart the server for good measure
+    sudo /etc/init.d/firebird2.5-super stop || true
+    sudo /etc/init.d/firebird2.5-super start
+  ) ; then
+    EX=$?
+    echo "FAILED !!!"
+    echo "$OUT"
+    exit $?
+  else
+    echo "done."
+  fi
 
-  # oracle
+  # creating testdb
+  sudo isql-fb -u sysdba -p 123 <<< "CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';"
+
+  # the official version is full of 5.10-isms, but works perfectly fine on 5.8
+  # pull in our patched copy
+  git clone https://github.com/dbsrgits/perl-dbd-firebird-5.8.git ~/dbd-firebird
+
+  # the official version is very much outdated and does not compile on 5.14+
+  # use this rather updated source tree (needs to go to PAUSE):
+  # https://github.com/pilcrow/perl-dbd-interbase
+  git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase
+
+  installdeps ~/dbd-interbase/ ~/dbd-firebird/
+
+  export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+  export DBICTEST_FIREBIRD_USER=SYSDBA
+  export DBICTEST_FIREBIRD_PASS=123
+
+  export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+  export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
+  export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+
+### oracle
   # FIXME: todo
   #DBICTEST_ORA_DSN=dbi:Oracle:host=localhost;sid=XE
   #DBICTEST_ORA_USER=dbic_test
