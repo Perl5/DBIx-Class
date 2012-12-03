@@ -99,11 +99,10 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # the point is to have a *really* clean perl (the ones
   # we build are guaranteed to be clean, without side
   # effects from travis preinstalls)
-  #
-  # FIXME - not yet implemented - not sure how to reliably
-  # feed to wget this location: http://cpansearch.perl.org/src/GETTY/DBIx-Class-0.08204/inc/
-  echo TODOOOO - M::I is not supposed to be installed here - this test is useless now
-  installdeps Module::Install
+
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  SHELL=/bin/true cpanm --look DBIx::Class
+  mv ~/.cpanm/latest-build/*/inc .
 else
   # we will be running all tests - preinstall MOAR stuff, run basic tests using SQLT
   # and set up whatever databases necessary
@@ -192,7 +191,7 @@ else
   #ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/client
 fi
 
-# install the rest
+# install the remaining dependencies
 perl Makefile.PL
 installdeps $(make listalldeps)
 
