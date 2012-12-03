@@ -66,16 +66,25 @@ export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CP
 export PERL_CPANM_OPT="$( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 
 if [[ -n "$BREWVER" ]] ; then
-  # if this is not master and not a smoke/ branch - cancel all testing
-  if [[ "$TRAVIS_BRANCH" =~ "topic/" ]]; then
+  # .travis.yml already restricts branches to master, topic/* and smoke/*
+  # do some extra short-circuiting here
+
+  # when smoking master do not attempt bleadperl (not release-critical)
+  if [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
     export SHORT_CIRCUIT_SMOKE=1
+  # on topic/ branches test only with travis perls
+  elif [[ "$TRAVIS_BRANCH" =~ "topic/" ]]; then
+    export SHORT_CIRCUIT_SMOKE=1
+  fi
+
+  if [[ -n "$SHORT_CIRCUIT_SMOKE" ]]; then
     echo_err "$(tstamp) non-smoke branch and custom perl compilation requested - bailing out"
     sleep 20  # give the console time to attach, otherwise it hangs
     return  # this is like an `exit 0` in sourcing
   fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest $BREWOPTS -j $NUMTHREADS perl-$BREWVER"
+    "perlbrew install --as $BREWVER --notest $BREWOPTS -j $NUMTHREADS $BREWVER"
 
   perlbrew use $BREWVER
 fi

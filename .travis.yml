@@ -29,10 +29,15 @@
 # WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
 #
 
+#
 # Smoke only specific branches to a) not overload the queue and b) not
 # overspam the notification channels
+#
 # Furthermore if the branch is ^topic/ - the custom compiled smokes will
 # not run at all, again in order to conserve queue resources
+#
+# Additionally bleadperl tests do not run on master (but do run on smoke/*)
+#
 branches:
   only:
     - master
@@ -81,6 +86,13 @@ matrix:
         - CLEANTEST=false
         - BREWOPTS=""
         - BREWVER=5.8.3
+
+    # bleadperl
+    - perl: bleadperl_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=blead
 
     # check CLEANTEST of minimum supported
     - perl: 5.8.3_nt_mb
