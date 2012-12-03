@@ -146,8 +146,10 @@ else
       wait
       sleep 1
     '
+    sync
     # restart the server for good measure
     sudo /etc/init.d/firebird2.5-super stop || true
+    sleep 3
     sudo /etc/init.d/firebird2.5-super start
   ) ; then
     EX=$?
