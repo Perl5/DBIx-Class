@@ -47,7 +47,7 @@ notifications:
     recipients:
       - ribasushi@cpan.org
       # Temporary - if it proves to be too noisy, we'll shut it off
-      - dbix-class-devel@lists.scsys.co.uk
+      #- dbix-class-devel@lists.scsys.co.uk
     on_success: change
     on_failure: change
 
