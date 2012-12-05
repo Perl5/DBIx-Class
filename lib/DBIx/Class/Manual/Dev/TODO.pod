@@ -151,6 +151,18 @@ output, F<t/91merge_joinpref_attr.t>), however it is very weirdly written
 and hence hard to maintain. It will also need to learn about dash-prefxed
 hash keys being names in order to support L</Relationship arguments>.
 
+=head3 SQL::Statement driver support
+
+SineSwiper put the required modules in a gist here:
+
+  https://gist.github.com/4217691
+  
+Need to extract them out and write tests for them.  He also has stub files
+for the ones that need them:
+  
+  DBIx::Class::Storage::DBI::*
+  * = AnyData, CSV, DBM, PO, SNMP, Sys, TreeData
+
 =begin NOT_PROPERLY_DESCRIBED_YET
 
 =head3 Dynamic storage flag specification
