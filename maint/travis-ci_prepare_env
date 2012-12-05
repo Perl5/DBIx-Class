@@ -263,5 +263,21 @@ fi
 run_or_err "Prepare blib" "make pure_all"
 
 # announce what are we running
-perl -V
-echo_err "$(tstamp) Starting tests using $NUMTHREADS concurrent processes"
+echo_err "
+========================= CONFIGURATION COMPLETE ===========================
+Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
+
+= CPUinfo
+$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+
+= Meminfo
+$(free -m -t)
+
+= Environment
+$(env | grep -P 'TEST|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+
+= Perl in use
+$(perl -V)
+============================================================================
+
+$(tstamp) Starting tests using $NUMTHREADS concurrent processes"
