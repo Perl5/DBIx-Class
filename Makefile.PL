@@ -68,9 +68,6 @@ my $runtime_requires = {
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.73',
   'Try::Tiny'                => '0.04',
-
-  # dual-life corelibs needing a specific bugfixed version
-  'File::Path'               => '2.07',
 };
 
 my $build_requires = {

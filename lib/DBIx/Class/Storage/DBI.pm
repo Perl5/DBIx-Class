@@ -2703,7 +2703,7 @@ sub create_ddl_dir {
   } else {
       -d $dir
         or
-      (require File::Path and File::Path::make_path ("$dir"))  # make_path does not like objects (i.e. Path::Class::Dir)
+      (require File::Path and File::Path::mkpath (["$dir"]))  # mkpath does not like objects (i.e. Path::Class::Dir)
         or
       $self->throw_exception(
         "Failed to create '$dir': " . ($! || $@ || 'error unknown')
