@@ -3,7 +3,7 @@ use strict;
 
 use Test::More;
 use List::Util 'first';
-use lib qw(t/lib);
+use lib qw(t/lib .generated_pod);
 use DBICTest;
 use namespace::clean;
 
@@ -159,7 +159,7 @@ for my $string (keys %$exceptions) {
   $ex_lookup->{$re} = $ex;
 }
 
-my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
+my @modules = sort { $a cmp $b } Test::Pod::Coverage::all_modules('lib');
 
 foreach my $module (@modules) {
   SKIP: {

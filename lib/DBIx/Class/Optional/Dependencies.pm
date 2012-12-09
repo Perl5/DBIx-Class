@@ -698,13 +698,9 @@ sub req_group_list {
 
 # This is to be called by the author only (automatically in Makefile.PL)
 sub _gen_pod {
-  my ($class, $distver) = @_;
+  my ($class, $distver, $pod_dir) = @_;
 
-  my $modfn = __PACKAGE__ . '.pm';
-  $modfn =~ s/\:\:/\//g;
-
-  my $podfn = __FILE__;
-  $podfn =~ s/\.pm$/\.pod/;
+  die "No POD root dir supplied" unless $pod_dir;
 
   $distver ||=
     eval { require DBIx::Class; DBIx::Class->VERSION; }
@@ -716,6 +712,17 @@ sub _gen_pod {
 "halted\n\n" . $@ .
 "\n\n---------------------------------------------------------------------\n"
   ;
+
+  # do not ask for a recet version, use 1.x API calls
+  # this *may* execute on a smoker with old perl or whatnot
+  require File::Path;
+
+  (my $modfn = __PACKAGE__ . '.pm') =~ s|::|/|g;
+
+  (my $podfn = "$pod_dir/$modfn") =~ s/\.pm$/\.pod/;
+  (my $dir = $podfn) =~ s|/[^/]+$||;
+
+  File::Path::mkpath([$dir]);
 
   my $sqltver = $class->req_list_for ('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";
@@ -864,6 +871,7 @@ EOD
 
   open (my $fh, '>', $podfn) or Carp::croak "Unable to write to $podfn: $!";
   print $fh join ("\n\n", @chunks);
+  print $fh "\n";
   close ($fh);
 }
 

@@ -14,7 +14,7 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_notabs') ) {
 }
 
 Test::NoTabs::all_perl_files_ok(
-  qw/t xt lib script examples maint/,
+  qw/t xt lib script examples maint .generated_pod/,
 );
 
 # Changes is not a "perl file", hence checked separately
