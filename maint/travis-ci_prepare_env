@@ -206,29 +206,33 @@ else
   "
 
   # creating testdb
-  run_or_err "Creating Firebird TestDB" \
+  # FIXME - this step still fails from time to time >:(((
+  # has to do with the FB reconfiguration I suppose
+  # for now if it fails - simply skip FB testing
+  if run_or_err "Creating Firebird TestDB" \
     "echo \"CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';\" | sudo isql-fb -u sysdba -p 123"
+  then
+    # the official version is full of 5.10-isms, but works perfectly fine on 5.8
+    # pull in our patched copy
+    run_or_err "Fetching patched DBD::Firebird" \
+      "git clone https://github.com/dbsrgits/perl-dbd-firebird-5.8.git ~/dbd-firebird"
 
-  # the official version is full of 5.10-isms, but works perfectly fine on 5.8
-  # pull in our patched copy
-  run_or_err "Fetching patched DBD::Firebird" \
-    "git clone https://github.com/dbsrgits/perl-dbd-firebird-5.8.git ~/dbd-firebird"
+    # the official version is very much outdated and does not compile on 5.14+
+    # use this rather updated source tree (needs to go to PAUSE):
+    # https://github.com/pilcrow/perl-dbd-interbase
+    run_or_err "Fetching patched DBD::InterBase" \
+      "git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase"
 
-  # the official version is very much outdated and does not compile on 5.14+
-  # use this rather updated source tree (needs to go to PAUSE):
-  # https://github.com/pilcrow/perl-dbd-interbase
-  run_or_err "Fetching patched DBD::InterBase" \
-    "git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase"
+    parallel_installdeps_notest ~/dbd-interbase/ ~/dbd-firebird/
 
-  parallel_installdeps_notest ~/dbd-interbase/ ~/dbd-firebird/
+    export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+    export DBICTEST_FIREBIRD_USER=SYSDBA
+    export DBICTEST_FIREBIRD_PASS=123
 
-  export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
-  export DBICTEST_FIREBIRD_USER=SYSDBA
-  export DBICTEST_FIREBIRD_PASS=123
-
-  export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
-  export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
-  export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+    export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+    export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
+    export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+  fi
 
 ### oracle
   # FIXME: todo
