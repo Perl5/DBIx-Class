@@ -9,12 +9,18 @@
 # attention of ribasushi. *DO NOT* disable 5.8 testing - it is here for a
 # reason
 #
-# * The matrix is built from two main modes - CLEANTEST = [true|false]. In
-# the first case we test with minimal deps available, and skip everything
-# listed in DBIC::OptDesps. Without CLEANTEST we bring the armada of RDBMS
-# and install the maximum possible set of deps and configs
+# * The matrix is built from two main modes - CLEANTEST = [true|false].
+# - In the first case we test with minimal deps available, and skip everything
+#   listed in DBIC::OptDesps. The modules are installed with classic CPAN
+#   invocations and are *fully tested*. In other words we simulate what would
+#   happen if a user tried to install on a just-compiled virgin perl
+# - Without CLEANTEST we bring the armada of RDBMS and install the maximum
+#   possible set of deps *without testing them*. This ensures we stay within
+#   a reasonable build-time and still run as many of our tests as possible
 #
-# * All builds/tests run under NUMTHREADS number of threads.
+# * The perl builds and the DBIC tests run under NUMTHREADS number of threads.
+# The testing of dependencies under CLEANTEST runs single-threaded, at least
+# until we fix our entire dep-chain to safely pass under -j
 #
 # * The way .travis.yml is fed to the command controller is idiotic - it
 # makes using multiline `bash -c` statements impossible. Therefore to
@@ -74,6 +80,13 @@ matrix:
       env:
         - CLEANTEST=false
         - BREWOPTS=""
+        - BREWVER=5.8.3
+
+    # check CLEANTEST of minimum supported
+    - perl: 5.8.3_nt_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Dusemorebits"
         - BREWVER=5.8.3
 
     # this is the perl suse ships
