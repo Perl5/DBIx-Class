@@ -118,7 +118,7 @@ sub new {
 
 =item Arguments: none
 
-=item Return Value: \[ $sql, @bind ]
+=item Return Value: \[ $sql, L<@bind_values|DBIx::Class::ResultSet/DBIC BIND VALUES> ]
 
 =back
 

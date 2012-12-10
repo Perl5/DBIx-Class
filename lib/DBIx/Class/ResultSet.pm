@@ -2513,7 +2513,7 @@ sub _remove_alias {
 
 =item Arguments: none
 
-=item Return Value: \[ $sql, @bind ]
+=item Return Value: \[ $sql, L<@bind_values|/DBIC BIND VALUES> ]
 
 =back
 
@@ -4342,6 +4342,54 @@ L<DBIx::Class::Manual::Cookbook>.
 Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
 ... FOR SHARED. If \$scalar is passed, this is taken directly and embedded in the
 query.
+
+=head1 DBIC BIND VALUES
+
+Because DBIC may need more information to bind values than just the column name
+and value itself, it uses a special format for both passing and receiving bind
+values.  Each bind value should be composed of an arrayref of
+C<< [ \%args => $val ] >>.  The format of C<< \%args >> is currently:
+
+=over 4
+
+=item dbd_attrs
+
+If present (in any form), this is what is being passed directly to bind_param.
+Note that different DBD's expect different bind args.  (e.g. DBD::SQLite takes
+a single numerical type, while DBD::Pg takes a hashref if bind options.)
+
+If this is specified, all other bind options described below are ignored.
+
+=item sqlt_datatype
+
+If present, this is used to infer the actual bind attribute by passing to
+C<< $resolved_storage->bind_attribute_by_data_type() >>.  Defaults to the
+"data_type" from the L<add_columns column info|DBIx::Class::ResultSource/add_columns>.
+
+Note that the data type is somewhat freeform (hence the sqlt_ prefix);
+currently drivers are expected to "Do the Right Thing" when given a common
+datatype name.  (Not ideal, but that's what we got at this point.)
+
+=item sqlt_size
+
+Currently used to correctly allocate buffers for bind_param_inout().
+Defaults to "size" from the L<add_columns column info|DBIx::Class::ResultSource/add_columns>,
+or to a sensible value based on the "data_type".
+
+=item dbic_colname
+
+Used to fill in missing sqlt_datatype and sqlt_size attributes (if they are
+explicitly specified they are never overriden).  Also used by some weird DBDs,
+where the column name should be available at bind_param time (e.g. Oracle).
+
+=back
+
+For backwards compatibility and convenience, the following shortcuts are
+supported:
+
+  [ $name => $val ] === [ { dbic_colname => $name }, $val ]
+  [ \$dt  => $val ] === [ { sqlt_datatype => $dt }, $val ]
+  [ undef,   $val ] === [ {}, $val ]
 
 =head1 AUTHOR AND CONTRIBUTORS
 
