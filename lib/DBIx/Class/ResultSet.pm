@@ -4198,6 +4198,37 @@ behavior may or may not survive the 0.09 transition.
 
 =back
 
+=head2 alias
+
+=over 4
+
+=item Value: $source_alias
+
+=back
+
+Sets the source alias for the query.  Normally, this defaults to C<me>, but
+nested search queries (sub-SELECTs) might need specific aliases set to
+reference inner queries.  For example:
+
+   my $q = $rs
+      ->related_resultset('CDs')
+      ->related_resultset('Tracks')
+      ->search({
+         'track.id' => { -ident => 'none_search.id' },
+      })
+      ->as_query;
+
+   my $ids = $self->search({
+      -not_exists => $q,
+   }, {
+      alias    => 'none_search',
+      group_by => 'none_search.id',
+   })->get_column('id')->as_query;
+
+   $self->search({ id => { -in => $ids } })
+
+This attribute is directly tied to L</current_source_alias>.
+
 =head2 page
 
 =over 4

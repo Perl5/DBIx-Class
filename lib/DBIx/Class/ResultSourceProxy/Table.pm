@@ -104,6 +104,14 @@ sub table {
   return $class->result_source_instance->name;
 }
 
+=head2 table_class
+
+  __PACKAGE__->table_class('DBIx::Class::ResultSource::Table');
+
+Gets or sets the table class used for construction and validation.
+
+=cut
+
 =head2 has_column
 
   if ($obj->has_column($col)) { ... }

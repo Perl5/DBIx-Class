@@ -961,6 +961,32 @@ sub _invoke_sqlt_deploy_hook {
   }
 }
 
+=head2 result_class
+
+=over 4
+
+=item Arguments: $classname
+
+=item Return Value: $classname
+
+=back
+
+ use My::Schema::ResultClass::Inflator;
+ ...
+
+ use My::Schema::Artist;
+ ...
+ __PACKAGE__->result_class('My::Schema::ResultClass::Inflator');
+
+Set the default result class for this source. You can use this to create
+and use your own result inflator. See L<DBIx::Class::ResultSet/result_class>
+for more details.
+
+Please note that setting this to something like
+L<DBIx::Class::ResultClass::HashRefInflator> will make every result unblessed
+and make life more difficult.  Inflators like those are better suited to
+temporary usage via L<DBIx::Class::ResultSet/result_class>.
+
 =head2 resultset
 
 =over 4
