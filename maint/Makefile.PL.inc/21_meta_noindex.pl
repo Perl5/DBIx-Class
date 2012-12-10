@@ -5,6 +5,7 @@ no_index directory => $_ for (qw|
   lib/DBIx/Class/Admin
   lib/DBIx/Class/PK/Auto
   lib/DBIx/Class/CDBICompat
+  maint
 |);
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBIHacks
