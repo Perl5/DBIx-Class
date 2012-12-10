@@ -3750,6 +3750,10 @@ searching for data. They can be passed to any method which takes an
 C<\%attrs> argument. See L</search>, L</search_rs>, L</find>,
 L</count>.
 
+Default attributes can be set on the result class using
+L<DBIx::Class::ResultSource/resultset_attributes>.  (Please read
+the CAVEATS on that feature before using it!)
+
 These are in no particular order:
 
 =head2 order_by

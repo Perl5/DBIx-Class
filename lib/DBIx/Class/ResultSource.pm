@@ -1034,9 +1034,9 @@ exists.
 
 =over 4
 
-=item Arguments: \%attrs
+=item Arguments: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
 
-=item Return Value: \%attrs
+=item Return Value: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -1047,8 +1047,35 @@ exists.
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
 Store a collection of resultset attributes, that will be set on every
-L<DBIx::Class::ResultSet> produced from this result source. For a full
-list see L<DBIx::Class::ResultSet/ATTRIBUTES>.
+L<DBIx::Class::ResultSet> produced from this result source.
+
+B<CAVEAT>: C<resultset_attributes> comes with its own set of issues and
+bugs! While C<resultset_attributes> isn't deprecated per se, its usage is
+not recommended!
+
+Since relationships use attributes to link tables together, the "default"
+attributes you set may cause unpredictable and undesired behavior.  Furthermore,
+the defaults cannot be turned off, so you are stuck with them.
+
+In most cases, what you should actually be using are project-specific methods:
+
+  package My::Schema::ResultSet::Artist;
+  use base 'DBIx::Class::ResultSet';
+  ...
+
+  # BAD IDEA!
+  #__PACKAGE__->resultset_attributes({ prefetch => 'tracks' });
+
+  # GOOD IDEA!
+  sub with_tracks { shift->search({}, { prefetch => 'tracks' }) }
+
+  # in your code
+  $schema->resultset('Artist')->with_tracks->...
+
+This gives you the flexibility of not using it when you don't need it.
+
+For more complex situations, another solution would be to use a virtual view
+via L<DBIx::Class::ResultSource::View>.
 
 =cut
 
