@@ -1573,14 +1573,25 @@ sub _gen_sql_bind {
     $colinfos = $ident->columns_info;
   }
 
-  my ($sql, @bind) = $self->sql_maker->$op( ($from || $ident), @$args );
+  my ($sql, $bind);
+  ($sql, @$bind) = $self->sql_maker->$op( ($from || $ident), @$args );
+
+  $bind = $self->_resolve_bindattrs(
+    $ident, [ @{$args->[2]{bind}||[]}, @$bind ], $colinfos
+  );
 
   if (
     ! $ENV{DBIC_DT_SEARCH_OK}
       and
     $op eq 'select'
       and
-    first { blessed($_->[1]) && $_->[1]->isa('DateTime') } @bind
+    first {
+      length ref $_->[1]
+        and
+      blessed($_->[1])
+        and
+      $_->[1]->isa('DateTime')
+    } @$bind
   ) {
     carp_unique 'DateTime objects passed to search() are not supported '
       . 'properly (InflateColumn::DateTime formats and settings are not '
@@ -1589,9 +1600,7 @@ sub _gen_sql_bind {
       . 'set $ENV{DBIC_DT_SEARCH_OK} to true'
   }
 
-  return( $sql, $self->_resolve_bindattrs(
-    $ident, [ @{$args->[2]{bind}||[]}, @bind ], $colinfos
-  ));
+  return( $sql, $bind );
 }
 
 sub _resolve_bindattrs {
@@ -1620,24 +1629,42 @@ sub _resolve_bindattrs {
   };
 
   return [ map {
-    if (ref $_ ne 'ARRAY') {
-      [{}, $_]
+    my $resolved =
+      ( ref $_ ne 'ARRAY' or @$_ != 2 ) ? [ {}, $_ ]
+    : ( ! defined $_->[0] )             ? [ {}, $_->[1] ]
+    : (ref $_->[0] eq 'HASH')           ? [ (exists $_->[0]{dbd_attrs} or $_->[0]{sqlt_datatype})
+                                              ? $_->[0]
+                                              : $resolve_bindinfo->($_->[0])
+                                            , $_->[1] ]
+    : (ref $_->[0] eq 'SCALAR')         ? [ { sqlt_datatype => ${$_->[0]} }, $_->[1] ]
+    :                                     [ $resolve_bindinfo->(
+                                              { dbic_colname => $_->[0] }
+                                            ), $_->[1] ]
+    ;
+
+    if (
+      ! exists $resolved->[0]{dbd_attrs}
+        and
+      ! $resolved->[0]{sqlt_datatype}
+        and
+      length ref $resolved->[1]
+        and
+      ! overload::Method($resolved->[1], '""')
+    ) {
+      require Data::Dumper;
+      local $Data::Dumper::Maxdepth = 1;
+      local $Data::Dumper::Terse = 1;
+      local $Data::Dumper::Useqq = 1;
+      local $Data::Dumper::Indent = 0;
+      local $Data::Dumper::Pad = ' ';
+      $self->throw_exception(
+        'You must supply a datatype/bindtype (see DBIx::Class::ResultSet/DBIC BIND VALUES) '
+      . 'for non-scalar value '. Data::Dumper::Dumper ($resolved->[1])
+      );
     }
-    elsif (! defined $_->[0]) {
-      [{}, $_->[1]]
-    }
-    elsif (ref $_->[0] eq 'HASH') {
-      [
-        ($_->[0]{dbd_attrs} or $_->[0]{sqlt_datatype}) ? $_->[0] : $resolve_bindinfo->($_->[0]),
-        $_->[1]
-      ]
-    }
-    elsif (ref $_->[0] eq 'SCALAR') {
-      [ { sqlt_datatype => ${$_->[0]} }, $_->[1] ]
-    }
-    else {
-      [ $resolve_bindinfo->({ dbic_colname => $_->[0] }), $_->[1] ]
-    }
+
+    $resolved;
+
   } @$bind ];
 }
 

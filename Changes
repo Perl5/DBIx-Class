@@ -21,6 +21,9 @@ Revision history for DBIx::Class
             distinct => 1 (the distinct should apply to the main source only)
         - Massively optimize codepath around ->cursor(), over 10x speedup
           on some iterating workloads.
+        - Support standalone \[ $sql, $value ] in literal SQL with bind
+          specifications: \[ '? + ?', 42, 69 ] is now equivalent to
+          \[ '? + ?', [ {} => 42 ], [ {} => 69 ] ]
         - Changing the result_class of a ResultSet in progress is now
           explicitly forbidden. The behavior was undefined before, and
           would result in wildly differing outcomes depending on $rs

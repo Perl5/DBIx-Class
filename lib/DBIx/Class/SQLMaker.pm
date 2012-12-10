@@ -85,6 +85,10 @@ BEGIN {
 # as the value to abuse with MSSQL ordered subqueries)
 sub __max_int () { 0x7FFFFFFF };
 
+# we ne longer need to check this - DBIC has ways of dealing with it
+# specifically ::Storage::DBI::_resolve_bindattrs()
+sub _assert_bindval_matches_bindtype () { 1 };
+
 # poor man's de-qualifier
 sub _quote {
   $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )

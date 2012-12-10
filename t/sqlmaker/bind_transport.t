@@ -1,6 +1,9 @@
 use strict;
 use warnings;
+
 use Test::More;
+use Test::Exception;
+use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -62,5 +65,106 @@ for (1,2) {
 
 # see if we get anything back at all
 isa_ok ($complex_rs->next, 'DBIx::Class::Row');
+
+# Make sure that the bind shorthand syntax translation is accurate (and doesn't error)
+shorthand_check(
+  [ _sub => 2 ],
+  [ { dbic_colname => '_sub' } => 2 ],
+  '[ $name => $val ] === [ { dbic_colname => $name }, $val ]',
+);
+shorthand_check(
+  [ artist => 2 ],
+  [ { dbic_colname => 'artist', sqlt_datatype => 'integer' } => 2 ],
+  'resolution of known column during [ $name => $val ] === [ { dbic_colname => $name }, $val ]',
+);
+shorthand_check(
+  [ \ 'number' => 2 ],
+  [ { sqlt_datatype => 'number' } => 2 ],
+  '[ \$dt => $val ] === [ { sqlt_datatype => $dt }, $val ]',
+);
+shorthand_check(
+  [ {} => 2 ],
+  [ {} => 2 ],
+  '[ {} => $val ] === [ {}, $val ]',
+);
+shorthand_check(
+  [ undef, 2 ],
+  [ {} => 2 ],
+  '[ undef, $val ] === [ {}, $val ]',
+);
+shorthand_check(
+  2,
+  [ {} => 2 ],
+  '$val === [ {}, $val ]',
+);
+
+shorthand_check(
+  Math::BigInt->new(42),
+  [ {} => Math::BigInt->new(42) ],
+  'stringifyable $object === [ {}, $object ]',
+);
+
+throws_ok {
+  shorthand_check(
+    [ 2 ],
+    [],
+  )
+} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Q[ 2 ]!,
+  'exception on bare array bindvalue';
+
+throws_ok {
+  shorthand_check(
+    [ {} => [ 2 ] ],
+    [],
+  )
+} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Q[ 2 ]!,
+  'exception on untyped array bindvalue';
+
+throws_ok {
+  shorthand_check(
+    [ {}, 2, 3 ],
+    [],
+  )
+} qr !You must supply a datatype/bindtype .+ for non-scalar value  \[ 'HASH\(\w+\)', 2, 3 \]!,
+  'exception on bare multielement array bindvalue';
+
+throws_ok {
+  shorthand_check(
+    bless( {}, 'Foo'),
+    [],
+  )
+} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Qbless( {}, 'Foo' )!,
+  'exception on bare object';
+
+throws_ok {
+  shorthand_check(
+    [ {}, bless( {}, 'Foo') ],
+    [],
+  )
+} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Qbless( {}, 'Foo' )!,
+  'exception on untyped object';
+
+
+sub shorthand_check {
+  my ($bind_shorthand, $bind_expected, $testname) = @_;
+
+  local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+  is_same_sql_bind (
+    $schema->resultset('CD')->search({}, {
+      columns => [qw(cdid artist)],
+      group_by => ['cdid', \[ 'artist - ?', $bind_shorthand ] ],
+    })->as_query,
+    '(
+      SELECT me.cdid, me.artist
+        FROM cd me
+      GROUP BY cdid, artist - ?
+    )',
+    [ $bind_expected ],
+    $testname||(),
+  );
+}
+
+undef $schema;
 
 done_testing;

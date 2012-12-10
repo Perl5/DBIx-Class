@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Storable 'dclone';
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -10,23 +11,26 @@ use DBIC::SqlMakerTest;
 my $schema = DBICTest->init_schema;
 my $native_limit_dialect = $schema->storage->sql_maker->{limit_dialect};
 
-my $attr = {};
 my @where_bind = (
-  [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Study' ],
-  [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.title' } => 'kama sutra' ],
+  [ {} => 'Study' ],
+  [ {} => 'kama sutra' ],
   [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
 );
 my @select_bind = (
-  [ $attr => 11 ], [ $attr => 12 ], [ $attr => 13 ],
+  [ { sqlt_datatype => 'numeric' } => 11 ],
+  [ {} => 12 ],
+  [ { sqlt_datatype => 'integer', dbic_colname => 'me.id' } => 13 ],
 );
 my @group_bind = (
-  [ $attr => 21 ],
+  [ {} => 21 ],
 );
 my @having_bind = (
-  [ $attr => 31 ],
+  [ {} => 31 ],
 );
 my @order_bind = (
-  [ $attr => 1 ], [ $attr => 2 ], [ $attr => 3 ],
+  [ { sqlt_datatype => 'int' } => 1 ],
+  [ { sqlt_datatype => 'varchar', dbic_colname => 'name', sqlt_size => 100 } => 2 ],
+  [ {} => 3 ],
 );
 
 my $tests = {
@@ -563,7 +567,7 @@ my $tests = {
         @where_bind,
         @group_bind,
         @having_bind,
-        (map { [ @$_ ] } @order_bind),  # without this is_deeply throws a fit
+        @{ dclone \@order_bind },  # without this is_deeply throws a fit
       ],
     ],
     limit_offset_prefetch => [
@@ -671,7 +675,7 @@ my $tests = {
         @where_bind,
         @group_bind,
         @having_bind,
-        (map { [ @$_ ] } @order_bind),  # without this is_deeply throws a fit
+        @{ dclone \@order_bind },  # without this is_deeply throws a fit
       ],
     ],
     limit_offset_prefetch => [
@@ -834,14 +838,19 @@ for my $limtype (sort keys %$tests) {
   my $can_run = ($limtype eq $native_limit_dialect or $limtype eq 'GenericSubQ');
 
   # chained search is necessary to exercise the recursive {where} parser
-  my $rs = $schema->resultset('BooksInLibrary')->search({ 'me.title' => { '=' => 'kama sutra' } })->search({ source => { '!=', 'Study' } }, {
-    columns => [ { identifier => 'me.id' }, 'owner.id', 'owner.name' ], # people actually do that. BLEH!!! :)
-    join => 'owner',  # single-rel manual prefetch
-    rows => 4,
-    '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
-    group_by => \[ '(me.id / ?), owner.id', [ $attr => 21 ] ],
-    having => \[ '?', [ $attr => 31 ] ],
-  });
+  my $rs = $schema->resultset('BooksInLibrary')->search(
+    { 'me.title' => { '=' => \[ '?', 'kama sutra' ] } }
+  )->search(
+    { source => { '!=', \[ '?', [ {} => 'Study' ] ] } },
+    {
+      columns => [ { identifier => 'me.id' }, 'owner.id', 'owner.name' ], # people actually do that. BLEH!!! :)
+      join => 'owner',  # single-rel manual prefetch
+      rows => 4,
+      '+columns' => { bar => \['? * ?', [ \ 'numeric' => 11 ], 12 ], baz => \[ '?', [ 'me.id' => 13 ] ] },
+      group_by => \[ '(me.id / ?), owner.id', 21 ],
+      having => \[ '?', 31 ],
+    }
+  );
 
   #
   # not all tests run on all dialects (somewhere impossible, somewhere makes no sense)
@@ -849,59 +858,67 @@ for my $limtype (sort keys %$tests) {
 
   # only limit, no offset, no order
   if ($tests->{$limtype}{limit}) {
-    is_same_sql_bind(
-      $rs->as_query,
-      @{$tests->{$limtype}{limit}},
-      "$limtype: Unordered limit with select/group/having",
-    );
+    lives_ok {
+      is_same_sql_bind(
+        $rs->as_query,
+        @{$tests->{$limtype}{limit}},
+        "$limtype: Unordered limit with select/group/having",
+      );
 
-    lives_ok { $rs->all } "Grouped limit runs under $limtype"
-      if $can_run;
+      $rs->all if $can_run;
+    } "Grouped limit under $limtype";
   }
 
   # limit + offset, no order
   if ($tests->{$limtype}{limit_offset}) {
-    my $subrs = $rs->search({}, { offset => 3 });
-    is_same_sql_bind(
-      $subrs->as_query,
-      @{$tests->{$limtype}{limit_offset}},
-      "$limtype: Unordered limit+offset with select/group/having",
-    );
 
-    lives_ok { $subrs->all } "Grouped limit+offset runs under $limtype"
-      if $can_run;
+    lives_ok {
+      my $subrs = $rs->search({}, { offset => 3 });
+
+      is_same_sql_bind(
+        $subrs->as_query,
+        @{$tests->{$limtype}{limit_offset}},
+        "$limtype: Unordered limit+offset with select/group/having",
+      );
+
+      $subrs->all if $can_run;
+    } "Grouped limit+offset runs under $limtype";
   }
 
   # order + limit, no offset
   $rs = $rs->search(undef, {
     order_by => ( $limtype =~ /GenericSubQ/
-      ? [ { -desc => 'price' }, 'me.id', \[ 'owner.name + ?', [ {} => 'bah' ] ] ] # needs a same-table stable order to be happy
-      : [ \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ]
+      ? [ { -desc => 'price' }, 'me.id', \[ 'owner.name + ?', 'bah' ] ] # needs a same-table stable order to be happy
+      : [ \['? / ?', [ \ 'int' => 1 ], [ name => 2 ]], \[ '?', 3 ] ]
     ),
   });
 
   if ($tests->{$limtype}{ordered_limit}) {
-    is_same_sql_bind(
-      $rs->as_query,
-      @{$tests->{$limtype}{ordered_limit}},
-      "$limtype: Ordered limit with select/group/having",
-    );
 
-    lives_ok { $rs->all } "Grouped ordered limit runs under $limtype"
-      if $can_run;
+    lives_ok {
+      is_same_sql_bind(
+        $rs->as_query,
+        @{$tests->{$limtype}{ordered_limit}},
+        "$limtype: Ordered limit with select/group/having",
+      );
+
+      $rs->all if $can_run;
+    } "Grouped ordered limit runs under $limtype"
   }
 
   # order + limit + offset
   if ($tests->{$limtype}{ordered_limit_offset}) {
-    my $subrs = $rs->search({}, { offset => 3 });
-    is_same_sql_bind(
-      $subrs->as_query,
-      @{$tests->{$limtype}{ordered_limit_offset}},
-      "$limtype: Ordered limit+offset with select/group/having",
-    );
+    lives_ok {
+      my $subrs = $rs->search({}, { offset => 3 });
 
-    lives_ok { $subrs->all } "Grouped ordered limit+offset runs under $limtype"
-      if $can_run;
+      is_same_sql_bind(
+        $subrs->as_query,
+        @{$tests->{$limtype}{ordered_limit_offset}},
+        "$limtype: Ordered limit+offset with select/group/having",
+      );
+
+      $subrs->all if $can_run;
+    } "Grouped ordered limit+offset runs under $limtype";
   }
 
   # complex prefetch on partial-fetch root with limit
@@ -912,20 +929,20 @@ for my $limtype (sort keys %$tests) {
     prefetch => 'books',
     ($limtype !~ /GenericSubQ/ ? () : (
       # needs a same-table stable order to be happy
-      order_by => [ { -asc => 'me.name' }, \'me.id DESC' ]
+      order_by => [ { -asc => 'me.name' }, \ 'me.id DESC' ]
     )),
   });
 
-  is_same_sql_bind (
-    $pref_rs->as_query,
-    @{$tests->{$limtype}{limit_offset_prefetch}},
-    "$limtype: Prefetch with limit+offset",
-  ) if $tests->{$limtype}{limit_offset_prefetch};
+  lives_ok {
+    is_same_sql_bind (
+      $pref_rs->as_query,
+      @{$tests->{$limtype}{limit_offset_prefetch}},
+      "$limtype: Prefetch with limit+offset",
+    ) if $tests->{$limtype}{limit_offset_prefetch};
 
-  if ($can_run) {
-    lives_ok { is ($pref_rs->all, 1, 'Expected count of objects on limited prefetch') }
-      "Complex limited prefetch runs under $limtype"
-  }
+    is ($pref_rs->all, 1, 'Expected count of objects on limited prefetch')
+      if $can_run;
+  } "Complex limited prefetch runs under $limtype";
 }
 
 done_testing;
