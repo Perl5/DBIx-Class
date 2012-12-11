@@ -14,9 +14,6 @@ use Test::More;
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if $] < '5.008005';
 
-plan skip_all => 'test dangerous on Win32 for < 5.14 set TEST_AUTHOR to run'
-  if $^O eq 'MSWin32' && $] < 5.014 && !$ENV{TEST_AUTHOR};
-
 use lib qw(t/lib);
 use DBICTest;
 

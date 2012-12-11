@@ -1,5 +1,3 @@
-* 50e6c52e reenable the test and investigate. A blatant skip is fucking
-bullshit
 * a0361822 reenable the win32 test - if it no longer fails for anyone - how
 will we ever fix it?
 * a48693f4 adds 5 files for a test that may even be the same as that from
