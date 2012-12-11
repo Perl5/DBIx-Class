@@ -920,7 +920,7 @@ sub _build_unique_cond {
       and
     !$ENV{DBIC_NULLABLE_KEY_NOWARN}
       and
-    my @undefs = grep { ! defined $final_cond->{$_} } (keys %$final_cond)
+    my @undefs = sort grep { ! defined $final_cond->{$_} } (keys %$final_cond)
   ) {
     carp_unique ( sprintf (
       "NULL/undef values supplied for requested unique constraint '%s' (NULL "
@@ -3321,7 +3321,7 @@ sub _resolved_attrs {
   if (my $cols = delete $attrs->{columns}) {
     for my $c (ref $cols eq 'ARRAY' ? @$cols : $cols) {
       if (ref $c eq 'HASH') {
-        for my $as (keys %$c) {
+        for my $as (sort keys %$c) {
           push @sel, $c->{$as};
           push @as, $as;
         }
