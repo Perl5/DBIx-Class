@@ -80,7 +80,7 @@ for my $get_count (
 
 throws_ok(
   sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first },
-  qr/select => { distinct => \.\.\. } syntax is not supported for multiple columns/,
+  qr/\Qselect => { distinct => ... } syntax is not supported for multiple columns/,
   'throw on unsupported syntax'
 );
 
