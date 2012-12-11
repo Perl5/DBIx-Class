@@ -15,8 +15,9 @@ tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
 
-  LASTOUT=$( bash -c "$2" 2>&1)
-  LASTEXIT=$?
+  LASTEXIT=0
+  LASTOUT=$( bash -c "$2" 2>&1 ) || LASTEXIT=$?
+
   if [[ "$LASTEXIT" != "0" ]] ; then
     echo_err -e "FAILED !!!\nCommand executed:\n$2\nSTDOUT+STDERR:\n$LASTOUT"
     return $LASTEXIT
@@ -84,8 +85,9 @@ if [[ -n "$BREWVER" ]] ; then
   fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest $BREWOPTS -j $NUMTHREADS $BREWVER"
+    "perlbrew install --as $BREWVER --notest --verbose $BREWOPTS -j $NUMTHREADS $BREWVER"
 
+  sync
   perlbrew use $BREWVER
 fi
 
@@ -104,13 +106,13 @@ run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
 
 extract_prereqs() {
   # hack-hack-hack
+  LASTEXIT=0
   COMBINED_OUT="$( { stdout="$(cpanm --quiet --scandeps --format tree "$@")" ; } 2>&1; echo "!!!STDERRSTDOUTSEPARATOR!!!$stdout")" \
     || LASTEXIT=$?
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
   ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
 
-  [[ -n "$LASTEXIT" ]] || LASTEXIT=0
   if [[ "$LASTEXIT" != "0" ]] || [[ -n "$ERR" ]] ; then
     echo_err "$(echo -e "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:\n$ERR\n$OUT")"
     exit 1
