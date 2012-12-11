@@ -1,8 +1,19 @@
 use strict;
 use warnings;
 use Test::More;
-use Benchmark;
 use lib qw(t/lib);
+
+BEGIN {
+  plan skip_all =>
+    'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
+    if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
+
+  require DBICTest::RunMode;
+  plan skip_all => 'Skipping as system appears to be a smoker'
+    if DBICTest::RunMode->is_smoker;
+}
+
+use Benchmark;
 use DBICTest ':GlobalLock';
 
 # This is a rather unusual test.
@@ -18,13 +29,6 @@ use DBICTest ':GlobalLock';
 # If these tests fail then please read the section titled
 # Perl Performance Issues on Red Hat Systems in
 # L<DBIx::Class::Manual::Troubleshooting>
-
-plan skip_all =>
-  'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
-  if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
-
-plan skip_all => 'Skipping as system appears to be a smoker'
-  if DBICTest::RunMode->is_smoker;
 
 plan tests => 3;
 
