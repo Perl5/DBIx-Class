@@ -1,4 +1,5 @@
-package DBIx::Class::Carp;
+package # hide from pause
+  DBIx::Class::Carp;
 
 use strict;
 use warnings;
