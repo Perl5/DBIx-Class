@@ -629,9 +629,18 @@ sub _stack_cond {
 
 =head2 search_literal
 
+B<CAVEAT>: C<search_literal> is provided for Class::DBI compatibility and
+should only be used in that context. C<search_literal> is a convenience
+method. It is equivalent to calling C<< $schema->search(\[]) >>, but if you
+want to ensure columns are bound correctly, use L</search>.
+
+See L<DBIx::Class::Manual::Cookbook/Searching> and
+L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
+require C<search_literal>.
+
 =over 4
 
-=item Arguments: $sql_fragment, @bind_values
+=item Arguments: $sql_fragment, @standalone_bind_values
 
 =item Return Value: $resultset (scalar context) || @row_objs (list context)
 
@@ -643,20 +652,10 @@ sub _stack_cond {
 Pass a literal chunk of SQL to be added to the conditional part of the
 resultset query.
 
-CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
-only be used in that context. C<search_literal> is a convenience method.
-It is equivalent to calling $schema->search(\[]), but if you want to ensure
-columns are bound correctly, use C<search>.
-
 Example of how to use C<search> instead of C<search_literal>
 
   my @cds = $cd_rs->search_literal('cdid = ? AND (artist = ? OR artist = ?)', (2, 1, 2));
   my @cds = $cd_rs->search(\[ 'cdid = ? AND (artist = ? OR artist = ?)', [ 'cdid', 2 ], [ 'artist', 1 ], [ 'artist', 2 ] ]);
-
-
-See L<DBIx::Class::Manual::Cookbook/Searching> and
-L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
-require C<search_literal>.
 
 =cut
 
@@ -666,7 +665,7 @@ sub search_literal {
   if ( @bind && ref($bind[-1]) eq 'HASH' ) {
     $attr = pop @bind;
   }
-  return $self->search(\[ $sql, map [ __DUMMY__ => $_ ], @bind ], ($attr || () ));
+  return $self->search(\[ $sql, map [ {} => $_ ], @bind ], ($attr || () ));
 }
 
 =head2 find
@@ -1640,9 +1639,12 @@ sub _bool {
 
 =head2 count_literal
 
+B<CAVEAT>: C<count_literal> is provided for Class::DBI compatibility and
+should only be used in that context. See L</search_literal> for further info.
+
 =over 4
 
-=item Arguments: $sql_fragment, @bind_values
+=item Arguments: $sql_fragment, @standalone_bind_values
 
 =item Return Value: $count
 
