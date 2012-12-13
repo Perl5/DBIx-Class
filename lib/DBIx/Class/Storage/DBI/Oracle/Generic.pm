@@ -284,9 +284,10 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  my ($self, $dbh, $sql, $bind) = @_;
+  #my ($self, $dbh, $sql, $bind, $ident) = @_;
+  my ($self, $bind) = @_[0,3];
 
-  # Turn off sth caching for multi-part LOBs. See _prep_for_execute above.
+  # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
   local $self->{disable_sth_caching} = 1 if first {
     ($_->[0]{_ora_lob_autosplit_part}||0)
       >

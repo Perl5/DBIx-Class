@@ -988,13 +988,14 @@ L<DBIx::Class::Cursor> for more information.
 =cut
 
 sub cursor {
-  my ($self) = @_;
+  my $self = shift;
 
-  my $attrs = $self->_resolved_attrs_copy;
-
-  return $self->{cursor}
-    ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
-          $attrs->{where},$attrs);
+  return $self->{cursor} ||= do {
+    my $attrs = { %{$self->_resolved_attrs } };
+    $self->result_source->storage->select(
+      $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
+    );
+  };
 }
 
 =head2 single
@@ -1046,7 +1047,7 @@ sub single {
       $self->throw_exception('single() only takes search conditions, no attributes. You want ->search( $cond, $attrs )->single()');
   }
 
-  my $attrs = $self->_resolved_attrs_copy;
+  my $attrs = { %{$self->_resolved_attrs} };
 
   if (keys %{$attrs->{collapse}}) {
     $self->throw_exception(
@@ -1455,7 +1456,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my $attrs = $self->_resolved_attrs_copy;
+  my $attrs = { %{ $self->_resolved_attrs } };
 
   # this is a little optimization - it is faster to do the limit
   # adjustments in software, instead of a subquery
@@ -2111,10 +2112,7 @@ sub populate {
   return unless @$data;
 
   if(defined wantarray) {
-    my @created;
-    foreach my $item (@$data) {
-      push(@created, $self->create($item));
-    }
+    my @created = map { $self->create($_) } @$data;
     return wantarray ? @created : \@created;
   }
   else {
@@ -2523,7 +2521,7 @@ This is generally used as the RHS for a subquery.
 sub as_query {
   my $self = shift;
 
-  my $attrs = $self->_resolved_attrs_copy;
+  my $attrs = { %{ $self->_resolved_attrs } };
 
   # For future use:
   #
@@ -3105,9 +3103,7 @@ source alias of the current result set:
 =cut
 
 sub current_source_alias {
-  my ($self) = @_;
-
-  return ($self->{attrs} || {})->{alias} || 'me';
+  return (shift->{attrs} || {})->{alias} || 'me';
 }
 
 =head2 as_subselect_rs
@@ -3287,12 +3283,6 @@ sub _chain_relationship {
   $seen->{-relation_chain_depth}++;
 
   return {%$attrs, from => $from, seen_join => $seen};
-}
-
-# too many times we have to do $attrs = { %{$self->_resolved_attrs} }
-sub _resolved_attrs_copy {
-  my $self = shift;
-  return { %{$self->_resolved_attrs (@_)} };
 }
 
 sub _resolved_attrs {

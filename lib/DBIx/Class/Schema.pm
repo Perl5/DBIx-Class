@@ -618,8 +618,7 @@ Retrieves the Result class name for the given source name.
 =cut
 
 sub class {
-  my ($self, $source_name) = @_;
-  return $self->source($source_name)->result_class;
+  return shift->source(shift)->result_class;
 }
 
 =head2 txn_do
@@ -770,15 +769,10 @@ those values.
 
 sub populate {
   my ($self, $name, $data) = @_;
-  if(my $rs = $self->resultset($name)) {
-    if(defined wantarray) {
-        return $rs->populate($data);
-    } else {
-        $rs->populate($data);
-    }
-  } else {
-      $self->throw_exception("$name is not a resultset");
-  }
+  my $rs = $self->resultset($name)
+    or $self->throw_exception("'$name' is not a resultset");
+
+  return $rs->populate($data);
 }
 
 =head2 connection

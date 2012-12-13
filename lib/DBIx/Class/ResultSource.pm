@@ -1367,8 +1367,8 @@ name. The keys/values are as specified for L<DBIx::Class::Relationship::Base/add
 =cut
 
 sub relationship_info {
-  my ($self, $rel) = @_;
-  return $self->_relationships->{$rel};
+  #my ($self, $rel) = @_;
+  return shift->_relationships->{+shift};
 }
 
 =head2 has_relationship
@@ -1386,8 +1386,8 @@ Returns true if the source has a relationship of this name, false otherwise.
 =cut
 
 sub has_relationship {
-  my ($self, $rel) = @_;
-  return exists $self->_relationships->{$rel};
+  #my ($self, $rel) = @_;
+  return exists shift->_relationships->{+shift};
 }
 
 =head2 reverse_relationship_info

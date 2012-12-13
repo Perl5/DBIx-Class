@@ -69,7 +69,6 @@ sub _prep_for_execute {
 
 sub _execute {
   my $self = shift;
-  my ($op) = @_;
 
   # always list ctx - we need the $sth
   my ($rv, $sth, @bind) = $self->next::method(@_);

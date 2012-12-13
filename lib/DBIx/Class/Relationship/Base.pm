@@ -587,8 +587,7 @@ current result or where conditions.
 =cut
 
 sub count_related {
-  my $self = shift;
-  return $self->search_related(@_)->count;
+  shift->search_related(@_)->count;
 }
 
 =head2 new_related
@@ -685,9 +684,8 @@ See L<DBIx::Class::ResultSet/find> for details.
 =cut
 
 sub find_related {
-  my $self = shift;
-  my $rel = shift;
-  return $self->search_related($rel)->find(@_);
+  #my ($self, $rel, @args) = @_;
+  return shift->search_related(shift)->find(@_);
 }
 
 =head2 find_or_new_related
@@ -748,9 +746,8 @@ L<DBIx::Class::ResultSet/update_or_create> for details.
 =cut
 
 sub update_or_create_related {
-  my $self = shift;
-  my $rel = shift;
-  return $self->related_resultset($rel)->update_or_create(@_);
+  #my ($self, $rel, @args) = @_;
+  shift->related_resultset(shift)->update_or_create(@_);
 }
 
 =head2 set_from_related
