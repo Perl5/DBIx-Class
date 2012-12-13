@@ -1,3 +1,7 @@
+#
+# This is what eventually becomes lib/DBIx/Class/Manual/ResultClass.pod
+# Courtesy of maint/gen_pod_inherit and Pod::Inherit
+#
 
 =head1 NAME
 

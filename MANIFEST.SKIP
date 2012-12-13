@@ -1,4 +1,4 @@
-^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile\.PL$|maint/|.generated_pod/|README$|MANIFEST$|Changes$|META\.(?:yml|json)$)
+^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile\.PL$|maint/|README$|MANIFEST$|Changes$|META\.(?:yml|json)$)
 
 # Avoid version control files.
 \bRCS\b
@@ -26,3 +26,4 @@
 \.orig$
 \.rej$
 
+lib/DBIx/Class/Manual/ResultClass.pod.proto

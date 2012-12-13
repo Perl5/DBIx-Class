@@ -34,11 +34,6 @@ install_script (qw|
     script/dbicadmin
 |);
 
-makemaker_args(
-  PMLIBDIRS => [qw(lib .generated_pod)],
-  PMLIBPARENTDIRS => [qw(lib .generated_pod)],
-);
-
 ###
 ### DO NOT ADD OPTIONAL DEPENDENCIES HERE, EVEN AS recommends()
 ### All of them *MUST* go to DBIx::Class::Optional::Dependencies
@@ -161,7 +156,6 @@ else {
   # make sure this Makefile can not be used to make a dist
   # (without the author includes there are no meta cleanup, no sanity checks, etc)
   postamble <<EOP;
-.PHONY: nonauthor_stop_distdir_creation
 create_distdir: nonauthor_stop_distdir_creation
 nonauthor_stop_distdir_creation:
 \t\$(NOECHO) \$(ECHO) Creation of dists in non-author mode is not allowed
