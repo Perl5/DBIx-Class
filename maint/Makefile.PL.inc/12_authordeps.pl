@@ -66,6 +66,9 @@ EOW
 # this will run after the Makefile is written and the main Makefile.PL terminates
 #
 END {
+  # shit already hit the fan
+  return if $?;
+
   # Re-write META.yml at the end to _exclude_ all forced build-requires (we do not
   # want to ship this) We are also not using M::I::AuthorRequires as this will be
   # an extra dep, and deps in Makefile.PL still suck
