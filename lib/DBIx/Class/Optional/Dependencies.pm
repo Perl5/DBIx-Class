@@ -621,9 +621,8 @@ my $reqs = {
     req => {
       %$test_and_dist_json_any,
       'ExtUtils::MakeMaker' => '6.64',
-      'Pod::Inherit'        => '0.90',
-      'Pod::Tree'           => '0',
-    }
+      'Pod::Inherit'        => '0.91',
+    },
   },
 
   dist_upload => {
