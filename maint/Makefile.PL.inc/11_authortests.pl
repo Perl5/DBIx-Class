@@ -14,12 +14,10 @@ my $xt_tests = join (' ', map { File::Spec->catfile($_, '*.t') } sort keys %$xt_
 # this will add the xt tests to the `make test` target among other things
 Meta->tests(join (' ', map { $_ || () } Meta->tests, $xt_tests ) );
 
-# inject an explicit xt test run for making a tarball (distdir is exempt)
+# inject an explicit xt test run for the create_distdir target
 postamble <<"EOP";
 
-.PHONY: test_xt
-
-dist : test_xt
+create_distdir : test_xt
 
 test_xt :
 \tPERL_DL_NONLAZY=1 RELEASE_TESTING=1 \$(FULLPERLRUN) "-MExtUtils::Command::MM" "-e" "test_harness(\$(TEST_VERBOSE), 'inc', '\$(INST_LIB)', '\$(INST_ARCHLIB)')" $xt_tests
