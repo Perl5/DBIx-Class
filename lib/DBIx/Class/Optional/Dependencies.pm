@@ -106,11 +106,11 @@ my $rdbms_firebird_odbc = {
 };
 
 my $reqs = {
-  dist => {
-    req => { $] < '5.010001' ? () : (
-      'Pod::Inherit' => '0.16',
+  dist_podinherit => {
+    req => {
+      'Pod::Inherit' => '0.90',
       'Pod::Tree'    => '0',
-    ) },
+    }
   },
 
   replicated => {
