@@ -4,7 +4,7 @@ use warnings;
 use strict;
 
 my $lib_dir = 'lib';
-my $pod_dir = '.generated_pod';
+my $pod_dir = 'maint/.Generated_Pod';
 
 my $result_metapod_fn = "$lib_dir/DBIx/Class/Manual/ResultClass.pod";
 

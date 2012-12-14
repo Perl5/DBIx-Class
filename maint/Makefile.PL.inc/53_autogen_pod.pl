@@ -1,15 +1,22 @@
+use File::Path();
+use File::Glob();
+
 # leftovers in old checkouts
 unlink 'lib/DBIx/Class/Optional/Dependencies.pod'
   if -f 'lib/DBIx/Class/Optional/Dependencies.pod';
+File::Path::rmtree( File::Glob::bsd_glob('.generated_pod'), { verbose => 0 } )
+  if -d '.generated_pod';
 
-my $pod_dir = '.generated_pod';
+my $pod_dir = 'maint/.Generated_Pod';
 my $ver = Meta->version;
 
 # cleanup the generated pod dir (again - kill leftovers from old checkouts)
-require File::Path;
-require File::Glob;
-File::Path::rmtree( File::Glob::bsd_glob("$pod_dir/*"), { verbose => 0 } );
-
+if (-d $pod_dir) {
+  File::Path::rmtree( File::Glob::bsd_glob("$pod_dir/*"), { verbose => 0 } );
+}
+else {
+  mkdir $pod_dir or die "Unable to create $pod_dir: $!";
+}
 
 # generate the OptDeps pod both in the clone-dir and during the makefile distdir
 {
@@ -46,7 +53,7 @@ EOP
 }
 
 
-# copy the contents of .generated_pod over to lib/
+# copy the contents of $pod_dir over to lib/
 # (yes, overwriting is fine, though nothing should reside there)
 {
   postamble <<"EOP";
@@ -54,21 +61,21 @@ EOP
 clonedir_post_generate_files : dbic_clonedir_copy_generated_pod
 
 dbic_clonedir_copy_generated_pod :
-\t\$(RM_F) .generated_pod/.packlist
-\t\$(ABSPERLRUN) -MExtUtils::Install -e 'install([ from_to => {qw(.generated_pod/DBIx lib/DBIx write .generated_pod/.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ]);'
+\t\$(RM_F) $pod_dir.packlist
+\t\$(ABSPERLRUN) -MExtUtils::Install -e 'install([ from_to => {qw($pod_dir lib write $pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ]);'
 
 EOP
 }
 
 
-# everything that came from .generated_pod, needs to be removed from our lib/
+# everything that came from $pod_dir, needs to be removed from our lib/
 {
   postamble <<"EOP";
 
 clonedir_cleanup_generated_files : dbic_clonedir_cleanup_generated_pod_copies
 
 dbic_clonedir_cleanup_generated_pod_copies :
-\t\$(ABSPERLRUN) -MExtUtils::Install -e 'uninstall(qw(.generated_pod/.packlist))'
+\t\$(ABSPERLRUN) -MExtUtils::Install -e 'uninstall(qw($pod_dir.packlist))'
 
 EOP
 }

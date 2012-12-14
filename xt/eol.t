@@ -14,7 +14,7 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_eol') ) {
 }
 
 Test::EOL::all_perl_files_ok({ trailing_whitespace => 1 },
-  qw/t xt lib script examples maint .generated_pod/,
+  qw/t xt lib script examples maint/,
 );
 
 # Changes is not a "perl file", hence checked separately

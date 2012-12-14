@@ -3,7 +3,7 @@ use strict;
 
 use Test::More;
 use List::Util 'first';
-use lib qw(t/lib .generated_pod);
+use lib qw(t/lib maint/.Generated_Pod);
 use DBICTest;
 use namespace::clean;
 

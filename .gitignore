@@ -17,4 +17,4 @@ t/var/
 *#
 .#*
 *~
-.generated_pod/DBIx
+maint/.Generated_Pod

@@ -13,4 +13,5 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_pod') ) {
     : plan skip_all => "Test needs: $missing"
 }
 
-Test::Pod::all_pod_files_ok(qw( .generated_pod lib ));
+my $generated_pod_dir = 'maint/.Generated_Pod';
+Test::Pod::all_pod_files_ok( 'lib', -d $generated_pod_dir ? $generated_pod_dir : () );
