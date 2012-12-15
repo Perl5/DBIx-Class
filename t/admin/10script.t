@@ -4,6 +4,7 @@ use warnings;
 
 use Test::More;
 use Config;
+use File::Spec;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -12,7 +13,12 @@ BEGIN {
   plan skip_all => 'Test needs ' .
     DBIx::Class::Optional::Dependencies->req_missing_for('test_admin_script')
       unless DBIx::Class::Optional::Dependencies->req_ok_for('test_admin_script');
+
+  # just in case the user env has stuff in it
+  delete $ENV{JSON_ANY_ORDER};
 }
+
+use JSON::Any;
 
 $ENV{PATH} = '';
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
@@ -34,20 +40,16 @@ cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC sche
 test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --config=t/lib/admincfgtest.json --config-stanza=Model::Gort --deploy|);
 cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
-TODO: {
-  local $TODO = 'these tests need to be fixed for Win32' if $^O eq 'MSWin32';
+for my $js (@json_backends) {
 
-  for my $js (@json_backends) {
+    eval {JSON::Any->import ($js) };
+    SKIP: {
+        skip ("JSON backend $js is not available, skip testing", 1) if $@;
 
-      eval {JSON::Any->import ($js) };
-      SKIP: {
-          skip ("JSON backend $js is not available, skip testing", 1) if $@;
-
-          $ENV{JSON_ANY_ORDER} = $js;
-          eval { test_dbicadmin () };
-          diag $@ if $@;
-      }
-  }
+        local $ENV{JSON_ANY_ORDER} = $js;
+        eval { test_dbicadmin () };
+        diag $@ if $@;
+    }
 }
 
 done_testing();
@@ -70,7 +72,7 @@ sub test_dbicadmin {
     test_exec( default_args(), qw|--op=insert --set={"name":"Aran"}| );
 
     SKIP: {
-        skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
+        skip ("MSWin32 doesn't support -|", 1) if $^O eq 'MSWin32';
 
         my ($perl) = $^X =~ /(.*)/;
 
@@ -87,10 +89,16 @@ sub test_dbicadmin {
 }
 
 sub default_args {
-  my $dbname = DBICTest->_sqlite_dbfilename;
+  my $dsn = JSON::Any->encode([
+    'dbi:SQLite:dbname=' . DBICTest->_sqlite_dbfilename,
+    '',
+    '',
+    { AutoCommit => 1 },
+  ]);
+
   return (
     qw|--quiet --schema=DBICTest::Schema --class=Employee|,
-    qq|--connect=["dbi:SQLite:dbname=$dbname","","",{"AutoCommit":1}]|,
+    qq|--connect=$dsn|,
     qw|--force -I testincludenoniterference|,
   );
 }
@@ -98,7 +106,7 @@ sub default_args {
 sub test_exec {
   my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ($perl, '-MDBICTest::RunMode', 'script/dbicadmin', @_);
+  my @args = ($perl, '-MDBICTest::RunMode', File::Spec->catfile(qw(script dbicadmin)), @_);
 
   if ($^O eq 'MSWin32') {
     require Win32::ShellQuote; # included in test optdeps
