@@ -9,7 +9,8 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test segfaults on Win32' if $^O eq 'MSWin32';
+plan skip_all => 'Test segfaults on Win32 - investigation pending'
+  if $^O eq 'MSWin32' && DBICTest::RunMode->is_plain;
 
 for my $type (qw/PG MYSQL SQLite/) {
 
