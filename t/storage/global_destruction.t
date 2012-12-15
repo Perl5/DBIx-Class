@@ -11,11 +11,17 @@ use DBICTest;
 
 plan skip_all => 'Test segfaults on Win32' if $^O eq 'MSWin32';
 
-for my $type (qw/PG MYSQL/) {
+for my $type (qw/PG MYSQL SQLite/) {
 
   SKIP: {
-    skip "Skipping $type tests without DBICTEST_${type}_DSN", 1
-      unless $ENV{"DBICTEST_${type}_DSN"};
+    my @dsn = $type eq 'SQLite'
+      ? DBICTest->_database(sqlite_use_file => 1)
+      : do {
+        skip "Skipping $type tests without DBICTEST_${type}_DSN", 1
+          unless $ENV{"DBICTEST_${type}_DSN"};
+        @ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/}
+      }
+    ;
 
     if ($type eq 'PG') {
       skip "skipping Pg tests without dependencies installed", 1
@@ -26,7 +32,7 @@ for my $type (qw/PG MYSQL/) {
         unless DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mysql');
     }
 
-    my $schema = DBICTest::Schema->connect (@ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/});
+    my $schema = DBICTest::Schema->connect (@dsn);
 
     # emulate a singleton-factory, just cache the object *somewhere in a different package*
     # to induce out-of-order destruction
