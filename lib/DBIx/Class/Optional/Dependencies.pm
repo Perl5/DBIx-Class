@@ -149,13 +149,6 @@ my $reqs = {
     },
   },
 
-  test_admin_script => {
-    req => {
-      %$admin_script,
-      ($^O eq 'MSWin32' ? ('Win32::ShellQuote' => 0) : ()),
-    }
-  },
-
   deploy => {
     req => {
       'SQL::Translator'           => '0.11006',
@@ -203,6 +196,20 @@ my $reqs = {
 
   test_prettydebug => {
     req => $json_any,
+  },
+
+  test_admin_script => {
+    req => {
+      %$admin_script,
+      'JSON' => 0,
+      'JSON::XS' => 0,
+      $^O eq 'MSWin32'
+        # for t/admin/10script.t
+        ? ('Win32::ShellQuote' => 0)
+        # DWIW does not compile (./configure even) on win32
+        : ('JSON::DWIW' => 0 )
+      ,
+    }
   },
 
   test_leaks => {
