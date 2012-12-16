@@ -15,7 +15,7 @@ require File::Copy;
 File::Copy::copy(
   "$result_metapod_fn.proto",
   "$result_metapod_fn",
-) or die "Copying ResultClass proto pod ($result_metapod_fn.pod) failed: $!";
+) or die "Copying ResultClass proto pod ($result_metapod_fn) failed: $!";
 
 # cleanup
 END {
@@ -27,7 +27,7 @@ require Pod::Inherit;
 
 Pod::Inherit->new({
    input_files       => $lib_dir,
-   out_dir           => $pod_dir,
+   out_dir           => "$pod_dir/lib",
    force_permissions => 1,
    class_map         => {
       "DBIx::Class::Relationship::HasMany"    => "DBIx::Class::Relationship",

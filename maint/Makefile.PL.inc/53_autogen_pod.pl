@@ -22,7 +22,7 @@ else {
 {
   print "Regenerating Optional/Dependencies.pod\n";
   require DBIx::Class::Optional::Dependencies;
-  DBIx::Class::Optional::Dependencies->_gen_pod ($ver, $pod_dir);
+  DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
 
   postamble <<"EOP";
 
@@ -30,7 +30,7 @@ clonedir_generate_files : dbic_clonedir_gen_optdeps_pod
 
 dbic_clonedir_gen_optdeps_pod :
 \t@{[
-  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->_gen_pod(q($ver), q($pod_dir))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->_gen_pod(q($ver), q($pod_dir/lib))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
 ]}
 
 EOP
@@ -55,7 +55,7 @@ EOP
 }
 
 
-# copy the contents of $pod_dir over to lib/
+# copy the contents of $pod_dir over to the workdir
 # (yes, overwriting is fine, though nothing should reside there)
 {
   postamble <<"EOP";
@@ -65,13 +65,13 @@ clonedir_post_generate_files : dbic_clonedir_copy_generated_pod
 dbic_clonedir_copy_generated_pod :
 \t\$(RM_F) $pod_dir.packlist
 \t@{[
-  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => 'lib', write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
+  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => File::Spec->curdir(), write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
 ]}
 EOP
 }
 
 
-# everything that came from $pod_dir, needs to be removed from our lib/
+# everything that came from $pod_dir, needs to be removed from the workdir
 {
   postamble <<"EOP";
 
