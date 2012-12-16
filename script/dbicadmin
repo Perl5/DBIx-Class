@@ -34,7 +34,7 @@ my ($opts, $usage) = describe_options(
     ['Actions'],
     ["action" => hidden => { one_of => [
       ['create' => 'Create version diffs needs preversion'],
-      ['upgrade' => 'Upgrade the database to the current schema '],
+      ['upgrade' => 'Upgrade the database to the current schema'],
       ['install' => 'Install the schema version tables to an existing database'],
       ['deploy' => 'Deploy the schema to the database'],
       ['select'   => 'Select data from the schema'],

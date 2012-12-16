@@ -2,6 +2,7 @@ use warnings;
 use strict;
 
 use Test::More;
+use File::Glob 'bsd_glob';
 use lib 't/lib';
 use DBICTest;
 
@@ -13,12 +14,35 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_notabs') ) {
     : plan skip_all => "Test needs: $missing"
 }
 
+# FIXME - temporary workaround for RT#82033
+{
+  no warnings 'redefine';
+  *Test::NoTabs::_is_perl_module = sub {
+    $_[0] =~ /\.(?:pm|pod)$/i || $_[0] =~ /::/;
+  }
+}
+
 Test::NoTabs::all_perl_files_ok(
   qw/t xt lib script examples maint/,
 );
 
-# Changes is not a "perl file", hence checked separately
-Test::NoTabs::notabs_ok('Changes');
+# check some non-"perl files" in the root separately
+# use .gitignore as a guide of what to skip
+# (or do not test at all if no .gitignore is found)
+if (open(my $gi, '<', '.gitignore')) {
+  my $skipnames;
+  while (my $ln = <$gi>) {
+    next if $ln =~ /^\s*$/;
+    chomp $ln;
+    $skipnames->{$_}++ for bsd_glob($ln);
+  }
+
+  for my $fn (bsd_glob('*')) {
+    next if $skipnames->{$fn};
+    next unless -f $fn;
+    Test::NoTabs::notabs_ok($fn);
+  }
+}
 
 # FIXME - Test::NoTabs declares 'no_plan' which conflicts with done_testing
 # https://github.com/schwern/test-more/issues/14
