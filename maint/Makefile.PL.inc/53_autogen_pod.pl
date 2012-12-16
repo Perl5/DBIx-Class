@@ -29,7 +29,9 @@ else {
 clonedir_generate_files : dbic_clonedir_gen_optdeps_pod
 
 dbic_clonedir_gen_optdeps_pod :
-\t\$(ABSPERLRUN) -Ilib -MDBIx::Class::Optional::Dependencies -e "DBIx::Class::Optional::Dependencies->_gen_pod(qw($ver $pod_dir))"
+\t@{[
+  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->_gen_pod(q($ver), q($pod_dir))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+]}
 
 EOP
 }
@@ -62,8 +64,9 @@ clonedir_post_generate_files : dbic_clonedir_copy_generated_pod
 
 dbic_clonedir_copy_generated_pod :
 \t\$(RM_F) $pod_dir.packlist
-\t\$(ABSPERLRUN) -MExtUtils::Install -e 'install([ from_to => {qw($pod_dir lib write $pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ]);'
-
+\t@{[
+  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => 'lib', write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
+]}
 EOP
 }
 
@@ -75,7 +78,9 @@ EOP
 clonedir_cleanup_generated_files : dbic_clonedir_cleanup_generated_pod_copies
 
 dbic_clonedir_cleanup_generated_pod_copies :
-\t\$(ABSPERLRUN) -MExtUtils::Install -e 'uninstall(qw($pod_dir.packlist))'
+\t@{[
+  $mm_proto->oneliner("uninstall(q($pod_dir.packlist))", ['-MExtUtils::Install'])
+]}
 
 EOP
 }

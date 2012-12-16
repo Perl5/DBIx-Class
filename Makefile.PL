@@ -146,9 +146,15 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
     warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
   }
 
+  # We need the MM facilities to generate the pieces for the final MM run.
+  # Just instantiate a throaway object here
+  my $mm_proto = ExtUtils::MakeMaker->new({
+    NAME => Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?',
+  });
+
   require File::Spec;
   # string-eval, not do(), because we need to provide the
-  # $reqs and $*_requires lexicals to the included file
+  # $mm_proto, $reqs and $*_requires lexicals to the included file
   # (some includes *do* modify $reqs above)
   for my $inc (sort glob ( File::Spec->catfile('maint', 'Makefile.PL.inc', '*') ) ) {
     my $src = do { local (@ARGV, $/) = $inc; <> } or die $!;

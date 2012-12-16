@@ -9,21 +9,38 @@ File::Find::find(sub {
   );
 }, 'xt');
 
-my $xt_tests = join (' ', map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dirs );
+my @xt_tests = map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dirs;
 
 # this will add the xt tests to the `make test` target among other things
-Meta->tests(join (' ', map { $_ || () } Meta->tests, $xt_tests ) );
+Meta->tests(join (' ', map { $_ || () } Meta->tests, @xt_tests ) );
 
 # inject an explicit xt test run for the create_distdir target
 postamble <<"EOP";
 
 create_distdir : test_xt
 
-test_xt :
-\tPERL_DL_NONLAZY=1 RELEASE_TESTING=1 \$(FULLPERLRUN) "-MExtUtils::Command::MM" "-e" "test_harness(\$(TEST_VERBOSE), 'inc', '\$(INST_LIB)', '\$(INST_ARCHLIB)')" $xt_tests
+test_xt : pm_to_blib
+@{[
+  # When xt tests are explicitly requested, we want to run with RELEASE_TESTING=1
+  # so that all optdeps are turned into a hard failure
+  # However portably modifying ENV for a single command is surprisingly hard
+  # So instead we (ab)use perl's ability to stack -e options, and simply modify
+  # the ENV from within perl itself
+  $mm_proto->test_via_harness(
+    # perl cmd
+    join( ' ',
+      '$(ABSPERLRUN)',
+      # $'s need to be escaped (doubled) before inserting into the Makefile
+      map { $mm_proto->quote_literal($_) } qw(-e $$ENV{RELEASE_TESTING}=1;) 
+    ),
+    # test list
+    join( ' ',
+      map { $mm_proto->quote_literal($_) } @xt_tests
+    ),
+  )
+]}
 
 EOP
-
 
 # keep the Makefile.PL eval happy
 1;
