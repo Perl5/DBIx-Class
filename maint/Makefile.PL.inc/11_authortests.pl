@@ -14,10 +14,11 @@ my @xt_tests = map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dirs;
 # this will add the xt tests to the `make test` target among other things
 Meta->tests(join (' ', map { $_ || () } Meta->tests, @xt_tests ) );
 
-# inject an explicit xt test run for the create_distdir target
+# inject an explicit xt test run, mainly to check the contents of
+# lib and the generated POD's *before* anything is copied around
 postamble <<"EOP";
 
-create_distdir : test_xt
+dbic_clonedir_copy_generated_pod : test_xt
 
 test_xt : pm_to_blib
 @{[

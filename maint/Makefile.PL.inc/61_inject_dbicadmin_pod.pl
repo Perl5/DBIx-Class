@@ -1,15 +1,19 @@
-# Makefile syntax allows adding extra dep-specs for already-existing targets,
-# and simply appends them on *LAST*-come *FIRST*-serve basis.
-# This allows us to inject extra depenencies for standard EUMM targets
+# without having the pod in the file itself, perldoc may very
+# well show a *different* document, because perl and perldoc
+# search @INC differently (crazy right?)
+#
+# make sure we delete and re-create the file - just an append
+# will not do what one expects, because on unixy systems the
+# target is symlinked to the original
 
 postamble <<"EOP";
 
 create_distdir : dbic_distdir_dbicadmin_pod_inject
 
-# The pod self-injection code is in fact a hidden option in
-# dbicadmin itself, we execute the one in the distdir
 dbic_distdir_dbicadmin_pod_inject :
-\t\$(ABSPERLRUN) -I\$(DISTVNAME)/lib \$(DISTVNAME)/script/dbicadmin --selfinject-pod
+
+\t\$(RM_F) \$(DISTVNAME)/script/dbicadmin
+\t@{[ $mm_proto->oneliner('cat', ['-MExtUtils::Command']) ]} script/dbicadmin maint/.Generated_Pod/dbicadmin.pod > \$(DISTVNAME)/script/dbicadmin
 
 EOP
 

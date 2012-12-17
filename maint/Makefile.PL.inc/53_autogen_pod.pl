@@ -37,11 +37,38 @@ EOP
 }
 
 
+# generate the script/dbicadmin pod
+{
+  print "Regenerating script/dbicadmin.pod\n";
+
+  # generating it in the root of $pod_dir
+  # it will *not* be copied over due to not being listed at the top
+  # of MANIFEST.SKIP - this is a *good* thing
+  # we only want to ship a script/dbicadmin, with the POD appended
+  # (see inject_dbicadmin_pod.pl), but still want to spellcheck and
+  # whatnot the intermediate step
+  my $pod_fn = "$pod_dir/dbicadmin.pod";
+
+  # if the author doesn't have the prereqs, don't fail the initial "perl Makefile.pl" step
+  # therefore no error checking
+  system($^X, qw( -Ilib -- script/dbicadmin --documentation-as-pod ), $pod_fn);
+
+  postamble <<"EOP";
+
+clonedir_generate_files : dbic_clonedir_gen_dbicadmin_pod
+
+dbic_clonedir_gen_dbicadmin_pod :
+\t\$(ABSPERLRUN) -Ilib -- script/dbicadmin --documentation-as-pod @{[ $mm_proto->quote_literal($pod_fn) ]}
+
+EOP
+}
+
+
 # generate the inherit pods both in the clone-dir and during the makefile distdir
 {
   print "Regenerating project documentation to include inherited methods\n";
 
-  # if the author doesn't have them, don't fail the initial "perl Makefile.pl" step
+  # if the author doesn't have the prereqs, don't fail the initial "perl Makefile.pl" step
   do "maint/gen_pod_inherit" or print "\n!!! FAILED: $@\n";
 
   postamble <<"EOP";
