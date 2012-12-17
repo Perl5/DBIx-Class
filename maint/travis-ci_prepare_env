@@ -119,7 +119,7 @@ extract_prereqs() {
   fi
 
   # throw away non-children (what was in $@), throw away ascii art, convert to modnames
-  perl -p -e 's/^\s*[^\\].+//; s/^[^A-Za-z]+//; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT"
+  perl -p -e 's/^[a-z].+//i; s/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT"
 }
 
 parallel_installdeps_notest() {
