@@ -94,6 +94,12 @@ END {
     Meta->write;
   }
 
+  # strip possible crlf from META
+  if ($^O eq 'MSWin32' or $^O eq 'cygwin') {
+    local $ENV{PERLIO} = 'unix';
+    system( $^X, qw( -MExtUtils::Command -e dos2unix -- META.yml),  );
+  }
+
   # test that we really took things away (just in case, happened twice somehow)
   if (! -f 'META.yml') {
     warn "No META.yml generated?! aborting...\n";

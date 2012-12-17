@@ -82,6 +82,31 @@ EOP
 }
 
 
+# on some OSes generated files may have an incorrect \n - fix it
+# so that the xt tests pass on a fresh checkout (also shipping a
+# dist with CRLFs is beyond obnoxious)
+#
+# Ironically EUMM's dos2unix is broken on win32 itself - it does
+# not take into account the CRLF layer present on win32
+# do the ENV trick again
+if ($^O eq 'MSWin32' or $^O eq 'cygwin') {
+
+  {
+    local $ENV{PERLIO} = 'unix';
+    system( $^X, qw( -MExtUtils::Command -e dos2unix -- ), $pod_dir );
+  }
+
+  postamble <<"EOP";
+
+test_xt : dbic_fixup_generated_pod
+
+dbic_fixup_generated_pod :
+\t@{[ $mm_proto->oneliner( qq(\$\$ENV{PERLIO}='unix' and system( \$\$^X, qw( -MExtUtils::Command -e dos2unix -- ), q($pod_dir) ) ) ) ]}
+
+EOP
+}
+
+
 # copy the contents of $pod_dir over to the workdir
 # (yes, overwriting is fine, though nothing should reside there)
 {
