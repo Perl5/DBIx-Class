@@ -6,7 +6,7 @@ postamble <<"EOM";
 fresh_manifest : remove_manifest manifest
 
 remove_manifest :
-\t\$(RM) MANIFEST
+\t\$(RM_F) MANIFEST
 
 realclean :: remove_manifest
 
