@@ -150,9 +150,11 @@ sub is_author {
 }
 
 sub is_smoker {
-  return $ENV{TRAVIS} or (
-    $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING}
-  )
+  return
+    ( ($ENV{TRAVIS}||'') eq 'true' )
+      ||
+    ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
+  ;
 }
 
 sub is_plain {
