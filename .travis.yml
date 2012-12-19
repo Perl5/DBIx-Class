@@ -138,3 +138,7 @@ script:
   # use the random order test plan unless CLEANTEST
   # prepare_env may have short-circuited the test entirely
   - test -n "$SHORT_CIRCUIT_SMOKE" || (test "$CLEANTEST" = "true" && make test || prove -lrswj$NUMTHREADS t xt)
+
+after_success:
+  # check if we can assemble a dist properly given we have all deps
+  - test -n "$SHORT_CIRCUIT_SMOKE" || test "$CLEANTEST" = "true" || make dist
