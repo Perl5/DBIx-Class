@@ -15,10 +15,13 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_notabs') ) {
 }
 
 # FIXME - temporary workaround for RT#82033
+# also add all scripts (no extension) and some extra extensions
+# we want to check
 {
   no warnings 'redefine';
-  *Test::NoTabs::_is_perl_module = sub {
-    $_[0] =~ /\.(?:pm|pod)$/i || $_[0] =~ /::/;
+
+  *Test::EOL::_is_perl_module = sub {
+    $_[0] !~ /\./ || $_[0] =~ /\.(?:pm|pod|skip|json|proto)$/i || $_[0] =~ /::/;
   }
 }
 
