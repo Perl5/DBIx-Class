@@ -477,7 +477,7 @@ robkinyon: Rob Kinyon <rkinyon@cpan.org>
 
 Robert Olson <bob@rdolson.org>
 
-Roman: Roman Filippov <romanf@cpan.org>
+moltar: Roman Filippov <romanf@cpan.org>
 
 Sadrak: Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>
 
