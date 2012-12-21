@@ -354,20 +354,36 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
-  # Special-case handling for (undef, undef).
-  if ( @_ == 2 && !defined $_[1] && !defined $_[0] ) {
-    @_ = ();
-  }
+  my $rsrc = $self->result_source;
+  my ($call_cond, $call_attrs);
 
-  my $call_attrs = {};
-  if (@_ > 1) {
-    if (ref $_[-1] eq 'HASH') {
-      # copy for _normalize_selection
-      $call_attrs = { %{ pop @_ } };
+  # Special-case handling for (undef, undef) or (undef)
+  # Note that (foo => undef) is valid deprecated syntax
+  @_ = () if not scalar grep { defined $_ } @_;
+
+  # just a cond
+  if (@_ == 1) {
+    $call_cond = shift;
+  }
+  # fish out attrs in the ($condref, $attr) case
+  elsif (@_ == 2 and ( ! defined $_[0] or (ref $_[0]) ne '') ) {
+    ($call_cond, $call_attrs) = @_;
+  }
+  elsif (@_ % 2) {
+    $self->throw_exception('Odd number of arguments to search')
+  }
+  # legacy search
+  elsif (@_) {
+    carp_unique 'search( %condition ) is deprecated, use search( \%condition ) instead'
+      unless $rsrc->result_class->isa('DBIx::Class::CDBICompat');
+
+    for my $i (0 .. $#_) {
+      next if $i % 2;
+      $self->throw_exception ('All keys in condition key/value pairs must be plain scalars')
+        if (! defined $_[$i] or ref $_[$i] ne '');
     }
-    elsif (! defined $_[-1] ) {
-      pop @_;   # search({}, undef)
-    }
+
+    $call_cond = { @_ };
   }
 
   # see if we can keep the cache (no $rs changes)
@@ -383,8 +399,6 @@ sub search_rs {
     $cache = $self->get_cache;
   }
 
-  my $rsrc = $self->result_source;
-
   my $old_attrs = { %{$self->{attrs}} };
   my $old_having = delete $old_attrs->{having};
   my $old_where = delete $old_attrs->{where};
@@ -392,7 +406,10 @@ sub search_rs {
   my $new_attrs = { %$old_attrs };
 
   # take care of call attrs (only if anything is changing)
-  if (keys %$call_attrs) {
+  if ($call_attrs and keys %$call_attrs) {
+
+    # copy for _normalize_selection
+    $call_attrs = { %$call_attrs };
 
     my @selector_attrs = qw/select as columns cols +select +as +columns include_columns/;
 
@@ -438,28 +455,6 @@ sub search_rs {
     $new_attrs->{bind} = [ @{ $old_attrs->{bind} || [] }, @{ $call_attrs->{bind} || [] } ];
   }
 
-
-  # rip apart the rest of @_, parse a condition
-  my $call_cond = do {
-
-    if (ref $_[0] eq 'HASH') {
-      (keys %{$_[0]}) ? $_[0] : undef
-    }
-    elsif (@_ == 1) {
-      $_[0]
-    }
-    elsif (@_ % 2) {
-      $self->throw_exception('Odd number of arguments to search')
-    }
-    else {
-      +{ @_ }
-    }
-
-  } if @_;
-
-  if( @_ > 1 and ! $rsrc->result_class->isa('DBIx::Class::CDBICompat') ) {
-    carp_unique 'search( %condition ) is deprecated, use search( \%condition ) instead';
-  }
 
   for ($old_where, $call_cond) {
     if (defined $_) {
