@@ -2170,14 +2170,12 @@ sub populate {
     ## inherit the data locked in the conditions of the resultset
     my ($rs_data) = $self->_merge_with_rscond({});
     delete @{$rs_data}{@columns};
-    my @inherit_cols = keys %$rs_data;
-    my @inherit_data = values %$rs_data;
 
     ## do bulk insert on current row
     $rsrc->storage->insert_bulk(
       $rsrc,
-      [@columns, @inherit_cols],
-      [ map { [ @$_{@columns}, @inherit_data ] } @$data ],
+      [@columns, keys %$rs_data],
+      [ map { [ @$_{@columns}, values %$rs_data ] } @$data ],
     );
 
     ## do the has_many relationships

@@ -1917,7 +1917,7 @@ sub insert_bulk {
   # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
-  my ($proto_data, $value_type_idx);
+  my ($proto_data, $value_type_by_col_idx);
   for my $i (@col_range) {
     my $colname = $cols->[$i];
     if (ref $data->[0][$i] eq 'SCALAR') {
@@ -1936,18 +1936,18 @@ sub insert_bulk {
 
       # store value-less (attrs only) bind info - we will be comparing all
       # supplied binds against this for sanity
-      $value_type_idx->{$i} = [ map { $_->[0] } @$resolved_bind ];
+      $value_type_by_col_idx->{$i} = [ map { $_->[0] } @$resolved_bind ];
 
       $proto_data->{$colname} = \[ $sql, map { [
         # inject slice order to use for $proto_bind construction
-          { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $i }
+          { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $i, _literal_bind_subindex => $_+1 }
             =>
           $resolved_bind->[$_][1]
         ] } (0 .. $#bind)
       ];
     }
     else {
-      $value_type_idx->{$i} = 0;
+      $value_type_by_col_idx->{$i} = undef;
 
       $proto_data->{$colname} = \[ '?', [
         { dbic_colname => $colname, _bind_data_slice_idx => $i }
@@ -1963,7 +1963,7 @@ sub insert_bulk {
     [ $proto_data ],
   );
 
-  if (! @$proto_bind and keys %$value_type_idx) {
+  if (! @$proto_bind and keys %$value_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
     # storage ate them away (e.g. the NoBindVars component) and interpolated
     # them directly into the SQL. This obviously can't be good for multi-inserts
@@ -1997,7 +1997,7 @@ sub insert_bulk {
     for my $row_idx (1..$#$data) {  # we are comparing against what we got from [0] above, hence start from 1
       my $val = $data->[$row_idx][$col_idx];
 
-      if (! exists $value_type_idx->{$col_idx}) { # literal no binds
+      if (! exists $value_type_by_col_idx->{$col_idx}) { # literal no binds
         if (ref $val ne 'SCALAR') {
           $bad_slice_report_cref->(
             "Incorrect value (expecting SCALAR-ref \\'$$reference_val')",
@@ -2013,7 +2013,7 @@ sub insert_bulk {
           );
         }
       }
-      elsif (! $value_type_idx->{$col_idx} ) {  # regular non-literal value
+      elsif (! defined $value_type_by_col_idx->{$col_idx} ) {  # regular non-literal value
         if (ref $val eq 'SCALAR' or (ref $val eq 'REF' and ref $$val eq 'ARRAY') ) {
           $bad_slice_report_cref->("Literal SQL found where a plain bind value is expected", $row_idx, $col_idx);
         }
@@ -2042,7 +2042,7 @@ sub insert_bulk {
           # need to check the bind attrs - a bind will happen only once for
           # the entire dataset, so any changes further down will be ignored.
           elsif (! Data::Compare::Compare(
-            $value_type_idx->{$col_idx},
+            $value_type_by_col_idx->{$col_idx},
             [
               map
               { $_->[0] }
@@ -2119,23 +2119,17 @@ sub _dbh_execute_for_fetch {
   # alphabetical ordering by colname). We actually do want to
   # preserve this behavior so that prepare_cached has a better
   # chance of matching on unrelated calls
-  my %data_reorder = map { $proto_bind->[$_][0]{_bind_data_slice_idx} => $_ } @idx_range;
 
   my $fetch_row_idx = -1; # saner loop this way
   my $fetch_tuple = sub {
     return undef if ++$fetch_row_idx > $#$data;
 
-    return [ map
-      { (ref $_ eq 'REF' and ref $$_ eq 'ARRAY')
-        ? map { $_->[-1] } @{$$_}[1 .. $#$$_]
-        : $_
-      }
-      map
-        { $data->[$fetch_row_idx][$_]}
-        sort
-          { $data_reorder{$a} <=> $data_reorder{$b} }
-          keys %data_reorder
-    ];
+    return [ map { defined $_->{_literal_bind_subindex}
+      ? ${ $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]}
+         ->[ $_->{_literal_bind_subindex} ]
+          ->[1]
+      : $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]
+    } map { $_->[0] } @$proto_bind];
   };
 
   my $tuple_status = [];
