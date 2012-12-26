@@ -157,7 +157,8 @@ else
   # (e.g. once Carp is upgraded there's no more Carp::Heavy)
   #
   parallel_installdeps_notest ExtUtils::MakeMaker
-  parallel_installdeps_notest Module::Build Carp
+  parallel_installdeps_notest Carp
+  parallel_installdeps_notest Module::Build
   parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec
   parallel_installdeps_notest Test::Exception Data::Dumper LWP
   parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles
