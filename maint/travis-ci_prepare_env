@@ -159,8 +159,8 @@ else
   parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec
-  parallel_installdeps_notest Test::Exception Data::Dumper LWP
+  parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec Data::Dumper
+  parallel_installdeps_notest Test::Exception LWP
   parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles
   parallel_installdeps_notest namespace::clean Class::XSAccessor MRO::Compat
   parallel_installdeps_notest DBD::SQLite Moo Class::Accessor::Grouped
