@@ -262,7 +262,9 @@ my @compose_ns_classes;
 
   # this needs to fire, even if it can't find anything
   # see FIXME below
-  $rs_bind_circref->next;
+  # we run this only on smokers - trying to establish a pattern
+  $rs_bind_circref->next
+    if ( ($ENV{TRAVIS}||'') ne 'true' and DBICTest::RunMode->is_smoker);
 
   require Storable;
   %$base_collection = (
@@ -413,10 +415,8 @@ for my $moniker ( keys %{DBICTest::Schema->source_registrations || {}} ) {
 #          ^                                                           /
 #           \-------- bound value on prepared/cached STH  <-----------/
 #
-TODO: {
-  local $TODO = 'Not sure how to fix this yet, an entanglment could be an option';
-  my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref};
-  ok(! defined $r, 'We no longer leak!')
+if ( my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref} ) {
+  ok(! defined $r, 'Self-referential RS conditions no longer leak!')
     or $r->result_source(undef);
 }
 
