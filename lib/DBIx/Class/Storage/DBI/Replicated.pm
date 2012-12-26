@@ -332,8 +332,6 @@ my $method_dispatch = {
     _arm_global_destructor
     _verify_pid
 
-    source_bind_attributes
-
     get_use_dbms_capability
     set_use_dbms_capability
     get_dbms_capability

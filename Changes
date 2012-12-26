@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - The emulate_limit() arbitrary limit dialect emulation mechanism is
           now deprecated, and will be removed when DBIx::Class migrates to
           Data::Query
+        - Support for the source_bind_attributes() storage method has been
+          removed after a lengthy deprecation cycle
     * Fixes
         - When performing resultset update/delete only strip condition
           qualifiers - leave the source name alone (RT#80015, RT#78844)
@@ -15,6 +17,8 @@ Revision history for DBIx::Class
           (RT#78436)
     * Misc
         - Improve the populate docs in ::Schema and ::ResultSet
+        - ::Storage::DBI::source_bind_attributes() removed as announced
+          on Jan 2011 in 0e773352a
 
 0.08204 2012-11-08
     * New Features / Changes

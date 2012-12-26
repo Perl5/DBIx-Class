@@ -1247,6 +1247,15 @@ sub _determine_driver {
 
     Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
+    if ($self->can('source_bind_attributes')) {
+      $self->throw_exception(
+        "Your storage subclass @{[ ref $self ]} provides (or inherits) the method "
+      . 'source_bind_attributes() for which support has been removed as of Jan 2013. '
+      . 'If you are not sure how to proceed please contact the development team via '
+      . 'http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT'
+      );
+    }
+
     $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
@@ -1651,29 +1660,8 @@ sub _query_end {
     if $self->debug;
 }
 
-my $sba_compat;
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
-
-  if (! defined $sba_compat) {
-    $self->_determine_driver;
-    $sba_compat = $self->can('source_bind_attributes') == \&source_bind_attributes
-      ? 0
-      : 1
-    ;
-  }
-
-  my $sba_attrs;
-  if ($sba_compat) {
-    my $class = ref $self;
-    carp_unique (
-      "The source_bind_attributes() override in $class relies on a deprecated codepath. "
-     .'You are strongly advised to switch your code to override bind_attribute_by_datatype() '
-     .'instead. This legacy compat shim will also disappear some time before DBIC 0.09'
-    );
-
-    my $sba_attrs = $self->source_bind_attributes
-  }
 
   my @attrs;
 
@@ -1690,9 +1678,6 @@ sub _dbi_attrs_for_bind {
           $cache->{$_->{sqlt_datatype}} = $self->bind_attribute_by_data_type($_->{sqlt_datatype}) || undef;
         }
         $cache->{$_->{sqlt_datatype}};
-      }
-      elsif ($sba_attrs and $_->{dbic_colname}) {
-        $sba_attrs->{$_->{dbic_colname}} || undef;
       }
       else {
         undef;  # always push something at this position
@@ -2351,15 +2336,6 @@ sub _select_args {
 sub _count_select {
   #my ($self, $source, $rs_attrs) = @_;
   return { count => '*' };
-}
-
-sub source_bind_attributes {
-  shift->throw_exception(
-    'source_bind_attributes() was never meant to be a callable public method - '
-   .'please contact the DBIC dev-team and describe your use case so that a reasonable '
-   .'solution can be provided'
-   ."\nhttp://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT"
-  );
 }
 
 =head2 select
