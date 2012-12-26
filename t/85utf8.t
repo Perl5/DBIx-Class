@@ -110,7 +110,7 @@ $storage->debug ($orig_debug);
 
 # bind values are always alphabetically ordered by column, thus [1]
 # the single quotes are an artefact of the debug-system
-TODO: {
+{
   local $TODO = "This has been broken since rev 1191, Mar 2006";
   is ($bind[1], "'$bytestream_title'", 'INSERT: raw bytes sent to the database');
 }
@@ -174,7 +174,7 @@ $cd->update ({ title => $utf8_title });
 $cd->title('something_else');
 ok( $cd->is_column_changed('title'), 'column is dirty after setting to something completely different');
 
-TODO: {
+{
   local $TODO = 'There is currently no way to propagate aliases to inflate_result()';
   $cd = $schema->resultset('CD')->find ({ title => $utf8_title }, { select => 'title', as => 'name' });
   ok (utf8::is_utf8( $cd->get_column ('name') ), 'utf8 flag propagates via as');

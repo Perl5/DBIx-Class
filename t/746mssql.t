@@ -251,7 +251,7 @@ SQL
         my $test_type = "Dialect:$dialect Quoted:$quoted";
 
         # basic limit support
-        TODO: {
+        {
           my $art_rs = $schema->resultset ('Artist');
           $art_rs->delete;
           $art_rs->create({ name => 'Artist ' . $_ }) for (1..6);
@@ -398,7 +398,7 @@ SQL
         is ($owners->page(1)->count, 3, "$test_type: has-many prefetch returns correct count");
 
         is ($owners->page(3)->count, 2, "$test_type: has-many prefetch returns correct count");
-        TODO: {
+        {
           local $TODO = "Top-limit does not work when your limit ends up past the resultset"
             if $dialect eq 'Top';
           is ($owners->page(3)->all, 2, "$test_type: has_many prefetch returns correct number of rows");
@@ -452,7 +452,7 @@ SQL
         is ($books->page(1)->count, 2, "$test_type: Prefetched grouped search returns correct count");
 
         is ($books->page(2)->count, 1, "$test_type: Prefetched grouped search returns correct count");
-        TODO: {
+        {
           local $TODO = "Top-limit does not work when your limit ends up past the resultset"
             if $dialect eq 'Top';
           is ($books->page(2)->all, 1, "$test_type: Prefetched grouped search returns correct number of rows");
@@ -522,7 +522,7 @@ CREATE TABLE money_test (
 SQL
       });
 
-      TODO: {
+      {
         my $freetds_and_dynamic_cursors = 1
           if $opts_name eq 'use_dynamic_cursors' &&
             $schema->storage->_using_freetds;

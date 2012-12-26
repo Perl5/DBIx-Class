@@ -90,7 +90,7 @@ is( $lim->count, 2, 'ROWS+OFFSET count ok' );
 is( $lim->all, 2, 'Number of ->all objects matches count' );
 
 # Limit with select-lock
-TODO: {
+{
   local $TODO = "Seems we can't SELECT ... FOR ... on subqueries";
   lives_ok {
     $schema->txn_do (sub {

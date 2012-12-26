@@ -9,8 +9,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 sub test_order {
-
-  TODO: {
     my $rs = shift;
     my $args = shift;
 
@@ -46,7 +44,6 @@ sub test_order {
         ],
       ) || diag Dumper $args->{order_by};
     };
-  }
 }
 
 my @tests = (

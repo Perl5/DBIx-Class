@@ -88,7 +88,7 @@ $fh = $new_source_file->open('r') or die "failed to open $new_source_file: $!\n"
 $fc->file({ handle => $fh, filename => $new_fname });
 $fc->update;
 
-TODO: {
+{
     local $TODO = 'design change required';
     ok ( ! -e $storage, 'old storage does not exist' );
 };
@@ -120,8 +120,8 @@ $storage = file(
     $fc->file->{filename},
 );
 
-TODO: {
+{
     local $TODO = 'need resultset delete override to delete_all';
     $rs->delete;
     ok ( ! -e $storage, 'storage does not exist after $rs->delete' );
-};
+}

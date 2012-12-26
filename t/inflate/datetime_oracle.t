@@ -48,9 +48,10 @@ eval {
 };
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at $timestamp_datatype)");
 
-TODO: {
+# TODO is in effect for the rest of the tests
 local $TODO = 'FIXME - something odd is going on with Oracle < 9 datetime support'
   if ($schema->storage->_server_info->{normalized_dbms_version}||0) < 9;
+
 lives_ok {
 
 # insert a row to play with
@@ -103,7 +104,7 @@ is( $track->last_updated_at, $timestamp, 'DateTime round-trip as TIMESTAMP' );
 is( int $track->last_updated_at->nanosecond, int 500_000_000,
   'TIMESTAMP nanoseconds survived' );
 
-} 'dateteime operations executed correctly' } # end of lives_ok/TODO block
+} 'dateteime operations executed correctly';
 
 done_testing;
 

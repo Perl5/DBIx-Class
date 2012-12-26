@@ -16,7 +16,7 @@ my $where_bind = {
 
 my $rs;
 
-TODO: {
+{
     local $TODO = 'bind args order needs fixing (semifor)';
 
     # First, the simple cases...
@@ -36,6 +36,14 @@ TODO: {
         ->search({}, $where_bind);
 
     is ( $rs->count, 1, 'where/bind last' );
+
+    # and the complex case
+    local $TODO = 'bind args order needs fixing (semifor)';
+    $rs = $schema->resultset('CustomSql')->search({}, { bind => [ 1999 ] })
+        ->search({ 'artistid' => 1 }, {
+            where => \'title like ?',
+            bind => [ 'Spoon%' ] });
+    is ( $rs->count, 1, '...cookbook + chained search with extra bind' );
 }
 
 {
@@ -105,15 +113,6 @@ TODO: {
     ],
     'got correct SQL (cookbook arbitrary SQL, in separate file)'
   );
-}
-
-TODO: {
-    local $TODO = 'bind args order needs fixing (semifor)';
-    $rs = $schema->resultset('Complex')->search({}, { bind => [ 1999 ] })
-        ->search({ 'artistid' => 1 }, {
-            where => \'title like ?',
-            bind => [ 'Spoon%' ] });
-    is ( $rs->count, 1, '...cookbook + chained search with extra bind' );
 }
 
 done_testing;

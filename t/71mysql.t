@@ -425,7 +425,7 @@ ZEROINSEARCH: {
     # kill our $dbh
     $schema_autorecon->storage->_dbh(undef);
 
-    TODO: {
+    {
       local $TODO = "Perl $] is known to leak like a sieve"
         if DBIx::Class::_ENV_::PEEPEENESS;
 
@@ -449,7 +449,7 @@ ZEROINSEARCH: {
     # try to do something dbic-esque
     $rs->create({ name => "Hardcore Forker $$" });
 
-    TODO: {
+    {
       local $TODO = "Perl $] is known to leak like a sieve"
         if DBIx::Class::_ENV_::PEEPEENESS;
 
