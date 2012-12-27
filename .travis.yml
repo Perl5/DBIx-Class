@@ -25,7 +25,7 @@
 # * The way .travis.yml is fed to the command controller is idiotic - it
 # makes using multiline `bash -c` statements impossible. Therefore to
 # aid readability (our travis logic is rather complex), the bulk of
-# functionality is moved to a script. More about the problem (and the
+# functionality is moved to scripts. More about the problem (and the
 # WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
 #
 
@@ -73,6 +73,13 @@ env:
 
 matrix:
   include:
+    # bleadperl
+    - perl: bleadperl_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=blead
+
     # minimum supported with threads
     - perl: 5.8.5_thr
       env:
@@ -86,13 +93,6 @@ matrix:
         - CLEANTEST=false
         - BREWOPTS=""
         - BREWVER=5.8.3
-
-    # bleadperl
-    - perl: bleadperl_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=blead
 
     # check CLEANTEST of minimum supported
     - perl: 5.8.3_nt_mb
@@ -115,30 +115,60 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
         - BREWVER=5.8.8
 
+# sourcing the files is *EXTREMELY* important - otherwise
+# no envvars will survive
+
+# timeouts below taken from the base and overrides:
+# https://github.com/travis-ci/travis-worker/blob/master/lib/travis/worker/config.rb#L32
+# https://github.com/travis-ci/travis-worker/blob/master/config/worker.php.yml
+
 before_install:
-  # Do not make this part of the env-matrix
-  # different boxes we run on have different amount of hw threads
-  # hence why we need to query
-  # result is 1.5 times the physical threads
-  - export NUMTHREADS=$(( ( $(cut -f 2 -d '-' /sys/devices/system/cpu/online) + 1 ) * 15 / 10  ))
+  # Sets global envvars, downloads/configures debs based on CLEANTEST
+  # Sets extra DBICTEST_* envvars
+  #
+  # TIMEOUT: 900s
+  #
+  - source maint/travis-ci_scripts/10_before_install.bash
 
 install:
   # Build and switch to a custom perl if requested
-  # Set the environment based on CLEANTEST
-  # Preinstall/install deps
+  # Configure the perl env, preinstall some generic toolchain parts
   #
-  # sourcing the file is *EXTREMELY* important - otherwise
-  # no envvars will survive
-  - source maint/travis-ci_prepare_env
+  # TIMEOUT: 900s
+  #
+  - source maint/travis-ci_scripts/20_install.bash
+
+before_script:
+  # Preinstall/install deps based on envvars/CLEANTEST
+  #
+  # TIMEOUT: 900s
+  #
+  - source maint/travis-ci_scripts/30_before_script.bash
 
 script:
-  - export HARNESS_TIMER=1 HARNESS_OPTIONS=c:j$NUMTHREADS
-
-  # either a plain 'make test' OR a shuffled prove torture
-  # use the random order test plan unless CLEANTEST
-  # prepare_env may have short-circuited the test entirely
-  - test -n "$SHORT_CIRCUIT_SMOKE" || (test "$CLEANTEST" = "true" && make test || prove -lrswj$NUMTHREADS t xt)
+  # Run actual tests
+  #
+  # TIMEOUT: 2100s
+  #
+  - source maint/travis-ci_scripts/40_script.bash
 
 after_success:
-  # check if we can assemble a dist properly given we have all deps
-  - test -n "$SHORT_CIRCUIT_SMOKE" || test "$CLEANTEST" = "true" || make dist
+  # Check if we can assemble a dist properly if not in CLEANTEST
+  #
+  # TIMEOUT: 300s
+  #
+  - source maint/travis-ci_scripts/50_after_success.bash
+
+after_failure:
+  # No tasks yet
+  #
+  # TIMEOUT: 300s
+  #
+  #- source maint/travis-ci_scripts/50_after_failure.bash
+
+after_script:
+  # No tasks yet
+  #
+  # TIMEOUT: 300s
+  #
+  #- source maint/travis-ci_scripts/60_after_script.bash
