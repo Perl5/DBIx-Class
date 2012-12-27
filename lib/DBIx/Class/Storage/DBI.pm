@@ -1697,14 +1697,17 @@ sub _execute {
     '_dbh_execute',
     $sql,
     $bind,
-    $self->_dbi_attrs_for_bind($ident, $bind)
+    $ident,
   );
 }
 
 sub _dbh_execute {
-  my ($self, undef, $sql, $bind, $bind_attrs) = @_;
+  my ($self, undef, $sql, $bind, $ident) = @_;
 
   $self->_query_start( $sql, $bind );
+
+  my $bind_attrs = $self->_dbi_attrs_for_bind($ident, $bind);
+
   my $sth = $self->_sth($sql);
 
   for my $i (0 .. $#$bind) {
@@ -2584,7 +2587,10 @@ Given a datatype from column info, returns a database specific bind
 attribute for C<< $dbh->bind_param($val,$attribute) >> or nothing if we will
 let the database planner just handle it.
 
-Generally only needed for special case column types, like bytea in postgres.
+This method is always called after the driver has been determined and a DBI
+connection has been established. Therefore you can refer to C<DBI::$constant>
+and/or C<DBD::$driver::$constant> directly, without worrying about loading
+the correct modules.
 
 =cut
 
