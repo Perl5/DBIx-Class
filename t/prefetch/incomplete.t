@@ -9,18 +9,18 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 
 lives_ok(sub {
-  # while cds.* will be selected anyway (prefetch currently forces the result of _resolve_prefetch)
-  # only the requested me.name/me.artistid columns will be fetched.
+  # while cds.* will be selected anyway (prefetch implies it)
+  # only the requested me.name column will be fetched.
 
   # reference sql with select => [...]
-  #   SELECT me.name, cds.title, me.artistid, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...
+  #   SELECT me.name, cds.title, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...
 
   my $rs = $schema->resultset('Artist')->search(
     { 'cds.title' => { '!=', 'Generic Manufactured Singles' } },
     {
       prefetch => [ qw/ cds / ],
       order_by => [ { -desc => 'me.name' }, 'cds.title' ],
-      select => [qw/ me.name cds.title me.artistid / ],
+      select => [qw/ me.name cds.title / ],
     },
   );
 

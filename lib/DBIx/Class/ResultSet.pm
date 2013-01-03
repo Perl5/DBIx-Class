@@ -1358,18 +1358,21 @@ sub _construct_objects {
     }
   }
   else {
-    ($self->{_row_parser} ||= eval sprintf 'sub { %s }', $rsrc->_mk_row_parser({
+    $self->{_row_parser} ||= eval sprintf 'sub { %s }', $rsrc->_mk_row_parser({
       inflate_map => $infmap,
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
-    }) or die $@)->($rows, $fetch_all ? () : (
+      premultiplied => $attrs->{_main_source_premultiplied},
+    }) or die $@;
+
+    # modify $rows in-place, shrinking/extending as necessary
+    $self->{_row_parser}->($rows, $fetch_all ? () : (
       # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
       sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
       ($self->{stashed_rows} = []),                 # where does it stuff excess
-    ));  # modify $rows in-place, shrinking/extending as necessary
+    ));
 
     $_ = $inflator->($res_class, $rsrc, @$_) for @$rows;
-
   }
 
   # CDBI compat stuff
@@ -3453,26 +3456,50 @@ sub _resolved_attrs {
 
   # run through the resulting joinstructure (starting from our current slot)
   # and unset collapse if proven unnesessary
-  if ($attrs->{collapse} && ref $attrs->{from} eq 'ARRAY') {
+  #
+  # also while we are at it find out if the current root source has
+  # been premultiplied by previous related_source chaining
+  #
+  # this allows to predict whether a root object with all other relation
+  # data set to NULL is in fact unique
+  if ($attrs->{collapse}) {
 
-    if (@{$attrs->{from}} > 1) {
+    if (ref $attrs->{from} eq 'ARRAY') {
 
-      # find where our table-spec starts and consider only things after us
-      my @fromlist = @{$attrs->{from}};
-      while (@fromlist) {
-        my $t = shift @fromlist;
-        $t = $t->[0] if ref $t eq 'ARRAY';  #me vs join from-spec mismatch
-        last if ($t->{-alias} && $t->{-alias} eq $alias);
+      if (@{$attrs->{from}} <= 1) {
+        # no joins - no collapse
+        $attrs->{collapse} = 0;
       }
+      else {
+        # find where our table-spec starts
+        my @fromlist = @{$attrs->{from}};
+        while (@fromlist) {
+          my $t = shift @fromlist;
 
-      for (@fromlist) {
-        $attrs->{collapse} = ! $_->[0]{-is_single}
-          and last;
+          my $is_multi;
+          # me vs join from-spec distinction - a ref means non-root
+          if (ref $t eq 'ARRAY') {
+            $t = $t->[0];
+            $is_multi ||= ! $t->{-is_single};
+          }
+          last if ($t->{-alias} && $t->{-alias} eq $alias);
+          $attrs->{_main_source_premultiplied} ||= $is_multi;
+        }
+
+        # no non-singles remaining, nor any premultiplication - nothing to collapse
+        if (
+          ! $attrs->{_main_source_premultiplied}
+            and
+          ! List::Util::first { ! $_->[0]{-is_single} } @fromlist
+        ) {
+          $attrs->{collapse} = 0;
+        }
       }
     }
+
     else {
-      # no joins - no collapse
-      $attrs->{collapse} = 0;
+      # if we can not analyze the from - err on the side of safety
+      $attrs->{_main_source_premultiplied} = 1;
     }
   }
 

@@ -127,7 +127,7 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) {
 
-      $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\xFF\xFFN\xFFU\xFFL\xFFL\xFF\xFF"
+      $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
         for (0, 3, 4, 5);
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
@@ -252,7 +252,7 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) {
 
-      $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\xFF\xFFN\xFFU\xFFL\xFFL\xFF\xFF"
+      $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
         for (0, 1, 5, 6, 8);
 
       $is_new_res = ! $collapse_idx[1]{$cur_row_ids[1]} and (
@@ -286,6 +286,124 @@ is_same_src (
     splice @{$_[0]}, $result_pos;
   ',
   'Multiple has_many on multiple branches torture test',
+);
+
+$infmap = [
+  'single_track.trackid',                   # (0) definitive link to root from 1:1:1:1:M:M chain
+  'year',                                   # (1) non-unique
+  'tracks.cd',                              # (2) \ together both uniqueness for second multirel
+  'tracks.title',                           # (3) / and definitive link back to root
+  'single_track.cd.artist.cds.cdid',        # (4) to give uniquiness to ...tracks.title below
+  'single_track.cd.artist.cds.year',        # (5) non-unique
+  'single_track.cd.artist.artistid',        # (6) uniqufies entire parental chain
+  'single_track.cd.artist.cds.genreid',     # (7) nullable
+  'single_track.cd.artist.cds.tracks.title',# (8) unique when combined with ...cds.cdid above
+];
+
+is_deeply (
+  $schema->source('CD')->_resolve_collapse({ as => {map { $infmap->[$_] => $_ } 0 .. $#$infmap} }),
+  {
+    -idcols_current_node => [],
+    -idcols_extra_from_children => [ 0, 2, 3, 4, 8 ],
+    -node_index => 1,
+    -root_node_idcol_variants => [
+      [ 0 ], [ 2 ],
+    ],
+    single_track => {
+      -idcols_current_node => [ 0 ],
+      -idcols_extra_from_children => [ 4, 8 ],
+      -is_optional => 1,
+      -is_single => 1,
+      -node_index => 2,
+      cd => {
+        -idcols_current_node => [ 0 ],
+        -idcols_extra_from_children => [ 4, 8 ],
+        -is_single => 1,
+        -node_index => 3,
+        artist => {
+          -idcols_current_node => [ 0 ],
+          -idcols_extra_from_children => [ 4, 8 ],
+          -is_single => 1,
+          -node_index => 4,
+          cds => {
+            -idcols_current_node => [ 0, 4 ],
+            -idcols_extra_from_children => [ 8 ],
+            -is_optional => 1,
+            -node_index => 5,
+            tracks => {
+              -idcols_current_node => [ 0, 4, 8 ],
+              -is_optional => 1,
+              -node_index => 6,
+            }
+          }
+        }
+      }
+    },
+    tracks => {
+      -idcols_current_node => [ 2, 3 ],
+      -is_optional => 1,
+      -node_index => 7,
+    }
+  },
+  'Correct underdefined root collapse map constructed'
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    inflate_map => $infmap,
+    collapse => 1,
+  }),
+  ' my($rows_pos, $result_pos, $cur_row, @cur_row_ids, @collapse_idx, $is_new_res) = (0, 0);
+
+    while ($cur_row = (
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+        ||
+      ( $_[1] and $_[1]->() )
+    ) {
+
+      $cur_row_ids[$_] = defined $$cur_row[$_] ? $$cur_row[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
+        for (0, 2, 3, 4, 8);
+
+      # cache expensive set of ops in a non-existent rowid slot
+      $cur_row_ids[9] = (
+        ( ( defined $cur_row->[0] ) && (join "\xFF", q{}, $cur_row->[0], q{} ))
+          or
+        ( ( defined $cur_row->[2] ) && (join "\xFF", q{}, $cur_row->[2], q{} ))
+          or
+        "\0$rows_pos\0"
+      );
+
+      $is_new_res = ! $collapse_idx[1]{$cur_row_ids[9]} and (
+        $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row) and last
+      );
+
+      $collapse_idx[1]{$cur_row_ids[9]} ||= [{ year => $$cur_row[1] }];
+
+      $collapse_idx[1]{$cur_row_ids[9]}[1]{single_track} ||= ($collapse_idx[2]{$cur_row_ids[0]} ||= [{ trackid => $$cur_row[0] }]);
+
+      $collapse_idx[2]{$cur_row_ids[0]}[1]{cd} ||= $collapse_idx[3]{$cur_row_ids[0]};
+
+      $collapse_idx[3]{$cur_row_ids[0]}[1]{artist} ||= ($collapse_idx[4]{$cur_row_ids[0]} ||= [{ artistid => $$cur_row[6] }]);
+
+      push @{$collapse_idx[4]{$cur_row_ids[0]}[1]{cds}},
+          $collapse_idx[5]{$cur_row_ids[0]}{$cur_row_ids[4]} ||= [{ cdid => $$cur_row[4], genreid => $$cur_row[7], year => $$cur_row[5] }]
+        unless $collapse_idx[5]{$cur_row_ids[0]}{$cur_row_ids[4]};
+
+      push @{$collapse_idx[5]{$cur_row_ids[0]}{$cur_row_ids[4]}[1]{tracks}},
+          $collapse_idx[6]{$cur_row_ids[0]}{$cur_row_ids[4]}{$cur_row_ids[8]} ||= [{ title => $$cur_row[8] }]
+        unless $collapse_idx[6]{$cur_row_ids[0]}{$cur_row_ids[4]}{$cur_row_ids[8]};
+
+      push @{$collapse_idx[1]{$cur_row_ids[9]}[1]{tracks}},
+          $collapse_idx[7]{$cur_row_ids[2]}{$cur_row_ids[3]} ||= [{ cd => $$cur_row[2], title => $$cur_row[3] }]
+        unless $collapse_idx[7]{$cur_row_ids[2]}{$cur_row_ids[3]};
+
+      $_[0][$result_pos++] = $collapse_idx[1]{$cur_row_ids[9]}
+        if $is_new_res;
+    }
+
+    splice @{$_[0]}, $result_pos;
+  ',
+  'Multiple has_many on multiple branches with underdefined root torture test',
 );
 
 done_testing;
