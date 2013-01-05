@@ -302,11 +302,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 ##### TEMPORARY WORKAROUNDS
 
-  # List::Util got broken rather badly (RT#80646)
-  # install without tests for the time being
-  perl -M5.014 -e 1 &>/dev/null || \
-    parallel_installdeps_notest List::Util
-
   # not sure what's going on here yet
   perl -M5.008008 -e 1 &> /dev/null || \
     parallel_installdeps_notest multidimensional bareword::filehandles
