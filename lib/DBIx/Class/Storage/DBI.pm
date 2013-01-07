@@ -1560,10 +1560,13 @@ sub _prep_for_execute {
 sub _gen_sql_bind {
   my ($self, $op, $ident, $args) = @_;
 
-  my ($sql, @bind) = $self->sql_maker->$op(
-    blessed($ident) ? $ident->from : $ident,
-    @$args,
-  );
+  my ($colinfos, $from);
+  if ( blessed($ident) ) {
+    $from = $ident->from;
+    $colinfos = $ident->columns_info;
+  }
+
+  my ($sql, @bind) = $self->sql_maker->$op( ($from || $ident), @$args );
 
   if (
     ! $ENV{DBIC_DT_SEARCH_OK}
@@ -1580,7 +1583,7 @@ sub _gen_sql_bind {
   }
 
   return( $sql, $self->_resolve_bindattrs(
-    $ident, [ @{$args->[2]{bind}||[]}, @bind ]
+    $ident, [ @{$args->[2]{bind}||[]}, @bind ], $colinfos
   ));
 }
 
