@@ -59,9 +59,7 @@ sub _is_guid_type {
 
 sub _prefetch_autovalues  {
   my $self = shift;
-  my ($source, $to_insert) = @_;
-
-  my $col_info = $source->columns_info;
+  my ($source, $col_info, $to_insert) = @_;
 
   my %guid_cols;
   my @pk_cols = $source->primary_columns;

@@ -1746,9 +1746,7 @@ sub _dbh_execute {
 }
 
 sub _prefetch_autovalues {
-  my ($self, $source, $to_insert) = @_;
-
-  my $colinfo = $source->columns_info;
+  my ($self, $source, $colinfo, $to_insert) = @_;
 
   my %values;
   for my $col (keys %$colinfo) {
@@ -1778,7 +1776,9 @@ sub _prefetch_autovalues {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-  my $prefetched_values = $self->_prefetch_autovalues($source, $to_insert);
+  my $col_infos = $source->columns_info;
+
+  my $prefetched_values = $self->_prefetch_autovalues($source, $col_infos, $to_insert);
 
   # fuse the values, but keep a separate list of prefetched_values so that
   # they can be fused once again with the final return
@@ -1786,7 +1786,6 @@ sub insert {
 
   # FIXME - we seem to assume undef values as non-supplied. This is wrong.
   # Investigate what does it take to s/defined/exists/
-  my $col_infos = $source->columns_info;
   my %pcols = map { $_ => 1 } $source->primary_columns;
   my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
   for my $col ($source->columns) {

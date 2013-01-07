@@ -45,11 +45,9 @@ sub last_insert_id { shift->_identity }
 
 sub _prefetch_autovalues {
   my $self = shift;
-  my ($source, $to_insert) = @_;
+  my ($source, $colinfo, $to_insert) = @_;
 
   my $values = $self->next::method(@_);
-
-  my $colinfo = $source->columns_info;
 
   my $identity_col =
     first { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
