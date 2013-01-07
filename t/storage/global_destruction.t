@@ -2,15 +2,11 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 
 use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;
-
-plan skip_all => 'Test segfaults on Win32 - investigation pending'
-  if $^O eq 'MSWin32' && DBICTest::RunMode->is_plain;
 
 for my $type (qw/PG MYSQL SQLite/) {
 
@@ -44,29 +40,27 @@ for my $type (qw/PG MYSQL SQLite/) {
 
     ok (!$schema->storage->connected, "$type: start disconnected");
 
-    lives_ok (sub {
-      $schema->txn_do (sub {
+    $schema->txn_do (sub {
 
-        ok ($schema->storage->connected, "$type: transaction starts connected");
+      ok ($schema->storage->connected, "$type: transaction starts connected");
 
-        my $pid = fork();
-        SKIP: {
-          skip "Fork failed: $!", 1 if (! defined $pid);
+      my $pid = fork();
+      SKIP: {
+        skip "Fork failed: $!", 1 if (! defined $pid);
 
-          if ($pid) {
-            note "Parent $$ sleeping...";
-            wait();
-            note "Parent $$ woken up after child $pid exit";
-          }
-          else {
-            note "Child $$ terminating";
-            undef $DBICTest::FakeSchemaFactory::schema;
-            exit 0;
-          }
-
-          ok ($schema->storage->connected, "$type: parent still connected (in txn_do)");
+        if ($pid) {
+          note "Parent $$ sleeping...";
+          wait();
+          note "Parent $$ woken up after child $pid exit";
         }
-      });
+        else {
+          note "Child $$ terminating";
+          undef $DBICTest::FakeSchemaFactory::schema;
+          exit 0;
+        }
+
+        ok ($schema->storage->connected, "$type: parent still connected (in txn_do)");
+      }
     });
 
     ok ($schema->storage->connected, "$type: parent still connected (outside of txn_do)");
