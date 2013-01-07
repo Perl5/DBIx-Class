@@ -794,11 +794,25 @@ sub dbh_do {
   return $self->$run_target($self->_get_dbh, @_)
     if $self->{_in_do_block} or $self->transaction_depth;
 
-  my $args = \@_;
+  my $cref = (ref $run_target eq 'CODE')
+    ? $run_target
+    : $self->can($run_target) || $self->throw_exception(sprintf (
+      'Can\'t locate object method "%s" via package "%s"',
+      $run_target,
+      (ref $self || $self),
+    ))
+  ;
+
+  # take a ref instead of a copy, to preserve @_ aliasing
+  # semantics within the coderef, but only if needed
+  # (pseudoforking doesn't like this trick much)
+  my $args = @_ ? \@_ : [];
+  unshift @$args, $self, $self->_get_dbh;
 
   DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
-    run_code => sub { $self->$run_target ($self->_get_dbh, @$args ) },
+    run_code => $cref,
+    run_args => $args,
     wrap_txn => 0,
     retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
   )->run;
