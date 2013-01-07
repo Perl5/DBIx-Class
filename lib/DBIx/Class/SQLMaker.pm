@@ -71,9 +71,6 @@ BEGIN {
     my($func) = (caller(1))[3];
     __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
-
-  # Current SQLA pollutes its namespace - clean for the time being
-  namespace::clean->clean_subroutines(qw/SQL::Abstract carp croak confess/);
 }
 
 # the "oh noes offset/top without limit" constant
