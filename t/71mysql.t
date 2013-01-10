@@ -22,7 +22,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { quote_names => 1 });
 
 my $dbh = $schema->storage->dbh;
 
@@ -206,10 +206,10 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   is_same_sql_bind (
     $rs->as_query,
     '(
-      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             artist.artistid, artist.name, artist.rank, artist.charfield
-        FROM cd me
-        INNER JOIN artist artist ON artist.artistid = me.artist
+      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
+             `artist`.`artistid`, `artist`.`name`, `artist`.`rank`, `artist`.`charfield`
+        FROM cd `me`
+        INNER JOIN `artist` `artist` ON `artist`.`artistid` = `me`.`artist`
     )',
     [],
     'overriden default join type works',
@@ -229,10 +229,10 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   is_same_sql_bind (
     $cdsrc->resultset->search({}, { prefetch => 'straight_artist' })->as_query,
     '(
-      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             straight_artist.artistid, straight_artist.name, straight_artist.rank, straight_artist.charfield
-        FROM cd me
-        STRAIGHT_JOIN artist straight_artist ON straight_artist.artistid = me.artist
+      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
+             `straight_artist`.`artistid`, `straight_artist`.`name`, `straight_artist`.`rank`, `straight_artist`.`charfield`
+        FROM cd `me`
+        STRAIGHT_JOIN `artist` `straight_artist` ON `straight_artist`.`artistid` = `me`.`artist`
     )',
     [],
     'straight joins correctly supported for mysql'
