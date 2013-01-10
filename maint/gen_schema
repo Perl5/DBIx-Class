@@ -13,5 +13,9 @@ print scalar ($schema->storage->deployment_statements(
   'SQLite',
   undef,
   undef,
-  { producer_args => { no_transaction => 1 } }
+  {
+    producer_args => { no_transaction => 1 },
+    quote_identifiers => 1,
+    no_comments => 1,
+  },
 ));
