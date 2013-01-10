@@ -87,7 +87,6 @@ sub _determine_supports_join_optimizer { 1 };
 # class, as _use_X may be hardcoded class-wide, and _supports_X calls
 # _determine_supports_X which obv. needs a correct driver as well
 my @rdbms_specific_methods = qw/
-  deployment_statements
   sqlt_type
   sql_maker
   build_datetime_parser
