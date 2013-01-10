@@ -1720,7 +1720,6 @@ another query.
 
 sub reset {
   my ($self) = @_;
-  delete $self->{_attrs} if exists $self->{_attrs};
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
