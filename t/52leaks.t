@@ -360,8 +360,8 @@ for my $slot (keys %$weak_registry) {
     # Moo keeps globals around, this is normal
     delete $weak_registry->{$slot};
   }
-  elsif ($slot =~ /^SQL::Translator/) {
-    # SQLT is a piece of shit, leaks all over
+  elsif ($slot =~ /^SQL::Translator::Generator::DDL::SQLite/) {
+    # SQLT got much better, but still leaks a little
     delete $weak_registry->{$slot};
   }
   elsif ($slot =~ /^Hash::Merge/) {

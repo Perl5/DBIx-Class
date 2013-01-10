@@ -79,15 +79,8 @@ TESTSCHEMACLASSES: {
     ## Get the Schema and set the replication storage type
 
     sub init_schema {
-        # current SQLT SQLite producer does not handle DROP TABLE IF EXISTS, trap warnings here
-        local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/s };
-
-        my ($class, $schema_method) = @_;
-
-        my $method = "get_schema_$schema_method";
-        my $schema = $class->$method;
-
-        return $schema;
+        #my ($class, $schema_getter) = @_;
+        shift->${\ ( 'get_schema_' . shift ) };
     }
 
     sub get_schema_by_storage_type {
