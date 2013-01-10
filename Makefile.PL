@@ -152,6 +152,10 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
     NAME => Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?',
   });
 
+  # we are in the process of (re)writing the makefile - some things we
+  # call below very well may fail
+  local $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION} = 1;
+
   require File::Spec;
   # string-eval, not do(), because we need to provide the
   # $mm_proto, $reqs and $*_requires lexicals to the included file
