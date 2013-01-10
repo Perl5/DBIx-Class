@@ -133,16 +133,25 @@ sub select {
 
     ($sql, @bind) = $self->next::method ($table, $fields, $where);
 
-    my $limiter =
-      $self->can ('emulate_limit')  # also backcompat hook from SQLA::Limit
-        ||
-      do {
-        my $dialect = $self->limit_dialect
-          or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found" );
-        $self->can ("_$dialect")
-          or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
-      }
-    ;
+    my $limiter;
+
+    if( $limiter = $self->can ('emulate_limit') ) {
+      carp_unique(
+        'Support for the legacy emulate_limit() mechanism inherited from '
+      . 'SQL::Abstract::Limit has been deprecated, and will be removed when '
+      . 'DBIC transitions to Data::Query. If your code uses this type of '
+      . 'limit specification please file an RT and provide the source of '
+      . 'your emulate_limit() implementation, so an acceptable upgrade-path '
+      . 'can be devised'
+      );
+    }
+    else {
+      my $dialect = $self->limit_dialect
+        or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self" );
+
+      $limiter = $self->can ("_$dialect")
+        or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
+    }
 
     $sql = $self->$limiter (
       $sql,

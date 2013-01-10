@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - The emulate_limit() arbitrary limit dialect emulation mechanism is
+          now deprecated, and will be removed when DBIx::Class migrates to
+          Data::Query
     * Fixes
         - When performing resultset update/delete only strip condition
           qualifiers - leave the source name alone (RT#80015, RT#78844)
