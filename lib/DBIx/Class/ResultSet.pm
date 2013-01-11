@@ -1755,7 +1755,6 @@ sub first {
 sub _rs_update_delete {
   my ($self, $op, $values) = @_;
 
-  my $cond = $self->{cond};
   my $rsrc = $self->result_source;
   my $storage = $rsrc->schema->storage;
 
@@ -1777,14 +1776,14 @@ sub _rs_update_delete {
 
   # simplify the joinmap, so we can further decide if a subq is necessary
   if (!$needs_subq and @{$attrs->{from}} > 1) {
-    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
+    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $self->{cond}, $attrs);
 
     # check if there are any joins left after the prune
     if ( @{$attrs->{from}} > 1 ) {
       $join_classifications = $storage->_resolve_aliastypes_from_select_args (
         [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
         $attrs->{select},
-        $cond,
+        $self->{cond},
         $attrs
       );
 
@@ -1800,115 +1799,102 @@ sub _rs_update_delete {
     ref $attrs->{from}[0]{ $attrs->{from}[0]{-alias} }
   );
 
+  my ($cond, $guard);
   # do we need anything like a subquery?
-  unless ($needs_subq) {
+  if (! $needs_subq) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
-    my $cond = do {
+    $cond = do {
       my $sqla = $rsrc->storage->sql_maker;
       local $sqla->{_dequalify_idents} = 1;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };
-
-    return $rsrc->storage->$op(
-      $rsrc,
-      $op eq 'update' ? $values : (),
-      $cond,
-    );
   }
-
-  # we got this far - means it is time to wrap a subquery
-  my $idcols = $rsrc->_identifying_column_set || $self->throw_exception(
-    sprintf(
-      "Unable to perform complex resultset %s() without an identifying set of columns on source '%s'",
-      $op,
-      $rsrc->source_name,
-    )
-  );
-
-  # make a new $rs selecting only the PKs (that's all we really need for the subq)
-  delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
-  $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
-  $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
-  my $subrs = (ref $self)->new($rsrc, $attrs);
-
-  if (@$idcols == 1) {
-    return $storage->$op (
-      $rsrc,
-      $op eq 'update' ? $values : (),
-      { $idcols->[0] => { -in => $subrs->as_query } },
+  else {
+    # we got this far - means it is time to wrap a subquery
+    my $idcols = $rsrc->_identifying_column_set || $self->throw_exception(
+      sprintf(
+        "Unable to perform complex resultset %s() without an identifying set of columns on source '%s'",
+        $op,
+        $rsrc->source_name,
+      )
     );
-  }
-  elsif ($storage->_use_multicolumn_in) {
-    return $storage->$op (
-      $rsrc,
-      $op eq 'update' ? $values : (),
+
+    # make a new $rs selecting only the PKs (that's all we really need for the subq)
+    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
+    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
+    $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
+    my $subrs = (ref $self)->new($rsrc, $attrs);
+
+    if (@$idcols == 1) {
+      $cond = { $idcols->[0] => { -in => $subrs->as_query } };
+    }
+    elsif ($storage->_use_multicolumn_in) {
       # no syntax for calling this properly yet
       # !!! EXPERIMENTAL API !!! WILL CHANGE !!!
-      $storage->sql_maker->_where_op_multicolumn_in (
+      $cond = $storage->sql_maker->_where_op_multicolumn_in (
         $idcols, # how do I convey a list of idents...? can binds reside on lhs?
         $subrs->as_query
       ),
-    );
-  }
-  else {
+    }
+    else {
+      # if all else fails - get all primary keys and operate over a ORed set
+      # wrap in a transaction for consistency
+      # this is where the group_by/multiplication starts to matter
+      if (
+        $existing_group_by
+          or
+        keys %{ $join_classifications->{multiplying} || {} }
+      ) {
+        # make sure if there is a supplied group_by it matches the columns compiled above
+        # perfectly. Anything else can not be sanely executed on most databases so croak
+        # right then and there
+        if ($existing_group_by) {
+          my @current_group_by = map
+            { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
+            @$existing_group_by
+          ;
 
-    # if all else fails - get all primary keys and operate over a ORed set
-    # wrap in a transaction for consistency
-    # this is where the group_by/multiplication starts to matter
-    if (
-      $existing_group_by
-        or
-      keys %{ $join_classifications->{multiplying} || {} }
-    ) {
-      # make sure if there is a supplied group_by it matches the columns compiled above
-      # perfectly. Anything else can not be sanely executed on most databases so croak
-      # right then and there
-      if ($existing_group_by) {
-        my @current_group_by = map
-          { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
-          @$existing_group_by
-        ;
-
-        if (
-          join ("\x00", sort @current_group_by)
-            ne
-          join ("\x00", sort @{$attrs->{columns}} )
-        ) {
-          $self->throw_exception (
-            "You have just attempted a $op operation on a resultset which does group_by"
-            . ' on columns other than the primary keys, while DBIC internally needs to retrieve'
-            . ' the primary keys in a subselect. All sane RDBMS engines do not support this'
-            . ' kind of queries. Please retry the operation with a modified group_by or'
-            . ' without using one at all.'
-          );
+          if (
+            join ("\x00", sort @current_group_by)
+              ne
+            join ("\x00", sort @{$attrs->{columns}} )
+          ) {
+            $self->throw_exception (
+              "You have just attempted a $op operation on a resultset which does group_by"
+              . ' on columns other than the primary keys, while DBIC internally needs to retrieve'
+              . ' the primary keys in a subselect. All sane RDBMS engines do not support this'
+              . ' kind of queries. Please retry the operation with a modified group_by or'
+              . ' without using one at all.'
+            );
+          }
         }
+
+        $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
       }
 
-      $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
+      $guard = $storage->txn_scope_guard;
+
+      $cond = [];
+      for my $row ($subrs->cursor->all) {
+        push @$cond, { map
+          { $idcols->[$_] => $row->[$_] }
+          (0 .. $#$idcols)
+        };
+      }
     }
-
-    my $guard = $storage->txn_scope_guard;
-
-    my @op_condition;
-    for my $row ($subrs->cursor->all) {
-      push @op_condition, { map
-        { $idcols->[$_] => $row->[$_] }
-        (0 .. $#$idcols)
-      };
-    }
-
-    my $res = $storage->$op (
-      $rsrc,
-      $op eq 'update' ? $values : (),
-      \@op_condition,
-    );
-
-    $guard->commit;
-
-    return $res;
   }
+
+  my $res = $storage->$op (
+    $rsrc,
+    $op eq 'update' ? $values : (),
+    $cond,
+  );
+
+  $guard->commit if $guard;
+
+  return $res;
 }
 
 =head2 update
