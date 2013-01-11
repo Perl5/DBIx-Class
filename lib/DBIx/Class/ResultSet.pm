@@ -1830,18 +1830,15 @@ sub _rs_update_delete {
     );
   }
   elsif ($storage->_use_multicolumn_in) {
-    # This is hideously ugly, but SQLA does not understand multicol IN expressions
-    my $sql_maker = $storage->sql_maker;
-    my ($sql, @bind) = @${$subrs->as_query};
-    $sql = sprintf ('(%s) IN %s', # the as_query already comes with a set of parenthesis
-      join (', ', map { $sql_maker->_quote ($_) } @$idcols),
-      $sql,
-    );
-
     return $storage->$op (
       $rsrc,
       $op eq 'update' ? $values : (),
-      \[$sql, @bind],
+      # no syntax for calling this properly yet
+      # !!! EXPERIMENTAL API !!! WILL CHANGE !!!
+      $storage->sql_maker->_where_op_multicolumn_in (
+        $idcols, # how do I convey a list of idents...? can binds reside on lhs?
+        $subrs->as_query
+      ),
     );
   }
   else {

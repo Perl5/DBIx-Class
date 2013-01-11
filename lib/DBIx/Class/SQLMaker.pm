@@ -455,6 +455,55 @@ sub _join_condition {
   return $self->_recurse_where($cond);
 }
 
+# This is hideously ugly, but SQLA does not understand multicol IN expressions
+# FIXME TEMPORARY - DQ should have native syntax for this
+# moved here to raise API questions
+#
+# !!! EXPERIMENTAL API !!! WILL CHANGE !!!
+sub _where_op_multicolumn_in {
+  my ($self, $lhs, $rhs) = @_;
+
+  if (! ref $lhs or ref $lhs eq 'ARRAY') {
+    my (@sql, @bind);
+    for (ref $lhs ? @$lhs : $lhs) {
+      if (! ref $_) {
+        push @sql, $self->_quote($_);
+      }
+      elsif (ref $_ eq 'SCALAR') {
+        push @sql, $$_;
+      }
+      elsif (ref $_ eq 'REF' and ref $$_ eq 'ARRAY') {
+        my ($s, @b) = @$$_;
+        push @sql, $s;
+        push @bind, @b;
+      }
+      else {
+        $self->throw_exception("ARRAY of @{[ ref $_ ]}es unsupported for multicolumn IN lhs...");
+      }
+    }
+    $lhs = \[ join(', ', @sql), @bind];
+  }
+  elsif (ref $lhs eq 'SCALAR') {
+    $lhs = \[ $$lhs ];
+  }
+  elsif (ref $lhs eq 'REF' and ref $$lhs eq 'ARRAY' ) {
+    # noop
+  }
+  else {
+    $self->throw_exception( ref($lhs) . "es unsupported for multicolumn IN lhs...");
+  }
+
+  # is this proper...?
+  $rhs = \[ $self->_recurse_where($rhs) ];
+
+  for ($lhs, $rhs) {
+    $$_->[0] = "( $$_->[0] )"
+      unless $$_->[0] =~ /^ \s* \( .* \) \s* ^/xs;
+  }
+
+  \[ join( ' IN ', shift @$$lhs, shift @$$rhs ), @$$lhs, @$$rhs ];
+}
+
 1;
 
 =head1 AUTHORS

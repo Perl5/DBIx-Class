@@ -106,7 +106,8 @@ is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 $schema->storage->_use_multicolumn_in (1);
 $schema->storage->debugobj ($debugobj);
 $schema->storage->debug (1);
-eval { $fks->update ({ read_count => \ 'read_count + 1' }) }; # this can't actually execute, we just need the "as_query"
+throws_ok { $fks->update ({ read_count => \ 'read_count + 1' }) } # this can't actually execute, we just need the "as_query"
+  qr/\Q DBI Exception:/ or do { $sql = ''; @bind = () };
 $schema->storage->_use_multicolumn_in (undef);
 $schema->storage->debugobj ($orig_debugobj);
 $schema->storage->debug ($orig_debug);
