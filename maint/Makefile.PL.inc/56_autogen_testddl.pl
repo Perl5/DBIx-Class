@@ -18,8 +18,10 @@ clonedir_generate_files : dbic_clonedir_regen_test_ddl
 
 dbic_clonedir_regen_test_ddl :
 \t\$(ABSPERLRUN) -Ilib -- maint/gen_schema > @{[ $mm_proto->quote_literal($ddl_fn) ]}
-
+@{[ $crlf_fixup->($ddl_fn) ]}
 EOP
+
+
 
 # keep the Makefile.PL eval happy
 1;

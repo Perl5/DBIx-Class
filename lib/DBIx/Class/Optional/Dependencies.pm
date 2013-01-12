@@ -182,15 +182,10 @@ my $reqs = {
     },
   },
 
-  test_notabs => {
-    req => {
-      'Test::NoTabs'              => '0.9',
-    },
-  },
-
-  test_eol => {
+  test_whitespace => {
     req => {
       'Test::EOL'                 => '1.0',
+      'Test::NoTabs'              => '0.9',
     },
   },
 

@@ -1,6 +1,6 @@
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY,
-  name TEXT NOT NULL 
+  name TEXT NOT NULL
 );
 
 CREATE TABLE cd (

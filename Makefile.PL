@@ -152,6 +152,16 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
     NAME => Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?',
   });
 
+  # Crutch for DISTBUILDING_IN_HELL
+  # Spits back a working dos2unix snippet to be used on the supplied path(s)
+  # Ironically EUMM's dos2unix is broken on win32 itself - it does
+  # not take into account the CRLF layer present on win32
+  my $crlf_fixup = sub {
+    return '' unless ($^O eq 'MSWin32' or $^O eq 'cygwin');
+    my $targets = join ', ', map { "q($_)" } @_;
+    "\t" . $mm_proto->oneliner( qq(\$ENV{PERLIO}='unix' and system( \$^X, qw( -MExtUtils::Command -e dos2unix -- ), $targets ) ) );
+  };
+
   # we are in the process of (re)writing the makefile - some things we
   # call below very well may fail
   local $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION} = 1;
