@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
-use DBIx::Class::Exception;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken/;
 use Try::Tiny;

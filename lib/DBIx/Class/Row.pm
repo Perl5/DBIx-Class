@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-use DBIx::Class::Exception;
 use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;

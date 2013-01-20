@@ -8,7 +8,6 @@ use base qw/DBIx::Class::Storage::DBIHacks DBIx::Class::Storage/;
 use mro 'c3';
 
 use DBIx::Class::Carp;
-use DBIx::Class::Exception;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
 use Sub::Name 'subname';

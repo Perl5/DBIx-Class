@@ -6,7 +6,6 @@ use warnings;
 use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
-use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Devel::GlobalDestruction;
 use Try::Tiny;

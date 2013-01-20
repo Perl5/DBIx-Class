@@ -40,7 +40,6 @@ use mro 'c3';
 
 use Sub::Name 'subname';
 use DBIx::Class::Carp;
-use DBIx::Class::Exception;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);

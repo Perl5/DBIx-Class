@@ -5,9 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-use DBIx::Class::Exception;
 use Try::Tiny;
-
 use namespace::clean;
 
 use overload

@@ -58,6 +58,7 @@ use DBIx::Class::Optional::Dependencies;
 
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
+use DBIx::Class::Exception;
 
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
 __PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve');

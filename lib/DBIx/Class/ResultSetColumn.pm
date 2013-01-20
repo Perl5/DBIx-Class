@@ -5,7 +5,6 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
-use DBIx::Class::Exception;
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -438,7 +437,7 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 =cut
 
 sub throw_exception {
-  my $self=shift;
+  my $self = shift;
 
   if (ref $self && $self->{_parent_resultset}) {
     $self->{_parent_resultset}->throw_exception(@_);

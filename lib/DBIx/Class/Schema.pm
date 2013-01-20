@@ -3,7 +3,6 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
-use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
@@ -1058,7 +1057,6 @@ default behavior will provide a detailed stack trace.
 
 =cut
 
-my $false_exception_action_warned;
 sub throw_exception {
   my $self = shift;
 
@@ -1071,13 +1069,12 @@ sub throw_exception {
         ." (original error: $_[0])"
       );
     }
-    elsif(! $false_exception_action_warned++) {
-      carp (
-          "The exception_action handler installed on $self returned false instead"
-        .' of throwing an exception. This behavior has been deprecated, adjust your'
-        .' handler to always rethrow the supplied error.'
-      );
-    }
+
+    carp_unique (
+      "The exception_action handler installed on $self returned false instead"
+    .' of throwing an exception. This behavior has been deprecated, adjust your'
+    .' handler to always rethrow the supplied error.'
+    );
   }
 
   DBIx::Class::Exception->throw($_[0], $self->stacktrace);

@@ -76,7 +76,7 @@ has retried_count => (
   default => quote_sub(q{ 0 }),
   lazy => 1,
   trigger => quote_sub(q{
-    DBIx::Class::Exception->throw(sprintf (
+    $_[0]->throw_exception( sprintf (
       'Exceeded max_retried_count amount of %d, latest exception: %s',
       $_[0]->max_retried_count, $_[0]->last_exception
     )) if $_[0]->max_retried_count < ($_[1]||0);
@@ -93,10 +93,12 @@ has exception_stack => (
 
 sub last_exception { shift->exception_stack->[-1] }
 
+sub throw_exception { shift->storage->throw_exception (@_) }
+
 sub run {
   my $self = shift;
 
-  DBIx::Class::Exception->throw('run() takes no arguments') if @_;
+  $self->throw_exception('run() takes no arguments') if @_;
 
   $self->_reset_exception_stack;
   $self->_reset_retried_count;
