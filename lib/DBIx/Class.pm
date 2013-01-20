@@ -40,10 +40,6 @@ BEGIN {
       # otherwise we are good
                                                                                     : 0
     ,
-
-    # There was a brief period of p5p insanity when $@ was invisible in a DESTROY
-    INVISIBLE_DOLLAR_AT => ($] >= 5.013001 and $] <= 5.013007) ? 1 : 0,
-
   };
 
   if ($] < 5.009_005) {

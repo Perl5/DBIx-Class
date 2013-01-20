@@ -5,11 +5,8 @@ use warnings;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed refaddr/;
 use DBIx::Class;
-use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use namespace::clean;
-
-my ($guards_count, $compat_handler, $foreign_handler);
 
 sub new {
   my ($class, $storage) = @_;
@@ -34,41 +31,6 @@ sub new {
 
   bless $guard, ref $class || $class;
 
-  # install a callback carefully
-  if (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and !$guards_count) {
-
-    # if the thrown exception is a plain string, wrap it in our
-    # own exception class
-    # this is actually a pretty cool idea, may very well keep it
-    # after perl is fixed
-    $compat_handler ||= bless(
-      sub {
-        $@ = (blessed($_[0]) or ref($_[0]))
-          ? $_[0]
-          : bless ( { msg => $_[0] }, 'DBIx::Class::Exception')
-        ;
-        die;
-      },
-      '__TxnScopeGuard__FIXUP__',
-    );
-
-    if ($foreign_handler = $SIG{__DIE__}) {
-      $SIG{__DIE__} = bless (
-        sub {
-          # we trust the foreign handler to do whatever it wants, all we do is set $@
-          eval { $compat_handler->(@_) };
-          $foreign_handler->(@_);
-        },
-        '__TxnScopeGuard__FIXUP__',
-      );
-    }
-    else {
-      $SIG{__DIE__} = $compat_handler;
-    }
-  }
-
-  $guards_count++;
-
   $guard;
 }
 
@@ -84,29 +46,6 @@ sub commit {
 
 sub DESTROY {
   my $self = shift;
-
-  $guards_count--;
-
-  # don't touch unless it's ours, and there are no more of us left
-  if (
-    DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT
-      and
-    !$guards_count
-  ) {
-
-    if (ref $SIG{__DIE__} eq '__TxnScopeGuard__FIXUP__') {
-      # restore what we saved
-      if ($foreign_handler) {
-        $SIG{__DIE__} = $foreign_handler;
-      }
-      else {
-        delete $SIG{__DIE__};
-      }
-    }
-
-    # make sure we do not leak the foreign one in case it exists
-    undef $foreign_handler;
-  }
 
   return if $self->{inactivated};
 
@@ -164,7 +103,7 @@ sub DESTROY {
     }
   }
 
-  $@ = $exception unless DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT;
+  $@ = $exception;
 }
 
 1;
