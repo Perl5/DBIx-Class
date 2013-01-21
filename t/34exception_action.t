@@ -90,4 +90,30 @@ throws_ok \&$throw,
 throws_ok { $schema->storage->throw_exception('floob') }
   qr/DBICTest::Exception is handling this: floob/;
 
+# test antipatterns
+for my $ap (qw(
+  DBICTest::AntiPattern::TrueZeroLen
+  DBICTest::AntiPattern::NullObject
+)) {
+  eval "require $ap";
+  my $exp_warn = qr/\QObjects of external exception class '$ap' stringify to '' (the empty string)/;
+
+  # make sure an exception_action can replace $@ with an antipattern
+  $schema->exception_action(sub { die $ap->new });
+  warnings_like {
+    eval { $throw->() };
+    isa_ok $@, $ap;
+  } $exp_warn, 'proper warning on antipattern encountered within exception_action';
+
+  # and make sure that the retrhow works
+  $schema->exception_action(sub { die @_ });
+  warnings_like {
+    eval {
+      $schema->txn_do (sub { die $ap->new });
+    };
+
+    isa_ok $@, $ap;
+  } $exp_warn, 'Proper warning on encountered antipattern';
+}
+
 done_testing;

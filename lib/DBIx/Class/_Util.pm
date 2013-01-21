@@ -165,6 +165,27 @@ sub is_exception ($) {
       die $suberror
     }
   }
+  elsif (
+    # a ref evaluating to '' is definitively a "null object"
+    ( not $not_blank )
+      and
+    length( my $class = ref $e )
+  ) {
+    carp_unique( sprintf(
+      "Objects of external exception class '%s' stringify to '' (the "
+    . 'empty string), implementing the so called null-object-pattern. '
+    . 'Given Perl\'s "globally cooperative" exception handling using this '
+    . 'class of exceptions is extremely dangerous, as it may (and often '
+    . 'does) result in silent discarding of errors. DBIx::Class tries to '
+    . 'work around this as much as possible, but other parts of your '
+    . 'software stack may not be even aware of the problem. Please submit '
+    . 'a bugreport against the distribution containing %s.',
+
+      ($class) x 2,
+    ));
+
+    $not_blank = 1;
+  }
 
   return $not_blank;
 }

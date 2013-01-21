@@ -17,6 +17,8 @@ Revision history for DBIx::Class
     * Fixes
         - Ensure failing on_connect* / on_disconnect* are dealt with properly,
           notably on_connect* failures now properly abort the entire connect
+        - Make sure exception objects stringifying to '' are properly handled
+          and warned about (GH#15)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
         - Fix several corner cases with Many2Many over custom relationships
