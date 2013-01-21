@@ -145,7 +145,7 @@ sub _run {
     my $storage = $weakself->storage;
     my $cur_depth = $storage->transaction_depth;
 
-    if (defined $txn_init_depth and $run_err eq '') {
+    if (defined $txn_init_depth and not $run_err) {
       my $delta_txn = (1 + $txn_init_depth) - $cur_depth;
 
       if ($delta_txn) {
@@ -163,7 +163,7 @@ sub _run {
     }
 
     # something above threw an error (could be the begin, the code or the commit)
-    if ($run_err ne '') {
+    if ($run_err) {
 
       # attempt a rollback if we did begin in the first place
       if ($txn_begin_ok) {

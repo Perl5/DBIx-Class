@@ -28,8 +28,18 @@ throws_ok { $e->rethrow }
 isa_ok( $@, 'DBIx::Class::Exception' );
 
 # Now lets rethrow via exception_action
-$schema->exception_action(sub { die @_ });
-throws_ok \&$throw, $ex_regex;
+{
+  my $handler_execution_counter = 0;
+
+  $schema->exception_action(sub {
+    $handler_execution_counter++;
+    like $_[0], $ex_regex, "Exception is precisely passed to exception_action";
+    die @_
+  });
+
+  throws_ok \&$throw, $ex_regex;
+  is $handler_execution_counter, 1, "exception_action handler executed exactly once";
+}
 
 #
 # This should have never worked!!!
@@ -79,5 +89,21 @@ throws_ok \&$throw,
 # While we're at it, lets throw a custom exception through Storage::DBI
 throws_ok { $schema->storage->throw_exception('floob') }
   qr/DBICTest::Exception is handling this: floob/;
+
+# Exception class which stringifies to empty string
+{
+    package DBICTest::ExceptionEmptyString;
+    use overload bool => sub { 1 }, '""' => sub { "" }, fallback => 1;
+    sub new { bless {}, shift; }
+}
+
+# Try the exception-empty string class
+$schema->exception_action(sub { die DBICTest::ExceptionEmptyString->new });
+dies_ok \&$throw;
+
+my $throw_x_empty_string  = sub { $schema->txn_do (sub { die DBICTest::ExceptionEmptyString->new }); };
+$schema->exception_action(sub { die @_ });
+dies_ok \&$throw_x_empty_string, 'exception_action handles exception object-empty string';
+isa_ok $@, 'DBICTest::ExceptionEmptyString', "exception rethrown by exception_action";
 
 done_testing;

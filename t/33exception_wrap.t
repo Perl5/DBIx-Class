@@ -23,4 +23,17 @@ is_deeply (
   'Exception-arrayref contents preserved',
 );
 
+# Exception class which stringifies to empty string
+{
+    package DBICTest::ExceptionEmptyString;
+    use overload bool => sub { 1 }, '""' => sub { "" }, fallback => 1;
+    sub new { bless {}, shift; }
+}
+
+dies_ok (sub {
+  $schema->txn_do (sub { die DBICTest::ExceptionEmptyString->new });
+}, 'Exception-empty string object thrown');
+
+isa_ok $@, 'DBICTest::ExceptionEmptyString', "Exception-empty string";
+
 done_testing;
