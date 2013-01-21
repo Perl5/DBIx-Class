@@ -28,8 +28,18 @@ throws_ok { $e->rethrow }
 isa_ok( $@, 'DBIx::Class::Exception' );
 
 # Now lets rethrow via exception_action
-$schema->exception_action(sub { die @_ });
-throws_ok \&$throw, $ex_regex;
+{
+  my $handler_execution_counter = 0;
+
+  $schema->exception_action(sub {
+    $handler_execution_counter++;
+    like $_[0], $ex_regex, "Exception is precisely passed to exception_action";
+    die @_
+  });
+
+  throws_ok \&$throw, $ex_regex;
+  is $handler_execution_counter, 1, "exception_action handler executed exactly once";
+}
 
 #
 # This should have never worked!!!
