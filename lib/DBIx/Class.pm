@@ -393,6 +393,8 @@ jguenther: Justin Guenther <jguenther@cpan.org>
 
 jhannah: Jay Hannah <jay@jays.net>
 
+jmac: Jason McIntosh <jmac@appleseed-sc.com>
+
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
 jon: Jon Schutz <jjschutz@cpan.org>
