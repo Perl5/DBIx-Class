@@ -8,7 +8,10 @@ if [[ -n "$BREWVER" ]] ; then
   # do some extra short-circuiting here
 
   # when smoking master do not attempt bleadperl (not release-critical)
-  if [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
+  if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+    echo_err "$(tstamp) pull-request smoking with custom perl compilation requested - bailing out"
+    export SHORT_CIRCUIT_SMOKE=1
+  elif [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
     echo_err "$(tstamp) master branch is not smoked with bleadperl - bailing out"
     export SHORT_CIRCUIT_SMOKE=1
   # on topic/ branches test only with travis perls
