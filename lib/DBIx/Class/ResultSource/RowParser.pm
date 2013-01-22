@@ -70,16 +70,19 @@ sub _resolve_prefetch {
 # data of individual to-be-row-objects. See t/resultset/rowparser_internals.t
 # for extensive RV examples
 sub _resolve_collapse {
-  my ($self, $as, $as_fq_idx, $rel_chain, $parent_info, $node_idx_ref) = @_;
+  my ($self, $args, $common_args) = @_;
 
   # for comprehensible error messages put ourselves at the head of the relationship chain
-  $rel_chain ||= [ $self->source_name ];
+  $args->{_rel_chain} ||= [ $self->source_name ];
 
-  # record top-level fully-qualified column index
-  $as_fq_idx ||= { %$as };
+  # record top-level fully-qualified column index, start nodecount
+  $common_args ||= {
+    _as_fq_idx => { %{$args->{as}} },
+    _node_idx => 1, # this is *deliberately* not 0-based
+  };
 
   my ($my_cols, $rel_cols);
-  for (keys %$as) {
+  for (keys %{$args->{as}}) {
     if ($_ =~ /^ ([^\.]+) \. (.+) /x) {
       $rel_cols->{$1}{$2} = 1;
     }
@@ -132,14 +135,14 @@ sub _resolve_collapse {
   # throw everything assumed-from-parent away and replace with the collapser of
   # the parent (whatever it may be)
   my $assumed_from_parent;
-  unless ($parent_info->{underdefined}) {
+  unless ($args->{_parent_info}{underdefined}) {
     $assumed_from_parent->{columns} = { map
       # only add to the list if we do not already select said columns
       { ! exists $my_cols->{$_} ? ( $_ => 1 ) : () }
-      values %{$parent_info->{rel_condition} || {}}
+      values %{$args->{_parent_info}{rel_condition} || {}}
     };
 
-    $my_cols->{$_} = { via_collapse => $parent_info->{collapse_on} }
+    $my_cols->{$_} = { via_collapse => $args->{_parent_info}{collapse_on} }
       for keys %{$assumed_from_parent->{columns}};
   }
 
@@ -162,15 +165,15 @@ sub _resolve_collapse {
     my @reduced_set = grep { ! $assumed_from_parent->{columns}{$_} } @$idset;
 
     $collapse_map->{-node_id} = __unique_numlist(
-      (@reduced_set != @$idset) ? @{$parent_info->{collapse_on}} : (),
+      (@reduced_set != @$idset) ? @{$args->{_parent_info}{collapse_on}} : (),
       (map
         {
           my $fqc = join ('.',
-            @{$rel_chain}[1 .. $#$rel_chain],
+            @{$args->{_rel_chain}}[1 .. $#{$args->{_rel_chain}}],
             ( $my_cols->{$_}{via_fk} || $_ ),
           );
 
-          $as_fq_idx->{$fqc};
+          $common_args->{_as_fq_idx}->{$fqc};
         }
         @reduced_set
       ),
@@ -186,12 +189,11 @@ sub _resolve_collapse {
     for my $rel (keys %$relinfo) {
       next unless ($relinfo->{$rel}{is_single} && $relinfo->{$rel}{is_inner});
 
-      if ( my $rel_collapse = $relinfo->{$rel}{rsrc}->_resolve_collapse (
-        $rel_cols->{$rel},
-        $as_fq_idx,
-        [ @$rel_chain, $rel ],
-        { underdefined => 1 }
-      )) {
+      if ( my $rel_collapse = $relinfo->{$rel}{rsrc}->_resolve_collapse ({
+        as => $rel_cols->{$rel},
+        _rel_chain => [ @{$args->{_rel_chain}}, $rel ],
+        _parent_info => { underdefined => 1 },
+      }, $common_args)) {
         push @candidates, $rel_collapse->{-node_id};
       }
     }
@@ -207,14 +209,14 @@ sub _resolve_collapse {
   # Still dont know how to collapse - see if the parent passed us anything
   # (i.e. reuse collapser over 1:1)
   unless ($collapse_map->{-node_id}) {
-    $collapse_map->{-node_id} = $parent_info->{collapse_on}
-      if $parent_info->{collapser_reusable};
+    $collapse_map->{-node_id} = $args->{_parent_info}{collapse_on}
+      if $args->{_parent_info}{collapser_reusable};
   }
 
   # stop descending into children if we were called by a parent for first-pass
   # and don't despair if nothing was found (there may be other parallel branches
   # to dive into)
-  if ($parent_info->{underdefined}) {
+  if ($args->{_parent_info}{underdefined}) {
     return $collapse_map->{-node_id} ? $collapse_map : undef
   }
   # nothing down the chain resolved - can't calculate a collapse-map
@@ -222,8 +224,8 @@ sub _resolve_collapse {
     $self->throw_exception ( sprintf
       "Unable to calculate a definitive collapse column set for %s%s: fetch more unique non-nullable columns",
       $self->source_name,
-      @$rel_chain > 1
-        ? sprintf (' (last member of the %s chain)', join ' -> ', @$rel_chain )
+      @{$args->{_rel_chain}} > 1
+        ? sprintf (' (last member of the %s chain)', join ' -> ', @{$args->{_rel_chain}} )
         : ''
       ,
     );
@@ -232,20 +234,16 @@ sub _resolve_collapse {
   # If we got that far - we are collapsable - GREAT! Now go down all children
   # a second time, and fill in the rest
 
-  $collapse_map->{-is_optional} = 1 if $parent_info->{is_optional};
-  $collapse_map->{-node_index} = ${ $node_idx_ref ||= \do { my $x = 1 } }++;  # this is *deliberately* not 0-based
+  $collapse_map->{-is_optional} = 1 if $args->{_parent_info}{is_optional};
+  $collapse_map->{-node_index} = $common_args->{_node_idx}++;
 
   my (@id_sets, $multis_in_chain);
   for my $rel (sort keys %$relinfo) {
 
-    $collapse_map->{$rel} = $relinfo->{$rel}{rsrc}->_resolve_collapse (
-      { map { $_ => 1 } ( keys %{$rel_cols->{$rel}} ) },
-
-      $as_fq_idx,
-
-      [ @$rel_chain, $rel],
-
-      {
+    $collapse_map->{$rel} = $relinfo->{$rel}{rsrc}->_resolve_collapse ({
+      as => { map { $_ => 1 } ( keys %{$rel_cols->{$rel}} ) },
+      _rel_chain => [ @{$args->{_rel_chain}}, $rel],
+      _parent_info => {
         collapse_on => [ @{$collapse_map->{-node_id}} ],
 
         rel_condition => $relinfo->{$rel}{fk_map},
@@ -256,9 +254,7 @@ sub _resolve_collapse {
         # (regardless of left or not)
         collapser_reusable => $relinfo->{$rel}{is_single},
       },
-
-      $node_idx_ref,
-    );
+    }, $common_args );
 
     $collapse_map->{$rel}{-is_single} = 1 if $relinfo->{$rel}{is_single};
     $collapse_map->{$rel}{-is_optional} ||= 1 unless $relinfo->{$rel}{is_inner};
@@ -327,7 +323,7 @@ sub _mk_row_parser {
   #
   else {
 
-    my $collapse_map = $self->_resolve_collapse (
+    my $collapse_map = $self->_resolve_collapse ({
       # FIXME
       # only consider real columns (not functions) during collapse resolution
       # this check shouldn't really be here, as fucktards are not supposed to
@@ -336,11 +332,11 @@ sub _mk_row_parser {
       # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
       # (it is now trivial as the attrs specify where things go out of sync
       # needs MOAR tests)
-      { map
+      as => { map
         { ref $args->{selection}[$inflate_index->{$_}] ? () : ( $_ => $inflate_index->{$_} ) }
         keys %$inflate_index
       }
-    );
+    });
 
     my $top_branch_idx_list = join (', ', @{$collapse_map->{-branch_id}});
 

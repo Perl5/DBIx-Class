@@ -70,7 +70,7 @@ is_same_src (
 );
 
 is_deeply (
-  $schema->source('CD')->_resolve_collapse({map { $infmap->[$_] => $_ } 0 .. $#$infmap}),
+  $schema->source('CD')->_resolve_collapse({ as => {map { $infmap->[$_] => $_ } 0 .. $#$infmap} }),
   {
     -node_index => 1,
     -node_id => [ 4, 5 ],
@@ -170,7 +170,7 @@ $infmap = [qw/
 /];
 
 is_deeply (
-  $schema->source('CD')->_resolve_collapse({map { $infmap->[$_] => $_ } 0 .. $#$infmap}),
+  $schema->source('CD')->_resolve_collapse({ as => {map { $infmap->[$_] => $_ } 0 .. $#$infmap} }),
   {
     -node_index => 1,
     -node_id => [ 1 ], # existing_single_track.cd.artist.artistid
