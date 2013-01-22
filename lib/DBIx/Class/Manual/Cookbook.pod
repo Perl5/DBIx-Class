@@ -1941,8 +1941,8 @@ just looking for this.
 For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
-You can accomplish this by wrapping the C<number> accessor with
-L<Class::Method::Modifiers>:
+You can accomplish this by wrapping the C<number> accessor with the C<around> method modifier, available through either 
+L<Class::Method::Modifiers> or L<Moose|Moose::Manual::MethodModifiers>):
 
   around number => sub {
     my ($orig, $self) = (shift, shift);
@@ -1953,7 +1953,7 @@ L<Class::Method::Modifiers>:
     }
 
     $self->$orig(@_);
-  }
+  };
 
 Note that the hard work is done by the call to C<< $self->$orig >>, which
 redispatches your call to store_column in the superclass(es).
