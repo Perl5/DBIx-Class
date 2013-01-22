@@ -4,7 +4,7 @@ use strict;
 use Test::More;
 use File::Glob 'bsd_glob';
 use lib 't/lib';
-use DBICTest;
+use DBICTest ':GlobalLock';
 
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_whitespace') ) {
