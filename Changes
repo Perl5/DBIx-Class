@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08205 2013-01-22
     * New Features / Changes
         - The emulate_limit() arbitrary limit dialect emulation mechanism is
           now deprecated, and will be removed when DBIx::Class migrates to
