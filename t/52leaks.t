@@ -361,8 +361,10 @@ for my $slot (keys %$weak_registry) {
     delete $weak_registry->{$slot};
   }
   elsif ($slot =~ /^SQL::Translator::Generator::DDL::SQLite/) {
-    # SQLT got much better, but still leaks a little
-    delete $weak_registry->{$slot};
+    # SQLT::Producer::SQLite keeps global generators around for quoted
+    # and non-quoted DDL, allow one for each quoting style
+    delete $weak_registry->{$slot}
+      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$slot}{weakref}->quote_chars}}++;
   }
   elsif ($slot =~ /^Hash::Merge/) {
     # only clear one object of a specific behavior - more would indicate trouble

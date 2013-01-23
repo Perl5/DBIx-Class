@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+    * Misc
+        - Only allow known globals in SQL::Translator leak allowance
+
 0.08205 2013-01-22
     * New Features / Changes
         - The emulate_limit() arbitrary limit dialect emulation mechanism is
