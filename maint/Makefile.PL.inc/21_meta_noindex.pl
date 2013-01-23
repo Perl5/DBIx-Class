@@ -9,6 +9,7 @@ no_index directory => $_ for (qw|
 |);
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBIHacks
+  DBIx::Class::Storage::BlockRunner
   DBIx::Class::Carp
   DBIx::Class::ResultSet::Pager
 /);
