@@ -34,7 +34,7 @@ test_xt : pm_to_blib
     # perl cmd
     join( ' ',
       '$(ABSPERLRUN)',
-      map { $mm_proto->quote_literal($_) } qw(-e $ENV{RELEASE_TESTING}=1;)
+      map { $mm_proto->quote_literal($_) } qw(-e $ENV{RELEASE_TESTING}=1;$ENV{DBICTEST_NO_MAKEFILE_VERIFICATION}=1;)
     ),
     # test list
     join( ' ',

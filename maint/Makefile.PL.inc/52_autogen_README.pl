@@ -1,4 +1,4 @@
-# When a long-standing branch is updated a README may still inger around
+# When a long-standing branch is updated a README may still linger around
 unlink 'README' if -f 'README';
 
 # Makefile syntax allows adding extra dep-specs for already-existing targets,

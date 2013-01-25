@@ -6,10 +6,14 @@ my $ddl_fn = File::Spec->catfile(qw(t lib sqlite.sql));
 # on error
 # The EUMM build-stage generation will run unconditionally and
 # errors will not be trapped
-if (my $out = ` "$^X" -Ilib maint/gen_schema `) {
-  open (my $fh, '>:unix', $ddl_fn) or die "Unable to open $ddl_fn: $!";
-  print $fh $out;
-  close $fh;
+require DBIx::Class::Optional::Dependencies;
+if ( DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
+  print "Regenerating t/lib/sqlite.sql\n";
+  if (my $out = ` "$^X" -Ilib maint/gen_schema `) {
+    open (my $fh, '>:unix', $ddl_fn) or die "Unable to open $ddl_fn: $!";
+    print $fh $out;
+    close $fh;
+  }
 }
 
 postamble <<"EOP";
@@ -20,8 +24,6 @@ dbic_clonedir_regen_test_ddl :
 \t\$(ABSPERLRUN) -Ilib -- maint/gen_schema > @{[ $mm_proto->quote_literal($ddl_fn) ]}
 @{[ $crlf_fixup->($ddl_fn) ]}
 EOP
-
-
 
 # keep the Makefile.PL eval happy
 1;

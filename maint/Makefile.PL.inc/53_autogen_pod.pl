@@ -21,6 +21,9 @@ else {
 # generate the OptDeps pod both in the clone-dir and during the makefile distdir
 {
   print "Regenerating Optional/Dependencies.pod\n";
+
+  # this should always succeed - hence no error checking
+  # if someone breaks OptDeps - travis should catch it
   require DBIx::Class::Optional::Dependencies;
   DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
 
@@ -50,8 +53,19 @@ EOP
   my $pod_fn = "$pod_dir/dbicadmin.pod";
 
   # if the author doesn't have the prereqs, don't fail the initial "perl Makefile.pl" step
-  # therefore no error checking
-  system($^X, qw( -Ilib -- script/dbicadmin --documentation-as-pod ), $pod_fn);
+  my $great_success;
+  {
+    local @ARGV = ('--documentation-as-pod', $pod_fn);
+    local *CORE::GLOBAL::exit = sub { $great_success++; die; };
+    do 'script/dbicadmin';
+  }
+  if (!$great_success and ($@ || $!) ) {
+    printf ("FAILED!!! Subsequent `make dist` will fail. %s\n",
+      $ENV{DBICDIST_DEBUG}
+        ? 'Full error: ' . ($@ || $!)
+        : 'Re-run with $ENV{DBICDIST_DEBUG} set for more info'
+    );
+  }
 
   postamble <<"EOP";
 
@@ -64,13 +78,9 @@ EOP
 }
 
 
-# generate the inherit pods both in the clone-dir and during the makefile distdir
+# generate the inherit pods only during distbuilding phase
+# it is too slow to do at regular Makefile.PL
 {
-  print "Regenerating project documentation to include inherited methods\n";
-
-  # if the author doesn't have the prereqs, don't fail the initial "perl Makefile.pl" step
-  do "maint/gen_pod_inherit" or print "\n!!! FAILED: $@\n";
-
   postamble <<"EOP";
 
 clonedir_generate_files : dbic_clonedir_gen_inherit_pods
