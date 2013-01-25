@@ -12,6 +12,7 @@ use inc::Module::Install 1.06;
 # for that)
 BEGIN {
   $Module::Install::AUTHOR = 0 if (grep { $ENV{"PERL5_${_}_IS_RUNNING"} } (qw/CPANM CPANPLUS CPAN/) );
+  makemaker_args( NORECURS => 1 );
 }
 
 homepage 'http://www.dbix-class.org/';
@@ -154,6 +155,7 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
   # We need the MM facilities to generate the pieces for the final MM run.
   # Just instantiate a throaway object here
   my $mm_proto = ExtUtils::MakeMaker->new({
+    NORECURS => 1,
     NAME => Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?',
   });
 
