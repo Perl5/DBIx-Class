@@ -1208,7 +1208,7 @@ sub inflate_result {
       # this away entirely, and *never* return such empty rows.
       # For now we maintain inflate_result API backcompat, see
       # t/resultset/inflate_result_api.t
-      next unless first { defined $_ } values %{$me_pref->[0]};
+      next unless defined first { defined $_ } values %{$me_pref->[0]};
 
       push @pre_objects, $pre_source->result_class->inflate_result(
         $pre_source, @$me_pref
