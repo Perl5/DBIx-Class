@@ -67,7 +67,7 @@ sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
   $self->throw_exception ('Nothing to prefetch... how did we get here?!')
-    if not @{$attrs->{_prefetch_selector_range}};
+    if not @{$attrs->{_prefetch_selector_range}||[]};
 
   $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');

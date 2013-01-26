@@ -3446,7 +3446,10 @@ sub _resolved_attrs {
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
   }
 
-  $attrs->{_single_object_inflation} = ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}};
+  if ( ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
+    $attrs->{_single_object_inflation} = 1;
+    $attrs->{collapse} = 0;
+  }
 
   # run through the resulting joinstructure (starting from our current slot)
   # and unset collapse if proven unnesessary
@@ -3604,7 +3607,7 @@ sub _merge_joinpref_attr {
     $seen_keys->{$import_key} = 1; # don't merge the same key twice
   }
 
-  return $orig;
+  return @$orig ? $orig : ();
 }
 
 {
