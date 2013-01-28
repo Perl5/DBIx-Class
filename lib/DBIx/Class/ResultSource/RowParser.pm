@@ -142,7 +142,7 @@ sub _resolve_collapse {
       values %{$args->{_parent_info}{rel_condition} || {}}
     };
 
-    $my_cols->{$_} = { via_collapse => $args->{_parent_info}{collapse_on} }
+    $my_cols->{$_} = { via_collapse => $args->{_parent_info}{collapse_on_idcols} }
       for keys %{$assumed_from_parent->{columns}};
   }
 
@@ -154,8 +154,18 @@ sub _resolve_collapse {
 
   my $collapse_map;
 
-  # try to resolve based on our columns (plus already inserted FK bridges)
+  # first try to reuse the parent's collapser (i.e. reuse collapser over 1:1)
+  # (makes for a leaner coderef later)
+  unless ($collapse_map->{-idcols_current_node}) {
+    $collapse_map->{-idcols_current_node} = $args->{_parent_info}{collapse_on_idcols}
+      if $args->{_parent_info}{collapser_reusable};
+  }
+
+
+  # Still dont know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
   if (
+    ! $collapse_map->{-idcols_current_node}
+      and
     $my_cols
       and
     my $idset = $self->_identifying_column_set ({map { $_ => $my_cols->{$_}{colinfo} } keys %$my_cols})
@@ -164,8 +174,9 @@ sub _resolve_collapse {
     # and fix stuff up if this is the case
     my @reduced_set = grep { ! $assumed_from_parent->{columns}{$_} } @$idset;
 
-    $collapse_map->{-node_id} = __unique_numlist(
-      (@reduced_set != @$idset) ? @{$args->{_parent_info}{collapse_on}} : (),
+    $collapse_map->{-idcols_current_node} = [ __unique_numlist(
+      @{ $args->{_parent_info}{collapse_on_idcols}||[] },
+
       (map
         {
           my $fqc = join ('.',
@@ -177,13 +188,13 @@ sub _resolve_collapse {
         }
         @reduced_set
       ),
-    );
+    )];
   }
 
   # Stil don't know how to collapse - keep descending down 1:1 chains - if
   # a related non-LEFT 1:1 is resolvable - its condition will collapse us
   # too
-  unless ($collapse_map->{-node_id}) {
+  unless ($collapse_map->{-idcols_current_node}) {
     my @candidates;
 
     for my $rel (keys %$relinfo) {
@@ -194,7 +205,7 @@ sub _resolve_collapse {
         _rel_chain => [ @{$args->{_rel_chain}}, $rel ],
         _parent_info => { underdefined => 1 },
       }, $common_args)) {
-        push @candidates, $rel_collapse->{-node_id};
+        push @candidates, $rel_collapse->{-idcols_current_node};
       }
     }
 
@@ -202,25 +213,18 @@ sub _resolve_collapse {
     # FIXME - maybe need to implement a data type order as well (i.e. prefer several ints
     # to a single varchar)
     if (@candidates) {
-      ($collapse_map->{-node_id}) = sort { scalar @$a <=> scalar @$b } (@candidates);
+      ($collapse_map->{-idcols_current_node}) = sort { scalar @$a <=> scalar @$b } (@candidates);
     }
-  }
-
-  # Still dont know how to collapse - see if the parent passed us anything
-  # (i.e. reuse collapser over 1:1)
-  unless ($collapse_map->{-node_id}) {
-    $collapse_map->{-node_id} = $args->{_parent_info}{collapse_on}
-      if $args->{_parent_info}{collapser_reusable};
   }
 
   # stop descending into children if we were called by a parent for first-pass
   # and don't despair if nothing was found (there may be other parallel branches
   # to dive into)
   if ($args->{_parent_info}{underdefined}) {
-    return $collapse_map->{-node_id} ? $collapse_map : undef
+    return $collapse_map->{-idcols_current_node} ? $collapse_map : undef
   }
   # nothing down the chain resolved - can't calculate a collapse-map
-  elsif (! $collapse_map->{-node_id}) {
+  elsif (! $collapse_map->{-idcols_current_node}) {
     $self->throw_exception ( sprintf
       "Unable to calculate a definitive collapse column set for %s%s: fetch more unique non-nullable columns",
       $self->source_name,
@@ -237,14 +241,16 @@ sub _resolve_collapse {
   $collapse_map->{-is_optional} = 1 if $args->{_parent_info}{is_optional};
   $collapse_map->{-node_index} = $common_args->{_node_idx}++;
 
-  my (@id_sets, $multis_in_chain);
+
+  my @id_sets;
   for my $rel (sort keys %$relinfo) {
 
     $collapse_map->{$rel} = $relinfo->{$rel}{rsrc}->_resolve_collapse ({
       as => { map { $_ => 1 } ( keys %{$rel_cols->{$rel}} ) },
       _rel_chain => [ @{$args->{_rel_chain}}, $rel],
       _parent_info => {
-        collapse_on => [ @{$collapse_map->{-node_id}} ],
+        # shallow copy
+        collapse_on_idcols => [ @{$collapse_map->{-idcols_current_node}} ],
 
         rel_condition => $relinfo->{$rel}{fk_map},
 
@@ -258,10 +264,19 @@ sub _resolve_collapse {
 
     $collapse_map->{$rel}{-is_single} = 1 if $relinfo->{$rel}{is_single};
     $collapse_map->{$rel}{-is_optional} ||= 1 unless $relinfo->{$rel}{is_inner};
-    push @id_sets, @{ $collapse_map->{$rel}{-branch_id} };
+    push @id_sets, ( map { @$_ } (
+      $collapse_map->{$rel}{-idcols_current_node},
+      $collapse_map->{$rel}{-idcols_extra_from_children} || (),
+    ));
   }
 
-  $collapse_map->{-branch_id} = __unique_numlist( @id_sets, @{$collapse_map->{-node_id}} );
+  if (@id_sets) {
+    my $cur_nodeid_hash = { map { $_ => 1 } @{$collapse_map->{-idcols_current_node}} };
+    $collapse_map->{-idcols_extra_from_children} = [ grep
+      { ! $cur_nodeid_hash->{$_} }
+      __unique_numlist( @id_sets )
+    ];
+  }
 
   return $collapse_map;
 }
@@ -322,7 +337,6 @@ sub _mk_row_parser {
   # the collapsing parser is more complicated - it needs to keep a lot of state
   #
   else {
-
     my $collapse_map = $self->_resolve_collapse ({
       # FIXME
       # only consider real columns (not functions) during collapse resolution
@@ -338,19 +352,22 @@ sub _mk_row_parser {
       }
     });
 
-    my $top_branch_idx_list = join (', ', @{$collapse_map->{-branch_id}});
+    my $all_idcols_as_list = join ', ', sort map { @$_ } (
+      $collapse_map->{-idcols_current_node},
+      $collapse_map->{-idcols_extra_from_children} || (),
+    );
 
     my $top_node_id_path = join ('', map
       { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
-      @{$collapse_map->{-node_id}}
+      @{$collapse_map->{-idcols_current_node}}
     );
 
     my $rel_assemblers = __visit_infmap_collapse (
       $inflate_index, $collapse_map
     );
 
-    $parser_src = sprintf (<<'EOS', $top_branch_idx_list, $top_node_id_path, $rel_assemblers);
-### BEGIN STRING EVAL
+    $parser_src = sprintf (<<'EOS', $all_idcols_as_list, $top_node_id_path, $rel_assemblers);
+### BEGIN LITERAL STRING EVAL
 
   my ($rows_pos, $result_pos, $cur_row, @cur_row_ids, @collapse_idx, $is_new_res) = (0,0);
 
@@ -366,8 +383,10 @@ sub _mk_row_parser {
     ($_[1] and $_[1]->())
   ) {
 
+    # due to left joins some of the ids may be NULL/undef, and
+    # won't play well when used as hash lookups
     $cur_row_ids[$_] = defined $cur_row->[$_] ? $cur_row->[$_] : "\xFF\xFFN\xFFU\xFFL\xFFL\xFF\xFF"
-      for (%1$s); # the top branch_id includes all id values
+      for (%1$s);
 
     $is_new_res = ! $collapse_idx[1]%2$s and (
       $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row) and last
@@ -380,7 +399,7 @@ sub _mk_row_parser {
   }
 
   splice @{$_[0]}, $result_pos; # truncate the passed in array for cases of collapsing ->all()
-### END STRING EVAL
+### END LITERAL STRING EVAL
 EOS
 
     # !!! note - different var than the one above
@@ -462,7 +481,7 @@ sub __visit_infmap_collapse {
 
   my $sequenced_node_id = join ('', map
     { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
-    @{$collapse_map->{-node_id}}
+    @{$collapse_map->{-idcols_current_node}}
   );
 
   my $me_struct = keys %$my_cols
@@ -501,12 +520,13 @@ sub __visit_infmap_collapse {
 
   # DISABLEPRUNE
   #my $known_defined = { %{ $parent_info->{known_defined} || {} } };
-  #$known_defined->{$_}++ for @{$collapse_map->{-node_id}};
+  #$known_defined->{$_}++ for @{$collapse_map->{-idcols_current_node}};
 
   for my $rel (sort keys %$rel_cols) {
 
-    push @src, sprintf( '%s[1]{%s} ||= [];', $node_idx_ref, perlstring($rel) )
-      unless $collapse_map->{$rel}{-is_single};
+#    push @src, sprintf(
+#      '%s[1]{%s} ||= [];', $node_idx_ref, perlstring($rel)
+#    ) unless $collapse_map->{$rel}{-is_single};
 
     push @src,  __visit_infmap_collapse($rel_cols->{$rel}, $collapse_map->{$rel}, {
       node_idx => $collapse_map->{-node_index},
@@ -521,7 +541,7 @@ sub __visit_infmap_collapse {
     #  { "(! defined '\xFF__IDVALPOS__${_}__\xFF')" }
     #  sort { $a <=> $b } grep
     #    { ! $known_defined->{$_} }
-    #    @{$collapse_map->{$rel}{-node_id}}
+    #    @{$collapse_map->{$rel}{-idcols_current_node}}
     #) {
     #  $src[-1] = sprintf( '(%s) or %s',
     #    join (' || ', @null_checks ),
@@ -535,7 +555,7 @@ sub __visit_infmap_collapse {
 
 # adding a dep on MoreUtils *just* for this is retarded
 sub __unique_numlist {
-  [ sort { $a <=> $b } keys %{ {map { $_ => 1 } @_ }} ]
+  sort { $a <=> $b } keys %{ {map { $_ => 1 } @_ }}
 }
 
 # This error must be thrown from two distinct codepaths, joining them is
