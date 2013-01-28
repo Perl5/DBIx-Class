@@ -7,6 +7,18 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema(no_populate => 1);
 
+$schema->resultset('Artist')->create({ name => 'JMJ', cds => [{
+  title => 'Magnetic Fields',
+  year => 1981,
+  genre => { name => 'electro' },
+  tracks => [
+    { title => 'm1' },
+    { title => 'm2' },
+    { title => 'm3' },
+    { title => 'm4' },
+  ],
+} ] });
+
 $schema->resultset('CD')->create({
   title => 'Equinoxe',
   year => 1978,
@@ -22,22 +34,7 @@ $schema->resultset('CD')->create({
     cd => {
       title => 'Oxygene',
       year => 1976,
-      artist => {
-        name => 'JMJ',
-        cds => [
-          {
-            title => 'Magnetic Fields',
-            year => 1981,
-            genre => { name => 'electro' },
-            tracks => [
-              { title => 'm1' },
-              { title => 'm2' },
-              { title => 'm3' },
-              { title => 'm4' },
-            ],
-          },
-        ],
-      },
+      artist => { name => 'JMJ' },
       tracks => [
         { title => 'o2', position => 2},  # the position should not be needed here, bug in MC
       ],
