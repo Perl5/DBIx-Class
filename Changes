@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Extra sanity check of a fresh DBI handle ($dbh). Fixes
+          connection coderefs returning garbage (seen in the wild)
+
     * Misc
         - Only allow known globals in SQL::Translator leak allowance
 
