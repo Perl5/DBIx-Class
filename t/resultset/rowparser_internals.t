@@ -6,6 +6,14 @@ use lib qw(t/lib);
 use DBICTest;
 use B::Deparse;
 
+# globally set for the rest of test
+# the rowparser maker does not order its hashes by default for the miniscule
+# speed gain. But it does not disable sorting either - for this test
+# everything will be ordered nicely, and the hash randomization of 5.18
+# will not trip up anything
+use Data::Dumper;
+$Data::Dumper::Sortkeys = 1;
+
 my $schema = DBICTest->init_schema(no_deploy => 1);
 my $infmap = [qw/single_track.cd.artist.name year/];
 
@@ -247,7 +255,7 @@ is_same_src (
         $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row) and last
       );
 
-      $collapse_idx[1]{$cur_row_ids[1]} ||= [{ latest_cd => $cur_row->[7], year => $cur_row->[3], genreid => $cur_row->[4] }];
+      $collapse_idx[1]{$cur_row_ids[1]} ||= [{ genreid => $cur_row->[4], latest_cd => $cur_row->[7], year => $cur_row->[3] }];
 
       $collapse_idx[1]{$cur_row_ids[1]}[1]{existing_single_track} ||= $collapse_idx[2]{$cur_row_ids[1]};
       $collapse_idx[2]{$cur_row_ids[1]}[1]{cd} ||= $collapse_idx[3]{$cur_row_ids[1]};
