@@ -13,6 +13,10 @@ if ( DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
     open (my $fh, '>:unix', $ddl_fn) or die "Unable to open $ddl_fn: $!";
     print $fh $out;
     close $fh;
+
+    # if we don't do it some git tools (e.g. gitk) get confused that the
+    # ddl file is modified, when it clearly isn't
+    system('git status --porcelain >' . File::Spec->devnull);
   }
 }
 
