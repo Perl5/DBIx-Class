@@ -172,3 +172,7 @@ after_script:
   # TIMEOUT: 300s
   #
   #- source maint/travis-ci_scripts/60_after_script.bash
+
+  # if we do not unset this before we terminate the travis teardown will
+  # mark the entire job as failed
+  - set +e
