@@ -118,15 +118,12 @@ matrix:
 # sourcing the files is *EXTREMELY* important - otherwise
 # no envvars will survive
 
-# timeouts below taken from the base and overrides:
-# https://github.com/travis-ci/travis-worker/blob/master/lib/travis/worker/config.rb#L32
-# https://github.com/travis-ci/travis-worker/blob/master/config/worker.php.yml
+# the entire run times out after 50 minutes, or after 5 minutes without
+# console output
 
 before_install:
   # Sets global envvars, downloads/configures debs based on CLEANTEST
   # Sets extra DBICTEST_* envvars
-  #
-  # TIMEOUT: 900s
   #
   - source maint/travis-ci_scripts/10_before_install.bash
 
@@ -134,42 +131,30 @@ install:
   # Build and switch to a custom perl if requested
   # Configure the perl env, preinstall some generic toolchain parts
   #
-  # TIMEOUT: 900s
-  #
   - source maint/travis-ci_scripts/20_install.bash
 
 before_script:
   # Preinstall/install deps based on envvars/CLEANTEST
-  #
-  # TIMEOUT: 900s
   #
   - source maint/travis-ci_scripts/30_before_script.bash
 
 script:
   # Run actual tests
   #
-  # TIMEOUT: 2100s
-  #
   - source maint/travis-ci_scripts/40_script.bash
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
-  #
-  # TIMEOUT: 300s
   #
   - source maint/travis-ci_scripts/50_after_success.bash
 
 after_failure:
   # No tasks yet
   #
-  # TIMEOUT: 300s
-  #
   #- source maint/travis-ci_scripts/50_after_failure.bash
 
 after_script:
   # No tasks yet
-  #
-  # TIMEOUT: 300s
   #
   #- source maint/travis-ci_scripts/60_after_script.bash
 

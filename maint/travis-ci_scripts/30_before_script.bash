@@ -109,7 +109,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 ##### END TEMPORARY WORKAROUNDS
 
-  run_or_err "Installing/testing dependencies (may take up to 10 minutes): $HARD_DEPS" "cpan $HARD_DEPS"
+  run_or_err "Installing/testing dependencies (may take up to 3 minutes): $HARD_DEPS" "cpan $HARD_DEPS"
 
   # this is a fucked CPAN - save the log as we may need it
   CPAN_is_sane || INSTALLDEPS_OUT="$LASTOUT"
