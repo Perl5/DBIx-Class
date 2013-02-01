@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
     * Fixes
+        - Fix dbh_do() failing to properly reconnect (regression in 0.08205)
         - Extra sanity check of a fresh DBI handle ($dbh). Fixes
           connection coderefs returning garbage (seen in the wild)
 
