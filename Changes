@@ -7,6 +7,9 @@ Revision history for DBIx::Class
 
     * Misc
         - Only allow known globals in SQL::Translator leak allowance
+        - General cleanup of error message texts - quote names/identifiers
+          for easier reading
+        - Stop t/52leaks.t from failing when AUTOMATED_TESTING=1
 
 0.08205 2013-01-22
     * New Features / Changes
