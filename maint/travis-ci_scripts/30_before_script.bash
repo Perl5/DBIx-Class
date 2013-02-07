@@ -3,6 +3,15 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
+# try Schwern's latest offering on a stock perl and a threaded blead
+# can't do this with CLEANTEST=true yet because a lot of our deps fail
+# tests left and right under T::B 1.5
+if [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "blead" ]] ) ; then
+  # FIXME - there got to be a way to ask metacpan for this dynamically
+  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_005.tar.gz"
+fi
+
+
 if [[ "$CLEANTEST" = "true" ]]; then
   # get the last inc/ off cpan - we will get rid of MI
   # soon enough, but till then this will do
@@ -15,6 +24,12 @@ if [[ "$CLEANTEST" = "true" ]]; then
     "SHELL=/bin/true cpanm --look DBIx::Class"
 
   mv ~/.cpanm/latest-build/DBIx-Class-*/inc .
+
+  # this should be installable anywhere, regardles of prereqs
+  if [[ -n "$TEST_BUILDER_BETA_CPAN_TARBALL" ]] ; then
+    run_or_err "Pre-installing dev-beta of Test::Builder ($TEST_BUILDER_BETA_CPAN_TARBALL)" \
+      "cpan $TEST_BUILDER_BETA_CPAN_TARBALL"
+  fi
 
   # older perls do not have a CPAN which understands configure_requires
   # properly and what is worse a `cpan Foo` run exits with 0 even if some
@@ -119,6 +134,10 @@ if [[ "$CLEANTEST" = "true" ]]; then
 else
   # listalldeps is deliberate - will upgrade everything it can find
   parallel_installdeps_notest $(make listalldeps)
+
+  if [[ -n "$TEST_BUILDER_BETA_CPAN_TARBALL" ]] ; then
+    parallel_installdeps_notest $TEST_BUILDER_BETA_CPAN_TARBALL
+  fi
 fi
 
 echo_err "$(tstamp) Dependency configuration finished"
