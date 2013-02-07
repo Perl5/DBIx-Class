@@ -66,35 +66,41 @@ if [[ "$CLEANTEST" != "true" ]]; then
     wait
     sleep 1
   '
-  run_or_err "Re-configuring Firebird" "
-    sync
-    DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
-    sleep 1
-    sync
-    # restart the server for good measure
-    sudo /etc/init.d/firebird2.5-super stop || true
-    sleep 1
-    sync
-    sudo /etc/init.d/firebird2.5-super start
-    sleep 1
-    sync
-  "
-
   # creating testdb
   # FIXME - this step still fails from time to time >:(((
   # has to do with the FB reconfiguration I suppose
-  # for now if it fails - simply skip FB testing
-  if run_or_err "Creating Firebird TestDB" \
-    "echo \"CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';\" | sudo isql-fb -u sysdba -p 123"
-  then
-    export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
-    export DBICTEST_FIREBIRD_USER=SYSDBA
-    export DBICTEST_FIREBIRD_PASS=123
+  # for now if it fails twice - simply skip FB testing
+  for i in 1 2 ; do
 
-    export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
-    export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
-    export DBICTEST_FIREBIRD_INTERBASE_PASS=123
-  fi
+    run_or_err "Re-configuring Firebird" "
+      sync
+      DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
+      sleep 1
+      sync
+      # restart the server for good measure
+      sudo /etc/init.d/firebird2.5-super stop || true
+      sleep 1
+      sync
+      sudo /etc/init.d/firebird2.5-super start
+      sleep 1
+      sync
+    "
+
+    if run_or_err "Creating Firebird TestDB" \
+      "echo \"CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';\" | sudo isql-fb -u sysdba -p 123"
+    then
+      export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+      export DBICTEST_FIREBIRD_USER=SYSDBA
+      export DBICTEST_FIREBIRD_PASS=123
+
+      export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
+      export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
+      export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+
+      break
+    fi
+
+  done
 
 ### oracle
   # FIXME: todo
