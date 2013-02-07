@@ -28,10 +28,17 @@ run_or_err() {
 }
 
 extract_prereqs() {
+  # once --verbose is set, --no-verbose can't disable it
+  # do this by hand
+  ORIG_CPANM_OPT="$PERL_CPANM_OPT"
+  PERL_CPANM_OPT="$( echo $PERL_CPANM_OPT | sed 's/--verbose//' )"
+
   # hack-hack-hack
   LASTEXIT=0
   COMBINED_OUT="$( { stdout="$(cpanm --quiet --scandeps --format tree "$@")" ; } 2>&1; echo "!!!STDERRSTDOUTSEPARATOR!!!$stdout")" \
     || LASTEXIT=$?
+
+  PERL_CPANM_OPT="$ORIG_CPANM_OPT"
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
   ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
@@ -56,7 +63,7 @@ parallel_installdeps_notest() {
   # specify a custom buildlog, hence we just collect the verbose output
   # and display it in case of failure
   run_or_err "Installing (without testing) $MODLIST" \
-    "echo $MODLIST | xargs -n 1 -P $NUMTHREADS cpanm --verbose --no-interactive --notest --no-man-pages"
+    "echo $MODLIST | xargs -n 1 -P $NUMTHREADS cpanm --notest --no-man-pages"
 }
 
 

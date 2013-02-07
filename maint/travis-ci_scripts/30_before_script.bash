@@ -97,9 +97,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 ##### TEMPORARY WORKAROUNDS
 
-  # not sure what's going on here yet
+  # The unicode-in-yaml bug on older cpan clients
+  # FIXME there got to be a saner way to fix this...
   perl -M5.008008 -e 1 &> /dev/null || \
-    parallel_installdeps_notest multidimensional bareword::filehandles
+     run_or_err "Installing multidimensional and bareword::filehandles via cpanm" \
+        "cpanm multidimensional bareword::filehandles"
 
   # work around Params::Validate not having a Makefile.PL so really old
   # toolchains can not figure out what the prereqs are ;(
