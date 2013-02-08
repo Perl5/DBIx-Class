@@ -105,7 +105,7 @@ throws_ok(
   sub {
     $schema->resultset('Track')->search({}, { join => { cd => 'artist' }, '+columns' => 'artist.name' } )->next;
   },
-  qr|\QCan't inflate prefetch into non-existent relationship 'artist' from 'Track', check the inflation specification (columns/as) ending in '...artist.name'|,
+  qr|\QInflation into non-existent relationship 'artist' of 'Track' requested, check the inflation specification (columns/as) ending in '...artist.name'|,
   'Sensible error message on mis-specified "as"',
 );
 

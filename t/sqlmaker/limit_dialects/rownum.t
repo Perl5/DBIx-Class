@@ -19,6 +19,12 @@ $s->storage->sql_maker->limit_dialect ('RowNum');
 
 my $rs = $s->resultset ('CD')->search({ id => 1 });
 
+# important for a test below, never traversed
+$rs->result_source->add_relationship(
+  ends_with_me => 'DBICTest::Schema::Artist', sub {}
+);
+
+
 my $where_bind = [ { dbic_colname => 'id' }, 1 ];
 
 for my $test_set (
@@ -29,16 +35,16 @@ for my $test_set (
       offset => 3,
       columns => [
         { id => 'foo.id' },
-        { 'bar.id' => 'bar.id' },
+        { 'artist.id' => 'bar.id' },
         { bleh => \'TO_CHAR (foo.womble, "blah")' },
       ]
     }),
     sql => '(
-      SELECT id, bar__id, bleh
+      SELECT id, artist__id, bleh
       FROM (
-        SELECT id, bar__id, bleh, ROWNUM rownum__index
+        SELECT id, artist__id, bleh, ROWNUM rownum__index
         FROM (
-          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR (foo.womble, "blah") AS bleh
+          SELECT foo.id AS id, bar.id AS artist__id, TO_CHAR (foo.womble, "blah") AS bleh
             FROM cd me
           WHERE id = ?
         ) me
@@ -56,17 +62,17 @@ for my $test_set (
       offset => 3,
       columns => [
         { id => 'foo.id' },
-        { 'bar.id' => 'bar.id' },
+        { 'artist.id' => 'bar.id' },
         { bleh => \'TO_CHAR (foo.womble, "blah")' },
       ],
       order_by => [qw( artist title )],
     }),
     sql => '(
-      SELECT id, bar__id, bleh
+      SELECT id, artist__id, bleh
       FROM (
-        SELECT id, bar__id, bleh, ROWNUM rownum__index
+        SELECT id, artist__id, bleh, ROWNUM rownum__index
         FROM (
-          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
+          SELECT foo.id AS id, bar.id AS artist__id, TO_CHAR(foo.womble, "blah") AS bleh
             FROM cd me
           WHERE id = ?
           ORDER BY artist, title
@@ -88,17 +94,17 @@ for my $test_set (
       offset => 3,
       columns => [
         { id => 'foo.id' },
-        { 'bar.id' => 'bar.id' },
+        { 'artist.id' => 'bar.id' },
         { bleh => \'TO_CHAR (foo.womble, "blah")' },
       ],
       order_by => 'artist',
     }),
     sql => '(
-      SELECT id, bar__id, bleh
+      SELECT id, artist__id, bleh
       FROM (
-        SELECT id, bar__id, bleh, ROWNUM rownum__index
+        SELECT id, artist__id, bleh, ROWNUM rownum__index
         FROM (
-          SELECT foo.id AS id, bar.id AS bar__id, TO_CHAR(foo.womble, "blah") AS bleh
+          SELECT foo.id AS id, bar.id AS artist__id, TO_CHAR(foo.womble, "blah") AS bleh
             FROM cd me
           WHERE id = ?
           ORDER BY artist

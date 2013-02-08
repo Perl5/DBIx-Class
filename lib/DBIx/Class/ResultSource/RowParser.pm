@@ -94,13 +94,13 @@ sub _resolve_collapse {
   my $relinfo;
   # run through relationships, collect metadata
   for my $rel (keys %$rel_cols) {
-    my $rel_src = __get_related_source($self, $rel, $rel_cols->{$rel});
-
     my $inf = $self->relationship_info ($rel);
 
-    $relinfo->{$rel}{is_single} = $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi';
-    $relinfo->{$rel}{is_inner} = ( $inf->{attrs}{join_type} || '' ) !~ /^left/i;
-    $relinfo->{$rel}{rsrc} = $rel_src;
+    $relinfo->{$rel} = {
+      is_single => ( $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi' ),
+      is_inner => ( ( $inf->{attrs}{join_type} || '' ) !~ /^left/i),
+      rsrc => $self->related_source($rel),
+    };
 
     # FIME - need to use _resolve_cond here instead
     my $cond = $inf->{cond};
@@ -403,7 +403,6 @@ sub _mk_row_parser {
   if (!$args->{collapse}) {
     $parser_src = sprintf('$_ = %s for @{$_[0]}', __visit_infmap_simple(
       $inflate_index,
-      { rsrc => $self }, # need the $rsrc to sanity-check inflation map once
     ));
 
     # change the quoted placeholders to unquoted alias-references
@@ -540,7 +539,6 @@ sub __visit_infmap_simple {
     #$optional ||= ($args->{rsrc}->relationship_info($rel)->{attrs}{join_type} || '') =~ /^left/i;
 
     push @relperl, join ' => ', perlstring($rel), __visit_infmap_simple($rel_cols->{$rel}, {
-      rsrc => __get_related_source($args->{rsrc}, $rel, $rel_cols->{$rel}),
       # DISABLEPRUNE
       #non_top => 1,
       #is_optional => $optional,
@@ -662,23 +660,6 @@ sub __visit_infmap_collapse {
 # adding a dep on MoreUtils *just* for this is retarded
 sub __unique_numlist {
   sort { $a <=> $b } keys %{ {map { $_ => 1 } @_ }}
-}
-
-# This error must be thrown from two distinct codepaths, joining them is
-# rather hard. Go for this hack instead.
-sub __get_related_source {
-  my ($rsrc, $rel, $relcols) = @_;
-  try {
-    $rsrc->related_source ($rel)
-  } catch {
-    $rsrc->throw_exception(sprintf(
-      "Can't inflate prefetch into non-existent relationship '%s' from '%s', "
-    . "check the inflation specification (columns/as) ending in '...%s.%s'.",
-      $rel,
-      $rsrc->source_name,
-      $rel,
-      (sort { length($a) <=> length ($b) } keys %$relcols)[0],
-  ))};
 }
 
 # keep our own DD object around so we don't have to fitz with quoting

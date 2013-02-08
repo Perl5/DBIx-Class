@@ -32,7 +32,7 @@ my $rs = $s->resultset ('CD');
 warnings_exist { is_same_sql_bind (
   $rs->search ({}, { rows => 1, offset => 3,columns => [
       { id => 'foo.id' },
-      { 'bar.id' => 'bar.id' },
+      { 'artist.id' => 'bar.id' },
       { bleh => \ 'TO_CHAR (foo.womble, "blah")' },
     ]})->as_query,
   '(
