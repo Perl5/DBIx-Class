@@ -400,7 +400,13 @@ sub _resolve_collapse {
 
         # if this is a 1:1 our own collapser can be used as a collapse-map
         # (regardless of left or not)
-        collapser_reusable => @{$collapse_map->{-identifying_columns}} && $relinfo->{$rel}{is_single},
+        collapser_reusable => (
+          $relinfo->{$rel}{is_single}
+            &&
+          $relinfo->{$rel}{is_inner}
+            &&
+          @{$collapse_map->{-identifying_columns}}
+        ) ? 1 : 0,
       },
     }, $common_args );
 

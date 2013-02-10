@@ -152,7 +152,7 @@ is_same_src (
 );
 
 $infmap = [qw/
-  tracks.lyrics.lyric_versions.text
+  tracks.lyrics.existing_lyric_versions.text
   existing_single_track.cd.artist.artistid
   existing_single_track.cd.artist.cds.year
   year
@@ -162,6 +162,7 @@ $infmap = [qw/
   latest_cd
   existing_single_track.cd.artist.cds.tracks.title
   existing_single_track.cd.artist.cds.genreid
+  tracks.lyrics.existing_lyric_versions.lyric_id
 /];
 
 is_deeply (
@@ -198,13 +199,12 @@ is_deeply (
       -is_optional => 1,
 
       lyrics => {
-        -identifying_columns => [ 1, 5 ], # existing_single_track.cd.artist.artistid, tracks.title
+        -identifying_columns => [ 1, 5, 10 ], # existing_single_track.cd.artist.artistid, tracks.title, tracks.lyrics.existing_lyric_versions.lyric_id
         -is_single => 1,
         -is_optional => 1,
 
-        lyric_versions => {
-          -identifying_columns => [ 0, 1, 5 ], # tracks.lyrics.lyric_versions.text, existing_single_track.cd.artist.artistid, tracks.title
-          -is_optional => 1,
+        existing_lyric_versions => {
+          -identifying_columns => [ 0, 1, 5, 10 ], # tracks.lyrics.existing_lyric_versions.text, existing_single_track.cd.artist.artistid, tracks.title, tracks.lyrics.existing_lyric_versions.lyric_id
         },
       },
     }
@@ -226,7 +226,7 @@ is_same_src (
     ) {
 
       $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 1, 5, 6, 8);
+        for (0, 1, 5, 6, 8, 10);
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
@@ -247,10 +247,10 @@ is_same_src (
       push @{ $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} }, $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} ||= [{ title => $cur_row_data->[5] }]
         unless $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}};
 
-      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5} };
+      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}};
 
-      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyric_versions} }, $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}} ||= [{ text => $cur_row_data->[0] }]
-        unless $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}};
+      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} }, $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} ||= [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
+        unless $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}};
 
       $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{1}}
         if $is_new_res;
