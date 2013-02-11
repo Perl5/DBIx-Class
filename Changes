@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08206 2013-02-08
     * Fixes
         - Fix dbh_do() failing to properly reconnect (regression in 0.08205)
         - Extra sanity check of a fresh DBI handle ($dbh). Fixes
