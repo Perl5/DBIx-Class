@@ -199,13 +199,14 @@ sub _resolve_collapse {
     }
   }
 
-  # if the parent is already defined, assume all of its related FKs are selected
+  # if the parent is already defined *AND* we have an inner reverse relationship
+  # (i.e. do not exist without it) , assume all of its related FKs are selected
   # (even if they in fact are NOT in the select list). Keep a record of what we
   # assumed, and if any such phantom-column becomes part of our own collapser,
   # throw everything assumed-from-parent away and replace with the collapser of
   # the parent (whatever it may be)
   my $assumed_from_parent;
-  unless ($args->{_parent_info}{underdefined}) {
+  if ( ! $args->{_parent_info}{underdefined} and ! $args->{_parent_info}{rev_rel_is_optional} ) {
     for my $col ( values %{$args->{_parent_info}{rel_condition} || {}} ) {
       next if exists $my_cols->{$col};
       $my_cols->{$col} = { via_collapse => $args->{_parent_info}{collapse_on_idcols} };
@@ -227,7 +228,6 @@ sub _resolve_collapse {
     $collapse_map->{-identifying_columns} = $args->{_parent_info}{collapse_on_idcols}
       if $args->{_parent_info}{collapser_reusable};
   }
-
 
   # Still dont know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
   if (
@@ -381,8 +381,10 @@ sub _resolve_collapse {
   # If we got that far - we are collapsable - GREAT! Now go down all children
   # a second time, and fill in the rest
 
-  $collapse_map->{-is_optional} = 1 if $args->{_parent_info}{is_optional};
-
+  $collapse_map->{-identifying_columns} = [ __unique_numlist(
+    @{ $args->{_parent_info}{collapse_on_idcols}||[] },
+    @{ $collapse_map->{-identifying_columns} },
+  )];
 
   my @id_sets;
   for my $rel (sort keys %$relinfo) {
@@ -396,7 +398,14 @@ sub _resolve_collapse {
 
         rel_condition => $relinfo->{$rel}{fk_map},
 
-        is_optional => $collapse_map->{-is_optional},
+        is_optional => ! $relinfo->{$rel}{is_inner},
+
+        # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
+        # we can safely assume that the child can not exist without us
+        rev_rel_is_optional => ( first
+          { ref $_->{cond} eq 'HASH' and ($_->{attrs}{join_type}||'') !~ /^left/i }
+          values %{ $self->reverse_relationship_info($rel) },
+        ) ? 0 : 1,
 
         # if this is a 1:1 our own collapser can be used as a collapse-map
         # (regardless of left or not)

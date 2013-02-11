@@ -1187,7 +1187,7 @@ sub inflate_result {
     my @pre_vals;
     @pre_vals = (ref $prefetch->{$pre}[0] eq 'ARRAY')
       ? @{$prefetch->{$pre}} : $prefetch->{$pre}
-    if @{$prefetch->{$pre}};
+    if @{$prefetch->{$pre}||[]};
 
     my $pre_source = $source->related_source($pre);
 

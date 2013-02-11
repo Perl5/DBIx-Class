@@ -75,24 +75,24 @@ is_deeply (
     -identifying_columns => [ 4, 5 ],
 
     single_track => {
-      -identifying_columns => [ 4, 5 ],
+      -identifying_columns => [ 1, 4, 5 ],
       -is_optional => 1,
       -is_single => 1,
 
       cd => {
-        -identifying_columns => [ 4, 5 ],
+        -identifying_columns => [ 1, 4, 5 ],
         -is_single => 1,
 
         artist => {
-          -identifying_columns => [ 4, 5 ],
+          -identifying_columns => [ 1, 4, 5 ],
           -is_single => 1,
 
           cds => {
-            -identifying_columns => [ 3, 4, 5 ],
+            -identifying_columns => [ 1, 3, 4, 5 ],
             -is_optional => 1,
 
             tracks => {
-              -identifying_columns => [ 0, 3, 4, 5 ],
+              -identifying_columns => [ 0, 1, 3, 4, 5 ],
               -is_optional => 1,
             },
           },
@@ -117,7 +117,7 @@ is_same_src (
     ) {
 
       $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 3, 4, 5);
+        for (0, 1, 3, 4, 5);
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
@@ -127,21 +127,21 @@ is_same_src (
       $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] }];
 
       # prefetch data of single_track (placed in root)
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{single_track} ||= $collapse_idx[1]{$cur_row_ids{4}}{$cur_row_ids{5}};
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{single_track} ||= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}};
 
       # prefetch data of cd (placed in single_track)
-      $collapse_idx[1]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{4}}{$cur_row_ids{5}};
+      $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}};
 
       # prefetch data of artist ( placed in single_track->cd)
-      $collapse_idx[2]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ artistid => $cur_row_data->[1] }];
+      $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ artistid => $cur_row_data->[1] }];
 
       # prefetch data of cds (if available)
-      push @{$collapse_idx[3]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cds}}, $collapse_idx[4]{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ cdid => $cur_row_data->[3] }]
-        unless $collapse_idx[4]{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+      push @{$collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cds}}, $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ cdid => $cur_row_data->[3] }]
+        unless $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
 
       # prefetch data of tracks (if available)
-      push @{$collapse_idx[4]{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{tracks}}, $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ title => $cur_row_data->[0] }]
-        unless $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+      push @{$collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{tracks}}, $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ title => $cur_row_data->[0] }]
+        unless $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
 
       $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}
         if $is_new_res;
