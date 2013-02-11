@@ -1281,18 +1281,15 @@ sub _construct_objects {
   # this will be used as both initial raw-row collector AND as a RV of
   # _construct_objects. Not regrowing the array twice matters a lot...
   # a suprising amount actually
-  my $rows = (delete $self->{stashed_rows}) || [];
+  my $rows = delete $self->{stashed_rows};
+
   if ($fetch_all) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-    $rows = [ @$rows, $cursor->all ];
+    $rows = [ ($rows ? @$rows : ()), $cursor->all ];
   }
-  elsif (!$attrs->{collapse}) {
-    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-    push @$rows, do { my @r = $cursor->next; @r ? \@r : () }
-      unless @$rows;
-  }
-  else {
-    $attrs->{_ordered_for_collapse} ||= (!$attrs->{order_by}) ? undef : do {
+  elsif( $attrs->{collapse} ) {
+
+    $attrs->{_ordered_for_collapse} = (!$attrs->{order_by}) ? 0 : do {
       my $st = $rsrc->schema->storage;
       my @ord_cols = map
         { $_->[0] }
@@ -1319,68 +1316,128 @@ sub _construct_objects {
         { $colinfos->{$_}{-colname} => $colinfos->{$_} }
         @ord_cols
       })) ? 1 : 0;
-    };
+    } unless defined $attrs->{_ordered_for_collapse};
 
-    if ($attrs->{_ordered_for_collapse}) {
-      push @$rows, do { my @r = $cursor->next; @r ? \@r : () };
-    }
-    # instead of looping over ->next, use ->all in stealth mode
-    # *without* calling a ->reset afterwards
-    # FIXME - encapsulation breach, got to be a better way
-    elsif (! $cursor->{_done}) {
-      push @$rows, $cursor->all;
-      $cursor->{_done} = 1;
+    if (! $attrs->{_ordered_for_collapse}) {
       $fetch_all = 1;
+
+      # instead of looping over ->next, use ->all in stealth mode
+      # *without* calling a ->reset afterwards
+      # FIXME - encapsulation breach, got to be a better way
+      if (! $cursor->{_done}) {
+        $rows = [ ($rows ? @$rows : ()), $cursor->all ];
+        $cursor->{_done} = 1;
+      }
     }
   }
 
-  return undef unless @$rows;
+  if (! $fetch_all and ! @{$rows||[]} ) {
+    # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+    if (scalar (my @r = $cursor->next) ) {
+      $rows = [ \@r ];
+    }
+  }
 
-  my $res_class = $self->result_class;
-  my $inflator = $res_class->can ('inflate_result')
-    or $self->throw_exception("Inflator $res_class does not provide an inflate_result() method");
+  return undef unless @{$rows||[]};
+
+  my @extra_collapser_args;
+  if ($attrs->{collapse} and ! $fetch_all ) {
+
+    @extra_collapser_args = (
+      # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+      sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
+      ($self->{stashed_rows} = []),                 # where does it stuff excess
+    );
+  }
+
+  # hotspot - skip the setter
+  my $res_class = $self->_result_class;
+
+  my $inflator_cref = $self->{_result_inflator}{cref} ||= do {
+    $res_class->can ('inflate_result')
+      or $self->throw_exception("Inflator $res_class does not provide an inflate_result() method");
+  };
 
   my $infmap = $attrs->{as};
 
-  if (!$attrs->{collapse} and $attrs->{_single_object_inflation}) {
-    # construct a much simpler array->hash folder for the one-table cases right here
+  $self->{_result_inflator}{is_hri} = do { ( $inflator_cref == (
+    require DBIx::Class::ResultClass::HashRefInflator
+      &&
+    DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
+  ) ) ? 1 : 0
+  } unless defined $self->{_result_inflator}{is_hri};
 
+  if ($attrs->{_single_resultclass_inflation}) {
+    # construct a much simpler array->hash folder for the one-table cases right here
+    if ($self->{_result_inflator}{is_hri}) {
+      for my $r (@$rows) {
+        $r = { map { $infmap->[$_] => $r->[$_] } 0..$#$infmap };
+      }
+    }
     # FIXME SUBOPTIMAL this is a very very very hot spot
     # while rather optimal we can *still* do much better, by
-    # building a smarter [Row|HRI]::inflate_result(), and
+    # building a smarter Row::inflate_result(), and
     # switch to feeding it data via a much leaner interface
     #
     # crude unscientific benchmarking indicated the shortcut eval is not worth it for
     # this particular resultset size
-    if (@$rows < 60) {
-      my @as_idx = 0..$#$infmap;
+    elsif (@$rows < 60) {
       for my $r (@$rows) {
-        $r = $inflator->($res_class, $rsrc, { map { $infmap->[$_] => $r->[$_] } @as_idx } );
+        $r = $inflator_cref->($res_class, $rsrc, { map { $infmap->[$_] => $r->[$_] } (0..$#$infmap) } );
       }
     }
     else {
       eval sprintf (
-        '$_ = $inflator->($res_class, $rsrc, { %s }) for @$rows',
+        '$_ = $inflator_cref->($res_class, $rsrc, { %s }) for @$rows',
         join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
       );
     }
   }
-  else {
-    $self->{_row_parser} ||= eval sprintf 'sub { %s }', $rsrc->_mk_row_parser({
+  # Special-case multi-object HRI (we always prune)
+  elsif ($self->{_result_inflator}{is_hri}) {
+    ( $self->{_row_parser}{hri} ||= $rsrc->_mk_row_parser({
+      eval => 1,
       inflate_map => $infmap,
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
-    }) or die $@;
+      hri_style => 1,
+      prune_null_branches => 1,
+    }) )->($rows, @extra_collapser_args);
+  }
+  # Regular multi-object
+  else {
 
-    # modify $rows in-place, shrinking/extending as necessary
-    $self->{_row_parser}->($rows, $fetch_all ? () : (
-      # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-      sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
-      ($self->{stashed_rows} = []),                 # where does it stuff excess
-    ));
+    # The rationale is - if this is the ::Row inflator itself, or an around()
+    # we do prune, because we expect it.
+    # If not the case - let the user deal with the full output themselves
+    # Warn them while we are at it so we get a better idea what is out there
+    # on the DarkPan
+    $self->{_result_inflator}{prune_null_branches} = do {
+      $res_class->isa('DBIx::Class::Row')
+    } ? 1 : 0 unless defined $self->{_result_inflator}{prune_null_branches};
 
-    $_ = $inflator->($res_class, $rsrc, @$_) for @$rows;
+    unless ($self->{_result_inflator}{prune_null_branches}) {
+      carp_once (
+        "ResultClass $res_class does not inherit from DBIx::Class::Row and "
+      . 'therefore its inflate_result() will receive the full prefetched data '
+      . 'tree, without any branch definedness checks. This is a compatibility '
+      . 'measure which will eventually disappear entirely. Please refer to '
+      . 't/resultset/inflate_result_api.t for an exhaustive description of the '
+      . 'upcoming changes'
+      );
+    }
+
+    ( $self->{_row_parser}{classic}{$self->{_result_inflator}{prune_null_branches}} ||= $rsrc->_mk_row_parser({
+      eval => 1,
+      inflate_map => $infmap,
+      selection => $attrs->{select},
+      collapse => $attrs->{collapse},
+      premultiplied => $attrs->{_main_source_premultiplied},
+      prune_null_branches => $self->{_result_inflator}{prune_null_branches},
+    }) )->($rows, @extra_collapser_args);
+
+    $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;
   }
 
   # CDBI compat stuff
@@ -1428,6 +1485,7 @@ in the original source class will not run.
 sub result_class {
   my ($self, $result_class) = @_;
   if ($result_class) {
+
     unless (ref $result_class) { # don't fire this for an object
       $self->ensure_class_loaded($result_class);
     }
@@ -1436,6 +1494,8 @@ sub result_class {
     # permit the user to set result class on one result set only; it only
     # chains if provided to search()
     #$self->{attrs}{result_class} = $result_class if ref $self;
+
+    delete $self->{_result_inflator};
   }
   $self->_result_class;
 }
@@ -2996,7 +3056,6 @@ Returns a related resultset for the supplied relationship name.
 sub related_resultset {
   my ($self, $rel) = @_;
 
-  $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
     my $rsrc = $self->result_source;
     my $rel_info = $rsrc->relationship_info($rel);
@@ -3023,13 +3082,13 @@ sub related_resultset {
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
 
-    my $new_cache;
+    my $related_cache;
 
     if (my $cache = $self->get_cache) {
-      if ($cache->[0] && $cache->[0]->related_resultset($rel)->get_cache) {
-        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache||[]} }
-                        @$cache ];
-      }
+      $related_cache = [ map
+        { @{$_->related_resultset($rel)->get_cache||[]} }
+        @$cache
+      ];
     }
 
     my $rel_source = $rsrc->related_source($rel);
@@ -3052,7 +3111,7 @@ sub related_resultset {
                        where => $attrs->{where},
                    });
     };
-    $new->set_cache($new_cache) if $new_cache;
+    $new->set_cache($related_cache) if $related_cache;
     $new;
   };
 }
@@ -3500,7 +3559,7 @@ sub _resolved_attrs {
   }
 
   if ( ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
-    $attrs->{_single_object_inflation} = 1;
+    $attrs->{_single_resultclass_inflation} = 1;
     $attrs->{collapse} = 0;
   }
 
@@ -3774,7 +3833,7 @@ sub STORABLE_freeze {
 
   # A cursor in progress can't be serialized (and would make little sense anyway)
   # the parser can be regenerated (and can't be serialized)
-  delete @{$to_serialize}{qw/cursor _row_parser/};
+  delete @{$to_serialize}{qw/cursor _row_parser _result_inflator/};
 
   # nor is it sensical to store a not-yet-fired-count pager
   if ($to_serialize->{pager} and ref $to_serialize->{pager}{total_entries} eq 'CODE') {

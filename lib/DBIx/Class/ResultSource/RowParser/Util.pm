@@ -4,6 +4,7 @@ package # hide from the pauses
 use strict;
 use warnings;
 
+use List::Util 'first';
 use B 'perlstring';
 
 use base 'Exporter';
@@ -50,39 +51,42 @@ sub __visit_infmap_simple {
   my @relperl;
   for my $rel (sort keys %$rel_cols) {
 
-    # DISABLEPRUNE
-    #my $optional = $args->{is_optional};
-    #$optional ||= ($args->{rsrc}->relationship_info($rel)->{attrs}{join_type} || '') =~ /^left/i;
-
     push @relperl, join ' => ', perlstring($rel), __visit_infmap_simple({ %$args,
       val_index => $rel_cols->{$rel},
-      # DISABLEPRUNE
-      #non_top => 1,
-      #is_optional => $optional,
     });
 
-    # FIXME SUBOPTIMAL DISABLEPRUNE - disabled to satisfy t/resultset/inflate_result_api.t
-    #if ($optional and my @branch_null_checks = map
-    #  { "(! defined '\xFF__VALPOS__${_}__\xFF')" }
-    #  sort { $a <=> $b } values %{$rel_cols->{$rel}}
-    #) {
-    #  $relperl[-1] = sprintf ( '(%s) ? ( %s => [] ) : ( %s )',
-    #    join (' && ', @branch_null_checks ),
-    #    perlstring($rel),
-    #    $relperl[-1],
-    #  );
-    #}
+    if ($args->{prune_null_branches} and keys %$my_cols) {
+
+      my @branch_null_checks = map
+        { "( ! defined '\xFF__VALPOS__${_}__\xFF' )" }
+        sort { $a <=> $b } values %{$rel_cols->{$rel}}
+      ;
+
+      $relperl[-1] = sprintf ( '(%s) ? ( %s => %s ) : ( %s )',
+        join (' && ', @branch_null_checks ),
+        perlstring($rel),
+        $args->{hri_style} ? 'undef' : '[]',
+        $relperl[-1],
+      );
+    }
   }
 
-  my $me_struct = keys %$my_cols
-    ? __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) })
-    : 'undef'
-  ;
+  my $me_struct;
+  $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) })
+    if keys %$my_cols;
 
-  return sprintf '[%s]', join (',',
-    $me_struct,
-    @relperl ? sprintf ('{ %s }', join (',', @relperl)) : (),
-  );
+  if ($args->{hri_style}) {
+    $me_struct =~ s/^ \s* \{ | \} \s* $//gx
+      if $me_struct;
+
+    return sprintf '{ %s }', join (', ', $me_struct||(), @relperl);
+  }
+  else {
+    return sprintf '[%s]', join (',',
+      $me_struct || 'undef',
+      @relperl ? sprintf ('{ %s }', join (',', @relperl)) : (),
+    );
+  }
 }
 
 sub assemble_collapsing_parser {
@@ -100,7 +104,7 @@ sub assemble_collapsing_parser {
 
     my @path_parts = map { sprintf
       "( ( defined '\xFF__VALPOS__%d__\xFF' ) && (join qq(\xFF), '', %s, '') )",
-      $_->[0],  # checking just first is enough - one defined, all defined
+      $_->[0],  # checking just first is enough - one ID defined, all defined
       ( join ', ', map { "'\xFF__VALPOS__${_}__\xFF'" } @$_ ),
     } @variants;
 
@@ -126,10 +130,9 @@ sub assemble_collapsing_parser {
 
   my $list_of_idcols = join(', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } );
 
-  my $parser_src = sprintf (<<'EOS', $list_of_idcols, $top_node_key, $top_node_key_assembler||'', $data_assemblers);
+  my $parser_src = sprintf (<<'EOS', $list_of_idcols, $top_node_key, $top_node_key_assembler||'', join( "\n", @{$data_assemblers||[]} ) );
 ### BEGIN LITERAL STRING EVAL
   my ($rows_pos, $result_pos, $cur_row_data, %%cur_row_ids, @collapse_idx, $is_new_res) = (0,0);
-
   # this loop is a bit arcane - the rationale is that the passed in
   # $_[0] will either have only one row (->next) or will have all
   # rows already pulled in (->all and/or unordered). Given that the
@@ -141,11 +144,10 @@ sub assemble_collapsing_parser {
       ||
     ($_[1] and $_[1]->())
   ) {
-
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
-    #(otherwise folding of optional 1:1s will be greatly confused
+    # (otherwise folding of optional 1:1s will be greatly confused
     $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
       for (%1$s);
 
@@ -182,7 +184,7 @@ sub __visit_infmap_collapse {
 
   my $cur_node_idx = ${ $args->{-node_idx_counter} ||= \do { my $x = 0} }++;
 
-  my ($my_cols, $rel_cols);
+  my ($my_cols, $rel_cols) = {};
   for ( keys %{$args->{val_index}} ) {
     if ($_ =~ /^ ([^\.]+) \. (.+) /x) {
       $rel_cols->{$1}{$2} = $args->{val_index}{$_};
@@ -192,79 +194,105 @@ sub __visit_infmap_collapse {
     }
   }
 
+
   my $node_key = $args->{collapse_map}->{-custom_node_key} || join ('', map
     { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
     @{$args->{collapse_map}->{-identifying_columns}}
   );
 
-  my $me_struct = $my_cols
-    ? __visit_dump([{ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) }])
-    : undef
-  ;
+  my $me_struct;
+
+  if ($args->{hri_style}) {
+    delete $my_cols->{$_} for grep { $rel_cols->{$_} } keys %$my_cols;
+  }
+
+  if (keys %$my_cols) {
+    $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) });
+    $me_struct = "[ $me_struct ]" unless $args->{hri_style};
+  }
+
   my $node_idx_slot = sprintf '$collapse_idx[%d]%s', $cur_node_idx, $node_key;
 
-  my $parent_attach_slot = sprintf( '$collapse_idx[%d]%s[1]{%s}',
-    @{$args}{qw/-parent_node_idx -parent_node_key/},
-    perlstring($args->{-node_relname}),
-  ) if $args->{-node_relname};
-
   my @src;
+
   if ($cur_node_idx == 0) {
     push @src, sprintf( '%s ||= %s;',
       $node_idx_slot,
       $me_struct,
     ) if $me_struct;
   }
-  elsif ($args->{collapse_map}->{-is_single}) {
-    push @src, sprintf ( '%s ||= %s%s;',
-      $parent_attach_slot,
-      $node_idx_slot,
-      $me_struct ? " ||= $me_struct" : '',
-    );
-  }
   else {
-    push @src, sprintf('push @{%s}, %s%s unless %s;',
-      $parent_attach_slot,
-      $node_idx_slot,
-      $me_struct ? " ||= $me_struct" : '',
-      $node_idx_slot,
+    my $parent_attach_slot = sprintf( '$collapse_idx[%d]%s%s{%s}',
+      @{$args}{qw/-parent_node_idx -parent_node_key/},
+      $args->{hri_style} ? '' : '[1]',
+      perlstring($args->{-node_relname}),
     );
+
+    if ($args->{collapse_map}->{-is_single}) {
+      push @src, sprintf ( '%s ||= %s%s;',
+        $parent_attach_slot,
+        $node_idx_slot,
+        $me_struct ? " ||= $me_struct" : '',
+      );
+    }
+    else {
+      push @src, sprintf('(! %s) and push @{%s}, %s%s;',
+        $node_idx_slot,
+        $parent_attach_slot,
+        $node_idx_slot,
+        $me_struct ? " = $me_struct" : '',
+      );
+    }
   }
 
-  # DISABLEPRUNE
-  #my $known_defined = { %{ $parent_info->{known_defined} || {} } };
-  #$known_defined->{$_}++ for @{$args->{collapse_map}->{-identifying_columns}};
-  my $stats;
+  my $known_present_ids = { map { $_ => 1 } @{$args->{collapse_map}{-identifying_columns}} };
+  my ($stats, $rel_src);
+
   for my $rel (sort keys %$rel_cols) {
 
-#    push @src, sprintf(
-#      '%s[1]{%s} ||= [];', $node_idx_slot, perlstring($rel)
-#    ) unless $args->{collapse_map}->{$rel}{-is_single};
+    my $relinfo = $args->{collapse_map}{$rel};
+    if ($args->{collapse_map}{-is_optional}) {
+      $relinfo = { %$relinfo, -is_optional => 1 };
+    }
 
-    ($src[$#src + 1], $stats->{$rel}) = __visit_infmap_collapse({ %$args,
+    ($rel_src, $stats->{$rel}) = __visit_infmap_collapse({ %$args,
       val_index => $rel_cols->{$rel},
-      collapse_map => $args->{collapse_map}{$rel},
+      collapse_map => $relinfo,
       -parent_node_idx => $cur_node_idx,
       -parent_node_key => $node_key,
       -node_relname => $rel,
     });
 
-    # FIXME SUBOPTIMAL DISABLEPRUNE - disabled to satisfy t/resultset/inflate_result_api.t
-    #if ($args->{collapse_map}->{$rel}{-is_optional} and my @null_checks = map
-    #  { "(! defined '\xFF__IDVALPOS__${_}__\xFF')" }
-    #  sort { $a <=> $b } grep
-    #    { ! $known_defined->{$_} }
-    #    @{$args->{collapse_map}->{$rel}{-identifying_columns}}
-    #) {
-    #  $src[-1] = sprintf( '(%s) or %s',
-    #    join (' || ', @null_checks ),
-    #    $src[-1],
-    #  );
-    #}
+    my $rel_src_pos = $#src + 1;
+    push @src, @$rel_src;
+
+    if (
+      $args->{prune_null_branches}
+        and
+      $relinfo->{-is_optional}
+        and
+      defined ( my $first_distinct_child_idcol = first
+        { ! $known_present_ids->{$_} }
+        @{$relinfo->{-identifying_columns}}
+      )
+    ) {
+
+      $src[$rel_src_pos] = sprintf( '%s and %s',
+        "( defined '\xFF__VALPOS__${first_distinct_child_idcol}__\xFF' )",
+        $src[$rel_src_pos],
+      );
+
+      splice @src, $rel_src_pos + 1, 0, sprintf ( '%s%s{%s} ||= %s;',
+        $node_idx_slot,
+        $args->{hri_style} ? '' : '[1]',
+        perlstring($rel),
+        $args->{hri_style} && $relinfo->{-is_single} ? 'undef' : '[]',
+      );
+    }
   }
 
   return (
-    join("\n", @src),
+    \@src,
     {
       idcols_seen => {
         ( map { %{ $_->{idcols_seen} } } values %$stats ),

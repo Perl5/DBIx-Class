@@ -1182,40 +1182,30 @@ sub inflate_result {
     ref $class || $class
   ;
 
-  foreach my $pre (keys %{$prefetch||{}}) {
+  if ($prefetch) {
+    for my $pre ( keys %$prefetch ) {
 
-    my @pre_vals;
-    @pre_vals = (ref $prefetch->{$pre}[0] eq 'ARRAY')
-      ? @{$prefetch->{$pre}} : $prefetch->{$pre}
-    if @{$prefetch->{$pre}||[]};
+      my @pre_objects;
+      if (@{$prefetch->{$pre}||[]}) {
+        my $pre_source = $source->related_source($pre);
 
-    my $pre_source = $source->related_source($pre);
+        @pre_objects = map {
+          $pre_source->result_class->inflate_result( $pre_source, @$_ )
+        } ( ref $prefetch->{$pre}[0] eq 'ARRAY' ?  @{$prefetch->{$pre}} : $prefetch->{$pre} );
+      }
 
-    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
-      or $class->throw_exception("No accessor type declared for prefetched relationship '$pre'");
+      my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
+        or $class->throw_exception("No accessor type declared for prefetched relationship '$pre'");
 
-    my @pre_objects;
-    for my $me_pref (@pre_vals) {
+      if ($accessor eq 'single') {
+        $new->{_relationship_data}{$pre} = $pre_objects[0];
+      }
+      elsif ($accessor eq 'filter') {
+        $new->{_inflated_column}{$pre} = $pre_objects[0];
+      }
 
-      # FIXME SUBOPTIMAL - the new row parsers can very well optimize
-      # this away entirely, and *never* return such empty rows.
-      # For now we maintain inflate_result API backcompat, see
-      # t/resultset/inflate_result_api.t
-      next unless defined first { defined $_ } values %{$me_pref->[0]};
-
-      push @pre_objects, $pre_source->result_class->inflate_result(
-        $pre_source, @$me_pref
-      );
+      $new->related_resultset($pre)->set_cache(\@pre_objects);
     }
-
-    if ($accessor eq 'single') {
-      $new->{_relationship_data}{$pre} = $pre_objects[0];
-    }
-    elsif ($accessor eq 'filter') {
-      $new->{_inflated_column}{$pre} = $pre_objects[0];
-    }
-
-    $new->related_resultset($pre)->set_cache(\@pre_objects);
   }
 
   $new->in_storage (1);

@@ -300,9 +300,8 @@ for my $use_next (0, 1) {
       like( $_->title, qr/^e\d/, "correct title" )
         for $cd->tracks;
       ok( defined $cd->single_track, 'single track prefetched on 1987 cd' );
-      # FIXME - crap! skipping prefetch also doesn't work, next commit
-      #is( $cd->single_track->cd->artist->id, 1, 'Single_track->cd->artist prefetched on 1978 cd' );
-      #is( scalar $cd->single_track->cd->artist->cds, 6, '6 cds prefetched on artist' );
+      is( $cd->single_track->cd->artist->id, 1, 'Single_track->cd->artist prefetched on 1978 cd' );
+      is( scalar $cd->single_track->cd->artist->cds, 6, '6 cds prefetched on artist' );
     }
   }
 }

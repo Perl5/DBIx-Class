@@ -34,7 +34,6 @@ my $schema = DBICTest->init_schema();
     is ($rs->result_class, 'DBICTest::CDSubclass', 'original class unchanged');
     is ($hri_rs->result_class, 'DBIx::Class::ResultClass::HashRefInflator', 'result_class accessor pre-set via attribute');
 
-
     my $datahashref1 = $hri_rs->next;
     is_deeply(
       [ sort keys %$datahashref1 ],

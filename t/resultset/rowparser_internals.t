@@ -15,7 +15,10 @@ use Data::Dumper;
 $Data::Dumper::Sortkeys = 1;
 
 my $schema = DBICTest->init_schema(no_deploy => 1);
-my $infmap = [qw/single_track.cd.artist.name year/];
+my $infmap = [qw/
+  single_track.cd.artist.name
+  year
+/];
 
 is_same_src (
   $schema->source ('CD')->_mk_row_parser({
@@ -68,6 +71,81 @@ is_same_src (
   ] for @{$_[0]}',
   '1:1 descending non-collapsing parser terminating with chained 1:M:M',
 );
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    prune_null_branches => 1,
+    inflate_map => $infmap,
+  }),
+  '$_ = [
+    { artist => $_->[5], title => $_->[4], year => $_->[2] },
+    {
+      ( (! defined $_->[0] ) && (! defined $_->[1]) && (! defined $_->[3] ) )
+        ? ( single_track => [] )
+        : ( single_track => [
+          undef,
+          {
+            cd => [
+              undef,
+              {
+                artist => [
+                  { artistid => $_->[1] },
+                  {
+                    ( (! defined $_->[0] ) && ( ! defined $_->[3] ) )
+                      ? ( cds => [] )
+                      : ( cds => [
+                        { cdid => $_->[3] },
+                        {
+                          ( ! defined $_->[0] )
+                            ? ( tracks => [] )
+                            : ( tracks => [{ title => $_->[0] }] )
+                        }
+                      ])
+                  }
+                ]
+              }
+            ]
+          }
+        ])
+    }
+  ] for @{$_[0]}',
+  '1:1 descending non-collapsing null-pruning parser terminating with chained 1:M:M',
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    prune_null_branches => 1,
+    hri_style => 1,
+    inflate_map => $infmap,
+  }),
+  '$_ = {
+      artist => $_->[5], title => $_->[4], year => $_->[2],
+
+      ( (! defined $_->[0] ) && (! defined $_->[1]) && (! defined $_->[3] ) )
+        ? ( single_track => undef )
+        : ( single_track => {
+            cd =>
+              {
+                artist => {
+                    artistid => $_->[1],
+                    ( (! defined $_->[0] ) && ( ! defined $_->[3] ) )
+                      ? ( cds => undef )
+                      : ( cds => {
+                          cdid => $_->[3],
+                          ( ! defined $_->[0] )
+                            ? ( tracks => undef )
+                            : ( tracks => { title => $_->[0] } )
+                        }
+                       )
+                  }
+              }
+          }
+        )
+    } for @{$_[0]}',
+  '1:1 descending non-collapsing null-pruning HRI-direct parser terminating with chained 1:M:M',
+);
+
+
 
 is_deeply (
   ($schema->source('CD')->_resolve_collapse({ as => {map { $infmap->[$_] => $_ } 0 .. $#$infmap} })),
@@ -136,12 +214,18 @@ is_same_src (
       $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ artistid => $cur_row_data->[1] }];
 
       # prefetch data of cds (if available)
-      push @{$collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cds}}, $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ cdid => $cur_row_data->[3] }]
-        unless $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
+        and
+      push @{$collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cds}}, (
+        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [{ cdid => $cur_row_data->[3] }]
+      );
 
       # prefetch data of tracks (if available)
-      push @{$collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{tracks}}, $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= [{ title => $cur_row_data->[0] }]
-        unless $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
+        and
+      push @{$collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{tracks}}, (
+        $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [{ title => $cur_row_data->[0] }]
+      );
 
       $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}
         if $is_new_res;
@@ -149,6 +233,70 @@ is_same_src (
     splice @{$_[0]}, $result_pos;
   ',
   'Same 1:1 descending terminating with chained 1:M:M but with collapse',
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    inflate_map => $infmap,
+    collapse => 1,
+    prune_null_branches => 1,
+    hri_style => 1,
+  }),
+  ' my($rows_pos, $result_pos, $cur_row_data, %cur_row_ids, @collapse_idx, $is_new_res) = (0, 0);
+
+    while ($cur_row_data = (
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+        ||
+      ( $_[1] and $_[1]->() )
+    ) {
+
+      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
+        for (0, 1, 3, 4, 5);
+
+      # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
+      $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
+        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} );
+
+      # the rowdata itself for root node
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} ||= { artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] };
+
+      # prefetch data of single_track (placed in root)
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} ||= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}
+        if defined $cur_row_data->[1];
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} ||= undef;
+
+      # prefetch data of cd (placed in single_track)
+      $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cd} ||= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+
+      # prefetch data of artist ( placed in single_track->cd)
+      $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{artist} ||= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= { artistid => $cur_row_data->[1] };
+
+      # prefetch data of cds (if available)
+      ( defined $cur_row_data->[3] )
+        and
+      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
+        and
+      push @{$collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cds}}, (
+        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = { cdid => $cur_row_data->[3] }
+      );
+      $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cds} ||= [];
+
+      # prefetch data of tracks (if available)
+      ( defined $cur_row_data->[0] )
+        and
+      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
+        and
+      push @{$collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}{tracks}}, (
+        $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = { title => $cur_row_data->[0] }
+      );
+      $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}{tracks} ||= [];
+
+      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}
+        if $is_new_res;
+    }
+    splice @{$_[0]}, $result_pos;
+  ',
+  'Same 1:1 descending terminating with chained 1:M:M but with collapse, pruning, hri-style',
 );
 
 $infmap = [qw/
@@ -238,19 +386,31 @@ is_same_src (
       $collapse_idx[1]{$cur_row_ids{1}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}};
       $collapse_idx[2]{$cur_row_ids{1}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}} ||= [{ artistid => $cur_row_data->[1] }];
 
-      push @{ $collapse_idx[3]{$cur_row_ids{1}}[1]{cds} }, $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} ||= [{ cdid => $cur_row_data->[6], genreid => $cur_row_data->[9], year => $cur_row_data->[2] }]
-        unless $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}};
+      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} )
+        and
+      push @{ $collapse_idx[3]{$cur_row_ids{1}}[1]{cds} }, (
+        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} = [{ cdid => $cur_row_data->[6], genreid => $cur_row_data->[9], year => $cur_row_data->[2] }]
+      );
 
-      push @{ $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks} }, $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} ||= [{ title => $cur_row_data->[8] }]
-        unless $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}};
+      (! $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} )
+        and
+      push @{ $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks} }, (
+        $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} = [{ title => $cur_row_data->[8] }]
+      );
 
-      push @{ $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} }, $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} ||= [{ title => $cur_row_data->[5] }]
-        unless $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}};
+      (! $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} )
+        and
+      push @{ $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} }, (
+        $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} = [{ title => $cur_row_data->[5] }]
+      );
 
       $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}};
 
-      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} }, $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} ||= [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
-        unless $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}};
+      (! $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} )
+        and
+      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} }, (
+        $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
+      );
 
       $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{1}}
         if $is_new_res;
@@ -259,6 +419,83 @@ is_same_src (
     splice @{$_[0]}, $result_pos;
   ',
   'Multiple has_many on multiple branches torture test',
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    inflate_map => $infmap,
+    collapse => 1,
+    prune_null_branches => 1,
+  }),
+  ' my ($rows_pos, $result_pos, $cur_row_data, %cur_row_ids, @collapse_idx, $is_new_res) = (0,0);
+
+    while ($cur_row_data = (
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+        ||
+      ( $_[1] and $_[1]->() )
+    ) {
+
+      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
+        for (0, 1, 5, 6, 8, 10);
+
+      # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
+      $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
+        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_ids{1}} );
+
+      $collapse_idx[0]{$cur_row_ids{1}} ||= [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
+
+      $collapse_idx[0]{$cur_row_ids{1}}[1]{existing_single_track} ||= $collapse_idx[1]{$cur_row_ids{1}};
+      $collapse_idx[1]{$cur_row_ids{1}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}};
+      $collapse_idx[2]{$cur_row_ids{1}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}} ||= [{ artistid => $cur_row_data->[1] }];
+
+      (defined $cur_row_data->[6])
+        and
+      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} )
+        and
+      push @{ $collapse_idx[3]{$cur_row_ids{1}}[1]{cds} }, (
+        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} = [{ cdid => $cur_row_data->[6], genreid => $cur_row_data->[9], year => $cur_row_data->[2] }]
+      );
+      $collapse_idx[3]{$cur_row_ids{1}}[1]{cds} ||= [];
+
+      (defined $cur_row_data->[8])
+        and
+      (! $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} )
+        and
+      push @{ $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks} }, (
+        $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} = [{ title => $cur_row_data->[8] }]
+      );
+      $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks} ||= [];
+
+      (defined $cur_row_data->[5])
+        and
+      (! $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} )
+        and
+      push @{ $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} }, (
+        $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} = [{ title => $cur_row_data->[5] }]
+      );
+      $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} ||= [];
+
+      (defined $cur_row_data->[10])
+        and
+      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}};
+      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= [];
+
+      (defined $cur_row_data->[0])
+        and
+      (! $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} )
+        and
+      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} }, (
+        $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
+      );
+      $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} ||= [];
+
+      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{1}}
+        if $is_new_res;
+    }
+
+    splice @{$_[0]}, $result_pos;
+  ',
+  'Multiple has_many on multiple branches with branch pruning torture test',
 );
 
 $infmap = [
@@ -346,17 +583,23 @@ is_same_src (
 
       $collapse_idx[2]{$cur_row_ids{0}}[1]{artist} ||= ($collapse_idx[3]{$cur_row_ids{0}} ||= [{ artistid => $$cur_row_data[6] }]);
 
-      push @{$collapse_idx[3]{$cur_row_ids{0}}[1]{cds}},
-          $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} ||= [{ cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }]
-        unless $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}};
+      (! $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} )
+        and
+      push @{$collapse_idx[3]{$cur_row_ids{0}}[1]{cds}}, (
+          $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} = [{ cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }]
+      );
 
-      push @{$collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}[1]{tracks}},
-          $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} ||= [{ title => $$cur_row_data[8] }]
-        unless $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}};
+      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} )
+        and
+      push @{$collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}[1]{tracks}}, (
+          $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} = [{ title => $$cur_row_data[8] }]
+      );
 
-      push @{$collapse_idx[0]{$cur_row_ids{10}}[1]{tracks}},
-          $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} ||= [{ cd => $$cur_row_data[2], title => $$cur_row_data[3] }]
-        unless $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}};
+      (! $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} )
+        and
+      push @{$collapse_idx[0]{$cur_row_ids{10}}[1]{tracks}}, (
+          $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} = [{ cd => $$cur_row_data[2], title => $$cur_row_data[3] }]
+      );
 
       $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{10}}
         if $is_new_res;
@@ -365,6 +608,84 @@ is_same_src (
     splice @{$_[0]}, $result_pos;
   ',
   'Multiple has_many on multiple branches with underdefined root torture test',
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
+    inflate_map => $infmap,
+    collapse => 1,
+    prune_null_branches => 1,
+    hri_style => 1,
+  }),
+  ' my($rows_pos, $result_pos, $cur_row_data, %cur_row_ids, @collapse_idx, $is_new_res) = (0, 0);
+
+    while ($cur_row_data = (
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+        ||
+      ( $_[1] and $_[1]->() )
+    ) {
+
+      $cur_row_ids{$_} = defined $$cur_row_data[$_] ? $$cur_row_data[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
+        for (0, 2, 3, 4, 8);
+
+      # cache expensive set of ops in a non-existent rowid slot
+      $cur_row_ids{10} = (
+        ( ( defined $cur_row_data->[0] ) && (join "\xFF", q{}, $cur_row_data->[0], q{} ))
+          or
+        ( ( defined $cur_row_data->[2] ) && (join "\xFF", q{}, $cur_row_data->[2], q{} ))
+          or
+        "\0$rows_pos\0"
+      );
+
+      # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
+      $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
+        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_ids{10}} );
+
+      $collapse_idx[0]{$cur_row_ids{10}} ||= { year => $$cur_row_data[1] };
+
+      (defined $cur_row_data->[0])
+        and
+      $collapse_idx[0]{$cur_row_ids{10}}{single_track} ||= ($collapse_idx[1]{$cur_row_ids{0}} ||= { trackid => $$cur_row_data[0] });
+      $collapse_idx[0]{$cur_row_ids{10}}{single_track} ||= undef;
+
+      $collapse_idx[1]{$cur_row_ids{0}}{cd} ||= $collapse_idx[2]{$cur_row_ids{0}};
+
+      $collapse_idx[2]{$cur_row_ids{0}}{artist} ||= ($collapse_idx[3]{$cur_row_ids{0}} ||= { artistid => $$cur_row_data[6] });
+
+      (defined $cur_row_data->[4])
+        and
+      (! $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} )
+        and
+      push @{$collapse_idx[3]{$cur_row_ids{0}}{cds}}, (
+          $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} = { cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }
+      );
+      $collapse_idx[3]{$cur_row_ids{0}}{cds} ||= [];
+
+      (defined $cur_row_data->[8])
+        and
+      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} )
+        and
+      push @{$collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}{tracks}}, (
+          $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} = { title => $$cur_row_data[8] }
+      );
+      $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}{tracks} ||= [];
+
+      (defined $cur_row_data->[2])
+        and
+      (! $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} )
+        and
+      push @{$collapse_idx[0]{$cur_row_ids{10}}{tracks}}, (
+          $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} = { cd => $$cur_row_data[2], title => $$cur_row_data[3] }
+      );
+      $collapse_idx[0]{$cur_row_ids{10}}{tracks} ||= [];
+
+      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{10}}
+        if $is_new_res;
+    }
+
+    splice @{$_[0]}, $result_pos;
+  ',
+  'Multiple has_many on multiple branches with underdefined root, hri style with branch pruning torture test',
 );
 
 done_testing;
@@ -381,6 +702,9 @@ sub is_same_src {
     };
     $deparser->coderef2text($cref);
   } @_[0,1];
+
+#use Test::Differences;
+#eq_or_diff($got, $expect);
 
   is ($got, $expect, $_[2]||() )
     or note ("Originals source:\n\n$_[0]\n\n$_[1]\n");
