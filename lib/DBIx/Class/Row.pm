@@ -1181,9 +1181,6 @@ L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
 
-  $source = $source->resolve
-    if $source->isa('DBIx::Class::ResultSourceHandle');
-
   my $new = bless
     { _column_data => $me, _result_source => $source },
     ref $class || $class
