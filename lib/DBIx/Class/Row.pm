@@ -22,6 +22,8 @@ BEGIN {
 
 use namespace::clean;
 
+__PACKAGE__->mk_group_accessors ( simple => [ in_storage => '_in_storage' ] );
+
 =head1 NAME
 
 DBIx::Class::Row - Basic row methods
@@ -176,7 +178,7 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = bless { _column_data => {} }, $class;
+  my $new = bless { _column_data => {}, _in_storage => 0 }, $class;
 
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
@@ -480,13 +482,6 @@ are used.
 Creating a result object using L<DBIx::Class::ResultSet/new_result>, or
 calling L</delete> on one, sets it to false.
 
-=cut
-
-sub in_storage {
-  my ($self, $val) = @_;
-  $self->{_in_storage} = $val if @_ > 1;
-  return $self->{_in_storage} ? 1 : 0;
-}
 
 =head2 update
 
@@ -619,7 +614,7 @@ sub delete {
     );
 
     delete $self->{_column_data_in_storage};
-    $self->in_storage(undef);
+    $self->in_storage(0);
   }
   else {
     my $rsrc = try { $self->result_source_instance }
@@ -773,6 +768,7 @@ Marks a column as having been changed regardless of whether it has
 really changed.
 
 =cut
+
 sub make_column_dirty {
   my ($self, $column) = @_;
 
