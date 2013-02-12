@@ -113,9 +113,11 @@ sub next {
     return;
   }
 
-
   unless ($sth = $self->sth) {
-    (undef, $sth) = $self->storage->_select( @{$self->{args}} );
+    (undef, $sth, undef) = $self->storage->_select( @{$self->{args}} );
+
+    $self->{_results} = [ (undef) x $sth->FETCH('NUM_OF_FIELDS') ];
+    $sth->bind_columns( \( @{$self->{_results}} ) );
 
     if ( $self->{attrs}{software_limit} and $self->{attrs}{offset} ) {
       $sth->fetch for 1 .. $self->{attrs}{offset};
@@ -124,14 +126,13 @@ sub next {
     $self->sth($sth);
   }
 
-  my $row = $sth->fetchrow_arrayref;
-  if ($row) {
+  if ($sth->fetch) {
     $self->{_pos}++;
+    return @{$self->{_results}};
   } else {
     $self->{_done} = 1;
+    return ();
   }
-
-  return @{$row||[]};
 }
 
 
