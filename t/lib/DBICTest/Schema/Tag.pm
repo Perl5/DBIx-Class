@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::Tag;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('tags');

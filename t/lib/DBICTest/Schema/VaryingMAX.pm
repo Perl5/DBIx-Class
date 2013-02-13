@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::VaryingMAX;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 # Test VARCHAR(MAX) type for MSSQL (used in ADO tests)

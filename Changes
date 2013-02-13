@@ -8,6 +8,7 @@ Revision history for DBIx::Class
     * Misc
         - Fixup our distbuilding process to stop creating world-writable
           tarball contents (implicitly fixes RT#83084)
+        - Added strict and warnings tests for all lib and test files
 
 0.08206 2013-02-08
     * Fixes

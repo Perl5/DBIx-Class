@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::CustomSql;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::Schema::Artist/;
 
 __PACKAGE__->table('dummy');

@@ -1,6 +1,6 @@
-use Test::More;
-
 use strict;
+use warnings;
+use Test::More;
 
 use lib 't/cdbi/testlib';
 use Actor;

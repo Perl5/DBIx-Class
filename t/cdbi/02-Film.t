@@ -1,4 +1,6 @@
 use strict;
+use warnings;
+
 use Test::More;
 use Scalar::Util 'refaddr';
 use namespace::clean;

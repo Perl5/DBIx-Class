@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::CD;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 # this tests table name as scalar ref

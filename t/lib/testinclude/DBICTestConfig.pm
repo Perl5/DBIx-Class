@@ -1,4 +1,8 @@
 package DBICTestConfig;
+
+use warnings;
+use strict;
+
 use base 'DBICTest::BaseSchema';
 
 sub connect {

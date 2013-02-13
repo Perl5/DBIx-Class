@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::CD_to_Producer;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('cd_to_producer');

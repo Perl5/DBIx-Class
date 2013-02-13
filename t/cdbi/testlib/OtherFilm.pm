@@ -1,7 +1,9 @@
 package # hide from PAUSE
     OtherFilm;
 
+use warnings;
 use strict;
+
 use base 'Film';
 
 __PACKAGE__->set_table('Different_Film');

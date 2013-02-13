@@ -1,10 +1,10 @@
 package # hide from PAUSE
     DBICTest::Schema::Link;
 
-use base qw/DBICTest::BaseResult/;
-
 use strict;
 use warnings;
+
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('link');
 __PACKAGE__->add_columns(

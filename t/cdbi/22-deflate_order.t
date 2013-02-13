@@ -1,4 +1,5 @@
 $| = 1;
+use warnings;
 use strict;
 
 use Test::More;

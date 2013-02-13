@@ -1,8 +1,10 @@
 package # hide from PAUSE
     Lazy;
 
-use base 'DBIC::Test::SQLite';
+use warnings;
 use strict;
+
+use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table("Lazy");
 __PACKAGE__->columns('Primary',   qw(this));

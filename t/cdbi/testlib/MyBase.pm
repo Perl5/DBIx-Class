@@ -1,7 +1,9 @@
 package # hide from PAUSE
     MyBase;
 
+use warnings;
 use strict;
+
 use DBI;
 
 use lib 't/lib';

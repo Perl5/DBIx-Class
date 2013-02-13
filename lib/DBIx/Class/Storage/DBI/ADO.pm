@@ -1,5 +1,8 @@
 package DBIx::Class::Storage::DBI::ADO;
 
+use warnings;
+use strict;
+
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 

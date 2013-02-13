@@ -1,9 +1,10 @@
 package # hide from PAUSE
     MyStarLink;
 
-use base 'MyBase';
-
+use warnings;
 use strict;
+
+use base 'MyBase';
 
 __PACKAGE__->set_table();
 __PACKAGE__->columns(All => qw/linkid film star/);

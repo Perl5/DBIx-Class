@@ -1,7 +1,9 @@
 package # hide from PAUSE
     Director;
 
+use warnings;
 use strict;
+
 use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('Directors');

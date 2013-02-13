@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::Employee;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->load_components(qw( Ordered ));

@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::CollectionObject;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('collection_object');

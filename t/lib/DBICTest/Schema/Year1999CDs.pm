@@ -2,6 +2,9 @@ package # hide from PAUSE
     DBICTest::Schema::Year1999CDs;
 ## Used in 104view.t
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');

@@ -1,4 +1,8 @@
 package OtherThing;
+
+use warnings;
+use strict;
+
 use base 'DBIC::Test::SQLite';
 
 OtherThing->set_table("other_thing");

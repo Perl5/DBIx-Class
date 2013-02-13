@@ -1,12 +1,13 @@
 package # hide from PAUSE
     MyStarLinkMCPK;
 
+use warnings;
+use strict;
+
 use base 'MyBase';
 
 use MyStar;
 use MyFilm;
-
-use strict;
 
 # This is a many-to-many mapping table that uses the two foreign keys
 # as its own primary key - there's no extra 'auto-inc' column here

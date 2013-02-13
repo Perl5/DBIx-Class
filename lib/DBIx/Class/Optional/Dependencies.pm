@@ -189,6 +189,12 @@ my $reqs = {
     },
   },
 
+  test_strictures => {
+    req => {
+      'Test::Strict'              => '0.16',
+    },
+  },
+
   test_prettydebug => {
     req => $json_any,
   },
