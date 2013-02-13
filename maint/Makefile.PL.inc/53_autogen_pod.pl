@@ -133,9 +133,8 @@ EOP
 clonedir_cleanup_generated_files : dbic_clonedir_cleanup_generated_pod_copies
 
 dbic_clonedir_cleanup_generated_pod_copies :
-\t@{[
-  $mm_proto->oneliner("uninstall(q($pod_dir.packlist))", ['-MExtUtils::Install'])
-]}
+\t@{[ $mm_proto->oneliner('chomp && unlink || die', ['-n']) ]} $pod_dir.packlist
+\t\$(RM_F) $pod_dir.packlist
 
 EOP
 }

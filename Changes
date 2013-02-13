@@ -5,6 +5,10 @@ Revision history for DBIx::Class
           aggregate function is used more than once in a 'having' clause
           (RT#83305)
 
+    * Misc
+        - Fixup our distbuilding process to stop creating world-writable
+          tarball contents (implicitly fixes RT#83084)
+
 0.08206 2013-02-08
     * Fixes
         - Fix dbh_do() failing to properly reconnect (regression in 0.08205)
