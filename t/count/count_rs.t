@@ -168,4 +168,42 @@ my $schema = DBICTest->init_schema();
   is ($crs->next, 2, 'Correct artist count (each with one 2001 cd)');
 }
 
+# count with two having clauses
+{
+  my $rs = $schema->resultset("Artist")->search(
+    {},
+    {
+      join      => 'cds',
+      group_by  => 'me.artistid',
+      '+select' => [ { max => 'cds.year', -as => 'newest_cd_year' } ],
+      '+as'     => ['newest_cd_year'],
+      having    => { 'newest_cd_year' => [ '1998', '2001' ] }
+    }
+  );
+
+  my $crs = $rs->count_rs;
+
+  is_same_sql_bind (
+    $crs->as_query,
+    '(SELECT COUNT( * )
+      FROM (
+        SELECT me.artistid, MAX( cds.year ) AS newest_cd_year
+          FROM artist me
+          LEFT JOIN cd cds ON cds.artist = me.artistid
+        GROUP BY me.artistid
+        HAVING newest_cd_year = ? OR newest_cd_year = ?
+      ) me
+    )',
+    [
+      [ { dbic_colname => 'newest_cd_year' }
+          => '1998' ],
+      [ { dbic_colname => 'newest_cd_year' }
+          => '2001' ],
+    ],
+    'count with having clause keeps sql as alias',
+  );
+
+  is ($crs->next, 3, 'Correct artist count (each with one 1998 or 2001 cd)');
+}
+
 done_testing;

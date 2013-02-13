@@ -1591,18 +1591,22 @@ sub _count_subq_rs {
 
       my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
-      my $sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
+      my $having_sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
+      my %seen_having;
 
       # search for both a proper quoted qualified string, for a naive unquoted scalarref
       # and if all fails for an utterly naive quoted scalar-with-function
-      while ($sql =~ /
+      while ($having_sql =~ /
         $rquote $sep $lquote (.+?) $rquote
           |
         [\s,] \w+ \. (\w+) [\s,]
           |
         [\s,] $lquote (.+?) $rquote [\s,]
       /gx) {
-        push @parts, ($1 || $2 || $3);  # one of them matched if we got here
+        my $part = $1 || $2 || $3;  # one of them matched if we got here
+        unless ($seen_having{$part}++) {
+          push @parts, $part;
+        }
       }
     }
 

@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix duplicated selected columns when calling 'count' when a same
+          aggregate function is used more than once in a 'having' clause
+          (RT#83305)
+
 0.08206 2013-02-08
     * Fixes
         - Fix dbh_do() failing to properly reconnect (regression in 0.08205)

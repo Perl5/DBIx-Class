@@ -303,6 +303,8 @@ amiri: Amiri Barksdale <amiri@metalabel.com>
 
 amoore: Andrew Moore <amoore@cpan.org>
 
+andrewalker: Andre Walker <andre@andrewalker.net>
+
 andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
