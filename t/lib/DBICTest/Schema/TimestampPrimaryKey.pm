@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::TimestampPrimaryKey;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('timestamp_primary_key_test');

@@ -4,9 +4,12 @@ package #hide from pause
 use strict;
 use warnings;
 
+# must load before any DBIx::Class* namespaces
+use DBICTest::RunMode;
+
+use base 'DBIx::Class::Core';
+
 #use base qw/DBIx::Class::Relationship::Cascade::Rekey DBIx::Class::Core/;
-use base qw/DBIx::Class::Core/;
-use DBICTest::BaseResultSet;
 
 __PACKAGE__->table ('bogus');
 __PACKAGE__->resultset_class ('DBICTest::BaseResultSet');

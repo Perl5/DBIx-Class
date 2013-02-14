@@ -45,7 +45,7 @@ sub _has_one {
       $guess = "using primary key of foreign class for foreign key";
     }
     $class->throw_exception(
-      "No such column ${f_key} on foreign class ${f_class} ($guess)"
+      "No such column '$f_key' on foreign class ${f_class} ($guess)"
     ) if $f_class_loaded && !$f_class->has_column($f_key);
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
@@ -90,7 +90,7 @@ sub _validate_has_one_condition {
     # warning
     return unless $self_id =~ /^self\.(.*)$/;
     my $key = $1;
-    $class->throw_exception("Defining rel on ${class} that includes ${key} but no such column defined here yet")
+    $class->throw_exception("Defining rel on ${class} that includes '$key' but no such column defined here yet")
         unless $class->has_column($key);
     my $column_info = $class->column_info($key);
     if ( $column_info->{is_nullable} ) {

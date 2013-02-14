@@ -117,7 +117,12 @@ almost like you would define a regular ResultSource.
 
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
-  # ->table, ->add_columns, etc.
+  # For the time being this is necessary even for virtual views
+  __PACKAGE__->table($view_name);
+
+  #
+  # ->add_columns, etc.
+  #
 
   # do not attempt to deploy() this view
   __PACKAGE__->result_source_instance->is_virtual(1);
@@ -349,8 +354,8 @@ from, select, and +select attributes.
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
-        { artist_id => { '=' => { -ident => 'me.artist_id' } } },
-        { alias => 'inner' }
+        { artist_id => { -ident => 'me.artist_id' } },
+        { alias => 'sub_query' }
       )->get_column('year')->max_rs->as_query,
     },
   });
@@ -359,11 +364,11 @@ That creates the following SQL:
 
   SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
     FROM cd me
-   WHERE year = (
-      SELECT MAX(inner.year)
-        FROM cd inner
-       WHERE artist_id = me.artist_id
-      )
+  WHERE year = (
+    SELECT MAX(sub_query.year)
+      FROM cd sub_query
+    WHERE artist_id = me.artist_id
+  )
 
 =head2 Predefined searches
 
@@ -439,6 +444,35 @@ etc.), but this may change in the future.
 
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.
+
+=head2 Software Limits
+
+When your RDBMS does not have a working SQL limit mechanism (e.g. Sybase ASE)
+and L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ> is either too slow or does
+not work at all, you can try the
+L<software_limit|DBIx::Class::ResultSet/software_limit>
+L<DBIx::Class::ResultSet> attribute, which skips over records to simulate limits
+in the Perl layer.
+
+For example:
+
+  my $paged_rs = $rs->search({}, {
+    rows => 25,
+    page => 3,
+    order_by => [ 'me.last_name' ],
+    software_limit => 1,
+  });
+
+You can set it as a default for your schema by placing the following in your
+C<Schema.pm>:
+
+  __PACKAGE__->default_resultset_attributes({ software_limit => 1 });
+
+B<WARNING:> If you are dealing with large resultsets and your L<DBI> or
+ODBC/ADO driver does not have proper cursor support (i.e. it loads the whole
+resultset into memory) then this feature will be extremely slow and use huge
+amounts of memory at best, and may cause your process to run out of memory and
+cause instability on your server at worst, beware!
 
 =head1 JOINS AND PREFETCHING
 
@@ -683,9 +717,9 @@ SQL statements:
 
 =head1 ROW-LEVEL OPERATIONS
 
-=head2 Retrieving a row object's Schema
+=head2 Retrieving a result object's Schema
 
-It is possible to get a Schema object from a row object like so:
+It is possible to get a Schema object from a result object like so:
 
   my $schema = $cd->result_source->schema;
   # use the schema as normal:
@@ -930,7 +964,7 @@ B<Test File> test.pl
 Alternatively you can use L<DBIx::Class::DynamicSubclass> that implements
 exactly the above functionality.
 
-=head2 Skip row object creation for faster results
+=head2 Skip result object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
@@ -1029,7 +1063,7 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Creating a result set from a set of rows
 
-Sometimes you have a (set of) row objects that you want to put into a
+Sometimes you have a (set of) result objects that you want to put into a
 resultset without the need to hit the DB again. You can do that by using the
 L<set_cache|DBIx::Class::Resultset/set_cache> method:
 
@@ -1907,8 +1941,9 @@ just looking for this.
 For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
-You can accomplish this by wrapping the C<number> accessor with
-L<Class::Method::Modifiers>:
+You can accomplish this by wrapping the C<number> accessor with the C<around>
+method modifier, available through either L<Class::Method::Modifiers>,
+L<Moose|Moose::Manual::MethodModifiers> or L<Moose-like|Moo> modules):
 
   around number => sub {
     my ($orig, $self) = (shift, shift);
@@ -1919,7 +1954,7 @@ L<Class::Method::Modifiers>:
     }
 
     $self->$orig(@_);
-  }
+  };
 
 Note that the hard work is done by the call to C<< $self->$orig >>, which
 redispatches your call to store_column in the superclass(es).
@@ -2128,8 +2163,8 @@ L</Using joins and prefetch>.
 =item *
 
 Use L<populate|DBIx::Class::ResultSet/populate> in void context to insert data
-when you don't need the resulting L<DBIx::Class::Row> objects, if possible, but
-see the caveats.
+when you don't need the resulting L<result|DBIx::Class::Manual::ResultClass> objects,
+if possible, but see the caveats.
 
 When inserting many rows, for best results, populate a large number of rows at a
 time, but not so large that the table is locked for an unacceptably long time.

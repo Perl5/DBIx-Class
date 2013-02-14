@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 use Test::More;
 
 INIT {
@@ -89,13 +90,14 @@ eval {
 };
 is $@, '', "No errors";
 
-TODO: { local $TODO = 'TODOifying failing tests, waiting for Schwern'; ok (1, 'remove me');
 eval {
     my $data = { %$data };
     $data->{NumExplodingSheep} = 3;
     ok my $bt = Film->find_or_create($data),
     "find_or_create Modified accessor - create with column name";
     isa_ok $bt, "Film";
+
+    local $TODO = 'TODOifying failing tests, waiting for Schwern';
     is $bt->sheep, 3, 'sheep bursting violently';
 };
 is $@, '', "No errors";
@@ -106,6 +108,8 @@ eval {
     ok my $bt = Film->find_or_create($data),
     "find_or_create Modified accessor - create with accessor";
     isa_ok $bt, "Film";
+
+    local $TODO = 'TODOifying failing tests, waiting for Schwern';
     is $bt->sheep, 4, 'sheep bursting violently';
 };
 is $@, '', "No errors";
@@ -114,8 +118,9 @@ eval {
     my @film = Film->search({ sheep => 1 });
     is @film, 2, "Can search with modified accessor";
 };
-is $@, '', "No errors";
-
+{
+  local $TODO = 'TODOifying failing tests, waiting for Schwern';
+  is $@, '', "No errors";
 }
 
 {

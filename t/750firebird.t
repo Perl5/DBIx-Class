@@ -42,6 +42,8 @@ for my $prefix (keys %$env2optdep) { SKIP: {
 
   next unless $dsn;
 
+  note "Testing with ${prefix}_DSN";
+
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
@@ -125,6 +127,7 @@ EOF
 # test savepoints
   throws_ok {
     $schema->txn_do(sub {
+      my ($schema, $ars) = @_;
       eval {
         $schema->txn_do(sub {
           $ars->create({ name => 'in_savepoint' });
@@ -135,7 +138,7 @@ EOF
         'savepoint rolled back');
       $ars->create({ name => 'in_outer_txn' });
       die "rolling back outer txn";
-    });
+    }, $schema, $ars);
   } qr/rolling back outer txn/,
     'correct exception for rollback';
 

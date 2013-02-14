@@ -201,7 +201,7 @@ sub _flate_or_fallback
     $parser->$method($value);
   }
   catch {
-    $self->throw_exception ("Error while inflating ${value} for $info->{__dbic_colname} on ${self}: $_")
+    $self->throw_exception ("Error while inflating '$value' for $info->{__dbic_colname} on ${self}: $_")
       unless $info->{datetime_undef_if_invalid};
     undef;  # rv
   };

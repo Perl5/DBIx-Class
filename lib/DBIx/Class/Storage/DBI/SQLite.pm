@@ -8,6 +8,7 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util 'looks_like_number';
+use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -91,6 +92,86 @@ sub _exec_svp_rollback {
   $self->_dbh->do("ROLLBACK TRANSACTION TO SAVEPOINT $name");
 }
 
+sub _ping {
+  my $self = shift;
+
+  # Be extremely careful what we do here. SQLite is notoriously bad at
+  # synchronizing its internal transaction state with {AutoCommit}
+  # https://metacpan.org/source/ADAMK/DBD-SQLite-1.37/lib/DBD/SQLite.pm#L921
+  # There is a function http://www.sqlite.org/c3ref/get_autocommit.html
+  # but DBD::SQLite does not expose it (nor does it seem to properly use it)
+
+  # Therefore only execute a "ping" when we have no other choice *AND*
+  # scrutinize the thrown exceptions to make sure we are where we think we are
+  my $dbh = $self->_dbh or return undef;
+  return undef unless $dbh->FETCH('Active');
+  return undef unless $dbh->ping;
+
+  # since we do not have access to sqlite3_get_autocommit(), do a trick
+  # to attempt to *safely* determine what state are we *actually* in.
+  # FIXME
+  # also using T::T here leads to bizarre leaks - will figure it out later
+  my $really_not_in_txn = do {
+    local $@;
+
+    # older versions of DBD::SQLite do not properly detect multiline BEGIN/COMMIT
+    # statements to adjust their {AutoCommit} state. Hence use such a statement
+    # pair here as well, in order to escape from poking {AutoCommit} needlessly
+    # https://rt.cpan.org/Public/Bug/Display.html?id=80087
+    eval {
+      # will fail instantly if already in a txn
+      $dbh->do("-- multiline\nBEGIN");
+      $dbh->do("-- multiline\nCOMMIT");
+      1;
+    } or do {
+      ($@ =~ /transaction within a transaction/)
+        ? 0
+        : undef
+      ;
+    };
+  };
+
+  my $ping_fail;
+
+  # if we were unable to determine this - we may very well be dead
+  if (not defined $really_not_in_txn) {
+    $ping_fail = 1;
+  }
+  # check the AC sync-state
+  elsif ($really_not_in_txn xor $dbh->{AutoCommit}) {
+    carp_unique (sprintf
+      'Internal transaction state of handle %s (apparently %s a transaction) does not seem to '
+    . 'match its AutoCommit attribute setting of %s - this is an indication of a '
+    . 'potentially serious bug in your transaction handling logic',
+      $dbh,
+      $really_not_in_txn ? 'NOT in' : 'in',
+      $dbh->{AutoCommit} ? 'TRUE' : 'FALSE',
+    );
+
+    # it is too dangerous to execute anything else in this state
+    # assume everything works (safer - worst case scenario next statement throws)
+    return 1;
+  }
+  else {
+    # do the actual test
+    $ping_fail = ! try { $dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 };
+  }
+
+  if ($ping_fail) {
+    # it is possible to have a proper "connection", and have "ping" return
+    # false anyway (e.g. corrupted file). In such cases DBD::SQLite still
+    # keeps the actual file handle open. We don't really want this to happen,
+    # so force-close the handle via DBI itself
+    #
+    local $@; # so that we do not clober the real error as set above
+    eval { $dbh->disconnect }; # if it fails - it fails
+    return undef # the actual RV of _ping()
+  }
+  else {
+    return 1;
+  }
+}
+
 sub deployment_statements {
   my $self = shift;
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
@@ -110,7 +191,7 @@ sub deployment_statements {
 
 sub bind_attribute_by_data_type {
   $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium)int ) $/ix
-    ? do { require DBI; DBI::SQL_INTEGER() }
+    ? DBI::SQL_INTEGER()
     : undef
   ;
 }
@@ -176,9 +257,9 @@ sub connect_call_use_foreign_keys {
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

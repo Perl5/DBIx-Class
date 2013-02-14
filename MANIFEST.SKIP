@@ -26,3 +26,5 @@
 \.orig$
 \.rej$
 
+lib/DBIx/Class/Manual/ResultClass.pod.proto
+maint/.Generated_Pod

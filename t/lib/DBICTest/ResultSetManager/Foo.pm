@@ -1,5 +1,9 @@
 package # hide from PAUSE
     DBICTest::ResultSetManager::Foo;
+
+use warnings;
+use strict;
+
 use base 'DBIx::Class::Core';
 
 __PACKAGE__->load_components(qw/ ResultSetManager /);

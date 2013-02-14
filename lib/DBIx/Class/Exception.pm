@@ -83,9 +83,9 @@ sub rethrow {
     die shift;
 }
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Brandon L. Black <blblack@gmail.com>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

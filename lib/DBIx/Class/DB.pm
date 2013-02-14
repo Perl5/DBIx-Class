@@ -37,7 +37,9 @@ use, documentation has been removed as of 0.08000
 
 Hidden.
 
-=begin hidden head2 storage
+=begin hidden
+
+=head2 storage
 
 Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
@@ -45,7 +47,9 @@ Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
 =cut
 
-=begin hidden head2 class_resolver
+=begin hidden
+
+=head2 class_resolver
 
 ****DEPRECATED****
 
@@ -60,7 +64,9 @@ it. See resolve_class below.
 __PACKAGE__->mk_classdata('class_resolver' =>
                           'DBIx::Class::ClassResolver::PassThrough');
 
-=begin hidden head2 connection
+=begin hidden
+
+=head2 connection
 
   __PACKAGE__->connection($dsn, $user, $pass, $attrs);
 
@@ -77,7 +83,9 @@ sub connection {
   $class->schema_instance->connection(@info);
 }
 
-=begin hidden head2 setup_schema_instance
+=begin hidden
+
+=head2 setup_schema_instance
 
 Creates a class method ->schema_instance which contains a DBIx::Class::Schema;
 all class-method operations are proxies through to this object. If you don't
@@ -96,7 +104,9 @@ sub setup_schema_instance {
   $class->mk_classdata('schema_instance' => $schema);
 }
 
-=begin hidden head2 txn_begin
+=begin hidden
+
+=head2 txn_begin
 
 Begins a transaction (does nothing if AutoCommit is off).
 
@@ -106,7 +116,9 @@ Begins a transaction (does nothing if AutoCommit is off).
 
 sub txn_begin { shift->schema_instance->txn_begin(@_); }
 
-=begin hidden head2 txn_commit
+=begin hidden
+
+=head2 txn_commit
 
 Commits the current transaction.
 
@@ -116,7 +128,9 @@ Commits the current transaction.
 
 sub txn_commit { shift->schema_instance->txn_commit(@_); }
 
-=begin hidden head2 txn_rollback
+=begin hidden
+
+=head2 txn_rollback
 
 Rolls back the current transaction.
 
@@ -126,7 +140,9 @@ Rolls back the current transaction.
 
 sub txn_rollback { shift->schema_instance->txn_rollback(@_); }
 
-=begin hidden head2 txn_do
+=begin hidden
+
+=head2 txn_do
 
 Executes a block of code transactionally. If this code reference
 throws an exception, the transaction is rolled back and the exception
@@ -147,7 +163,9 @@ sub txn_do { shift->schema_instance->txn_do(@_); }
   }
 }
 
-=begin hidden head2 resultset_instance
+=begin hidden
+
+=head2 resultset_instance
 
 Returns an instance of a resultset for this class - effectively
 mapping the L<Class::DBI> connection-as-classdata paradigm into the
@@ -161,7 +179,9 @@ sub resultset_instance {
   $_[0]->result_source_instance->resultset
 }
 
-=begin hidden head2 result_source_instance
+=begin hidden
+
+=head2 result_source_instance
 
 Returns an instance of the result source for this class
 
@@ -217,7 +237,9 @@ sub result_source_instance {
   return $source;
 }
 
-=begin hidden head2 resolve_class
+=begin hidden
+
+=head2 resolve_class
 
 ****DEPRECATED****
 
@@ -225,7 +247,9 @@ See L</class_resolver>
 
 =end hidden
 
-=begin hidden head2 dbi_commit
+=begin hidden
+
+=head2 dbi_commit
 
 ****DEPRECATED****
 
@@ -233,7 +257,9 @@ Alias for L</txn_commit>
 
 =end hidden
 
-=begin hidden head2 dbi_rollback
+=begin hidden
+
+=head2 dbi_rollback
 
 ****DEPRECATED****
 
@@ -241,13 +267,13 @@ Alias for L</txn_rollback>
 
 =end hidden
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+You may distribute this code under the same terms as Perl itself
 
 =cut
 

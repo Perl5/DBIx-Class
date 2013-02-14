@@ -91,6 +91,13 @@ is (
   'insert returning capability guessed correctly'
 );
 
+isa_ok (DBICTest::Schema->connect($dsn, $user, $pass)->storage->sql_maker, 'DBIx::Class::SQLMaker::Oracle');
+
+# see if determining a driver with bad credentials throws propely
+throws_ok {
+  DBICTest::Schema->connect($dsn, "BORKED BORKED USER $user", $pass)->storage->sql_maker;
+} qr/DBI Connection failed/;
+
 ##########
 # the recyclebin (new for 10g) sometimes comes in the way
 my $on_connect_sql = $v >= 10 ? ["ALTER SESSION SET recyclebin = OFF"] : [];
@@ -423,13 +430,12 @@ sub _run_tests {
   );
 
 # test complex join (exercise orajoins)
-  lives_ok {
-    my @hri = $schema->resultset('CD')->search(
+  lives_ok { is_deeply (
+    $schema->resultset('CD')->search(
       { 'artist.name' => 'pop_art_1', 'me.cdid' => { '!=', 999} },
       { join => 'artist', prefetch => 'tracks', rows => 4, order_by => 'tracks.trackid' }
-    )->hri_dump->all;
-
-    my $expect = [{
+    )->all_hri,
+    [{
       artist => 1,
       cdid => 1,
       genreid => undef,
@@ -454,15 +460,9 @@ sub _run_tests {
         },
       ],
       year => 2003
-    }];
-
-    is_deeply (
-      \@hri,
-      $expect,
-      'Correct set of data prefetched',
-    );
-
-  } 'complex prefetch ok';
+    }],
+    'Correct set of data prefetched',
+  ) } 'complex prefetch ok';
 
 # test sequence detection from a different schema
   SKIP: {
@@ -479,7 +479,7 @@ sub _run_tests {
     #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
     # Oracle Database Reference 10g Release 2 (10.2)
     #   http://download.oracle.com/docs/cd/B19306_01/server.102/b14237/statviews_2107.htm#sthref1297
-    local $TODO = "On Oracle8i all_triggers view is empty, i don't yet know why..."
+    todo_skip "On Oracle8i all_triggers view is empty, i don't yet know why...", 1
       if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
     my $schema2 = $schema->connect($dsn2, $user2, $pass2, $opt);

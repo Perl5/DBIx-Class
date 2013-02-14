@@ -40,7 +40,7 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
       year => 2005,
   } );
 
- TODO: {
+  {
     local $TODO = "Can't fix right now" if $DBIx::Class::VERSION < 0.09;
     lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
   };
@@ -153,7 +153,7 @@ lives_ok(
 );
 
 
-TODO: {
+{
   local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
   throws_ok {

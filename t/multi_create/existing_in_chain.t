@@ -28,35 +28,37 @@ my $schema = DBICTest->init_schema();
 #
 # ribasushi
 
-TODO: { my $f = __FILE__; local $TODO = "See comment at top of $f for discussion of the TODO";
+my $TODO_msg = "See comment at top of @{[ __FILE__ ]} for discussion of the TODO";
 
 {
   my $counts;
   $counts->{$_} = $schema->resultset($_)->count for qw/Track CD Genre/;
 
-  lives_ok (sub {
-    my $existing_nogen_cd = $schema->resultset('CD')->search (
-      { 'genre.genreid' => undef },
-      { join => 'genre' },
-    )->first;
+  my $existing_nogen_cd = $schema->resultset('CD')->search (
+    { 'genre.genreid' => undef },
+    { join => 'genre' },
+  )->first;
 
-    $schema->resultset('Track')->create ({
-      title => 'Sugar-coated',
-      cd => {
-        title => $existing_nogen_cd->title,
-        genre => {
-          name => 'sugar genre',
-        }
+  $schema->resultset('Track')->create ({
+    title => 'Sugar-coated',
+    cd => {
+      title => $existing_nogen_cd->title,
+      genre => {
+        name => 'sugar genre',
       }
-    });
+    }
+  });
 
-    is ($schema->resultset('Track')->count, $counts->{Track} + 1, '1 new track');
-    is ($schema->resultset('CD')->count, $counts->{CD}, 'No new cds');
+  is ($schema->resultset('Track')->count, $counts->{Track} + 1, '1 new track');
+  is ($schema->resultset('CD')->count, $counts->{CD}, 'No new cds');
+
+  TODO: {
+    todo_skip $TODO_msg, 1;
     is ($schema->resultset('Genre')->count, $counts->{Genre} + 1, '1 new genre');
-
     is ($existing_nogen_cd->genre->title,  'sugar genre', 'Correct genre assigned to CD');
-  }, 'create() did not throw');
+  }
 }
+
 {
   my $counts;
   $counts->{$_} = $schema->resultset($_)->count for qw/Artist CD Producer/;
@@ -89,6 +91,8 @@ TODO: { my $f = __FILE__; local $TODO = "See comment at top of $f for discussion
 
     is ($schema->resultset('Artist')->count, $counts->{Artist}, 'No new artists');
     is ($schema->resultset('Producer')->count, $counts->{Producer} + 1, '1 new producers');
+
+    local $TODO = $TODO_msg;
     is ($schema->resultset('CD')->count, $counts->{CD} + 2, '2 new cds');
 
     is ($producer->cds->count, 2, 'CDs assigned to correct producer');
@@ -98,8 +102,6 @@ TODO: { my $f = __FILE__; local $TODO = "See comment at top of $f for discussion
       'Correct cd names',
     );
   }, 'create() did not throw');
-}
-
 }
 
 done_testing;

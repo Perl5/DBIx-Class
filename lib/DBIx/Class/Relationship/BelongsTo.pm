@@ -28,19 +28,19 @@ sub belongs_to {
     $class->ensure_class_loaded($f_class);
     my %f_primaries = map { $_ => 1 } try { $f_class->_pri_cols }
       catch {
-        $class->throw_exception( "Can't infer join condition for ${rel} on ${class}: $_");
+        $class->throw_exception( "Can't infer join condition for '$rel' on ${class}: $_");
       };
 
     my ($pri, $too_many) = keys %f_primaries;
     $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}; ".
-      "${f_class} has multiple primary keys"
+      "Can't infer join condition for '$rel' on ${class}: "
+    . "${f_class} has multiple primary keys"
     ) if $too_many;
 
     my $fk = defined $cond ? $cond : $rel;
     $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}; ".
-      "$fk is not a column of $class"
+      "Can't infer join condition for '$rel' on ${class}: "
+    . "'$fk' is not a column of $class"
     ) unless $class->has_column($fk);
 
     $cond = { "foreign.${pri}" => "self.${fk}" };

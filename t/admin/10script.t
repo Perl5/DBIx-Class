@@ -4,14 +4,21 @@ use warnings;
 
 use Test::More;
 use Config;
+use File::Spec;
 use lib qw(t/lib);
 use DBICTest;
 
 BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
+  require DBIx::Class;
+  plan skip_all => 'Test needs ' .
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_admin_script')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('test_admin_script');
+
+  # just in case the user env has stuff in it
+  delete $ENV{JSON_ANY_ORDER};
 }
+
+use JSON::Any;
 
 $ENV{PATH} = '';
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
@@ -39,7 +46,7 @@ for my $js (@json_backends) {
     SKIP: {
         skip ("JSON backend $js is not available, skip testing", 1) if $@;
 
-        $ENV{JSON_ANY_ORDER} = $js;
+        local $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
         diag $@ if $@;
     }
@@ -65,11 +72,11 @@ sub test_dbicadmin {
     test_exec( default_args(), qw|--op=insert --set={"name":"Aran"}| );
 
     SKIP: {
-        skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
+        skip ("MSWin32 doesn't support -|", 1) if $^O eq 'MSWin32';
 
         my ($perl) = $^X =~ /(.*)/;
 
-        open(my $fh, "-|",  ( $perl, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  ( $perl, '-MDBICTest::RunMode', 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -82,31 +89,29 @@ sub test_dbicadmin {
 }
 
 sub default_args {
-  my $dbname = DBICTest->_sqlite_dbfilename;
+  my $dsn = JSON::Any->encode([
+    'dbi:SQLite:dbname=' . DBICTest->_sqlite_dbfilename,
+    '',
+    '',
+    { AutoCommit => 1 },
+  ]);
+
   return (
     qw|--quiet --schema=DBICTest::Schema --class=Employee|,
-    qq|--connect=["dbi:SQLite:dbname=$dbname","","",{"AutoCommit":1}]|,
+    qq|--connect=$dsn|,
     qw|--force -I testincludenoniterference|,
   );
 }
 
-# Why do we need this crap? Apparently MSWin32 can not pass through quotes properly
-# (sometimes it will and sometimes not, depending on what compiler was used to build
-# perl). So we go the extra mile to escape all the quotes. We can't also use ' instead
-# of ", because JSON::XS (proudly) does not support "malformed JSON" as the author
-# calls it. Bleh.
-#
 sub test_exec {
   my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ('script/dbicadmin', @_);
+  my @args = ($perl, '-MDBICTest::RunMode', File::Spec->catfile(qw(script dbicadmin)), @_);
 
-  if ( $^O eq 'MSWin32' ) {
-    $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
-    for (@args) {
-      $_ =~ s/"/\\"/g;
-    }
+  if ($^O eq 'MSWin32') {
+    require Win32::ShellQuote; # included in test optdeps
+    @args = Win32::ShellQuote::quote_system_list(@args);
   }
 
-  system ($perl, @args);
+  system @args;
 }

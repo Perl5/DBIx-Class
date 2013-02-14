@@ -75,7 +75,7 @@ Each relationship sets up an accessor method on the
 L<DBIx::Class::Manual::Glossary/"Row"> objects that represent the items
 of your table. From L<DBIx::Class::Manual::Glossary/"ResultSet"> objects,
 the relationships can be searched using the "search_related" method.
-In list context, each returns a list of Row objects for the related class,
+In list context, each returns a list of Result objects for the related class,
 in scalar context, a new ResultSet representing the joined tables is
 returned. Thus, the calls can be chained to produce complex queries.
 Since the database is not actually queried until you attempt to retrieve
@@ -137,7 +137,7 @@ in this class or C<cond> specifies a reference to a join condition.
 =item accessor_name
 
 This argument is the name of the method you can call on a
-L<DBIx::Class::Row> object to retrieve the instance of the foreign
+L<Result|DBIx::Class::Manual::ResultClass> object to retrieve the instance of the foreign
 class matching this relationship. This is often called the
 C<relation(ship) name>.
 
@@ -231,7 +231,7 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, \%attrs?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, L<\%attrs?|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -248,9 +248,9 @@ specifies a reference to a join condition.
 =item accessor_name
 
 This argument is the name of the method you can call on a
-L<DBIx::Class::Row> object to retrieve a resultset of the related
-class restricted to the ones related to the row object. In list
-context it returns the row objects. This is often called the
+L<Result|DBIx::Class::Manual::ResultClass> object to retrieve a resultset of the related
+class restricted to the ones related to the result object. In list
+context it returns the result objects. This is often called the
 C<relation(ship) name>.
 
 Use this accessor_name in L<DBIx::Class::ResultSet/join>
@@ -355,7 +355,7 @@ relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, \%attrs?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, L<\%attrs?|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -370,7 +370,7 @@ condition.
 =item accessor_name
 
 This argument is the name of the method you can call on a
-L<DBIx::Class::Row> object to retrieve the instance of the foreign
+L<Result|DBIx::Class::Manual::ResultClass> object to retrieve the instance of the foreign
 class matching this relationship. This is often called the
 C<relation(ship) name>.
 
@@ -450,7 +450,7 @@ you probably just meant to use C<DBIx::Class::Relationship/belongs_to>.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, \%attrs?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond|\&cond?, L<\%attrs?|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -465,7 +465,7 @@ condition.
 =item accessor_name
 
 This argument is the name of the method you can call on a
-L<DBIx::Class::Row> object to retrieve the instance of the foreign
+L<Result|DBIx::Class::Manual::ResultClass> object to retrieve the instance of the foreign
 class matching this relationship. This is often called the
 C<relation(ship) name>.
 
@@ -543,7 +543,7 @@ L<DBIx::Class::Relationship/might_have>.
 
 =over 4
 
-=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, \%attrs?
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, L<\%attrs?|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -562,7 +562,7 @@ C<related_resultset> and similar methods which operate on true relationships.
 =item accessor_name
 
 This argument is the name of the method you can call on a
-L<DBIx::Class::Row> object to retrieve the rows matching this
+L<Result|DBIx::Class::Manual::ResultClass> object to retrieve the rows matching this
 relationship.
 
 On a many_to_many, unlike other relationships, this cannot be used in
@@ -633,9 +633,9 @@ relationships as well.
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-see L<DBIx::Class>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

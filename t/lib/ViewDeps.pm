@@ -4,7 +4,7 @@ package    # hide from PAUSE
 
 use strict;
 use warnings;
-use base 'DBIx::Class::Schema';
+use base 'DBICTest::BaseSchema';
 
 __PACKAGE__->load_namespaces;
 

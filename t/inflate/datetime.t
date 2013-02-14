@@ -42,7 +42,7 @@ warnings_exist {
 } [$dt_warn_re],
   'using a DateTime object in ->search generates a warning';
 
-TODO: {
+{
   local $TODO = "We can't do this yet before 0.09" if DBIx::Class->VERSION < 0.09;
 
   is(eval { $row->id }, 1, 'DT in search');

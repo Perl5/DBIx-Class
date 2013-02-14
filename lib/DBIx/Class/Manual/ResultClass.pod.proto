@@ -1,0 +1,60 @@
+#
+# This is what eventually becomes lib/DBIx/Class/Manual/ResultClass.pod
+# Courtesy of maint/gen_pod_inherit and Pod::Inherit
+#
+
+=head1 NAME
+
+DBIx::Class::Manual::ResultClass - Representing a single result (row) from
+a DB query
+
+=head1 SYNOPSIS
+
+  package My::Schema::Result::Track;
+
+  use parent 'DBIx::Class::Core';
+
+  __PACKAGE__->table('tracks');
+
+  __PACKAGE__->add_columns({
+    id => {
+      data_type => 'int',
+      is_auto_increment => 1,
+    },
+    cd_id => {
+      data_type => 'int',
+    },
+    title => {
+      data_type => 'varchar',
+      size => 50,
+    },
+    rank => {
+      data_type => 'int',
+      is_nullable => 1,
+    },
+  });
+
+  __PACKAGE__->set_primary_key('id');
+  __PACKAGE__->add_unique_constraint(u_title => ['cd_id', 'title']);
+
+=head1 DESCRIPTION
+
+In L<DBIx::Class>, a user normally receives query results as instances of a
+certain C<Result Class>, depending on the main query source.  Besides being
+the primary "toolset" for interaction with your data, a C<Result Class> also
+serves to establish source metadata, which is then used during initialization
+of your L<DBIx::Class::Schema> instance.
+
+Because of these multiple seemingly conflicting purposes, it is hard to
+aggregate the documentation of various methods available on a typical
+C<Result Class>. This document serves as a general overview of C<Result Class>
+declaration best practices, and offers an index of the available methods
+(and the Components/Roles which provide them).
+
+=head1 AUTHOR AND CONTRIBUTORS
+
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.

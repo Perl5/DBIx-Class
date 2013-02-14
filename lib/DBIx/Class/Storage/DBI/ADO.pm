@@ -1,5 +1,8 @@
 package DBIx::Class::Storage::DBI::ADO;
 
+use warnings;
+use strict;
+
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
@@ -19,31 +22,7 @@ should be transparent to the user.
 
 =cut
 
-sub _rebless {
-  my $self = shift;
-
-  my $dbtype = $self->_dbh_get_info('SQL_DBMS_NAME');
-
-  if (not $dbtype) {
-    warn "Unable to determine ADO driver, failling back to generic support.\n";
-    return;
-  }
-
-  $dbtype =~ s/\W/_/gi;
-
-  my $subclass = "DBIx::Class::Storage::DBI::ADO::${dbtype}";
-
-  return if $self->isa($subclass);
-
-  if ($self->load_optional_class($subclass)) {
-    bless $self, $subclass;
-    $self->_rebless;
-  }
-  else {
-    warn "Expected driver '$subclass' not found, using generic support. " .
-         "Please file an RT.\n";
-  }
-}
+sub _rebless { shift->_determine_connector_driver('ADO') }
 
 # cleanup some warnings from DBD::ADO
 # RT#65563, not fixed as of DBD::ADO v2.98

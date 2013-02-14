@@ -1,9 +1,11 @@
 package # hide from PAUSE
     Log;
 
+use warnings;
+use strict;
+
 use base 'MyBase';
 
-use strict;
 use Time::Piece::MySQL;
 use POSIX;
 

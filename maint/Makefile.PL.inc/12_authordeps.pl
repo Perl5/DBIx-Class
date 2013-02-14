@@ -66,6 +66,9 @@ EOW
 # this will run after the Makefile is written and the main Makefile.PL terminates
 #
 END {
+  # shit already hit the fan
+  return if $?;
+
   # Re-write META.yml at the end to _exclude_ all forced build-requires (we do not
   # want to ship this) We are also not using M::I::AuthorRequires as this will be
   # an extra dep, and deps in Makefile.PL still suck
@@ -89,6 +92,12 @@ END {
   if (keys %removed_build_requires) {
     print "Regenerating META with author requires excluded\n";
     Meta->write;
+  }
+
+  # strip possible crlf from META
+  if ($^O eq 'MSWin32' or $^O eq 'cygwin') {
+    local $ENV{PERLIO} = 'unix';
+    system( $^X, qw( -MExtUtils::Command -e dos2unix -- META.yml),  );
   }
 
   # test that we really took things away (just in case, happened twice somehow)

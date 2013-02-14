@@ -3,13 +3,12 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
-use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
 use Sub::Name 'subname';
 use B 'svref_2object';
-use DBIx::Class::GlobalDestruction;
+use Devel::GlobalDestruction;
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -168,12 +167,9 @@ sub _findallmod {
   my $ns = shift || ref $proto || $proto;
 
   require Module::Find;
-  my @mods = Module::Find::findallmod($ns);
 
-  # try to untaint module names. mods where this fails
-  # are left alone so we don't have to change the old behavior
-  no locale; # localized \w doesn't untaint expression
-  return map { $_ =~ m/^( (?:\w+::)* \w+ )$/x ? $1 : $_ } @mods;
+  # untaint result
+  return map { $_ =~ /(.+)/ } Module::Find::findallmod($ns);
 }
 
 # returns a hash of $shortname => $fullname for every package
@@ -409,7 +405,7 @@ sub load_classes {
 
 =item Arguments: $storage_type|{$storage_type, \%args}
 
-=item Return value: $storage_type|{$storage_type, \%args}
+=item Return Value: $storage_type|{$storage_type, \%args}
 
 =item Default value: DBIx::Class::Storage::DBI
 
@@ -435,7 +431,7 @@ L<DBIx::Class::Storage::DBI::Replicated> for an example of this.
 
 =item Arguments: $code_reference
 
-=item Return value: $code_reference
+=item Return Value: $code_reference
 
 =item Default value: None
 
@@ -533,9 +529,9 @@ sub connect { shift->clone->connection(@_) }
 
 =over 4
 
-=item Arguments: $source_name
+=item Arguments: L<$source_name|DBIx::Class::ResultSource/source_name>
 
-=item Return Value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -547,17 +543,17 @@ name.
 =cut
 
 sub resultset {
-  my ($self, $moniker) = @_;
+  my ($self, $source_name) = @_;
   $self->throw_exception('resultset() expects a source name')
-    unless defined $moniker;
-  return $self->source($moniker)->resultset;
+    unless defined $source_name;
+  return $self->source($source_name)->resultset;
 }
 
 =head2 sources
 
 =over 4
 
-=item Return Value: @source_names
+=item Return Value: L<@source_names|DBIx::Class::ResultSource/source_name>
 
 =back
 
@@ -573,9 +569,9 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =over 4
 
-=item Arguments: $source_name
+=item Arguments: L<$source_name|DBIx::Class::ResultSource/source_name>
 
-=item Return Value: $result_source
+=item Return Value: L<$result_source|DBIx::Class::ResultSource>
 
 =back
 
@@ -592,14 +588,14 @@ sub source {
   $self->throw_exception("source() expects a source name")
     unless @_;
 
-  my $moniker = shift;
+  my $source_name = shift;
 
   my $sreg = $self->source_registrations;
-  return $sreg->{$moniker} if exists $sreg->{$moniker};
+  return $sreg->{$source_name} if exists $sreg->{$source_name};
 
   # if we got here, they probably passed a full class name
-  my $mapped = $self->class_mappings->{$moniker};
-  $self->throw_exception("Can't find source for ${moniker}")
+  my $mapped = $self->class_mappings->{$source_name};
+  $self->throw_exception("Can't find source for ${source_name}")
     unless $mapped && exists $sreg->{$mapped};
   return $sreg->{$mapped};
 }
@@ -608,7 +604,7 @@ sub source {
 
 =over 4
 
-=item Arguments: $source_name
+=item Arguments: L<$source_name|DBIx::Class::ResultSource/source_name>
 
 =item Return Value: $classname
 
@@ -621,8 +617,7 @@ Retrieves the Result class name for the given source name.
 =cut
 
 sub class {
-  my ($self, $moniker) = @_;
-  return $self->source($moniker)->result_class;
+  return shift->source(shift)->result_class;
 }
 
 =head2 txn_do
@@ -741,59 +736,42 @@ found in L<DBIx::Class::Storage::DBI>.
 
 =over 4
 
-=item Arguments: $source_name, \@data;
+=item Arguments: L<$source_name|DBIx::Class::ResultSource/source_name>, [ \@column_list, \@row_values+ ] | [ \%col_data+ ]
 
-=item Return value: \@$objects | nothing
+=item Return Value: L<\@result_objects|DBIx::Class::Manual::ResultClass> (scalar context) | L<@result_objects|DBIx::Class::Manual::ResultClass> (list context)
 
 =back
 
-Pass this method a resultsource name, and an arrayref of
-arrayrefs. The arrayrefs should contain a list of column names,
-followed by one or many sets of matching data for the given columns.
+A convenience shortcut to L<DBIx::Class::ResultSet/populate>. Equivalent to:
 
-In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a fast method. However, insert_bulk currently
-assumes that your datasets all contain the same type of values, using scalar
-references in a column in one row, and not in another will probably not work.
+ $schema->resultset($source_name)->populate([...]);
 
-Otherwise, each set of data is inserted into the database using
-L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
-objects is returned.
+=over 4
 
-e.g.
+=item NOTE
 
-  $schema->populate('Artist', [
-    [ qw/artistid name/ ],
-    [ 1, 'Popular Band' ],
-    [ 2, 'Indie Band' ],
-    ...
-  ]);
+The context of this method call has an important effect on what is
+submitted to storage. In void context data is fed directly to fastpath
+insertion routines provided by the underlying storage (most often
+L<DBI/execute_for_fetch>), bypassing the L<new|DBIx::Class::Row/new> and
+L<insert|DBIx::Class::Row/insert> calls on the
+L<Result|DBIx::Class::Manual::ResultClass> class, including any
+augmentation of these methods provided by components. For example if you
+are using something like L<DBIx::Class::UUIDColumns> to create primary
+keys for you, you will find that your PKs are empty.  In this case you
+will have to explicitly force scalar or list context in order to create
+those values.
 
-Since wantarray context is basically the same as looping over $rs->create(...)
-you won't see any performance benefits and in this case the method is more for
-convenience. Void context sends the column information directly to storage
-using <DBI>s bulk insert method. So the performance will be much better for
-storages that support this method.
-
-Because of this difference in the way void context inserts rows into your
-database you need to note how this will effect any loaded components that
-override or augment insert.  For example if you are using a component such
-as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use
-wantarray context if you want the PKs automatically created.
+=back
 
 =cut
 
 sub populate {
   my ($self, $name, $data) = @_;
-  if(my $rs = $self->resultset($name)) {
-    if(defined wantarray) {
-        return $rs->populate($data);
-    } else {
-        $rs->populate($data);
-    }
-  } else {
-      $self->throw_exception("$name is not a resultset");
-  }
+  my $rs = $self->resultset($name)
+    or $self->throw_exception("'$name' is not a resultset");
+
+  return $rs->populate($data);
 }
 
 =head2 connection
@@ -888,16 +866,16 @@ will produce the output
 #   my ($self, $target, $base) = @_;
 
 #   my $schema = $self->clone;
-#   foreach my $moniker ($schema->sources) {
-#     my $source = $schema->source($moniker);
-#     my $target_class = "${target}::${moniker}";
+#   foreach my $source_name ($schema->sources) {
+#     my $source = $schema->source($source_name);
+#     my $target_class = "${target}::${source_name}";
 #     $self->inject_base(
 #       $target_class => $source->result_class, ($base ? $base : ())
 #     );
 #     $source->result_class($target_class);
 #     $target_class->result_source_instance($source)
 #       if $target_class->can('result_source_instance');
-#     $schema->register_source($moniker, $source);
+#     $schema->register_source($source_name, $source);
 #   }
 #   return $schema;
 # }
@@ -919,14 +897,14 @@ sub compose_namespace {
     use warnings qw/redefine/;
 
     no strict qw/refs/;
-    foreach my $moniker ($self->sources) {
-      my $orig_source = $self->source($moniker);
+    foreach my $source_name ($self->sources) {
+      my $orig_source = $self->source($source_name);
 
-      my $target_class = "${target}::${moniker}";
+      my $target_class = "${target}::${source_name}";
       $self->inject_base($target_class, $orig_source->result_class, ($base || ()) );
 
       # register_source examines result_class, and then returns us a clone
-      my $new_source = $schema->register_source($moniker, bless
+      my $new_source = $schema->register_source($source_name, bless
         { %$orig_source, result_class => $target_class },
         ref $orig_source,
       );
@@ -1050,12 +1028,12 @@ sub _copy_state_from {
   $self->class_mappings({ %{$from->class_mappings} });
   $self->source_registrations({ %{$from->source_registrations} });
 
-  foreach my $moniker ($from->sources) {
-    my $source = $from->source($moniker);
+  foreach my $source_name ($from->sources) {
+    my $source = $from->source($source_name);
     my $new = $source->new($source);
     # we use extra here as we want to leave the class_mappings as they are
     # but overwrite the source_registrations entry with the new source
-    $self->register_extra_source($moniker => $new);
+    $self->register_extra_source($source_name => $new);
   }
 
   if ($from->storage) {
@@ -1079,7 +1057,6 @@ default behavior will provide a detailed stack trace.
 
 =cut
 
-my $false_exception_action_warned;
 sub throw_exception {
   my $self = shift;
 
@@ -1092,13 +1069,12 @@ sub throw_exception {
         ." (original error: $_[0])"
       );
     }
-    elsif(! $false_exception_action_warned++) {
-      carp (
-          "The exception_action handler installed on $self returned false instead"
-        .' of throwing an exception. This behavior has been deprecated, adjust your'
-        .' handler to always rethrow the supplied error.'
-      );
-    }
+
+    carp_unique (
+      "The exception_action handler installed on $self returned false instead"
+    .' of throwing an exception. This behavior has been deprecated, adjust your'
+    .' handler to always rethrow the supplied error.'
+    );
   }
 
   DBIx::Class::Exception->throw($_[0], $self->stacktrace);
@@ -1140,7 +1116,7 @@ sub deploy {
 
 =item Arguments: See L<DBIx::Class::Storage::DBI/deployment_statements>
 
-=item Return value: $listofstatements
+=item Return Value: $listofstatements
 
 =back
 
@@ -1189,7 +1165,7 @@ sub create_ddl_dir {
 
 =item Arguments: $database-type, $version, $directory, $preversion
 
-=item Return value: $normalised_filename
+=item Return Value: $normalised_filename
 
 =back
 
@@ -1308,7 +1284,7 @@ sub schema_version {
 
 =over 4
 
-=item Arguments: $moniker, $component_class
+=item Arguments: $source_name, $component_class
 
 =back
 
@@ -1321,27 +1297,27 @@ file). You may also need it to register classes at runtime.
 Registers a class which isa DBIx::Class::ResultSourceProxy. Equivalent to
 calling:
 
-  $schema->register_source($moniker, $component_class->result_source_instance);
+  $schema->register_source($source_name, $component_class->result_source_instance);
 
 =cut
 
 sub register_class {
-  my ($self, $moniker, $to_register) = @_;
-  $self->register_source($moniker => $to_register->result_source_instance);
+  my ($self, $source_name, $to_register) = @_;
+  $self->register_source($source_name => $to_register->result_source_instance);
 }
 
 =head2 register_source
 
 =over 4
 
-=item Arguments: $moniker, $result_source
+=item Arguments: $source_name, L<$result_source|DBIx::Class::ResultSource>
 
 =back
 
 This method is called by L</register_class>.
 
 Registers the L<DBIx::Class::ResultSource> in the schema with the given
-moniker.
+source name.
 
 =cut
 
@@ -1351,11 +1327,11 @@ sub register_source { shift->_register_source(@_) }
 
 =over 4
 
-=item Arguments: $moniker
+=item Arguments: $source_name
 
 =back
 
-Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
+Removes the L<DBIx::Class::ResultSource> from the schema for the given source name.
 
 =cut
 
@@ -1365,7 +1341,7 @@ sub unregister_source { shift->_unregister_source(@_) }
 
 =over 4
 
-=item Arguments: $moniker, $result_source
+=item Arguments: $source_name, L<$result_source|DBIx::Class::ResultSource>
 
 =back
 
@@ -1377,15 +1353,15 @@ has a source and you want to register an extra one.
 sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 
 sub _register_source {
-  my ($self, $moniker, $source, $params) = @_;
+  my ($self, $source_name, $source, $params) = @_;
 
-  $source = $source->new({ %$source, source_name => $moniker });
+  $source = $source->new({ %$source, source_name => $source_name });
 
   $source->schema($self);
   weaken $source->{schema} if ref($self);
 
   my %reg = %{$self->source_registrations};
-  $reg{$moniker} = $source;
+  $reg{$source_name} = $source;
   $self->source_registrations(\%reg);
 
   return $source if $params->{extra};
@@ -1396,7 +1372,7 @@ sub _register_source {
     if (
       exists $map{$rs_class}
         and
-      $map{$rs_class} ne $moniker
+      $map{$rs_class} ne $source_name
         and
       $rsrc ne $_[2]  # orig_source
     ) {
@@ -1407,7 +1383,7 @@ sub _register_source {
       ;
     }
 
-    $map{$rs_class} = $moniker;
+    $map{$rs_class} = $source_name;
     $self->class_mappings(\%map);
   }
 
@@ -1421,7 +1397,7 @@ sub DESTROY {
   my $self = shift;
   my $srcs = $self->source_registrations;
 
-  for my $moniker (keys %$srcs) {
+  for my $source_name (keys %$srcs) {
     # find first source that is not about to be GCed (someone other than $self
     # holds a reference to it) and reattach to it, weakening our own link
     #
@@ -1429,11 +1405,11 @@ sub DESTROY {
     # which will serve as a signal to not try doing anything else
     # however beware - on older perls the exception seems randomly untrappable
     # due to some weird race condition during thread joining :(((
-    if (ref $srcs->{$moniker} and svref_2object($srcs->{$moniker})->REFCNT > 1) {
+    if (ref $srcs->{$source_name} and svref_2object($srcs->{$source_name})->REFCNT > 1) {
       local $@;
       eval {
-        $srcs->{$moniker}->schema($self);
-        weaken $srcs->{$moniker};
+        $srcs->{$source_name}->schema($self);
+        weaken $srcs->{$source_name};
         1;
       } or do {
         $global_phase_destroy = 1;
@@ -1445,10 +1421,10 @@ sub DESTROY {
 }
 
 sub _unregister_source {
-    my ($self, $moniker) = @_;
+    my ($self, $source_name) = @_;
     my %reg = %{$self->source_registrations};
 
-    my $source = delete $reg{$moniker};
+    my $source = delete $reg{$source_name};
     $self->source_registrations(\%reg);
     if ($source->result_class) {
         my %map = %{$self->class_mappings};
@@ -1509,8 +1485,8 @@ sub compose_connection {
 
   if ($self eq $target) {
     # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
-    foreach my $moniker ($self->sources) {
-      my $source = $self->source($moniker);
+    foreach my $source_name ($self->sources) {
+      my $source = $self->source($source_name);
       my $class = $source->result_class;
       $self->inject_base($class, $base);
       $class->mk_classdata(resultset_instance => $source->resultset);
@@ -1528,10 +1504,10 @@ sub compose_connection {
   }
 
   $schema->connection(@info);
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
+  foreach my $source_name ($schema->sources) {
+    my $source = $schema->source($source_name);
     my $class = $source->result_class;
-    #warn "$moniker $class $source ".$source->storage;
+    #warn "$source_name $class $source ".$source->storage;
     $class->mk_classdata(result_source_instance => $source);
     $class->mk_classdata(resultset_instance => $source->resultset);
     $class->mk_classdata(class_resolver => $schema);
@@ -1541,9 +1517,9 @@ sub compose_connection {
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

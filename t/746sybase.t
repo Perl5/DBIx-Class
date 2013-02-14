@@ -533,7 +533,7 @@ SQL
   }
 
 # test insert in an outer transaction when there's an active cursor
-  TODO: {
+  {
     local $TODO = 'this should work once we have eager cursors';
 
 # clear state, or we get a deadlock on $row->delete

@@ -2,7 +2,26 @@
 # so if someone were to legally change their name, we could use it to fix that
 # while maintaining the integrity of the repository
 
-# I've mapped the old single quote version of my name to the double quote
-# version for consistency
-Arthur Axel "fREW" Schmidt <frioux@gmail.com>         Arthur Axel 'fREW' Schmidt <frioux@gmail.com>
-Andrew Rodland <andrew@cleverdomain.org>              Andrew Rodland <arodland@cpan.org>
+Alexander Hartmaier <abraxxa@cpan.org>      <alexander.hartmaier@t-systems.at>
+Amiri Barksdale <amiribarksdale@gmail.com>  <amiri@metalabel.com>
+Andrew Rodland <andrew@cleverdomain.org>    <arodland@cpan.org>
+Arthur Axel "fREW" Schmidt                  <frioux@gmail.com>
+Brendan Byrd <Perl@ResonatorSoft.org>       <byrd.b@insightcom.com>
+Brendan Byrd <Perl@ResonatorSoft.org>       <GitHub@ResonatorSoft.org>
+Brendan Byrd <Perl@ResonatorSoft.org>       <perl@resonatorsoft.org>
+Brian Phillips <bphillips@cpan.org>         <bphillips@digitalriver.com>
+David Kamholz <dkamholz@cpan.org>           <davekam@pobox.com>
+David Schmidt <davewood@gmx.at>             <d.schmidt@tripwolf.com>
+Devin Austin <dhoss@cpan.org>               <devin.austin@gmail.com>
+Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>  <ostmann@sadraksaemp.intern4.websuche.de>
+Gerda Shank <gshank@cpan.org>               <gerda.shank@gmail.com>
+Gianni Ceccarelli <dakkar@thenautilus.net>  <gianni.ceccarelli@net-a-porter.com>
+Gordon Irving <goraxe@cpan.org>             <goraxe@goraxe.me.uk>
+Hakim Cassimally <osfameron@cpan.org>       <hakim@vm-participo.(none)>
+Jonathan Chu <milki@rescomp.berkeley.edu>   <milki@rescomp.berkeley.edu>
+Matt Phillips <mattp@cpan.org>              <mphillips@oanda.com>
+Roman Filippov <romanf@cpan.org>            <moltar@moltar.net>
+Peter Rabbitson <ribasushi@cpan.org>        <rabbit@viator.rabbit.us>
+Tim Bunce <Tim.Bunce@pobox.com>             <Tim.Bunce@ig.co.uk>
+Toby Corkindale <tjc@cpan.org>              <toby@dryft.net>
+Wallace Reis <wreis@cpan.org>               <wallace@reis.org.br>

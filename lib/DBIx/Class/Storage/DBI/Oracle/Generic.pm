@@ -203,7 +203,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to introspect trigger '%s' for column %s.%s (references multiple sequences). "
+        "Unable to introspect trigger '%s' for column '%s.%s' (references multiple sequences). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $triggers[0]{name},
         $source_name,
@@ -225,7 +225,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to reliably select a BEFORE INSERT trigger for column %s.%s (possibilities: %s). "
+        "Unable to reliably select a BEFORE INSERT trigger for column '%s.%s' (possibilities: %s). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $source_name,
         $col,
@@ -246,7 +246,7 @@ sub _dbh_get_autoinc_seq {
   }
 
   $self->throw_exception( sprintf (
-    "No suitable BEFORE INSERT triggers found for column %s.%s. "
+    "No suitable BEFORE INSERT triggers found for column '%s.%s'. "
   . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
     $source_name,
     $col,
@@ -284,9 +284,10 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  my ($self, $dbh, $sql, $bind) = @_;
+  #my ($self, $dbh, $sql, $bind, $ident) = @_;
+  my ($self, $bind) = @_[0,3];
 
-  # Turn off sth caching for multi-part LOBs. See _prep_for_execute above.
+  # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
   local $self->{disable_sth_caching} = 1 if first {
     ($_->[0]{_ora_lob_autosplit_part}||0)
       >
@@ -511,7 +512,7 @@ sub _prep_for_execute {
 
   my ($final_sql, @final_binds);
   if ($op eq 'update') {
-    $self->throw_exception('Update with complex WHERE clauses currently not supported')
+    $self->throw_exception('Update with complex WHERE clauses involving BLOB columns currently not supported')
       if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
 
     my $where_sql;

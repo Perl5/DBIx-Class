@@ -6,11 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-use POSIX qw(ceil);
-
 my $schema = DBICTest->init_schema();
-
-plan tests => 1;
 
 {
   my $artist = $schema->resultset ('Artist')->search ({}, { rows => 1})->single; # braindead sqlite
@@ -28,4 +24,4 @@ plan tests => 1;
   lives_ok (sub { $cd->delete}, "Cascade delete on ordered has_many doesn't bomb");
 }
 
-1;
+done_testing;

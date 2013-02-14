@@ -50,7 +50,7 @@ sub _ident_values {
 
   if (@missing && $self->in_storage) {
     $self->throw_exception (
-      'Unable to uniquely identify row object with missing PK columns: '
+      'Unable to uniquely identify result object with missing PK columns: '
       . join (', ', @missing )
     );
   }
@@ -60,7 +60,7 @@ sub _ident_values {
 
 =head2 ID
 
-Returns a unique id string identifying a row object by primary key.
+Returns a unique id string identifying a result object by primary key.
 Used by L<DBIx::Class::CDBICompat::LiveObjectIndex> and
 L<DBIx::Class::ObjectCache>.
 
@@ -126,7 +126,7 @@ sub _mk_ident_cond {
 
   if (@undef && $self->in_storage) {
     $self->throw_exception (
-      'Unable to construct row object identity condition due to NULL PK columns: '
+      'Unable to construct result object identity condition due to NULL PK columns: '
       . join (', ', @undef)
     );
   }
@@ -136,9 +136,9 @@ sub _mk_ident_cond {
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

@@ -2,20 +2,23 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 
 use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test segfaults on Win32' if $^O eq 'MSWin32';
-
-for my $type (qw/PG MYSQL/) {
+for my $type (qw/PG MYSQL SQLite/) {
 
   SKIP: {
-    skip "Skipping $type tests without DBICTEST_${type}_DSN", 1
-      unless $ENV{"DBICTEST_${type}_DSN"};
+    my @dsn = $type eq 'SQLite'
+      ? DBICTest->_database(sqlite_use_file => 1)
+      : do {
+        skip "Skipping $type tests without DBICTEST_${type}_DSN", 1
+          unless $ENV{"DBICTEST_${type}_DSN"};
+        @ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/}
+      }
+    ;
 
     if ($type eq 'PG') {
       skip "skipping Pg tests without dependencies installed", 1
@@ -26,7 +29,7 @@ for my $type (qw/PG MYSQL/) {
         unless DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mysql');
     }
 
-    my $schema = DBICTest::Schema->connect (@ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/});
+    my $schema = DBICTest::Schema->connect (@dsn);
 
     # emulate a singleton-factory, just cache the object *somewhere in a different package*
     # to induce out-of-order destruction
@@ -37,29 +40,27 @@ for my $type (qw/PG MYSQL/) {
 
     ok (!$schema->storage->connected, "$type: start disconnected");
 
-    lives_ok (sub {
-      $schema->txn_do (sub {
+    $schema->txn_do (sub {
 
-        ok ($schema->storage->connected, "$type: transaction starts connected");
+      ok ($schema->storage->connected, "$type: transaction starts connected");
 
-        my $pid = fork();
-        SKIP: {
-          skip "Fork failed: $!", 1 if (! defined $pid);
+      my $pid = fork();
+      SKIP: {
+        skip "Fork failed: $!", 1 if (! defined $pid);
 
-          if ($pid) {
-            note "Parent $$ sleeping...";
-            wait();
-            note "Parent $$ woken up after child $pid exit";
-          }
-          else {
-            note "Child $$ terminating";
-            undef $DBICTest::FakeSchemaFactory::schema;
-            exit 0;
-          }
-
-          ok ($schema->storage->connected, "$type: parent still connected (in txn_do)");
+        if ($pid) {
+          note "Parent $$ sleeping...";
+          wait();
+          note "Parent $$ woken up after child $pid exit";
         }
-      });
+        else {
+          note "Child $$ terminating";
+          undef $DBICTest::FakeSchemaFactory::schema;
+          exit 0;
+        }
+
+        ok ($schema->storage->connected, "$type: parent still connected (in txn_do)");
+      }
     });
 
     ok ($schema->storage->connected, "$type: parent still connected (outside of txn_do)");

@@ -89,6 +89,20 @@ method arguments, use with caution.
 
 =item *
 
+L<$obj|DBIx::Class> - Reference to the source class or object definition
+
+All arguments and return values should provide a link to the object's
+class documentation or definition, even if it's the same class as the current
+documentation.  For example:
+
+  ## Correct, if stated within DBIx::Class::ResultSet
+  L<$resultset|/new>
+
+  ## Correct, if stated outside DBIx::Class::ResultSet
+  L<$resultset|DBIx::Class::ResultSet>
+
+=item *
+
 ? - Optional, should be placed after the argument type and name.
 
   ## Correct
@@ -112,26 +126,28 @@ marked optional.
 
 =back
 
-The second item starts with the text "Return value:". The remainder of
-the line is either the text "undefined", a text describing the result of
-the method, or a variable with a descriptive name.
+The second item starts with the text "Return Value:". The remainder of
+the line is either the text "not defined" or a variable with a descriptive
+name.
 
   ## Good examples
-  =item Return value: undefined
-  =item Return value: A schema object
-  =item Return value: $classname
+  =item Return Value: not defined
+  =item Return Value: L<$schema|DBIx::Class::Schema>
+  =item Return Value: $classname
 
   ## Bad examples
-  =item Return value: The names
+  =item Return Value: The names
 
-"undefined" means the method does not deliberately return a value, and
-the caller should not use or rely on anything it does return. (Perl
+"not defined" means the method does not deliberately return a value, and
+the caller should not use or rely on anything it does return.  (Perl
 functions always return something, usually the result of the last code
-statement, if there is no explicit return statement.)
+statement, if there is no explicit return statement.)  This is different
+than specifying "undef", which means that it explicitly returns undef,
+though usually this is used an alternate return (like C<$obj | undef>).
 
 =item *
 
-The argument list is followed by a single paragraph describing what
+The argument/return list is followed by a single paragraph describing what
 the method does.
 
 =item *
@@ -144,7 +160,7 @@ self-explanatory enough to not require it. Use best judgement.
 
 =item *
 
-The argument list is followed by some examples of how to use the
+The argument/return list is followed by some examples of how to use the
 method, using its various types of arguments.
 
 The examples can also include ways to use the results if
@@ -163,15 +179,12 @@ Examples and explaining paragraphs can be repeated as necessary.
 
 =back
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-see L<DBIx::Class>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
-
-

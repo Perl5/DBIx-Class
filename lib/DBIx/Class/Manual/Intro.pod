@@ -67,7 +67,7 @@ The important thing to understand:
 =head2 Search results are returned as Rows
 
 Rows of the search from the database are blessed into
-L<DBIx::Class::Row> objects.
+L<Result|DBIx::Class::Manual::ResultClass> objects.
 
 =head1 SETTING UP DBIx::Class
 
@@ -136,34 +136,29 @@ of information that it may be useful to have -- just pass C<add_columns> a hash:
                               size      => 16,
                               is_nullable => 0,
                               is_auto_increment => 1,
-                              default_value => '',
                             },
                           artist =>
                             { data_type => 'integer',
                               size      => 16,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
                             },
                           title  =>
                             { data_type => 'varchar',
                               size      => 256,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
                             },
                           rank =>
                             { data_type => 'integer',
                               size      => 16,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
+                              default_value => 0,
                             }
                          );
 
 DBIx::Class doesn't directly use most of this data yet, but various related
-modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you to
-create your database tables from your Schema, instead of the other way around.
+modules such as L<HTML::FormHandler::Model::DBIC> make use of it.
+Also it allows you to create your database tables from your Schema,
+instead of the other way around.
 See L<DBIx::Class::Schema/deploy> for details.
 
 See L<DBIx::Class::ResultSource> for more details of the possible column
@@ -402,7 +397,7 @@ attributes:
 
   my @albums = My::Schema->resultset('Album')->search(
     { artist => 'Bob Marley' },
-    { rows => 2, order_by => 'year DESC' }
+    { rows => 2, order_by => { -desc => 'year' } }
   );
 
 C<@albums> then holds the two most recent Bob Marley albums.
@@ -432,7 +427,7 @@ important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
 on all your result sources B<even if the underlying RDBMS does not have one>.
 In a pinch one can always declare each row identifiable by all its columns:
 
- __PACKAGE__->set_primary_keys (__PACKAGE__->columns);
+ __PACKAGE__->set_primary_key(__PACKAGE__->columns);
 
 Note that DBIx::Class is smart enough to store a copy of the PK values before
 any row-object changes take place, so even if you change the values of PK

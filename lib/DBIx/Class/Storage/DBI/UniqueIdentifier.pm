@@ -59,9 +59,7 @@ sub _is_guid_type {
 
 sub _prefetch_autovalues  {
   my $self = shift;
-  my ($source, $to_insert) = @_;
-
-  my $col_info = $source->columns_info;
+  my ($source, $col_info, $to_insert) = @_;
 
   my %guid_cols;
   my @pk_cols = $source->primary_columns;
@@ -92,7 +90,7 @@ sub _prefetch_autovalues  {
 
     if (not defined $guid_method) {
       $self->throw_exception(
-        'You must set new_guid on your storage. See perldoc '
+        'You must set new_guid() on your storage. See perldoc '
        .'DBIx::Class::Storage::DBI::UniqueIdentifier'
       );
     }

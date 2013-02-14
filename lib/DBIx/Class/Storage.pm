@@ -180,7 +180,10 @@ sub txn_do {
   DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
     run_code => $coderef,
-    run_args => \@_, # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+    run_args => @_
+      ? \@_   # take a ref instead of a copy, to preserve @_ aliasing
+      : []    # semantics within the coderef, but only if needed
+    ,         # (pseudoforking doesn't like this trick much)
     wrap_txn => 1,
     retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
   )->run;
@@ -623,11 +626,9 @@ Old name for DBIC_TRACE
 L<DBIx::Class::Storage::DBI> - reference storage implementation using
 SQL::Abstract and DBI.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-Andy Grundman <andy@hybridized.org>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

@@ -28,7 +28,7 @@ sub _rebless {
   try {
     $dbtype = @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
   } catch {
-    $self->throw_exception("Unable to estable connection to determine database type: $_")
+    $self->throw_exception("Unable to establish connection to determine database type: $_")
   };
 
   if ($dbtype) {

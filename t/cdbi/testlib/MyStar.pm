@@ -1,9 +1,10 @@
 package # hide from PAUSE
     MyStar;
 
-use base 'MyBase';
-
+use warnings;
 use strict;
+
+use base 'MyBase';
 
 __PACKAGE__->set_table();
 __PACKAGE__->columns(All => qw/starid name/);

@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 use Test::More;
 
 use lib 't/cdbi/testlib';
@@ -45,7 +46,7 @@ eval { my $pj = Film->add_to_actors(\%pj_data) };
 like $@, qr/class/, "add_to_actors must be object method";
 
 eval { my $pj = $btaste->add_to_actors(%pj_data) };
-like $@, qr/needs/, "add_to_actors takes hash";
+like $@, qr/expects a hashref/, "add_to_actors takes hash";
 
 ok(
   my $pj = $btaste->add_to_actors(

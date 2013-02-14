@@ -3,6 +3,9 @@ package # hide from PAUSE
 
 # for sybase and mssql computed column tests
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('computed_column_test');

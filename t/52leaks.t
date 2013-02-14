@@ -47,7 +47,8 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use Scalar::Util 'refaddr';
 use DBIx::Class;
 use B 'svref_2object';
 BEGIN {
@@ -111,6 +112,7 @@ unless (DBICTest::RunMode->is_plain) {
   require DBI;
   require DBD::SQLite;
   require FileHandle;
+  require Moo;
 
   %$weak_registry = ();
 }
@@ -256,8 +258,13 @@ my @compose_ns_classes;
 
     leaky_resultset => $rs_bind_circref,
     leaky_resultset_cond => $cond_rowobj,
-    leaky_resultset_member => $rs_bind_circref->next,
   };
+
+  # this needs to fire, even if it can't find anything
+  # see FIXME below
+  # we run this only on smokers - trying to establish a pattern
+  $rs_bind_circref->next
+    if ( ($ENV{TRAVIS}||'') ne 'true' and DBICTest::RunMode->is_smoker);
 
   require Storable;
   %$base_collection = (
@@ -353,9 +360,11 @@ for my $slot (keys %$weak_registry) {
     # Moo keeps globals around, this is normal
     delete $weak_registry->{$slot};
   }
-  elsif ($slot =~ /^SQL::Translator/) {
-    # SQLT is a piece of shit, leaks all over
-    delete $weak_registry->{$slot};
+  elsif ($slot =~ /^SQL::Translator::Generator::DDL::SQLite/) {
+    # SQLT::Producer::SQLite keeps global generators around for quoted
+    # and non-quoted DDL, allow one for each quoting style
+    delete $weak_registry->{$slot}
+      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$slot}{weakref}->quote_chars}}++;
   }
   elsif ($slot =~ /^Hash::Merge/) {
     # only clear one object of a specific behavior - more would indicate trouble
@@ -371,9 +380,6 @@ for my $slot (keys %$weak_registry) {
     # more would indicate trouble
     delete $weak_registry->{$slot}
       unless $cleared->{mk_row_parser_dd_singleton}++;
-  }
-  elsif (DBIx::Class::_ENV_::INVISIBLE_DOLLAR_AT and $slot =~ /^__TxnScopeGuard__FIXUP__/) {
-    delete $weak_registry->{$slot}
   }
   elsif ($slot =~ /^DateTime::TimeZone/) {
     # DT is going through a refactor it seems - let it leak zones for now
@@ -414,15 +420,16 @@ for my $moniker ( keys %{DBICTest::Schema->source_registrations || {}} ) {
 # half of it is in XS no leaktracer sees it, and Devel::FindRef is equally
 # stumped when trying to trace the origin. The problem is:
 #
-# $cond_object --> result_source --> schema --> storage --> $dbh --> {cached_kids}
+# $cond_object --> result_source --> schema --> storage --> $dbh --> {CachedKids}
 #          ^                                                           /
 #           \-------- bound value on prepared/cached STH  <-----------/
 #
-TODO: {
-  local $TODO = 'Not sure how to fix this yet, an entanglment could be an option';
-  my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref};
-  ok(! defined $r, 'We no longer leak!')
-    or $r->result_source(undef);
+{
+  local $TODO = 'This fails intermittently - see RT#82942';
+  if ( my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref} ) {
+    ok(! defined $r, 'Self-referential RS conditions no longer leak!')
+      or $r->result_source(undef);
+  }
 }
 
 assert_empty_weakregistry ($weak_registry);

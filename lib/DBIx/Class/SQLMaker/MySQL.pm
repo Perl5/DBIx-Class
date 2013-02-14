@@ -1,6 +1,9 @@
 package # Hide from PAUSE
   DBIx::Class::SQLMaker::MySQL;
 
+use warnings;
+use strict;
+
 use base qw( DBIx::Class::SQLMaker );
 
 #
@@ -27,6 +30,71 @@ sub _generate_join_clause {
     }
 
     return $self->next::method($join_type);
+}
+
+my $force_double_subq;
+$force_double_subq = sub {
+  my ($self, $sql) = @_;
+
+  require Text::Balanced;
+  my $new_sql;
+  while (1) {
+
+    my ($prefix, $parenthesized);
+
+    ($parenthesized, $sql, $prefix) = do {
+      # idiotic design - writes to $@ but *DOES NOT* throw exceptions
+      local $@;
+      Text::Balanced::extract_bracketed( $sql, '()', qr/[^\(]*/ );
+    };
+
+    # this is how an error is indicated, in addition to crapping in $@
+    last unless $parenthesized;
+
+    if ($parenthesized =~ $self->{_modification_target_referenced_re}) {
+      # is this a select subquery?
+      if ( $parenthesized =~ /^ \( \s* SELECT \s+ /xi ) {
+        $parenthesized = "( SELECT * FROM $parenthesized `_forced_double_subquery` )";
+      }
+      # then drill down until we find it (if at all)
+      else {
+        $parenthesized =~ s/^ \( (.+) \) $/$1/x;
+        $parenthesized = join ' ', '(', $self->$force_double_subq( $parenthesized ), ')';
+      }
+    }
+
+    $new_sql .= $prefix . $parenthesized;
+  }
+
+  return $new_sql . $sql;
+};
+
+sub update {
+  my $self = shift;
+
+  # short-circuit unless understood identifier
+  return $self->next::method(@_) unless $self->{_modification_target_referenced_re};
+
+  my ($sql, @bind) = $self->next::method(@_);
+
+  $sql = $self->$force_double_subq($sql)
+    if $sql =~ $self->{_modification_target_referenced_re};
+
+  return ($sql, @bind);
+}
+
+sub delete {
+  my $self = shift;
+
+  # short-circuit unless understood identifier
+  return $self->next::method(@_) unless $self->{_modification_target_referenced_re};
+
+  my ($sql, @bind) = $self->next::method(@_);
+
+  $sql = $self->$force_double_subq($sql)
+    if $sql =~ $self->{_modification_target_referenced_re};
+
+  return ($sql, @bind);
 }
 
 # LOCK IN SHARE MODE

@@ -56,7 +56,6 @@ for my $opt (@tryopt) {
 
 sub _run_blob_tests {
 SKIP: {
-TODO: {
   my ($schema, $opt) = @_;
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
   $binstr{'large'} = $binstr{'small'} x 1024;
@@ -107,7 +106,7 @@ TODO: {
     ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
 
-    TODO: {
+    {
       local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
         if $schema->storage->_server_info->{normalized_dbms_version} < 10;
 
@@ -157,7 +156,7 @@ TODO: {
   }
 
   $schema->storage->debug ($orig_debug);
-}}
+}
 
   do_clean ($dbh);
 }

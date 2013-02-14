@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::SelfRef;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('self_ref');

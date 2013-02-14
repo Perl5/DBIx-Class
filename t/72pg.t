@@ -287,7 +287,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     } 'find by arrayref (equal)';
 
     # test inferred condition for creation
-    TODO: for my $cond (
+    for my $cond (
       { -value => [3,4] },
       \[ '= ?' => [arrayfield => [3, 4]] ],
     ) {

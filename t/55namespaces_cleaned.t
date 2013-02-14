@@ -79,12 +79,6 @@ my $skip_idx = { map { $_ => 1 } (
   # this subclass is expected to inherit whatever crap comes
   # from the parent
   'DBIx::Class::ResultSet::Pager',
-
-  # this is not part of the inheritance tree (plus is a temporary fix anyway)
-  'DBIx::Class::GlobalDestruction',
-
-  # Moo does not name its generated methods, fix pending
-  'DBIx::Class::Storage::BlockRunner',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
@@ -115,7 +109,7 @@ for my $mod (@modules) {
 
     for my $name (keys %all_method_like) {
 
-      next if ( DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN() and $name =~ /^carp(?:_unique|_once)?$/ );
+      next if ( DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN and $name =~ /^carp(?:_unique|_once)?$/ );
 
       # overload is a funky thing - it is not cleaned, and its imports are named funny
       next if $name =~ /^\(/;
@@ -123,17 +117,10 @@ for my $mod (@modules) {
       my $gv = svref_2object($all_method_like{$name})->GV;
       my $origin = $gv->STASH->NAME;
 
-      TODO: {
-        local $TODO;
-        if ($name =~ /^__CAG_/) {
-          $TODO = 'CAG does not clean its BEGIN constants';
-        }
-
-        is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
-          ? ''
-          : " (inherited by $mod)"
-        ));
-      }
+      is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
+        ? ''
+        : " (inherited by $mod)"
+      ));
 
       next if $seen->{"${origin}:${name}"}++;
 
@@ -160,7 +147,7 @@ for my $mod (@modules) {
       }
     }
 
-    next if DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN();
+    next if DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN;
 
     # some common import names (these should never ever be methods)
     for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {

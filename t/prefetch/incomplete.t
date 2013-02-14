@@ -109,4 +109,19 @@ throws_ok(
   'Sensible error message on mis-specified "as"',
 );
 
+# check complex limiting prefetch without the join-able columns
+{
+  my $pref_rs = $schema->resultset('Owners')->search({}, {
+    rows => 3,
+    offset => 1,
+    columns => 'name',  # only the owner name, still prefetch all the books
+    prefetch => 'books',
+  });
+
+  lives_ok {
+    is ($pref_rs->all, 1, 'Expected count of objects on limtied prefetch')
+  } "Complex limited prefetch works with non-selected join condition";
+}
+
+
 done_testing;

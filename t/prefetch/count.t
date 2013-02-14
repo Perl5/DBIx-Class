@@ -78,7 +78,7 @@ is_same_sql_bind (
 );
 
 
-TODO: {
+{
   local $TODO = "Chaining with prefetch is fundamentally broken";
 
   my $queries;

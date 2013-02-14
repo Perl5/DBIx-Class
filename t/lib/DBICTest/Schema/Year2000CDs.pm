@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::Year2000CDs;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::Schema::CD/;
 
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');

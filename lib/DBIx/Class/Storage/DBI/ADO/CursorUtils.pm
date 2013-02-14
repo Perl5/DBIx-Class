@@ -8,7 +8,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw/_normalize_guids _strip_trailing_binary_nulls/;
 
 sub _strip_trailing_binary_nulls {
-  my ($select, $col_infos, $data) = @_;
+  my ($select, $col_infos, $data, $storage) = @_;
 
   foreach my $select_idx (0..$#$select) {
 
@@ -18,7 +18,7 @@ sub _strip_trailing_binary_nulls {
       or next;
 
     $data->[$select_idx] =~ s/\0+\z//
-      if $data_type =~ /binary|image/i;
+      if $storage->_is_binary_type($data_type);
   }
 }
 

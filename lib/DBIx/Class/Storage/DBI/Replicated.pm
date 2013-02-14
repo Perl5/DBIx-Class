@@ -20,6 +20,8 @@ use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
+=encoding utf8
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Replicated - BETA Replicated database support
@@ -330,14 +332,16 @@ my $method_dispatch = {
     _arm_global_destructor
     _verify_pid
 
-    source_bind_attributes
-
     get_use_dbms_capability
     set_use_dbms_capability
     get_dbms_capability
     set_dbms_capability
     _dbh_details
     _dbh_get_info
+
+    _determine_connector_driver
+    _describe_connection
+    _warn_undetermined_driver
 
     sql_limit_dialect
     sql_quote_char
@@ -352,6 +356,7 @@ my $method_dispatch = {
     _max_column_bytesize
     _is_lob_type
     _is_binary_lob_type
+    _is_binary_type
     _is_text_lob_type
 
     sth
@@ -393,7 +398,7 @@ if (DBIx::Class::_ENV_::DBICTEST) {
 for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
     my $self = shift;
-    $self->throw_exception("$method must not be called on ".(blessed $self).' objects');
+    $self->throw_exception("$method() must not be called on ".(blessed $self).' objects');
   });
 }
 
@@ -441,6 +446,11 @@ C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 
 around connect_info => sub {
   my ($next, $self, $info, @extra) = @_;
+
+  $self->throw_exception(
+    'connect_info can not be retrieved from a replicated storage - '
+  . 'accessor must be called on a specific pool instance'
+  ) unless defined $info;
 
   my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 

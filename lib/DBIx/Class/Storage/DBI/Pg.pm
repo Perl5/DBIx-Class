@@ -48,7 +48,7 @@ sub last_insert_id {
   for my $col (@cols) {
     my $seq = ( $col_info->{$col}{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
       or $self->throw_exception( sprintf(
-        'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
+        "Could not determine sequence for column '%s.%s', please consider adding a schema-qualified sequence to its column info",
           $source->name,
           $col,
       ));
@@ -95,7 +95,7 @@ sub _dbh_get_autoinc_seq {
     $seq_expr = '' unless defined $seq_expr;
     $schema = "$schema." if defined $schema && length $schema;
     $self->throw_exception( sprintf (
-      'no sequence found for %s%s.%s, check the RDBMS table definition or explicitly set the '.
+      "No sequence found for '%s%s.%s', check the RDBMS table definition or explicitly set the ".
       "'sequence' for this column in %s",
         $schema ? "$schema." : '',
         $table,

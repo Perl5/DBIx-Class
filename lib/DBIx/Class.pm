@@ -11,7 +11,7 @@ our $VERSION;
 # $VERSION declaration must stay up here, ahead of any other package
 # declarations, as to not confuse various modules attempting to determine
 # this ones version, whether that be s.c.o. or Module::Metadata, etc
-$VERSION = '0.08196';
+$VERSION = '0.08206';
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
@@ -19,48 +19,37 @@ BEGIN {
   package # hide from pause
     DBIx::Class::_ENV_;
 
+  use Config;
+
+  use constant {
+
+    # but of course
+    BROKEN_FORK => ($^O eq 'MSWin32') ? 1 : 0,
+
+    HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
+
+    # ::Runmode would only be loaded by DBICTest, which in turn implies t/
+    DBICTEST => eval { DBICTest::RunMode->is_author } ? 1 : 0,
+
+    # During 5.13 dev cycle HELEMs started to leak on copy
+    PEEPEENESS =>
+      # request for all tests would force "non-leaky" illusion and vice-versa
+      defined $ENV{DBICTEST_ALL_LEAKS}                                              ? !$ENV{DBICTEST_ALL_LEAKS}
+      # otherwise confess that this perl is busted ONLY on smokers
+    : eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006)  ? 1
+      # otherwise we are good
+                                                                                    : 0
+    ,
+  };
+
   if ($] < 5.009_005) {
     require MRO::Compat;
-    *OLD_MRO = sub () { 1 };
+    constant->import( OLD_MRO => 1 );
   }
   else {
     require mro;
-    *OLD_MRO = sub () { 0 };
+    constant->import( OLD_MRO => 0 );
   }
-
-  # ::Runmode would only be loaded by DBICTest, which in turn implies t/
-  *DBICTEST = eval { DBICTest::RunMode->is_author }
-    ? sub () { 1 }
-    : sub () { 0 }
-  ;
-
-  # There was a brief period of p5p insanity when $@ was invisible in a DESTROY
-  *INVISIBLE_DOLLAR_AT = ($] >= 5.013001 and $] <= 5.013007)
-    ? sub () { 1 }
-    : sub () { 0 }
-  ;
-
-  # During 5.13 dev cycle HELEMs started to leak on copy
-  *PEEPEENESS = (defined $ENV{DBICTEST_ALL_LEAKS}
-    # request for all tests would force "non-leaky" illusion and vice-versa
-    ? ! $ENV{DBICTEST_ALL_LEAKS}
-
-    # otherwise confess that this perl is busted ONLY on smokers
-    : do {
-      if (eval { DBICTest::RunMode->is_smoker }) {
-
-        # leaky 5.13.6 (fixed in blead/cefd5c7c)
-        if ($] == '5.013006') { 1 }
-
-        # not sure why this one leaks, but disable anyway - ANDK seems to make it weep
-        elsif ($] == '5.013005') { 1 }
-
-        else { 0 }
-      }
-      else { 0 }
-    }
-  ) ? sub () { 1 } : sub () { 0 };
-
 }
 
 use mro 'c3';
@@ -69,6 +58,7 @@ use DBIx::Class::Optional::Dependencies;
 
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
+use DBIx::Class::Exception;
 
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
 __PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve');
@@ -115,8 +105,6 @@ The community can be found via:
 
 =over
 
-=item * Web Site: L<http://www.dbix-class.org/>
-
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
@@ -124,13 +112,30 @@ The community can be found via:
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
+=item * Twitter L<http://www.twitter.com/dbix_class>
+
+=item * Web Site: L<http://www.dbix-class.org/>
+
 =item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+=back
+
+The project is maintained in a git repository, accessible from the following sources:
+
+=over
 
 =item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
-=item * twitter L<http://www.twitter.com/dbix_class>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+
+=item * github mirror: L<https://github.com/dbsrgits/DBIx-Class>
+
+=item * authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
+
+=item * Travis-CI log: L<http://travis-ci.org/dbsrgits/dbix-class/builds>
+
+=for html
+<img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
 
 =back
 
@@ -222,7 +227,7 @@ Then you can use these classes in your application's code:
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no 2nd query
 
-  # new() makes a DBIx::Class::Row object but doesnt insert it into the DB.
+  # new() makes a Result object but doesnt insert it into the DB.
   # create() is the same as new() then insert().
   my $new_cd = $schema->resultset('CD')->new({ title => 'Spoon' });
   $new_cd->artist($cd->artist);
@@ -290,11 +295,15 @@ aherzog: Adam Herzog <adam@herzogdesigns.com>
 
 Alexander Keusch <cpan@keusch.at>
 
+alexrj: Alessandro Ranellucci <aar@cpan.org>
+
 alnewkirk: Al Newkirk <we@ana.im>
 
 amiri: Amiri Barksdale <amiri@metalabel.com>
 
 amoore: Andrew Moore <amoore@cpan.org>
+
+andrewalker: Andre Walker <andre@andrewalker.net>
 
 andyg: Andy Grundman <andy@hybridized.org>
 
@@ -386,6 +395,8 @@ jguenther: Justin Guenther <jguenther@cpan.org>
 
 jhannah: Jay Hannah <jay@jays.net>
 
+jmac: Jason McIntosh <jmac@appleseed-sc.com>
+
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
 jon: Jon Schutz <jjschutz@cpan.org>
@@ -409,6 +420,8 @@ mattp: Matt Phillips <mattp@cpan.org>
 michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
+
+mjemmeson: Michael Jemmeson <michael.jemmeson@gmail.com>
 
 mstratman: Mark A. Stratman <stratman@gmail.com>
 
@@ -466,7 +479,7 @@ robkinyon: Rob Kinyon <rkinyon@cpan.org>
 
 Robert Olson <bob@rdolson.org>
 
-Roman: Roman Filippov <romanf@cpan.org>
+moltar: Roman Filippov <romanf@cpan.org>
 
 Sadrak: Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>
 

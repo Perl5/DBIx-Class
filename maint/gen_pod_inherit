@@ -1,0 +1,78 @@
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+
+my $lib_dir = 'lib';
+my $pod_dir = 'maint/.Generated_Pod';
+
+my $result_metapod_fn = "$lib_dir/DBIx/Class/Manual/ResultClass.pod";
+
+die "POD generator must be executed from the dist root\n"
+  unless -d $lib_dir and -d $pod_dir;
+
+require File::Copy;
+File::Copy::copy(
+  "$result_metapod_fn.proto",
+  "$result_metapod_fn",
+) or die "Copying ResultClass proto pod ($result_metapod_fn) failed: $!";
+
+# cleanup
+END {
+  local ($@, $!, $?);
+  unlink $result_metapod_fn;
+}
+
+require Pod::Inherit;
+
+Pod::Inherit->new({
+   input_files       => $lib_dir,
+   out_dir           => "$pod_dir/lib",
+   force_permissions => 1,
+   class_map         => {
+      "DBIx::Class::Relationship::HasMany"    => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::HasOne"     => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::BelongsTo"  => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::ManyToMany" => "DBIx::Class::Relationship",
+      "DBIx::Class::ResultSourceProxy"        => "DBIx::Class::ResultSource",
+   },
+   # skip the deprecated classes that give out *DEPRECATED* warnings
+   skip_classes      => [ qw(
+      lib/DBIx/Class/Storage/DBI/Sybase/MSSQL.pm
+      lib/DBIx/Class/Serialize/Storable.pm
+      lib/DBIx/Class/ResultSetManager.pm
+      lib/DBIx/Class/InflateColumn/File.pm
+      lib/DBIx/Class/DB.pm
+      lib/DBIx/Class/CDBICompat/
+      lib/DBIx/Class/CDBICompat.pm
+   ),
+   # skip the ::Storage:: family for now
+   qw(
+      lib/DBIx/Class/Storage/
+      lib/DBIx/Class/Storage.pm
+   ),
+      'lib/DBIx/Class/Storage/DBI/Replicated/Pool.pm',  # this one just errors out with: The 'add_attribute' method cannot be called on an immutable instance
+      'lib/DBIx/Class/Relationship.pm',                 # it already documents its own inheritors
+      'lib/DBIx/Class/Core.pm',                         # we actually don't want this populated in favor of redirecting users to the ResultClass docs
+      'lib/DBIx/Class/Optional/Dependencies.pm'         # the POD is already auto-generated
+   ],
+   # these appear everywhere, and are typically lower-level methods not used by the general user
+   skip_inherits     => [ qw/
+      DBIx::Class
+      DBIx::Class::Componentised
+      Class::C3::Componentised
+      DBIx::Class::AccessorGroup
+      Class::Accessor::Grouped
+      Moose::Object
+      Exporter
+   / ],
+   force_inherits    => {
+      'DBIx::Class::Manual::ResultClass' => 'DBIx::Class::Core',  # this forces the contents of ::Core to be dumped into the POD doc for ::ResultClass
+   },
+   dead_links        => '',
+   method_format     => 'L<%m|%c/%m>',
+   #debug => 1,
+})->write_pod;
+
+# important - write_pod returns undef >.<
+1;

@@ -294,7 +294,6 @@ for ($cd_rs->all) {
               FROM cd me
               JOIN artist artist ON artist.artistid = me.artist
             GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-            ORDER BY me.cdid
           ) me
           JOIN artist artist ON artist.artistid = me.artist
           ORDER BY me.cdid
@@ -323,7 +322,6 @@ for ($cd_rs->all) {
               JOIN artist artist ON artist.artistid = me.artist
             WHERE ( tracks.title != ? )
             GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-            ORDER BY me.cdid
           ) me
           LEFT JOIN track tracks ON tracks.cd = me.cdid
           JOIN artist artist ON artist.artistid = me.artist

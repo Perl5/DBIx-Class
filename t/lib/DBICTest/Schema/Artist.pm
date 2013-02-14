@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::Artist;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 use Carp qw/confess/;
 

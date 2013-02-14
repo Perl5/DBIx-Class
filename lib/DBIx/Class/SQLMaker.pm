@@ -27,10 +27,6 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
-=item * The L</-ident> operator
-
-=item * The L</-value> operator
-
 =back
 
 =cut
@@ -44,7 +40,6 @@ use mro 'c3';
 
 use Sub::Name 'subname';
 use DBIx::Class::Carp;
-use DBIx::Class::Exception;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
@@ -75,9 +70,6 @@ BEGIN {
     my($func) = (caller(1))[3];
     __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
-
-  # Current SQLA pollutes its namespace - clean for the time being
-  namespace::clean->clean_subroutines(qw/SQL::Abstract carp croak confess/);
 }
 
 # the "oh noes offset/top without limit" constant
@@ -99,63 +91,6 @@ sub _quote {
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   );
-}
-
-sub new {
-  my $self = shift->next::method(@_);
-
-  # use the same coderefs, they are prepared to handle both cases
-  my @extra_dbic_syntax = (
-    { regex => qr/^ ident $/xi, handler => '_where_op_IDENT' },
-    { regex => qr/^ value $/xi, handler => '_where_op_VALUE' },
-  );
-
-  push @{$self->{special_ops}}, @extra_dbic_syntax;
-  push @{$self->{unary_ops}}, @extra_dbic_syntax;
-
-  $self;
-}
-
-sub _where_op_IDENT {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-  if (ref $rhs) {
-    $self->throw_exception("-$op takes a single scalar argument (a quotable identifier)");
-  }
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
-
-  return $lhs
-    ? "$lhs = $rhs"
-    : $rhs
-  ;
-}
-
-sub _where_op_VALUE {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  my @bind = [
-    ($lhs || $self->{_nested_func_lhs} || $self->throw_exception("Unable to find bindtype for -value $rhs") ),
-    $rhs
-  ];
-
-  return $lhs
-    ? (
-      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
-      @bind
-    )
-    : (
-      $self->_convert('?'),
-      @bind,
-    )
-  ;
 }
 
 sub _where_op_NEST {
@@ -194,16 +129,25 @@ sub select {
 
     ($sql, @bind) = $self->next::method ($table, $fields, $where);
 
-    my $limiter =
-      $self->can ('emulate_limit')  # also backcompat hook from SQLA::Limit
-        ||
-      do {
-        my $dialect = $self->limit_dialect
-          or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found" );
-        $self->can ("_$dialect")
-          or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
-      }
-    ;
+    my $limiter;
+
+    if( $limiter = $self->can ('emulate_limit') ) {
+      carp_unique(
+        'Support for the legacy emulate_limit() mechanism inherited from '
+      . 'SQL::Abstract::Limit has been deprecated, and will be removed when '
+      . 'DBIC transitions to Data::Query. If your code uses this type of '
+      . 'limit specification please file an RT and provide the source of '
+      . 'your emulate_limit() implementation, so an acceptable upgrade-path '
+      . 'can be devised'
+      );
+    }
+    else {
+      my $dialect = $self->limit_dialect
+        or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self" );
+
+      $limiter = $self->can ("_$dialect")
+        or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
+    }
 
     $sql = $self->$limiter (
       $sql,
@@ -238,7 +182,15 @@ my $for_syntax = {
 };
 sub _lock_select {
   my ($self, $type) = @_;
-  my $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
+
+  my $sql;
+  if (ref($type) eq 'SCALAR') {
+    $sql = "FOR $$type";
+  }
+  else {
+    $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
+  }
+
   return " $sql";
 }
 
@@ -502,42 +454,56 @@ sub _join_condition {
   return $self->_recurse_where($cond);
 }
 
+# This is hideously ugly, but SQLA does not understand multicol IN expressions
+# FIXME TEMPORARY - DQ should have native syntax for this
+# moved here to raise API questions
+#
+# !!! EXPERIMENTAL API !!! WILL CHANGE !!!
+sub _where_op_multicolumn_in {
+  my ($self, $lhs, $rhs) = @_;
+
+  if (! ref $lhs or ref $lhs eq 'ARRAY') {
+    my (@sql, @bind);
+    for (ref $lhs ? @$lhs : $lhs) {
+      if (! ref $_) {
+        push @sql, $self->_quote($_);
+      }
+      elsif (ref $_ eq 'SCALAR') {
+        push @sql, $$_;
+      }
+      elsif (ref $_ eq 'REF' and ref $$_ eq 'ARRAY') {
+        my ($s, @b) = @$$_;
+        push @sql, $s;
+        push @bind, @b;
+      }
+      else {
+        $self->throw_exception("ARRAY of @{[ ref $_ ]}es unsupported for multicolumn IN lhs...");
+      }
+    }
+    $lhs = \[ join(', ', @sql), @bind];
+  }
+  elsif (ref $lhs eq 'SCALAR') {
+    $lhs = \[ $$lhs ];
+  }
+  elsif (ref $lhs eq 'REF' and ref $$lhs eq 'ARRAY' ) {
+    # noop
+  }
+  else {
+    $self->throw_exception( ref($lhs) . "es unsupported for multicolumn IN lhs...");
+  }
+
+  # is this proper...?
+  $rhs = \[ $self->_recurse_where($rhs) ];
+
+  for ($lhs, $rhs) {
+    $$_->[0] = "( $$_->[0] )"
+      unless $$_->[0] =~ /^ \s* \( .* \) \s* ^/xs;
+  }
+
+  \[ join( ' IN ', shift @$$lhs, shift @$$rhs ), @$$lhs, @$$rhs ];
+}
+
 1;
-
-=head1 OPERATORS
-
-=head2 -ident
-
-Used to explicitly specify an SQL identifier. Takes a plain string as value
-which is then invariably treated as a column name (and is being properly
-quoted if quoting has been requested). Most useful for comparison of two
-columns:
-
-    my %where = (
-        priority => { '<', 2 },
-        requestor => { -ident => 'submitter' }
-    );
-
-which results in:
-
-    $stmt = 'WHERE "priority" < ? AND "requestor" = "submitter"';
-    @bind = ('2');
-
-=head2 -value
-
-The -value operator signals that the argument to the right is a raw bind value.
-It will be passed straight to DBI, without invoking any of the SQL::Abstract
-condition-parsing logic. This allows you to, for example, pass an array as a
-column value for databases that support array datatypes, e.g.:
-
-    my %where = (
-        array => { -value => [1, 2, 3] }
-    );
-
-which results in:
-
-    $stmt = 'WHERE array = ?';
-    @bind = ([1, 2, 3]);
 
 =head1 AUTHORS
 

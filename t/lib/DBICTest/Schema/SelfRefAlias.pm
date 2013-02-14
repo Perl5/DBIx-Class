@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::SelfRefAlias;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('self_ref_alias');

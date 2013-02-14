@@ -34,7 +34,7 @@ my ($opts, $usage) = describe_options(
     ['Actions'],
     ["action" => hidden => { one_of => [
       ['create' => 'Create version diffs needs preversion'],
-      ['upgrade' => 'Upgrade the database to the current schema '],
+      ['upgrade' => 'Upgrade the database to the current schema'],
       ['install' => 'Install the schema version tables to an existing database'],
       ['deploy' => 'Deploy the schema to the database'],
       ['select'   => 'Select data from the schema'],
@@ -43,7 +43,7 @@ my ($opts, $usage) = describe_options(
       ['delete'   => 'Delete data from the schema'],
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
       ['help' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
-      ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
+      ['documentation-as-pod:s' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
     ], required => 1 }],
     ['Arguments'],
     ["configuration" => hidden => { one_of => [
@@ -68,23 +68,26 @@ my ($opts, $usage) = describe_options(
   )
 );
 
-if($opts->{selfinject_pod}) {
+if(defined (my $fn = $opts->{documentation_as_pod}) ) {
+  $usage->synopsis($synopsis_text);
+  $usage->short_description($short_description);
 
-    die "This is an internal method, do not call!!!\n"
-      unless $ENV{MAKELEVEL};
+  if ($fn) {
+    require File::Spec;
+    require File::Path;
+    my $dir = File::Spec->catpath( (File::Spec->splitpath($fn))[0,1] );
+    File::Path::mkpath([$dir]);
+  }
 
-    $usage->synopsis($synopsis_text);
-    $usage->short_description($short_description);
-    exec (
-      $^X,
-      qw/-p -0777 -i -e/,
-      (
-        's/^# auto_pod_begin.*^# auto_pod_end/'
-      . quotemeta($usage->pod)
-      . '/ms'
-      ),
-      __FILE__
-    );
+  local *STDOUT if $fn;
+  open (STDOUT, '>', $fn) or die "Unable to open $fn: $!\n" if $fn;
+
+  print STDOUT "\n";
+  print STDOUT $usage->pod;
+  print STDOUT "\n";
+
+  close STDOUT if $fn;
+  exit 0;
 }
 
 # FIXME - lowercasing will eventually go away when Getopt::Long::Descriptive is fixed
@@ -129,13 +132,6 @@ if ($action eq 'select') {
   }
 }
 
+1;
 
 __END__
-
-# auto_pod_begin
-#
-# This will be replaced by the actual pod when selfinject-pod is invoked
-#
-# auto_pod_end
-
-# vim: et ft=perl

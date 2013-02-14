@@ -1,11 +1,12 @@
 package # hide from PAUSE
     MyFoo;
 
+use warnings;
+use strict;
+
 use base 'MyBase';
 
 use Date::Simple 3.03;
-
-use strict;
 
 __PACKAGE__->set_table();
 __PACKAGE__->columns(All => qw/myid name val tdate/);

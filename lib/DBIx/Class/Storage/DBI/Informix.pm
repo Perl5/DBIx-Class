@@ -32,7 +32,6 @@ This class implements storage-specific support for the Informix RDBMS
 
 sub _execute {
   my $self = shift;
-  my ($op) = @_;
   my ($rv, $sth, @rest) = $self->next::method(@_);
 
   $self->__last_insert_id($sth->{ix_sqlerrd}[1])

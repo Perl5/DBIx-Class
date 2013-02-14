@@ -1,5 +1,93 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix duplicated selected columns when calling 'count' when a same
+          aggregate function is used more than once in a 'having' clause
+          (RT#83305)
+
+    * Misc
+        - Fixup our distbuilding process to stop creating world-writable
+          tarball contents (implicitly fixes RT#83084)
+        - Added strict and warnings tests for all lib and test files
+
+0.08206 2013-02-08
+    * Fixes
+        - Fix dbh_do() failing to properly reconnect (regression in 0.08205)
+        - Extra sanity check of a fresh DBI handle ($dbh). Fixes
+          connection coderefs returning garbage (seen in the wild)
+
+    * Misc
+        - Only allow known globals in SQL::Translator leak allowance
+        - General cleanup of error message texts - quote names/identifiers
+          for easier reading
+        - Stop t/52leaks.t from failing when AUTOMATED_TESTING=1
+
+0.08205 2013-01-22
+    * New Features / Changes
+        - The emulate_limit() arbitrary limit dialect emulation mechanism is
+          now deprecated, and will be removed when DBIx::Class migrates to
+          Data::Query
+        - Support for the source_bind_attributes() storage method has been
+          removed after a lengthy deprecation cycle
+    * Fixes
+        - When performing resultset update/delete only strip condition
+          qualifiers - leave the source name alone (RT#80015, RT#78844)
+        - Fix incorrect behavior on resultset update/delete invoked on
+          composite resultsets (e.g. as_subselect_rs)
+        - Fix update/delete operations referencing the updated table failing
+          on MySQL, due to its refusal to modify a table being directly
+          queried. As a workaround induce in-memory temp-table creation
+          (RT#81378, RT#81897)
+        - More robust behavior under heavily threaded environments - make
+          sure we do not have refaddr reuse in the global storage registry
+        - Fix failing test on 5.8 under Win32 (RT#81114)
+        - Fix hash-randomization test issues (RT#81638)
+        - Disallow erroneous calling of connect_info on a replicated storage
+          (RT#78436)
+    * Misc
+        - Improve the populate docs in ::Schema and ::ResultSet
+        - ::Storage::DBI::source_bind_attributes() removed as announced
+          on Jan 2011 in 0e773352a
+
+0.08204 2012-11-08
+    * New Features / Changes
+        - SQLMaker now accepts \'literal' with the 'for' rs attribute as an
+          override to the builtin FOR options
+    * Fixes
+        - Fix unique constraint violations in Ordered.pm blanket movement
+          (RT#79773, rolls back short-sighted 5e6fde33e)
+        - Fix API mismatch between new_result() and new_related() (originally
+          broken by fea3d045)
+        - Fix test failure on perl 5.8
+    * Misc
+        - Much more extensive diagnostics when a new RDBMS/DSN combination is
+          encountered (RT#80431)
+
+0.08203 2012-10-18
+    * Fixes
+        - Really fix inadequate $dbh->ping SQLite implementation (what shipped
+          in 0.08201 tickled other deficiencies in DBD::SQLite itself)
+
+0.08202 2012-10-06
+    * Fixes
+        - Replace inadequate $dbh->ping SQLite implementation with our own,
+          fixes RT#78420
+
+0.08200 2012-08-24 (UTC)
+    * Fixes
+        - Change one of the new tests for the previous release to not require
+          SQL::Translator
+
+0.08199 2012-08-22 (UTC)
+    * Fixes
+        - Roll back incomplete (and broken) internal changes - restore prefetch functionality
+
+0.08198 2012-07-11 03:43 (UTC)
+    * Fixes
+        - Fix a number of Win32 Test issues
+        - Fix silent Oracle connection failures
+
+0.08197 2012-07-10 10:32 (UTC)
     * New Features / Changes
         - Issue a warning when DateTime objects are passed to ->search
         - Fast populate() in void context is now even more efficient by
@@ -18,6 +106,8 @@ Revision history for DBIx::Class
           - Nomalization of retrieved GUID values
 
     * Fixes
+        - Fix complex has_many prefetch with resultsets not selecting identity
+          columns from the root result source
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
         - Fix "Skimming limit" dialects (Top, FetchFirst) to properly check
           the order_by criteria for stability

@@ -128,9 +128,6 @@ lives_ok (sub {
     is($rs->all, 1, 'distinct with prefetch (objects)');
     is($rs->count, 1, 'distinct with prefetch (count)');
 
-  TODO: {
-    local $TODO = "This makes another 2 trips to the database, it can't be right";
-
     $queries = 0;
     $schema->storage->debugcb ($debugcb);
     $schema->storage->debug (1);
@@ -139,12 +136,13 @@ lives_ok (sub {
     is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
     is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
 
-    is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
+    {
+      local $TODO = "This makes another 2 trips to the database, it can't be right";
+      is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
+    }
 
     $schema->storage->debugcb (undef);
     $schema->storage->debug ($orig_debug);
-  }
-
 }, 'distinct generally works with prefetch on deep search_related chains');
 
 done_testing;

@@ -9,7 +9,7 @@ use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/sth storage args pos attrs _dbh_gen/
+    qw/sth storage args attrs/
 );
 
 =head1 NAME
@@ -20,7 +20,12 @@ resultset.
 =head1 SYNOPSIS
 
   my $cursor = $schema->resultset('CD')->cursor();
-  my $first_cd = $cursor->next;
+
+  # raw values off the database handle in resultset columns/select order
+  my @next_cd_column_values = $cursor->next;
+
+  # list of all raw values as arrayrefs
+  my @all_cds_column_values = $cursor->all;
 
 =head1 DESCRIPTION
 
@@ -48,9 +53,10 @@ sub new {
   my $new = {
     storage => $storage,
     args => $args,
-    pos => 0,
     attrs => $attrs,
     _dbh_gen => $storage->{_dbh_gen},
+    _pos => 0,
+    _done => 0,
   };
 
   return bless ($new, $class);
@@ -78,13 +84,15 @@ sub _dbh_next {
   if (
     $self->{attrs}{software_limit}
       && $self->{attrs}{rows}
-        && $self->{pos} >= $self->{attrs}{rows}
+        && $self->{_pos} >= $self->{attrs}{rows}
   ) {
     $self->sth->finish if $self->sth->{Active};
     $self->sth(undef);
-    $self->{done} = 1;
+    $self->{_done} = 1;
   }
-  return if $self->{done};
+
+  return if $self->{_done};
+
   unless ($self->sth) {
     $self->sth(($storage->_select(@{$self->{args}}))[1]);
     if ($self->{attrs}{software_limit}) {
@@ -95,10 +103,10 @@ sub _dbh_next {
   }
   my @row = $self->sth->fetchrow_array;
   if (@row) {
-    $self->{pos}++;
+    $self->{_pos}++;
   } else {
     $self->sth(undef);
-    $self->{done} = 1;
+    $self->{_done} = 1;
   }
   return @row;
 }
@@ -163,8 +171,8 @@ sub _soft_reset {
   my ($self) = @_;
 
   $self->sth(undef);
-  delete $self->{done};
-  $self->{pos} = 0;
+  $self->{_done} = 0;
+  $self->{_pos} = 0;
 }
 
 sub _check_dbh_gen {

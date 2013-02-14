@@ -104,6 +104,14 @@ sub table {
   return $class->result_source_instance->name;
 }
 
+=head2 table_class
+
+  __PACKAGE__->table_class('DBIx::Class::ResultSource::Table');
+
+Gets or sets the table class used for construction and validation.
+
+=cut
+
 =head2 has_column
 
   if ($obj->has_column($col)) { ... }
@@ -130,9 +138,9 @@ L<DBIx::Class::ResultSource/add_column>
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

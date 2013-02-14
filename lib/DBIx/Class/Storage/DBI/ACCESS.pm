@@ -70,11 +70,9 @@ sub insert {
       $columns_info->{$_}{is_auto_increment}
     } keys %$columns_info;
 
-    if (not $autoinc_col) {
-      $self->throw_exception(
-'empty insert only supported for tables with an autoincrement column'
-      );
-    }
+    $self->throw_exception(
+      'empty insert only supported for tables with an autoincrement column'
+    ) unless $autoinc_col;
 
     my $table = $source->from;
     $table = $$table if ref $table;

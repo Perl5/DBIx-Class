@@ -73,11 +73,13 @@ At least one L<DBIx::Class::Schema> class is needed per database.
 =head2 Result class
 
 A Result class defines both a source of data (usually one per table),
-and the methods that will be available in the L</Row> objects created
-using that source.
+and the methods that will be available in the L</Result> objects
+created using that source.
 
 One Result class is needed per data source (table, view, query) used
 in your application, they should inherit from L<DBIx::Class::Core>.
+
+See also: L<DBIx::Class::Manual::ResultClass>
 
 =head2 ResultSource
 
@@ -101,22 +103,42 @@ See also: L<DBIx::Class::ResultSet/METHODS>
 
 =head2 Record
 
-See Row.
+See Result.
 
 =head2 Row
 
-Row objects contain your actual data. They are returned from ResultSet objects.
+See Result.
+
+=head2 Result
+
+Result objects contain your actual data. They are returned from
+ResultSet objects.  These are sometimes (incorrectly) called
+row objects, including older versions of the DBIC documentation.
+
+See also: L<DBIx::Class::Manual::ResultClass>
 
 =head2 Object
 
-See Row.
+See Result.
 
 =head2 join
 
+See Join.
+
 =head2 prefetch
 
+Similiar to a join, except the related result objects are fetched and
+cached for future use, instead of used directly from the ResultSet.  This
+allows you to jump to different relationships within a Result without
+worrying about generating a ton of extra SELECT statements.
 
 =head1 SQL TERMS
+
+=head2 CRUD
+
+Create, Read, Update, Delete.  A general concept of something that can
+do all four operations (INSERT, SELECT, UPDATE, DELETE), usually at a
+row-level.
 
 =head2 Join
 
@@ -135,4 +157,12 @@ can be found in L<DBIx::Class::Manual::FAQ|the FAQ>.
 =head2 Related data
 
 In SQL, related data actually refers to data that are normalised into
-the same table. (Yes. DBIC does mis-use this term).
+the same table. (Yes. DBIC does mis-use this term.)
+
+=head1 AUTHOR AND CONTRIBUTORS
+
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.

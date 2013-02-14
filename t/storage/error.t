@@ -6,8 +6,7 @@ use Test::Warn;
 use Test::Exception;
 
 use lib qw(t/lib);
-use_ok( 'DBICTest' );
-use_ok( 'DBICTest::Schema' );
+use DBICTest;
 
 my $schema = DBICTest->init_schema;
 
@@ -35,7 +34,7 @@ throws_ok (
 # exception fallback:
 
 SKIP: {
-  if (DBIx::Class::_ENV_::PEEPEENESS()) {
+  if (DBIx::Class::_ENV_::PEEPEENESS) {
     skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
   }
 

@@ -201,13 +201,14 @@ SQL
     $rs->delete;
   }
 
-  # test transaction handling on a disconnected handle
   my $wrappers = {
     no_transaction => sub { shift->() },
     txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
     txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
     txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
   };
+
+  # test transaction handling on a disconnected handle
   for my $wrapper (keys %$wrappers) {
     $rs->delete;
 
@@ -223,45 +224,40 @@ SQL
     } "transaction on disconnected handle with $wrapper wrapper";
   }
 
-  TODO: {
+  # test transaction handling on a disconnected handle with multiple active
+  # statements
+  for my $wrapper (keys %$wrappers) {
+    $schema->storage->disconnect;
+    $rs->delete;
+    $rs->reset;
+    $rs->create({ amount => 1000 + $_ }) for (1..3);
+
+    my $artist_rs = $schema->resultset('Artist')->search({
+      name => { -like => 'Artist %' }
+    });;
+
+    $rs->next;
+
+    my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
+
+    weaken(my $a_rs_cp = $artist_rs);
+
     local $TODO = 'Transaction handling with multiple active statements will '
-                 .'need eager cursor support.';
+                 .'need eager cursor support.'
+      unless $wrapper eq 'no_transaction';
 
-    # test transaction handling on a disconnected handle with multiple active
-    # statements
-    my $wrappers = {
-      no_transaction => sub { shift->() },
-      txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
-      txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
-      txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
-    };
-    for my $wrapper (keys %$wrappers) {
-      $rs->reset;
-      $rs->delete;
-      $rs->create({ amount => 1000 + $_ }) for (1..3);
+    lives_and {
+      my @results;
 
-      my $artist_rs = $schema->resultset('Artist')->search({
-        name => { -like => 'Artist %' }
-      });;
+      $wrappers->{$wrapper}->( sub {
+        while (my $money = $rs_cp->next) {
+          my $artist = $a_rs_cp->next;
+          push @results, [ $artist->name, $money->amount ];
+        };
+      });
 
-      $rs->next;
-
-      my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
-
-      weaken(my $a_rs_cp = $artist_rs);
-
-      lives_and {
-        my @results;
-        $wrappers->{$wrapper}->( sub {
-          while (my $money = $rs_cp->next) {
-            my $artist = $a_rs_cp->next;
-            push @results, [ $artist->name, $money->amount ];
-          };
-        });
-
-        is_deeply \@results, $map;
-      } "transactions with multiple active statement with $wrapper wrapper";
-    }
+      is_deeply \@results, $map;
+    } "transactions with multiple active statement with $wrapper wrapper";
   }
 
   # test RNO detection when version detection fails

@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema::ArtistGUID;
 
+use warnings;
+use strict;
+
 use base qw/DBICTest::BaseResult/;
 
 # test MSSQL uniqueidentifier type

@@ -1,0 +1,163 @@
+# Some overall notes on how this works
+#
+# * We smoke using the system provided latest, and custom built "oddball perls"
+# The reason for not having a blanket matrix is to conserve travis resources
+# as a full DBIC depchain isn't cheap
+#
+# * Minimum perl officially supported by DBIC is 5.8.3. This *includes* the
+# basic depchain. On failure either attempt to fix it or bring it to the
+# attention of ribasushi. *DO NOT* disable 5.8 testing - it is here for a
+# reason
+#
+# * The matrix is built from two main modes - CLEANTEST = [true|false].
+# - In the first case we test with minimal deps available, and skip everything
+#   listed in DBIC::OptDesps. The modules are installed with classic CPAN
+#   invocations and are *fully tested*. In other words we simulate what would
+#   happen if a user tried to install on a just-compiled virgin perl
+# - Without CLEANTEST we bring the armada of RDBMS and install the maximum
+#   possible set of deps *without testing them*. This ensures we stay within
+#   a reasonable build-time and still run as many of our tests as possible
+#
+# * The perl builds and the DBIC tests run under NUMTHREADS number of threads.
+# The testing of dependencies under CLEANTEST runs single-threaded, at least
+# until we fix our entire dep-chain to safely pass under -j
+#
+# * The way .travis.yml is fed to the command controller is idiotic - it
+# makes using multiline `bash -c` statements impossible. Therefore to
+# aid readability (our travis logic is rather complex), the bulk of
+# functionality is moved to scripts. More about the problem (and the
+# WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
+#
+
+#
+# Smoke only specific branches to a) not overload the queue and b) not
+# overspam the notification channels
+#
+# Furthermore if the branch is ^topic/ - the custom compiled smokes will
+# not run at all, again in order to conserve queue resources
+#
+# Additionally bleadperl tests do not run on master (but do run on smoke/*)
+#
+branches:
+  only:
+    - master
+    - /^smoke\//
+    - /^topic\//
+
+notifications:
+  irc:
+    channels:
+      - "irc.perl.org#dbic-smoke"
+    template:
+      - "%{branch}#%{build_number} by %{author}: %{message} (%{build_url})"
+    on_success: change
+    on_failure: always
+    use_notice: true
+
+  email:
+    recipients:
+      - ribasushi@cpan.org
+      # Temporary - if it proves to be too noisy, we'll shut it off
+      #- dbix-class-devel@lists.scsys.co.uk
+    on_success: change
+    on_failure: change
+
+language: perl
+
+perl:
+  - "5.16"
+
+env:
+  - CLEANTEST=false
+  - CLEANTEST=true
+
+matrix:
+  include:
+    # bleadperl
+    - perl: bleadperl_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=blead
+
+    # minimum supported with threads
+    - perl: 5.8.5_thr
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads"
+        - BREWVER=5.8.5
+
+    # minimum supported without threads
+    - perl: 5.8.3_nt
+      env:
+        - CLEANTEST=false
+        - BREWOPTS=""
+        - BREWVER=5.8.3
+
+    # check CLEANTEST of minimum supported
+    - perl: 5.8.3_nt_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Dusemorebits"
+        - BREWVER=5.8.3
+
+    # this is the perl suse ships
+    - perl: 5.10.0_thr_dbg
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-DDEBUGGING -Duseithreads"
+        - BREWVER=5.10.0
+
+    # this particular perl is quite widespread
+    - perl: 5.8.8_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.8.8
+
+# sourcing the files is *EXTREMELY* important - otherwise
+# no envvars will survive
+
+# the entire run times out after 50 minutes, or after 5 minutes without
+# console output
+
+before_install:
+  # Sets global envvars, downloads/configures debs based on CLEANTEST
+  # Sets extra DBICTEST_* envvars
+  #
+  - source maint/travis-ci_scripts/10_before_install.bash
+
+install:
+  # Build and switch to a custom perl if requested
+  # Configure the perl env, preinstall some generic toolchain parts
+  #
+  - source maint/travis-ci_scripts/20_install.bash
+
+before_script:
+  # Preinstall/install deps based on envvars/CLEANTEST
+  #
+  - source maint/travis-ci_scripts/30_before_script.bash
+
+script:
+  # Run actual tests
+  #
+  - source maint/travis-ci_scripts/40_script.bash
+
+after_success:
+  # Check if we can assemble a dist properly if not in CLEANTEST
+  #
+  - source maint/travis-ci_scripts/50_after_success.bash
+
+after_failure:
+  # No tasks yet
+  #
+  #- source maint/travis-ci_scripts/50_after_failure.bash
+
+after_script:
+  # No tasks yet
+  #
+  #- source maint/travis-ci_scripts/60_after_script.bash
+
+  # if we do not unset this before we terminate the travis teardown will
+  # mark the entire job as failed
+  - set +e

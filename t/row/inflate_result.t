@@ -86,13 +86,14 @@ ok(
     )
 );
 
-TODO: {
-    local $TODO = 'New objects should also be inflated';
-    my $user  = $schema->resultset('User')->create($user_data);
-    my $admin = $schema->resultset('User')->create($admin_data);
+{
+  my $user  = $schema->resultset('User')->create($user_data);
+  my $admin = $schema->resultset('User')->create($admin_data);
 
-    is( ref $user,  'My::Schema::Result::User' );
-    is( ref $admin, 'My::Schema::Result::User::Admin' );
+  is( ref $user,  'My::Schema::Result::User' );
+
+  local $TODO = 'New objects should also be inflated';
+  is( ref $admin, 'My::Schema::Result::User::Admin' );
 }
 
 my $user  = $schema->resultset('User')->single($user_data);

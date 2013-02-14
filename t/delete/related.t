@@ -52,7 +52,7 @@ is ($cdrs->count, $total_cds -= 2, 'related + condition delete ok');
 $a2_cds->search ({}, { rows => 1})->delete;
 is ($cdrs->count, $total_cds -= 1, 'related + limit delete ok');
 
-TODO: {
+{
   local $TODO = 'delete_related is based on search_related which is based on search which does not understand object arguments';
   local $SIG{__WARN__} = sub {}; # trap the non-numeric warning, remove when the TODO is removed
 

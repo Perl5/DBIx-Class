@@ -275,7 +275,7 @@ sub last_sibling {
     return defined $lsib ? $lsib : 0;
 }
 
-# an optimized method to get the last sibling position value without inflating a row object
+# an optimized method to get the last sibling position value without inflating a result object
 sub _last_sibling_posval {
     my $self = shift;
     my $position_column = $self->position_column;
@@ -705,9 +705,39 @@ sub _shift_siblings {
         $ord = 'desc';
     }
 
-    $self->_group_rs
-          ->search ({ $position_column => { -between => \@between } })
-           ->update ({ $position_column => \ "$position_column $op 1" } );
+    my $shift_rs = $self->_group_rs-> search ({ $position_column => { -between => \@between } });
+
+    # some databases (sqlite, pg, perhaps others) are dumb and can not do a
+    # blanket increment/decrement without violating a unique constraint.
+    # So what we do here is check if the position column is part of a unique
+    # constraint, and do a one-by-one update if this is the case.
+    my $rsrc = $self->result_source;
+
+    # set in case there are more cascades combined with $rs->update => $rs_update_all overrides
+    local $rsrc->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
+    my @pcols = $rsrc->primary_columns;
+    if (
+      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
+    ) {
+        my $cursor = $shift_rs->search (
+          {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
+        )->cursor;
+        my $rs = $rsrc->resultset;
+
+        my @all_data = $cursor->all;
+        while (my $data = shift @all_data) {
+          my $pos = shift @$data;
+          my $cond;
+          for my $i (0.. $#pcols) {
+            $cond->{$pcols[$i]} = $data->[$i];
+          }
+
+          $rs->find($cond)->update ({ $position_column => $pos + ( ($op eq '+') ? 1 : -1 ) });
+        }
+    }
+    else {
+        $shift_rs->update ({ $position_column => \ "$position_column $op 1" } );
+    }
 }
 
 

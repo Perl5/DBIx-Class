@@ -32,14 +32,16 @@ BEGIN {
     strict
     warnings
 
+    constant
+    Config
+
     base
     mro
     overload
     Exporter
 
     B
-    locale
-
+    Devel::GlobalDestruction
     namespace::clean
     Try::Tiny
     Context::Preserve

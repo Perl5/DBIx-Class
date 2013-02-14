@@ -1,4 +1,5 @@
 use warnings;
+use strict;
 
 use Test::More;
 use lib qw(t/lib);

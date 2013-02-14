@@ -35,9 +35,9 @@ $schema->create_ddl_dir( undef, undef, $test_dir_1 );
 ok( -d $test_dir_1, 'create_ddl_dir did a make_path on its target dir' );
 ok( scalar( glob $test_dir_1.'/*.sql' ), 'there are sql files in there' );
 
-TODO: {
-    local $TODO = 'we should probably add some tests here for actual deployability of the DDL?';
-    ok( 0 );
+{
+  local $TODO = 'we should probably add some tests here for actual deployability of the DDL?';
+  ok( 0 );
 }
 
 END {
