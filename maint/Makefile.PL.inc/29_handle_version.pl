@@ -16,10 +16,17 @@ if ($v_maj != 0 or $v_min > 8) {
   die "Illegal version $version_string - we are still in the 0.08 cycle\n"
 }
 
+if ($v_point >= 300) {
+  die "Illegal version $version_string - we are still in the 0.082xx cycle\n"
+}
 
-# all odd releases *after* 0.08200 generate a -TRIAL, no exceptions
-Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL"
-  if ( $v_point > 200 and int($v_point / 100) % 2 );
+Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
+  # 0.08240 ~ 0.08249 shall be TRIALs for the collapser rewrite
+  ( $v_point >= 240  and $v_point <= 249 )
+    or
+  # all odd releases *after* 0.08200 generate a -TRIAL, no exceptions
+  ( $v_point > 200 and int($v_point / 100) % 2 )
+);
 
 
 my $tags = { map { chomp $_; $_ => 1} `git tag` };

@@ -1,8 +1,21 @@
 Revision history for DBIx::Class
 
+0.08240-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-14 05:56 (UTC)
     * New Features / Changes
+        - Rewrite from scratch the result constructor codepath - many bugfixes
+          and performance improvements (the current codebase is now capable of
+          outperforming both DBIx::DataModel and Rose::DB::Object on some
+          workloads). Some notable benefits:
+          - Multiple has_many prefetch
+          - Partial prefetch - you now can select only columns you are
+            interested in, while preserving the collapse functionality
+            (collapse is now exposed as a first-class API attribute)
+          - Prefetch of resultsets with arbitrary order
+            (RT#54949, RT#74024, RT#74584)
+          - Prefetch no longer inserts right-side table order_by clauses
+            (massively helps the deficient MySQL optimizer)
         - Massively optimize codepath around ->cursor(), over 10x speedup
-          on some workloads
+          on some iterating workloads.
 
     * Fixes
         - Fix open cursors silently resetting when inherited across a fork
