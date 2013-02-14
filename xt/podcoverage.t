@@ -15,6 +15,9 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) 
     : plan skip_all => "Test needs: $missing"
 }
 
+# this has already been required but leave it here for CPANTS static analysis
+require Test::Pod::Coverage;
+
 # Since this is about checking documentation, a little documentation
 # of what this is doing might be in order.
 # The exceptions structure below is a hash keyed by the module
