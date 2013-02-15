@@ -23,10 +23,6 @@ find({
     return if m{^(?:
       maint/Makefile.PL.inc/.+                        # all the maint inc snippets are auto-strictured
         |
-      lib/DBIx/Class/Admin/Types.pm                   # MooseX::Types undetected
-        |
-      lib/DBIx/Class/Storage/DBI/Replicated/Types.pm  # MooseX::Types undetected
-        |
       lib/DBIx/Class/Storage/BlockRunner.pm           # Moo undetected
         |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
