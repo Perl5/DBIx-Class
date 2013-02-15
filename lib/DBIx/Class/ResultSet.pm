@@ -137,14 +137,14 @@ another.
 
 =head3 Resolving conditions and attributes
 
-When a resultset is chained from another resultset i.e.
-C<my $new_rs = $old_rs->search(\%extra_cond, \%attrs)>, conditions
+When a resultset is chained from another resultset (ie:
+C<my $new_rs = $old_rs->search(\%extra_cond, \%attrs)>), conditions
 and attributes with the same keys need resolving.
 
-If any of L</columns>, L</select>, L</as> are present they reset the
+If any of L</columns>, L</select>, L</as> are present, they reset the
 original selection, and start the selection "clean".
 
-L</join>, L</prefetch>, L</+columns>, L</+select>, L</+as> attributes
+The L</join>, L</prefetch>, L</+columns>, L</+select>, L</+as> attributes
 are merged into the existing ones from the original resultset.
 
 The L</where> and L</having> attributes, and any search conditions, are
@@ -4163,7 +4163,7 @@ For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 When set to a true value, indicates that any rows fetched from joined has_many
 relationships are to be aggregated into the corresponding "parent" object. For
-example the resultset:
+example, the resultset:
 
   my $rs = $schema->resultset('CD')->search({}, {
     '+columns' => [ qw/ tracks.title tracks.position / ],
@@ -4181,9 +4181,9 @@ While executing the following query:
 Will return only as many objects as there are rows in the CD source, even
 though the result of the query may span many rows. Each of these CD objects
 will in turn have multiple "Track" objects hidden behind the has_many
-generated accessor C<tracks>. Without C<< collapse => 1 >> the return values
-of this resultset would be as many CD objects as there are tracks, with each
-CD object containing exactly one of all fetched Track data.
+generated accessor C<tracks>. Without C<< collapse => 1 >>, the return values
+of this resultset would be as many CD objects as there are tracks (a "Cartesian
+product"), with each CD object containing exactly one of all fetched Track data.
 
 When a collapse is requested on a non-ordered resultset, an order by some
 unique part of the main source (the left-most table) is inserted automatically.
@@ -4193,14 +4193,14 @@ object with all of its related data.
 
 If an L</order_by> is already declared, and orders the resultset in a way that
 makes collapsing as described above impossible (e.g. C<< ORDER BY
-has_many_rel.column >> or C<ORDER BY RANDOM()>) DBIC will automatically
+has_many_rel.column >> or C<ORDER BY RANDOM()>), DBIC will automatically
 switch to "eager" mode and slurp the entire resultset before consturcting the
 first object returned by L</next>.
 
 Setting this attribute on a resultset that does not join any has_many
 relations is a no-op.
 
-For a more in depth discussion see L</PREFETCHING>.
+For a more in-depth discussion, see L</PREFETCHING>.
 
 =head2 prefetch
 
@@ -4212,7 +4212,7 @@ For a more in depth discussion see L</PREFETCHING>.
 
 This attribute is a shorthand for specifying a L</join> spec, adding all
 columns from the joined related sources as L</+columns> and setting
-L</collapse> to a true value. For example the following two queries are
+L</collapse> to a true value. For example, the following two queries are
 equivalent:
 
   my $rs = $schema->resultset('Artist')->search({}, {
@@ -4255,9 +4255,9 @@ Both producing the following SQL:
       ON tracks.cd = cds.cdid
   ORDER BY me.artistid
 
-While L</prefetch> implies a L</join> it is ok to mix the two together, as
+While L</prefetch> implies a L</join>, it is ok to mix the two together, as
 the arguments are properly merged and generally do the right thing. For
-example you may want to do the following:
+example, you may want to do the following:
 
   my $artists_and_cds_without_genre = $schema->resultset('Artist')->search(
     { 'genre.genreid' => undef },
@@ -4279,7 +4279,7 @@ Which generates the following SQL:
   WHERE genre.genreid IS NULL
   ORDER BY me.artistid
 
-For a more in depth discussion see L</PREFETCHING>.
+For a more in-depth discussion, see L</PREFETCHING>.
 
 =head2 alias
 
@@ -4460,20 +4460,20 @@ query.
 =head1 PREFETCHING
 
 DBIx::Class supports arbitrary related data prefetching from multiple related
-sources. Any combination of relationship types and column sets is supported.
-If L<collapsing|/collapse> is requested there is an additional requirement of
+sources. Any combination of relationship types and column sets are supported.
+If L<collapsing|/collapse> is requested, there is an additional requirement of
 selecting enough data to make every individual object uniquely identifiable.
 
 Here are some more involved examples, based on the following relationship map:
 
- # Assuming:
- My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
- My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
- My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
+  # Assuming:
+  My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
+  My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
+  My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
 
- My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
+  My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
 
- My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
+  My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
 
 
 
@@ -4499,49 +4499,47 @@ case.
 Simple prefetches will be joined automatically, so there is no need
 for a C<join> attribute in the above search.
 
-L</prefetch> can be used with any of the relationship types and
-multiple prefetches can be specified together. Below is a more complex
+The L</prefetch> attribute can be used with any of the relationship types
+and multiple prefetches can be specified together. Below is a more complex
 example that prefetches a CD's artist, its liner notes (if present),
-the cover image, the tracks on that cd, and the guests on those
+the cover image, the tracks on that CD, and the guests on those
 tracks.
 
-
- my $rs = $schema->resultset('CD')->search(
-   undef,
-   {
-     prefetch => [
-       { artist => 'record_label'},  # belongs_to => belongs_to
-       'liner_note',                 # might_have
-       'cover_image',                # has_one
-       { tracks => 'guests' },       # has_many => has_many
-     ]
-   }
- );
+  my $rs = $schema->resultset('CD')->search(
+    undef,
+    {
+      prefetch => [
+        { artist => 'record_label'},  # belongs_to => belongs_to
+        'liner_note',                 # might_have
+        'cover_image',                # has_one
+        { tracks => 'guests' },       # has_many => has_many
+      ]
+    }
+  );
 
 This will produce SQL like the following:
 
- SELECT cd.*, artist.*, record_label.*, liner_note.*, cover_image.*,
-        tracks.*, guests.*
-   FROM cd me
-   JOIN artist artist
-     ON artist.artistid = me.artistid
-   JOIN record_label record_label
-     ON record_label.labelid = artist.labelid
-   LEFT JOIN track tracks
-     ON tracks.cdid = me.cdid
-   LEFT JOIN guest guests
-     ON guests.trackid = track.trackid
-   LEFT JOIN liner_notes liner_note
-     ON liner_note.cdid = me.cdid
-   JOIN cd_artwork cover_image
-     ON cover_image.cdid = me.cdid
- ORDER BY tracks.cd
+  SELECT cd.*, artist.*, record_label.*, liner_note.*, cover_image.*,
+         tracks.*, guests.*
+    FROM cd me
+    JOIN artist artist
+      ON artist.artistid = me.artistid
+    JOIN record_label record_label
+      ON record_label.labelid = artist.labelid
+    LEFT JOIN track tracks
+      ON tracks.cdid = me.cdid
+    LEFT JOIN guest guests
+      ON guests.trackid = track.trackid
+    LEFT JOIN liner_notes liner_note
+      ON liner_note.cdid = me.cdid
+    JOIN cd_artwork cover_image
+      ON cover_image.cdid = me.cdid
+  ORDER BY tracks.cd
 
 Now the C<artist>, C<record_label>, C<liner_note>, C<cover_image>,
 C<tracks>, and C<guests> of the CD will all be available through the
 relationship accessors without the need for additional queries to the
 database.
-
 
 =head3 CAVEATS
 
@@ -4576,7 +4574,7 @@ traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you 
 
   cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
 
-that cmp_ok() may or may not pass depending on the datasets involved. This
+That cmp_ok() may or may not pass depending on the datasets involved. This
 behavior may or may not survive the 0.09 transition.
 
 =back
