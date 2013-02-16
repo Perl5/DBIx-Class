@@ -72,15 +72,13 @@ else
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
   parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec Data::Dumper
-  parallel_installdeps_notest Test::Exception LWP
-  parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles
-  parallel_installdeps_notest namespace::clean Class::XSAccessor MRO::Compat
-  parallel_installdeps_notest DBD::SQLite Moo Class::Accessor::Grouped
-  parallel_installdeps_notest Module::Install DateTime::Format::Strptime
-  parallel_installdeps_notest JSON::DWIW JSON JSON::XS Test::Pod::Coverage Test::EOL
-  parallel_installdeps_notest MooseX::Types JSON::Any Class::DBI
+  parallel_installdeps_notest Test::Exception Encode::Locale HTTP::Status HTTP::Daemon Try::Tiny
+  parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles B::Hooks::EndOfScope
+  parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
+  parallel_installdeps_notest YAML LWP Moose Class::Trigger JSON::XS DBI
+  parallel_installdeps_notest Moo Class::Accessor::Grouped Module::Install JSON
 
-  if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then 
+  if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is full of 5.10-isms, but works perfectly fine on 5.8
     # pull in our patched copy
     run_or_err "Fetching patched DBD::Firebird" \
