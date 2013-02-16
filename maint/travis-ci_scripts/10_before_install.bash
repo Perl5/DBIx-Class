@@ -3,33 +3,26 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-if [[ -n "$BREWVER" ]] ; then
-  # .travis.yml already restricts branches to master, topic/* and smoke/*
-  # do some extra short-circuiting here
+# .travis.yml already restricts branches to master, topic/* and smoke/*
+# do some extra short-circuiting here
 
-  # when smoking master do not attempt bleadperl (not release-critical)
-  if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
-    echo_err "$(tstamp) pull-request smoking with custom perl compilation requested - bailing out"
-    export SHORT_CIRCUIT_SMOKE=1
-  elif [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
-    echo_err "$(tstamp) master branch is not smoked with bleadperl - bailing out"
-    export SHORT_CIRCUIT_SMOKE=1
-  # on topic/ branches test only with travis perls
-  elif [[ "$TRAVIS_BRANCH" =~ "topic/" ]]; then
-    echo_err "$(tstamp) non-smoke branch and custom perl compilation requested - bailing out"
-    export SHORT_CIRCUIT_SMOKE=1
-  fi
-
-  if [[ -n "$SHORT_CIRCUIT_SMOKE" ]]; then
-    sleep 20  # give the console time to attach, otherwise it hangs
-    return  # this is like an `exit 0` in sourcing
-  fi
+# when smoking master do not attempt bleadperl (not release-critical)
+if [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
+  echo_err "$(tstamp) master branch is not smoked with bleadperl - bailing out"
+  export SHORT_CIRCUIT_SMOKE=1
 fi
 
-# different boxes we run on may have different amount of hw threads
-# hence why we need to query
-# result is 1.5 times the physical threads
-export NUMTHREADS=$(( ( $(cut -f 2 -d '-' /sys/devices/system/cpu/online) + 1 ) * 15 / 10  ))
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
+
+# Different boxes we run on may have different amount of hw threads
+# Hence why we need to query
+# Originally we used to read /sys/devices/system/cpu/online
+# but it is not available these days (odd). Thus we fall to
+# the alwas-present /proc/cpuinfo
+# The oneliner is a tad convoluted - basicaly what we do is
+# slurp the entire file and get the index off the last
+# `processor    : XX` line
+export NUMTHREADS=$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))
 
 if [[ "$CLEANTEST" != "true" ]]; then
 ### apt-get invocation - faster to grab everything at once
