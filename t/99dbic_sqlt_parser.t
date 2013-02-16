@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use Scalar::Util ();
 
@@ -21,10 +22,21 @@ BEGIN {
 
   my @schemas = (
     create_schema ({ schema => $s }),
-    create_schema ({ args => { parser_args => { 'DBIx::Class::Schema' => $s } } }),
-    create_schema ({ args => { parser_args => { 'DBIx::Schema' => $s } } }),
-    create_schema ({ args => { parser_args => { package => $s } } }),
+    create_schema ({ args => { parser_args => { dbic_schema => $s } } }),
   );
+
+  for my $parser_args_key (qw(
+    DBIx::Class::Schema
+    DBIx::Schema
+    package
+  )) {
+    warnings_exist {
+      push @schemas, create_schema({
+        args => { parser_args => { $parser_args_key => $s } }
+      });
+    } qr/\Qparser_args => {\E.+?is deprecated/,
+    "deprecated crazy parser_arg '$parser_args_key' warned";
+  }
 
   Scalar::Util::weaken ($s);
 
@@ -211,7 +223,6 @@ done_testing;
 sub create_schema {
   my $args = shift;
 
-  my $schema = $args->{schema};
   my $additional_sqltargs = $args->{args} || {};
 
   my $sqltargs = {
@@ -224,7 +235,9 @@ sub create_schema {
   my $sqlt = SQL::Translator->new( $sqltargs );
 
   $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-  return $sqlt->translate({ data => $schema }) || die $sqlt->error;
+  return $sqlt->translate(
+    $args->{schema} ? ( data => $args->{schema} ) : ()
+  ) || die $sqlt->error;
 }
 
 sub get_table {
