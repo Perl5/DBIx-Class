@@ -9,6 +9,8 @@ Revision history for DBIx::Class
         - Fix duplicated selected columns when calling 'count' when a same
           aggregate function is used more than once in a 'having' clause
           (RT#83305)
+        - Prevent SQL::Translator::Producer::YAML from seeing the $dbh
+          in a potentially connected $schema instance (RT#75394)
 
     * Misc
         - Fixup our distbuilding process to stop creating world-writable

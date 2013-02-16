@@ -49,6 +49,45 @@ BEGIN {
 # make sure classname-style works
 lives_ok { isa_ok (create_schema ({ schema => 'DBICTest::Schema' }), 'SQL::Translator::Schema', 'SQLT schema object produced') };
 
+# make sure a connected instance passed via $args does not get the $dbh improperly serialized
+SKIP: {
+
+  # YAML is a build_requires dep of SQLT - it may or may not be here
+  eval { require YAML } or skip "Test requires YAML.pm", 1;
+
+  lives_ok {
+
+    my $s = DBICTest->init_schema(no_populate => 1);
+    ok ($s->storage->connected, '$schema instance connected');
+
+    # roundtrip through YAML
+    my $yaml_rt_schema = SQL::Translator->new(
+      parser => 'SQL::Translator::Parser::YAML'
+    )->translate(
+      data => SQL::Translator->new(
+        parser_args => { package => $s },
+        parser => 'SQL::Translator::Parser::DBIx::Class',
+        producer => 'SQL::Translator::Producer::YAML',
+      )->translate
+    );
+
+    isa_ok ( $yaml_rt_schema, 'SQL::Translator::Schema', 'SQLT schema object produced after YAML roundtrip');
+
+    ok ($s->storage->connected, '$schema instance still connected');
+  }
+
+  eval <<'EOE' or die $@;
+  END {
+    $^W = 1;  # important, otherwise DBI won't trip the next fail()
+    $SIG{__WARN__} = sub {
+      fail "Unexpected global destruction warning"
+        if $_[0] =~ /is not a DBI/;
+      warn @_;
+    };
+  }
+EOE
+
+}
 
 my $schema = DBICTest->init_schema( no_deploy => 1 );
 

@@ -57,6 +57,19 @@ sub parse {
         or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
     }
 
+    if (
+      ref $args->{dbic_schema}
+        and
+      $args->{dbic_schema}->storage
+    ) {
+      # we have a storage-holding $schema instance in $args
+      # we need to dissociate it from that $storage
+      # otherwise SQLT insanity may ensue due to how some
+      # serializing producers treat $args (crazy crazy shit)
+      local $args->{dbic_schema}{storage};
+      $args->{dbic_schema} = $args->{dbic_schema}->clone;
+    }
+
     my $schema      = $tr->schema;
     my $table_no    = 0;
 
