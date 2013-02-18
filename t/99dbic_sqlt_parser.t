@@ -34,7 +34,7 @@ BEGIN {
       push @schemas, create_schema({
         args => { parser_args => { $parser_args_key => $s } }
       });
-    } qr/\Qparser_args => {\E.+?is deprecated/,
+    } qr/\Qparser_args => {\E.+?is deprecated.+\Q@{[__FILE__]}/,
     "deprecated crazy parser_arg '$parser_args_key' warned";
   }
 
@@ -65,7 +65,7 @@ SKIP: {
       parser => 'SQL::Translator::Parser::YAML'
     )->translate(
       data => SQL::Translator->new(
-        parser_args => { package => $s },
+        parser_args => { dbic_schema => $s },
         parser => 'SQL::Translator::Parser::DBIx::Class',
         producer => 'SQL::Translator::Producer::YAML',
       )->translate
