@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -41,7 +42,7 @@ lives_ok ( sub {
   );
   my $years = [qw/ 2001 2001 1999 1998 1997/];
 
-  is_deeply (
+  cmp_deeply (
     [ $rs->search->get_column('me.year')->all ],
     $years,
     'Expected years (at least one duplicate)',
@@ -67,13 +68,13 @@ lives_ok ( sub {
     push @pref_cds_and_tracks, $data;
   }
 
-  is_deeply (
+  cmp_deeply (
     \@pref_cds_and_tracks,
     \@cds_and_tracks,
     'Correct collapsing on non-unique primary object'
   );
 
-  is_deeply (
+  cmp_deeply (
     [ $pref_rs->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' })->all ],
     \@cds_and_tracks,
     'Correct HRI collapsing on non-unique primary object'

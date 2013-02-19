@@ -1406,39 +1406,17 @@ sub _construct_objects {
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
       hri_style => 1,
-      prune_null_branches => 1,
     }) )->($rows, @extra_collapser_args);
   }
   # Regular multi-object
   else {
 
-    # The rationale is - if this is the ::Row inflator itself, or an around()
-    # we do prune, because we expect it.
-    # If not the case - let the user deal with the full output themselves
-    # Warn them while we are at it so we get a better idea what is out there
-    # on the DarkPan
-    $self->{_result_inflator}{prune_null_branches} = do {
-      $res_class->isa('DBIx::Class::Row')
-    } ? 1 : 0 unless defined $self->{_result_inflator}{prune_null_branches};
-
-    unless ($self->{_result_inflator}{prune_null_branches}) {
-      carp_once (
-        "ResultClass $res_class does not inherit from DBIx::Class::Row and "
-      . 'therefore its inflate_result() will receive the full prefetched data '
-      . 'tree, without any branch definedness checks. This is a compatibility '
-      . 'measure which will eventually disappear entirely. Please refer to '
-      . 't/resultset/inflate_result_api.t for an exhaustive description of the '
-      . 'upcoming changes'
-      );
-    }
-
-    ( $self->{_row_parser}{classic}{$self->{_result_inflator}{prune_null_branches}} ||= $rsrc->_mk_row_parser({
+    ( $self->{_row_parser}{classic} ||= $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
-      prune_null_branches => $self->{_result_inflator}{prune_null_branches},
     }) )->($rows, @extra_collapser_args);
 
     $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;

@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Revert to passing the original (pre-0.08240) arguments to
+          inflate_result() and remove the warning about ResultClass
+          inheritance.
+
 0.08240-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-14 05:56 (UTC)
     * New Features / Changes
         - Rewrite from scratch the result constructor codepath - many bugfixes

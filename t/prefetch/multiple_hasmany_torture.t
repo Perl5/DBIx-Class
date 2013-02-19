@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -91,7 +92,7 @@ my $mo = $mo_rs->next;
 
 is( @{$mo->{cds}}, 2, 'two CDs' );
 
-is_deeply(
+cmp_deeply(
     $mo,
     {
         'cds' => [

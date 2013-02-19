@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -48,17 +49,33 @@ for (1,2) {
   $schema->resultset('CD')->create({ artist => 1, year => 1977, title => "fuzzy_$_" });
 }
 
-my $rs = $schema->resultset('CD');
+{
+  package DBICTest::HRI::Subclass;
+  use base 'DBIx::Class::ResultClass::HashRefInflator';
+}
 
-is_deeply
-  $rs->search({}, {
+{
+  package DBICTest::HRI::Around;
+  use base 'DBIx::Class::ResultClass::HashRefInflator';
+
+  sub inflate_result { shift->next::method(@_) }
+}
+
+for my $rs (
+  $schema->resultset('CD')->search_rs({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' }),
+  $schema->resultset('CD')->search_rs({}, { result_class => 'DBICTest::HRI::Subclass' }),
+  $schema->resultset('CD')->search_rs({}, { result_class => 'DBICTest::HRI::Around' }),
+) {
+
+cmp_deeply
+  [ $rs->search({}, {
     columns => {
       year                          => 'me.year',
       'single_track.cd.artist.name' => 'artist.name',
     },
     join => { single_track => { cd => 'artist' } },
     order_by => [qw/me.cdid artist.artistid/],
-  })->all_hri,
+  })->all ],
   [
     {
       single_track => undef,
@@ -87,11 +104,11 @@ is_deeply
       year => 1977
     },
   ],
-  'plain 1:1 descending chain'
+  'plain 1:1 descending chain ' . $rs->result_class
 ;
 
-is_deeply
-  $rs->search({}, {
+cmp_deeply
+  [ $rs->search({}, {
     columns => {
       'artist'                                  => 'me.artist',
       'title'                                   => 'me.title',
@@ -102,7 +119,7 @@ is_deeply
     },
     join => { single_track => { cd => { artist => { cds => 'tracks' } } } },
     order_by => [qw/me.cdid artist.artistid cds.cdid tracks.trackid/],
-  })->all_hri,
+  })->all ],
   [
     {
       artist => 1,
@@ -323,11 +340,11 @@ is_deeply
       year => 1977
     }
   ],
-  'non-collapsing 1:1:1:M:M chain',
+  'non-collapsing 1:1:1:M:M chain ' . $rs->result_class,
 ;
 
-is_deeply
-  $rs->search({}, {
+cmp_deeply
+  [ $rs->search({}, {
     columns => {
       'artist'                                  => 'me.artist',
       'title'                                   => 'me.title',
@@ -339,7 +356,7 @@ is_deeply
     join => { single_track => { cd => { artist => { cds => 'tracks' } } } },
     order_by => [qw/me.cdid artist.artistid cds.cdid tracks.trackid/],
     collapse => {}, #hashref to keep older DBIC versions happy (doesn't actually work)
-  })->all_hri,
+  })->all ],
   [
     {
       artist => 1,
@@ -430,7 +447,9 @@ is_deeply
       year => 1977
     }
   ],
-  'collapsing 1:1:1:M:M chain',
+  'collapsing 1:1:1:M:M chain ' . $rs->result_class,
 ;
+
+}
 
 done_testing;

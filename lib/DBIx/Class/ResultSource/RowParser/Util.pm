@@ -13,6 +13,9 @@ our @EXPORT_OK = qw(
   assemble_collapsing_parser
 );
 
+# working title - we are hoping to extract this eventually...
+our $null_branch_class = 'DBIx::ResultParser::RelatedNullBranch';
+
 sub assemble_simple_parser {
   #my ($args) = @_;
 
@@ -51,24 +54,38 @@ sub __visit_infmap_simple {
   my @relperl;
   for my $rel (sort keys %$rel_cols) {
 
-    push @relperl, join ' => ', perlstring($rel), __visit_infmap_simple({ %$args,
+    my $rel_struct = __visit_infmap_simple({ %$args,
       val_index => $rel_cols->{$rel},
     });
 
-    if ($args->{prune_null_branches} and keys %$my_cols) {
+    if (keys %$my_cols) {
 
-      my @branch_null_checks = map
+      my $branch_null_checks = join ' && ', map
         { "( ! defined '\xFF__VALPOS__${_}__\xFF' )" }
         sort { $a <=> $b } values %{$rel_cols->{$rel}}
       ;
 
-      $relperl[-1] = sprintf ( '(%s) ? ( %s => %s ) : ( %s )',
-        join (' && ', @branch_null_checks ),
-        perlstring($rel),
-        $args->{hri_style} ? 'undef' : '[]',
-        $relperl[-1],
-      );
+      if ($args->{hri_style}) {
+        $rel_struct = sprintf ( '( (%s) ? undef : %s )',
+          $branch_null_checks,
+          $rel_struct,
+        );
+      }
+      else {
+        $rel_struct = sprintf ( '( (%s) ? bless( (%s), %s ) : %s )',
+          $branch_null_checks,
+          $rel_struct,
+          perlstring($null_branch_class),
+          $rel_struct,
+        );
+      }
     }
+
+    push @relperl, sprintf '( %s => %s )',
+      perlstring($rel),
+      $rel_struct,
+    ;
+
   }
 
   my $me_struct;
@@ -159,7 +176,7 @@ sub assemble_collapsing_parser {
     );
 
     # the rel assemblers
-    %4$s
+%4$s
 
     $_[0][$result_pos++] = $collapse_idx[0]%2$s
       if $is_new_res;
@@ -195,23 +212,24 @@ sub __visit_infmap_collapse {
   }
 
 
-  my $node_key = $args->{collapse_map}->{-custom_node_key} || join ('', map
-    { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
-    @{$args->{collapse_map}->{-identifying_columns}}
-  );
-
-  my $me_struct;
-
   if ($args->{hri_style}) {
     delete $my_cols->{$_} for grep { $rel_cols->{$_} } keys %$my_cols;
   }
 
-  if (keys %$my_cols) {
-    $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) });
-    $me_struct = "[ $me_struct ]" unless $args->{hri_style};
-  }
+  my $me_struct;
+  $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) })
+    if keys %$my_cols;
 
+  $me_struct = sprintf( '[ %s ]', $me_struct||'' )
+    unless $args->{hri_style};
+
+
+  my $node_key = $args->{collapse_map}->{-custom_node_key} || join ('', map
+    { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
+    @{$args->{collapse_map}->{-identifying_columns}}
+  );
   my $node_idx_slot = sprintf '$collapse_idx[%d]%s', $cur_node_idx, $node_key;
+
 
   my @src;
 
@@ -251,9 +269,6 @@ sub __visit_infmap_collapse {
   for my $rel (sort keys %$rel_cols) {
 
     my $relinfo = $args->{collapse_map}{$rel};
-    if ($args->{collapse_map}{-is_optional}) {
-      $relinfo = { %$relinfo, -is_optional => 1 };
-    }
 
     ($rel_src, $stats->{$rel}) = __visit_infmap_collapse({ %$args,
       val_index => $rel_cols->{$rel},
@@ -267,8 +282,6 @@ sub __visit_infmap_collapse {
     push @src, @$rel_src;
 
     if (
-      $args->{prune_null_branches}
-        and
       $relinfo->{-is_optional}
         and
       defined ( my $first_distinct_child_idcol = first
@@ -277,17 +290,28 @@ sub __visit_infmap_collapse {
       )
     ) {
 
-      $src[$rel_src_pos] = sprintf( '%s and %s',
-        "( defined '\xFF__VALPOS__${first_distinct_child_idcol}__\xFF' )",
-        $src[$rel_src_pos],
-      );
+      if ($args->{hri_style}) {
 
-      splice @src, $rel_src_pos + 1, 0, sprintf ( '%s%s{%s} ||= %s;',
-        $node_idx_slot,
-        $args->{hri_style} ? '' : '[1]',
-        perlstring($rel),
-        $args->{hri_style} && $relinfo->{-is_single} ? 'undef' : '[]',
-      );
+        $src[$rel_src_pos] = sprintf( '%s and %s',
+          "( defined '\xFF__VALPOS__${first_distinct_child_idcol}__\xFF' )",
+          $src[$rel_src_pos],
+        );
+
+        splice @src, $rel_src_pos + 1, 0, sprintf ( '%s{%s} ||= %s;',
+          $node_idx_slot,
+          perlstring($rel),
+          $relinfo->{-is_single} ? 'undef' : '[]',
+        );
+      }
+      else {
+
+        splice @src, $rel_src_pos + 1, 0, sprintf ( '(defined %s) or bless (%s[1]{%s}, %s);',
+          "'\xFF__VALPOS__${first_distinct_child_idcol}__\xFF'",
+          $node_idx_slot,
+          perlstring($rel),
+          perlstring($null_branch_class),
+        );
+      }
     }
   }
 
@@ -305,6 +329,7 @@ sub __visit_infmap_collapse {
 # keep our own DD object around so we don't have to fitz with quoting
 my $dumper_obj;
 sub __visit_dump {
+
   # we actually will be producing functional perl code here,
   # thus no second-guessing of what these globals might have
   # been set to. DO NOT CHANGE!

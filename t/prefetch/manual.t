@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -64,7 +65,7 @@ my $rs = $schema->resultset ('CD')->search ({}, {
 
 my $hri_rs = $rs->search({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' });
 
-is_deeply (
+cmp_deeply (
   [$hri_rs->all],
   [
     {
@@ -189,7 +190,7 @@ TODO: {
   local $TODO = 'Something is wrong with filter type rels, they throw on incomplete objects >.<';
 
   lives_ok {
-    is_deeply (
+    cmp_deeply (
       { $row->single_track->get_columns },
       {},
       'empty intermediate object ok',
@@ -310,13 +311,13 @@ $schema->storage->debugcb(undef);
 $schema->storage->debug($orig_debug);
 is ($queries, 2, "Only two queries for rwo prefetch calls total");
 
-# can't is_deeply a random set - need *some* order
+# can't cmp_deeply a random set - need *some* order
 my @hris = sort { $a->{year} cmp $b->{year} } @{$rs->search({}, {
   order_by => [ 'tracks_2.title', 'tracks.title', 'cds.cdid', \ 'RANDOM()' ],
 })->all_hri};
 is (@hris, 6, 'hri count matches' );
 
-is_deeply (\@hris, [
+cmp_deeply (\@hris, [
   {
     single_track => undef,
     tracks => [

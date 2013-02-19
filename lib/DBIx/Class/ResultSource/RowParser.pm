@@ -106,7 +106,6 @@ sub _mk_row_parser {
     $src = assemble_simple_parser({
       val_index => $val_index,
       hri_style => $args->{hri_style},
-      prune_null_branches => $args->{prune_null_branches},
     });
   }
   else {
@@ -130,13 +129,12 @@ sub _mk_row_parser {
       val_index => $val_index,
       collapse_map => $collapse_map,
       hri_style => $args->{hri_style},
-      prune_null_branches => $args->{prune_null_branches},
     });
   }
 
-  return (! $args->{eval})
-    ? $src
-    : eval "sub { $src }" || die $@
+  return $args->{eval}
+    ? ( eval "sub { $src }" || die $@ )
+    : $src
   ;
 }
 

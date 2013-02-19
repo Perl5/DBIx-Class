@@ -1186,7 +1186,11 @@ sub inflate_result {
     for my $pre ( keys %$prefetch ) {
 
       my @pre_objects;
-      if (@{$prefetch->{$pre}||[]}) {
+      if (
+        @{$prefetch->{$pre}||[]}
+          and
+        ref($prefetch->{$pre}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
+      ) {
         my $pre_source = $source->related_source($pre);
 
         @pre_objects = map {

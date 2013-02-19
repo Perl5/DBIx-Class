@@ -94,6 +94,7 @@ my $build_requires = {
 
 my $test_requires = {
   'File::Temp'               => '0.22',
+  'Test::Deep'               => '0.101',
   'Test::Exception'          => '0.31',
   'Test::Warn'               => '0.21',
   'Test::More'               => '0.94',
