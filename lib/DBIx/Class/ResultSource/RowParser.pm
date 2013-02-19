@@ -133,7 +133,7 @@ sub _mk_row_parser {
   }
 
   return $args->{eval}
-    ? ( eval "sub { $src }" || die $@ )
+    ? ( eval "sub $src" || die $@ )
     : $src
   ;
 }

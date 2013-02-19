@@ -33,7 +33,7 @@ sub assemble_simple_parser {
   # change the quoted placeholders to unquoted alias-references
   $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$_->[$1]"/gex;
 
-  return $parser_src;
+  $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
 }
 
 # the simple non-collapsing nested structure recursor
@@ -191,7 +191,7 @@ EOS
   $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row_data->[$1]"/gex;
   $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /"\$cur_row_ids{$1}"/gex;
 
-  $parser_src;
+  $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
 }
 
 

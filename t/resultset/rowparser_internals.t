@@ -720,6 +720,8 @@ sub is_same_src {
 
   $expect =~ s/__NBC__/B::perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
 
+  $expect = "  { use strict; use warnings FATAL => 'all';\n$expect\n  }";
+
   my @normalized = map {
     my $cref = eval "sub { $_ }" or do {
       fail "Coderef does not compile!\n\n$@\n\n$_";
