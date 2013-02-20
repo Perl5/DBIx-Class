@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08208 2013-02-20 09:56 (UTC)
     * New Features / Changes
         - A bunch of nonsensically named arguments to the SQL::Translator
           parser have been marked as deprecated (while still fully
