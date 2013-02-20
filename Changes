@@ -6,6 +6,8 @@ Revision history for DBIx::Class
           inheritance.
         - Optimize the generated rowparsers even more - no user-visible
           changes.
+        - Emit a warning on incorrect use of nullable columns within a
+          primary key
 
 0.08240-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-14 05:56 (UTC)
     * New Features / Changes

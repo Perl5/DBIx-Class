@@ -492,9 +492,9 @@ sub columns_info {
       }
       else {
         $self->throw_exception( sprintf (
-          "No such column '%s' on source %s",
+          "No such column '%s' on source '%s'",
           $_,
-          $self->source_name,
+          $self->source_name || $self->name || 'Unknown source...?',
         ));
       }
     }
@@ -588,11 +588,18 @@ for more info.
 
 sub set_primary_key {
   my ($self, @cols) = @_;
-  # check if primary key columns are valid columns
-  foreach my $col (@cols) {
-    $self->throw_exception("No such column $col on table " . $self->name)
-      unless $self->has_column($col);
+
+  my $colinfo = $self->columns_info(\@cols);
+  for my $col (@cols) {
+    carp_unique(sprintf (
+      "Primary key of source '%s' includes the column '%s' which has its "
+    . "'is_nullable' attribute set to true. This is a mistake and will cause "
+    . 'various Result-object operations to fail',
+      $self->source_name || $self->name || 'Unknown source...?',
+      $col,
+    )) if $colinfo->{$col}{is_nullable};
   }
+
   $self->_primaries(\@cols);
 
   $self->add_unique_constraint(primary => \@cols);
