@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08241-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-20 11:97 (UTC)
     * New Features / Changes
         - Revert to passing the original (pre-0.08240) arguments to
           inflate_result() and remove the warning about ResultClass
