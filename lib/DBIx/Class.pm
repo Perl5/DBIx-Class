@@ -343,6 +343,8 @@ clkao: CL Kao
 
 da5id: David Jack Olrik <djo@cpan.org>
 
+davewood: David Schmidt <davewood@gmx.at>
+
 debolaz: Anders Nor Berle <berle@cpan.org>
 
 dew: Dan Thomas <dan@godders.org>

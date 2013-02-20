@@ -604,7 +604,7 @@ C<LinerNotes>:
   # SELECT cd.*, artist.*, liner_notes.* FROM cd
   # JOIN artist ON cd.artist = artist.id
   # JOIN liner_notes ON cd.id = liner_notes.cd
-  # WHERE artist.name = 'Bob Marley'
+  # WHERE artist.name = 'Bob Marley' AND liner_notes.notes LIKE '%some text%'
   # ORDER BY artist.name
 
 =head2 Multi-step joins
