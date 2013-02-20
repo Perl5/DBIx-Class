@@ -106,6 +106,12 @@ my $rdbms_firebird_odbc = {
 };
 
 my $reqs = {
+  dist_upload => {
+    req => {
+      'CPAN::Uploader' => '0.103001',
+    },
+  },
+
   dist_podinherit => {
     req => {
       'Pod::Inherit' => '0.90',
