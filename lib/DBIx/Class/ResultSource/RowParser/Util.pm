@@ -127,11 +127,12 @@ sub assemble_collapsing_parser {
 
     my $virtual_column_idx = (scalar keys %{$args->{val_index}} ) + 1;
 
-    $top_node_key_assembler = sprintf '$cur_row_ids{%d} = (%s);',
-      $virtual_column_idx,
-      "\n" . join( "\n  or\n", @path_parts, qq{"\0\$rows_pos\0"} );
+    $top_node_key = "{'\xFF__IDVALPOS__${virtual_column_idx}__\xFF'}";
 
-    $top_node_key = sprintf '{$cur_row_ids{%d}}', $virtual_column_idx;
+    $top_node_key_assembler = sprintf "'\xFF__IDVALPOS__%d__\xFF' = (%s);",
+      $virtual_column_idx,
+      "\n" . join( "\n  or\n", @path_parts, qq{"\0\$rows_pos\0"} )
+    ;
 
     $args->{collapse_map} = {
       %{$args->{collapse_map}},
@@ -145,11 +146,18 @@ sub assemble_collapsing_parser {
 
   my ($data_assemblers, $stats) = __visit_infmap_collapse ($args);
 
-  my $list_of_idcols = join(', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } );
+  my @idcol_args = $args->{hri_style} ? ('', '') : (
+    '%cur_row_ids, ', # only declare the variable if we'll use it
 
-  my $parser_src = sprintf (<<'EOS', $list_of_idcols, $top_node_key, $top_node_key_assembler||'', join( "\n", @{$data_assemblers||[]} ) );
+    sprintf( <<'EOS', join ', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
+  $cur_row_ids{$_} = defined($cur_row_data->[$_]) ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
+    for (%s);
+EOS
+  );
+
+  my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
 ### BEGIN LITERAL STRING EVAL
-  my ($rows_pos, $result_pos, $cur_row_data, %%cur_row_ids, @collapse_idx, $is_new_res) = (0,0);
+  my ($rows_pos, $result_pos, $cur_row_data,%1$s @collapse_idx, $is_new_res) = (0,0);
   # this loop is a bit arcane - the rationale is that the passed in
   # $_[0] will either have only one row (->next) or will have all
   # rows already pulled in (->all and/or unordered). Given that the
@@ -161,24 +169,25 @@ sub assemble_collapsing_parser {
       ||
     ($_[1] and $_[1]->())
   ) {
+    # this code exists only when we are *not* assembling direct to HRI
+    #
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
     # (otherwise folding of optional 1:1s will be greatly confused
-    $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-      for (%1$s);
+    %2$s
 
-    # maybe(!) cache the top node id calculation
+    # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
     %3$s
 
-    $is_new_res = ! $collapse_idx[0]%2$s and (
+    $is_new_res = ! $collapse_idx[0]%4$s and (
       $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row_data) and last
     );
 
     # the rel assemblers
-%4$s
+%5$s
 
-    $_[0][$result_pos++] = $collapse_idx[0]%2$s
+    $_[0][$result_pos++] = $collapse_idx[0]%4$s
       if $is_new_res;
   }
 
@@ -189,7 +198,7 @@ EOS
   # !!! note - different var than the one above
   # change the quoted placeholders to unquoted alias-references
   $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row_data->[$1]"/gex;
-  $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /"\$cur_row_ids{$1}"/gex;
+  $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /$args->{hri_style} ? "\$cur_row_data->[$1]" : "\$cur_row_ids{$1}" /gex;
 
   $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
 }
@@ -292,16 +301,16 @@ sub __visit_infmap_collapse {
 
       if ($args->{hri_style}) {
 
-        $src[$rel_src_pos] = sprintf( '%s and %s',
-          "( defined '\xFF__VALPOS__${first_distinct_child_idcol}__\xFF' )",
-          $src[$rel_src_pos],
-        );
-
-        splice @src, $rel_src_pos + 1, 0, sprintf ( '%s{%s} ||= %s;',
+        # start of wrap of the entire chain in a conditional
+        splice @src, $rel_src_pos, 0, sprintf "( ! defined %s )\n  ? %s{%s} = %s\n  : do {",
+          "'\xFF__VALPOS__${first_distinct_child_idcol}__\xFF'",
           $node_idx_slot,
           perlstring($rel),
-          $relinfo->{-is_single} ? 'undef' : '[]',
-        );
+          $relinfo->{-is_single} ? 'undef' : '[]'
+        ;
+
+        # end of wrap
+        push @src, '};'
       }
       else {
 

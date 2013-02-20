@@ -268,7 +268,7 @@ is_same_src (
     collapse => 1,
     hri_style => 1,
   }),
-  ' my($rows_pos, $result_pos, $cur_row_data, %cur_row_ids, @collapse_idx, $is_new_res) = (0, 0);
+  ' my($rows_pos, $result_pos, $cur_row_data, @collapse_idx, $is_new_res) = (0, 0);
 
     while ($cur_row_data = (
       ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
@@ -276,48 +276,45 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) {
 
-      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 1, 3, 4, 5);
-
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
-        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} );
+        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} );
 
       # the rowdata itself for root node
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} ||= { artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] };
+      $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} ||= { artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] };
 
       # prefetch data of single_track (placed in root)
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} ||= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}
-        if defined $cur_row_data->[1];
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} ||= undef;
+      (! defined($cur_row_data->[1]) ) ? $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}{single_track} = undef : do {
+        $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}{single_track} ||= $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
 
-      # prefetch data of cd (placed in single_track)
-      $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cd} ||= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}};
+        # prefetch data of cd (placed in single_track)
+        $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cd} ||= $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
 
-      # prefetch data of artist ( placed in single_track->cd)
-      $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{artist} ||= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ||= { artistid => $cur_row_data->[1] };
+        # prefetch data of artist ( placed in single_track->cd)
+        $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{artist} ||= $collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]} ||= { artistid => $cur_row_data->[1] };
 
-      # prefetch data of cds (if available)
-      ( defined $cur_row_data->[3] )
-        and
-      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
-        and
-      push @{$collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cds}}, (
-        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = { cdid => $cur_row_data->[3] }
-      );
-      $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cds} ||= [];
+        # prefetch data of cds (if available)
+        (! defined $cur_row_data->[3] ) ? $collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cds} = [] : do {
 
-      # prefetch data of tracks (if available)
-      ( defined $cur_row_data->[0] )
-        and
-      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
-        and
-      push @{$collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}{tracks}}, (
-        $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} = { title => $cur_row_data->[0] }
-      );
-      $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}}{tracks} ||= [];
+          (! $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]} )
+            and
+          push @{$collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cds}}, (
+            $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]} = { cdid => $cur_row_data->[3] }
+          );
 
-      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}
+          # prefetch data of tracks (if available)
+          ( ! defined $cur_row_data->[0] ) ? $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]}{tracks} = [] : do {
+
+            (! $collapse_idx[5]{$cur_row_data->[0]}{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]} )
+              and
+            push @{$collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]}{tracks}}, (
+              $collapse_idx[5]{$cur_row_data->[0]}{$cur_row_data->[1]}{$cur_row_data->[3]}{$cur_row_data->[4]}{$cur_row_data->[5]} = { title => $cur_row_data->[0] }
+            );
+          };
+        };
+      };
+
+      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}
         if $is_new_res;
     }
     splice @{$_[0]}, $result_pos;
@@ -638,7 +635,7 @@ is_same_src (
     collapse => 1,
     hri_style => 1,
   }),
-  ' my($rows_pos, $result_pos, $cur_row_data, %cur_row_ids, @collapse_idx, $is_new_res) = (0, 0);
+  ' my($rows_pos, $result_pos, $cur_row_data, @collapse_idx, $is_new_res) = (0, 0);
 
     while ($cur_row_data = (
       ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
@@ -646,11 +643,8 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) {
 
-      $cur_row_ids{$_} = defined $$cur_row_data[$_] ? $$cur_row_data[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 2, 3, 4, 8);
-
       # cache expensive set of ops in a non-existent rowid slot
-      $cur_row_ids{10} = (
+      $cur_row_data->[10] = (
         ( ( defined $cur_row_data->[0] ) && (join "\xFF", q{}, $cur_row_data->[0], q{} ))
           or
         ( ( defined $cur_row_data->[2] ) && (join "\xFF", q{}, $cur_row_data->[2], q{} ))
@@ -660,47 +654,46 @@ is_same_src (
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and unshift(@{$_[2]}, $cur_row_data) and last
-        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_ids{10}} );
+        if ( $is_new_res = ! $collapse_idx[0]{$cur_row_data->[10]} );
 
-      $collapse_idx[0]{$cur_row_ids{10}} ||= { year => $$cur_row_data[1] };
+      $collapse_idx[0]{$cur_row_data->[10]} ||= { year => $$cur_row_data[1] };
 
-      (defined $cur_row_data->[0])
-        and
-      $collapse_idx[0]{$cur_row_ids{10}}{single_track} ||= ($collapse_idx[1]{$cur_row_ids{0}} ||= { trackid => $$cur_row_data[0] });
-      $collapse_idx[0]{$cur_row_ids{10}}{single_track} ||= undef;
+      (! defined $cur_row_data->[0] ) ? $collapse_idx[0]{$cur_row_data->[10]}{single_track} = undef : do {
 
-      $collapse_idx[1]{$cur_row_ids{0}}{cd} ||= $collapse_idx[2]{$cur_row_ids{0}};
+        $collapse_idx[0]{$cur_row_data->[10]}{single_track} ||= ($collapse_idx[1]{$cur_row_data->[0]} ||= { trackid => $$cur_row_data[0] });
 
-      $collapse_idx[2]{$cur_row_ids{0}}{artist} ||= ($collapse_idx[3]{$cur_row_ids{0}} ||= { artistid => $$cur_row_data[6] });
+        $collapse_idx[1]{$cur_row_data->[0]}{cd} ||= $collapse_idx[2]{$cur_row_data->[0]};
 
-      (defined $cur_row_data->[4])
-        and
-      (! $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} )
-        and
-      push @{$collapse_idx[3]{$cur_row_ids{0}}{cds}}, (
-          $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} = { cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }
-      );
-      $collapse_idx[3]{$cur_row_ids{0}}{cds} ||= [];
+        $collapse_idx[2]{$cur_row_data->[0]}{artist} ||= ($collapse_idx[3]{$cur_row_data->[0]} ||= { artistid => $$cur_row_data[6] });
 
-      (defined $cur_row_data->[8])
-        and
-      (! $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} )
-        and
-      push @{$collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}{tracks}}, (
-          $collapse_idx[5]{$cur_row_ids{0}}{$cur_row_ids{4}}{$cur_row_ids{8}} = { title => $$cur_row_data[8] }
-      );
-      $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}}{tracks} ||= [];
+        (! defined $cur_row_data->[4] ) ? $collapse_idx[3]{$cur_row_data->[0]}{cds} = [] : do {
 
-      (defined $cur_row_data->[2])
-        and
-      (! $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} )
-        and
-      push @{$collapse_idx[0]{$cur_row_ids{10}}{tracks}}, (
-          $collapse_idx[6]{$cur_row_ids{2}}{$cur_row_ids{3}} = { cd => $$cur_row_data[2], title => $$cur_row_data[3] }
-      );
-      $collapse_idx[0]{$cur_row_ids{10}}{tracks} ||= [];
+          (! $collapse_idx[4]{$cur_row_data->[0]}{$cur_row_data->[4]} )
+            and
+          push @{$collapse_idx[3]{$cur_row_data->[0]}{cds}}, (
+              $collapse_idx[4]{$cur_row_data->[0]}{$cur_row_data->[4]} = { cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }
+          );
 
-      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_ids{10}}
+          (! defined $cur_row_data->[8] ) ? $collapse_idx[4]{$cur_row_data->[0]}{$cur_row_data->[4]}{tracks} = [] : do {
+
+            (! $collapse_idx[5]{$cur_row_data->[0]}{$cur_row_data->[4]}{$cur_row_data->[8]} )
+              and
+            push @{$collapse_idx[4]{$cur_row_data->[0]}{$cur_row_data->[4]}{tracks}}, (
+                $collapse_idx[5]{$cur_row_data->[0]}{$cur_row_data->[4]}{$cur_row_data->[8]} = { title => $$cur_row_data[8] }
+            );
+          };
+        };
+      };
+
+      (! defined $cur_row_data->[2] ) ? $collapse_idx[0]{$cur_row_data->[10]}{tracks} = [] : do {
+        (! $collapse_idx[6]{$cur_row_data->[2]}{$cur_row_data->[3]} )
+          and
+        push @{$collapse_idx[0]{$cur_row_data->[10]}{tracks}}, (
+            $collapse_idx[6]{$cur_row_data->[2]}{$cur_row_data->[3]} = { cd => $$cur_row_data[2], title => $$cur_row_data[3] }
+        );
+      };
+
+      $_[0][$result_pos++] = $collapse_idx[0]{$cur_row_data->[10]}
         if $is_new_res;
     }
 

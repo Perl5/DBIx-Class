@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - Revert to passing the original (pre-0.08240) arguments to
           inflate_result() and remove the warning about ResultClass
           inheritance.
+        - Optimize the generated rowparsers even more - no user-visible
+          changes.
 
 0.08240-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-14 05:56 (UTC)
     * New Features / Changes
