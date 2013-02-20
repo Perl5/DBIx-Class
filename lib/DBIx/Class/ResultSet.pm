@@ -4552,8 +4552,11 @@ traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you 
 
   cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
 
-That cmp_ok() may or may not pass depending on the datasets involved. This
-behavior may or may not survive the 0.09 transition.
+That cmp_ok() may or may not pass depending on the datasets involved. In other
+words the C<WHERE> condition would apply to the entire dataset, just like
+it would in regular SQL. If you want to add a condition only to the "right side"
+of a C<LEFT JOIN> - consider declaring and using a L<relationship with a custom
+condition|DBIx::Class::Relationship::Base/condition>
 
 =back
 
