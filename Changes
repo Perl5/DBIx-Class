@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix another embarrassing regression preventing correct refining of
+          the search criteria on a prefetched relation (broken in 0.08205)
+
 0.08208 2013-02-20 09:56 (UTC)
     * New Features / Changes
         - A bunch of nonsensically named arguments to the SQL::Translator

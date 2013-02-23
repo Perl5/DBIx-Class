@@ -389,11 +389,11 @@ sub search_rs {
   my $cache;
   my %safe = (alias => 1, cache => 1);
   if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
-    ! defined $_[0]
+    ! defined $call_cond
       or
-    ref $_[0] eq 'HASH' && ! keys %{$_[0]}
+    ref $call_cond eq 'HASH' && ! keys %$call_cond
       or
-    ref $_[0] eq 'ARRAY' && ! @{$_[0]}
+    ref $call_cond eq 'ARRAY' && ! @$call_cond
   )) {
     $cache = $self->get_cache;
   }
