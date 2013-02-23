@@ -19,6 +19,8 @@ Revision history for DBIx::Class
         - Properly consider unselected order_by criteria during complex
           subqueried prefetch
         - Properly support "MySQL-style" left-side group_by with prefetch
+        - Fix $grouped_rs->get_column($col)->func($func) producing incorrect
+          SQL (RT#81127)
 
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes

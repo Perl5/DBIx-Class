@@ -167,4 +167,29 @@ is_same_sql_bind (
   'Correct SQL for prefetch/order_by/group_by'
 );
 
+# test aggregate on a function
+{
+  my $tr_rs = $schema->resultset("Track");
+  $tr_rs->create({ cd => 2, title => 'dealbreaker' });
+
+  is(
+    $tr_rs->get_column('cd')->max,
+    5,
+    "Correct: Max cd in Track is 5"
+  );
+
+  my $track_counts_per_cd_via_group_by = $tr_rs->search({}, {
+    columns => [ 'cd', { cnt => { count => 'trackid', -as => 'cnt' } } ],
+    group_by => 'cd',
+  })->get_column('cnt');
+
+  is ($track_counts_per_cd_via_group_by->max, 4, 'Correct max tracks per cd');
+  is ($track_counts_per_cd_via_group_by->min, 3, 'Correct min tracks per cd');
+  is (
+    sprintf('%0.1f', $track_counts_per_cd_via_group_by->func('avg') ),
+    '3.2',
+    'Correct avg tracks per cd'
+  );
+}
+
 done_testing;

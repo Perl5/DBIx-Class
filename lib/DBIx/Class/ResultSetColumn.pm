@@ -422,12 +422,19 @@ Creates the resultset that C<func()> uses to run its query.
 
 sub func_rs {
   my ($self,$function) = @_;
-  return $self->{_parent_resultset}->search(
-    undef, {
-      select => {$function => $self->{_select}},
-      as => [$self->{_as}],
-    },
-  );
+
+  my $rs = $self->{_parent_resultset};
+  my $select = $self->{_select};
+
+  # wrap a grouped rs
+  if ($rs->_resolved_attrs->{group_by}) {
+    $select = $self->{_as};
+    $rs = $rs->as_subselect_rs;
+  }
+
+  $rs->search( undef, {
+    columns => { $self->{_as} => { $function => $select } }
+  } );
 }
 
 =head2 throw_exception
