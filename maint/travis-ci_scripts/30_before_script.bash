@@ -73,7 +73,7 @@ else
   parallel_installdeps_notest Module::Build
   parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec Data::Dumper
   parallel_installdeps_notest Test::Exception Encode::Locale HTTP::Status HTTP::Daemon Try::Tiny
-  parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles B::Hooks::EndOfScope
+  parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Moose Class::Trigger JSON::XS DBI
   parallel_installdeps_notest Moo Class::Accessor::Grouped Module::Install JSON
