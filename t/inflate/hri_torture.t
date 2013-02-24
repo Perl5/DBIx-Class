@@ -355,7 +355,7 @@ cmp_deeply
     },
     join => { single_track => { cd => { artist => { cds => 'tracks' } } } },
     order_by => [qw/me.cdid artist.artistid cds.cdid tracks.trackid/],
-    collapse => {}, #hashref to keep older DBIC versions happy (doesn't actually work)
+    collapse => 1,
   })->all ],
   [
     {
