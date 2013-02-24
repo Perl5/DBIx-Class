@@ -89,8 +89,7 @@ sub __visit_infmap_simple {
   }
 
   my $me_struct;
-  $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) })
-    if keys %$my_cols;
+  $me_struct = __result_struct_to_source($my_cols) if keys %$my_cols;
 
   if ($args->{hri_style}) {
     $me_struct =~ s/^ \s* \{ | \} \s* $//gx
@@ -226,8 +225,7 @@ sub __visit_infmap_collapse {
   }
 
   my $me_struct;
-  $me_struct = __visit_dump({ map { $_ => "\xFF__VALPOS__$my_cols->{$_}__\xFF" } (keys %$my_cols) })
-    if keys %$my_cols;
+  $me_struct = __result_struct_to_source($my_cols) if keys %$my_cols;
 
   $me_struct = sprintf( '[ %s ]', $me_struct||'' )
     unless $args->{hri_style};
@@ -335,27 +333,11 @@ sub __visit_infmap_collapse {
   );
 }
 
-# keep our own DD object around so we don't have to fitz with quoting
-my $dumper_obj;
-sub __visit_dump {
-
-  # we actually will be producing functional perl code here,
-  # thus no second-guessing of what these globals might have
-  # been set to. DO NOT CHANGE!
-  ($dumper_obj ||= do {
-    require Data::Dumper;
-    Data::Dumper->new([])
-      ->Useperl (0)
-      ->Purity (1)
-      ->Pad ('')
-      ->Useqq (0)
-      ->Terse (1)
-      ->Quotekeys (1)
-      ->Deepcopy (0)
-      ->Deparse (0)
-      ->Maxdepth (0)
-      ->Indent (0)  # faster but harder to read, perhaps leave at 1 ?
-  })->Values ([$_[0]])->Dump;
+sub __result_struct_to_source {
+  sprintf( '{ %s }', join (', ', map
+    { sprintf "%s => '\xFF__VALPOS__%d__\xFF'", perlstring($_), $_[0]{$_} }
+    sort keys %{$_[0]}
+  ));
 }
 
 1;
