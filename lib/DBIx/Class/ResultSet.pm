@@ -1331,7 +1331,7 @@ sub _construct_objects {
 
       # instead of looping over ->next, use ->all in stealth mode
       # *without* calling a ->reset afterwards
-      # FIXME - encapsulation breach, got to be a better way
+      # FIXME ENCAPSULATION - encapsulation breach, cursor method additions pending
       if (! $cursor->{_done}) {
         $rows = [ ($rows ? @$rows : ()), $cursor->all ];
         $cursor->{_done} = 1;
@@ -1472,14 +1472,19 @@ sub result_class {
   my ($self, $result_class) = @_;
   if ($result_class) {
 
-    unless (ref $result_class) { # don't fire this for an object
-      $self->ensure_class_loaded($result_class);
+    # don't fire this for an object
+    $self->ensure_class_loaded($result_class)
+      unless ref($result_class);
+
+    if ($self->get_cache) {
+      carp_unique('Changing the result_class of a ResultSet instance with cached results is a noop - the cache contents will not be altered');
     }
+    # FIXME ENCAPSULATION - encapsulation breach, cursor method additions pending
+    elsif ($self->{cursor} && $self->{cursor}{_pos}) {
+      $self->throw_exception('Changing the result_class of a ResultSet instance with an active cursor is not supported');
+    }
+
     $self->_result_class($result_class);
-    # THIS LINE WOULD BE A BUG - this accessor specifically exists to
-    # permit the user to set result class on one result set only; it only
-    # chains if provided to search()
-    #$self->{attrs}{result_class} = $result_class if ref $self;
 
     delete $self->{_result_inflator};
   }

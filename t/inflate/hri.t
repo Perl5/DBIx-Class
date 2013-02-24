@@ -40,6 +40,7 @@ my $schema = DBICTest->init_schema();
       [ sort $rs->result_source->columns ],
       'returned correct columns',
     );
+    $hri_rs->reset;
 
     $cd = $hri_rs->find ({cdid => 1});
     is_deeply ( $cd, $datahashref1, 'first/find return the same thing (result_class attr propagates)');

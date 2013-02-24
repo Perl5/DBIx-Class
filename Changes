@@ -1,5 +1,11 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Changing the result_class of a ResultSet in progress is now
+          explicitly forbidden. The behavior was undefined before, and
+          would result in wildly differing outcomes depending on $rs
+          attributes.
+
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes
         - Debugging aid - warn on invalid result objects created by what
