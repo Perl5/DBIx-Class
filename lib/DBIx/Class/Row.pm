@@ -1191,7 +1191,22 @@ sub inflate_result {
           and
         ref($prefetch->{$pre}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
       ) {
-        my $pre_source = $source->related_source($pre);
+        my $pre_source = try {
+          $source->related_source($pre)
+        } catch {
+          my $err = sprintf
+            "Inflation into non-existent relationship '%s' of '%s' requested",
+            $pre,
+            $source->source_name,
+          ;
+          if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$pre}[0] || {}} ) {
+            $err .= sprintf ", check the inflation specification (columns/as) ending in '...%s.%s'",
+            $pre,
+            $colname,
+          }
+
+          $source->throw_exception($err);
+        };
 
         @pre_objects = map {
           $pre_source->result_class->inflate_result( $pre_source, @$_ )

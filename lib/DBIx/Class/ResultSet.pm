@@ -3338,40 +3338,6 @@ sub _chain_relationship {
   return {%$attrs, from => $from, seen_join => $seen};
 }
 
-# FIXME - this needs to go live in Schema with the tree walker... or
-# something
-my $inflatemap_checker;
-$inflatemap_checker = sub {
-  my ($rsrc, $relpaths) = @_;
-
-  my $rels;
-
-  for (@$relpaths) {
-    $_ =~ /^ ( [^\.]+ ) \. (.+) $/x
-      or next;
-
-    push @{$rels->{$1}}, $2;
-  }
-
-  for my $rel (keys %$rels) {
-    my $rel_rsrc = try {
-      $rsrc->related_source ($rel)
-    } catch {
-    $rsrc->throw_exception(sprintf(
-      "Inflation into non-existent relationship '%s' of '%s' requested, "
-    . "check the inflation specification (columns/as) ending in '...%s.%s'",
-      $rel,
-      $rsrc->source_name,
-      $rel,
-      ( sort { length($a) <=> length ($b) } @{$rels->{$rel}} )[0],
-    ))};
-
-    $inflatemap_checker->($rel_rsrc, $rels->{$rel});
-  }
-
-  return;
-};
-
 sub _resolved_attrs {
   my $self = shift;
   return $self->{_attrs} if $self->{_attrs};
@@ -3442,14 +3408,6 @@ sub _resolved_attrs {
       $i++;
     }
   }
-
-  # validate the user-supplied 'as' chain
-  # folks get too confused by the (logical) exception message, need to
-  # go to some lengths to clarify the text
-  #
-  # FIXME - this needs to go live in Schema with the tree walker... or
-  # something
-  $inflatemap_checker->($source, \@as);
 
   $attrs->{select} = \@sel;
   $attrs->{as} = \@as;

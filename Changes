@@ -5,6 +5,10 @@ Revision history for DBIx::Class
           explicitly forbidden. The behavior was undefined before, and
           would result in wildly differing outcomes depending on $rs
           attributes.
+        - Scale back validation of the 'as' attribute - in the field
+          there are legitimate-ish uses of a inflating into an apparently
+          invalid relationship graph
+
 
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes
