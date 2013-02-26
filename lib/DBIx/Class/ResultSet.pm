@@ -5,7 +5,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util qw/blessed weaken reftype/;
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
 
@@ -2324,15 +2324,29 @@ sub new_result {
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
 
-  my %new = (
+  my $new = $self->result_class->new({
     %$merged_cond,
-    @$cols_from_relations
+    ( @$cols_from_relations
       ? (-cols_from_relations => $cols_from_relations)
-      : (),
+      : ()
+    ),
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
-  );
+  });
 
-  return $self->result_class->new(\%new);
+  if (
+    reftype($new) eq 'HASH'
+      and
+    ! keys %$new
+      and
+    blessed($new)
+  ) {
+    carp_unique (sprintf (
+      "%s->new returned a blessed empty hashref - a strong indicator something is wrong with its inheritance chain",
+      $self->result_class,
+    ));
+  }
+
+  $new;
 }
 
 # _merge_with_rscond

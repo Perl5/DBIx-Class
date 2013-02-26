@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Debugging aid - warn on invalid result objects created by what
+          seems like an invalid inheritance hierarchy
+
     * Fixes
         - Fix another embarrassing regression preventing correct refining of
           the search criteria on a prefetched relation (broken in 0.08205)
