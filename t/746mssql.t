@@ -75,7 +75,7 @@ for my $opts_name (keys %opts) {
     }
     catch {
       if ($opts{$opts_name}{required}) {
-        BAIL_OUT "on_connect_call option '$opts_name' is not functional: $_";
+        die "on_connect_call option '$opts_name' is not functional: $_";
       }
       else {
         skip

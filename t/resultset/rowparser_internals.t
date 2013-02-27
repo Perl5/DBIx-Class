@@ -726,7 +726,8 @@ sub is_same_src {
   &is (@normalized, $_[2]||() ) or do {
     eval { require Test::Differences }
       ? &Test::Differences::eq_or_diff( @normalized, $_[2]||() )
-      : note ("Original sources:\n\n$got\n\n$expect\n");
-    BAIL_OUT('');
+      : note ("Original sources:\n\n$got\n\n$expect\n")
+    ;
+    exit 1;
   };
 }
