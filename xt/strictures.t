@@ -23,15 +23,7 @@ find({
     return if m{^(?:
       maint/Makefile.PL.inc/.+                        # all the maint inc snippets are auto-strictured
         |
-      lib/DBIx/Class/Storage/BlockRunner.pm           # Moo undetected
-        |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
-        |
-      lib/DBIx/Class/Storage/DBI/Replicated/Replicant.pm  # Moose::Role no longer detected (RT#83433)
-        |
-      lib/DBIx/Class/Storage/DBI/Replicated/WithDSN.pm    # Moose::Role no longer detected (RT#83433)
-        |
-      lib/DBIx/Class/Storage/DBI/Replicated/Balancer.pm   # Moose::Role no longer detected (RT#83433)
     )$}x;
 
     my $f = $_;
