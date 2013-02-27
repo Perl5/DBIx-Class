@@ -419,6 +419,43 @@ cmp_structures (
   'Non-Collapsing chained has_many'
 );
 
+$schema->resultset('Artist')->create({ name => "${_}_cdless" })
+  for (qw( Z A ));
+
+cmp_structures (
+  [$schema->resultset ('Artist')->search ({}, {
+    result_class => 'DBICTest::_IRCapture',
+    collapse => 1,
+    join => 'cds',
+    columns => [qw( cds.title cds.artist )],
+    order_by => [qw( me.name cds.title )],
+  })->all],
+  [
+    [
+      undef,
+      { cds => bless( [
+        [ { artist => undef, title => undef } ]
+      ], 'DBIx::ResultParser::RelatedNullBranch' ) },
+    ],
+    [
+      undef,
+      { cds => [
+        [ { artist => 1, title => "Equinoxe" } ],
+        [ { artist => 1, title => "Magnetic Fields" } ],
+        [ { artist => 1, title => "Oxygene" } ],
+        [ { artist => 1, title => "fuzzy_1" } ],
+      ] }
+    ],
+    [
+      undef,
+      { cds => bless( [
+        [ { artist => undef, title => undef } ]
+      ], 'DBIx::ResultParser::RelatedNullBranch' ) },
+    ],
+  ],
+  'Expected output of collapsing 1:M with empty root selection',
+);
+
 sub cmp_structures {
   my ($left, $right, $msg) = @_;
 

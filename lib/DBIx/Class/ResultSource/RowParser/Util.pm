@@ -146,7 +146,7 @@ sub assemble_collapsing_parser {
   my ($data_assemblers, $stats) = __visit_infmap_collapse ($args);
 
   my @idcol_args = $args->{hri_style} ? ('', '') : (
-    '%cur_row_ids, ', # only declare the variable if we'll use it
+    ', %cur_row_ids', # only declare the variable if we'll use it
 
     sprintf( <<'EOS', join ', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
   $cur_row_ids{$_} = defined($cur_row_data->[$_]) ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
@@ -156,7 +156,9 @@ EOS
 
   my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
 ### BEGIN LITERAL STRING EVAL
-  my ($rows_pos, $result_pos, $cur_row_data,%1$s @collapse_idx, $is_new_res) = (0,0);
+  my $rows_pos = 0;
+  my ($result_pos, @collapse_idx, $cur_row_data %1$s);
+
   # this loop is a bit arcane - the rationale is that the passed in
   # $_[0] will either have only one row (->next) or will have all
   # rows already pulled in (->all and/or unordered). Given that the
@@ -179,18 +181,18 @@ EOS
     # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
     %3$s
 
-    $is_new_res = ! $collapse_idx[0]%4$s and (
-      $_[1] and $result_pos and (unshift @{$_[2]}, $cur_row_data) and last
-    );
+    # if we were supplied a coderef - we are collapsing lazily (the set
+    # is ordered properly)
+    # as long as we have a result already and the next result is new we
+    # return the pre-read data and bail
+    $_[1] and $result_pos and ! $collapse_idx[0]%4$s and (unshift @{$_[2]}, $cur_row_data) and last;
 
     # the rel assemblers
 %5$s
 
-    $_[0][$result_pos++] = $collapse_idx[0]%4$s
-      if $is_new_res;
   }
 
-  splice @{$_[0]}, $result_pos; # truncate the passed in array for cases of collapsing ->all()
+  $#{$_[0]} = $result_pos - 1; # truncate the passed in array to where we filled it with results
 ### END LITERAL STRING EVAL
 EOS
 
@@ -241,10 +243,10 @@ sub __visit_infmap_collapse {
   my @src;
 
   if ($cur_node_idx == 0) {
-    push @src, sprintf( '%s ||= %s;',
+    push @src, sprintf( '%s ||= $_[0][$result_pos++] = %s;',
       $node_idx_slot,
-      $me_struct,
-    ) if $me_struct;
+      $me_struct || '{}',
+    );
   }
   else {
     my $parent_attach_slot = sprintf( '$collapse_idx[%d]%s%s{%s}',
@@ -257,7 +259,7 @@ sub __visit_infmap_collapse {
       push @src, sprintf ( '%s ||= %s%s;',
         $parent_attach_slot,
         $node_idx_slot,
-        $me_struct ? " ||= $me_struct" : '',
+        $me_struct ? " = $me_struct" : '',
       );
     }
     else {

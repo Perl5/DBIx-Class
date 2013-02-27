@@ -312,12 +312,29 @@ $schema->storage->debug($orig_debug);
 is ($queries, 2, "Only two queries for rwo prefetch calls total");
 
 # can't cmp_deeply a random set - need *some* order
-my @hris = sort { $a->{year} cmp $b->{year} } @{$rs->search({}, {
+my $ord_rs = $rs->search({}, {
   order_by => [ 'tracks_2.title', 'tracks.title', 'cds.cdid', \ 'RANDOM()' ],
-})->all_hri};
-is (@hris, 6, 'hri count matches' );
+  result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+});
+my @hris_all = sort { $a->{year} cmp $b->{year} } $ord_rs->all;
+is (@hris_all, 6, 'hri count matches' );
 
-cmp_deeply (\@hris, [
+my $iter_rs = $rs->search({}, {
+  order_by => [ 'me.year', 'me.cdid', 'tracks_2.title', 'tracks.title', 'cds.cdid', \ 'RANDOM()' ],
+  result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+});
+my @hris_iter;
+while (my $r = $iter_rs->next) {
+  push @hris_iter, $r;
+}
+
+cmp_deeply(
+  \@hris_iter,
+  \@hris_all,
+  'Iteration works correctly',
+);
+
+cmp_deeply (\@hris_all, [
   {
     single_track => undef,
     tracks => [
@@ -463,5 +480,47 @@ cmp_deeply (\@hris, [
     year => 1981
   },
 ], 'W00T, multi-has_many manual underdefined root prefetch with collapse works');
+
+$rs = $rs->search({}, { order_by => [ 'me.year', 'me.cdid', \ 'RANDOM()' ] });
+my @objs_iter;
+while (my $r = $rs->next) {
+  push @objs_iter, $r;
+}
+
+for my $i (0 .. $#objs_iter) {
+  is ($objs_iter[$i]->year, $hris_all[$i]{year}, "Expected year on object $i" );
+  is (
+    (defined $objs_iter[$i]->single_track),
+    (defined $hris_all[$i]{single_track}),
+    "Expected single relation on object $i"
+  );
+}
+
+$rs = $schema->resultset('Artist')->search({}, {
+  join => 'cds',
+  columns => ['cds.title', 'cds.artist' ],
+  collapse => 1,
+  order_by => [qw( me.name cds.title )],
+});
+
+$rs->create({ name => "${_}_cdless" })
+  for (qw( Z A ));
+
+cmp_deeply (
+  $rs->all_hri,
+  [
+    { cds => [] },
+    { cds => [
+      { artist => 1, title => "Equinoxe" },
+      { artist => 1, title => "Magnetic Fields" },
+      { artist => 1, title => "Oxygene" },
+      { artist => 1, title => "fuzzy_1" },
+      { artist => 1, title => "fuzzy_2" },
+      { artist => 1, title => "fuzzy_3" },
+    ] },
+    { cds => [] },
+  ],
+  'Expected HRI of 1:M with empty root selection',
+);
 
 done_testing;
