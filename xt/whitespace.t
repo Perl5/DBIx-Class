@@ -20,7 +20,7 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_whitespace') ) {
 {
   no warnings 'redefine';
   my $is_pm = sub {
-    $_[0] !~ /\./ || $_[0] =~ /\.(?:pm|pod|skip|sql|json|proto)$/i || $_[0] =~ /::/;
+    $_[0] !~ /\./ || $_[0] =~ /\.(?:pm|pod|skip|bash|sql|json|proto)$/i || $_[0] =~ /::/;
   };
 
   *Test::EOL::_is_perl_module = $is_pm;
