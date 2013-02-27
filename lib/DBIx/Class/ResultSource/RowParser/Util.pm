@@ -108,6 +108,9 @@ sub __visit_infmap_simple {
 sub assemble_collapsing_parser {
   my $args = shift;
 
+  # it may get unset further down
+  my $no_rowid_container = $args->{hri_style};
+
   my ($top_node_key, $top_node_key_assembler);
 
   if (scalar @{$args->{collapse_map}{-identifying_columns}}) {
@@ -138,6 +141,7 @@ sub assemble_collapsing_parser {
       -custom_node_key => $top_node_key,
     };
 
+    $no_rowid_container = 0;
   }
   else {
     die('Unexpected collapse map contents');
@@ -145,7 +149,7 @@ sub assemble_collapsing_parser {
 
   my ($data_assemblers, $stats) = __visit_infmap_collapse ($args);
 
-  my @idcol_args = $args->{hri_style} ? ('', '') : (
+  my @idcol_args = $no_rowid_container ? ('', '') : (
     ', %cur_row_ids', # only declare the variable if we'll use it
 
     sprintf( <<'EOS', join ', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
@@ -199,7 +203,11 @@ EOS
   # !!! note - different var than the one above
   # change the quoted placeholders to unquoted alias-references
   $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row_data->[$1]"/gex;
-  $parser_src =~ s/ \' \xFF__IDVALPOS__(\d+)__\xFF \' /$args->{hri_style} ? "\$cur_row_data->[$1]" : "\$cur_row_ids{$1}" /gex;
+  $parser_src =~ s/
+    \' \xFF__IDVALPOS__(\d+)__\xFF \'
+  /
+    $no_rowid_container ? "\$cur_row_data->[$1]" : "\$cur_row_ids{$1}"
+  /gex;
 
   $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
 }
