@@ -97,7 +97,7 @@ sub new {
 
     if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
       $new_attrs->{group_by} = [ $select ];
-      delete $new_attrs->{distinct}; # it is ignored when group_by is present
+      delete @{$new_attrs}{qw(distinct _grouped_by_distinct)}; # it is ignored when group_by is present
     }
     else {
       carp (

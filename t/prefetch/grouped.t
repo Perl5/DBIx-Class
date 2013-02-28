@@ -207,6 +207,71 @@ for ($cd_rs->all) {
   $schema->storage->debug ($sdebug);
 }
 
+{
+  # test lifted from soulchild
+
+  my $most_tracks_rs = $schema->resultset ('CD')->search (
+    {
+      'me.cdid' => { '!=' => undef },  # this is just to test WHERE
+      'tracks.trackid' => { '!=' => undef },
+    },
+    {
+      join => 'tracks',
+      prefetch => 'liner_notes',
+      select => ['me.cdid', 'liner_notes.notes', { count => 'tracks.trackid', -as => 'tr_count' }, { max => 'tracks.trackid', -as => 'tr_maxid'} ],
+      as => [qw/cdid notes track_count max_track_id/],
+      order_by => [ { -desc => 'tr_count' }, { -asc => 'tr_maxid' } ],
+      group_by => 'me.cdid',
+      rows => 2,
+    }
+  );
+
+  is_same_sql_bind(
+    $most_tracks_rs->as_query,
+    '(SELECT  me.cdid, liner_notes.notes, me.tr_count, me.tr_maxid,
+              liner_notes.liner_id, liner_notes.notes
+        FROM (
+          SELECT me.cdid, COUNT(tracks.trackid) AS tr_count, MAX(tracks.trackid) AS tr_maxid
+            FROM cd me
+            LEFT JOIN track tracks
+              ON tracks.cd = me.cdid
+          WHERE me.cdid IS NOT NULL AND tracks.trackid IS NOT NULL
+          GROUP BY me.cdid
+          ORDER BY tr_count DESC, tr_maxid ASC
+          LIMIT ?
+        ) me
+        LEFT JOIN track tracks
+          ON tracks.cd = me.cdid
+        LEFT JOIN liner_notes liner_notes
+          ON liner_notes.liner_id = me.cdid
+      WHERE me.cdid IS NOT NULL AND tracks.trackid IS NOT NULL
+      ORDER BY tr_count DESC, tr_maxid ASC
+    )',
+    [[$ROWS => 2]],
+    'Oddball mysql-ish group_by usage yields valid SQL',
+  );
+
+  is ($most_tracks_rs->count, 2, 'Limit works');
+  my ($top_cd) = $most_tracks_rs->all;
+  is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) earlier
+
+  my $query_cnt = 0;
+  $schema->storage->debugcb ( sub { $query_cnt++ } );
+  $schema->storage->debug (1);
+
+  is ($top_cd->get_column ('track_count'), 4, 'Track count fetched correctly');
+  is (
+    $top_cd->liner_notes->notes,
+    'Buy Whiskey!',
+    'Correct liner pre-fetched with top cd',
+  );
+
+  is ($query_cnt, 0, 'No queries executed during prefetched data access');
+  $schema->storage->debugcb (undef);
+  $schema->storage->debug ($sdebug);
+}
+
+
 # make sure that distinct still works
 {
   my $rs = $schema->resultset("CD")->search({}, {

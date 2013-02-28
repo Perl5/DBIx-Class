@@ -39,7 +39,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
         LIMIT ?
@@ -81,7 +81,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
         LIMIT ?, ?
@@ -122,7 +122,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -161,7 +161,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -203,7 +203,7 @@ my $tests = {
                 JOIN owners owner
                   ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
-              GROUP BY avg(me.id / ?)
+              GROUP BY AVG(me.id / ?), MAX(owner.id)
               HAVING ?
             ) me
       ) me
@@ -221,7 +221,7 @@ my $tests = {
                 JOIN owners owner
                   ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
-              GROUP BY avg(me.id / ?)
+              GROUP BY AVG(me.id / ?), MAX(owner.id)
               HAVING ?
             ) me
       ) me
@@ -305,7 +305,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg(me.id / ?)
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
             %s
           ) me
@@ -334,7 +334,7 @@ my $tests = {
                     JOIN owners owner
                       ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
-                  GROUP BY avg(me.id / ?)
+                  GROUP BY AVG(me.id / ?), MAX(owner.id)
                   HAVING ?
                 ) me
             ) me
@@ -370,7 +370,7 @@ my $tests = {
                     JOIN owners owner
                       ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
-                  GROUP BY avg(me.id / ?)
+                  GROUP BY AVG(me.id / ?), MAX(owner.id)
                   HAVING ?
                   ORDER BY ? / ?, ?
                 ) me
@@ -420,7 +420,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         FETCH FIRST 4 ROWS ONLY
       )',
@@ -440,7 +440,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg(me.id / ?)
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
             ORDER BY me.id
             FETCH FIRST 7 ROWS ONLY
@@ -462,7 +462,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
         FETCH FIRST 4 ROWS ONLY
@@ -486,7 +486,7 @@ my $tests = {
                   JOIN owners owner
                     ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
-                GROUP BY avg(me.id / ?)
+                GROUP BY AVG(me.id / ?), MAX(owner.id)
                 HAVING ?
                 ORDER BY ? / ?, ?
                 FETCH FIRST 7 ROWS ONLY
@@ -534,7 +534,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
       )',
       [
@@ -553,7 +553,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg(me.id / ?)
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
             ORDER BY me.id
           ) me
@@ -573,7 +573,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -596,7 +596,7 @@ my $tests = {
                   JOIN owners owner
                     ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
-                GROUP BY avg(me.id / ?)
+                GROUP BY AVG(me.id / ?), MAX(owner.id)
                 HAVING ?
                 ORDER BY ? / ?, ?
               ) me
@@ -641,7 +641,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY avg(me.id / ?)
+        GROUP BY AVG(me.id / ?), MAX(owner.id)
         HAVING ?
         ORDER BY me.id
         SET ROWCOUNT 0
@@ -662,7 +662,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg( me.id / ? )
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
           ) me
         WHERE (
@@ -693,7 +693,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg( me.id / ? )
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
           ) me
         WHERE (
@@ -720,7 +720,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY avg( me.id / ? )
+            GROUP BY AVG(me.id / ?), MAX(owner.id)
             HAVING ?
           ) me
         WHERE (
@@ -779,7 +779,7 @@ for my $limtype (sort keys %$tests) {
     join => 'owner',  # single-rel manual prefetch
     rows => 4,
     '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
-    group_by => \[ 'avg(me.id / ?)', [ $attr => 21 ] ],
+    group_by => \[ 'AVG(me.id / ?), MAX(owner.id)', [ $attr => 21 ] ],
     having => \[ '?', [ $attr => 31 ] ],
     ($limtype =~ /GenericSubQ/ ? ( order_by => 'me.id' ) : () ),  # needs a simple-column stable order to be happy
   });

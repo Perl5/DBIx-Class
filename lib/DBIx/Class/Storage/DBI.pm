@@ -2285,24 +2285,33 @@ sub _select_args {
     $attrs->{rows} = $sql_maker->__max_int;
   }
 
-  my @limit;
+  my ($complex_prefetch, @limit);
 
-  # see if we need to tear the prefetch apart otherwise delegate the limiting to the
-  # storage, unless software limit was requested
+  # see if we will need to tear the prefetch apart to satisfy group_by == select
+  # this is *extremely tricky* to get right
+  #
+  # Follows heavy but necessary analyzis of the group_by - if it refers to any
+  # sort of non-root column assume the user knows what they are doing and do
+  # not try to be clever
   if (
-    # limited collapsing has_many
-    ( $attrs->{rows} && $attrs->{collapse} )
-       ||
-    # grouped prefetch (to satisfy group_by == select)
-    ( $attrs->{group_by}
-        &&
-      @{$attrs->{group_by}}
-        &&
-      $attrs->{_prefetch_selector_range}
-    )
+    $attrs->{_related_results_construction}
+      and
+    $attrs->{group_by}
+      and
+    @{$attrs->{group_by}}
+      and
+    my $grp_aliases = try {
+      $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
+    }
   ) {
-    ($ident, $select, $where, $attrs)
-      = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+    $complex_prefetch = ! defined first { $_ ne $rs_alias } keys %{ $grp_aliases->{grouping} || {} };
+  }
+
+  $complex_prefetch ||= ( $attrs->{rows} && $attrs->{collapse} );
+
+  if ($complex_prefetch) {
+    ($ident, $select, $where, $attrs) =
+      $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
   elsif (! $attrs->{software_limit} ) {
     push @limit, (
@@ -2313,6 +2322,8 @@ sub _select_args {
 
   # try to simplify the joinmap further (prune unreferenced type-single joins)
   if (
+    ! $complex_prefetch
+      and
     ref $ident
       and
     reftype $ident eq 'ARRAY'

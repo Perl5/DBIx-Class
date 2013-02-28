@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
     * New Features / Changes
+        - Prefetch with limit on right-side ordered resultsets now works
+          correctly (via aggregated grouping)
         - Changing the result_class of a ResultSet in progress is now
           explicitly forbidden. The behavior was undefined before, and
           would result in wildly differing outcomes depending on $rs
@@ -16,6 +18,7 @@ Revision history for DBIx::Class
     * Fixes
         - Properly consider unselected order_by criteria during complex
           subqueried prefetch
+        - Properly support "MySQL-style" left-side group_by with prefetch
 
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes

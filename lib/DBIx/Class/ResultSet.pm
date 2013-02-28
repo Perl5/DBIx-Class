@@ -1611,7 +1611,7 @@ sub _count_rs {
 
   my $tmp_attrs = { %$attrs };
   # take off any limits, record_filter is cdbi, and no point of ordering nor locking a count
-  delete @{$tmp_attrs}{qw/rows offset order_by record_filter for/};
+  delete @{$tmp_attrs}{qw/rows offset order_by _related_results_construction record_filter for/};
 
   # overwrite the selector (supplied by the storage)
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
@@ -1633,7 +1633,7 @@ sub _count_subq_rs {
 
   my $sub_attrs = { %$attrs };
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
-  delete @{$sub_attrs}{qw/collapse columns as select _prefetch_selector_range order_by for/};
+  delete @{$sub_attrs}{qw/collapse columns as select _related_results_construction order_by for/};
 
   # if we multi-prefetch we group_by something unique, as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1836,7 +1836,7 @@ sub _rs_update_delete {
   my $attrs = { %{$self->_resolved_attrs} };
 
   my $join_classifications;
-  my $existing_group_by = delete $attrs->{group_by};
+  my ($existing_group_by) = delete @{$attrs}{qw(group_by _grouped_by_distinct)};
 
   # do we need a subquery for any reason?
   my $needs_subq = (
@@ -1897,7 +1897,7 @@ sub _rs_update_delete {
     );
 
     # make a new $rs selecting only the PKs (that's all we really need for the subq)
-    delete $attrs->{$_} for qw/collapse select _prefetch_selector_range as/;
+    delete $attrs->{$_} for qw/select as collapse _related_results_construction/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
     $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
     my $subrs = (ref $self)->new($rsrc, $attrs);
@@ -3282,7 +3282,7 @@ sub _chain_relationship {
   # ->_resolve_join as otherwise they get lost - captainL
   my $join = $self->_merge_joinpref_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  delete @{$attrs}{qw/join prefetch collapse group_by distinct select as columns +select +as +columns/};
+  delete @{$attrs}{qw/join prefetch collapse group_by distinct _grouped_by_distinct select as columns +select +as +columns/};
 
   my $seen = { %{ (delete $attrs->{seen_join}) || {} } };
 
@@ -3492,6 +3492,7 @@ sub _resolved_attrs {
       carp_unique ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
     }
     else {
+      $attrs->{_grouped_by_distinct} = 1;
       # distinct affects only the main selection part, not what prefetch may
       # add below.
       $attrs->{group_by} = $source->storage->_group_over_selection (
@@ -3537,17 +3538,11 @@ sub _resolved_attrs {
 
     my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map );
 
-    # we need to somehow mark which columns came from prefetch
-    if (@prefetch) {
-      my $sel_end = $#{$attrs->{select}};
-      $attrs->{_prefetch_selector_range} = [ $sel_end + 1, $sel_end + @prefetch ];
-    }
-
     push @{ $attrs->{select} }, (map { $_->[0] } @prefetch);
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
   }
 
-  if ( defined List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
+  if ( List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
     $attrs->{_related_results_construction} = 1;
   }
   else {

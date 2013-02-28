@@ -69,118 +69,49 @@ my $hri_rs = $rs->search({}, { result_class => 'DBIx::Class::ResultClass::HashRe
 cmp_deeply (
   [$hri_rs->all],
   [
-    {
-      artist => 1,
-      genreid => 1,
-      latest_cd => 1981,
+    { artist => 1, genreid => 1, latest_cd => 1981, title => "Equinoxe", year => 1978,
       single_track => {
         cd => {
-          artist => {
-            artistid => 1,
-            cds => [
-              {
-                cdid => 1,
-                genreid => 1,
-                tracks => [
-                  {
-                    title => "m1"
-                  },
-                  {
-                    title => "m2"
-                  },
-                  {
-                    title => "m3"
-                  },
-                  {
-                    title => "m4"
-                  }
-                ],
-                year => 1981
-              },
-              {
-                cdid => 3,
-                genreid => 1,
-                tracks => [
-                  {
-                    title => "e1"
-                  },
-                  {
-                    title => "e2"
-                  },
-                  {
-                    title => "e3"
-                  }
-                ],
-                year => 1978
-              },
-              {
-                cdid => 2,
-                genreid => undef,
-                tracks => [
-                  {
-                    title => "o1"
-                  },
-                  {
-                    title => "o2"
-                  }
-                ],
-                year => 1976
-              }
-            ]
-          }
-        }
+          artist => { artistid => 1, cds => [
+            { cdid => 1, genreid => 1, year => 1981, tracks => [
+              { title => "m1" },
+              { title => "m2" },
+              { title => "m3" },
+              { title => "m4" },
+            ]},
+            { cdid => 3, genreid => 1, year => 1978, tracks => [
+              { title => "e1" },
+              { title => "e2" },
+              { title => "e3" },
+            ]},
+            { cdid => 2, genreid => undef, year => 1976, tracks => [
+              { title => "o1" },
+              { title => "o2" },
+            ]},
+          ]},
+        },
       },
-      title => "Equinoxe",
       tracks => [
-        {
-          title => "e1"
-        },
-        {
-          title => "e2"
-        },
-        {
-          title => "e3"
-        }
+        { title => "e1" },
+        { title => "e2" },
+        { title => "e3" },
       ],
-      year => 1978
     },
     {
-      artist => 1,
-      genreid => undef,
-      latest_cd => 1981,
-      single_track => undef,
-      title => "Oxygene",
+      artist => 1, genreid => undef, latest_cd => 1981, title => "Oxygene", year => 1976, single_track => undef,
       tracks => [
-        {
-          title => "o1"
-        },
-        {
-          title => "o2"
-        }
+        { title => "o1" },
+        { title => "o2" },
       ],
-      year => 1976
     },
     {
-      artist => 1,
-      genreid => 1,
-      latest_cd => 1981,
-      single_track => undef,
-      title => "Magnetic Fields",
+      artist => 1, genreid => 1, latest_cd => 1981, title => "Magnetic Fields", year => 1981, single_track => undef,
       tracks => [
-        {
-          title => "m1"
-        },
-        {
-          title => "m2"
-        },
-        {
-          title => "m3"
-        },
-        {
-          title => "m4"
-        }
+        { title => "m1" },
+        { title => "m2" },
+        { title => "m3" },
+        { title => "m4" },
       ],
-      year => 1981
     },
   ],
   'W00T, manual prefetch with collapse works'
@@ -259,58 +190,60 @@ if ($ENV{TEST_VERBOSE}) {
     for @lines;
 }
 
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++ });
-my $orig_debug = $schema->storage->debug;
-$schema->storage->debug (1);
+{
+  my $queries = 0;
+  $schema->storage->debugcb(sub { $queries++ });
+  my $orig_debug = $schema->storage->debug;
+  $schema->storage->debug (1);
 
-for my $use_next (0, 1) {
-  my @random_cds;
-  if ($use_next) {
-    warnings_exist {
-      while (my $o = $rs_random->next) {
-        push @random_cds, $o;
+  for my $use_next (0, 1) {
+    my @random_cds;
+    if ($use_next) {
+      warnings_exist {
+        while (my $o = $rs_random->next) {
+          push @random_cds, $o;
+        }
+      } qr/performed an eager cursor slurp underneath/,
+      'Warned on auto-eager cursor';
+    }
+    else {
+      @random_cds = $rs_random->all;
+    }
+
+    is (@random_cds, 6, 'object count matches');
+
+    for my $cd (@random_cds) {
+      if ($cd->year == 1977) {
+        is( scalar $cd->tracks, 0, 'no tracks on 1977 cd' );
+        is( $cd->single_track, undef, 'no single_track on 1977 cd' );
       }
-    } qr/performed an eager cursor slurp underneath/,
-    'Warned on auto-eager cursor';
-  }
-  else {
-    @random_cds = $rs_random->all;
+      elsif ($cd->year == 1976) {
+        is( scalar $cd->tracks, 2, 'Two tracks on 1976 cd' );
+        like( $_->title, qr/^o\d/, "correct title" )
+          for $cd->tracks;
+        is( $cd->single_track, undef, 'no single_track on 1976 cd' );
+      }
+      elsif ($cd->year == 1981) {
+        is( scalar $cd->tracks, 4, 'Four tracks on 1981 cd' );
+        like( $_->title, qr/^m\d/, "correct title" )
+          for $cd->tracks;
+        is( $cd->single_track, undef, 'no single_track on 1981 cd' );
+      }
+      elsif ($cd->year == 1978) {
+        is( scalar $cd->tracks, 3, 'Three tracks on 1978 cd' );
+        like( $_->title, qr/^e\d/, "correct title" )
+          for $cd->tracks;
+        ok( defined $cd->single_track, 'single track prefetched on 1987 cd' );
+        is( $cd->single_track->cd->artist->id, 1, 'Single_track->cd->artist prefetched on 1978 cd' );
+        is( scalar $cd->single_track->cd->artist->cds, 6, '6 cds prefetched on artist' );
+      }
+    }
   }
 
-  is (@random_cds, 6, 'object count matches');
-
-  for my $cd (@random_cds) {
-    if ($cd->year == 1977) {
-      is( scalar $cd->tracks, 0, 'no tracks on 1977 cd' );
-      is( $cd->single_track, undef, 'no single_track on 1977 cd' );
-    }
-    elsif ($cd->year == 1976) {
-      is( scalar $cd->tracks, 2, 'Two tracks on 1976 cd' );
-      like( $_->title, qr/^o\d/, "correct title" )
-        for $cd->tracks;
-      is( $cd->single_track, undef, 'no single_track on 1976 cd' );
-    }
-    elsif ($cd->year == 1981) {
-      is( scalar $cd->tracks, 4, 'Four tracks on 1981 cd' );
-      like( $_->title, qr/^m\d/, "correct title" )
-        for $cd->tracks;
-      is( $cd->single_track, undef, 'no single_track on 1981 cd' );
-    }
-    elsif ($cd->year == 1978) {
-      is( scalar $cd->tracks, 3, 'Three tracks on 1978 cd' );
-      like( $_->title, qr/^e\d/, "correct title" )
-        for $cd->tracks;
-      ok( defined $cd->single_track, 'single track prefetched on 1987 cd' );
-      is( $cd->single_track->cd->artist->id, 1, 'Single_track->cd->artist prefetched on 1978 cd' );
-      is( scalar $cd->single_track->cd->artist->cds, 6, '6 cds prefetched on artist' );
-    }
-  }
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug($orig_debug);
+  is ($queries, 2, "Only two queries for two prefetch calls total");
 }
-
-$schema->storage->debugcb(undef);
-$schema->storage->debug($orig_debug);
-is ($queries, 2, "Only two queries for rwo prefetch calls total");
 
 # can't cmp_deeply a random set - need *some* order
 my $ord_rs = $rs->search({}, {
@@ -335,153 +268,70 @@ cmp_deeply(
   'Iteration works correctly',
 );
 
-cmp_deeply (\@hris_all, [
+my @hri_contents = (
+  { year => 1976, single_track => undef, tracks => [
+    { cd => 2, title => "o1" },
+    { cd => 2, title => "o2" },
+  ]},
+  { year => 1977, single_track => undef, tracks => [] },
+  { year => 1977, single_track => undef, tracks => [] },
+  { year => 1977, single_track => undef, tracks => [] },
   {
-    single_track => undef,
-    tracks => [
-      {
-        cd => 2,
-        title => "o1"
-      },
-      {
-        cd => 2,
-        title => "o2"
-      }
-    ],
-    year => 1976
-  },
-  {
-    single_track => undef,
-    tracks => [],
-    year => 1977
-  },
-  {
-    single_track => undef,
-    tracks => [],
-    year => 1977
-  },
-  {
-    single_track => undef,
-    tracks => [],
-    year => 1977
-  },
-  {
+    year => 1978,
     single_track => {
+      trackid => 6,
       cd => {
         artist => {
-          artistid => 1,
-          cds => [
-            {
-              cdid => 4,
-              genreid => undef,
-              tracks => [],
-              year => 1977
-            },
-            {
-              cdid => 5,
-              genreid => undef,
-              tracks => [],
-              year => 1977
-            },
-            {
-              cdid => 6,
-              genreid => undef,
-              tracks => [],
-              year => 1977
-            },
-            {
-              cdid => 3,
-              genreid => 1,
-              tracks => [
-                {
-                  title => "e1"
-                },
-                {
-                  title => "e2"
-                },
-                {
-                  title => "e3"
-                }
-              ],
-              year => 1978
-            },
-            {
-              cdid => 1,
-              genreid => 1,
-              tracks => [
-                {
-                  title => "m1"
-                },
-                {
-                  title => "m2"
-                },
-                {
-                  title => "m3"
-                },
-                {
-                  title => "m4"
-                }
-              ],
-              year => 1981
-            },
-            {
-              cdid => 2,
-              genreid => undef,
-              tracks => [
-                {
-                  title => "o1"
-                },
-                {
-                  title => "o2"
-                }
-              ],
-              year => 1976
-            }
+          artistid => 1, cds => [
+            { cdid => 4, genreid => undef, year => 1977, tracks => [] },
+            { cdid => 5, genreid => undef, year => 1977, tracks => [] },
+            { cdid => 6, genreid => undef, year => 1977, tracks => [] },
+            { cdid => 3, genreid => 1, year => 1978, tracks => [
+              { title => "e1" },
+              { title => "e2" },
+              { title => "e3" },
+            ]},
+            { cdid => 1, genreid => 1, year => 1981, tracks => [
+              { title => "m1" },
+              { title => "m2" },
+              { title => "m3" },
+              { title => "m4" },
+            ]},
+            { cdid => 2, genreid => undef, year => 1976, tracks => [
+              { title => "o1" },
+              { title => "o2" },
+            ]},
           ]
-        }
+        },
       },
-      trackid => 6
     },
     tracks => [
-      {
-        cd => 3,
-        title => "e1"
-      },
-      {
-        cd => 3,
-        title => "e2"
-      },
-      {
-        cd => 3,
-        title => "e3"
-      },
+      { cd => 3, title => "e1" },
+      { cd => 3, title => "e2" },
+      { cd => 3, title => "e3" },
     ],
-    year => 1978
   },
-  {
-    single_track => undef,
-    tracks => [
-      {
-        cd => 1,
-        title => "m1"
-      },
-      {
-        cd => 1,
-        title => "m2"
-      },
-      {
-        cd => 1,
-        title => "m3"
-      },
-      {
-        cd => 1,
-        title => "m4"
-      },
-    ],
-    year => 1981
-  },
-], 'W00T, multi-has_many manual underdefined root prefetch with collapse works');
+  { year => 1981, single_track => undef, tracks => [
+    { cd => 1, title => "m1" },
+    { cd => 1, title => "m2" },
+    { cd => 1, title => "m3" },
+    { cd => 1, title => "m4" },
+  ]},
+);
 
+cmp_deeply (\@hris_all, \@hri_contents, 'W00T, multi-has_many manual underdefined root prefetch with collapse works');
+
+cmp_deeply(
+  $rs->search({}, {
+    order_by => [ 'me.year', 'tracks_2.title', 'tracks.title', 'cds.cdid', { -desc => 'name' } ],
+    rows => 4,
+    offset => 2,
+  })->all_hri,
+  [ @hri_contents[2..5] ],
+  'multi-has_many prefetch with limit works too',
+);
+
+# left-ordered real iterator
 $rs = $rs->search({}, { order_by => [ 'me.year', 'me.cdid', \ 'RANDOM()' ] });
 my @objs_iter;
 while (my $r = $rs->next) {
