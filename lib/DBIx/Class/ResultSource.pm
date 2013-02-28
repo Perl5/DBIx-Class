@@ -1433,12 +1433,10 @@ sub reverse_relationship_info {
 
   my $stripped_cond = $self->__strip_relcond ($rel_info->{cond});
 
-  my $rsrc_schema_moniker = $self->source_name
-    if try { $self->schema };
+  my $registered_source_name = $self->source_name;
 
   # this may be a partial schema or something else equally esoteric
-  my $other_rsrc = try { $self->related_source($rel) }
-    or return $ret;
+  my $other_rsrc = $self->related_source($rel);
 
   # Get all the relationships for that source that related to this source
   # whose foreign column set are our self columns on $rel and whose self
@@ -1453,11 +1451,11 @@ sub reverse_relationship_info {
     my $roundtrip_rsrc = try { $other_rsrc->related_source($other_rel) }
       or next;
 
-    if ($rsrc_schema_moniker and try { $roundtrip_rsrc->schema } ) {
-      next unless $rsrc_schema_moniker eq $roundtrip_rsrc->source_name;
+    if ($registered_source_name) {
+      next if $registered_source_name ne ($roundtrip_rsrc->source_name || '')
     }
     else {
-      next unless $self->result_class eq $roundtrip_rsrc->result_class;
+      next if $self->result_class ne $roundtrip_rsrc->result_class;
     }
 
     my $other_rel_info = $other_rsrc->relationship_info($other_rel);
