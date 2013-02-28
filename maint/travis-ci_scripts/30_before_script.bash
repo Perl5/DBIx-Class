@@ -76,7 +76,7 @@ else
   parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Moose Class::Trigger JSON::XS DBI
-  parallel_installdeps_notest Moo Class::Accessor::Grouped Module::Install JSON
+  parallel_installdeps_notest Moo Class::Accessor::Grouped Module::Install JSON DateTime
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is full of 5.10-isms, but works perfectly fine on 5.8
