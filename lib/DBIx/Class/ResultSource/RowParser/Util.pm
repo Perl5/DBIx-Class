@@ -151,11 +151,9 @@ sub assemble_collapsing_parser {
 
   my @idcol_args = $no_rowid_container ? ('', '') : (
     ', %cur_row_ids', # only declare the variable if we'll use it
-
-    sprintf( <<'EOS', join ', ', sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
-  $cur_row_ids{$_} = defined($cur_row_data->[$_]) ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-    for (%s);
-EOS
+    join ("\n", map {
+      qq(\$cur_row_ids{$_} = defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
+    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } )
   );
 
   my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
@@ -169,27 +167,28 @@ EOS
   # result can be rather large - we reuse the same already allocated
   # array, since the collapsed prefetch is smaller by definition.
   # At the end we cut the leftovers away and move on.
-  while ($cur_row_data =
-    ( ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
-      ||
-    ($_[1] and $_[1]->())
-  ) {
+  while ($cur_row_data = (
+    ( $rows_pos >= 0 and $_[0][$rows_pos++] )
+      or
+    ( $_[1] and $rows_pos = -1 and $_[1]->() )
+  ) ) {
+
     # this code exists only when we are *not* assembling direct to HRI
     #
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
     # (otherwise folding of optional 1:1s will be greatly confused
-    %2$s
+%2$s
 
     # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
-    %3$s
+%3$s
 
     # if we were supplied a coderef - we are collapsing lazily (the set
     # is ordered properly)
     # as long as we have a result already and the next result is new we
     # return the pre-read data and bail
-    $_[1] and $result_pos and ! $collapse_idx[0]%4$s and (unshift @{$_[2]}, $cur_row_data) and last;
+$_[1] and $result_pos and ! $collapse_idx[0]%4$s and (unshift @{$_[2]}, $cur_row_data) and last;
 
     # the rel assemblers
 %5$s

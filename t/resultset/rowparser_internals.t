@@ -214,13 +214,16 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
-      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 1, 3, 4, 5);
+      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
+      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
+      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
+      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} and (unshift @{$_[2]}, $cur_row_data) and last;
@@ -270,10 +273,10 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} and (unshift @{$_[2]}, $cur_row_data) and last;
@@ -387,13 +390,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
-      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 1, 5, 6, 8, 10);
+      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
+      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
+      $cur_row_ids{6} = defined $cur_row_data->[6] ? $cur_row_data->[6] : "\0NULL\xFF$rows_pos\xFF6\0";
+      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
+      $cur_row_ids{10} = defined $cur_row_data->[10] ? $cur_row_data->[10] : "\0NULL\xFF$rows_pos\xFF10\0";
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{1}} and (unshift @{$_[2]}, $cur_row_data) and last;
@@ -449,13 +456,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
-      $cur_row_ids{$_} = defined $cur_row_data->[$_] ? $cur_row_data->[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 1, 5, 6, 8, 10);
+      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
+      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
+      $cur_row_ids{6} = defined $cur_row_data->[6] ? $cur_row_data->[6] : "\0NULL\xFF$rows_pos\xFF6\0";
+      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
+      $cur_row_ids{10} = defined $cur_row_data->[10] ? $cur_row_data->[10] : "\0NULL\xFF$rows_pos\xFF10\0";
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{1}} and (unshift @{$_[2]}, $cur_row_data) and last;
@@ -559,13 +570,16 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
-      $cur_row_ids{$_} = defined $$cur_row_data[$_] ? $$cur_row_data[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 2, 3, 4, 8);
+      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{2} = defined $cur_row_data->[2] ? $cur_row_data->[2] : "\0NULL\xFF$rows_pos\xFF2\0";
+      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
+      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
+      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
 
       # cache expensive set of ops in a non-existent rowid slot
       $cur_row_ids{10} = (
@@ -625,13 +639,16 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] ) or do { $rows_pos = -1; undef } )
+      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
         ||
-      ( $_[1] and $_[1]->() )
-    ) {
+      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ) ) {
 
-      $cur_row_ids{$_} = defined $$cur_row_data[$_] ? $$cur_row_data[$_] : "\0NULL\xFF$rows_pos\xFF$_\0"
-        for (0, 2, 3, 4, 8);
+      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{2} = defined $cur_row_data->[2] ? $cur_row_data->[2] : "\0NULL\xFF$rows_pos\xFF2\0";
+      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
+      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
+      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
 
       # cache expensive set of ops in a non-existent rowid slot
       $cur_row_ids{10} = (
