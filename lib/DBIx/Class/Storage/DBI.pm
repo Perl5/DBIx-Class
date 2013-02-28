@@ -1181,7 +1181,9 @@ sub _describe_connection {
       SQL_TXN_ISOLATION_OPTION
     /
   ) {
-    my $v = $self->_dbh_get_info($inf);
+    # some drivers barf on things they do not know about instead
+    # of returning undef
+    my $v = try { $self->_dbh_get_info($inf) };
     next unless defined $v;
 
     #my $key = sprintf( '%s(%s)', $inf, $DBI::Const::GetInfoType::GetInfoType{$inf} );
