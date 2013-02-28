@@ -1077,8 +1077,8 @@ sub single {
     $attrs->{where}, $attrs
   )];
   return undef unless @$data;
-  $self->{stashed_rows} = [ $data ];
-  $self->_construct_objects->[0];
+  $self->{_stashed_rows} = [ $data ];
+  $self->_construct_results->[0];
 }
 
 
@@ -1247,31 +1247,31 @@ sub next {
     return ($self->all)[0];
   }
 
-  return shift(@{$self->{stashed_objects}}) if @{ $self->{stashed_objects}||[] };
+  return shift(@{$self->{_stashed_results}}) if @{ $self->{_stashed_results}||[] };
 
-  $self->{stashed_objects} = $self->_construct_objects
+  $self->{_stashed_results} = $self->_construct_results
     or return undef;
 
-  return shift @{$self->{stashed_objects}};
+  return shift @{$self->{_stashed_results}};
 }
 
-# Constructs as many objects as it can in one pass while respecting
+# Constructs as many results as it can in one pass while respecting
 # cursor laziness. Several modes of operation:
 #
-# * Always builds everything present in @{$self->{stashed_rows}}
+# * Always builds everything present in @{$self->{_stashed_rows}}
 # * If called with $fetch_all true - pulls everything off the cursor and
-#   builds all objects in one pass
+#   builds all result structures (or objects) in one pass
 # * If $self->_resolved_attrs->{collapse} is true, checks the order_by
 #   and if the resultset is ordered properly by the left side:
 #   * Fetches stuff off the cursor until the "master object" changes,
-#     and saves the last extra row (if any) in @{$self->{stashed_rows}}
+#     and saves the last extra row (if any) in @{$self->{_stashed_rows}}
 #   OR
 #   * Just fetches, and collapses/constructs everything as if $fetch_all
 #     was requested (there is no other way to collapse except for an
 #     eager cursor)
 # * If no collapse is requested - just get the next row, construct and
 #   return
-sub _construct_objects {
+sub _construct_results {
   my ($self, $fetch_all) = @_;
 
   my $rsrc = $self->result_source;
@@ -1287,9 +1287,9 @@ sub _construct_objects {
   my $cursor = $self->cursor;
 
   # this will be used as both initial raw-row collector AND as a RV of
-  # _construct_objects. Not regrowing the array twice matters a lot...
-  # a suprising amount actually
-  my $rows = delete $self->{stashed_rows};
+  # _construct_results. Not regrowing the array twice matters a lot...
+  # a surprising amount actually
+  my $rows = delete $self->{_stashed_rows};
 
   if ($fetch_all) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
@@ -1354,7 +1354,7 @@ sub _construct_objects {
     @extra_collapser_args = (
       # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
       sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
-      ($self->{stashed_rows} = []),                 # where does it stuff excess
+      ($self->{_stashed_rows} = []),                # where does it stuff excess
     );
   }
 
@@ -1375,7 +1375,7 @@ sub _construct_objects {
   ) ) ? 1 : 0
   } unless defined $self->{_result_inflator}{is_hri};
 
-  if ($attrs->{_single_resultclass_inflation}) {
+  if (! $attrs->{_related_results_construction}) {
     # construct a much simpler array->hash folder for the one-table cases right here
     if ($self->{_result_inflator}{is_hri}) {
       for my $r (@$rows) {
@@ -1732,7 +1732,7 @@ sub all {
     $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
   }
 
-  delete @{$self}{qw/stashed_rows stashed_objects/};
+  delete @{$self}{qw/_stashed_rows _stashed_results/};
 
   if (my $c = $self->get_cache) {
     return @$c;
@@ -1740,7 +1740,7 @@ sub all {
 
   $self->cursor->reset;
 
-  my $objs = $self->_construct_objects('fetch_all') || [];
+  my $objs = $self->_construct_results('fetch_all') || [];
 
   $self->set_cache($objs) if $self->{attrs}{cache};
 
@@ -1766,7 +1766,7 @@ another query.
 sub reset {
   my ($self) = @_;
 
-  delete @{$self}{qw/stashed_rows stashed_objects/};
+  delete @{$self}{qw/_stashed_rows _stashed_results/};
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
@@ -3518,8 +3518,10 @@ sub _resolved_attrs {
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
   }
 
-  if ( ! List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
-    $attrs->{_single_resultclass_inflation} = 1;
+  if ( defined List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
+    $attrs->{_related_results_construction} = 1;
+  }
+  else {
     $attrs->{collapse} = 0;
   }
 

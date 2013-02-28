@@ -61,7 +61,7 @@ $rs->next;
 my @objs = $rs->all;
 is (@objs, $initial_artists_cnt + 3, '->all resets everything correctly');
 is ( ($rs->cursor->next)[0], 1, 'Cursor auto-rewound after all()');
-is ($rs->{stashed_rows}, undef, 'Nothing else left in $rs stash');
+is ($rs->{_stashed_rows}, undef, 'Nothing else left in $rs stash');
 
 my $unordered_rs = $rs->search({}, { order_by => 'cds.title' });
 ok ($unordered_rs->next, 'got row 1');
