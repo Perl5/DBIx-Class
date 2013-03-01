@@ -39,11 +39,6 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
       title => 'Big Flop',
       year => 2005,
   } );
-
-  {
-    local $TODO = "Can't fix right now" if $DBIx::Class::VERSION < 0.09;
-    lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
-  };
 }
 
 my $big_flop_cd = ($artist->search_related('cds'))[3];
