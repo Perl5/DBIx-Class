@@ -198,7 +198,7 @@ sub parse {
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
             my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
 
-            # determine if this relationship is a self.fk => foreign.pk (i.e. belongs_to)
+            # determine if this relationship is a self.fk => foreign.pk (i.e. refers_to)
             my $fk_constraint;
 
             #first it can be specified explicitly

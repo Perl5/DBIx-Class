@@ -65,7 +65,7 @@ sub refers_to {
   # dunno
   else {
     $class->throw_exception(
-      'third argument for belongs_to must be undef, a column name, '.
+      'third argument for refers_to must be undef, a column name, '.
       'or a join condition'
     );
   }

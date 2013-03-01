@@ -2130,7 +2130,7 @@ sub populate {
 
     my @pks = $rsrc->primary_columns;
 
-    ## do the belongs_to relationships
+    ## do the refers_to relationships
     foreach my $index (0..$#$data) {
 
       # delegate to create() for any dataset without primary keys with specified relationships

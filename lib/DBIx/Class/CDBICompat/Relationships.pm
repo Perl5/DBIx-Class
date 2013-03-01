@@ -56,7 +56,7 @@ sub _declare_has_a {
     };
   }
   else {
-    $self->belongs_to($col, $f_class);
+    $self->refers_to($col, $f_class);
     $rel_info = $self->result_source_instance->relationship_info($col);
   }
 

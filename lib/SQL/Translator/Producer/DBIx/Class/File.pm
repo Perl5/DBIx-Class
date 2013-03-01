@@ -121,11 +121,11 @@ __PACKAGE__->table('${tname}');
 #            print Data::Dumper::Dumper($cont->type);
             if($cont->type =~ /foreign key/i)
             {
-#                 $output .= "\n__PACKAGE__->belongs_to('" .
+#                 $output .= "\n__PACKAGE__->refers_to('" .
 #                     $cont->fields->[0]->name . "', '" .
 #                     "${dbixschema}::" . $cont->reference_table . "');\n";
 
-                $tableextras{$table->name} .= "\n__PACKAGE__->belongs_to('" .
+                $tableextras{$table->name} .= "\n__PACKAGE__->refers_to('" .
                     $cont->fields->[0]->name . "', '" .
                     "${dbixschema}::" . $cont->reference_table . "');\n";
 
