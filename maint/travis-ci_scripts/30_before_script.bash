@@ -70,8 +70,8 @@ else
   #
   parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest Carp
-  parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec Data::Dumper
+  parallel_installdeps_notest Module::Build ExtUtils::Depends
+  parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
