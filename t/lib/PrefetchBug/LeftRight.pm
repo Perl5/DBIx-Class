@@ -13,8 +13,8 @@ __PACKAGE__->add_columns(
     value => {});
 
 __PACKAGE__->set_primary_key('left_id', 'right_id');
-__PACKAGE__->belongs_to(left => 'PrefetchBug::Left', 'left_id');
-__PACKAGE__->belongs_to(
+__PACKAGE__->refers_to(left => 'PrefetchBug::Left', 'left_id');
+__PACKAGE__->refers_to(
     right => 'PrefetchBug::Right',
     'right_id',
 #    {join_type => 'left'}

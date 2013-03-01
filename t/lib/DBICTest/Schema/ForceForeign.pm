@@ -27,7 +27,7 @@ __PACKAGE__->might_have('cd_1', 'DBICTest::Schema::CD',
 );
 
 # Normally this would appear as a FK constraint
-__PACKAGE__->belongs_to('cd_3', 'DBICTest::Schema::CD',
+__PACKAGE__->refers_to('cd_3', 'DBICTest::Schema::CD',
   { 'foreign.cdid' => 'self.cd' },
   { is_foreign_key_constraint => 0 },
 );

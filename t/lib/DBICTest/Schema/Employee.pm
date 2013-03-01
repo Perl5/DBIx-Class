@@ -47,7 +47,7 @@ __PACKAGE__->position_column('position');
 # Do not add unique constraints here - different groups are used throughout
 # the ordered tests
 
-__PACKAGE__->belongs_to (secretkey => 'DBICTest::Schema::Encoded', 'encoded', {
+__PACKAGE__->refers_to (secretkey => 'DBICTest::Schema::Encoded', 'encoded', {
   join_type => 'left'
 });
 

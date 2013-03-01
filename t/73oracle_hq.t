@@ -33,7 +33,7 @@ BEGIN {
     { 'foreign.parentid' => 'self.artistid' }
   );
 
-  DBICTest::Schema::Artist->belongs_to(
+  DBICTest::Schema::Artist->refers_to(
     parent => 'DBICTest::Schema::Artist',
     { 'foreign.artistid' => 'self.parentid' }
   );

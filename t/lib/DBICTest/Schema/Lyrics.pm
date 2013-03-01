@@ -18,7 +18,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('lyric_id');
-__PACKAGE__->belongs_to('track', 'DBICTest::Schema::Track', 'track_id');
+__PACKAGE__->refers_to('track', 'DBICTest::Schema::Track', 'track_id');
 __PACKAGE__->has_many('lyric_versions', 'DBICTest::Schema::LyricVersion', 'lyric_id');
 
 1;

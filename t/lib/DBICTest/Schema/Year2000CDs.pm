@@ -15,7 +15,7 @@ __PACKAGE__->result_source_instance->view_definition( sprintf (
   join (', ', __PACKAGE__->columns),
 ));
 
-__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist' );
+__PACKAGE__->refers_to( artist => 'DBICTest::Schema::Artist' );
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track',
     { "foreign.cd" => "self.cdid" });
 

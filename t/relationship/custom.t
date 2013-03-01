@@ -225,10 +225,10 @@ foreach (@artwork_artists) {
   lives_ok {
     my $artista = $_->artist;
     my $artistb = $_->artist_test_m2m;
-    ok($artista->rank < 10 ? $artistb : 1, 'belongs_to with custom rel works.');
+    ok($artista->rank < 10 ? $artistb : 1, 'refers_to with custom rel works.');
     my $artistc = $_->artist_test_m2m_noopt;
-    ok($artista->rank < 10 ? $artistc : 1, 'belongs_to with custom rel works even in non-simplified.');
-  } 'belongs_to works with custom rels';
+    ok($artista->rank < 10 ? $artistc : 1, 'refers_to with custom rel works even in non-simplified.');
+  } 'refers_to works with custom rels';
 }
 
 @artists = ();

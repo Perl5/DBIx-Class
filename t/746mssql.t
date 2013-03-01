@@ -406,7 +406,7 @@ SQL
         }
 
 
-        # try a ->belongs_to direction (no select collapse, group_by should work)
+        # try a ->refers_to direction (no select collapse, group_by should work)
         my $books = $schema->resultset ('BooksInLibrary')->search (
           {
             'owner.name' => [qw/wiggle woggle/],

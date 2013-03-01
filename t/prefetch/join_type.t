@@ -9,7 +9,7 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 
 
-# a regular belongs_to prefetch
+# a regular refers_to prefetch
 my $cds = $schema->resultset('CD')->search ({}, { prefetch => 'artist' } );
 
 my $nulls = {

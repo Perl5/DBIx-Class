@@ -158,7 +158,7 @@ $schema->populate ('BooksInLibrary', [
     is ($_->count, 2, 'Prefetched grouped search returns correct count');
   }
 
-  # try a ->belongs_to direction (no select collapse)
+  # try a ->refers_to direction (no select collapse)
   my $books = $schema->resultset ('BooksInLibrary')->search (
     { 'owner.name' => 'wiggle' },
     { prefetch => 'owner', distinct => 1 }

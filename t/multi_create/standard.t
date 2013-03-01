@@ -22,7 +22,7 @@ lives_ok ( sub {
   isa_ok($cd, 'DBICTest::CD', 'Created CD object');
   isa_ok($cd->artist, 'DBICTest::Artist', 'Created related Artist');
   is($cd->artist->name, 'Fred Bloggs', 'Artist created correctly');
-}, 'simple create + parent (the stuff $rs belongs_to) ok');
+}, 'simple create + parent (the stuff $rs refers_to) ok');
 
 lives_ok ( sub {
   my $bm_rs = $schema->resultset('Bookmark');

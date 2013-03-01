@@ -61,10 +61,10 @@ is_same_sql_bind(
 
 # note: we only requested "get all cds of all artists with rank 13 then order
 # by the artist name and give me the fourth, fifth and sixth", consequently the
-# cds that belong to the same artist are unordered; fortunately we know that
+# cds that refer to the same artist are unordered; fortunately we know that
 # the first artist have 3 cds and the second and third artist both have only
-# one, so the first 3 cds belong to the first artist and the fourth and fifth
-# cds belong to the second and third artist, respectively, and there's no sixth
+# one, so the first 3 cds refer to the first artist and the fourth and fifth
+# cds refer to the second and third artist, respectively, and there's no sixth
 # row
 is_deeply (
   $filtered_cd_rs->all_hri,

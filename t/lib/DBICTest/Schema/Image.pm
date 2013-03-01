@@ -26,6 +26,6 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('id');
-__PACKAGE__->belongs_to('artwork', 'DBICTest::Schema::Artwork', 'artwork_id');
+__PACKAGE__->refers_to('artwork', 'DBICTest::Schema::Artwork', 'artwork_id');
 
 1;

@@ -17,7 +17,7 @@ use DBICTest;
   __PACKAGE__->add_columns(qw/id ancestor_id/);
   __PACKAGE__->set_primary_key('id');
   __PACKAGE__->has_many(children => __PACKAGE__, 'id');
-  __PACKAGE__->belongs_to(parent => __PACKAGE__, 'id', { join_type => 'left' } );
+  __PACKAGE__->refers_to(parent => __PACKAGE__, 'id', { join_type => 'left' } );
 
   __PACKAGE__->has_many(subthings => 'DBICTest::SubThing', 'thing_id');
 }
@@ -29,8 +29,8 @@ use DBICTest;
   use base qw/DBIx::Class::Core/;
   __PACKAGE__->table('subthing');
   __PACKAGE__->add_columns(qw/thing_id/);
-  __PACKAGE__->belongs_to(thing => 'DBICTest::Thing', 'thing_id');
-  __PACKAGE__->belongs_to(thing2 => 'DBICTest::Thing', 'thing_id', { join_type => 'left' } );
+  __PACKAGE__->refers_to(thing => 'DBICTest::Thing', 'thing_id');
+  __PACKAGE__->refers_to(thing2 => 'DBICTest::Thing', 'thing_id', { join_type => 'left' } );
 }
 
 my $schema = DBICTest->init_schema;
@@ -62,12 +62,12 @@ for my $without_schema (1,0) {
   is_deeply(
     _instance($s)->reverse_relationship_info('thing'),
     { subthings => $t->relationship_info('subthings') },
-    'reverse_rel_info works cross-class belongs_to direction',
+    'reverse_rel_info works cross-class refers_to direction',
   );
   is_deeply(
     _instance($s)->reverse_relationship_info('thing2'),
     { subthings => $t->relationship_info('subthings') },
-    'reverse_rel_info works cross-class belongs_to direction 2',
+    'reverse_rel_info works cross-class refers_to direction 2',
   );
 
   is_deeply(
@@ -79,7 +79,7 @@ for my $without_schema (1,0) {
   is_deeply(
     _instance($t)->reverse_relationship_info('parent'),
     { children => $t->relationship_info('children') },
-    'reverse_rel_info works in-class belongs_to direction',
+    'reverse_rel_info works in-class refers_to direction',
   );
   is_deeply(
     _instance($t)->reverse_relationship_info('children'),

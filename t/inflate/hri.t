@@ -78,7 +78,7 @@ sub check_cols_of {
         if (not ref ($datahashref->{$col}) ) {
             is ($datahashref->{$col}, $dbic_obj->get_column($col), 'same value');
         }
-        # related table entry (belongs_to)
+        # related table entry (refers_to)
         elsif (ref ($datahashref->{$col}) eq 'HASH') {
             check_cols_of($dbic_obj->$col, $datahashref->{$col});
         }

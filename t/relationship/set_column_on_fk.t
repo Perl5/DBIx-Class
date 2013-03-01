@@ -24,24 +24,24 @@ my $new_link = $schema->resultset("Link")->create({
 is( $bookmark->link->id, 1, 'Initial relation id' );
 
 $bookmark->set_column( 'link', 9 );
-is( $bookmark->link->id, 9, 'Correct object re-selected after belongs_to set' );
+is( $bookmark->link->id, 9, 'Correct object re-selected after refers_to set' );
 
 $bookmark->discard_changes;
-is( $bookmark->link->id, 1, 'Pulled the correct old object after belongs_to reset' );
+is( $bookmark->link->id, 1, 'Pulled the correct old object after refers_to reset' );
 
 
 $bookmark->link($new_link);
 is( $bookmark->get_column('link'), 9, 'Correct column set from related' );
 
 $bookmark->discard_changes;
-is( $bookmark->link->id, 1, 'Pulled the correct old object after belongs_to reset' );
+is( $bookmark->link->id, 1, 'Pulled the correct old object after refers_to reset' );
 
 
 $bookmark->link(9);
 is( $bookmark->link->id, 9, 'Correct object selected on deflated accessor set');
 
 $bookmark->discard_changes;
-is( $bookmark->link->id, 1, 'Pulled the correct old object after belongs_to reset' );
+is( $bookmark->link->id, 1, 'Pulled the correct old object after refers_to reset' );
 
 
 $bookmark->update({ link => 9 });
@@ -55,16 +55,16 @@ is( $lyric->track->id, 5, 'Initial relation id');
 
 $lyric->track_id(6);
 my $track6 = $lyric->track;
-is( $track6->trackid, 6, 'Correct object re-selected after belongs_to set');
+is( $track6->trackid, 6, 'Correct object re-selected after refers_to set');
 
 $lyric->discard_changes;
-is( $lyric->track->trackid, 5, 'Pulled the correct old rel object after belongs_to reset');
+is( $lyric->track->trackid, 5, 'Pulled the correct old rel object after refers_to reset');
 
 $lyric->track($track6);
 is( $lyric->track_id, 6, 'Correct column set from related');
 
 $lyric->discard_changes;
-is( $lyric->track->trackid, 5, 'Pulled the correct old rel object after belongs_to reset');
+is( $lyric->track->trackid, 5, 'Pulled the correct old rel object after refers_to reset');
 
 $lyric->update({ track => $track6 });
 is( $lyric->track->trackid, 6, 'Correct relationship obj after update' );

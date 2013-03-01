@@ -74,8 +74,8 @@ use warnings;
       data_type => 'integer',
     },
   );
-  __PACKAGE__->belongs_to('foo' => 'DBICTest::Schema::Foo${suffix}');
-  __PACKAGE__->belongs_to('bar' => 'DBICTest::Schema::Foo${suffix}');
+  __PACKAGE__->refers_to('foo' => 'DBICTest::Schema::Foo${suffix}');
+  __PACKAGE__->refers_to('bar' => 'DBICTest::Schema::Foo${suffix}');
 }
 {
   package #

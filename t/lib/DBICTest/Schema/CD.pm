@@ -40,16 +40,16 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('cdid');
 __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
-__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, {
+__PACKAGE__->refers_to( artist => 'DBICTest::Schema::Artist', undef, {
     is_deferrable => 1,
     proxy => { artist_name => 'name' },
 });
-__PACKAGE__->belongs_to( very_long_artist_relationship => 'DBICTest::Schema::Artist', 'artist', {
+__PACKAGE__->refers_to( very_long_artist_relationship => 'DBICTest::Schema::Artist', 'artist', {
     is_deferrable => 1,
 });
 
 # in case this is a single-cd it promotes a track from another cd
-__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_track',
+__PACKAGE__->refers_to( single_track => 'DBICTest::Schema::Track', 'single_track',
     { join_type => 'left'}
 );
 
@@ -75,7 +75,7 @@ __PACKAGE__->many_to_many(
     { order_by => 'producer.name' },
 );
 
-__PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
+__PACKAGE__->refers_to('genre', 'DBICTest::Schema::Genre',
     { 'foreign.genreid' => 'self.genreid' },
     {
         join_type => 'left',
@@ -86,7 +86,7 @@ __PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
 
 #This second relationship was added to test the short-circuiting of pointless
 #queries provided by undef_on_null_fk. the relevant test in 66relationship.t
-__PACKAGE__->belongs_to('genre_inefficient', 'DBICTest::Schema::Genre',
+__PACKAGE__->refers_to('genre_inefficient', 'DBICTest::Schema::Genre',
     { 'foreign.genreid' => 'self.genreid' },
     {
         join_type => 'left',

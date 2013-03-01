@@ -54,9 +54,9 @@ is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
   $schema->storage->debugcb(sub { $queries++; });
   $schema->storage->debug(1);
   $big_flop_cd->genre; #should not trigger a select query
-  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+  is($queries, 0, 'No SELECT made for refers_to if key IS NULL');
   $big_flop_cd->genre_inefficient; #should trigger a select query
-  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
+  is($queries, 1, 'SELECT made for refers_to if key IS NULL when undef_on_null_fk disabled');
   $schema->storage->debug($sdebug);
   $schema->storage->debugcb(undef);
 }
@@ -295,7 +295,7 @@ my $trackset = $artist->cds->search_related('tracks');
 is($trackset->count, 10, "Correct number of tracks for artist");
 is($trackset->all, 10, "Correct number of track objects for artist");
 
-# now see about updating eveything that belongs to artist 2 to artist 3
+# now see about updating eveything that refers to artist 2 to artist 3
 $artist = $schema->resultset("Artist")->find(2);
 my $nartist = $schema->resultset("Artist")->find(3);
 cmp_ok($artist->cds->count, '==', 1, "Correct orig #cds for artist");
@@ -307,14 +307,14 @@ cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 # check if is_foreign_key_constraint attr is set
 my $rs_normal = $schema->source('Track');
 my $relinfo = $rs_normal->relationship_info ('cd');
-cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_constraint defined for belongs_to relationships.");
+cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_constraint defined for refers_to relationships.");
 
 my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
-cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
+cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for refers_to relationships with attr.");
 
 # check that relationships below left join relationships are forced to left joins
-# when traversing multiple belongs_to
+# when traversing multiple refers_to
 my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
 is($cds->count, 1, "subjoins under left joins force_left (string)");
 

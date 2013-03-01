@@ -17,10 +17,10 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key(qw/collection object/);
 
-__PACKAGE__->belongs_to( collection => "DBICTest::Schema::Collection",
+__PACKAGE__->refers_to( collection => "DBICTest::Schema::Collection",
                          { "foreign.collectionid" => "self.collection" }
                        );
-__PACKAGE__->belongs_to( object => "DBICTest::Schema::TypedObject",
+__PACKAGE__->refers_to( object => "DBICTest::Schema::TypedObject",
                          { "foreign.objectid" => "self.object" }
                        );
 

@@ -21,7 +21,7 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('id');
 
 require DBICTest::Schema::Link; # so we can get a columnlist
-__PACKAGE__->belongs_to(
+__PACKAGE__->refers_to(
     link => 'DBICTest::Schema::Link', 'link', {
     on_delete => 'SET NULL',
     join_type => 'LEFT',

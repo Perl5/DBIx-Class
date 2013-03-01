@@ -34,6 +34,6 @@ __PACKAGE__->add_unique_constraint (['title']);
 
 __PACKAGE__->resultset_attributes({where => { source => "Library" } });
 
-__PACKAGE__->belongs_to ( owner => 'DBICTest::Schema::Owners', 'owner' );
+__PACKAGE__->refers_to ( owner => 'DBICTest::Schema::Owners', 'owner' );
 
 1;

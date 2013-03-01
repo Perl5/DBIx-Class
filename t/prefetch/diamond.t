@@ -28,7 +28,7 @@ my $ars = $schema->resultset ('Artwork');
 #   V              V
 #   cd  ------>  artist
 #
-# The current artwork belongs to a cd by artist1
+# The current artwork refers to a cd by artist1
 # but the artwork itself is painted by artist2
 #
 # What we try is all possible permutations of join/prefetch

@@ -15,7 +15,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('cd_id');
-__PACKAGE__->belongs_to('cd', 'DBICTest::Schema::CD', 'cd_id');
+__PACKAGE__->refers_to('cd', 'DBICTest::Schema::CD', 'cd_id');
 __PACKAGE__->has_many('images', 'DBICTest::Schema::Image', 'artwork_id');
 
 __PACKAGE__->has_many('artwork_to_artist', 'DBICTest::Schema::Artwork_to_Artist', 'artwork_cd_id');

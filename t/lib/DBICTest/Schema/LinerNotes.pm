@@ -17,7 +17,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('liner_id');
-__PACKAGE__->belongs_to(
+__PACKAGE__->refers_to(
   'cd', 'DBICTest::Schema::CD', 'liner_id'
 );
 

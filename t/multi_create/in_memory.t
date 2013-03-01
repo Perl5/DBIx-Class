@@ -74,7 +74,7 @@ my $schema = DBICTest->init_schema();
 
 # test both sides of a 1:(1|0)
 {
-  for my $reldir ('might_have', 'belongs_to') {
+  for my $reldir ('might_have', 'refers_to') {
     my $artist = $schema->resultset('Artist')->next;
 
     my $new_track = $schema->resultset('Track')->new ({

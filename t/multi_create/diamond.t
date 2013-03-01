@@ -13,9 +13,9 @@ my $schema = DBICTest->init_schema();
 mc_diag (<<'DG');
 * Try a diamond multicreate
 
-Artist -> has_many -> Artwork_to_Artist -> belongs_to
+Artist -> has_many -> Artwork_to_Artist -> refers_to
                                                /
-  belongs_to <- CD <- belongs_to <- Artwork <-/
+  refers_to <- CD <- refers_to <- Artwork <-/
     \
      \-> Artist2
 

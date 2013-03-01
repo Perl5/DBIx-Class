@@ -24,7 +24,7 @@ for ($cd_rs->all) {
   is ($_->tracks->count, 3, '3 tracks for CD' . $_->id );
 }
 
-# Test a belongs_to prefetch of a has_many
+# Test a refers_to prefetch of a has_many
 {
   my $track_rs = $schema->resultset ('Track')->search (
     { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },

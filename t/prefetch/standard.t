@@ -71,9 +71,9 @@ $queries = 0;
 
 is($tag->search_related('cd')->search_related('artist')->first->name,
    'Caterwauler McCrae',
-   'chained belongs_to->belongs_to search_related ok');
+   'chained refers_to->refers_to search_related ok');
 
-is($queries, 0, 'chained search_related after belontgs_to->belongs_to prefetch ran no queries');
+is($queries, 0, 'chained search_related after refers_to->refers_to prefetch ran no queries');
 
 $queries = 0;
 

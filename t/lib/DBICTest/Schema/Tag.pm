@@ -31,7 +31,7 @@ __PACKAGE__->add_unique_constraints(  # do not remove, part of a test
   [qw/ tagid tag cd /],
 );
 
-__PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+__PACKAGE__->refers_to( cd => 'DBICTest::Schema::CD', 'cd', {
   proxy => [ 'year', { cd_title => 'title' } ],
 });
 
