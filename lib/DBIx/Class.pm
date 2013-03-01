@@ -423,6 +423,8 @@ michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
 
+mithaldu: Christian Walde <walde.christian@gmail.com>
+
 mjemmeson: Michael Jemmeson <michael.jemmeson@gmail.com>
 
 mstratman: Mark A. Stratman <stratman@gmail.com>

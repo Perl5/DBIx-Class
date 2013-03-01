@@ -611,8 +611,9 @@ my $reqs = {
 
   dist_dir => {
     req => {
-      'Pod::Inherit' => '0.90',
-      'Pod::Tree'    => '0',
+      'ExtUtils::MakeMaker' => '6.64',
+      'Pod::Inherit'        => '0.90',
+      'Pod::Tree'           => '0',
     }
   },
 
