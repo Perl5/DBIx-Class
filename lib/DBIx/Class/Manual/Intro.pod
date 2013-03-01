@@ -176,7 +176,7 @@ If you have a multi-column primary key, just pass a list instead:
 
   __PACKAGE__->set_primary_key( qw/ albumid artistid / );
 
-Define this class' relationships with other classes using either C<belongs_to>
+Define this class' relationships with other classes using either C<refers_to>
 to describe a column which contains an ID of another Table, or C<has_many> to
 make a predefined accessor for fetching objects that contain this Table's
 foreign key:

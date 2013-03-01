@@ -37,7 +37,7 @@ Result objects are returned from L<DBIx::Class::ResultSet>s using the
 L<create|DBIx::Class::ResultSet/create>, L<find|DBIx::Class::ResultSet/find>,
 L<next|DBIx::Class::ResultSet/next> and L<all|DBIx::Class::ResultSet/all> methods,
 as well as invocations of 'single' (
-L<belongs_to|DBIx::Class::Relationship/belongs_to>,
+L<refers_to|DBIx::Class::Relationship/refers_to>,
 L<has_one|DBIx::Class::Relationship/has_one> or
 L<might_have|DBIx::Class::Relationship/might_have>)
 relationship accessors of L<Result|DBIx::Class::Manual::ResultClass> objects.

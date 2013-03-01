@@ -51,7 +51,7 @@ For the CDs/Tracks example, that means writing, in C<MySchema::CD>:
 
 And in C<MySchema::Tracks>:
 
-  MySchema::Tracks->belongs_to('cd', 'MySchema::CD', 'CDID');
+  MySchema::Tracks->refers_to('cd', 'MySchema::CD', 'CDID');
 
 There are several other types of relationships, they are more
 comprehensively described in L<DBIx::Class::Relationship>.
@@ -216,7 +216,7 @@ complete set of data we'll need to join to the Artist table too.
 
 In C<MySchema::Tracks>:
 
-  MySchema::Tracks->belongs_to('artist', 'MySchema::Artist', 'ArtistID');
+  MySchema::Tracks->refers_to('artist', 'MySchema::Artist', 'ArtistID');
 
 The search:
 

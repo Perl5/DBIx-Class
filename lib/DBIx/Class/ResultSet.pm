@@ -2648,7 +2648,7 @@ or C<has_one> resultset.  Note Arrayref.
   );
 
 Example of creating a new row and also creating a row in a related
-C<belongs_to> resultset. Note Hashref.
+C<refers_to> resultset. Note Hashref.
 
   $cd_rs->create({
     title=>"Music for Silly Walks",
@@ -3965,7 +3965,7 @@ For example:
   __PACKAGE__->table('track');
   __PACKAGE__->add_columns(qw/trackid cd position title/);
   __PACKAGE__->set_primary_key('trackid');
-  __PACKAGE__->belongs_to(cd => 'MyApp::Schema::CD');
+  __PACKAGE__->refers_to(cd => 'MyApp::Schema::CD');
   1;
 
   # In your application
@@ -4057,12 +4057,12 @@ the cover image, the tracks on that cd, and the guests on those
 tracks.
 
  # Assuming:
- My::Schema::CD->belongs_to( artist      => 'My::Schema::Artist'     );
+ My::Schema::CD->refers_to( artist      => 'My::Schema::Artist'     );
  My::Schema::CD->might_have( liner_note  => 'My::Schema::LinerNotes' );
  My::Schema::CD->has_one(    cover_image => 'My::Schema::Artwork'    );
  My::Schema::CD->has_many(   tracks      => 'My::Schema::Track'      );
 
- My::Schema::Artist->belongs_to( record_label => 'My::Schema::RecordLabel' );
+ My::Schema::Artist->refers_to( record_label => 'My::Schema::RecordLabel' );
 
  My::Schema::Track->has_many( guests => 'My::Schema::Guest' );
 
@@ -4071,7 +4071,7 @@ tracks.
    undef,
    {
      prefetch => [
-       { artist => 'record_label'},  # belongs_to => belongs_to
+       { artist => 'record_label'},  # refers_to => refers_to
        'liner_note',                 # might_have
        'cover_image',                # has_one
        { tracks => 'guests' },       # has_many => has_many
@@ -4112,7 +4112,7 @@ relationship on a given level. e.g.:
    {
      prefetch => [
        'tracks',                         # has_many
-       { cd_to_producer => 'producer' }, # has_many => belongs_to (i.e. m2m)
+       { cd_to_producer => 'producer' }, # has_many => refers_to (i.e. m2m)
      ]
    }
  );

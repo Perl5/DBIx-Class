@@ -108,18 +108,18 @@ L<DBIx::Class::Relationship::Base>.
 =item .. define a one-to-many relationship?
 
 This is called a C<has_many> relationship on the one side, and a
-C<belongs_to> relationship on the many side. Currently these need to
+C<refers_to> relationship on the many side. Currently these need to
 be set up individually on each side. See L<DBIx::Class::Relationship>
 for details.
 
 =item .. define a relationship where this table contains another table's primary key? (foreign key)
 
-Create a C<belongs_to> relationship for the field containing the
-foreign key.  See L<DBIx::Class::Relationship/belongs_to>.
+Create a C<refers_to> relationship for the field containing the
+foreign key.  See L<DBIx::Class::Relationship/refers_to>.
 
 =item .. define a foreign key relationship where the key field may contain NULL?
 
-Just create a C<belongs_to> relationship, as above. If the column is
+Just create a C<refers_to> relationship, as above. If the column is
 NULL then the inflation to the foreign object will not happen. This
 has a side effect of not always fetching all the relevant data, if you
 use a nullable foreign-key relationship in a JOIN, then you probably

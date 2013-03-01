@@ -252,7 +252,7 @@ command immediately before C<JOIN>.
 The 'proxy' attribute can be used to retrieve values, and to perform
 updates if the relationship has 'cascade_update' set. The 'might_have'
 and 'has_one' relationships have this set by default; if you want a proxy
-to update across a 'belongs_to' relationship, you must set the attribute
+to update across a 'refers_to' relationship, you must set the attribute
 yourself.
 
 =over 4
@@ -273,9 +273,9 @@ Then, assuming MyApp::Schema::LinerNotes has an accessor named notes, you can do
   $cd->notes('Notes go here'); # set notes -- LinerNotes object is
                                # created if it doesn't exist
 
-For a 'belongs_to relationship, note the 'cascade_update':
+For a 'refers_to relationship, note the 'cascade_update':
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd,
+  MyApp::Schema::Track->refers_to( cd => 'DBICTest::Schema::CD', 'cd,
       { proxy => ['title'], cascade_update => 1 }
   );
   $track->title('New Title');
@@ -286,7 +286,7 @@ For a 'belongs_to relationship, note the 'cascade_update':
 A hashref where each key is the accessor you want installed in the main class,
 and its value is the name of the original in the fireign class.
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+  MyApp::Schema::Track->refers_to( cd => 'DBICTest::Schema::CD', 'cd', {
       proxy => { cd_title => 'title' },
   });
 
@@ -296,7 +296,7 @@ This will create an accessor named C<cd_title> on the C<$track> result object.
 
 NOTE: you can pass a nested struct too, for example:
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+  MyApp::Schema::Track->refers_to( cd => 'DBICTest::Schema::CD', 'cd', {
     proxy => [ 'year', { cd_title => 'title' } ],
   });
 
@@ -345,8 +345,8 @@ C<might_have> relationships. You can disable this behaviour on a
 per-relationship basis by supplying C<< cascade_update => 0 >> in
 the relationship attributes.
 
-The C<belongs_to> relationship does not update across relationships
-by default, so if you have a 'proxy' attribute on a belongs_to and want to
+The C<refers_to> relationship does not update across relationships
+by default, so if you have a 'proxy' attribute on a refers_to and want to
 use 'update' on it, you muse set C<< cascade_update => 1 >>.
 
 This is not a RDMS style cascade update - it purely means that when
@@ -360,9 +360,9 @@ If you are using L<SQL::Translator> to create SQL for you, you can use these
 attributes to explicitly set the desired C<ON DELETE> or C<ON UPDATE> constraint
 type. If not supplied the SQLT parser will attempt to infer the constraint type by
 interrogating the attributes of the B<opposite> relationship. For any 'multi'
-relationship with C<< cascade_delete => 1 >>, the corresponding belongs_to
+relationship with C<< cascade_delete => 1 >>, the corresponding refers_to
 relationship will be created with an C<ON DELETE CASCADE> constraint. For any
-relationship bearing C<< cascade_copy => 1 >> the resulting belongs_to constraint
+relationship bearing C<< cascade_copy => 1 >> the resulting refers_to constraint
 will be C<ON UPDATE CASCADE>. If you wish to disable this autodetection, and just
 use the RDBMS' default constraint type, pass C<< on_delete => undef >> or
 C<< on_delete => '' >>, and the same for C<on_update> respectively.
@@ -769,7 +769,7 @@ example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
 
 This is called internally when you pass existing objects as values to
-L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
+L<DBIx::Class::ResultSet/create>, or pass an object to a refers_to accessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.

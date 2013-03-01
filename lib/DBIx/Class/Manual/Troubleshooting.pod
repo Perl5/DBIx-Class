@@ -71,7 +71,7 @@ database, e.g. "user":
   ...
   __PACKAGE__->table('acl');
   __PACKAGE__->add_columns(qw/ user_id /);
-  __PACKAGE__->belongs_to( 'user' => 'My::Schema::User', 'user_id' );
+  __PACKAGE__->refers_to( 'user' => 'My::Schema::User', 'user_id' );
   ...
   1;
 

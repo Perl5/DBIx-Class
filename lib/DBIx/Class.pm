@@ -165,7 +165,7 @@ See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
   1;
 
-A result class to represent a CD, which belongs to an artist, in
+A result class to represent a CD, which refers to an artist, in
 MyApp/Schema/Result/CD.pm:
 
   package MyApp::Schema::Result::CD;
@@ -175,7 +175,7 @@ MyApp/Schema/Result/CD.pm:
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
+  __PACKAGE__->refers_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
 
   1;
 

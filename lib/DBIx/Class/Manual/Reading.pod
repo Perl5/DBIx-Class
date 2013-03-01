@@ -49,7 +49,7 @@ The first item provides a list of all possible values for the
 arguments of the method in order, separated by C<, >, preceded by the
 text "Arguments: "
 
-Example (for the belongs_to relationship):
+Example (for the refers_to relationship):
 
   =item Arguments: $accessor_name, $related_class, $fk_column|\%cond|\@cond?, \%attr?
 

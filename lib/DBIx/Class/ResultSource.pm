@@ -1403,7 +1403,7 @@ Looks through all the relationships on the source this relationship
 points to, looking for one whose condition is the reverse of the
 condition on this relationship.
 
-A common use of this is to find the name of the C<belongs_to> relation
+A common use of this is to find the name of the C<refers_to> relation
 opposing a C<has_many> relation. For definition of these look in
 L<DBIx::Class::Relationship>.
 

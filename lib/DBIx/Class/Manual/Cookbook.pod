@@ -587,7 +587,7 @@ this example, we want to limit the search further, using
 C<LinerNotes>:
 
   # Relationships defined elsewhere:
-  # CD->belongs_to('artist' => 'Artist');
+  # CD->refers_to('artist' => 'Artist');
   # CD->has_one('liner_notes' => 'LinerNotes', 'cd');
   my $rs = $schema->resultset('CD')->search(
     {
@@ -639,7 +639,7 @@ want to reduce the number of Artists returned based on who wrote the liner
 notes:
 
   # Relationship defined elsewhere:
-  # LinerNotes->belongs_to('author' => 'Person');
+  # LinerNotes->refers_to('author' => 'Person');
 
   my $rs = $schema->resultset('Artist')->search(
     {
@@ -1129,8 +1129,8 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
-  __PACKAGE__->belongs_to('user' => 'My::User');
-  __PACKAGE__->belongs_to('address' => 'My::Address');
+  __PACKAGE__->refers_to('user' => 'My::User');
+  __PACKAGE__->refers_to('address' => 'My::Address');
 
   package My::Address;
   use base 'DBIx::Class::Core';

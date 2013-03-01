@@ -18,9 +18,9 @@ The database consists of the following:
 And these rules exists:
 
   one artist can have many cds
-  one cd belongs to one artist
+  one cd refers to one artist
   one cd can have many tracks
-  one track belongs to one cd
+  one track refers to one cd
 
 
 =head2 Installation
@@ -106,7 +106,7 @@ MyDatabase/Main/Result/Cd.pm:
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artist title/);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to('artist' => 'MyDatabase::Main::Result::Artist');
+  __PACKAGE__->refers_to('artist' => 'MyDatabase::Main::Result::Artist');
   __PACKAGE__->has_many('tracks' => 'MyDatabase::Main::Result::Track');
 
   1;
@@ -119,7 +119,7 @@ MyDatabase/Main/Result/Track.pm:
   __PACKAGE__->table('track');
   __PACKAGE__->add_columns(qw/ trackid cd title /);
   __PACKAGE__->set_primary_key('trackid');
-  __PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Result::Cd');
+  __PACKAGE__->refers_to('cd' => 'MyDatabase::Main::Result::Cd');
 
   1;
 

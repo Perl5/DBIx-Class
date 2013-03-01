@@ -202,7 +202,7 @@ Result class
 
 =over 1
 
-=item L<DBIx::Class::Relationship/belongs_to>
+=item L<DBIx::Class::Relationship/refers_to>
 
 =item L<DBIx::Class::Relationship/has_many>
 
@@ -292,7 +292,7 @@ See L<DBIx::Class::ResultSet/create>
 
 =item books is a has_many
 
-=item address is a belongs_to which in turn belongs to state and city each
+=item address is a refers_to which in turn refers to state and city each
 
 =item for this to work right state and city must mark abbreviation and name as unique
 

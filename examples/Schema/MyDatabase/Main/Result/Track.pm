@@ -11,6 +11,6 @@ __PACKAGE__->add_columns(qw/ trackid cd title/);
 
 __PACKAGE__->set_primary_key('trackid');
 
-__PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Result::Cd');
+__PACKAGE__->refers_to('cd' => 'MyDatabase::Main::Result::Cd');
 
 1;

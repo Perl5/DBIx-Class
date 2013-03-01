@@ -24,8 +24,8 @@ DBIx::Class::Relationship - Inter-table relationships
                                 'actor');
   MyApp::Schema::Role->has_many('actorroles' => 'MyApp::Schema::ActorRole',
                                 'role');
-  MyApp::Schema::ActorRole->belongs_to('role' => 'MyApp::Schema::Role');
-  MyApp::Schema::ActorRole->belongs_to('actor' => 'MyApp::Schema::Actor');
+  MyApp::Schema::ActorRole->refers_to('role' => 'MyApp::Schema::Role');
+  MyApp::Schema::ActorRole->refers_to('actor' => 'MyApp::Schema::Actor');
 
   MyApp::Schema::Role->many_to_many('actors' => 'actorroles', 'actor');
   MyApp::Schema::Actor->many_to_many('roles' => 'actorroles', 'role');
@@ -117,7 +117,7 @@ See L<DBIx::Class::Relationship::Base/attributes> for documentation on the
 attributes that are allowed in the C<attrs> argument.
 
 
-=head2 belongs_to
+=head2 refers_to
 
 =over 4
 
@@ -164,21 +164,21 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
 =back
 
   # in a Book class (where Author has many Books)
-  My::DBIC::Schema::Book->belongs_to(
+  My::DBIC::Schema::Book->refers_to(
     author =>
     'My::DBIC::Schema::Author',
     'author_id'
   );
 
   # OR (same result)
-  My::DBIC::Schema::Book->belongs_to(
+  My::DBIC::Schema::Book->refers_to(
     author =>
     'My::DBIC::Schema::Author',
     { 'foreign.author_id' => 'self.author_id' }
   );
 
   # OR (similar result but uglier accessor name)
-  My::DBIC::Schema::Book->belongs_to(
+  My::DBIC::Schema::Book->refers_to(
     author_id =>
     'My::DBIC::Schema::Author'
   );
@@ -193,7 +193,7 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
 
 
 If the relationship is optional -- i.e. the column containing the
-foreign key can be NULL -- then the belongs_to relationship does the
+foreign key can be NULL -- then the refers_to relationship does the
 right thing. Thus, in the example above C<< $obj->author >> would
 return C<undef>.  However in this case you would probably want to set
 the L<join_type|DBIx::Class::Relationship/join_type> attribute so that
@@ -202,7 +202,7 @@ C<join> or C<prefetch> operations work correctly.  The modified
 declaration is shown below:
 
   # in a Book class (where Author has_many Books)
-  __PACKAGE__->belongs_to(
+  __PACKAGE__->refers_to(
     author =>
     'My::DBIC::Schema::Author',
     'author',
@@ -210,12 +210,12 @@ declaration is shown below:
   );
 
 
-Cascading deletes are off by default on a C<belongs_to>
+Cascading deletes are off by default on a C<refers_to>
 relationship. To turn them on, pass C<< cascade_delete => 1 >>
 in the $attr hashref.
 
 By default, DBIC will return undef and avoid querying the database if a
-C<belongs_to> accessor is called when any part of the foreign key IS NULL. To
+C<refers_to> accessor is called when any part of the foreign key IS NULL. To
 disable this behavior, pass C<< undef_on_null_fk => 0 >> in the C<\%attrs>
 hashref.
 
@@ -444,7 +444,7 @@ you shouldn't do that. The warning will look something like:
 
 If you must be naughty, you can suppress the warning by setting
 C<DBIC_DONT_VALIDATE_RELS> environment variable to a true value.  Otherwise,
-you probably just meant to use C<DBIx::Class::Relationship/belongs_to>.
+you probably just meant to use C<DBIx::Class::Relationship/refers_to>.
 
 =head2 has_one
 
@@ -576,7 +576,7 @@ bridging from.
 
 =item foreign_rel_name
 
-This is the accessor_name of the belongs_to relationship in the link
+This is the accessor_name of the refers_to relationship in the link
 table that we are bridging across (which gives us the table we are
 bridging to).
 
@@ -587,9 +587,9 @@ To create a many_to_many relationship from Actor to Role:
   My::DBIC::Schema::Actor->has_many( actor_roles =>
                                      'My::DBIC::Schema::ActorRoles',
                                      'actor' );
-  My::DBIC::Schema::ActorRoles->belongs_to( role =>
+  My::DBIC::Schema::ActorRoles->refers_to( role =>
                                             'My::DBIC::Schema::Role' );
-  My::DBIC::Schema::ActorRoles->belongs_to( actor =>
+  My::DBIC::Schema::ActorRoles->refers_to( actor =>
                                             'My::DBIC::Schema::Actor' );
 
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
@@ -611,7 +611,7 @@ actor_roles table:
 In the above example, ActorRoles is the link table class, and Role is the
 foreign class. The C<$link_rel_name> parameter is the name of the accessor for
 the has_many relationship from this table to the link table, and the
-C<$foreign_rel_name> parameter is the accessor for the belongs_to relationship
+C<$foreign_rel_name> parameter is the accessor for the refers_to relationship
 from the link table to the foreign table.
 
 To use many_to_many, existing relationships from the original table to the link
