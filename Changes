@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes
         - Debugging aid - warn on invalid result objects created by what
           seems like an invalid inheritance hierarchy
