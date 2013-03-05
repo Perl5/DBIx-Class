@@ -138,7 +138,44 @@ is_same_src (
 
 is_same_src (
   $schema->source ('CD')->_mk_row_parser({
+    prune_null_branches => 1,
+    inflate_map => $infmap,
+  }),
+  '$_ = [
+    { artist => $_->[5], title => $_->[4], year => $_->[2] },
+    {
+      single_track => ( (! defined $_->[0] ) && (! defined $_->[1]) && (! defined $_->[3] ) ) ? undef : [
+        undef,
+        {
+          cd => [
+            undef,
+            {
+              artist => [
+                { artistid => $_->[1] },
+                {
+                  cds => ( (! defined $_->[0] ) && ( ! defined $_->[3] ) ) ? undef : [
+                    { cdid => $_->[3] },
+                    {
+                      tracks => ( ! defined $_->[0] ) ? undef : [
+                        { title => $_->[0] },
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ] for @{$_[0]}',
+  '1:1 descending non-collapsing pruning parser terminating with chained 1:M:M',
+);
+
+is_same_src (
+  $schema->source ('CD')->_mk_row_parser({
     hri_style => 1,
+    prune_null_branches => 1,
     inflate_map => $infmap,
   }),
   '$_ = {
@@ -268,6 +305,7 @@ is_same_src (
     inflate_map => $infmap,
     collapse => 1,
     hri_style => 1,
+    prune_null_branches => 1,
   }),
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data);
@@ -451,9 +489,10 @@ is_same_src (
   $schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
+    prune_null_branches => 1,
   }),
   ' my $rows_pos = 0;
-    my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
+    my ($result_pos, @collapse_idx, $cur_row_data);
 
     while ($cur_row_data = (
       ( $rows_pos >= 0 and $_[0][$rows_pos++] )
@@ -461,56 +500,56 @@ is_same_src (
       ( $_[1] and $rows_pos = -1 and $_[1]->() )
     ) ) {
 
-      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
-      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
-      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
-      $cur_row_ids{6} = defined $cur_row_data->[6] ? $cur_row_data->[6] : "\0NULL\xFF$rows_pos\xFF6\0";
-      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
-      $cur_row_ids{10} = defined $cur_row_data->[10] ? $cur_row_data->[10] : "\0NULL\xFF$rows_pos\xFF10\0";
-
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
-      $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{1}} and (unshift @{$_[2]}, $cur_row_data) and last;
+      $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_data->[1]} and (unshift @{$_[2]}, $cur_row_data) and last;
 
-      $collapse_idx[0]{$cur_row_ids{1}} ||= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
+      $collapse_idx[0]{$cur_row_data->[1]} ||= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
 
-      $collapse_idx[0]{$cur_row_ids{1}}[1]{existing_single_track} ||= $collapse_idx[1]{$cur_row_ids{1}} = [];
-      $collapse_idx[1]{$cur_row_ids{1}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}} = [];
-      $collapse_idx[2]{$cur_row_ids{1}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}} = [{ artistid => $cur_row_data->[1] }];
+      $collapse_idx[0]{$cur_row_data->[1]}[1]{existing_single_track} ||= $collapse_idx[1]{$cur_row_data->[1]} = [];
+      $collapse_idx[1]{$cur_row_data->[1]}[1]{cd} ||= $collapse_idx[2]{$cur_row_data->[1]} = [];
+      $collapse_idx[2]{$cur_row_data->[1]}[1]{artist} ||= $collapse_idx[3]{$cur_row_data->[1]} = [{ artistid => $cur_row_data->[1] }];
 
-      (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} )
-        and
-      push @{ $collapse_idx[3]{$cur_row_ids{1}}[1]{cds} }, (
-        $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} = [{ cdid => $cur_row_data->[6], genreid => $cur_row_data->[9], year => $cur_row_data->[2] }]
-      );
-      defined($cur_row_data->[6]) or bless( $collapse_idx[3]{$cur_row_ids{1}}[1]{cds}, __NBC__ );
+      (! defined($cur_row_data->[6])) ? $collapse_idx[3]{$cur_row_data->[1]}[1]{cds} = [] : do {
+        (! $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[6]} )
+          and
+        push @{ $collapse_idx[3]{$cur_row_data->[1]}[1]{cds} }, (
+          $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[6]} = [{ cdid => $cur_row_data->[6], genreid => $cur_row_data->[9], year => $cur_row_data->[2] }]
+        );
 
-      (! $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} )
-        and
-      push @{ $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks} }, (
-        $collapse_idx[5]{$cur_row_ids{1}}{$cur_row_ids{6}}{$cur_row_ids{8}} = [{ title => $cur_row_data->[8] }]
-      );
-      defined($cur_row_data->[8]) or bless( $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}}[1]{tracks}, __NBC__ );
+        (! defined($cur_row_data->[8]) ) ? $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[6]}[1]{tracks} = [] : do {
 
-      (! $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} )
-        and
-      push @{ $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks} }, (
-        $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}} = [{ title => $cur_row_data->[5] }]
-      );
-      defined($cur_row_data->[5]) or bless( $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks}, __NBC__ );
+          (! $collapse_idx[5]{$cur_row_data->[1]}{$cur_row_data->[6]}{$cur_row_data->[8]} )
+            and
+          push @{ $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[6]}[1]{tracks} }, (
+            $collapse_idx[5]{$cur_row_data->[1]}{$cur_row_data->[6]}{$cur_row_data->[8]} = [{ title => $cur_row_data->[8] }]
+          );
+        };
+      };
 
-      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [];
-      defined($cur_row_data->[10]) or bless( $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics}, __NBC__ );
+      (! defined($cur_row_data->[5]) ) ? $collapse_idx[0]{$cur_row_data->[1]}[1]{tracks} = [] : do {
 
-      (! $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} )
-        and
-      push @{ $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}}[1]{existing_lyric_versions} }, (
-        $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
-      );
+        (! $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]} )
+          and
+        push @{ $collapse_idx[0]{$cur_row_data->[1]}[1]{tracks} }, (
+          $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]} = [{ title => $cur_row_data->[5] }]
+        );
+
+        (! defined($cur_row_data->[10]) ) ? $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]}[1]{lyrics} = [] : do {
+
+          $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} = [];
+
+          (! $collapse_idx[8]{$cur_row_data->[0]}{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} )
+            and
+          push @{ $collapse_idx[7]{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]}[1]{existing_lyric_versions} }, (
+            $collapse_idx[8]{$cur_row_data->[0]}{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} = [{ lyric_id => $cur_row_data->[10], text => $cur_row_data->[0] }]
+          );
+        };
+      };
     }
 
     $#{$_[0]} = $result_pos - 1;
   ',
-  'Multiple has_many on multiple branches with branch torture test',
+  'Multiple has_many on multiple branches with branch pruning torture test',
 );
 
 $infmap = [
@@ -634,6 +673,7 @@ is_same_src (
     inflate_map => $infmap,
     collapse => 1,
     hri_style => 1,
+    prune_null_branches => 1,
   }),
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);

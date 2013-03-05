@@ -65,7 +65,7 @@ sub __visit_infmap_simple {
         sort { $a <=> $b } values %{$rel_cols->{$rel}}
       ;
 
-      if ($args->{hri_style}) {
+      if ($args->{prune_null_branches}) {
         $rel_struct = sprintf ( '( (%s) ? undef : %s )',
           $branch_null_checks,
           $rel_struct,
@@ -109,7 +109,7 @@ sub assemble_collapsing_parser {
   my $args = shift;
 
   # it may get unset further down
-  my $no_rowid_container = $args->{hri_style};
+  my $no_rowid_container = $args->{prune_null_branches};
 
   my ($top_node_key, $top_node_key_assembler);
 
@@ -306,14 +306,15 @@ sub __visit_infmap_collapse {
       )
     ) {
 
-      if ($args->{hri_style}) {
+      if ($args->{prune_null_branches}) {
 
         # start of wrap of the entire chain in a conditional
-        splice @src, $rel_src_pos, 0, sprintf "( ! defined %s )\n  ? %s{%s} = %s\n  : do {",
+        splice @src, $rel_src_pos, 0, sprintf "( ! defined %s )\n  ? %s%s{%s} = %s\n  : do {",
           "'\xFF__VALPOS__${first_distinct_child_idcol}__\xFF'",
           $node_idx_slot,
+          $args->{hri_style} ? '' : '[1]',
           perlstring($rel),
-          $relinfo->{-is_single} ? 'undef' : '[]'
+          ($args->{hri_style} && $relinfo->{-is_single}) ? 'undef' : '[]'
         ;
 
         # end of wrap

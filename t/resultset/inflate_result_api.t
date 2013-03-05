@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+no warnings 'exiting';
 
 use Test::More;
 use Test::Deep;
@@ -45,416 +46,460 @@ $schema->resultset('CD')->create({
 
 $schema->resultset('CD')->create({ artist => 1, year => 1977, title => "fuzzy_1" });
 
+$schema->resultset('Artist')->create({ name => "${_}_cdless" })
+  for (qw( Z A ));
+
+# subs at the end of the test refer to this
+my $native_inflator;
+
+### TESTS START
+# run entire test twice - with and without "native inflator"
+INFTYPE: for ('', '(native inflator)') {
+
+  $native_inflator = $_;
+
+  cmp_structures(
+    rs_contents( $schema->resultset ('CD')->search_rs ({}, {
+      prefetch => { single_track => { cd => 'artist' } },
+      order_by => 'me.cdid',
+    }) ),
+    [
+      [
+        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+        { single_track => code(sub { null_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => code(sub { null_branch ( \@_, [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => code(sub { null_branch ( \@_, [
+                { artistid => undef, name => undef, charfield => undef, rank => undef }
+              ] ) } )
+            }
+          ] ) } ) }
+        ] ) } ) }
+      ],
+      [
+        { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+        { single_track => code(sub { null_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => code(sub { null_branch ( \@_, [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => code(sub { null_branch ( \@_, [
+                { artistid => undef, name => undef, charfield => undef, rank => undef }
+              ] ) } )
+            }
+          ] ) } ) }
+        ] ) } ) }
+      ],
+      [
+        { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+        { single_track => [
+          { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
+          {  cd => [
+            { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+            {
+              artist => [
+                { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 }
+              ]
+            }
+          ] }
+        ] }
+      ],
+      [
+        { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
+        { single_track => code(sub { null_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => code(sub { null_branch ( \@_, [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => code(sub { null_branch ( \@_, [
+                { artistid => undef, name => undef, charfield => undef, rank => undef }
+              ] ) } )
+            }
+          ] ) } ) }
+        ] ) } ) }
+      ],
+    ],
+    "Simple 1:1 descend with classic prefetch $native_inflator"
+  );
+
+  cmp_structures(
+    rs_contents( $schema->resultset ('CD')->search_rs ({}, {
+      join => { single_track => { cd => 'artist' } },
+      columns => [
+        { 'year'                                    => 'me.year' },
+        { 'genreid'                                 => 'me.genreid' },
+        { 'single_track.cd.artist.artistid'         => 'artist.artistid' },
+        { 'title'                                   => 'me.title' },
+        { 'artist'                                  => 'me.artist' },
+      ],
+      order_by => 'me.cdid',
+    }) ),
+    [
+      [
+        { artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+        { single_track => code(sub { null_branch ( \@_, [
+          undef,
+          {  cd => [
+            undef,
+            {
+              artist => [
+                { artistid => undef }
+              ]
+            }
+          ] }
+        ] ) } ) }
+      ],
+      [
+        { artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+        { single_track => code(sub { null_branch ( \@_, [
+          undef,
+          {  cd => [
+            undef,
+            {
+              artist => [
+                { artistid => undef }
+              ]
+            }
+          ] }
+        ] ) } ) }
+      ],
+      [
+        { artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+        { single_track => [
+          undef,
+          {  cd => [
+            undef,
+            {
+              artist => [
+                { artistid => 1 }
+              ]
+            }
+          ] }
+        ] }
+      ],
+      [
+        { artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
+        { single_track => code(sub { null_branch ( \@_, [
+          undef,
+          {  cd => [
+            undef,
+            {
+              artist => [
+                { artistid => undef }
+              ]
+            }
+          ] }
+        ] ) } ) }
+      ],
+    ],
+    "Simple 1:1 descend with missing selectors $native_inflator",
+  );
+
+  cmp_structures(
+    rs_contents( $schema->resultset ('CD')->search_rs ({}, {
+      prefetch => [ { single_track => { cd => { artist => { cds => 'tracks' } } } } ],
+      order_by => [qw/me.cdid tracks.trackid/],
+    }) ),
+    [
+      [
+        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+        { single_track => code(sub { null_collapsed_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => [
+                { artistid => undef, name => undef, charfield => undef, rank => undef },
+                { cds => code(sub { null_collapsed_branch ( \@_, [ [
+                  { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+                  { tracks => code(sub { null_collapsed_branch ( \@_, [ [
+                    { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+                  ] ] ) } ) },
+                ] ] ) } ) },
+              ],
+            },
+          ] },
+        ] ) } ) },
+      ],
+      [
+        { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+        { single_track => code(sub { null_collapsed_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => [
+                { artistid => undef, name => undef, charfield => undef, rank => undef },
+                { cds => code(sub { null_collapsed_branch ( \@_, [ [
+                  { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+                  { tracks => code(sub { null_collapsed_branch ( \@_, [ [
+                    { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+                  ] ] ) } ) },
+                ] ] ) } ) },
+              ],
+            },
+          ] },
+        ] ) } ) },
+      ],
+      [
+        { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+        { single_track => [
+          { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
+          {  cd => [
+            { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+            {
+              artist => [
+                { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+                { cds => [
+                  [
+                    { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
+                    { tracks => code(sub { null_collapsed_branch ( \@_, [
+                      [ { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef } ],
+                    ] ) } ) },
+                  ],
+                  [
+                    { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+                    { tracks => [
+                      [ { trackid => 1, title => 'm1', position => 1, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 2, title => 'm2', position => 2, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 3, title => 'm3', position => 3, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 4, title => 'm4', position => 4, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
+                    ]},
+                  ],
+                  [
+                    { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+                    { tracks => [
+                      [ { trackid => 5, title => 'o2', position => 2, cd => 2, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef } ],
+                    ]},
+                  ],
+                  [
+                    { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+                    { tracks => [
+                      [ { trackid => 7, title => 'e1', position => 1, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 8, title => 'e2', position => 2, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
+                      [ { trackid => 9, title => 'e3', position => 3, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
+                    ]},
+                  ],
+                ]},
+              ]
+            }
+          ] }
+        ] }
+      ],
+      [
+        { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
+        { single_track => code(sub { null_collapsed_branch ( \@_, [
+          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          {  cd => [
+            { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+            {
+              artist => [
+                { artistid => undef, name => undef, charfield => undef, rank => undef },
+                { cds => code(sub { null_collapsed_branch ( \@_, [ [
+                  { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+                  { tracks => code(sub { null_collapsed_branch ( \@_, [ [
+                    { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+                  ] ] ) } ) },
+                ] ] ) } ) },
+              ],
+            },
+          ] },
+        ] ) } ) },
+      ],
+    ],
+    "Collapsing 1:1 ending in chained has_many with classic prefetch $native_inflator",
+  );
+
+  cmp_structures (
+    rs_contents( $schema->resultset ('Artist')->search_rs ({}, {
+      join => { cds => 'tracks' },
+      '+columns' => [
+        (map { "cds.$_" } $schema->source('CD')->columns),
+        (map { +{ "cds.tracks.$_" => "tracks.$_" } } $schema->source('Track')->columns),
+      ],
+      order_by => [qw/cds.cdid tracks.trackid me.name/],
+    }) ),
+    [
+      [
+        { artistid => 3, name => 'A_cdless', charfield => undef, rank => 13 },
+        { cds => code(sub { null_branch ( \@_, [
+          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+          { tracks => code(sub { null_branch ( \@_, [
+            { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          ] ) } ) },
+        ] ) } ) },
+      ],
+      [
+        { artistid => 2, name => 'Z_cdless', charfield => undef, rank => 13 },
+        { cds => code(sub { null_branch ( \@_, [
+          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
+          { tracks => code(sub { null_branch ( \@_, [
+            { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          ] ) } ) },
+        ] ) } ) },
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+          { tracks => [
+            { trackid => 1, title => 'm1', position => 1, cd => 1, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+          { tracks => [
+            { trackid => 2, title => 'm2', position => 2, cd => 1, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+          { tracks => [
+            { trackid => 3, title => 'm3', position => 3, cd => 1, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
+          { tracks => [
+            { trackid => 4, title => 'm4', position => 4, cd => 1, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+          { tracks => [
+            { trackid => 5, title => 'o2', position => 2, cd => 2, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
+          { tracks => [
+            { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+          { tracks => [
+            { trackid => 7, title => 'e1', position => 1, cd => 3, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+          { tracks => [
+            { trackid => 8, title => 'e2', position => 2, cd => 3, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
+          { tracks => [
+            { trackid => 9, title => 'e3', position => 3, cd => 3, last_updated_at => undef, last_updated_on => undef },
+          ]},
+        ]},
+      ],
+      [
+        { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
+        { cds => [
+          { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
+          { tracks => code(sub { null_branch ( \@_, [
+            { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
+          ] ) } ) },
+        ]},
+      ],
+    ],
+    "Non-Collapsing chained has_many $native_inflator",
+  );
+
+  cmp_structures (
+    rs_contents( $schema->resultset ('Artist')->search_rs ({}, {
+      collapse => 1,
+      join => 'cds',
+      columns => [qw( cds.title cds.artist )],
+      order_by => [qw( me.name cds.title )],
+    }) ),
+    [
+      [
+        undef,
+        { cds => code(sub { null_collapsed_branch ( \@_, [
+          [ { artist => undef, title => undef } ]
+        ] ) } ) },
+      ],
+      [
+        undef,
+        { cds => [
+          [ { artist => 1, title => "Equinoxe" } ],
+          [ { artist => 1, title => "Magnetic Fields" } ],
+          [ { artist => 1, title => "Oxygene" } ],
+          [ { artist => 1, title => "fuzzy_1" } ],
+        ] }
+      ],
+      [
+        undef,
+        { cds => code(sub { null_collapsed_branch ( \@_, [
+          [ { artist => undef, title => undef } ]
+        ] ) } ) },
+      ],
+    ],
+    "Expected output of collapsing 1:M with empty root selection $native_inflator",
+  );
+}
+
+sub null_branch {
+  cmp_deeply(
+    $_[0][0],
+    $native_inflator ? undef : bless( $_[1], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ),
+  );
+}
+sub null_collapsed_branch {
+  cmp_deeply(
+    $_[0][0],
+    $native_inflator ? [] : bless( $_[1], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ),
+  );
+}
+
 {
   package DBICTest::_IRCapture;
   sub inflate_result { [@_[2,3]] };
 }
 
-cmp_structures(
-  ([$schema->resultset ('CD')->search ({}, {
-    result_class => 'DBICTest::_IRCapture',
-    prefetch => { single_track => { cd => 'artist' } },
-    order_by => 'me.cdid',
-  })->all]),
-  [
-    [
-      { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => bless ( [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => bless ( [
-              { artistid => undef, name => undef, charfield => undef, rank => undef }
-            ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class )
-          }
-        ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-    [
-      { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => bless ( [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => bless ( [
-              { artistid => undef, name => undef, charfield => undef, rank => undef }
-            ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class )
-          }
-        ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-    [
-      { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-      { single_track => [
-        { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
-        {  cd => [
-          { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-          {
-            artist => [
-              { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 }
-            ]
-          }
-        ] }
-      ] }
-    ],
-    [
-      { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => bless ( [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => bless ( [
-              { artistid => undef, name => undef, charfield => undef, rank => undef }
-            ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class )
-          }
-        ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-  ],
-  'Simple 1:1 descend with classic prefetch'
-);
-
-cmp_structures(
-  [$schema->resultset ('CD')->search ({}, {
-    result_class => 'DBICTest::_IRCapture',
-    join => { single_track => { cd => 'artist' } },
-    columns => [
-      { 'year'                                    => 'me.year' },
-      { 'genreid'                                 => 'me.genreid' },
-      { 'single_track.cd.artist.artistid'         => 'artist.artistid' },
-      { 'title'                                   => 'me.title' },
-      { 'artist'                                  => 'me.artist' },
-    ],
-    order_by => 'me.cdid',
-  })->all],
-  [
-    [
-      { artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-      { single_track => bless( [
-        undef,
-        {  cd => [
-          undef,
-          {
-            artist => [
-              { artistid => undef }
-            ]
-          }
-        ] }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-    [
-      { artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-      { single_track => bless( [
-        undef,
-        {  cd => [
-          undef,
-          {
-            artist => [
-              { artistid => undef }
-            ]
-          }
-        ] }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-    [
-      { artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-      { single_track => [
-        undef,
-        {  cd => [
-          undef,
-          {
-            artist => [
-              { artistid => 1 }
-            ]
-          }
-        ] }
-      ] }
-    ],
-    [
-      { artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
-      { single_track => bless( [
-        undef,
-        {  cd => [
-          undef,
-          {
-            artist => [
-              { artistid => undef }
-            ]
-          }
-        ] }
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) }
-    ],
-  ],
-  'Simple 1:1 descend with missing selectors'
-);
-
-cmp_structures(
-  ([$schema->resultset ('CD')->search ({}, {
-    result_class => 'DBICTest::_IRCapture',
-    prefetch => [ { single_track => { cd => { artist => { cds => 'tracks' } } } } ],
-    order_by => [qw/me.cdid tracks.trackid/],
-  })->all]),
-  [
-    [
-      { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => [
-              { artistid => undef, name => undef, charfield => undef, rank => undef },
-              { cds => bless( [ [
-                { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-                { tracks => bless( [ [
-                  { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-                ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-              ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-            ],
-          },
-        ] },
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-    ],
-    [
-      { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => [
-              { artistid => undef, name => undef, charfield => undef, rank => undef },
-              { cds => bless( [ [
-                { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-                { tracks => bless( [ [
-                  { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-                ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-              ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-            ],
-          },
-        ] },
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-    ],
-    [
-      { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-      { single_track => [
-        { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
-        {  cd => [
-          { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-          {
-            artist => [
-              { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-              { cds => [
-                [
-                  { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
-                  { tracks => bless( [
-                    [ { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef } ],
-                  ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-                ],
-                [
-                  { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-                  { tracks => [
-                    [ { trackid => 1, title => 'm1', position => 1, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 2, title => 'm2', position => 2, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 3, title => 'm3', position => 3, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 4, title => 'm4', position => 4, cd => 1, last_updated_at => undef, last_updated_on => undef } ],
-                  ]},
-                ],
-                [
-                  { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-                  { tracks => [
-                    [ { trackid => 5, title => 'o2', position => 2, cd => 2, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef } ],
-                  ]},
-                ],
-                [
-                  { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-                  { tracks => [
-                    [ { trackid => 7, title => 'e1', position => 1, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 8, title => 'e2', position => 2, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
-                    [ { trackid => 9, title => 'e3', position => 3, cd => 3, last_updated_at => undef, last_updated_on => undef } ],
-                  ]},
-                ],
-              ]},
-            ]
-          }
-        ] }
-      ] }
-    ],
-    [
-      { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
-      { single_track => bless( [
-        { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        {  cd => [
-          { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-          {
-            artist => [
-              { artistid => undef, name => undef, charfield => undef, rank => undef },
-              { cds => bless( [ [
-                { cdid => undef, single_track => undef, artist => undef, genreid => undef, year => undef, title => undef },
-                { tracks => bless( [ [
-                  { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-                ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-              ] ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-            ],
-          },
-        ] },
-      ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-    ],
-  ],
-  'Collapsing 1:1 ending in chained has_many with classic prefetch'
-);
-
-cmp_structures (
-  ([$schema->resultset ('Artist')->search ({}, {
-    result_class => 'DBICTest::_IRCapture',
-    join => { cds => 'tracks' },
-    '+columns' => [
-      (map { "cds.$_" } $schema->source('CD')->columns),
-      (map { +{ "cds.tracks.$_" => "tracks.$_" } } $schema->source('Track')->columns),
-    ],
-    order_by => [qw/cds.cdid tracks.trackid/],
-  })->all]),
-  [
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-        { tracks => [
-          { trackid => 1, title => 'm1', position => 1, cd => 1, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-        { tracks => [
-          { trackid => 2, title => 'm2', position => 2, cd => 1, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-        { tracks => [
-          { trackid => 3, title => 'm3', position => 3, cd => 1, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 1, single_track => undef, artist => 1, genreid => 1, year => 1981, title => "Magnetic Fields" },
-        { tracks => [
-          { trackid => 4, title => 'm4', position => 4, cd => 1, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-        { tracks => [
-          { trackid => 5, title => 'o2', position => 2, cd => 2, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 2, single_track => undef, artist => 1, genreid => undef, year => 1976, title => "Oxygene" },
-        { tracks => [
-          { trackid => 6, title => 'o1', position => 1, cd => 2, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-        { tracks => [
-          { trackid => 7, title => 'e1', position => 1, cd => 3, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-        { tracks => [
-          { trackid => 8, title => 'e2', position => 2, cd => 3, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 3, single_track => 6, artist => 1, genreid => 1, year => 1978, title => "Equinoxe" },
-        { tracks => [
-          { trackid => 9, title => 'e3', position => 3, cd => 3, last_updated_at => undef, last_updated_on => undef },
-        ]},
-      ]},
-    ],
-    [
-      { artistid => 1, name => 'JMJ', charfield => undef, rank => 13 },
-      { cds => [
-        { cdid => 4, single_track => undef, artist => 1, genreid => undef, year => 1977, title => "fuzzy_1" },
-        { tracks => bless( [
-          { trackid => undef, title => undef, position => undef, cd => undef, last_updated_at => undef, last_updated_on => undef },
-        ], $DBIx::Class::ResultSource::RowParser::Util::null_branch_class ) },
-      ]},
-    ],
-  ],
-  'Non-Collapsing chained has_many'
-);
-
-$schema->resultset('Artist')->create({ name => "${_}_cdless" })
-  for (qw( Z A ));
-
-cmp_structures (
-  [$schema->resultset ('Artist')->search ({}, {
-    result_class => 'DBICTest::_IRCapture',
-    collapse => 1,
-    join => 'cds',
-    columns => [qw( cds.title cds.artist )],
-    order_by => [qw( me.name cds.title )],
-  })->all],
-  [
-    [
-      undef,
-      { cds => bless( [
-        [ { artist => undef, title => undef } ]
-      ], 'DBIx::ResultParser::RelatedNullBranch' ) },
-    ],
-    [
-      undef,
-      { cds => [
-        [ { artist => 1, title => "Equinoxe" } ],
-        [ { artist => 1, title => "Magnetic Fields" } ],
-        [ { artist => 1, title => "Oxygene" } ],
-        [ { artist => 1, title => "fuzzy_1" } ],
-      ] }
-    ],
-    [
-      undef,
-      { cds => bless( [
-        [ { artist => undef, title => undef } ]
-      ], 'DBIx::ResultParser::RelatedNullBranch' ) },
-    ],
-  ],
-  'Expected output of collapsing 1:M with empty root selection',
-);
+sub rs_contents {
+  my $rs = shift;
+  $rs->result_class('DBICTest::_IRCapture');
+  die 'eeeeek - preprocessed $rs' if defined $rs->{_result_inflator}{is_core_row};
+  $rs->{_result_inflator}{is_core_row} = 1 if $native_inflator;
+  [$rs->all],
+}
 
 sub cmp_structures {
   my ($left, $right, $msg) = @_;
 
   local $Test::Builder::Level = $Test::Builder::Level + 1;
-  cmp_deeply($left, $right, $msg||());
+  cmp_deeply($left, $right, $msg||()) or next INFTYPE;
 }
 
 done_testing;

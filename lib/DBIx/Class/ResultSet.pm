@@ -1368,12 +1368,23 @@ sub _construct_results {
 
   my $infmap = $attrs->{as};
 
-  $self->{_result_inflator}{is_hri} = do { ( $inflator_cref == (
-    require DBIx::Class::ResultClass::HashRefInflator
-      &&
-    DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
-  ) ) ? 1 : 0
-  } unless defined $self->{_result_inflator}{is_hri};
+
+  $self->{_result_inflator}{is_core_row} = ( (
+    $inflator_cref
+      ==
+    ( \&DBIx::Class::Row::inflate_result || die "No ::Row::inflate_result() - can't happen" )
+  ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_core_row};
+
+  $self->{_result_inflator}{is_hri} = ( (
+    ! $self->{_result_inflator}{is_core_row}
+      and
+    $inflator_cref == (
+      require DBIx::Class::ResultClass::HashRefInflator
+        &&
+      DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
+    )
+  ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_hri};
+
 
   if (! $attrs->{_related_results_construction}) {
     # construct a much simpler array->hash folder for the one-table cases right here
@@ -1401,7 +1412,7 @@ sub _construct_results {
       );
     }
   }
-  # Special-case multi-object HRI (we always prune)
+  # Special-case multi-object HRI (we always prune, and there is no $inflator_cref pass)
   elsif ($self->{_result_inflator}{is_hri}) {
     ( $self->{_row_parser}{hri} ||= $rsrc->_mk_row_parser({
       eval => 1,
@@ -1410,17 +1421,20 @@ sub _construct_results {
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
       hri_style => 1,
+      prune_null_branches => 1,
     }) )->($rows, @extra_collapser_args);
   }
   # Regular multi-object
   else {
+    my $parser_type = $self->{_result_inflator}{is_core_row} ? 'classic_pruning' : 'classic_nonpruning';
 
-    ( $self->{_row_parser}{classic} ||= $rsrc->_mk_row_parser({
+    ( $self->{_row_parser}{$parser_type} ||= $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
       selection => $attrs->{select},
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
+      prune_null_branches => $self->{_result_inflator}{is_core_row},
     }) )->($rows, @extra_collapser_args);
 
     $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;

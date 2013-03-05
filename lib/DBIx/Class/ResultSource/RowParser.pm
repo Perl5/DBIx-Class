@@ -95,42 +95,41 @@ sub _resolve_prefetch {
 sub _mk_row_parser {
   my ($self, $args) = @_;
 
-  my $val_index = { map
-    { $args->{inflate_map}[$_] => $_ }
-    ( 0 .. $#{$args->{inflate_map}} )
-  };
+  die "HRI without pruning makes zero sense"
+  if ( $args->{hri_style} && ! $args->{prune_null_branches} );
 
-  my $src;
+  my %common = (
+    hri_style => $args->{hri_style},
+    prune_null_branches => $args->{prune_null_branches},
+    val_index => { map
+      { $args->{inflate_map}[$_] => $_ }
+      ( 0 .. $#{$args->{inflate_map}} )
+    },
+  );
 
-  if (! $args->{collapse} ) {
-    $src = assemble_simple_parser({
-      val_index => $val_index,
-      hri_style => $args->{hri_style},
-    });
-  }
-  else {
-    my $collapse_map = $self->_resolve_collapse ({
-      premultiplied => $args->{premultiplied},
-      # FIXME
-      # only consider real columns (not functions) during collapse resolution
-      # this check shouldn't really be here, as fucktards are not supposed to
-      # alias random crap to existing column names anyway, but still - just in
-      # case
-      # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
-      # (it is now trivial as the attrs specify where things go out of sync
-      # needs MOAR tests)
-      as => { map
-        { ref $args->{selection}[$val_index->{$_}] ? () : ( $_ => $val_index->{$_} ) }
-        keys %$val_index
-      }
-    });
-
-    $src = assemble_collapsing_parser({
-      val_index => $val_index,
-      collapse_map => $collapse_map,
-      hri_style => $args->{hri_style},
-    });
-  }
+  my $src = $args->{collapse}
+    ? assemble_collapsing_parser({
+      %common,
+      collapse_map => $self->_resolve_collapse ({
+        # FIXME
+        # only consider real columns (not functions) during collapse resolution
+        # this check shouldn't really be here, as fucktards are not supposed to
+        # alias random crap to existing column names anyway, but still - just in
+        # case
+        # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
+        # (it is now trivial as the attrs specify where things go out of sync
+        # needs MOAR tests)
+        as => { map
+          { ref $args->{selection}[$common{val_index}{$_}] ? () : ( $_ => $common{val_index}{$_} ) }
+          keys %{$common{val_index}}
+        },
+        premultiplied => $args->{premultiplied},
+      })
+    })
+    : assemble_simple_parser(
+      \%common
+    )
+  ;
 
   return $args->{eval}
     ? ( eval "sub $src" || die $@ )
