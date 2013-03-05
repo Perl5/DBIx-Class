@@ -50,12 +50,6 @@ $schema->resultset('CD')->create({ artist => 1, year => 1977, title => "fuzzy_1"
   sub inflate_result { [@_[2,3]] };
 }
 
-{
-  package DBICTest::_IRCaptureAround;
-  use base 'DBIx::Class::Row';
-  sub inflate_result { [@_[2,3]] };
-}
-
 cmp_structures(
   ([$schema->resultset ('CD')->search ({}, {
     result_class => 'DBICTest::_IRCapture',
