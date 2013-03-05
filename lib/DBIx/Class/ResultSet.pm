@@ -1440,11 +1440,6 @@ sub _construct_results {
     $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;
   }
 
-  # CDBI compat stuff
-  if ($attrs->{record_filter}) {
-    $_ = $attrs->{record_filter}->($_) for @$rows;
-  }
-
   return $rows;
 }
 
