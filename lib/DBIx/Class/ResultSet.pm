@@ -25,6 +25,10 @@ use overload
         'bool'   => "_bool",
         fallback => 1;
 
+# this is real - CDBICompat overrides it with insanity
+# yes, prototype won't matter, but that's for now ;)
+sub _bool () { 1 }
+
 __PACKAGE__->mk_group_accessors('simple' => qw/_result_class result_source/);
 
 =head1 NAME
@@ -1636,9 +1640,6 @@ sub _count_subq_rs {
                   ->get_column ('count');
 }
 
-sub _bool {
-  return 1;
-}
 
 =head2 count_literal
 
