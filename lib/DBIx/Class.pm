@@ -119,13 +119,13 @@ list below is sorted by "fastest response time":
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
-<a href="http://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
+<a href="https://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
-=item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
+=item * RT Bug Tracker: L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class>
 
-=item * Twitter: L<http://www.twitter.com/dbix_class>
+=item * Twitter: L<https://www.twitter.com/dbix_class>
 
 =item * Web Site: L<http://www.dbix-class.org/>
 
@@ -148,15 +148,15 @@ accessible at the following locations:
 
 =over
 
-=item * official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
-=item * official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
 
-=item * github mirror: L<https://github.com/dbsrgits/DBIx-Class>
+=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
 
-=item * authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
 
-=item * Travis-CI log: L<http://travis-ci.org/dbsrgits/dbix-class/builds>
+=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
 
 =for html
 <br>&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
