@@ -1812,6 +1812,7 @@ sub _rs_update_delete {
     $cond = do {
       my $sqla = $rsrc->storage->sql_maker;
       local $sqla->{_dequalify_idents} = 1;
+      local $sqla->{_table_name} = $rsrc->name;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };
   }
