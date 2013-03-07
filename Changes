@@ -8,7 +8,8 @@ Revision history for DBIx::Class
         - Scale back validation of the 'as' attribute - in the field
           there are legitimate-ish uses of a inflating into an apparently
           invalid relationship graph
-
+        - Warn in case of iterative collapse being upgraded to an eager
+          cursor slurp
 
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes

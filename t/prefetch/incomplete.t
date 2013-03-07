@@ -26,7 +26,7 @@ lives_ok(sub {
   );
 
   is ($rs->count, 2, 'Correct number of collapsed artists');
-  my $we_are_goth = $rs->first;
+  my ($we_are_goth) = $rs->all;
   is ($we_are_goth->name, 'We Are Goth', 'Correct first artist');
   is ($we_are_goth->cds->count, 1, 'Correct number of CDs for first artist');
   is ($we_are_goth->cds->first->title, 'Come Be Depressed With Us', 'Correct cd for artist');

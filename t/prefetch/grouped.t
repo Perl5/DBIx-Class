@@ -186,7 +186,7 @@ for ($cd_rs->all) {
   );
 
   is ($most_tracks_rs->count, 2, 'Limit works');
-  my $top_cd = $most_tracks_rs->first;
+  my ($top_cd) = $most_tracks_rs->all;
   is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) earlier
 
   my $query_cnt = 0;

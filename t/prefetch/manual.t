@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Deep;
+use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -186,7 +187,7 @@ cmp_deeply (
 );
 
 TODO: {
-  my $row = $rs->next;
+  my ($row) = $rs->all;
   local $TODO = 'Something is wrong with filter type rels, they throw on incomplete objects >.<';
 
   lives_ok {
@@ -197,9 +198,6 @@ TODO: {
     )
   } 'no exception';
 }
-
-is ($rs->cursor->next, undef, 'cursor exhausted');
-
 
 TODO: {
 local $TODO = 'this does not work at all, need to promote rsattrs to an object on its own';
@@ -269,9 +267,12 @@ $schema->storage->debug (1);
 for my $use_next (0, 1) {
   my @random_cds;
   if ($use_next) {
-    while (my $o = $rs_random->next) {
-      push @random_cds, $o;
-    }
+    warnings_exist {
+      while (my $o = $rs_random->next) {
+        push @random_cds, $o;
+      }
+    } qr/performed an eager cursor slurp underneath/,
+    'Warned on auto-eager cursor';
   }
   else {
     @random_cds = $rs_random->all;

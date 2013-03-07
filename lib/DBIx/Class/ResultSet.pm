@@ -1277,9 +1277,17 @@ sub _construct_results {
   my $rsrc = $self->result_source;
   my $attrs = $self->_resolved_attrs;
 
-  if (!$fetch_all and ! $attrs->{order_by} and $attrs->{collapse}) {
+  if (
+    ! $fetch_all
+      and
+    ! $attrs->{order_by}
+      and
+    $attrs->{collapse}
+      and
+    my @pcols = $rsrc->primary_columns
+  ) {
     # default order for collapsing unless the user asked for something
-    $attrs->{order_by} = [ map { join '.', $attrs->{alias}, $_} $rsrc->primary_columns ];
+    $attrs->{order_by} = [ map { join '.', $attrs->{alias}, $_} @pcols ];
     $attrs->{_ordered_for_collapse} = 1;
     $attrs->{_order_is_artificial} = 1;
   }
@@ -1290,6 +1298,8 @@ sub _construct_results {
   # _construct_results. Not regrowing the array twice matters a lot...
   # a surprising amount actually
   my $rows = delete $self->{_stashed_rows};
+
+  my $did_fetch_all = $fetch_all;
 
   if ($fetch_all) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
@@ -1327,7 +1337,7 @@ sub _construct_results {
     } unless defined $attrs->{_ordered_for_collapse};
 
     if (! $attrs->{_ordered_for_collapse}) {
-      $fetch_all = 1;
+      $did_fetch_all = 1;
 
       # instead of looping over ->next, use ->all in stealth mode
       # *without* calling a ->reset afterwards
@@ -1339,7 +1349,7 @@ sub _construct_results {
     }
   }
 
-  if (! $fetch_all and ! @{$rows||[]} ) {
+  if (! $did_fetch_all and ! @{$rows||[]} ) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
     if (scalar (my @r = $cursor->next) ) {
       $rows = [ \@r ];
@@ -1349,7 +1359,7 @@ sub _construct_results {
   return undef unless @{$rows||[]};
 
   my @extra_collapser_args;
-  if ($attrs->{collapse} and ! $fetch_all ) {
+  if ($attrs->{collapse} and ! $did_fetch_all ) {
 
     @extra_collapser_args = (
       # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
@@ -1439,6 +1449,16 @@ sub _construct_results {
 
     $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;
   }
+
+  # The @$rows check seems odd at first - why wouldn't we want to warn
+  # regardless? The issue is things like find() etc, where the user
+  # *knows* only one result will come back. In these cases the ->all
+  # is not a pessimization, but rather something we actually want
+  carp_unique(
+    'Unable to properly collapse has_many results in iterator mode due '
+  . 'to order criteria - performed an eager cursor slurp underneath. '
+  . 'Consider using ->all() instead'
+  ) if ( ! $fetch_all and @$rows > 1 );
 
   return $rows;
 }

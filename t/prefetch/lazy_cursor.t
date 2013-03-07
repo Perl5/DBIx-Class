@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -64,7 +65,11 @@ is ( ($rs->cursor->next)[0], 1, 'Cursor auto-rewound after all()');
 is ($rs->{_stashed_rows}, undef, 'Nothing else left in $rs stash');
 
 my $unordered_rs = $rs->search({}, { order_by => 'cds.title' });
-ok ($unordered_rs->next, 'got row 1');
+
+warnings_exist {
+  ok ($unordered_rs->next, 'got row 1');
+} qr/performed an eager cursor slurp underneath/, 'Warned on auto-eager cursor';
+
 is_deeply ([$unordered_rs->cursor->next], [], 'Nothing left on cursor, eager slurp');
 ok ($unordered_rs->next, "got row $_")  for (2 .. $initial_artists_cnt + 3);
 is ($unordered_rs->next, undef, 'End of RS reached');
