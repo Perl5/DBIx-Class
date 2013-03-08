@@ -263,28 +263,83 @@ $schema->storage->debug (1);
     'Restricting prefetch left in, selector thrown out'
   );
 
-  $rs->result_source->name('schema_qualified.cd');
-  # this is expected to fail - we only want to collect the generated SQL
-  eval { $rs->delete };
+  # switch artist and cd to fully qualified table names
+  # make sure nothing is stripped out
+  my $cd_rsrc = $schema->source('CD');
+  $cd_rsrc->name('main.cd');
+  $cd_rsrc->relationship_info($_)->{attrs}{cascade_delete} = 0
+    for $cd_rsrc->relationships;
+
+  my $art_rsrc = $schema->source('Artist');
+  $art_rsrc->name(\'main.artist');
+  $art_rsrc->relationship_info($_)->{attrs}{cascade_delete} = 0
+    for $art_rsrc->relationships;
+
+  $rs->delete;
   is_same_sql_bind (
     $sql,
     \@bind,
-    'DELETE FROM schema_qualified.cd WHERE ( year != ? )',
+    'DELETE FROM main.cd WHERE ( year != ? )',
     ["'2010'"],
-    'delete with fully qualified table name and subquery correct'
+    'delete with fully qualified table name'
   );
 
-  # this is expected to fail - we only want to collect the generated SQL
-  eval { $rs->search({}, { prefetch => 'artist' })->delete };
+  $rs->create({ title => 'foo', artist => 1, year => 2000 });
+  $rs->delete_all;
   is_same_sql_bind (
     $sql,
     \@bind,
-    'DELETE FROM schema_qualified.cd WHERE ( cdid IN ( SELECT me.cdid FROM schema_qualified.cd me JOIN artist artist ON artist.artistid = me.artist WHERE ( me.year != ? ) ) )',
+    'DELETE FROM main.cd WHERE ( cdid = ? )',
+    ["'1'"],
+    'delete_all with fully qualified table name'
+  );
+
+  $rs->create({ cdid => 42, title => 'foo', artist => 2, year => 2000 });
+  $rs->find(42)->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM main.cd WHERE ( cdid = ? )',
+    ["'42'"],
+    'delete of object from table with fully qualified name'
+  );
+
+  $rs->create({ cdid => 42, title => 'foo', artist => 2, year => 2000 });
+  $rs->find(42)->related_resultset('artist')->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM main.artist WHERE ( artistid IN ( SELECT me.artistid FROM main.artist me WHERE ( me.artistid = ? ) ) )',
+    ["'2'"],
+    'delete of related object from scalarref fully qualified named table',
+  );
+
+  $schema->resultset('Artist')->find(3)->related_resultset('cds')->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM main.cd WHERE ( artist = ? )',
+    ["'3'"],
+    'delete of related object from fully qualified named table',
+  );
+
+  $schema->resultset('Artist')->find(3)->cds_unordered->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM main.cd WHERE ( artist = ? )',
+    ["'3'"],
+    'delete of related object from fully qualified named table via relaccessor',
+  );
+
+  $rs->search({}, { prefetch => 'artist' })->delete;
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'DELETE FROM main.cd WHERE ( cdid IN ( SELECT me.cdid FROM main.cd me JOIN main.artist artist ON artist.artistid = me.artist WHERE ( me.year != ? ) ) )',
     ["'2010'"],
     'delete with fully qualified table name and subquery correct'
   );
-
-  $rs->result_source->name('cd');
 
   # check that as_subselect_rs works ok
   # inner query is untouched, then a selector
@@ -300,14 +355,14 @@ $schema->storage->debug (1);
     $sql,
     \@bind,
     '
-      DELETE FROM cd
+      DELETE FROM main.cd
       WHERE (
         cdid IN (
           SELECT me.cdid
             FROM (
               SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-                FROM cd me
-                JOIN artist artist ON artist.artistid = me.artist
+                FROM main.cd me
+                JOIN main.artist artist ON artist.artistid = me.artist
               WHERE artist.name = ? AND me.cdid = ?
             ) me
         )
