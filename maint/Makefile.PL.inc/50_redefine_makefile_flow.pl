@@ -24,6 +24,20 @@ check_create_distdir_prereqs :
   $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->die_unless_req_ok_for(q(dist_dir))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
 ]}
 
+EOM
+  }
+}
+
+# M::I inserts its own default postamble, so we can't easily override upload
+# but we can still hook postamble in EU::MM
+{
+  package MY;
+
+  sub postamble {
+    my $snippet = shift->SUPER::postamble(@_);
+    return <<"EOM";
+$snippet
+
 upload :: check_create_distdir_prereqs check_upload_dist_prereqs
 
 check_upload_dist_prereqs :
