@@ -152,11 +152,11 @@ is_same_sql_bind (
   $books_45_and_owners->search ({}, { group_by => 'title', order_by => 'title' })->as_query,
   '(SELECT me.id, me.source, me.owner, me.price, owner.id, owner.name
       FROM (
-        SELECT me.id, me.source, me.owner, me.price
+        SELECT me.id, me.source, me.owner, me.price, me.title
           FROM (
-            SELECT me.id, me.source, me.owner, me.price, ORDER__BY__001
+            SELECT me.id, me.source, me.owner, me.price, me.title
               FROM (
-                SELECT me.id, me.source, me.owner, me.price, title AS ORDER__BY__001
+                SELECT me.id, me.source, me.owner, me.price, me.title
                   FROM books me
                   JOIN owners owner ON owner.id = me.owner
                 WHERE ( source = ? )
@@ -164,10 +164,10 @@ is_same_sql_bind (
                 ORDER BY title
                 FETCH FIRST 5 ROWS ONLY
               ) me
-            ORDER BY ORDER__BY__001 DESC
+            ORDER BY title DESC
             FETCH FIRST 2 ROWS ONLY
           ) me
-        ORDER BY ORDER__BY__001
+        ORDER BY title
       ) me
       JOIN owners owner ON owner.id = me.owner
     WHERE ( source = ? )

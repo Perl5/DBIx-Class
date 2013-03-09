@@ -351,7 +351,6 @@ sub _generate_join_clause {
 
 sub _recurse_from {
   my $self = shift;
-
   return join (' ', $self->_gen_from_blocks(@_) );
 }
 

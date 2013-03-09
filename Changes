@@ -11,6 +11,10 @@ Revision history for DBIx::Class
         - Warn in case of iterative collapse being upgraded to an eager
           cursor slurp
 
+    * Fixes
+        - Properly consider unselected order_by criteria during complex
+          subqueried prefetch
+
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes
         - Debugging aid - warn on invalid result objects created by what

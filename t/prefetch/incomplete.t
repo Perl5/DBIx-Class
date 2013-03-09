@@ -6,6 +6,7 @@ use Test::Deep;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -119,9 +120,105 @@ throws_ok(
     prefetch => 'books',
   });
 
-  lives_ok {
-    is ($pref_rs->all, 1, 'Expected count of objects on limtied prefetch')
-  } "Complex limited prefetch works with non-selected join condition";
+  is_same_sql_bind(
+    $pref_rs->as_query,
+    '(
+      SELECT me.name, books.id, books.source, books.owner, books.title, books.price
+        FROM (
+          SELECT me.name, me.id
+            FROM owners me
+          LIMIT ?
+          OFFSET ?
+        ) me
+        LEFT JOIN books books
+          ON books.owner = me.id
+    )',
+    [ [ { sqlt_datatype => "integer" } => 3 ], [ { sqlt_datatype => "integer" } => 1 ] ],
+    'Expected SQL on complex limited prefetch with non-selected join condition',
+  );
+
+  is_deeply (
+    $pref_rs->all_hri,
+    [ {
+      name => "Waltham",
+      books => [ {
+        id => 3,
+        owner => 2,
+        price => 65,
+        source => "Library",
+        title => "Best Recipe Cookbook",
+      } ],
+    } ],
+    'Expected result on complex limited prefetch with non-selected join condition'
+  );
+
+  my $empty_ordered_pref_rs = $pref_rs->search({}, {
+    columns => [],  # nothing, we only prefetch the book data
+    order_by => 'me.name',
+  });
+  my $empty_ordered_pref_hri = [ {
+    books => [ {
+      id => 3,
+      owner => 2,
+      price => 65,
+      source => "Library",
+      title => "Best Recipe Cookbook",
+    } ],
+  } ];
+
+  is_same_sql_bind(
+    $empty_ordered_pref_rs->as_query,
+    '(
+      SELECT books.id, books.source, books.owner, books.title, books.price
+        FROM (
+          SELECT me.id, me.name
+            FROM owners me
+          ORDER BY me.name
+          LIMIT ?
+          OFFSET ?
+        ) me
+        LEFT JOIN books books
+          ON books.owner = me.id
+      ORDER BY me.name
+    )',
+    [ [ { sqlt_datatype => "integer" } => 3 ], [ { sqlt_datatype => "integer" } => 1 ] ],
+    'Expected SQL on *ordered* complex limited prefetch with non-selected root data',
+  );
+
+  is_deeply (
+    $empty_ordered_pref_rs->all_hri,
+    $empty_ordered_pref_hri,
+    'Expected result on *ordered* complex limited prefetch with non-selected root data'
+  );
+
+  $empty_ordered_pref_rs = $empty_ordered_pref_rs->search({}, {
+    order_by => [ \ 'LENGTH(me.name)', \ 'RANDOM()' ],
+  });
+
+  is_same_sql_bind(
+    $empty_ordered_pref_rs->as_query,
+    '(
+      SELECT books.id, books.source, books.owner, books.title, books.price
+        FROM (
+          SELECT me.id, me.name
+            FROM owners me
+          ORDER BY LENGTH(me.name), RANDOM()
+          LIMIT ?
+          OFFSET ?
+        ) me
+        LEFT JOIN books books
+          ON books.owner = me.id
+      ORDER BY LENGTH(me.name), RANDOM()
+    )',
+    [ [ { sqlt_datatype => "integer" } => 3 ], [ { sqlt_datatype => "integer" } => 1 ] ],
+    'Expected SQL on *function-ordered* complex limited prefetch with non-selected root data',
+  );
+
+  is_deeply (
+    $empty_ordered_pref_rs->all_hri,
+    $empty_ordered_pref_hri,
+    'Expected result on *function-ordered* complex limited prefetch with non-selected root data'
+  );
 }
 
 
