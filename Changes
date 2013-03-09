@@ -10,6 +10,8 @@ Revision history for DBIx::Class
           invalid relationship graph
         - Warn in case of iterative collapse being upgraded to an eager
           cursor slurp
+        - No longer order the insides of a complex prefetch subquery,
+          unless required to satisfy a limit
 
     * Fixes
         - Properly consider unselected order_by criteria during complex

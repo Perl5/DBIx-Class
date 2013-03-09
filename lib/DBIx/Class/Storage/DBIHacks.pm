@@ -85,8 +85,12 @@ sub _adjust_select_args_for_complex_prefetch {
   my $inner_attrs = { %$attrs };
   delete $inner_attrs->{$_} for qw/for collapse _prefetch_selector_range select as/;
 
-  # if the user did not request it, there is no point using it inside
-  delete $inner_attrs->{order_by} if delete $inner_attrs->{_order_is_artificial};
+  # there is no point of ordering the insides if there is no limit
+  delete $inner_attrs->{order_by} if (
+    delete $inner_attrs->{_order_is_artificial}
+      or
+    ! $inner_attrs->{rows}
+  );
 
   # generate the inner/outer select lists
   # for inside we consider only stuff *not* brought in by the prefetch
