@@ -30,8 +30,6 @@ sub __find_caller {
   my $fr_num = 1; # skip us and the calling carp*
   my @f;
   while (@f = caller($fr_num++)) {
-    last if $f[0] !~ $skip_pattern;
-
     if (
       $f[0]->can('_skip_namespace_frames')
         and
@@ -39,6 +37,8 @@ sub __find_caller {
     ) {
       $skip_pattern = qr/$skip_pattern|$extra_skip/;
     }
+
+    last if $f[0] !~ $skip_pattern;
   }
 
   my ($ln, $calling) = @f # if empty - nothing matched - full stack

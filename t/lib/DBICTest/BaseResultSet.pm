@@ -8,6 +8,7 @@ use warnings;
 use DBICTest::RunMode;
 
 use base 'DBIx::Class::ResultSet';
+__PACKAGE__->_skip_namespace_frames('^DBICTest');
 
 sub all_hri {
   return [ shift->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' })->all ];
