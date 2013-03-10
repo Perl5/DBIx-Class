@@ -441,8 +441,10 @@ this instance (like in the case of C<might_have> relationships).
 
 sub related_resultset {
   my $self = shift;
+
   $self->throw_exception("Can't call *_related as class methods")
     unless ref $self;
+
   my $rel = shift;
   my $rel_info = $self->relationship_info($rel);
   $self->throw_exception( "No such relationship '$rel'" )
@@ -456,12 +458,12 @@ sub related_resultset {
       if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    my $source = $self->result_source;
+    my $rsrc = $self->result_source;
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)
     my ($cond, $is_crosstable) = try {
-      $source->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
+      $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
     }
     catch {
       if ($self->in_storage) {
@@ -487,11 +489,11 @@ sub related_resultset {
       # root alias as 'me', instead of $rel (as opposed to invoking
       # $rs->search_related)
 
-      local $source->{_relationships}{me} = $source->{_relationships}{$rel};  # make the fake 'me' rel
-      my $obj_table_alias = lc($source->source_name) . '__row';
+      local $rsrc->{_relationships}{me} = $rsrc->{_relationships}{$rel};  # make the fake 'me' rel
+      my $obj_table_alias = lc($rsrc->source_name) . '__row';
       $obj_table_alias =~ s/\W+/_/g;
 
-      $source->resultset->search(
+      $rsrc->resultset->search(
         $self->ident_condition($obj_table_alias),
         { alias => $obj_table_alias },
       )->search_related('me', $query, $attrs)
@@ -501,7 +503,7 @@ sub related_resultset {
       # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
       # business seems shady - we could simply not query *at all*
       if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
-        my $reverse = $source->reverse_relationship_info($rel);
+        my $reverse = $rsrc->reverse_relationship_info($rel);
         foreach my $rev_rel (keys %$reverse) {
           if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
             weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
@@ -531,7 +533,7 @@ sub related_resultset {
       }
 
       $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-      $self->result_source->related_source($rel)->resultset->search(
+      $rsrc->related_source($rel)->resultset->search(
         $query, $attrs
       );
     }
@@ -621,18 +623,18 @@ sub new_related {
   if (ref $self) {  # cdbi calls this as a class method, /me vomits
 
     my $rsrc = $self->result_source;
-    my (undef, $crosstable, $relcols) = $rsrc->_resolve_condition (
+    my (undef, $crosstable, $cond_targets) = $rsrc->_resolve_condition (
       $rsrc->relationship_info($rel)->{cond}, $rel, $self, $rel
     );
 
     $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
       if $crosstable;
 
-    if (@{$relcols || []} and @$relcols = grep { ! exists $values->{$_} } @$relcols) {
+    if (my @unspecified_rel_condition_chunks = grep { ! exists $values->{$_} } @{$cond_targets||[]} ) {
       $self->throw_exception(sprintf (
         "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
         $rel,
-        map { "'$_'" } @$relcols
+        map { "'$_'" } @unspecified_rel_condition_chunks
       ));
     }
   }
@@ -797,7 +799,7 @@ sub set_from_related {
   #
   # sanity check - currently throw when a complex coderef rel is encountered
   # FIXME - should THROW MOAR!
-  my ($cond, $crosstable, $relcols) = $rsrc->_resolve_condition (
+  my ($cond, $crosstable, $cond_targets) = $rsrc->_resolve_condition (
     $rel_info->{cond}, $f_obj, $rel, $rel
   );
   $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
@@ -805,8 +807,8 @@ sub set_from_related {
   $self->throw_exception(sprintf (
     "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
     $rel,
-    map { "'$_'" } @$relcols
-  )) if @{$relcols || []};
+    map { "'$_'" } @$cond_targets
+  )) if $cond_targets;
 
   $self->set_columns($cond);
 
