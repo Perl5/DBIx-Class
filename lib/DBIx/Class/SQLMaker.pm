@@ -87,7 +87,8 @@ sub __max_int () { 0x7FFFFFFF };
 
 # poor man's de-qualifier
 sub _quote {
-  $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+  $_[0]->next::method( ( $_[0]{_dequalify_idents} and (! ref $_[1])
+    and $_[1] ne $_[0]{_table_name} )
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   );
