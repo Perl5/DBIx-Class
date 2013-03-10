@@ -2747,10 +2747,10 @@ L</new>.
 =cut
 
 sub create {
-  my ($self, $attrs) = @_;
+  my ($self, $col_data) = @_;
   $self->throw_exception( "create needs a hashref" )
-    unless ref $attrs eq 'HASH';
-  return $self->new_result($attrs)->insert;
+    unless ref $col_data eq 'HASH';
+  return $self->new_result($col_data)->insert;
 }
 
 =head2 find_or_create
