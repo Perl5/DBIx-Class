@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08242-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-03-10 14:44 (UTC)
     * New Features / Changes
         - Prefetch with limit on right-side ordered resultsets now works
           correctly (via aggregated grouping)
@@ -50,7 +51,7 @@ Revision history for DBIx::Class
           tarball contents (implicitly fixes RT#83084)
         - Added strict and warnings tests for all lib and test files
 
-0.08241-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-20 11:97 (UTC)
+0.08241-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-20 11:37 (UTC)
     * New Features / Changes
         - Revert to passing the original (pre-0.08240) arguments to
           inflate_result() and remove the warning about ResultClass
