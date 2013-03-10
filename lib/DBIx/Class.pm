@@ -99,43 +99,67 @@ sub _attr_cache {
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
 
-=head1 GETTING HELP/SUPPORT
+=head1 WHERE TO START READING
 
-The community can be found via:
+See L<DBIx::Class::Manual::DocMap> for an overview of the exhaustive documentation.
+To get the most out of DBIx::Class with the least confusion it is strongly
+recommended to read (at the very least) the
+L<Manuals|DBIx::Class::Manual::DocMap/Manuals> in the order presented there.
+
+=head1 HOW TO GET HELP
+
+Due to the complexity of its problem domain, DBIx::Class is a relatively
+complex framework. After you start using DBIx::Class questions will inevitably
+arise. If you are stuck with a problem or have doubts about a particular
+approach do not hesitate to contact the community with your questions. The
+list below is sorted by "fastest response time":
 
 =over
 
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
-<a href="http://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
+<a href="https://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
-=item * Twitter L<http://www.twitter.com/dbix_class>
+=item * RT Bug Tracker: L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class>
+
+=item * Twitter: L<https://www.twitter.com/dbix_class>
 
 =item * Web Site: L<http://www.dbix-class.org/>
 
-=item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
-
 =back
 
-The project is maintained in a git repository, accessible from the following sources:
+=head1 HOW TO CONTRIBUTE
+
+Contributions are always welcome, in all usable forms (we especially
+welcome documentation improvements). The delivery methods include git-
+or unified-diff formatted patches, GitHub pull requests, or plain bug
+reports either via RT or the Mailing list. Contributors are generally
+granted full access to the official repository after their first patch
+passes successful review.
+
+=for comment
+FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
+
+This project is maintained in a git repository. The code and related tools are
+accessible at the following locations:
 
 =over
 
-=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
 
-=item * github mirror: L<https://github.com/dbsrgits/DBIx-Class>
+=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
 
-=item * authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
 
-=item * Travis-CI log: L<http://travis-ci.org/dbsrgits/dbix-class/builds>
+=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
 
 =for html
-<img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+<br>&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
 
 =back
 
@@ -273,11 +297,6 @@ The test suite is quite substantial, and several developer releases
 are generally made to CPAN before the branch for the next release is
 merged back to trunk for a major release.
 
-=head1 WHERE TO GO NEXT
-
-L<DBIx::Class::Manual::DocMap> lists each task you might want help on, and
-the modules where you will find documentation.
-
 =head1 AUTHOR
 
 mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -342,6 +361,8 @@ claco: Christopher H. Laco
 clkao: CL Kao
 
 da5id: David Jack Olrik <djo@cpan.org>
+
+davewood: David Schmidt <davewood@gmx.at>
 
 debolaz: Anders Nor Berle <berle@cpan.org>
 
@@ -420,6 +441,8 @@ mattp: Matt Phillips <mattp@cpan.org>
 michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
+
+mithaldu: Christian Walde <walde.christian@gmail.com>
 
 mjemmeson: Michael Jemmeson <michael.jemmeson@gmail.com>
 

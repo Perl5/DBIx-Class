@@ -36,7 +36,7 @@ EOW
 
   # exclude the rdbms_* groups which are for DBIC users
   $opt_testdeps = {
-    map { %{$reqs_for_group{$_}} } grep { !/^rdbms_/ } keys %reqs_for_group
+    map { %{$reqs_for_group{$_}} } grep { !/^rdbms_|^dist_/ } keys %reqs_for_group
   };
 
   print "Including all optional deps\n";

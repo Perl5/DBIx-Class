@@ -1,5 +1,33 @@
 Revision history for DBIx::Class
 
+0.08209 2013-03-01 12:56 (UTC)
+    * New Features / Changes
+        - Debugging aid - warn on invalid result objects created by what
+          seems like an invalid inheritance hierarchy
+
+    * Fixes
+        - Fix another embarrassing regression preventing correct refining of
+          the search criteria on a prefetched relation (broken in 0.08205)
+        - Fix incorrect callsite reporting by DBIC::Carp
+
+0.08208 2013-02-20 09:56 (UTC)
+    * New Features / Changes
+        - A bunch of nonsensically named arguments to the SQL::Translator
+          parser have been marked as deprecated (while still fully
+          supported)
+
+    * Fixes
+        - Fix duplicated selected columns when calling 'count' when a same
+          aggregate function is used more than once in a 'having' clause
+          (RT#83305)
+        - Prevent SQL::Translator::Producer::YAML from seeing the $dbh
+          in a potentially connected $schema instance (RT#75394)
+
+    * Misc
+        - Fixup our distbuilding process to stop creating world-writable
+          tarball contents (implicitly fixes RT#83084)
+        - Added strict and warnings tests for all lib and test files
+
 0.08241-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-02-20 11:97 (UTC)
     * New Features / Changes
         - Revert to passing the original (pre-0.08240) arguments to

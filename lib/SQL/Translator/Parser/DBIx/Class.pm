@@ -36,14 +36,38 @@ use base qw(Exporter);
 sub parse {
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
-    my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
-    $dbicschema     ||= $args->{'package'};
-    my $limit_sources = $args->{'sources'};
+
+    my $dbicschema = $data || $args->{dbic_schema};
+
+    for (qw(DBIx::Class::Schema DBIx::Schema package)) {
+      if (defined (my $s = delete $args->{$_} )) {
+        carp_unique("Supplying a schema via  ... parser_args => { '$_' => \$schema } is deprecated. Please use parser_args => { dbic_schema => \$schema } instead");
+
+        # move it from the deprecated to the proper $args slot
+        unless ($dbicschema) {
+          $args->{dbic_schema} = $dbicschema = $s;
+        }
+      }
+    }
 
     DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
+
     if (!ref $dbicschema) {
       eval "require $dbicschema"
         or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
+    }
+
+    if (
+      ref $args->{dbic_schema}
+        and
+      $args->{dbic_schema}->storage
+    ) {
+      # we have a storage-holding $schema instance in $args
+      # we need to dissociate it from that $storage
+      # otherwise SQLT insanity may ensue due to how some
+      # serializing producers treat $args (crazy crazy shit)
+      local $args->{dbic_schema}{storage};
+      $args->{dbic_schema} = $args->{dbic_schema}->clone;
     }
 
     my $schema      = $tr->schema;
@@ -53,7 +77,7 @@ sub parse {
       unless ($schema->name);
 
     my @monikers = sort $dbicschema->sources;
-    if ($limit_sources) {
+    if (my $limit_sources = $args->{'sources'}) {
         my $ref = ref $limit_sources || '';
         $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
           unless( $ref eq 'ARRAY' || ref eq 'HASH' );
@@ -422,7 +446,7 @@ from a DBIx::Class::Schema instance
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
       parser_args => {
-          package => $schema,
+          dbic_schema => $schema,
           add_fk_index => 0,
           sources => [qw/
             Artist
@@ -451,6 +475,27 @@ have SQL::Translator installed. To do this see
 L<DBIx::Class::Schema/create_ddl_dir>.
 
 =head1 PARSER OPTIONS
+
+=head2 dbic_schema
+
+The DBIx::Class schema (either an instance or a class name) to be parsed.
+This argument is in fact optional - instead one can supply it later at
+translation time as an argument to L<SQL::Translator/translate>. In
+other words both of the following invocations are valid and will produce
+conceptually identical output:
+
+  my $yaml = SQL::Translator->new(
+    parser => 'SQL::Translator::Parser::DBIx::Class',
+    parser_args => {
+      dbic_schema => $schema,
+    },
+    producer => 'SQL::Translator::Producer::YAML',
+  )->translate;
+
+  my $yaml = SQL::Translator->new(
+    parser => 'SQL::Translator::Parser::DBIx::Class',
+    producer => 'SQL::Translator::Producer::YAML',
+  )->translate(data => $schema);
 
 =head2 add_fk_index
 

@@ -43,7 +43,8 @@ warnings_exist {
   'using a DateTime object in ->search generates a warning';
 
 {
-  local $TODO = "We can't do this yet before 0.09" if DBIx::Class->VERSION < 0.09;
+  local $TODO = "This stuff won't work without a -dt operator of some sort"
+    unless eval { require DBIx::Class::SQLMaker::DateOps };
 
   is(eval { $row->id }, 1, 'DT in search');
 

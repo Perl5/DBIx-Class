@@ -30,19 +30,15 @@
 #
 
 #
-# Smoke only specific branches to a) not overload the queue and b) not
-# overspam the notification channels
+# Smoke all branches except for blocked* and wip/*
 #
-# Furthermore if the branch is ^topic/ - the custom compiled smokes will
-# not run at all, again in order to conserve queue resources
-#
-# Additionally bleadperl tests do not run on master (but do run on smoke/*)
+# Additionally master does not smoke with bleadperl
+# ( implemented in maint/travis-ci_scripts/10_before_install.bash )
 #
 branches:
-  only:
-    - master
-    - /^smoke\//
-    - /^topic\//
+  except:
+    - /^wip\//
+    - /^blocked/
 
 notifications:
   irc:

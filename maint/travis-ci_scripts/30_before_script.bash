@@ -70,13 +70,13 @@ else
   #
   parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest Carp
-  parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest Module::Runtime ExtUtils::Depends File::Spec Data::Dumper
-  parallel_installdeps_notest Test::Exception Encode::Locale HTTP::Status HTTP::Daemon Try::Tiny
-  parallel_installdeps_notest Test::Fatal Test::Warn bareword::filehandles B::Hooks::EndOfScope
+  parallel_installdeps_notest Module::Build ExtUtils::Depends
+  parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
+  parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Moose Class::Trigger JSON::XS DBI
-  parallel_installdeps_notest Moo Class::Accessor::Grouped Module::Install JSON
+  parallel_installdeps_notest YAML LWP Moo Class::Trigger JSON::XS DBI DateTime::Format::Builder
+  parallel_installdeps_notest Moose Class::Accessor::Grouped Module::Install JSON Package::Variant
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is full of 5.10-isms, but works perfectly fine on 5.8

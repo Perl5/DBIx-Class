@@ -106,19 +106,6 @@ my $rdbms_firebird_odbc = {
 };
 
 my $reqs = {
-  dist_upload => {
-    req => {
-      'CPAN::Uploader' => '0.103001',
-    },
-  },
-
-  dist_podinherit => {
-    req => {
-      'Pod::Inherit' => '0.90',
-      'Pod::Tree'    => '0',
-    }
-  },
-
   replicated => {
     req => $replicated,
     pod => {
@@ -197,7 +184,7 @@ my $reqs = {
 
   test_strictures => {
     req => {
-      'Test::Strict'              => '0.16',
+      'Test::Strict'              => '0.20',
     },
   },
 
@@ -259,7 +246,6 @@ my $reqs = {
 
   test_cdbicompat => {
     req => {
-      'Class::DBI' => 0,
       'Class::DBI::Plugin::DeepAbstractSearch' => '0',
       %$datetime_basic,
       'Time::Piece::MySQL'        => '0',
@@ -623,8 +609,23 @@ my $reqs = {
     },
   },
 
+  dist_dir => {
+    req => {
+      'ExtUtils::MakeMaker' => '6.64',
+      'Pod::Inherit'        => '0.90',
+      'Pod::Tree'           => '0',
+    }
+  },
+
+  dist_upload => {
+    req => {
+      'CPAN::Uploader' => '0.103001',
+    },
+  },
+
 };
 
+our %req_availability_cache;
 
 sub req_list_for {
   my ($class, $group) = @_;
@@ -639,7 +640,16 @@ sub req_list_for {
 }
 
 
-our %req_availability_cache;
+sub die_unless_req_ok_for {
+  my ($class, $group) = @_;
+
+  Carp::croak "die_unless_req_ok_for() expects a requirement group name"
+    unless $group;
+
+  $class->_check_deps($group)->{status}
+    or die sprintf( "Required modules missing, unable to continue: %s\n", $class->_check_deps($group)->{missing} );
+}
+
 sub req_ok_for {
   my ($class, $group) = @_;
 
@@ -869,6 +879,16 @@ the returned string could look like:
 
 The author is expected to prepend the necessary text to this message before
 returning the actual error seen by the user.
+EOD
+
+    '=head2 die_unless_req_ok_for',
+    '=over',
+    '=item Arguments: $group_name',
+    '=back',
+    <<'EOD',
+Checks if L</req_ok_for> passes for the supplied C<$group_name>, and
+in case of failure throws an exception including the information
+from L</req_missing_for>.
 EOD
 
     '=head2 req_errorlist_for',

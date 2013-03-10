@@ -5,7 +5,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util qw/blessed weaken reftype/;
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
 
@@ -24,6 +24,10 @@ use overload
         '0+'     => "count",
         'bool'   => "_bool",
         fallback => 1;
+
+# this is real - CDBICompat overrides it with insanity
+# yes, prototype won't matter, but that's for now ;)
+sub _bool () { 1 }
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_result_class result_source/);
 
@@ -393,11 +397,11 @@ sub search_rs {
   my $cache;
   my %safe = (alias => 1, cache => 1);
   if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
-    ! defined $_[0]
+    ! defined $call_cond
       or
-    ref $_[0] eq 'HASH' && ! keys %{$_[0]}
+    ref $call_cond eq 'HASH' && ! keys %$call_cond
       or
-    ref $_[0] eq 'ARRAY' && ! @{$_[0]}
+    ref $call_cond eq 'ARRAY' && ! @$call_cond
   )) {
     $cache = $self->get_cache;
   }
@@ -1682,9 +1686,6 @@ sub _count_subq_rs {
                   ->get_column ('count');
 }
 
-sub _bool {
-  return 1;
-}
 
 =head2 count_literal
 
@@ -2361,15 +2362,29 @@ sub new_result {
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
 
-  my %new = (
+  my $new = $self->result_class->new({
     %$merged_cond,
-    @$cols_from_relations
+    ( @$cols_from_relations
       ? (-cols_from_relations => $cols_from_relations)
-      : (),
+      : ()
+    ),
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
-  );
+  });
 
-  return $self->result_class->new(\%new);
+  if (
+    reftype($new) eq 'HASH'
+      and
+    ! keys %$new
+      and
+    blessed($new)
+  ) {
+    carp_unique (sprintf (
+      "%s->new returned a blessed empty hashref - a strong indicator something is wrong with its inheritance chain",
+      $self->result_class,
+    ));
+  }
+
+  $new;
 }
 
 # _merge_with_rscond

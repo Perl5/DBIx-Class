@@ -4,6 +4,10 @@ package # hide from PAUSE
 # DBIx::Class::Storage::DBI::Replicated::Types - Types used internally by
 # L<DBIx::Class::Storage::DBI::Replicated>
 
+# Workaround for https://rt.cpan.org/Public/Bug/Display.html?id=83336
+use warnings;
+use strict;
+
 use MooseX::Types
   -declare => [qw/BalancerClassNamePart Weight DBICSchema DBICStorageDBI/];
 use MooseX::Types::Moose qw/ClassName Str Num/;

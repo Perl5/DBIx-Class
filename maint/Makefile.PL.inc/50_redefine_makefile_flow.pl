@@ -7,7 +7,7 @@
     return <<"EOM";
 $snippet
 
-create_distdir : clonedir_generate_files clonedir_post_generate_files fresh_manifest create_distdir_copy_manifested clonedir_cleanup_generated_files
+create_distdir : check_create_distdir_prereqs clonedir_generate_files clonedir_post_generate_files fresh_manifest create_distdir_copy_manifested clonedir_cleanup_generated_files
 \t\$(NOECHO) \$(NOOP)
 
 clonedir_generate_files :
@@ -18,6 +18,32 @@ clonedir_post_generate_files :
 
 clonedir_cleanup_generated_files :
 \t\$(NOECHO) \$(NOOP)
+
+check_create_distdir_prereqs :
+\t\$(NOECHO) @{[
+  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->die_unless_req_ok_for(q(dist_dir))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+]}
+
+EOM
+  }
+}
+
+# M::I inserts its own default postamble, so we can't easily override upload
+# but we can still hook postamble in EU::MM
+{
+  package MY;
+
+  sub postamble {
+    my $snippet = shift->SUPER::postamble(@_);
+    return <<"EOM";
+$snippet
+
+upload :: check_create_distdir_prereqs check_upload_dist_prereqs
+
+check_upload_dist_prereqs :
+\t\$(NOECHO) @{[
+  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->die_unless_req_ok_for(q(dist_upload))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+]}
 
 EOM
   }

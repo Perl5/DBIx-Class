@@ -3,7 +3,6 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# .travis.yml already restricts branches to master, topic/* and smoke/*
 # do some extra short-circuiting here
 
 # when smoking master do not attempt bleadperl (not release-critical)
