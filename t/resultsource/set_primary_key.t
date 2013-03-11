@@ -25,6 +25,6 @@ warnings_exist {
   );
   __PACKAGE__->set_primary_key(qw(foo bar))
 } qr/Primary key of source 'foo' includes the column 'bar' which has its 'is_nullable' attribute set to true/,
-'proper exception on non-existing column as PK';
+'proper exception on is_nullable column as PK';
 
 done_testing;
