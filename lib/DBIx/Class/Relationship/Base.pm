@@ -125,6 +125,8 @@ This describes the relationship from C<Item> to C<Item::Links>, where
 C<Item::Links> is a many-to-many linking table, linking items back to
 themselves in a peer fashion (without a "parent-child" designation)
 
+=head4 Custom join conditions (via coderefs)
+
 To specify joins which describe more than a simple equality of column
 values, the custom join condition coderef syntax can be used. For
 example:
