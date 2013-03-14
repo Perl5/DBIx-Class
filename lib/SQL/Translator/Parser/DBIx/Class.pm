@@ -461,14 +461,14 @@ from a DBIx::Class::Schema instance
 
 This class requires L<SQL::Translator> installed to work.
 
-C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
+C<SQL::Translator::Parser::DBIx::Class> reads a L<DBIC schema|DBIx::Class::Schema>,
 interrogates the columns, and stuffs it all in an $sqlt_schema object.
 
 Its primary use is in deploying database layouts described as a set
-of L<DBIx::Class> classes, to a database. To do this, see
+of L<DBIC|DBIx::Class> classes, to a database. To do this, see
 L<DBIx::Class::Schema/deploy>.
 
-This can also be achieved by having DBIx::Class export the schema as a
+This can also be achieved by having L<DBIC|DBIx::Class> export the schema as a
 set of SQL files ready for import into your database, or passed to
 other machines that need to have your application installed but don't
 have SQL::Translator installed. To do this see
@@ -478,7 +478,7 @@ L<DBIx::Class::Schema/create_ddl_dir>.
 
 =head2 dbic_schema
 
-The DBIx::Class schema (either an instance or a class name) to be parsed.
+The L<DBIC schema|DBIx::Class::Schema> (either an instance or a class name) to be parsed.
 This argument is in fact optional - instead one can supply it later at
 translation time as an argument to L<SQL::Translator/translate>. In
 other words both of the following invocations are valid and will produce

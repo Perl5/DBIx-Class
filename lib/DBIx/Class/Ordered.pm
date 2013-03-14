@@ -90,7 +90,7 @@ That's it, now you can change the position of your objects.
 =head1 DESCRIPTION
 
 This module provides a simple interface for modifying the ordered
-position of DBIx::Class objects.
+position of L<DBIC|DBIx::Class> objects.
 
 =head1 AUTO UPDATE
 
@@ -489,7 +489,7 @@ sub move_to_group {
 
 =head2 insert
 
-Overrides the DBIC insert() method by providing a default
+Overrides the L<DBIC insert method|DBIx::Class::Row/insert> by providing a default
 position number.  The default will be the number of rows in
 the table +1, thus positioning the new record at the last position.
 
@@ -514,7 +514,7 @@ sub insert {
 
 =head2 update
 
-Overrides the DBIC update() method by checking for a change
+Overrides the L<DBIC update method|DBIx::Class::Row/update> by checking for a change
 to the position and/or group columns.  Movement within a
 group or to another group is handled by repositioning
 the appropriate siblings.  Position defaults to the end
@@ -568,7 +568,7 @@ sub update {
 
 =head2 delete
 
-Overrides the DBIC delete() method by first moving the object
+Overrides the L<DBIC delete method|DBIx::Class::Row/delete> by first moving the object
 to the last position, then deleting it, thus ensuring the
 integrity of the positions.
 

@@ -39,7 +39,7 @@ a DB query
 
 =head1 DESCRIPTION
 
-In L<DBIx::Class>, a user normally receives query results as instances of a
+In L<DBIC|DBIx::Class>, a user normally receives query results as instances of a
 certain C<Result Class>, depending on the main query source.  Besides being
 the primary "toolset" for interaction with your data, a C<Result Class> also
 serves to establish source metadata, which is then used during initialization

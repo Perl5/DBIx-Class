@@ -1,6 +1,6 @@
 =head1 NAME
 
-DBIx::Class::Manual::Features - A boatload of DBIx::Class features with links to respective documentation
+DBIx::Class::Manual::Features - A boatload of DBIC features with links to respective documentation
 
 =head1 META
 
@@ -30,7 +30,7 @@ L<ebbs and flows|http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Cl
 =head1 General ORM
 
 These are things that are in most other ORMs, but are still reasons to use
-DBIC over raw SQL.
+L<DBIC|DBIx::Class> over raw SQL.
 
 =head2 Cross DB
 
@@ -216,13 +216,13 @@ Result class
 
 =back
 
-=head1 DBIx::Class Specific Features
+=head1 DBIC Specific Features
 
 These things may be in other ORM's, but they are very specific, so doubtful
 
 =head2 ->deploy
 
-Create a database from your DBIx::Class schema.
+Create a database from your L<DBIC schema|DBIx::Class::Schema>.
 
  my $schema = Frew::Schema->connect( $dsn, $user, $pass );
 
@@ -234,7 +234,7 @@ See also: L<DBIx::Class::DeploymentHandler>
 
 =head2 Schema::Loader
 
-Create a DBIx::Class schema from your database.
+Create a L<DBIC schema|DBIx::Class::Schema> from your database.
 
  package Frew::Schema;
 
@@ -300,7 +300,7 @@ See L<DBIx::Class::ResultSet/create>
 
 =head2 Extensible
 
-DBIx::Class helped pioneer fast MI in Perl 5 with Class::C3, so it is made to
+L<DBIC|DBIx::Class> helped pioneer fast MI in Perl 5 with Class::C3, so it is made to
 allow extensions to nearly every part of it.
 
 =head2 Extensibility example: DBIx::Class::Helpers

@@ -1,11 +1,11 @@
 
 =head1 NAME
 
-DBIx::Class::Manual::Component - Developing DBIx::Class Components
+DBIx::Class::Manual::Component - Developing DBIC Components
 
 =head1 WHAT IS A COMPONENT
 
-A component is a module that can be added in to your DBIx::Class
+A component is a module that can be added in to your L<DBIC|DBIx::Class>
 classes to provide extra functionality. A good example is the PK::Auto
 component which automatically retrieves primary keys that the database
 itself creates, after the insert has happened.
@@ -13,14 +13,14 @@ itself creates, after the insert has happened.
 =head1 USING
 
 Components are loaded using the load_components() method within your
-DBIx::Class classes.
+L<DBIC|DBIx::Class> classes.
 
   package My::Thing;
   use base qw( DBIx::Class::Core );
   __PACKAGE__->load_components(qw/InflateColumn::DateTime TimeStamp/);
 
 Generally you do not want to specify the full package name
-of a component, instead take off the DBIx::Class:: part of
+of a component, instead take off the C<DBIx::Class::> part of
 it and just include the rest.  If you do want to load a
 component outside of the normal namespace you can do so
 by prepending the component name with a +.
@@ -132,6 +132,6 @@ L<DBIx::Class::Row> - Basic row methods.
 
 L<DBIx::Class::Manual::Cookbook>
 
-=head1 AUTHOR
+=head1 AUTHOR AND CONTRIBUTORS
 
-Aran Clary Deltac <bluefeet@cpan.org>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class

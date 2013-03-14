@@ -1,16 +1,16 @@
 
 =head1 NAME
 
-DBIx::Class::Manual::Reading - How to read and write DBIx::Class POD.
+DBIx::Class::Manual::Reading - How to read and write DBIC POD.
 
 =head1 DESCRIPTION
 
 This doc should help users to understand how the examples and
-documentation found in the L<DBIx::Class> distribution can be
+documentation found in the L<DBIC|DBIx::Class> distribution can be
 interpreted.
 
-Writers of DBIx::Class POD should also check here to make sure their
-additions are consistent with the rest of the documentation.
+Writers of L<DBIC|DBIx::Class> POD should also check here to make sure
+their additions are consistent with the rest of the documentation.
 
 =head1 METHODS
 

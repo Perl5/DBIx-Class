@@ -83,7 +83,7 @@ In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the
 L<DBD::InterBase> C<ib_softcommit> option.
 
 You need either this option or C<< disable_sth_caching => 1 >> for
-L<DBIx::Class> code to function correctly (otherwise you may get C<no statement
+L<DBIC|DBIx::Class> code to function correctly (otherwise you may get C<no statement
 executing> errors.) Or use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird>
 driver.
 

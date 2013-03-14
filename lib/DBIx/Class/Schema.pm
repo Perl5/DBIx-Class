@@ -56,11 +56,11 @@ DBIx::Class::Schema - composable schemas
 =head1 DESCRIPTION
 
 Creates database classes based on a schema. This is the recommended way to
-use L<DBIx::Class> and allows you to use more than one concurrent connection
+use L<DBIC|DBIx::Class> and allows you to use more than one concurrent connection
 with your classes.
 
 NB: If you're used to L<Class::DBI> it's worth reading the L</SYNOPSIS>
-carefully, as DBIx::Class does things a little differently. Note in
+carefully, as L<DBIC|DBIx::Class> does things a little differently. Note in
 particular which module inherits off which.
 
 =head1 SETUP METHODS
@@ -1096,7 +1096,7 @@ to have the SQL produced include a C<DROP TABLE> statement for each table
 created. For quoting purposes supply C<quote_table_names> and
 C<quote_field_names>.
 
-Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash
+Additionally, the L<DBIC|DBIx::Class> parser accepts a C<sources> parameter as a hash
 ref or an array ref, containing a list of source to deploy. If present, then
 only the sources listed will get deployed. Furthermore, you can use the
 C<add_fk_index> parser parameter to prevent the parser from creating an index for each
@@ -1180,7 +1180,7 @@ format.
 
  WARNING
 
- Prior to DBIx::Class version 0.08100 this method had a different signature:
+ Prior to DBIx::Class version 0.08100, this method had a different signature:
 
     my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
 

@@ -9,6 +9,10 @@ explain them.
 
 =head1 DBIx::Class TERMS
 
+=head2 DBIC
+
+Shorthand for L<DBIx::Class>.
+
 =head2 DB schema
 
 Refers to a single physical schema within an RDBMS. Synonymous with the terms
@@ -23,18 +27,18 @@ the following L<DSN|DBI/connect>(s):
 =head2 Inflation
 
 The act of turning database row data into objects in
-language-space. DBIx::Class result classes can be set up to inflate
-your data into perl objects which more usefully represent their
-contents. For example: L<DBIx::Class::InflateColumn::DateTime> for
+language-space. L<DBIC result classes|DBIx::Class::Manual::ResultClass> can
+be set up to inflate your data into Perl objects which more usefully represent
+their contents. For example: L<DBIx::Class::InflateColumn::DateTime> for
 datetime or timestamp column data.
 
 See also L<DBIx::Class::InflateColumn>.
 
 =head2 Deflation
 
-The opposite of L</Inflation>. Existing perl objects that represent
-column values can be passed to DBIx::Class methods to store into the
-database. For example a L<DateTime> object can be automatically
+The opposite of L</Inflation>. Existing Perl objects that represent
+column values can be passed to L<DBIC|DBIx::Class> methods to store into the
+database. For example, a L<DateTime> object can be automatically
 deflated into a datetime string for insertion.
 
 See L<DBIx::Class::InflateColumn> and other modules in that namespace.
@@ -43,11 +47,11 @@ See L<DBIx::Class::InflateColumn> and other modules in that namespace.
 
 Object-relational mapping, or Object-relationship modelling. Either
 way it's a method of mapping the contents of database tables (rows),
-to objects in programming-language-space. DBIx::Class is an ORM.
+to objects in programming-language-space. L<DBIC|DBIx::Class> is an ORM.
 
 =head2 Relationship
 
-In DBIx::Class a relationship defines the connection between exactly
+In L<DBIC|DBIx::Class>, a relationship defines the connection between exactly
 two tables. The relationship condition lists the columns in each table
 that contain the same values. It is used to output an SQL JOIN
 condition between the tables.
@@ -113,7 +117,8 @@ See Result.
 
 Result objects contain your actual data. They are returned from
 ResultSet objects.  These are sometimes (incorrectly) called
-row objects, including older versions of the DBIC documentation.
+row objects, including older versions of the L<DBIC|DBIx::Class>
+documentation.
 
 See also: L<DBIx::Class::Manual::ResultClass>
 

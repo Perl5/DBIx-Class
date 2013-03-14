@@ -99,12 +99,12 @@ For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 
 Please note that if a value is not passed to new, no value will be sent
 in the SQL INSERT call, and the column will therefore assume whatever
-default value was specified in your database. While DBIC will retrieve the
-value of autoincrement columns, it will never make an explicit database
-trip to retrieve default values assigned by the RDBMS. You can explicitly
-request that all values be fetched back from the database by calling
-L</discard_changes>, or you can supply an explicit C<undef> to columns
-with NULL as the default, and save yourself a SELECT.
+default value was specified in your database. While L<DBIC|DBIx::Class>
+will retrieve the value of autoincrement columns, it will never make an
+explicit database trip to retrieve default values assigned by the RDBMS.
+You can explicitly request that all values be fetched back from the
+database by calling L</discard_changes>, or you can supply an explicit
+C<undef> to columns with NULL as the default, and save yourself a SELECT.
 
  CAVEAT:
 

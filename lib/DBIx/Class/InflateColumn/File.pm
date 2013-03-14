@@ -135,7 +135,7 @@ DBIx::Class::InflateColumn::File -  DEPRECATED (superseded by DBIx::Class::Infla
 
 =head1 SYNOPSIS
 
-In your L<DBIx::Class> table class:
+In your L<DBIC|DBIx::Class> table class:
 
     use base 'DBIx::Class::Core';
 

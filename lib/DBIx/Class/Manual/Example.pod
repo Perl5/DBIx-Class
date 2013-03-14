@@ -25,7 +25,7 @@ And these rules exists:
 
 =head2 Installation
 
-Install DBIx::Class via CPAN should be sufficient.
+Install L<DBIC|DBIx::Class> via CPAN should be sufficient.
 
 =head3 Create the database/tables
 
@@ -350,7 +350,7 @@ It should output:
 =head1 Notes
 
 A reference implementation of the database and scripts in this example
-are available in the main distribution for DBIx::Class under the
+are available in the main distribution for L<DBIC|DBIx::Class> under the
 directory F<t/examples/Schema>.
 
 With these scripts we're relying on @INC looking in the current

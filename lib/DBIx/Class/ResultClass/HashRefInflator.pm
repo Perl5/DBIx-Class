@@ -28,7 +28,7 @@ DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
 
 =head1 DESCRIPTION
 
-DBIx::Class is faster than older ORMs like Class::DBI but it still isn't
+L<DBIC|DBIx::Class> is faster than older ORMs like L<Class::DBI> but it still isn't
 designed primarily for speed. Sometimes you need to quickly retrieve the data
 from a massive resultset, while skipping the creation of fancy result objects.
 Specifying this class as a C<result_class> for a resultset will change C<< $rs->next >>

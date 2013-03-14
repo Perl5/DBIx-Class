@@ -48,7 +48,7 @@ something else, see L<DBIx::Class::FilterColumn>.
 
 =head2 inflate_column
 
-Instruct L<DBIx::Class> to inflate the given column.
+Instruct L<DBIC|DBIx::Class> to inflate the given column.
 
 In addition to the column name, you must provide C<inflate> and
 C<deflate> methods. The C<inflate> method is called when you access
@@ -196,7 +196,7 @@ sub store_inflated_column {
 =over 4
 
 =item L<DBIx::Class::Core> - This component is loaded as part of the
-      C<core> L<DBIx::Class> components; generally there is no need to
+      C<core> L<DBIC|DBIx::Class> components; generally there is no need to
       load it directly
 
 =back

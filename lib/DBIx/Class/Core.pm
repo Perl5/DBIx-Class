@@ -18,7 +18,7 @@ __PACKAGE__->load_components(qw/
 
 =head1 NAME
 
-DBIx::Class::Core - Core set of DBIx::Class modules
+DBIx::Class::Core - Core set of DBIC modules
 
 =head1 SYNOPSIS
 
@@ -28,7 +28,7 @@ DBIx::Class::Core - Core set of DBIx::Class modules
 =head1 DESCRIPTION
 
 This class just inherits from the various modules that make up the
-L<DBIx::Class> core features.  You almost certainly want these.
+L<DBIC|DBIx::Class> core features.  You almost certainly want these.
 
 The core modules currently are:
 

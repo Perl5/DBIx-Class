@@ -263,7 +263,7 @@ automatically.
 
   { retrieve_on_insert => 1 }
 
-For every column where this is set to true, DBIC will retrieve the RDBMS-side
+For every column where this is set to true, L<DBIC|DBIx::Class> will retrieve the RDBMS-side
 value upon a new row insertion (normally only the autoincrement PK is
 retrieved on insert). C<INSERT ... RETURNING> is used automatically if
 supported by the underlying storage, otherwise an extra SELECT statement is

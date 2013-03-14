@@ -272,7 +272,7 @@ The argument list may contain:
 
 The same 4-element argument set one would normally pass to
 L<DBI/connect>, optionally followed by
-L<extra attributes|/DBIx::Class specific connection attributes>
+L<extra attributes|/DBIC specific connection attributes>
 recognized by DBIx::Class:
 
   $connect_info_args = [ $dsn, $user, $password, \%dbi_attributes?, \%extra_attributes? ];
@@ -281,7 +281,7 @@ recognized by DBIx::Class:
 
 A single code reference which returns a connected
 L<DBI database handle|DBI/connect> optionally followed by
-L<extra attributes|/DBIx::Class specific connection attributes> recognized
+L<extra attributes|/DBIC specific connection attributes> recognized
 by DBIx::Class:
 
   $connect_info_args = [ sub { DBI->connect (...) }, \%extra_attributes? ];
@@ -325,16 +325,16 @@ L<DBI database handle|DBI/connect>
 =back
 
 Please note that the L<DBI> docs recommend that you always explicitly
-set C<AutoCommit> to either I<0> or I<1>.  L<DBIx::Class> further
+set C<AutoCommit> to either I<0> or I<1>.  L<DBIC|DBIx::Class> further
 recommends that it be set to I<1>, and that you perform transactions
-via our L<DBIx::Class::Schema/txn_do> method.  L<DBIx::Class> will set it
+via our L<DBIx::Class::Schema/txn_do> method.  L<DBIC|DBIx::Class> will set it
 to I<1> if you do not do explicitly set it to zero.  This is the default
-for most DBDs. See L</DBIx::Class and AutoCommit> for details.
+for most DBDs. See L</DBIC and AutoCommit> for details.
 
-=head3 DBIx::Class specific connection attributes
+=head3 DBIC specific connection attributes
 
 In addition to the standard L<DBI|DBI/ATTRIBUTES COMMON TO ALL HANDLES>
-L<connection|DBI/Database Handle Attributes> attributes, DBIx::Class recognizes
+L<connection|DBI/Database Handle Attributes> attributes, DBIC recognizes
 the following connection options. These options can be mixed in with your other
 L<DBI> connection attributes, or placed in a separate hashref
 (C<\%extra_attributes>) as shown above.
@@ -514,7 +514,7 @@ and/or disable C<RaiseError>.
 
 =item auto_savepoint
 
-If this option is true, L<DBIx::Class> will use savepoints when nesting
+If this option is true, L<DBIC|DBIx::Class> will use savepoints when nesting
 transactions, making it possible to recover from failure in the inner
 transaction without having to abort all outer transactions.
 
@@ -2991,7 +2991,7 @@ sub lag_behind_master {
 
 =back
 
-L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+L<DBIC|DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
 queries.
 
 This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
@@ -3091,9 +3091,9 @@ sub _is_binary_type {
 
 =head1 USAGE NOTES
 
-=head2 DBIx::Class and AutoCommit
+=head2 DBIC and AutoCommit
 
-DBIx::Class can do some wonderful magic with handling exceptions,
+L<DBIC|DBIx::Class> can do some wonderful magic with handling exceptions,
 disconnections, and transactions when you use C<< AutoCommit => 1 >>
 (the default) combined with L<txn_do|DBIx::Class::Storage/txn_do> for
 transaction support.

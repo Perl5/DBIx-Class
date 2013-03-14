@@ -4,8 +4,8 @@ DBIx::Class::Manual::Joining - Manual on joining tables with DBIx::Class
 
 =head1 DESCRIPTION
 
-This document should help you to use L<DBIx::Class> if you are trying
-to convert your normal SQL queries into DBIx::Class based queries, if
+This document should help you to use L<DBIC|DBIx::Class> if you are trying
+to convert your normal SQL queries into L<DBIC|DBIx::Class> based queries, if
 you use joins extensively (and also probably if you don't).
 
 =head1 WHAT ARE JOINS
@@ -39,7 +39,7 @@ L<http://dev.mysql.com/doc/refman/5.0/en/join.html>.
 
 =head1 DEFINING JOINS AND RELATIONSHIPS
 
-In L<DBIx::Class> each relationship between two tables needs to first
+In L<DBIC|DBIx::Class> each relationship between two tables needs to first
 be defined in the L<ResultSource|DBIx::Class::Manual::Glossary/ResultSource> for the
 table. If the relationship needs to be accessed in both directions
 (i.e. Fetch all tracks of a CD, and fetch the CD data for a Track),
@@ -246,7 +246,7 @@ Or combine the two:
 
 =head2 Table aliases
 
-As an aside to all the discussion on joins, note that L<DBIx::Class>
+As an aside to all the discussion on joins, note that L<DBIC|DBIx::Class>
 uses the C<relation names> as table aliases. This is important when
 you need to add grouping or ordering to your queries:
 

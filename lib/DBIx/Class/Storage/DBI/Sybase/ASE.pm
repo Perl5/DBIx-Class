@@ -1055,7 +1055,7 @@ The TDS protocol makes separate connections to the server for active statements
 in the background. By default the number of such connections is limited to 25,
 on both the client side and the server side.
 
-This is a bit too low for a complex L<DBIx::Class> application, so on connection
+This is a bit too low for a complex L<DBIC|DBIx::Class> application, so on connection
 the client side setting is set to C<256> (see L<DBD::Sybase/maxConnect>.) You
 can override it to whatever setting you like in the DSN.
 

@@ -626,7 +626,7 @@ sub _exec_svp_rollback {
 
 =head2 relname_to_table_alias
 
-L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+L<DBIC|DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
 queries.
 
 Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so

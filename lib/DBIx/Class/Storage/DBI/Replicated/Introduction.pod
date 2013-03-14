@@ -15,7 +15,7 @@ presumes you have the basics down.
 
 =head1 DESCRIPTION
 
-L<DBIx::Class> supports a framework for using database replication.  This system
+L<DBIC|DBIx::Class> supports a framework for using database replication.  This system
 is integrated completely, which means once it's setup you should be able to
 automatically just start using a replication cluster without additional work or
 changes to your code.  Some caveats apply, primarily related to the proper use
@@ -39,13 +39,13 @@ support for replication configuration options as well.
 
 =head1 REPLICATED STORAGE
 
-By default, when you start L<DBIx::Class>, your Schema (L<DBIx::Class::Schema>)
+By default, when you start L<DBIC|DBIx::Class>, your Schema (L<DBIx::Class::Schema>)
 is assigned a storage_type, which when fully connected will reflect your
 underlying storage engine as defined by your chosen database driver.  For
 example, if you connect to a MySQL database, your storage_type will be
 L<DBIx::Class::Storage::DBI::mysql>  Your storage type class will contain
 database specific code to help smooth over the differences between databases
-and let L<DBIx::Class> do its thing.
+and let L<DBIC|DBIx::Class> do its thing.
 
 If you want to use replication, you will override this setting so that the
 replicated storage engine will 'wrap' your underlying storages and present

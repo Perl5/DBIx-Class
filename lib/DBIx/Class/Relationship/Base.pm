@@ -330,7 +330,7 @@ relationships.
 
 =item cascade_delete
 
-By default, DBIx::Class cascades deletes across C<has_many>,
+By default, L<DBIC|DBIx::Class> cascades deletes across C<has_many>,
 C<has_one> and C<might_have> relationships. You can disable this
 behaviour on a per-relationship basis by supplying
 C<< cascade_delete => 0 >> in the relationship attributes.
@@ -338,11 +338,11 @@ C<< cascade_delete => 0 >> in the relationship attributes.
 The cascaded operations are performed after the requested delete,
 so if your database has a constraint on the relationship, it will
 have deleted/updated the related records or raised an exception
-before DBIx::Class gets to perform the cascaded operation.
+before L<DBIC|DBIx::Class> gets to perform the cascaded operation.
 
 =item cascade_update
 
-By default, DBIx::Class cascades updates across C<has_one> and
+By default, L<DBIC|DBIx::Class> cascades updates across C<has_one> and
 C<might_have> relationships. You can disable this behaviour on a
 per-relationship basis by supplying C<< cascade_update => 0 >> in
 the relationship attributes.

@@ -5,7 +5,7 @@ DBIx::Class::Manual::FAQ - Frequently Asked Questions (in theory)
 =head1 DESCRIPTION
 
 This document is intended as an anti-map of the documentation. If you
-know what you want to do, but not how to do it in L<DBIx::Class>, then
+know what you want to do, but not how to do it in L<DBIC|DBIx::Class>, then
 look here. It does B<not> contain much code or examples, it just gives
 explanations and pointers to the correct pieces of documentation to
 read.
@@ -30,27 +30,27 @@ go to L<http://b62.tripod.com/doc/dbbase.htm>.
 
 Now, decide whether you want to have the database itself be the
 definitive source of information about the data layout, or your
-DBIx::Class schema. If it's the former, look up the documentation for
-your database, eg. L<http://sqlite.org/lang_createtable.html>, on how
-to create tables, and start creating them. For a nice universal
+L<DBIC schema|DBIx::Class::Schema>. If it's the former, look up the
+documentation for your database, eg. L<http://sqlite.org/lang_createtable.html>,
+on how to create tables, and start creating them. For a nice universal
 interface to your database, you can try L<DBI::Shell>. If you decided
 on the latter choice, read the FAQ on setting up your classes
 manually, and the one on creating tables from your schema.
 
-=item .. use DBIx::Class with L<Catalyst>?
+=item .. use DBIC with L<Catalyst>?
 
 Install L<Catalyst::Model::DBIC::Schema> from CPAN. See its
 documentation, or below, for further details.
 
-=item .. set up my DBIx::Class classes automatically from my database?
+=item .. set up my DBIC classes automatically from my database?
 
 Install L<DBIx::Class::Schema::Loader> from CPAN, and read its documentation.
 
-=item .. set up my DBIx::Class classes manually?
+=item .. set up my DBIC classes manually?
 
 Look at the L<DBIx::Class::Manual::Example> and come back here if you get lost.
 
-=item .. create my database tables from my DBIx::Class schema?
+=item .. create my database tables from my DBIC schema?
 
 Create your classes manually, as above. Write a script that calls
 L<DBIx::Class::Schema/deploy>. See there for details, or the
@@ -73,11 +73,11 @@ connection does not happen until you actually request data, so don't
 be alarmed if the error from incorrect connection details happens a
 lot later.
 
-=item .. use DBIx::Class across multiple databases?
+=item .. use DBIC across multiple databases?
 
 If your database server allows you to run querys across multiple
-databases at once, then so can DBIx::Class. All you need to do is make
-sure you write the database name as part of the
+databases at once, then so can L<DBIC|DBIx::Class>. All you need to do
+is make sure you write the database name as part of the
 L<DBIx::Class::ResultSource/table> call. Eg:
 
   __PACKAGE__->table('mydb.mytablename');
@@ -85,7 +85,7 @@ L<DBIx::Class::ResultSource/table> call. Eg:
 And load all the Result classes for both / all databases using one
 L<DBIx::Class::Schema/load_namespaces> call.
 
-=item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
+=item .. use DBIC across PostgreSQL/DB2/Oracle schemas?
 
 Add the name of the schema to the L<DBIx::Class::ResultSource/table>
 as part of the name, and make sure you give the one user you are going
@@ -98,7 +98,7 @@ necessary.
 
 =over 4
 
-=item .. tell DBIx::Class about relationships between my tables?
+=item .. tell DBIC about relationships between my tables?
 
 There are a variety of relationship types that come pre-defined for
 you to use.  These are all listed in L<DBIx::Class::Relationship>. If
@@ -137,9 +137,9 @@ as you like. See L<DBIx::Class::Relationship::Base>.
 The term 'relationship' is used loosely with many_to_many as it is not considered a
 relationship in the fullest sense.  For more info, read the documentation on L<DBIx::Class::Relationship/many_to_many>.
 
-=item .. stop DBIx::Class from attempting to cascade deletes on my has_many and might_have relationships?
+=item .. stop DBIC from attempting to cascade deletes on my has_many and might_have relationships?
 
-By default, DBIx::Class cascades deletes and updates across
+By default, L<DBIC|DBIx::Class> cascades deletes and updates across
 C<has_many> and C<might_have> relationships. You can disable this
 behaviour on a per-relationship basis by supplying
 C<< cascade_delete => 0 >> in the relationship attributes.
@@ -147,7 +147,7 @@ C<< cascade_delete => 0 >> in the relationship attributes.
 The cascaded operations are performed after the requested delete or
 update, so if your database has a constraint on the relationship, it
 will have deleted/updated the related records or raised an exception
-before DBIx::Class gets to perform the cascaded operation.
+before L<DBIC|DBIx::Class> gets to perform the cascaded operation.
 
 See L<DBIx::Class::Relationship>.
 
@@ -231,7 +231,7 @@ for the join used by each relationship.
 
 =item .. create joins with conditions other than column equality?
 
-Currently, L<DBIx::Class> can only create join conditions using
+Currently, L<DBIC|DBIx::Class> can only create join conditions using
 equality, so you're probably better off creating a C<view> in your
 database, and using that as your source. A C<view> is a stored SQL
 query, which can be accessed similarly to a table, see your database
@@ -254,7 +254,7 @@ etc.), but this may change in the future.
 
 =item .. find more help on constructing searches?
 
-Behind the scenes, DBIx::Class uses L<SQL::Abstract> to help construct
+Behind the scenes, L<DBIC|DBIx::Class> uses L<SQL::Abstract> to help construct
 its SQL searches. So if you fail to find help in the
 L<DBIx::Class::Manual::Cookbook>, try looking in the SQL::Abstract
 documentation.
@@ -471,49 +471,49 @@ Invoked like this:
 
 =over 4
 
-=item How do I store my own (non-db) data in my DBIx::Class objects?
+=item How do I store my own (non-db) data in my DBIC objects?
 
 You can add your own data accessors to your Result classes.
 
 One method is to use the built in mk_group_accessors (via L<Class::Accessor::Grouped>)
 
-	package App::Schema::Result::MyTable;
+   package App::Schema::Result::MyTable;
 
-	use parent 'DBIx::Class::Core';
+   use parent 'DBIx::Class::Core';
 
-	__PACKAGE__->table('foo'); #etc
-	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
+   __PACKAGE__->table('foo'); #etc
+   __PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
 
-An another method is to use L<Moose> with your L<DBIx::Class> package.
+An another method is to use L<Moose> with your L<DBIC|DBIx::Class> package.
 
-	package App::Schema::Result::MyTable;
+   package App::Schema::Result::MyTable;
 
-	use Moose; # import Moose
-	use Moose::Util::TypeConstraint; # import Moose accessor type constraints
+   use Moose; # import Moose
+   use Moose::Util::TypeConstraint; # import Moose accessor type constraints
 
-	extends 'DBIx::Class::Core'; # Moose changes the way we define our parent (base) package
+   extends 'DBIx::Class::Core'; # Moose changes the way we define our parent (base) package
 
-	has 'non_column_data' => ( is => 'rw', isa => 'Str' ); # define a simple attribute
+   has 'non_column_data' => ( is => 'rw', isa => 'Str' ); # define a simple attribute
 
-	__PACKAGE__->table('foo'); # etc
+   __PACKAGE__->table('foo'); # etc
 
 With either of these methods the resulting use of the accesssor would be
 
-	my $row;
+   my $row;
 
-	# assume that somewhere in here $row will get assigned to a MyTable row
+   # assume that somewhere in here $row will get assigned to a MyTable row
 
-	$row->non_column_data('some string'); # would set the non_column_data accessor
+   $row->non_column_data('some string'); # would set the non_column_data accessor
 
-	# some other stuff happens here
+   # some other stuff happens here
 
-	$row->update(); # would not inline the non_column_data accessor into the update
+   $row->update(); # would not inline the non_column_data accessor into the update
 
 
-=item How do I use DBIx::Class objects in my TT templates?
+=item How do I use DBIC objects in my TT templates?
 
-Like normal objects, mostly. However you need to watch out for TT
-calling methods in list context. When calling relationship accessors
+Like normal objects, mostly.  However, you need to watch out for TT
+calling methods in list context. When calling relationship accessors,
 you will not get resultsets, but a list of all the related objects.
 
 Use the L<DBIx::Class::ResultSet/search_rs> method, or the
@@ -525,6 +525,8 @@ See also L<DBIx::Class::Relationship/has_many>.
 =item See the SQL statements my code is producing?
 
 Set the shell environment variable C<DBIC_TRACE> to a true value.
+B<< Not the C<DBI_TRACE> variable; >> this has to do with debugging
+on the L<DBI> end of things.
 
 For more info see L<DBIx::Class::Storage> for details of how
 to turn on debugging in the environment, pass your own filehandle to
@@ -532,7 +534,7 @@ save debug to, or create your own callback.
 
 =item Why didn't my search run any SQL?
 
-L<DBIx::Class> runs the actual SQL statement as late as possible, thus
+L<DBIC|DBIx::Class> runs the actual SQL statement as late as possible, thus
 if you create a resultset using C<search> in scalar context, no query
 is executed. You can create further resultset refinements by calling
 search again or relationship accessors. The SQL query is only run when
@@ -540,9 +542,9 @@ you ask the resultset for an actual result object.
 
 =item How do I deal with tables that lack a primary key?
 
-If your table lacks a primary key, DBIx::Class can't work out which row
+If your table lacks a primary key, L<DBIC|DBIx::Class> can't work out which row
 it should operate on, for example to delete or update.  However, a
-UNIQUE constraint on one or more columns allows DBIx::Class to uniquely
+UNIQUE constraint on one or more columns allows L<DBIC|DBIx::Class> to uniquely
 identify the row, so you can tell L<DBIx::Class::ResultSource> these
 columns act as a primary key, even if they don't from the database's
 point of view:
@@ -555,7 +557,7 @@ Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
 
 =item How do I reduce the overhead of database queries?
 
-You can reduce the overhead of object creation within L<DBIx::Class>
+You can reduce the overhead of object creation within L<DBIC|DBIx::Class>
 using the tips in L<DBIx::Class::Manual::Cookbook/"Skip result object creation for faster results">
 and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 

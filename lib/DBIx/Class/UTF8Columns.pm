@@ -37,7 +37,7 @@ to a true value.
 
 =head2 Warning - Module does not function properly on create/insert
 
-Recently (April 2010) a bug was found deep in the core of L<DBIx::Class>
+Recently (April 2010) a bug was found deep in the core of L<DBIC|DBIx::Class>
 which affects any component attempting to perform encoding/decoding by
 overloading L<store_column|DBIx::Class::Row/store_column> and
 L<get_columns|DBIx::Class::Row/get_columns>. As a result of this problem
@@ -48,9 +48,9 @@ are both affected by ths bug.
 
 It is unclear how this bug went undetected for so long (it was
 introduced in March 2006), No attempts to fix it will be made while the
-implications of changing such a fundamental behavior of DBIx::Class are
-being evaluated. However in this day and age you should not be using
-this module anyway as Unicode is properly supported by all major
+implications of changing such a fundamental behavior of L<DBIC|DBIx::Class>
+are being evaluated. However, in this day and age you should not be using
+this module anyway, as Unicode is properly supported by all major
 database engines, as explained below.
 
 If you have specific questions about the integrity of your data in light
@@ -75,9 +75,9 @@ database round trip.
 Note that this module overloads L<DBIx::Class::Row/store_column> in a way
 that may prevent other components overloading the same method from working
 correctly. This component must be the last one before L<DBIx::Class::Row>
-(which is provided by L<DBIx::Class::Core>). DBIx::Class will detect such
-incorrect component order and issue an appropriate warning, advising which
-components need to be loaded differently.
+(which is provided by L<DBIx::Class::Core>). L<DBIC|DBIx::Class> will detect
+such incorrect component order and issue an appropriate warning, advising
+which components need to be loaded differently.
 
 =head1 SEE ALSO
 

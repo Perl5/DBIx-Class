@@ -128,7 +128,7 @@ my $reqs = {
     },
     pod => {
       title => 'DBIx::Class::Admin',
-      desc => 'Modules required for the DBIx::Class administrative library',
+      desc => 'Modules required for the DBIC administrative library',
     },
   },
 
@@ -138,7 +138,7 @@ my $reqs = {
     },
     pod => {
       title => 'dbicadmin',
-      desc => 'Modules required for the CLI DBIx::Class interface dbicadmin',
+      desc => 'Modules required for the CLI DBIC interface dbicadmin',
     },
   },
 
@@ -790,14 +790,14 @@ can be found at L<Module::Install/configure_requires>
 EOS
     '=head1 DESCRIPTION',
     <<'EOD',
-Some of the less-frequently used features of L<DBIx::Class> have external
+Some of the less-frequently used features of L<DBIC|DBIx::Class> have external
 module dependencies on their own. In order not to burden the average user
 with modules he will never use, these optional dependencies are not included
 in the base Makefile.PL. Instead an exception with a descriptive message is
 thrown when a specific feature is missing one or several modules required for
 its operation. This module is the central holding place for  the current list
-of such dependencies, for DBIx::Class core authors, and DBIx::Class extension
-authors alike.
+of such dependencies, for L<DBIC|DBIx::Class> core authors, and DBIx::Class
+extension authors alike.
 EOD
     '=head1 CURRENT REQUIREMENT GROUPS',
     <<'EOD',
@@ -834,7 +834,7 @@ EOD
     '=item Return Value: \%list_of_requirement_groups',
     '=back',
     <<'EOD',
-This method should be used by DBIx::Class packagers, to get a hashref of all
+This method should be used by L<DBIC|DBIx::Class> packagers, to get a hashref of all
 dependencies keyed by dependency group. Each key (group name) can be supplied
 to one of the group-specific methods below.
 EOD
@@ -845,7 +845,7 @@ EOD
     '=item Return Value: \%list_of_module_version_pairs',
     '=back',
     <<'EOD',
-This method should be used by DBIx::Class extension authors, to determine the
+This method should be used by L<DBIC|DBIx::Class> extension authors, to determine the
 version of modules a specific feature requires in the B<current> version of
 DBIx::Class. See the L</SYNOPSIS> for a real-world
 example.
@@ -868,7 +868,7 @@ EOD
     '=back',
     <<"EOD",
 Returns a single line string suitable for inclusion in larger error messages.
-This method would normally be used by DBIx::Class core-module author, to
+This method would normally be used by L<DBIC|DBIx::Class> core-module author, to
 indicate to the user that he needs to install specific modules before he will
 be able to use a specific feature.
 

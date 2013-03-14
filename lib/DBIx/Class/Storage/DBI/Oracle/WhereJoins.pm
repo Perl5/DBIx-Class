@@ -26,8 +26,8 @@ ANSI join syntax.
 
 =head1 SYNOPSIS
 
-DBIx::Class should automagically detect Oracle and use this module with no
-work from you.
+L<DBIC|DBIx::Class> should automagically detect Oracle and use this module
+with no work from you.
 
 =head1 DESCRIPTION
 
@@ -64,7 +64,7 @@ Probably lots more.
 
 =item L<DBIx::Class::Storage::DBI::Oracle::Generic>
 
-=item L<DBIx::Class>
+=item L<DBIC|DBIx::Class>
 
 =back
 

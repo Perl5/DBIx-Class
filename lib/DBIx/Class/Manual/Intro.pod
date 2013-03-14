@@ -544,6 +544,6 @@ information on this can be found in L<DBIx::Class::Manual::Troubleshooting>
 
 =item * L<DBIx::Class::Manual::ResultClass>
 
-=back
+=head1 AUTHOR AND CONTRIBUTORS
 
-=cut
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class

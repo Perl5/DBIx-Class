@@ -88,8 +88,8 @@ L<DBIx::Class::Schema/create_ddl_dir>.
 
 A table called I<dbix_class_schema_versions> is created and maintained by the
 module. This is used to determine which version your database is currently at.
-Similarly the $VERSION in your DBIC schema class is used to determine the
-current DBIC schema version.
+Similarly the $VERSION in your L<DBIC schema class|DBIx::Class::Schema> is used
+to determine the current L<DBIC schema|DBIx::Class::Schema> version.
 
 The upgrade is initiated manually by calling C<upgrade> on your schema object,
 this will attempt to upgrade the database from its current version to the current
@@ -318,8 +318,8 @@ sub ordered_schema_versions {
 =head2 upgrade
 
 Call this to attempt to upgrade your database from the version it
-is at to the version this DBIC schema is at. If they are the same
-it does nothing.
+is at to the version this L<DBIC schema|DBIx::Class::Schema> is at. If
+they are the same it does nothing.
 
 It will call L</ordered_schema_versions> to retrieve an ordered
 list of schema versions (if ordered_schema_versions returns nothing
@@ -562,10 +562,10 @@ sub backup
 
 =head2 connection
 
-Overloaded method. This checks the DBIC schema version against the DB version and
-warns if they are not the same or if the DB is unversioned. It also provides
-compatibility between the old versions table (SchemaVersions) and the new one
-(dbix_class_schema_versions).
+Overloaded method. This checks the L<DBIC schema class|DBIx::Class::Schema>
+version against the DB version and warns if they are not the same or if the
+DB is unversioned. It also provides compatibility between the old versions
+table (SchemaVersions) and the new one (dbix_class_schema_versions).
 
 To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
 

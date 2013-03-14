@@ -61,19 +61,21 @@ DBIx::Class::CDBICompat - Class::DBI Compatibility layer.
 
 =head1 DESCRIPTION
 
-DBIx::Class features a fully featured compatibility layer with L<Class::DBI>
+L<DBIC|DBIx::Class> features a fully featured compatibility layer with L<Class::DBI>
 and some common plugins to ease transition for existing CDBI users.
 
-This is not a wrapper or subclass of DBIx::Class but rather a series of plugins.  The result being that even though you're using the Class::DBI emulation layer you are still getting DBIx::Class objects.  You can use all DBIx::Class features and methods via CDBICompat.  This allows you to take advantage of DBIx::Class features without having to rewrite your CDBI code.
+This is not a wrapper or subclass of L<DBIC|DBIx::Class> but rather a series of plugins.  The result being that even though you're using the
+L<CDBI|Class::DBI> emulation layer you are still getting L<DBIC|DBIx::Class> objects.  You can use all L<DBIC|DBIx::Class> features and methods
+via CDBICompat.  This allows you to take advantage of L<DBIC|DBIx::Class> features without having to rewrite your L<CDBI|Class::DBI> code.
 
 
 =head2 Plugins
 
-CDBICompat is good enough that many CDBI plugins will work with CDBICompat, but many of the plugin features are better done with DBIx::Class methods.
+CDBICompat is good enough that many CDBI plugins will work with CDBICompat, but many of the plugin features are better done with L<DBIC|DBIx::Class> methods.
 
 =head3 Class::DBI::AbstractSearch
 
-C<search_where()> is fully emulated using DBIC's search.  Aside from emulation there's no reason to use C<search_where()>.
+C<search_where()> is fully emulated using L<DBIC|DBIx::Class>'s search.  Aside from emulation there's no reason to use C<search_where()>.
 
 =head3 Class::DBI::Plugin::NoCache
 
@@ -81,11 +83,12 @@ C<nocache> is fully emulated.
 
 =head3 Class::DBI::Sweet
 
-The features of CDBI::Sweet are better done using DBIC methods which are almost exactly the same.  It even uses L<Data::Page>.
+The features of CDBI::Sweet are better done using L<DBIC|DBIx::Class> methods which are almost exactly the same.  It even uses L<Data::Page>.
 
 =head3 Class::DBI::Plugin::DeepAbstractSearch
 
-This plugin will work, but it is more efficiently done using DBIC's native search facilities.  The major difference is that DBIC will not infer the join for you, you have to tell it the join tables.
+This plugin will work, but it is more efficiently done using L<DBIC|DBIx::Class>'s native search facilities.  The major difference is that
+L<DBIC|DBIx::Class> will not infer the join for you, you have to tell it the join tables.
 
 
 =head2 Choosing Features

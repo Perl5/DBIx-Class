@@ -48,7 +48,7 @@ DBIx::Class::ResultSet - Represents a query used for fetching a set of results.
 =head1 DESCRIPTION
 
 A ResultSet is an object which stores a set of conditions representing
-a query. It is the backbone of DBIx::Class (i.e. the really
+a query. It is the backbone of L<DBIC|DBIx::Class> (i.e. the really
 important/useful bit).
 
 No SQL is executed on the database when a ResultSet is created, it
@@ -698,9 +698,9 @@ C<key> attribute, which is the name of a
 L<unique constraint|DBIx::Class::ResultSource/add_unique_constraint> (the
 unique constraint corresponding to the
 L<primary columns|DBIx::Class::ResultSource/primary_columns> is always named
-C<primary>). If the C<key> attribute has been supplied, and DBIC is unable
-to construct a query that satisfies the named unique constraint fully (
-non-NULL values for each column member of the constraint) an exception is
+C<primary>). If the C<key> attribute has been supplied, and L<DBIC|DBIx::Class>
+is unable to construct a query that satisfies the named unique constraint
+fully (non-NULL values for each column member of the constraint) an exception is
 thrown.
 
 If no C<key> is specified, the search is carried over all unique constraints
@@ -2024,8 +2024,8 @@ sub update {
 =back
 
 Fetches all objects and updates them one at a time via
-L<DBIx::Class::Row/update>. Note that C<update_all> will run DBIC defined
-triggers, while L</update> will not.
+L<DBIx::Class::Row/update>. Note that C<update_all> will run L<DBIC|DBIx::Class>
+defined triggers, while L</update> will not.
 
 =cut
 
@@ -2082,8 +2082,8 @@ sub delete {
 =back
 
 Fetches all objects and deletes them one at a time via
-L<DBIx::Class::Row/delete>. Note that C<delete_all> will run DBIC defined
-triggers, while L</delete> will not.
+L<DBIx::Class::Row/delete>. Note that C<delete_all> will run L<DBIC|DBIx::Class>
+defined triggers, while L</delete> will not.
 
 =cut
 
@@ -3164,7 +3164,7 @@ Currently the source alias that refers to the result set returned by a
 L</search>/L</find> family method depends on how you got to the resultset: it's
 C<me> by default, but eg. L</search_related> aliases it to the related result
 source name (and keeps C<me> referring to the original result set). The long
-term goal is to make L<DBIx::Class> always alias the current resultset as C<me>
+term goal is to make L<DBIC|DBIx::Class> always alias the current resultset as C<me>
 (and make this method unnecessary).
 
 Thus it's currently necessary to use this method in predefined queries (see
@@ -3991,7 +3991,7 @@ names:
   SELECT name, COUNT( employeeid ), MAX( LENGTH( name ) ) AS longest_name FROM employee
 
 B<NOTE:> You will almost always need a corresponding L</as> attribute when you
-use L</select>, to instruct DBIx::Class how to store the result of the column.
+use L</select>, to instruct L<DBIC|DBIx::Class> how to store the result of the column.
 Also note that the L</as> attribute has nothing to do with the SQL-side 'AS'
 identifier aliasing. You can however alias a function, so you can use it in
 e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
@@ -4175,7 +4175,7 @@ object with all of its related data.
 
 If an L</order_by> is already declared, and orders the resultset in a way that
 makes collapsing as described above impossible (e.g. C<< ORDER BY
-has_many_rel.column >> or C<ORDER BY RANDOM()>), DBIC will automatically
+has_many_rel.column >> or C<ORDER BY RANDOM()>), L<DBIC|DBIx::Class> will automatically
 switch to "eager" mode and slurp the entire resultset before consturcting the
 first object returned by L</next>.
 
@@ -4344,8 +4344,8 @@ of the first row of the first page if paging is used.
 
 When combined with L</rows> and/or L</offset> the generated SQL will not
 include any limit dialect stanzas. Instead the entire result will be selected
-as if no limits were specified, and DBIC will perform the limit locally, by
-artificially advancing and finishing the resulting L</cursor>.
+as if no limits were specified, and L<DBIC|DBIx::Class> will perform the limit
+locally, by artificially advancing and finishing the resulting L</cursor>.
 
 This is the recommended way of performing resultset limiting when no sane RDBMS
 implementation is available (e.g.
@@ -4441,7 +4441,7 @@ query.
 
 =head1 PREFETCHING
 
-DBIx::Class supports arbitrary related data prefetching from multiple related
+L<DBIC|DBIx::Class> supports arbitrary related data prefetching from multiple related
 sources. Any combination of relationship types and column sets are supported.
 If L<collapsing|/collapse> is requested, there is an additional requirement of
 selecting enough data to make every individual object uniquely identifiable.
@@ -4474,7 +4474,7 @@ The initial search results in SQL like the following:
   JOIN cd ON tag.cd = cd.cdid
   JOIN artist ON cd.artist = artist.artistid
 
-L<DBIx::Class> has no need to go back to the database when we access the
+L<DBIC|DBIx::Class> has no need to go back to the database when we access the
 C<cd> or C<artist> relationships, which saves us two SQL statements in this
 case.
 
@@ -4566,9 +4566,9 @@ condition|DBIx::Class::Relationship::Base/condition>
 
 =head1 DBIC BIND VALUES
 
-Because DBIC may need more information to bind values than just the column name
-and value itself, it uses a special format for both passing and receiving bind
-values.  Each bind value should be composed of an arrayref of
+Because L<DBIC|DBIx::Class> may need more information to bind values than just
+the column name and value itself, it uses a special format for both passing and
+receiving bind values.  Each bind value should be composed of an arrayref of
 C<< [ \%args => $val ] >>.  The format of C<< \%args >> is currently:
 
 =over 4

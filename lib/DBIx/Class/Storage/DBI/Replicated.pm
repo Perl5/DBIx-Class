@@ -109,7 +109,7 @@ to force a query to run against Master when needed.
 =head1 REQUIREMENTS
 
 Replicated Storage has additional requirements not currently part of
-L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
+L<DBIC|DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
 =head1 ATTRIBUTES
 

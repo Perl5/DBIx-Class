@@ -201,7 +201,7 @@ sub _exec_svp_rollback {
 
 =head1 MAXIMUM CURSORS
 
-A L<DBIx::Class> application can use a lot of cursors, due to the usage of
+A L<DBIC|DBIx::Class> application can use a lot of cursors, due to the usage of
 L<prepare_cached|DBI/prepare_cached>.
 
 The default cursor maximum is C<50>, which can be a bit too low. This limit can

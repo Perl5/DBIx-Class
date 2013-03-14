@@ -106,7 +106,7 @@ happen to turn on SQL-quoting.
 
   $rs->search( {}, { order_by => [ 'name DESC' ] } );
 
-Since L<DBIx::Class> >= 0.08100 and L<SQL::Abstract> >= 1.50 the above
+Since L<DBIC|DBIx::Class> >= 0.08100 and L<SQL::Abstract> >= 1.50 the above
 should be written as:
 
   $rs->search( {}, { order_by => { -desc => 'name' } } );
@@ -134,12 +134,12 @@ with full current updates will not be subject to this problem):-
 
 This issue is due to perl doing an exhaustive search of blessed objects
 under certain circumstances.  The problem shows up as performance
-degradation exponential to the number of L<DBIx::Class> result objects in
+degradation exponential to the number of L<DBIC|DBIx::Class> result objects in
 memory, so can be unnoticeable with certain data sets, but with huge
 performance impacts on other datasets.
 
 A pair of tests for susceptibility to the issue and performance effects
-of the bless/overload problem can be found in the L<DBIx::Class> test
+of the bless/overload problem can be found in the L<DBIC|DBIx::Class> test
 suite, in the C<t/99rh_perl_perf_bug.t> file.
 
 Further information on this issue can be found in

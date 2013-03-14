@@ -6,7 +6,7 @@ DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
 =head2 Paged results
 
-When you expect a large number of results, you can ask L<DBIx::Class> for a
+When you expect a large number of results, you can ask L<DBIC|DBIx::Class> for a
 paged resultset, which will fetch only a defined number of records at a time:
 
   my $rs = $schema->resultset('Artist')->search(
@@ -301,7 +301,7 @@ See also L</Using SQL functions on the left hand side of a comparison>.
 
 =head2 Grouping results
 
-L<DBIx::Class> supports C<GROUP BY> as follows:
+L<DBIC|DBIx::Class> supports C<GROUP BY> as follows:
 
   my $rs = $schema->resultset('Artist')->search(
     {},
@@ -396,7 +396,7 @@ into the C<ResultSet> directory next to your C<Result> directory, and it will
 be automatically loaded.
 
 If however you are still using L<DBIx::Class::Schema/load_classes>, first tell
-DBIx::Class to create an instance of the ResultSet class for you, in your
+L<DBIC|DBIx::Class> to create an instance of the ResultSet class for you, in your
 My::DBIC::Schema::CD class:
 
   # class definition as normal
@@ -418,7 +418,7 @@ Using SQL functions on the left hand side of a comparison is generally not a
 good idea since it requires a scan of the entire table. (Unless your RDBMS
 supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
-it can be accomplished with C<DBIx::Class> when necessary by resorting to
+it can be accomplished with L<DBIC|DBIx::Class> when necessary by resorting to
 literal SQL:
 
   $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
@@ -481,7 +481,8 @@ cause instability on your server at worst, beware!
 You can use the C<join> attribute to allow searching on, or sorting your
 results by, one or more columns in a related table.
 
-This requires that you have defined the L<DBIx::Class::Relationship>. For example :
+This requires that you have defined the L<Relationship|DBIx::Class::Relationship>.
+For example:
 
   My::Schema::CD->has_many( artists => 'My::Schema::Artist', 'artist_id');
 
@@ -536,7 +537,7 @@ artist. The following will work fine:
 
 There is a problem however. We have searched both the C<cd> and C<artist> tables
 in our main query, but we have only returned data from the C<cd> table. To get
-the artist name for any of the CD objects returned, L<DBIx::Class> will go back
+the artist name for any of the CD objects returned, L<DBIC|DBIx::Class> will go back
 to the database:
 
   SELECT artist.* FROM artist WHERE artist.id = ?
@@ -545,7 +546,7 @@ A statement like the one above will run for each and every CD returned by our
 main query. Five CDs, five extra queries. A hundred CDs, one hundred extra
 queries!
 
-Thankfully, L<DBIx::Class> has a C<prefetch> attribute to solve this problem.
+Thankfully, L<DBIC|DBIx::Class> has a C<prefetch> attribute to solve this problem.
 This allows you to fetch results from related tables in advance:
 
   my $rs = $schema->resultset('CD')->search(
@@ -571,7 +572,7 @@ The code to print the CD list remains the same:
     print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
   }
 
-L<DBIx::Class> has now prefetched all matching data from the C<artist> table,
+L<DBIC|DBIx::Class> has now prefetched all matching data from the C<artist> table,
 so no additional SQL statements are executed. You now have a much more
 efficient query.
 
@@ -791,7 +792,7 @@ Just use C<find_or_new> instead, then check C<in_storage>:
     # do whatever else you wanted if it was a new row
   }
 
-=head2 Static sub-classing DBIx::Class result classes
+=head2 Static sub-classing DBIC result classes
 
 AKA adding additional relationships/methods/etc. to a model for a
 specific usage of the (shared) model.
@@ -833,11 +834,11 @@ B<Result-Subclass definition>
 
     1;
 
-=head2 Dynamic Sub-classing DBIx::Class proxy classes
+=head2 Dynamic Sub-classing DBIC proxy classes
 
 AKA multi-class object inflation from one table
 
-L<DBIx::Class> classes are proxy classes, therefore some different
+L<DBIC|DBIx::Class> classes are proxy classes, therefore some different
 techniques need to be employed for more than basic subclassing.  In
 this example we have a single user table that carries a boolean bit
 for admin.  We would like like to give the admin users
@@ -966,7 +967,7 @@ exactly the above functionality.
 
 =head2 Skip result object creation for faster results
 
-DBIx::Class is not built for speed, it's built for convenience and
+L<DBIC|DBIx::Class> is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
 fancy objects.
 
@@ -988,7 +989,7 @@ load_components, eg L<DBIx::Class::InflateColumn::DateTime>.
 =head2 Get raw data for blindingly fast results
 
 If the L<HashRefInflator|DBIx::Class::ResultClass::HashRefInflator> solution
-above is not fast enough for you, you can use a DBIx::Class to return values
+above is not fast enough for you, you can use L<DBIC|DBIx::Class> to return values
 exactly as they come out of the database with none of the convenience methods
 wrapped round them.
 
@@ -1223,13 +1224,13 @@ building a renaming facility, like so:
 
   1;
 
-By overridding the L<connection|DBIx::Class::Schama/connection>
-method and extracting a custom option from the provided \%attr hashref one can
+By overridding the L<connection|DBIx::Class::Schema/connection>
+method and extracting a custom option from the provided \%attr hashref, one can
 then simply iterate over all the Schema's ResultSources, renaming them as
 needed.
 
 To use this facility, simply add or modify the \%attr hashref that is passed to
-L<connection|DBIx::Class::Schama/connect>, as follows:
+L<connection|DBIx::Class::Schema/connect>, as follows:
 
   my $schema
     = MyDatabase::Schema->connect(
@@ -1612,14 +1613,14 @@ L<SQL::Translator::Schema/add_trigger>.
 
 =head2 Schema versioning
 
-The following example shows simplistically how you might use DBIx::Class to
-deploy versioned schemas to your customers. The basic process is as follows:
+The following example shows simplistically how you might use L<DBIC|DBIx::Class>
+to deploy versioned schemas to your customers. The basic process is as follows:
 
 =over 4
 
 =item 1.
 
-Create a DBIx::Class schema
+Create a L<DBIC schema|DBIx::Class::Schema>
 
 =item 2.
 
@@ -1670,8 +1671,8 @@ B<Modify the schema to change functionality>
 
 As your application evolves, it may be necessary to modify your schema
 to change functionality. Once the changes are made to your schema in
-DBIx::Class, export the modified schema and the conversion scripts as
-in L</Creating DDL SQL>.
+L<DBIC|DBIx::Class>, export the modified schema and the conversion scripts
+as in L</Creating DDL SQL>.
 
 B<Deploy update to customers>
 
@@ -1759,7 +1760,7 @@ passing them as bind values:
 
 See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
 placeholders and bind values (subqueries)> for more explanation. Note that
-L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
+L<DBIC|DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
 the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
 arrayrefs together with the column name, like this:
 C<< [column_name => value] >>.
@@ -1815,7 +1816,7 @@ then strange and unexpected data corrupt B<will> occur.
 The Catalyst Wiki Unicode page at
 L<http://wiki.catalystframework.org/wiki/tutorialsandhowtos/using_unicode>
 has additional information on the use of Unicode with Catalyst and
-DBIx::Class.
+L<DBIC|DBIx::Class>.
 
 The following databases do correctly handle unicode data:-
 
@@ -1870,7 +1871,7 @@ C<unicode>).
 
 =head2 Easy migration from class-based to schema-based setup
 
-You want to start using the schema-based approach to L<DBIx::Class>
+You want to start using the schema-based approach to L<DBIC|DBIx::Class>
 (see L<DBIx::Class::Manual::Intro/Setting it up manually>), but have an
 established class-based setup with lots of existing classes that you don't
 want to move by hand. Try this nifty script instead:
@@ -1908,10 +1909,10 @@ namespace, which is currently left as an exercise for the reader.
 
 =head1 OVERLOADING METHODS
 
-L<DBIx::Class> uses the L<Class::C3> package, which provides for redispatch of
+L<DBIC|DBIx::Class> uses the L<Class::C3> package, which provides for redispatch of
 method calls, useful for things like default values and triggers. You have to
 use calls to C<next::method> to overload methods. More information on using
-L<Class::C3> with L<DBIx::Class> can be found in
+L<Class::C3> with L<DBIC|DBIx::Class> can be found in
 L<DBIx::Class::Manual::Component>.
 
 =head2 Setting default values for a row
@@ -1933,7 +1934,7 @@ For more information about C<next::method>, look in the L<Class::C3>
 documentation. See also L<DBIx::Class::Manual::Component> for more
 ways to write your own base classes to do this.
 
-People looking for ways to do "triggers" with DBIx::Class are probably
+People looking for ways to do "triggers" with L<DBIC|DBIx::Class> are probably
 just looking for this.
 
 =head2 Changing one field whenever another changes
@@ -2037,7 +2038,7 @@ Next, we'll define the accessor-wrapper subroutine:
 
 =head1 DEBUGGING AND PROFILING
 
-=head2 DBIx::Class objects with Data::Dumper
+=head2 DBIC objects with Data::Dumper
 
 L<Data::Dumper> can be a very useful tool for debugging, but sometimes it can
 be hard to find the pertinent data in all the data it can generate.
@@ -2186,7 +2187,7 @@ See also L</STARTUP SPEED> and L</MEMORY USAGE> in this document.
 
 =head1 STARTUP SPEED
 
-L<DBIx::Class|DBIx::Class> programs can have a significant startup delay
+L<DBIC|DBIx::Class> programs can have a significant startup delay
 as the ORM loads all the relevant classes. This section examines
 techniques for reducing the startup delay.
 
@@ -2210,7 +2211,7 @@ details on creating static schemas from a database).
 
 =head2 Move Common Startup into a Base Class
 
-Typically L<DBIx::Class> result classes start off with
+Typically L<DBIC|DBIx::Class> result classes start off with
 
     use base qw/DBIx::Class::Core/;
     __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
@@ -2251,7 +2252,7 @@ avoiding L<Module::Find|Module::Find>.
 
 =head2 Cached statements
 
-L<DBIx::Class> normally caches all statements with L<< prepare_cached()|DBI/prepare_cached >>.
+L<DBIC|DBIx::Class> normally caches all statements with L<< prepare_cached()|DBI/prepare_cached >>.
 This is normally a good idea, but if too many statements are cached, the database may use too much
 memory and may eventually run out and fail entirely.  If you suspect this may be the case, you may want
 to examine DBI's L<< CachedKids|DBI/CachedKidsCachedKids_(hash_ref) >> hash:

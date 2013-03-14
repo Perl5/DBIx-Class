@@ -56,7 +56,7 @@ DBIx::Class::Admin - Administration object for schemas
 =head1 REQUIREMENTS
 
 The Admin interface has additional requirements not currently part of
-L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
+L<DBIC|DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
 =head1 ATTRIBUTES
 
@@ -297,7 +297,7 @@ has '_confirm' => (
 
 =head2 trace
 
-Toggle DBIx::Class debug output
+Toggle L<DBIC|DBIx::Class> debug output
 
 =cut
 
@@ -583,13 +583,13 @@ sub _find_stanza {
   return $cfg;
 }
 
-=head1 AUTHOR
+=head1 AUTHOR AND CONTRIBUTORS
 
-See L<DBIx::Class/CONTRIBUTORS>.
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself
+You may distribute this code under the same terms as Perl itself.
 
 =cut
 

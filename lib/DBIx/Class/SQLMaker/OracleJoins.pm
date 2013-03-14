@@ -148,7 +148,7 @@ Does not support full outer joins (however neither really does DBIC itself)
 
 =item L<DBIx::Class::SQLMaker> - Parent module
 
-=item L<DBIx::Class> - Duh
+=item L<DBIC|DBIx::Class> - Duh
 
 =back
 

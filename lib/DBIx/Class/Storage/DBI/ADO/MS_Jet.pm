@@ -23,7 +23,7 @@ L<DBIx::Class::Storage::DBI::ACCESS> for connecting to MS Access via
 L<DBD::ADO>.
 
 See the documentation for L<DBIx::Class::Storage::DBI::ACCESS> for
-information on the MS Access driver for L<DBIx::Class>.
+information on the MS Access driver for L<DBIC|DBIx::Class>.
 
 This driver implements workarounds for C<TEXT/IMAGE/MEMO> columns, sets the
 L<cursor_class|DBIx::Class::Storage::DBI/cursor_class> to

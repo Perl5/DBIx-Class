@@ -265,7 +265,7 @@ Then you can use these classes in your application's code:
 
 =head1 DESCRIPTION
 
-This is an SQL to OO mapper with an object API inspired by L<Class::DBI>
+DBIx::Class (aka DBIC) is an SQL to OO mapper with an object API inspired by L<Class::DBI>
 (with a compatibility layer as a springboard for porting) and a resultset API
 that allows abstract encapsulation of database operations. It aims to make
 representing queries in your code as perl-ish as possible while still
@@ -273,7 +273,7 @@ providing access to as many of the capabilities of the database as possible,
 including retrieving related records from multiple tables in a single query,
 JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY, ORDER BY and HAVING support.
 
-DBIx::Class can handle multi-column primary and foreign keys, complex
+DBIC can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
 database in order to return something you've directly asked for. If a
 resultset is used as an iterator it only fetches rows off the statement
@@ -289,7 +289,7 @@ Failing test cases are *always* welcome and point releases are put out rapidly
 as bugs are found and fixed.
 
 We do our best to maintain full backwards compatibility for published
-APIs, since DBIx::Class is used in production in many organisations,
+APIs, since DBIC is used in production in many organisations,
 and even backwards incompatible changes to non-published APIs will be fixed
 if they're reported and doing so doesn't cost the codebase anything.
 
@@ -556,7 +556,7 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 - 2011 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+Copyright (c) 2005 - 2012 the DBIC L</AUTHOR> and L</CONTRIBUTORS>
 as listed above.
 
 =head1 LICENSE

@@ -126,7 +126,7 @@ sub unimport {
 
 =head1 NAME
 
-DBIx::Class::Carp - Provides advanced Carp::Clan-like warning functions for DBIx::Class internals
+DBIx::Class::Carp - Provides advanced Carp::Clan-like warning functions for DBIC internals
 
 =head1 DESCRIPTION
 

@@ -16,7 +16,7 @@ See DBIx::Class::CDBICompat for usage directions.
 
 Emulates the extra behaviors of the Class::DBI search iterator.
 
-=head2 Differences from DBIx::Class result set
+=head2 Differences from DBIC result set
 
 The CDBI iterator returns true if there were any results, false otherwise.  The DBIC result set always returns true.
 

@@ -32,7 +32,7 @@ overload fallback to give natural boolean/numeric values.
 
 =back
 
-This is meant for internal use by L<DBIx::Class>'s C<throw_exception>
+This is meant for internal use by L<DBIC|DBIx::Class>'s C<throw_exception>
 code, and shouldn't be used directly elsewhere.
 
 Expects a scalar exception message.  The optional argument

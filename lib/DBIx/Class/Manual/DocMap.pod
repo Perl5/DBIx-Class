@@ -12,7 +12,7 @@ DBIx::Class::Manual::DocMap - What documentation do we have?
 
 =item L<DBIx::Class::Manual::Example> - Full example Schema.
 
-=item L<DBIx::Class::Manual::SQLHackers> - How to use DBIx::Class if you know SQL (external, available on CPAN)
+=item L<DBIx::Class::Manual::SQLHackers> - How to use DBIC if you know SQL (external, available on CPAN)
 
 =item L<DBIx::Class::Manual::Glossary> - What do all those terms mean?
 

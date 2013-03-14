@@ -44,7 +44,7 @@ the definition in the L<Glossary|DBIx::Class::Manual::Glossary/Relationship>.
 
 This class provides methods to set up relationships between the tables
 in your database model. Relationships are the most useful and powerful
-technique that L<DBIx::Class> provides. To create efficient database queries,
+technique that L<DBIC|DBIx::Class> provides. To create efficient database queries,
 create relationships between any and all tables that have something in
 common, for example if you have a table Authors:
 
@@ -214,7 +214,7 @@ Cascading deletes are off by default on a C<belongs_to>
 relationship. To turn them on, pass C<< cascade_delete => 1 >>
 in the $attr hashref.
 
-By default, DBIC will return undef and avoid querying the database if a
+By default, L<DBIC|DBIx::Class> will return undef and avoid querying the database if a
 C<belongs_to> accessor is called when any part of the foreign key IS NULL. To
 disable this behavior, pass C<< undef_on_null_fk => 0 >> in the C<\%attrs>
 hashref.
@@ -338,7 +338,7 @@ pass C<< cascade_delete => 0 >> in the C<$attr> hashref.
 The cascaded operations are performed after the requested delete or
 update, so if your database has a constraint on the relationship, it
 will have deleted/updated the related records or raised an exception
-before DBIx::Class gets to perform the cascaded operation.
+before L<DBIC|DBIx::Class> gets to perform the cascaded operation.
 
 If you copy an object in a class with a C<has_many> relationship, all
 the related objects will be copied as well. To turn this behaviour off,
@@ -427,7 +427,7 @@ hashref.
 The cascaded operations are performed after the requested delete or
 update, so if your database has a constraint on the relationship, it
 will have deleted/updated the related records or raised an exception
-before DBIx::Class gets to perform the cascaded operation.
+before L<DBIC|DBIx::Class> gets to perform the cascaded operation.
 
 See L<DBIx::Class::Relationship::Base/attributes> for documentation on
 relationship methods and valid relationship attributes. Also see
