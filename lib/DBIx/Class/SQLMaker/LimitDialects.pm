@@ -63,7 +63,7 @@ sub _LimitOffset {
 
  SELECT ... LIMIT $offset $limit
 
-Supported by B<MySQL> and any L<SQL::Statement> based DBD
+Supported by B<MySQL>
 
 =cut
 sub _LimitXY {
@@ -76,6 +76,22 @@ sub _LimitXY {
     $sql .= '?';
     push @{$self->{limit_bind}}, [ $self->__rows_bindtype => $rows ];
 
+    return $sql;
+}
+
+=head2 LimitXY_NoBinds
+
+ SELECT ... LIMIT $offset $limit
+
+Supported by any L<SQL::Statement> based DBD.  (Implemented without
+bindvals, since L<SQL::Statement> doesn't like them in C<LIMIT>.)
+
+=cut
+sub _LimitXY_NoBinds {
+    my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
+    $sql .= $self->_parse_rs_attrs( $rs_attrs ) . " LIMIT ";
+    $sql .= "$offset, " if +$offset;
+    $sql .= $rows;
     return $sql;
 }
 

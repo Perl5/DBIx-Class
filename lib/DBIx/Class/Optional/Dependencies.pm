@@ -104,6 +104,33 @@ my $rdbms_firebird_interbase = {
 my $rdbms_firebird_odbc = {
   'DBD::ODBC'                     => '0',
 };
+my $rdbms_ss_csv = {
+  'DBD::CSV'                      => '0',
+  'SQL::Statement'                => '1.33',
+};
+my $rdbms_ss_dbm = {
+  'DBD::DBM'                      => '0',
+  'MLDBM'                         => '0',
+  'SQL::Statement'                => '1.33',
+};
+my $rdbms_ss_po = {
+  'DBD::PO'                       => '0',
+  'SQL::Statement'                => '1.33',
+};
+my $rdbms_ss_sys = {
+  'DBD::Sys'                      => '0',
+  'SQL::Statement'                => '1.33',
+};
+my $rdbms_ss_anydata = {
+  ### XXX: DBD::AnyData 0.110 and DBI 1.623 conflict! ###
+  'DBD::AnyData'                  => '0',
+  'SQL::Statement'                => '1.33',
+};
+my $rdbms_ss_treedata = {
+  ### XXX: DBD::AnyData 0.110 and DBI 1.623 conflict! ###
+  'DBD::TreeData'                 => '0',
+  'SQL::Statement'                => '1.33',
+};
 
 my $reqs = {
   replicated => {
@@ -436,6 +463,66 @@ my $reqs = {
     },
   },
 
+  rdbms_ss_csv => {
+    req => {
+      %$rdbms_ss_csv,
+    },
+    pod => {
+      title => 'CSV support via DBD::CSV',
+      desc => 'Modules required to connect to CSV files via DBD::CSV',
+    },
+  },
+
+  rdbms_ss_dbm => {
+    req => {
+      %$rdbms_ss_dbm,
+    },
+    pod => {
+      title => 'ML/DBM support via DBD::DBM',
+      desc => 'Modules required to connect to DBM & MLDBM files via DBD::DBM',
+    },
+  },
+
+  rdbms_ss_po => {
+    req => {
+      %$rdbms_ss_po,
+    },
+    pod => {
+      title => 'PO support via DBD::PO',
+      desc => 'Modules required to connect to PO files via DBD::PO',
+    },
+  },
+
+  rdbms_ss_sys => {
+    req => {
+      %$rdbms_ss_sys,
+    },
+    pod => {
+      title => 'System tables interface support via DBD::Sys',
+      desc => 'Modules required to connect to system tables via DBD::Sys',
+    },
+  },
+
+  rdbms_ss_anydata => {
+    req => {
+      %$rdbms_ss_anydata,
+    },
+    pod => {
+      title => 'Abstract flat data support via DBD::AnyData',
+      desc => 'Modules required to connect to abstract flat data via DBD::AnyData',
+    },
+  },
+
+  rdbms_ss_treedata => {
+    req => {
+      %$rdbms_ss_treedata,
+    },
+    pod => {
+      title => 'Abstract tree data support via DBD::TreeData',
+      desc => 'Modules required to connect to abstract tree data via DBD::TreeData',
+    },
+  },
+
 # the order does matter because the rdbms support group might require
 # a different version that the test group
   test_rdbms_pg => {
@@ -596,6 +683,54 @@ my $reqs = {
       $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
         ? (
           %$rdbms_firebird_odbc,
+        ) : ()
+    },
+  },
+
+  test_rdbms_ss_csv => {
+    req => {
+      %$rdbms_ss_csv,
+    },
+  },
+
+  test_rdbms_ss_dbm => {
+    req => {
+      %$rdbms_ss_dbm,
+    },
+  },
+
+  test_rdbms_ss_po => {
+    req => {
+      $ENV{DBICTEST_DBD_PO}
+        ? (
+          %$rdbms_ss_po,
+        ) : ()
+    },
+  },
+
+  test_rdbms_ss_sys => {
+    req => {
+      $ENV{DBICTEST_DBD_SYS}
+        ? (
+          %$rdbms_ss_sys,
+        ) : ()
+    },
+  },
+
+  test_rdbms_ss_anydata => {
+    req => {
+      $ENV{DBICTEST_DBD_ANYDATA}
+        ? (
+          %$rdbms_ss_anydata,
+        ) : ()
+    },
+  },
+
+  test_rdbms_ss_treedata => {
+    req => {
+      $ENV{DBICTEST_DBD_TREEDATA}
+        ? (
+          %$rdbms_ss_treedata,
         ) : ()
     },
   },
