@@ -446,11 +446,12 @@ sub related_resultset {
     unless ref $self;
 
   my $rel = shift;
-  my $rel_info = $self->relationship_info($rel);
-  $self->throw_exception( "No such relationship '$rel'" )
-    unless $rel_info;
 
   return $self->{related_resultsets}{$rel} ||= do {
+
+    my $rel_info = $self->relationship_info($rel)
+      or $self->throw_exception( "No such relationship '$rel'" );
+
     my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
     $attrs = { %{$rel_info->{attrs} || {}}, %$attrs };
 

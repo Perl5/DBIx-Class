@@ -1183,6 +1183,24 @@ sub inflate_result {
   if ($prefetch) {
     for my $relname ( keys %$prefetch ) {
 
+      my $relinfo = $rsrc->relationship_info($relname) or do {
+        my $err = sprintf
+          "Inflation into non-existent relationship '%s' of '%s' requested",
+          $relname,
+          $rsrc->source_name,
+        ;
+        if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$relname}[0] || {}} ) {
+          $err .= sprintf ", check the inflation specification (columns/as) ending in '...%s.%s'",
+          $relname,
+          $colname,
+        }
+
+        $rsrc->throw_exception($err);
+      };
+
+      $class->throw_exception("No accessor type declared for prefetched relationship '$relname'")
+        unless $relinfo->{attrs}{accessor};
+
       my @rel_objects;
       if (
         $prefetch->{$relname}
@@ -1191,35 +1209,29 @@ sub inflate_result {
           and
         ref($prefetch->{$relname}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
       ) {
-        my $rel_rsrc = try {
-          $rsrc->related_source($relname)
-        } catch {
-          my $err = sprintf
-            "Inflation into non-existent relationship '%s' of '%s' requested",
-            $relname,
-            $rsrc->source_name,
+
+        my $rel_rs = $new->related_resultset($relname);
+
+        if (ref $prefetch->{$relname}[0] eq 'ARRAY') {
+          my $rel_rsrc = $rel_rs->result_source;
+          my $rel_class = $rel_rs->result_class;
+          my $rel_inflator = $rel_class->can('inflate_result');
+          @rel_objects = map
+            { $rel_class->$rel_inflator ( $rel_rsrc, @$_ ) }
+            @{$prefetch->{$relname}}
           ;
-          if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$relname}[0] || {}} ) {
-            $err .= sprintf ", check the inflation specification (columns/as) ending in '...%s.%s'",
-            $relname,
-            $colname,
-          }
-
-          $rsrc->throw_exception($err);
-        };
-
-        @rel_objects = map {
-          $rel_rsrc->result_class->inflate_result( $rel_rsrc, @$_ )
-        } ( ref $prefetch->{$relname}[0] eq 'ARRAY' ?  @{$prefetch->{$relname}} : $prefetch->{$relname} );
+        }
+        else {
+          @rel_objects = $rel_rs->result_class->inflate_result(
+            $rel_rs->result_source, @{$prefetch->{$relname}}
+          );
+        }
       }
 
-      my $accessor = $rsrc->relationship_info($relname)->{attrs}{accessor}
-        or $class->throw_exception("No accessor type declared for prefetched relationship '$relname'");
-
-      if ($accessor eq 'single') {
+      if ($relinfo->{attrs}{accessor} eq 'single') {
         $new->{_relationship_data}{$relname} = $rel_objects[0];
       }
-      elsif ($accessor eq 'filter') {
+      elsif ($relinfo->{attrs}{accessor} eq 'filter') {
         $new->{_inflated_column}{$relname} = $rel_objects[0];
       }
 
