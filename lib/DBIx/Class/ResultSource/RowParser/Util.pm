@@ -152,8 +152,11 @@ sub assemble_collapsing_parser {
   my @idcol_args = $no_rowid_container ? ('', '') : (
     ', %cur_row_ids', # only declare the variable if we'll use it
     join ("\n", map {
-      qq(\$cur_row_ids{$_} = defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
-    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } )
+      # in case we prune - we will never hit these undefs
+      $args->{prune_null_branches}
+        ? qq(\$cur_row_ids{$_} = \$cur_row_data->[$_];)
+        : qq(\$cur_row_ids{$_} = defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
+    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
   );
 
   my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
@@ -173,7 +176,9 @@ sub assemble_collapsing_parser {
     ( $_[1] and $rows_pos = -1 and $_[1]->() )
   ) ) {
 
-    # this code exists only when we are *not* assembling direct to HRI
+    # this code exists only when we are using a cur_row_ids
+    # furthermore the undef checks may or may not be there
+    # depending on whether we prune or not
     #
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups

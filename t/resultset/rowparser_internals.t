@@ -684,11 +684,12 @@ is_same_src (
       ( $_[1] and $rows_pos = -1 and $_[1]->() )
     ) ) {
 
-      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
-      $cur_row_ids{2} = defined $cur_row_data->[2] ? $cur_row_data->[2] : "\0NULL\xFF$rows_pos\xFF2\0";
-      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
-      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
-      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
+      # do not care about nullability here
+      $cur_row_ids{0} = $cur_row_data->[0];
+      $cur_row_ids{2} = $cur_row_data->[2];
+      $cur_row_ids{3} = $cur_row_data->[3];
+      $cur_row_ids{4} = $cur_row_data->[4];
+      $cur_row_ids{8} = $cur_row_data->[8];
 
       # cache expensive set of ops in a non-existent rowid slot
       $cur_row_ids{10} = (
