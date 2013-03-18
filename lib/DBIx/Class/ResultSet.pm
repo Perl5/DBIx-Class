@@ -3085,7 +3085,10 @@ Returns a related resultset for the supplied relationship name.
 sub related_resultset {
   my ($self, $rel) = @_;
 
-  return $self->{related_resultsets}{$rel} ||= do {
+  return $self->{related_resultsets}{$rel}
+    if defined $self->{related_resultsets}{$rel};
+
+  return $self->{related_resultsets}{$rel} = do {
     my $rsrc = $self->result_source;
     my $rel_info = $rsrc->relationship_info($rel);
 

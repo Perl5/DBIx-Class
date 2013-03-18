@@ -447,7 +447,10 @@ sub related_resultset {
 
   my $rel = shift;
 
-  return $self->{related_resultsets}{$rel} ||= do {
+  return $self->{related_resultsets}{$rel}
+    if defined $self->{related_resultsets}{$rel};
+
+  return $self->{related_resultsets}{$rel} = do {
 
     my $rel_info = $self->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
