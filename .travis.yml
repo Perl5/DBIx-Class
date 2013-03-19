@@ -82,6 +82,7 @@ matrix:
         - CLEANTEST=false
         - BREWOPTS="-Duseithreads"
         - BREWVER=5.8.5
+        - DBIC_TRACE_PROFILE=console
 
     # minimum supported without threads
     - perl: 5.8.3_nt
@@ -89,6 +90,7 @@ matrix:
         - CLEANTEST=false
         - BREWOPTS=""
         - BREWVER=5.8.3
+        - DBIC_TRACE_PROFILE=console_monochrome
 
     # check CLEANTEST of minimum supported
     - perl: 5.8.3_nt_mb
@@ -110,6 +112,24 @@ matrix:
         - CLEANTEST=true
         - BREWOPTS="-Duseithreads -Dusemorebits"
         - BREWVER=5.8.8
+
+    # some permutations of tracing envvar testing
+    - perl: 5.16
+      env:
+        - CLEANTEST=false
+        - DBIC_TRACE=1
+
+    - perl: 5.16
+      env:
+        - CLEANTEST=true
+        - DBIC_TRACE=1
+        - DBIC_TRACE_PROFILE=console
+
+    - perl: 5.16
+      env:
+        - CLEANTEST=false
+        - DBIC_TRACE=1
+        - DBIC_TRACE_PROFILE=console_monochrome
 
 # sourcing the files is *EXTREMELY* important - otherwise
 # no envvars will survive
