@@ -22,7 +22,15 @@ sub insert {  # basically just a copy of the MySQL version...
 # Disable it here
 sub _lock_select () { '' };
 
-1;
+# SQL::Statement hates LIMIT ?, ?
+# Change it to a non-bind version
+sub _LimitXY {
+   my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
+   $sql .= $self->_parse_rs_attrs( $rs_attrs ) . " LIMIT ";
+   $sql .= "$offset, " if +$offset;
+   $sql .= $rows;
+   return $sql;
+}
 
 # SQL::Statement can't handle more than
 # one ANSI join, so just convert them all

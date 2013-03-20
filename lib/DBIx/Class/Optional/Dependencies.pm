@@ -111,6 +111,7 @@ my $rdbms_ss_csv = {
 my $rdbms_ss_dbm = {
   'DBD::DBM'                      => '0',
   'MLDBM'                         => '0',
+  'BerkeleyDB'                    => '0',
   'SQL::Statement'                => '1.33',
 };
 my $rdbms_ss_po = {

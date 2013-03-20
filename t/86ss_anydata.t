@@ -11,26 +11,23 @@ use DBIx::Class::Optional::Dependencies ();
 
 use Path::Class;
 
+plan skip_all => 'Set $ENV{DBICTEST_DBD_ANYDATA} = 1 to run this test'
+   unless ($ENV{DBICTEST_DBD_ANYDATA});
+
 plan skip_all =>
-   'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ss_csv')
-   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ss_csv');
+   'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ss_anydata')
+   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ss_anydata');
 
-my $db_dir = dir(qw/t var/, "ss_csv-$$");
-$db_dir->mkpath unless -d $db_dir;
+# just in case they try to use these conflicting versions
+use DBD::AnyData;
+plan skip_all =>
+   'Incompatible versions of DBD::AnyData and DBI'
+   if ($DBD::AnyData::VERSION <= 0.110 && $DBI::VERSION >= 1.623);
 
-my ($dsn, $opts) = ('dbi:CSV:', {
-   f_schema   => undef,
-   f_dir      => "$db_dir",
-   f_ext      => ".csv/r",  # /r is a flag (see https://metacpan.org/module/DBD::File#f_ext)
-   f_lock     => 0,
-   f_encoding => "utf8",
-
-   csv_null   => 1,
-   csv_eol    => "\n",
-});
+my ($dsn, $opts) = ('dbi:AnyData:', {});
 
 my $schema = DBICTest::Schema->connect($dsn, '', '', $opts);
-is ($schema->storage->sqlt_type, 'CSV', 'sqlt_type correct pre-connection');
+is ($schema->storage->sqlt_type, 'AnyData', 'sqlt_type correct pre-connection');
 isa_ok($schema->storage->sql_maker, 'DBIx::Class::SQLMaker::SQLStatement');
 
 # Custom deployment
@@ -81,27 +78,27 @@ lives_ok {
    );
 } 'LOCK IN SHARE MODE select works';
 
-# (everything seems to be a VARCHAR with S:S)
+# (No sizes with DBD::AnyData and all is_nullable)
 my $test_type_info = {
    'artistid' => {
       'data_type' => 'VARCHAR',
-      'is_nullable' => 0,
+      'is_nullable' => 1,
       'size' => 0,
    },
    'name' => {
       'data_type' => 'VARCHAR',
       'is_nullable' => 1,
-      'size' => 100,
+      'size' => 0,
    },
    'rank' => {
       'data_type' => 'VARCHAR',
-      'is_nullable' => 0,
+      'is_nullable' => 1,
       'size' => 0,
    },
    'charfield' => {
       'data_type' => 'VARCHAR',
       'is_nullable' => 1,
-      'size' => 10,
+      'size' => 0,
    },
 };
 

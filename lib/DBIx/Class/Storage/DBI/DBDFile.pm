@@ -1,13 +1,14 @@
-package DBIx::Class::Storage::DBI::SQL::Statement;
+package DBIx::Class::Storage::DBI::DBDFile;
 
 use strict;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
+use DBIx::Class::Carp;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLStatement');
 __PACKAGE__->sql_quote_char('"');
-__PACKAGE__->sql_limit_dialect('LimitXY_NoBinds');
+__PACKAGE__->sql_limit_dialect('LimitXY');
 
 # Unsupported options
 sub _determine_supports_insert_returning { 0 };
@@ -20,48 +21,36 @@ sub _init {
    $self->disable_sth_caching(1);
 }
 
-# No support for transactions; sorry...
+# No support for transactions; warn and continue
 sub txn_begin {
-   my $self = shift;
+   carp_once <<'EOF' unless $ENV{DBIC_DBDFILE_TXN_NOWARN};
+SQL::Statement-based drivers do not support transactions - proceeding at your own risk!
 
-   # Only certain internal calls are allowed through, and even then, we are merely
-   # ignoring the txn part
-   my $callers = join "\n", map { (caller($_))[3] } (1 .. 4);
-   return $self->_get_dbh
-      if ($callers =~ /
-         DBIx::Class::Storage::DBI::insert_bulk|
-         DBIx::Class::Relationship::CascadeActions::update
-      /x);
-
-   $self->throw_exception('SQL::Statement-based drivers do not support transactions!');
+To turn off this warning, set the DBIC_DBDFILE_TXN_NOWARN environment variable.
+EOF
 }
-sub svp_begin { shift->throw_exception('SQL::Statement-based drivers do not support savepoints!'); }
+sub txn_commit { 1; }
+sub txn_rollback { shift->throw_exception('Transaction protection was ignored and unable to rollback - your data is likely inconsistent!'); }
 
 # Nor is there any last_insert_id support (unless the driver supports it directly)
 sub _dbh_last_insert_id { shift->throw_exception('SQL::Statement-based drivers do not support AUTOINCREMENT keys!  You will need to specify the PKs directly.'); }
-
-# leftovers to support txn_begin exceptions
-sub txn_commit { 1; }
 
 1;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::SQL::Statement - Base Class for SQL::Statement- / DBI::DBD::SqlEngine-based
+DBIx::Class::Storage::DBI::DBDFile - Base Class for SQL::Statement- / DBI::DBD::SqlEngine-based
 DBD support in DBIx::Class
 
 =head1 SYNOPSIS
 
 This is the base class for DBDs that use L<SQL::Statement> and/or
-L<DBI::DBD::SqlEngine|DBI::DBD::SqlEngine::Developers>.  This class is
-used for:
+L<DBI::DBD::SqlEngine|DBI::DBD::SqlEngine::Developers>, ie: based off of
+L<DBD::File>.  This class is used for:
 
 =over
-=item L<DBD::Sys>
 =item L<DBD::AnyData>
 =item L<DBD::TreeData>
-=item L<DBD::SNMP>
-=item L<DBD::PO>
 =item L<DBD::CSV>
 =item L<DBD::DBM>
 =back
@@ -71,11 +60,8 @@ used for:
 =head2 Transactions
 
 These drivers do not support transactions (and in fact, even the SQL syntax for
-them).  Therefore, any attempts to use txn_* or svp_* methods will throw an
-exception.
-
-In a future release, they may be replaced with emulated functionality.  (Then
-again, it would probably be added into L<SQL::Statement> instead.)
+them).  Therefore, any attempts to use txn_* or svp_* methods will warn you once
+and silently ignore the transaction protection.
 
 =head2 SELECT ... FOR UPDATE/SHARE
 

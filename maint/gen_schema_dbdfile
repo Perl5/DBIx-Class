@@ -1,0 +1,49 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use lib qw(lib t/lib);
+
+use DBICTest::Schema;
+use SQL::Translator;
+
+my $schema = DBICTest::Schema->connect;
+my $sql = scalar ($schema->storage->deployment_statements(
+   $schema,
+   'SQLite',  # close enough to SQL::Statement's format
+   undef,
+   undef,
+   {
+      parser_args => {
+         add_fk_index => 0,  # doesn't use index statements, anyway
+         sources => [
+            grep { !/^(?:
+               # unsupported data type tests
+               BindType|Money|
+               # DBD::DBM doesn't support single-column tables
+               Artwork|TimestampPrimaryKey|
+               # No support for views
+               Year2000CDs
+            )$/x } ($schema->sources)
+         ],
+      },
+      producer_args => { no_transaction => 1 },
+      quote_identifiers => 0,
+      no_comments => 1,
+   },
+));
+
+# Clean up to remove non-supporting elements
+my $field_type_lookahead = qr/(?=(?: NOT NULL)?(?:,|\n))/;
+
+$sql =~ s/^\s+FOREIGN KEY.+//gm;                # FKs
+$sql =~ s/^CREATE(?: UNIQUE)? INDEX.+\n\n//gm;  # indexes
+$sql =~ s/ DEFAULT .+?(?=,?\n)//g;              # default values
+$sql =~ s/^(\s+)text/$1texta/gm;                # 'text' is a SQL reserved word
+no warnings 'uninitialized';
+$sql =~ s/(?:date(?:time)?|time(?:stamp)?)$field_type_lookahead/varchar(20)/g;  # date/timestamp fields (only support in some S:S DBDs)
+$sql =~ s/character(\(\d+\))?$field_type_lookahead/char$1/g;                    # character --> char
+
+$sql =~ s/,(?=\n\);)//g;                      # dangling comma cleanup
+
+print $sql;

@@ -31,13 +31,20 @@ CREATE TABLE fourkeys (
   hello integer NOT NULL,
   goodbye integer NOT NULL,
   sensors char(10) NOT NULL,
-  read_count integer,
+  read_count int,
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
 CREATE TABLE genre (
   genreid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
+);
+
+CREATE TABLE images (
+  id INTEGER PRIMARY KEY NOT NULL,
+  artwork_id integer NOT NULL,
+  name varchar(100) NOT NULL,
+  data blob
 );
 
 CREATE TABLE link (
@@ -89,7 +96,8 @@ CREATE TABLE serialized (
 CREATE TABLE treelike (
   id INTEGER PRIMARY KEY NOT NULL,
   parent integer,
-  name varchar(100) NOT NULL
+  name varchar(100) NOT NULL,
+
 );
 
 CREATE TABLE twokeytreelike (
@@ -98,7 +106,8 @@ CREATE TABLE twokeytreelike (
   parent1 integer NOT NULL,
   parent2 integer NOT NULL,
   name varchar(100) NOT NULL,
-  PRIMARY KEY (id1, id2)
+  PRIMARY KEY (id1, id2),
+
 );
 
 CREATE TABLE typed_object (
@@ -110,12 +119,22 @@ CREATE TABLE typed_object (
 CREATE TABLE artist_undirected_map (
   id1 integer NOT NULL,
   id2 integer NOT NULL,
-  PRIMARY KEY (id1, id2)
+  PRIMARY KEY (id1, id2),
+
+
+);
+
+CREATE TABLE artwork_to_artist (
+  artwork_cd_id integer NOT NULL,
+  artist_id integer NOT NULL,
+  PRIMARY KEY (artwork_cd_id, artist_id),
+
 );
 
 CREATE TABLE bookmark (
   id INTEGER PRIMARY KEY NOT NULL,
-  link integer
+  link integer,
+
 );
 
 CREATE TABLE books (
@@ -123,7 +142,8 @@ CREATE TABLE books (
   source varchar(100) NOT NULL,
   owner integer NOT NULL,
   title varchar(100) NOT NULL,
-  price integer
+  price integer,
+
 );
 
 CREATE TABLE employee (
@@ -133,18 +153,22 @@ CREATE TABLE employee (
   group_id_2 integer,
   group_id_3 integer,
   name varchar(100),
-  encoded integer
+  encoded integer,
+
 );
 
 CREATE TABLE forceforeign (
   artist INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL
+  cd integer NOT NULL,
+
 );
 
 CREATE TABLE self_ref_alias (
   self_ref integer NOT NULL,
   alias integer NOT NULL,
-  PRIMARY KEY (self_ref, alias)
+  PRIMARY KEY (self_ref, alias),
+
+
 );
 
 CREATE TABLE track (
@@ -153,7 +177,8 @@ CREATE TABLE track (
   position int NOT NULL,
   title varchar(100) NOT NULL,
   last_updated_on varchar(20),
-  last_updated_at varchar(20)
+  last_updated_at varchar(20),
+
 );
 
 CREATE TABLE cd (
@@ -162,61 +187,61 @@ CREATE TABLE cd (
   title varchar(100) NOT NULL,
   year varchar(100) NOT NULL,
   genreid integer,
-  single_track integer
+  single_track integer,
+
+
+
 );
 
 CREATE TABLE collection_object (
   collection integer NOT NULL,
   object integer NOT NULL,
-  PRIMARY KEY (collection, object)
+  PRIMARY KEY (collection, object),
+
+
 );
 
 CREATE TABLE lyrics (
   lyric_id INTEGER PRIMARY KEY NOT NULL,
-  track_id integer NOT NULL
+  track_id integer NOT NULL,
+
 );
 
 CREATE TABLE liner_notes (
   liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar(100) NOT NULL
+  notes varchar(100) NOT NULL,
+
 );
 
 CREATE TABLE lyric_versions (
   id INTEGER PRIMARY KEY NOT NULL,
   lyric_id integer NOT NULL,
-  ltext varchar(100) NOT NULL
+  texta varchar(100) NOT NULL,
+
 );
 
 CREATE TABLE tags (
   tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
-  tag varchar(100) NOT NULL
+  tag varchar(100) NOT NULL,
+
 );
 
 CREATE TABLE cd_to_producer (
   cd integer NOT NULL,
   producer integer NOT NULL,
   attribute integer,
-  PRIMARY KEY (cd, producer)
-);
+  PRIMARY KEY (cd, producer),
 
-CREATE TABLE images (
-  id INTEGER PRIMARY KEY NOT NULL,
-  artwork_id integer NOT NULL,
-  name varchar(100) NOT NULL,
-  data blob
+
 );
 
 CREATE TABLE twokeys (
   artist integer NOT NULL,
   cd integer NOT NULL,
-  PRIMARY KEY (artist, cd)
-);
+  PRIMARY KEY (artist, cd),
 
-CREATE TABLE artwork_to_artist (
-  artwork_cd_id integer NOT NULL,
-  artist_id integer NOT NULL,
-  PRIMARY KEY (artwork_cd_id, artist_id)
+
 );
 
 CREATE TABLE fourkeys_to_twokeys (
@@ -228,5 +253,7 @@ CREATE TABLE fourkeys_to_twokeys (
   t_cd integer NOT NULL,
   autopilot char NOT NULL,
   pilot_sequence integer,
-  PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
+  PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd),
+
+
 );
