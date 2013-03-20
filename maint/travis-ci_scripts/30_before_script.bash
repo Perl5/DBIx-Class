@@ -66,9 +66,11 @@ else
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
-  # (e.g. once Carp is upgraded there's no more Carp::Heavy)
+  # (e.g. once Carp is upgraded there's no more Carp::Heavy,
+  # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
   parallel_installdeps_notest ExtUtils::MakeMaker
+  parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build ExtUtils::Depends
   parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
