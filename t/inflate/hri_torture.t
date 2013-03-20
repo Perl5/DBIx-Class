@@ -77,32 +77,16 @@ cmp_deeply
     order_by => [qw/me.cdid artist.artistid/],
   })->all ],
   [
-    {
-      single_track => undef,
-      year => 1981
-    },
-    {
-      single_track => undef,
-      year => 1976
-    },
-    {
-      single_track => {
-        cd => {
-          artist => {
-            name => "JMJ"
-          }
-        }
+    { year => 1981, single_track => undef },
+    { year => 1976, single_track => undef },
+    { year => 1978, single_track => {
+      cd => {
+        artist => { name => "JMJ" }
       },
-      year => 1978
-    },
-    {
-      single_track => undef,
-      year => 1977
-    },
-    {
-      single_track => undef,
-      year => 1977
-    },
+    }},
+    { year => 1977, single_track => undef },
+    { year => 1977, single_track => undef },
+
   ],
   'plain 1:1 descending chain ' . $rs->result_class
 ;
@@ -122,222 +106,155 @@ cmp_deeply
   })->all ],
   [
     {
-      artist => 1,
-      single_track => undef,
-      title => "Magnetic Fields",
-      year => 1981
+      artist => 1, title => "Magnetic Fields", year => 1981, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "Oxygene",
-      year => 1976
+      artist => 1, title => "Oxygene", year => 1976, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 1,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 1, tracks => {
                 title => "m1"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 1,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 1, tracks => {
                 title => "m2"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 1,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 1, tracks => {
                 title => "m3"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 1,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 1, tracks => {
                 title => "m4"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 2,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 2, tracks => {
                 title => "o2"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 2,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 2, tracks => {
                 title => "o1"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 3,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 3, tracks => {
                 title => "e1"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 3,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 3, tracks => {
                 title => "e2"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 3,
-              tracks => {
+            artistid => 1, cds => {
+              cdid => 3, tracks => {
                 title => "e3"
               }
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 4,
-              tracks => undef
+            artistid => 1, cds => {
+              cdid => 4, tracks => undef
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => {
-              cdid => 5,
-              tracks => undef
+            artistid => 1, cds => {
+              cdid => 5, tracks => undef
             }
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "fuzzy_1",
-      year => 1977
+      artist => 1, title => "fuzzy_1", year => 1977, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "fuzzy_2",
-      year => 1977
+      artist => 1, title => "fuzzy_2", year => 1977, single_track => undef,
     }
   ],
   'non-collapsing 1:1:1:M:M chain ' . $rs->result_class,
@@ -359,92 +276,53 @@ cmp_deeply
   })->all ],
   [
     {
-      artist => 1,
-      single_track => undef,
-      title => "Magnetic Fields",
-      year => 1981
+      artist => 1, title => "Magnetic Fields", year => 1981, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "Oxygene",
-      year => 1976
+      artist => 1, title => "Oxygene", year => 1976, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => {
+      artist => 1, title => "Equinoxe", year => 1978, single_track => {
         cd => {
           artist => {
-            artistid => 1,
-            cds => [
+            artistid => 1, cds => [
               {
-                cdid => 1,
-                tracks => [
-                  {
-                    title => "m1"
-                  },
-                  {
-                    title => "m2"
-                  },
-                  {
-                    title => "m3"
-                  },
-                  {
-                    title => "m4"
-                  }
+                cdid => 1, tracks => [
+                  { title => "m1" },
+                  { title => "m2" },
+                  { title => "m3" },
+                  { title => "m4" },
                 ]
               },
               {
-                cdid => 2,
-                tracks => [
-                  {
-                    title => "o2"
-                  },
-                  {
-                    title => "o1"
-                  }
+                cdid => 2, tracks => [
+                  { title => "o2" },
+                  { title => "o1" },
                 ]
               },
               {
-                cdid => 3,
-                tracks => [
-                  {
-                    title => "e1"
-                  },
-                  {
-                    title => "e2"
-                  },
-                  {
-                    title => "e3"
-                  }
+                cdid => 3, tracks => [
+                  { title => "e1" },
+                  { title => "e2" },
+                  { title => "e3" },
                 ]
               },
               {
-                cdid => 4,
-                tracks => []
+                cdid => 4, tracks => [],
               },
               {
-                cdid => 5,
-                tracks => []
+                cdid => 5, tracks => [],
               }
             ]
           }
         }
       },
-      title => "Equinoxe",
-      year => 1978
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "fuzzy_1",
-      year => 1977
+      artist => 1, title => "fuzzy_1", year => 1977, single_track => undef,
     },
     {
-      artist => 1,
-      single_track => undef,
-      title => "fuzzy_2",
-      year => 1977
+      artist => 1, title => "fuzzy_2", year => 1977, single_track => undef,
     }
   ],
   'collapsing 1:1:1:M:M chain ' . $rs->result_class,
