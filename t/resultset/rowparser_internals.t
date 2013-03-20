@@ -256,27 +256,27 @@ is_same_src (
       ( $_[1] and $rows_pos = -1 and $_[1]->() )
     ) ) {
 
-      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
-      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
-      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
-      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
-      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
+      $cur_row_ids{0} = $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{1} = $cur_row_data->[1] // "\0NULL\xFF$rows_pos\xFF1\0";
+      $cur_row_ids{3} = $cur_row_data->[3] // "\0NULL\xFF$rows_pos\xFF3\0";
+      $cur_row_ids{4} = $cur_row_data->[4] // "\0NULL\xFF$rows_pos\xFF4\0";
+      $cur_row_ids{5} = $cur_row_data->[5] // "\0NULL\xFF$rows_pos\xFF5\0";
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} and (unshift @{$_[2]}, $cur_row_data) and last;
 
       # the rowdata itself for root node
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} ||= $_[0][$result_pos++] = [{ artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] }];
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}} //= $_[0][$result_pos++] = [{ artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] }];
 
       # prefetch data of single_track (placed in root)
-      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{single_track} ||= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [];
+      $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{single_track} //= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [];
       defined($cur_row_data->[1]) or bless( $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{single_track}, __NBC__ );
 
       # prefetch data of cd (placed in single_track)
-      $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [];
+      $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{cd} //= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [];
 
       # prefetch data of artist ( placed in single_track->cd)
-      $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [{ artistid => $cur_row_data->[1] }];
+      $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}[1]{artist} //= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = [{ artistid => $cur_row_data->[1] }];
 
       # prefetch data of cds (if available)
       (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{3}}{$cur_row_ids{4}}{$cur_row_ids{5}} )
@@ -320,17 +320,17 @@ is_same_src (
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} and (unshift @{$_[2]}, $cur_row_data) and last;
 
       # the rowdata itself for root node
-      $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} ||= $_[0][$result_pos++] = { artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] };
+      $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]} //= $_[0][$result_pos++] = { artist => $cur_row_data->[5], title => $cur_row_data->[4], year => $cur_row_data->[2] };
 
       # prefetch data of single_track (placed in root)
       (! defined($cur_row_data->[1]) ) ? $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}{single_track} = undef : do {
-        $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}{single_track} ||= $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
+        $collapse_idx[0]{$cur_row_data->[4]}{$cur_row_data->[5]}{single_track} //= $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
 
         # prefetch data of cd (placed in single_track)
-        $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cd} ||= $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
+        $collapse_idx[1]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cd} //= $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]};
 
         # prefetch data of artist ( placed in single_track->cd)
-        $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{artist} ||= $collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]} = { artistid => $cur_row_data->[1] };
+        $collapse_idx[2]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{artist} //= $collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]} = { artistid => $cur_row_data->[1] };
 
         # prefetch data of cds (if available)
         (! defined $cur_row_data->[3] ) ? $collapse_idx[3]{$cur_row_data->[1]}{$cur_row_data->[4]}{$cur_row_data->[5]}{cds} = [] : do {
@@ -433,21 +433,21 @@ is_same_src (
       ( $_[1] and $rows_pos = -1 and $_[1]->() )
     ) ) {
 
-      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
-      $cur_row_ids{1} = defined $cur_row_data->[1] ? $cur_row_data->[1] : "\0NULL\xFF$rows_pos\xFF1\0";
-      $cur_row_ids{5} = defined $cur_row_data->[5] ? $cur_row_data->[5] : "\0NULL\xFF$rows_pos\xFF5\0";
-      $cur_row_ids{6} = defined $cur_row_data->[6] ? $cur_row_data->[6] : "\0NULL\xFF$rows_pos\xFF6\0";
-      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
-      $cur_row_ids{10} = defined $cur_row_data->[10] ? $cur_row_data->[10] : "\0NULL\xFF$rows_pos\xFF10\0";
+      $cur_row_ids{0} = $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{1} = $cur_row_data->[1] // "\0NULL\xFF$rows_pos\xFF1\0";
+      $cur_row_ids{5} = $cur_row_data->[5] // "\0NULL\xFF$rows_pos\xFF5\0";
+      $cur_row_ids{6} = $cur_row_data->[6] // "\0NULL\xFF$rows_pos\xFF6\0";
+      $cur_row_ids{8} = $cur_row_data->[8] // "\0NULL\xFF$rows_pos\xFF8\0";
+      $cur_row_ids{10} = $cur_row_data->[10] // "\0NULL\xFF$rows_pos\xFF10\0";
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{1}} and (unshift @{$_[2]}, $cur_row_data) and last;
 
-      $collapse_idx[0]{$cur_row_ids{1}} ||= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
+      $collapse_idx[0]{$cur_row_ids{1}} //= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
 
-      $collapse_idx[0]{$cur_row_ids{1}}[1]{existing_single_track} ||= $collapse_idx[1]{$cur_row_ids{1}} = [];
-      $collapse_idx[1]{$cur_row_ids{1}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{1}} = [];
-      $collapse_idx[2]{$cur_row_ids{1}}[1]{artist} ||= $collapse_idx[3]{$cur_row_ids{1}} = [{ artistid => $cur_row_data->[1] }];
+      $collapse_idx[0]{$cur_row_ids{1}}[1]{existing_single_track} //= $collapse_idx[1]{$cur_row_ids{1}} = [];
+      $collapse_idx[1]{$cur_row_ids{1}}[1]{cd} //= $collapse_idx[2]{$cur_row_ids{1}} = [];
+      $collapse_idx[2]{$cur_row_ids{1}}[1]{artist} //= $collapse_idx[3]{$cur_row_ids{1}} = [{ artistid => $cur_row_data->[1] }];
 
       (! $collapse_idx[4]{$cur_row_ids{1}}{$cur_row_ids{6}} )
         and
@@ -470,7 +470,7 @@ is_same_src (
       );
       defined($cur_row_data->[5]) or bless( $collapse_idx[0]{$cur_row_ids{1}}[1]{tracks}, __NBC__ );
 
-      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [];
+      $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics} //= $collapse_idx[7]{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} = [];
       defined($cur_row_data->[10]) or bless( $collapse_idx[6]{$cur_row_ids{1}}{$cur_row_ids{5}}[1]{lyrics}, __NBC__ );
 
       (! $collapse_idx[8]{$cur_row_ids{0}}{$cur_row_ids{1}}{$cur_row_ids{5}}{$cur_row_ids{10}} )
@@ -503,11 +503,11 @@ is_same_src (
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_data->[1]} and (unshift @{$_[2]}, $cur_row_data) and last;
 
-      $collapse_idx[0]{$cur_row_data->[1]} ||= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
+      $collapse_idx[0]{$cur_row_data->[1]} //= $_[0][$result_pos++] = [{ genreid => $cur_row_data->[4], latest_cd => $cur_row_data->[7], year => $cur_row_data->[3] }];
 
-      $collapse_idx[0]{$cur_row_data->[1]}[1]{existing_single_track} ||= $collapse_idx[1]{$cur_row_data->[1]} = [];
-      $collapse_idx[1]{$cur_row_data->[1]}[1]{cd} ||= $collapse_idx[2]{$cur_row_data->[1]} = [];
-      $collapse_idx[2]{$cur_row_data->[1]}[1]{artist} ||= $collapse_idx[3]{$cur_row_data->[1]} = [{ artistid => $cur_row_data->[1] }];
+      $collapse_idx[0]{$cur_row_data->[1]}[1]{existing_single_track} //= $collapse_idx[1]{$cur_row_data->[1]} = [];
+      $collapse_idx[1]{$cur_row_data->[1]}[1]{cd} //= $collapse_idx[2]{$cur_row_data->[1]} = [];
+      $collapse_idx[2]{$cur_row_data->[1]}[1]{artist} //= $collapse_idx[3]{$cur_row_data->[1]} = [{ artistid => $cur_row_data->[1] }];
 
       (! defined($cur_row_data->[6])) ? $collapse_idx[3]{$cur_row_data->[1]}[1]{cds} = [] : do {
         (! $collapse_idx[4]{$cur_row_data->[1]}{$cur_row_data->[6]} )
@@ -536,7 +536,7 @@ is_same_src (
 
         (! defined($cur_row_data->[10]) ) ? $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]}[1]{lyrics} = [] : do {
 
-          $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]}[1]{lyrics} ||= $collapse_idx[7]{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} = [];
+          $collapse_idx[6]{$cur_row_data->[1]}{$cur_row_data->[5]}[1]{lyrics} //= $collapse_idx[7]{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} = [];
 
           (! $collapse_idx[8]{$cur_row_data->[0]}{$cur_row_data->[1]}{$cur_row_data->[5]}{$cur_row_data->[10]} )
             and
@@ -614,11 +614,11 @@ is_same_src (
       ( $_[1] and $rows_pos = -1 and $_[1]->() )
     ) ) {
 
-      $cur_row_ids{0} = defined $cur_row_data->[0] ? $cur_row_data->[0] : "\0NULL\xFF$rows_pos\xFF0\0";
-      $cur_row_ids{2} = defined $cur_row_data->[2] ? $cur_row_data->[2] : "\0NULL\xFF$rows_pos\xFF2\0";
-      $cur_row_ids{3} = defined $cur_row_data->[3] ? $cur_row_data->[3] : "\0NULL\xFF$rows_pos\xFF3\0";
-      $cur_row_ids{4} = defined $cur_row_data->[4] ? $cur_row_data->[4] : "\0NULL\xFF$rows_pos\xFF4\0";
-      $cur_row_ids{8} = defined $cur_row_data->[8] ? $cur_row_data->[8] : "\0NULL\xFF$rows_pos\xFF8\0";
+      $cur_row_ids{0} = $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0";
+      $cur_row_ids{2} = $cur_row_data->[2] // "\0NULL\xFF$rows_pos\xFF2\0";
+      $cur_row_ids{3} = $cur_row_data->[3] // "\0NULL\xFF$rows_pos\xFF3\0";
+      $cur_row_ids{4} = $cur_row_data->[4] // "\0NULL\xFF$rows_pos\xFF4\0";
+      $cur_row_ids{8} = $cur_row_data->[8] // "\0NULL\xFF$rows_pos\xFF8\0";
 
       # cache expensive set of ops in a non-existent rowid slot
       $cur_row_ids{10} = (
@@ -632,14 +632,14 @@ is_same_src (
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{10}} and (unshift @{$_[2]}, $cur_row_data) and last;
 
-      $collapse_idx[0]{$cur_row_ids{10}} ||= $_[0][$result_pos++] = [{ year => $$cur_row_data[1] }];
+      $collapse_idx[0]{$cur_row_ids{10}} //= $_[0][$result_pos++] = [{ year => $$cur_row_data[1] }];
 
-      $collapse_idx[0]{$cur_row_ids{10}}[1]{single_track} ||= ($collapse_idx[1]{$cur_row_ids{0}} = [{ trackid => $cur_row_data->[0] }]);
+      $collapse_idx[0]{$cur_row_ids{10}}[1]{single_track} //= ($collapse_idx[1]{$cur_row_ids{0}} = [{ trackid => $cur_row_data->[0] }]);
       defined($cur_row_data->[0]) or bless ( $collapse_idx[0]{$cur_row_ids{10}}[1]{single_track}, __NBC__ );
 
-      $collapse_idx[1]{$cur_row_ids{0}}[1]{cd} ||= $collapse_idx[2]{$cur_row_ids{0}} = [];
+      $collapse_idx[1]{$cur_row_ids{0}}[1]{cd} //= $collapse_idx[2]{$cur_row_ids{0}} = [];
 
-      $collapse_idx[2]{$cur_row_ids{0}}[1]{artist} ||= ($collapse_idx[3]{$cur_row_ids{0}} = [{ artistid => $cur_row_data->[6] }]);
+      $collapse_idx[2]{$cur_row_ids{0}}[1]{artist} //= ($collapse_idx[3]{$cur_row_ids{0}} = [{ artistid => $cur_row_data->[6] }]);
 
       (! $collapse_idx[4]{$cur_row_ids{0}}{$cur_row_ids{4}} )
         and
@@ -703,15 +703,15 @@ is_same_src (
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
       $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{10}} and (unshift @{$_[2]}, $cur_row_data) and last;
 
-      $collapse_idx[0]{$cur_row_ids{10}} ||= $_[0][$result_pos++] = { year => $$cur_row_data[1] };
+      $collapse_idx[0]{$cur_row_ids{10}} //= $_[0][$result_pos++] = { year => $$cur_row_data[1] };
 
       (! defined $cur_row_data->[0] ) ? $collapse_idx[0]{$cur_row_ids{10}}{single_track} = undef : do {
 
-        $collapse_idx[0]{$cur_row_ids{10}}{single_track} ||= ($collapse_idx[1]{$cur_row_ids{0}} = { trackid => $$cur_row_data[0] });
+        $collapse_idx[0]{$cur_row_ids{10}}{single_track} //= ($collapse_idx[1]{$cur_row_ids{0}} = { trackid => $$cur_row_data[0] });
 
-        $collapse_idx[1]{$cur_row_ids{0}}{cd} ||= $collapse_idx[2]{$cur_row_ids{0}};
+        $collapse_idx[1]{$cur_row_ids{0}}{cd} //= $collapse_idx[2]{$cur_row_ids{0}};
 
-        $collapse_idx[2]{$cur_row_ids{0}}{artist} ||= ($collapse_idx[3]{$cur_row_ids{0}} = { artistid => $$cur_row_data[6] });
+        $collapse_idx[2]{$cur_row_ids{0}}{artist} //= ($collapse_idx[3]{$cur_row_ids{0}} = { artistid => $$cur_row_data[6] });
 
         (! defined $cur_row_data->[4] ) ? $collapse_idx[3]{$cur_row_ids{0}}{cds} = [] : do {
 
@@ -749,11 +749,14 @@ is_same_src (
 done_testing;
 
 my $deparser;
-sub is_same_src {
+sub is_same_src { SKIP: {
   $deparser ||= B::Deparse->new;
   local $Test::Builder::Level = $Test::Builder::Level + 1;
 
   my ($got, $expect) = @_;
+
+  skip "Not testing equality of source containing defined-or operator on this perl $]", 1
+    if ($] < 5.010 and$expect =~ m!\Q//=!);
 
   $expect =~ s/__NBC__/B::perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
 
@@ -774,4 +777,4 @@ sub is_same_src {
     ;
     exit 1;
   };
-}
+} }

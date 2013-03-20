@@ -7,6 +7,8 @@ use warnings;
 use List::Util 'first';
 use B 'perlstring';
 
+use constant HAS_DOR => ( $] < 5.010 ? 0 : 1 );
+
 use base 'Exporter';
 our @EXPORT_OK = qw(
   assemble_simple_parser
@@ -151,12 +153,12 @@ sub assemble_collapsing_parser {
 
   my @idcol_args = $no_rowid_container ? ('', '') : (
     ', %cur_row_ids', # only declare the variable if we'll use it
-    join ("\n", map {
+    join ("\n", map { qq(\$cur_row_ids{$_} = ) . (
       # in case we prune - we will never hit these undefs
-      $args->{prune_null_branches}
-        ? qq(\$cur_row_ids{$_} = \$cur_row_data->[$_];)
-        : qq(\$cur_row_ids{$_} = defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
-    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
+      $args->{prune_null_branches} ? qq(\$cur_row_data->[$_];)
+      : HAS_DOR                    ? qq(\$cur_row_data->[$_] // "\0NULL\xFF\$rows_pos\xFF$_\0";)
+      :                              qq(defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
+    ) } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
   );
 
   my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
@@ -255,8 +257,9 @@ sub __visit_infmap_collapse {
   my @src;
 
   if ($cur_node_idx == 0) {
-    push @src, sprintf( '%s ||= $_[0][$result_pos++] = %s;',
+    push @src, sprintf( '%s %s $_[0][$result_pos++] = %s;',
       $node_idx_slot,
+      (HAS_DOR ? '//=' : '||='),
       $me_struct || '{}',
     );
   }
@@ -268,8 +271,9 @@ sub __visit_infmap_collapse {
     );
 
     if ($args->{collapse_map}->{-is_single}) {
-      push @src, sprintf ( '%s ||= %s%s;',
+      push @src, sprintf ( '%s %s %s%s;',
         $parent_attach_slot,
+        (HAS_DOR ? '//=' : '||='),
         $node_idx_slot,
         $me_struct ? " = $me_struct" : '',
       );
