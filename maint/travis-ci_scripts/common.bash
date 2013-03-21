@@ -61,9 +61,22 @@ parallel_installdeps_notest() {
   # The reason we do things so "non-interactively" is that xargs -P will have the
   # latest cpanm instance overwrite the buildlog. There seems to be no way to
   # specify a custom buildlog, hence we just collect the verbose output
-  # and display it in case of failure
+  # and display it in case of "worker" failure
+  #
+  # Explanation of inline args:
+  #
+  # [09:38] <T> you need a $0
+  # [09:38] <G> hence the _
+  # [09:38] <G> bash -c '...' _
+  # [09:39] <T> I like -- because it's the magic that gnu getopts uses for somethign else
+  # [09:39] <G> or --, yes
+  # [09:39] <T> ribasushi: you could put "giant space monkey penises" instead of "--" and it would work just as well
+  #
   run_or_err "Installing (without testing) $MODLIST" \
-    "echo $MODLIST | xargs -n 1 -P $NUMTHREADS cpanm --notest --no-man-pages"
+    "echo $MODLIST | xargs -n 1 -P $NUMTHREADS bash -c \\
+      'OUT=\$(cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+      'giant space monkey penises'
+    "
 }
 
 
