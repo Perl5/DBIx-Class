@@ -75,4 +75,15 @@ ok ($unordered_rs->next, "got row $_")  for (2 .. $initial_artists_cnt + 3);
 is ($unordered_rs->next, undef, 'End of RS reached');
 is ($unordered_rs->next, undef, 'End of RS not lost');
 
+{
+  my $non_uniquely_ordered_constrained = $schema->resultset('CD')->search(
+    { artist => 1 },
+    { order_by => 'me.title', prefetch => 'tracks' },
+  );
+
+  isa_ok ($non_uniquely_ordered_constrained->next, 'DBICTest::CD' );
+
+  ok( defined $non_uniquely_ordered_constrained->cursor->next, 'Cursor not exhausted' );
+}
+
 done_testing;

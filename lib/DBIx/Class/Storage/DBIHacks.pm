@@ -798,6 +798,58 @@ sub _order_by_is_stable {
   return undef;
 }
 
+# this is almost identical to the above, except it accepts only
+# a single rsrc, and will succeed only if the first portion of the order
+# by is stable.
+# returns that portion as a colinfo hashref on success
+sub _main_source_order_by_portion_is_stable {
+  my ($self, $main_rsrc, $order_by, $where) = @_;
+
+  die "Huh... I expect a blessed result_source..."
+    if ref($main_rsrc) eq 'ARRAY';
+
+  my @ord_cols = map
+    { $_->[0] }
+    ( $self->_extract_order_criteria($order_by) )
+  ;
+  return unless @ord_cols;
+
+  my $colinfos = $self->_resolve_column_info($main_rsrc, \@ord_cols);
+  for (0 .. $#ord_cols) {
+    if (
+      ! $colinfos->{$ord_cols[$_]}
+        or
+      $colinfos->{$ord_cols[$_]}{-result_source} != $main_rsrc
+    ) {
+      $#ord_cols =  $_ - 1;
+      last;
+    }
+  }
+
+  # we just truncated it above
+  return unless @ord_cols;
+
+  # since all we check here are the start of the order_by belonging to the
+  # top level $rsrc, a present identifying set will mean that the resultset
+  # is ordered by its leftmost table in a stable manner
+  #
+  # single source - safely use both qualified and unqualified name
+  my $order_portion_ci = { map {
+    $colinfos->{$_}{-colname} => $colinfos->{$_},
+    $colinfos->{$_}{-fq_colname} => $colinfos->{$_},
+  } @ord_cols };
+
+  $where = $where ? $self->_resolve_column_info(
+    $main_rsrc, $self->_extract_fixed_condition_columns($where)
+  ) : {};
+
+  return (
+    $main_rsrc->_identifying_column_set({ %$where, %$order_portion_ci })
+      ? $order_portion_ci
+      : undef
+  );
+}
+
 # returns an arrayref of column names which *definitely* have som
 # sort of non-nullable equality requested in the given condition
 # specification. This is used to figure out if a resultset is

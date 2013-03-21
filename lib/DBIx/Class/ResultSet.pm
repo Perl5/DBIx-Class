@@ -1312,34 +1312,15 @@ sub _construct_results {
   }
   elsif( $attrs->{collapse} ) {
 
-    $attrs->{_ordered_for_collapse} = (!$attrs->{order_by}) ? 0 : do {
-      my $st = $rsrc->schema->storage;
-      my @ord_cols = map
-        { $_->[0] }
-        ( $st->_extract_order_criteria($attrs->{order_by}) )
-      ;
-
-      my $colinfos = $st->_resolve_column_info($attrs->{from}, \@ord_cols);
-
-      for (0 .. $#ord_cols) {
-        if (
-          ! $colinfos->{$ord_cols[$_]}
-            or
-          $colinfos->{$ord_cols[$_]}{-result_source} != $rsrc
-        ) {
-          splice @ord_cols, $_;
-          last;
-        }
-      }
-
-      # since all we check here are the start of the order_by belonging to the
-      # top level $rsrc, a present identifying set will mean that the resultset
-      # is ordered by its leftmost table in a tsable manner
-      (@ord_cols and $rsrc->_identifying_column_set({ map
-        { $colinfos->{$_}{-colname} => $colinfos->{$_} }
-        @ord_cols
-      })) ? 1 : 0;
-    } unless defined $attrs->{_ordered_for_collapse};
+    $attrs->{_ordered_for_collapse} = (
+      (
+        $attrs->{order_by}
+          and
+        $rsrc->schema
+              ->storage
+               ->_main_source_order_by_portion_is_stable($rsrc, $attrs->{order_by}, $attrs->{where})
+      ) ? 1 : 0
+    ) unless defined $attrs->{_ordered_for_collapse};
 
     if (! $attrs->{_ordered_for_collapse}) {
       $did_fetch_all = 1;
