@@ -509,32 +509,6 @@ sub _FetchFirst {
   return $sql;
 }
 
-=head2 RowCountOrGenericSubQ
-
-This is not exactly a limit dialect, but more of a proxy for B<Sybase ASE>.
-If no $offset is supplied the limit is simply performed as:
-
- SET ROWCOUNT $limit
- SELECT ...
- SET ROWCOUNT 0
-
-Otherwise we fall back to L</GenericSubQ>
-
-=cut
-
-sub _RowCountOrGenericSubQ {
-  my $self = shift;
-  my ($sql, $rs_attrs, $rows, $offset) = @_;
-
-  return $self->_GenericSubQ(@_) if $offset;
-
-  return sprintf <<"EOF", $rows, $sql, $self->_parse_rs_attrs( $rs_attrs );
-SET ROWCOUNT %d
-%s %s
-SET ROWCOUNT 0
-EOF
-}
-
 =head2 GenericSubQ
 
  SELECT * FROM (
