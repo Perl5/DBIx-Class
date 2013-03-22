@@ -726,6 +726,7 @@ sub _group_over_selection {
         map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by})
       ];
 
+      # FIXME: MIN/MAX can't handle NULLS FIRST/LAST
       my ($chunk, $is_desc) = $sql_maker->_split_order_chunk($order_chunks->[$o_idx][0]);
 
       # we reached that far - wrap any part of the order_by that "responded"

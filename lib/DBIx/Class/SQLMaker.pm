@@ -445,11 +445,12 @@ sub _split_order_chunk {
   my ($self, $chunk) = @_;
 
   # strip off sort modifiers, but always succeed, so $1 gets reset
-  $chunk =~ s/ (?: \s+ (ASC|DESC) )? \s* $//ix;
+  $chunk =~ s/ (?: \s+ (ASC|DESC) )? (?: \s+ NULLS \s+ (FIRST|LAST) )? \s* $//ix;
 
   return (
     $chunk,
     ( $1 and uc($1) eq 'DESC' ) ? 1 : 0,
+    $2 ? uc($2) : undef
   );
 }
 

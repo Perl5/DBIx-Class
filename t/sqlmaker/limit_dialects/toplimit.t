@@ -155,6 +155,17 @@ for my $ord_set (
     exselect_outer => 'ORDER__BY__001, ORDER__BY__002, ORDER__BY__003',
     exselect_inner => 'title AS ORDER__BY__001, bar AS ORDER__BY__002, sensors AS ORDER__BY__003',
   },
+  {
+    order_by => [
+        { -asc => 'title', -nulls => 'first' },
+        { -desc => 'bar', -nulls => 'last' },
+    ],
+    order_inner => 'title ASC NULLS FIRST, bar DESC NULLS LAST',
+    order_outer => 'ORDER__BY__001 DESC NULLS LAST, ORDER__BY__002 ASC NULLS FIRST',
+    order_req => 'ORDER__BY__001 ASC NULLS FIRST, ORDER__BY__002 DESC NULLS LAST',
+    exselect_outer => 'ORDER__BY__001, ORDER__BY__002',
+    exselect_inner => 'title AS ORDER__BY__001, bar AS ORDER__BY__002',
+  },
 ) {
   my $o_sel = $ord_set->{exselect_outer}
     ? ', ' . $ord_set->{exselect_outer}

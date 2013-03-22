@@ -355,10 +355,15 @@ sub _prep_for_skimming_limit {
     for my $ch ($self->_order_by_chunks ($inner_order)) {
       $ch = $ch->[0] if ref $ch eq 'ARRAY';
 
-      ($ch, my $is_desc) = $self->_split_order_chunk($ch);
+      ($ch, my ($is_desc, $nulls_pos) ) = $self->_split_order_chunk($ch);
 
-      # !NOTE! outside chunks come in reverse order ( !$is_desc )
-      push @out_chunks, { ($is_desc ? '-asc' : '-desc') => \$ch };
+      # !NOTE! outside chunks come in reverse order ( !$is_desc, !$nulls_pos )
+      push @out_chunks, {
+        ($is_desc ? '-asc' : '-desc') => \$ch,
+        $nulls_pos ? (
+          -nulls => ($nulls_pos eq 'FIRST' ? 'LAST' : 'FIRST')
+        ) : (),
+      };
     }
 
     $sq_attrs->{order_by_middle} = $self->_order_by (\@out_chunks);
@@ -586,13 +591,16 @@ sub _GenericSubQ {
 
   for my $bit (@order_bits) {
 
-    ($bit, my $is_desc) = $self->_split_order_chunk($bit);
+    ($bit, my ($is_desc, $nulls_pos)) = $self->_split_order_chunk($bit);
 
     push @is_desc, $is_desc;
     push @unqualified_names, $usable_order_colinfo->{$bit}{-colname};
     push @qualified_names, $usable_order_colinfo->{$bit}{-fq_colname};
 
-    push @new_order_by, { ($is_desc ? '-desc' : '-asc') => $usable_order_colinfo->{$bit}{-fq_colname} };
+    push @new_order_by, {
+      ($is_desc ? '-desc' : '-asc') => $usable_order_colinfo->{$bit}{-fq_colname},
+      ($nulls_pos ? ( -nulls => lc $nulls_pos ) : ()),
+    };
   };
 
   my (@where_cond, @skip_colpair_stack);
