@@ -6,6 +6,7 @@ Revision history for DBIx::Class
         - Fix update/delete operations on resultsets *joining* the updated
           table failing on MySQL. Resolves oversights in the fixes for
           RT#81378 and RT#81897
+        - Even more robust behavior of GenericSubQuery limit dialect
         - Stop Sybase ASE storage from generating invalid SQL in subselects
           when a limit without offset is encountered
         - Correctly recognize root source unqualified columns when

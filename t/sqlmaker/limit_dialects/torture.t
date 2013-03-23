@@ -694,11 +694,11 @@ my $tests = {
   },
 
   GenericSubQ => {
-    limit => [
+    ordered_limit => [
       '(
         SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, me.price
               FROM books me
               JOIN owners owner
                 ON owner.id = me.owner
@@ -709,9 +709,28 @@ my $tests = {
         WHERE (
           SELECT COUNT( * )
             FROM books rownum__emulation
-          WHERE rownum__emulation.id < me.id
-        ) < ?
-        ORDER BY me.id
+          WHERE
+            ( me.price IS NULL AND rownum__emulation.price IS NOT NULL )
+              OR
+            (
+              rownum__emulation.price > me.price
+                AND
+              me.price IS NOT NULL
+                AND
+              rownum__emulation.price IS NOT NULL
+            )
+              OR
+            (
+              (
+                me.price = rownum__emulation.price
+                 OR
+                ( me.price IS NULL AND rownum__emulation.price IS NULL )
+              )
+                AND
+              rownum__emulation.id < me.id
+            )
+          ) < ?
+        ORDER BY me.price DESC, me.id ASC
       )',
       [
         @select_bind,
@@ -721,11 +740,11 @@ my $tests = {
         [ { sqlt_datatype => 'integer' } => 4 ],
       ],
     ],
-    limit_offset => [
+    ordered_limit_offset => [
       '(
         SELECT me.id, owner__id, owner__name, bar, baz
           FROM (
-            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
+            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz, me.price
               FROM books me
               JOIN owners owner
                 ON owner.id = me.owner
@@ -736,9 +755,28 @@ my $tests = {
         WHERE (
           SELECT COUNT( * )
             FROM books rownum__emulation
-          WHERE rownum__emulation.id < me.id
-        ) BETWEEN ? AND ?
-        ORDER BY me.id
+          WHERE
+            ( me.price IS NULL AND rownum__emulation.price IS NOT NULL )
+              OR
+            (
+              rownum__emulation.price > me.price
+                AND
+              me.price IS NOT NULL
+                AND
+              rownum__emulation.price IS NOT NULL
+            )
+              OR
+            (
+              (
+                me.price = rownum__emulation.price
+                 OR
+                ( me.price IS NULL AND rownum__emulation.price IS NULL )
+              )
+                AND
+              rownum__emulation.id < me.id
+            )
+          ) BETWEEN ? AND ?
+        ORDER BY me.price DESC, me.id ASC
       )',
       [
         @select_bind,
@@ -755,18 +793,28 @@ my $tests = {
           FROM (
             SELECT me.name, me.id
               FROM (
-                SELECT me.name, me.id  FROM owners me
+                SELECT me.name, me.id
+                  FROM owners me
               ) me
-            WHERE (
-              SELECT COUNT(*)
-                FROM owners rownum__emulation
-              WHERE rownum__emulation.id < me.id
-            ) BETWEEN ? AND ?
-            ORDER BY me.id
+            WHERE
+              (
+                SELECT COUNT(*)
+                  FROM owners rownum__emulation
+                WHERE (
+                  rownum__emulation.name < me.name
+                    OR
+                  (
+                    me.name = rownum__emulation.name
+                      AND
+                    rownum__emulation.id > me.id
+                  )
+                )
+              ) BETWEEN ? AND ?
+            ORDER BY me.name ASC, me.id DESC
           ) me
           LEFT JOIN books books
             ON books.owner = me.id
-        ORDER BY me.id
+        ORDER BY me.name ASC, me.id DESC
       )',
       [
         [ { sqlt_datatype => 'integer' } => 1 ],
@@ -793,7 +841,6 @@ for my $limtype (sort keys %$tests) {
     '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
     group_by => \[ '(me.id / ?), owner.id', [ $attr => 21 ] ],
     having => \[ '?', [ $attr => 31 ] ],
-    ($limtype =~ /GenericSubQ/ ? ( order_by => 'me.id' ) : () ),  # needs a simple-column stable order to be happy
   });
 
   #
@@ -827,7 +874,10 @@ for my $limtype (sort keys %$tests) {
 
   # order + limit, no offset
   $rs = $rs->search(undef, {
-    order_by => [ \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ],
+    order_by => ( $limtype =~ /GenericSubQ/
+      ? [ { -desc => 'price' }, 'me.id', \[ 'owner.name + ?', [ {} => 'bah' ] ] ] # needs a same-table stable order to be happy
+      : [ \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ]
+    ),
   });
 
   if ($tests->{$limtype}{ordered_limit}) {
@@ -860,7 +910,10 @@ for my $limtype (sort keys %$tests) {
     offset => 1,
     columns => 'name',  # only the owner name, still prefetch all the books
     prefetch => 'books',
-    ($limtype =~ /GenericSubQ/ ? ( order_by => 'me.id' ) : () ),  # needs a simple-column stable order to be happy
+    ($limtype !~ /GenericSubQ/ ? () : (
+      # needs a same-table stable order to be happy
+      order_by => [ { -asc => 'me.name' }, \'me.id DESC' ]
+    )),
   });
 
   is_same_sql_bind (

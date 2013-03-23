@@ -78,7 +78,7 @@ is ($unordered_rs->next, undef, 'End of RS not lost');
 {
   my $non_uniquely_ordered_constrained = $schema->resultset('CD')->search(
     { artist => 1 },
-    { order_by => 'me.title', prefetch => 'tracks' },
+    { order_by => [qw( me.genreid me.title me.year )], prefetch => 'tracks' },
   );
 
   isa_ok ($non_uniquely_ordered_constrained->next, 'DBICTest::CD' );

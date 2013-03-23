@@ -196,6 +196,7 @@ sub _adjust_select_args_for_complex_prefetch {
           or
         ! first { $inner_aliastypes->{ordering}{$_} } @multipliers
       ) {
+
         my $unprocessed_order_chunks;
         ($inner_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
           $inner_from, $inner_select, $inner_attrs->{order_by}
@@ -233,6 +234,7 @@ sub _adjust_select_args_for_complex_prefetch {
         # as they will have to be a part of the group_by to colapse
         # things properly
         my $cur_sel = { map { $_ => 1 } @$inner_select };
+
         my @pks = map { "$root_alias.$_" } $root_node->{-rsrc}->primary_columns
           or $self->throw_exception( sprintf
             'Unable to perform complex limited prefetch off %s without declared primary key',
@@ -268,10 +270,10 @@ sub _adjust_select_args_for_complex_prefetch {
           $chunk =~ s/\sASC$//i;
 
           # maybe our own unqualified column
-          my ($ord_bit) = ($lquote and $sep)
-            ? $chunk =~ /^ $lquote ([^$sep]+) $rquote $/x
-            : $chunk
-          ;
+          my $ord_bit = (
+            $lquote and $sep and $chunk =~ /^ $lquote ([^$sep]+) $rquote $/x
+          ) ? $1 : $chunk;
+
           next if (
             $ord_bit
               and
@@ -382,7 +384,6 @@ sub _adjust_select_args_for_complex_prefetch {
   }
 
   if ( $need_outer_group_by and $attrs->{_grouped_by_distinct} ) {
-
     my $unprocessed_order_chunks;
     ($outer_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
       \@outer_from, $outer_select, $outer_attrs->{order_by}
@@ -444,7 +445,7 @@ sub _resolve_aliastypes_from_select_args {
     );
   }
 
-  # get a column to source/alias map (including unqualified ones)
+  # get a column to source/alias map (including unambiguous unqualified ones)
   my $colinfo = $self->_resolve_column_info ($from);
 
   # set up a botched SQLA
@@ -501,7 +502,17 @@ sub _resolve_aliastypes_from_select_args {
   # throw away empty chunks
   $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
 
-  # first loop through all fully qualified columns and get the corresponding
+  # first see if we have any exact matches (qualified or unqualified)
+  for my $type (keys %$to_scan) {
+    for my $piece (@{$to_scan->{$type}}) {
+      if ($colinfo->{$piece} and my $alias = $colinfo->{$piece}{-source_alias}) {
+        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
+        $aliases_by_type->{$type}{$alias}{-seen_columns}{$colinfo->{$piece}{-fq_colname}} = $piece;
+      }
+    }
+  }
+
+  # now loop through all fully qualified columns and get the corresponding
   # alias (should work even if they are in scalarrefs)
   for my $alias (keys %$alias_list) {
     my $al_re = qr/
@@ -530,7 +541,7 @@ sub _resolve_aliastypes_from_select_args {
 
     for my $type (keys %$to_scan) {
       for my $piece (@{$to_scan->{$type}}) {
-        if (my @matches = $piece =~ /$col_re/g) {
+        if ( my @matches = $piece =~ /$col_re/g) {
           my $alias = $colinfo->{$col}{-source_alias};
           $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
           $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
@@ -851,7 +862,8 @@ sub _main_source_order_by_portion_is_stable {
   ;
   return unless @ord_cols;
 
-  my $colinfos = $self->_resolve_column_info($main_rsrc, \@ord_cols);
+  my $colinfos = $self->_resolve_column_info($main_rsrc);
+
   for (0 .. $#ord_cols) {
     if (
       ! $colinfos->{$ord_cols[$_]}
@@ -866,25 +878,43 @@ sub _main_source_order_by_portion_is_stable {
   # we just truncated it above
   return unless @ord_cols;
 
-  # since all we check here are the start of the order_by belonging to the
-  # top level $rsrc, a present identifying set will mean that the resultset
-  # is ordered by its leftmost table in a stable manner
-  #
-  # single source - safely use both qualified and unqualified name
   my $order_portion_ci = { map {
     $colinfos->{$_}{-colname} => $colinfos->{$_},
     $colinfos->{$_}{-fq_colname} => $colinfos->{$_},
   } @ord_cols };
 
-  $where = $where ? $self->_resolve_column_info(
-    $main_rsrc, $self->_extract_fixed_condition_columns($where)
-  ) : {};
+  # since all we check here are the start of the order_by belonging to the
+  # top level $rsrc, a present identifying set will mean that the resultset
+  # is ordered by its leftmost table in a stable manner
+  #
+  # RV of _identifying_column_set contains unqualified names only
+  my $unqualified_idset = $main_rsrc->_identifying_column_set({
+    ( $where ? %{
+      $self->_resolve_column_info(
+        $main_rsrc, $self->_extract_fixed_condition_columns($where)
+      )
+    } : () ),
+    %$order_portion_ci
+  }) or return;
 
-  return (
-    $main_rsrc->_identifying_column_set({ %$where, %$order_portion_ci })
-      ? $order_portion_ci
-      : undef
-  );
+  my $ret_info;
+  my %unqualified_idcols_from_order = map {
+    $order_portion_ci->{$_} ? ( $_ => $order_portion_ci->{$_} ) : ()
+  } @$unqualified_idset;
+
+  # extra optimization - cut the order_by at the end of the identifying set
+  # (just in case the user was stupid and overlooked the obvious)
+  for my $i (0 .. $#ord_cols) {
+    my $col = $ord_cols[$i];
+    my $unqualified_colname = $order_portion_ci->{$col}{-colname};
+    $ret_info->{$col} = { %{$order_portion_ci->{$col}}, -idx_in_order_subset => $i };
+    delete $unqualified_idcols_from_order{$ret_info->{$col}{-colname}};
+
+    # we didn't reach the end of the identifying portion yet
+    return $ret_info unless keys %unqualified_idcols_from_order;
+  }
+
+  die 'How did we get here...';
 }
 
 # returns an arrayref of column names which *definitely* have som
