@@ -3,7 +3,7 @@ use strict;
 
 use Test::More;
 use lib 't/lib';
-use DBICTest ':GlobalLock';
+use DBICTest;
 
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_strictures') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_strictures');
