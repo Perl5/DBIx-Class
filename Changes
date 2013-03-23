@@ -8,6 +8,8 @@ Revision history for DBIx::Class
           RT#81378 and RT#81897
         - Stop Sybase ASE storage from generating invalid SQL in subselects
           when a limit without offset is encountered
+        - Correctly recognize root source unqualified columns when
+          resolving right-side ordered limited prefetch
 
 0.08210 2013-04-04 15:30 (UTC)
     * New Features / Changes

@@ -251,29 +251,50 @@ sub _adjust_select_args_for_complex_prefetch {
         my $sql_maker = $self->sql_maker;
         my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
         my $own_re = qr/ $lquote \Q$root_alias\E $rquote $sep | \b \Q$root_alias\E $sep /x;
-        my @order = @{$attrs->{order_by}};
-        my @order_chunks = map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks (\@order);
-        $self->throw_exception ('Order By parsing failed...') if @order != @order_chunks;
-        for my $i (0 .. $#order) {
-          # skip ourselves, and anything that looks like a literal
-          next if $order_chunks[$i][0] =~ $own_re;
-          next if (ref $order[$i] and ref $order[$i] ne 'HASH');
+        my @order_chunks = map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by});
+        my @new_order = map { \$_ } @order_chunks;
+        my $inner_columns_info = $self->_resolve_column_info($inner_from);
 
-          my $is_desc = $order_chunks[$i][0] =~ s/\sDESC$//i;
-          $order_chunks[$i][0] =~ s/\sASC$//i;
+        # loop through and replace stuff that is not "ours" with a min/max func
+        # everything is a literal at this point, since we are likely properly
+        # quoted and stuff
+        for my $i (0 .. $#new_order) {
+          my $chunk = $order_chunks[$i][0];
 
-          $order[$i] = \[
+          # skip ourselves
+          next if $chunk =~ $own_re;
+
+          my $is_desc = $chunk =~ s/\sDESC$//i;
+          $chunk =~ s/\sASC$//i;
+
+          # maybe our own unqualified column
+          my ($ord_bit) = ($lquote and $sep)
+            ? $chunk =~ /^ $lquote ([^$sep]+) $rquote $/x
+            : $chunk
+          ;
+          next if (
+            $ord_bit
+              and
+            $inner_columns_info->{$ord_bit}
+              and
+            $inner_columns_info->{$ord_bit}{-source_alias} eq $root_alias
+          );
+
+          $new_order[$i] = \[
             sprintf(
               '%s(%s)%s',
               ($is_desc ? 'MAX' : 'MIN'),
-              $order_chunks[$i][0],
+              $chunk,
               ($is_desc ? ' DESC' : ''),
             ),
             @ {$order_chunks[$i]} [ 1 .. $#{$order_chunks[$i]} ]
           ];
         }
 
-        $inner_attrs->{order_by} = \@order;
+        $inner_attrs->{order_by} = \@new_order;
+
+        # do not care about leftovers here - it will be all the functions
+        # we just created
         ($inner_attrs->{group_by}) = $self->_group_over_selection (
           $inner_from, $inner_select, $inner_attrs->{order_by}
         );
@@ -752,15 +773,26 @@ sub _extract_order_criteria {
   my ($self, $order_by, $sql_maker) = @_;
 
   my $parser = sub {
-    my ($sql_maker, $order_by) = @_;
+    my ($sql_maker, $order_by, $orig_quote_chars) = @_;
 
     return scalar $sql_maker->_order_by_chunks ($order_by)
       unless wantarray;
 
+    my ($lq, $rq, $sep) = map { quotemeta($_) } (
+      ($orig_quote_chars ? @$orig_quote_chars : $sql_maker->_quote_chars),
+      $sql_maker->name_sep
+    );
+
     my @chunks;
     for ($sql_maker->_order_by_chunks ($order_by) ) {
-      my $chunk = ref $_ ? $_ : [ $_ ];
+      my $chunk = ref $_ ? [ @$_ ] : [ $_ ];
       $chunk->[0] =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+
+      # order criteria may have come back pre-quoted (literals and whatnot)
+      # this is fragile, but the best we can currently do
+      $chunk->[0] =~ s/^ $lq (.+?) $rq $sep $lq (.+?) $rq $/"$1.$2"/xe
+        or $chunk->[0] =~ s/^ $lq (.+) $rq $/$1/x;
+
       push @chunks, $chunk;
     }
 
@@ -772,8 +804,13 @@ sub _extract_order_criteria {
   }
   else {
     $sql_maker = $self->sql_maker;
+
+    # pass these in to deal with literals coming from
+    # the user or the deep guts of prefetch
+    my $orig_quote_chars = [$sql_maker->_quote_chars];
+
     local $sql_maker->{quote_char};
-    return $parser->($sql_maker, $order_by);
+    return $parser->($sql_maker, $order_by, $orig_quote_chars);
   }
 }
 

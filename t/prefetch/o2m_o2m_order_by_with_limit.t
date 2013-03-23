@@ -13,7 +13,7 @@ my ($ROWS, $OFFSET) = (
    DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
 );
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema(quote_names => 1);
 
 my $artist_rs = $schema->resultset('Artist');
 
@@ -22,7 +22,7 @@ my $filtered_cd_rs = $artist_rs->search_related('cds_unordered',
   {
     prefetch => 'tracks',
     join => 'genre',
-    order_by => [ { -desc => 'genre.name' }, 'tracks.title DESC', { -asc => "me.name" }, { -desc => 'cds_unordered.title' } ], # me. is the artist, *NOT* the cd
+    order_by => [ { -desc => 'genre.name' }, { -desc => \ 'tracks.title' }, { -asc => "me.name" }, { -desc => [qw(year cds_unordered.title)] } ], # me. is the artist, *NOT* the cd
   },
 );
 
@@ -86,33 +86,41 @@ for (
 
   is_same_sql_bind(
     $rs->as_query,
-    "(
-      SELECT  cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track,
-              tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
-        FROM artist me
+    qq{(
+      SELECT  "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track",
+              "tracks"."trackid", "tracks"."cd", "tracks"."position", "tracks"."title", "tracks"."last_updated_on", "tracks"."last_updated_at"
+        FROM "artist" "me"
         JOIN (
-          SELECT cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track
-            FROM artist me
-            JOIN cd cds_unordered
-              ON cds_unordered.artist = me.artistid
-            LEFT JOIN genre genre
-              ON genre.genreid = cds_unordered.genreid
-            LEFT JOIN track tracks
-              ON tracks.cd = cds_unordered.cdid
-          WHERE ( me.rank = ? )
-          GROUP BY cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track
-          ORDER BY MAX(genre.name) DESC, MAX(tracks.title) DESC, MIN(me.name), cds_unordered.title DESC
+          SELECT "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
+            FROM "artist" "me"
+            JOIN cd "cds_unordered"
+              ON "cds_unordered"."artist" = "me"."artistid"
+            LEFT JOIN "genre" "genre"
+              ON "genre"."genreid" = "cds_unordered"."genreid"
+            LEFT JOIN "track" "tracks"
+              ON "tracks"."cd" = "cds_unordered"."cdid"
+          WHERE "me"."rank" = ?
+          GROUP BY "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
+          ORDER BY  MAX("genre"."name") DESC,
+                    MAX( tracks.title ) DESC,
+                    MIN("me"."name"),
+                    "year" DESC,
+                    "cds_unordered"."title" DESC
           LIMIT ?
           $offset_str
-        ) cds_unordered
-          ON cds_unordered.artist = me.artistid
-        LEFT JOIN genre genre
-          ON genre.genreid = cds_unordered.genreid
-        LEFT JOIN track tracks
-          ON tracks.cd = cds_unordered.cdid
-      WHERE ( me.rank = ? )
-      ORDER BY genre.name DESC, tracks.title DESC, me.name ASC, cds_unordered.title DESC
-    )",
+        ) "cds_unordered"
+          ON "cds_unordered"."artist" = "me"."artistid"
+        LEFT JOIN "genre" "genre"
+          ON "genre"."genreid" = "cds_unordered"."genreid"
+        LEFT JOIN "track" "tracks"
+          ON "tracks"."cd" = "cds_unordered"."cdid"
+      WHERE "me"."rank" = ?
+      ORDER BY  "genre"."name" DESC,
+                tracks.title DESC,
+                "me"."name" ASC,
+                "year" DESC,
+                "cds_unordered"."title" DESC
+    )},
     [
       [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
       [ $ROWS => $used_limit ],
