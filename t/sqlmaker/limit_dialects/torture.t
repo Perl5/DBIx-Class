@@ -32,6 +32,67 @@ my @order_bind = (
 my $tests = {
 
   LimitOffset => {
+    limit => [
+      '(
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
+          FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
+        WHERE source != ? AND me.title = ? AND source = ?
+        GROUP BY (me.id / ?), owner.id
+        HAVING ?
+        LIMIT ?
+      )',
+      [
+        @select_bind,
+        @where_bind,
+        @group_bind,
+        @having_bind,
+        [ { sqlt_datatype => 'integer' } => 4 ],
+      ],
+    ],
+    limit_offset => [
+      '(
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
+          FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
+        WHERE source != ? AND me.title = ? AND source = ?
+        GROUP BY (me.id / ?), owner.id
+        HAVING ?
+        LIMIT ?
+        OFFSET ?
+      )',
+      [
+        @select_bind,
+        @where_bind,
+        @group_bind,
+        @having_bind,
+        [ { sqlt_datatype => 'integer' } => 4 ],
+        [ { sqlt_datatype => 'integer' } => 3 ],
+      ],
+    ],
+    ordered_limit => [
+      '(
+        SELECT me.id, owner.id, owner.name, ? * ?, ?
+          FROM books me
+          JOIN owners owner
+            ON owner.id = me.owner
+        WHERE source != ? AND me.title = ? AND source = ?
+        GROUP BY (me.id / ?), owner.id
+        HAVING ?
+        ORDER BY ? / ?, ?
+        LIMIT ?
+      )',
+      [
+        @select_bind,
+        @where_bind,
+        @group_bind,
+        @having_bind,
+        @order_bind,
+        [ { sqlt_datatype => 'integer' } => 4 ],
+      ]
+    ],
     ordered_limit_offset => [
       '(
         SELECT me.id, owner.id, owner.name, ? * ?, ?
@@ -39,7 +100,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
         LIMIT ?
@@ -81,7 +142,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
         LIMIT ?, ?
@@ -122,7 +183,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -161,7 +222,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -203,7 +264,7 @@ my $tests = {
                 JOIN owners owner
                   ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
-              GROUP BY AVG(me.id / ?), MAX(owner.id)
+              GROUP BY (me.id / ?), owner.id
               HAVING ?
             ) me
       ) me
@@ -221,7 +282,7 @@ my $tests = {
                 JOIN owners owner
                   ON owner.id = me.owner
               WHERE source != ? AND me.title = ? AND source = ?
-              GROUP BY AVG(me.id / ?), MAX(owner.id)
+              GROUP BY (me.id / ?), owner.id
               HAVING ?
             ) me
       ) me
@@ -305,7 +366,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
+            GROUP BY (me.id / ?), owner.id
             HAVING ?
             %s
           ) me
@@ -334,7 +395,7 @@ my $tests = {
                     JOIN owners owner
                       ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
-                  GROUP BY AVG(me.id / ?), MAX(owner.id)
+                  GROUP BY (me.id / ?), owner.id
                   HAVING ?
                 ) me
             ) me
@@ -370,7 +431,7 @@ my $tests = {
                     JOIN owners owner
                       ON owner.id = me.owner
                   WHERE source != ? AND me.title = ? AND source = ?
-                  GROUP BY AVG(me.id / ?), MAX(owner.id)
+                  GROUP BY (me.id / ?), owner.id
                   HAVING ?
                   ORDER BY ? / ?, ?
                 ) me
@@ -420,7 +481,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         FETCH FIRST 4 ROWS ONLY
       )',
@@ -440,7 +501,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
+            GROUP BY (me.id / ?), owner.id
             HAVING ?
             ORDER BY me.id
             FETCH FIRST 7 ROWS ONLY
@@ -462,7 +523,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
         FETCH FIRST 4 ROWS ONLY
@@ -486,7 +547,7 @@ my $tests = {
                   JOIN owners owner
                     ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
-                GROUP BY AVG(me.id / ?), MAX(owner.id)
+                GROUP BY (me.id / ?), owner.id
                 HAVING ?
                 ORDER BY ? / ?, ?
                 FETCH FIRST 7 ROWS ONLY
@@ -534,7 +595,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
       )',
       [
@@ -553,7 +614,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
+            GROUP BY (me.id / ?), owner.id
             HAVING ?
             ORDER BY me.id
           ) me
@@ -573,7 +634,7 @@ my $tests = {
           JOIN owners owner
             ON owner.id = me.owner
         WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
+        GROUP BY (me.id / ?), owner.id
         HAVING ?
         ORDER BY ? / ?, ?
       )',
@@ -596,7 +657,7 @@ my $tests = {
                   JOIN owners owner
                     ON owner.id = me.owner
                 WHERE source != ? AND me.title = ? AND source = ?
-                GROUP BY AVG(me.id / ?), MAX(owner.id)
+                GROUP BY (me.id / ?), owner.id
                 HAVING ?
                 ORDER BY ? / ?, ?
               ) me
@@ -642,7 +703,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
+            GROUP BY (me.id / ?), owner.id
             HAVING ?
           ) me
         WHERE (
@@ -669,7 +730,7 @@ my $tests = {
               JOIN owners owner
                 ON owner.id = me.owner
             WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
+            GROUP BY (me.id / ?), owner.id
             HAVING ?
           ) me
         WHERE (
@@ -722,13 +783,15 @@ for my $limtype (sort keys %$tests) {
   delete $schema->storage->_sql_maker->{_cached_syntax};
   $schema->storage->_sql_maker->limit_dialect ($limtype);
 
+  my $can_run = ($limtype eq $native_limit_dialect or $limtype eq 'GenericSubQ');
+
   # chained search is necessary to exercise the recursive {where} parser
   my $rs = $schema->resultset('BooksInLibrary')->search({ 'me.title' => { '=' => 'kama sutra' } })->search({ source => { '!=', 'Study' } }, {
     columns => [ { identifier => 'me.id' }, 'owner.id', 'owner.name' ], # people actually do that. BLEH!!! :)
     join => 'owner',  # single-rel manual prefetch
     rows => 4,
     '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
-    group_by => \[ 'AVG(me.id / ?), MAX(owner.id)', [ $attr => 21 ] ],
+    group_by => \[ '(me.id / ?), owner.id', [ $attr => 21 ] ],
     having => \[ '?', [ $attr => 31 ] ],
     ($limtype =~ /GenericSubQ/ ? ( order_by => 'me.id' ) : () ),  # needs a simple-column stable order to be happy
   });
@@ -738,36 +801,58 @@ for my $limtype (sort keys %$tests) {
   #
 
   # only limit, no offset, no order
-  is_same_sql_bind(
-    $rs->as_query,
-    @{$tests->{$limtype}{limit}},
-    "$limtype: Unordered limit with select/group/having",
-  ) if $tests->{$limtype}{limit};
+  if ($tests->{$limtype}{limit}) {
+    is_same_sql_bind(
+      $rs->as_query,
+      @{$tests->{$limtype}{limit}},
+      "$limtype: Unordered limit with select/group/having",
+    );
+
+    lives_ok { $rs->all } "Grouped limit runs under $limtype"
+      if $can_run;
+  }
 
   # limit + offset, no order
-  is_same_sql_bind(
-    $rs->search({}, { offset => 3 })->as_query,
-    @{$tests->{$limtype}{limit_offset}},
-    "$limtype: Unordered limit+offset with select/group/having",
-  ) if $tests->{$limtype}{limit_offset};
+  if ($tests->{$limtype}{limit_offset}) {
+    my $subrs = $rs->search({}, { offset => 3 });
+    is_same_sql_bind(
+      $subrs->as_query,
+      @{$tests->{$limtype}{limit_offset}},
+      "$limtype: Unordered limit+offset with select/group/having",
+    );
+
+    lives_ok { $subrs->all } "Grouped limit+offset runs under $limtype"
+      if $can_run;
+  }
 
   # order + limit, no offset
   $rs = $rs->search(undef, {
     order_by => [ \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ],
   });
 
-  is_same_sql_bind(
-    $rs->as_query,
-    @{$tests->{$limtype}{ordered_limit}},
-    "$limtype: Ordered limit with select/group/having",
-  ) if $tests->{$limtype}{ordered_limit};
+  if ($tests->{$limtype}{ordered_limit}) {
+    is_same_sql_bind(
+      $rs->as_query,
+      @{$tests->{$limtype}{ordered_limit}},
+      "$limtype: Ordered limit with select/group/having",
+    );
+
+    lives_ok { $rs->all } "Grouped ordered limit runs under $limtype"
+      if $can_run;
+  }
 
   # order + limit + offset
-  is_same_sql_bind(
-    $rs->search({}, { offset => 3 })->as_query,
-    @{$tests->{$limtype}{ordered_limit_offset}},
-    "$limtype: Ordered limit+offset with select/group/having",
-  ) if $tests->{$limtype}{ordered_limit_offset};
+  if ($tests->{$limtype}{ordered_limit_offset}) {
+    my $subrs = $rs->search({}, { offset => 3 });
+    is_same_sql_bind(
+      $subrs->as_query,
+      @{$tests->{$limtype}{ordered_limit_offset}},
+      "$limtype: Ordered limit+offset with select/group/having",
+    );
+
+    lives_ok { $subrs->all } "Grouped ordered limit+offset runs under $limtype"
+      if $can_run;
+  }
 
   # complex prefetch on partial-fetch root with limit
   my $pref_rs = $schema->resultset('Owners')->search({}, {
@@ -784,10 +869,9 @@ for my $limtype (sort keys %$tests) {
     "$limtype: Prefetch with limit+offset",
   ) if $tests->{$limtype}{limit_offset_prefetch};
 
-  # we can actually run the query
-  if ($limtype eq $native_limit_dialect or $limtype eq 'GenericSubQ') {
-    lives_ok { is ($pref_rs->all, 1, 'Expected count of objects on limtied prefetch') }
-      "Complex limited prefetch works with supported limit $limtype"
+  if ($can_run) {
+    lives_ok { is ($pref_rs->all, 1, 'Expected count of objects on limited prefetch') }
+      "Complex limited prefetch runs under $limtype"
   }
 }
 
