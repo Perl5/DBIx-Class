@@ -137,6 +137,11 @@ list below is sorted by "fastest response time":
 
 =head1 SYNOPSIS
 
+For the very impatient: L<DBIx::Class::Manual::QuickStart>
+
+This code in the next step can be generated automatically from an existing
+database, see L<dbicdump> from the distribution C<DBIx-Class-Schema-Loader>.
+
 =head2 Schema classes preparation
 
 Create a schema class called F<MyApp/Schema.pm>:

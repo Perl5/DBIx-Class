@@ -6,7 +6,8 @@ CREATE TABLE artist (
 CREATE TABLE cd (
   cdid INTEGER PRIMARY KEY,
   artist INTEGER NOT NULL REFERENCES artist(artistid),
-  title TEXT NOT NULL
+  title TEXT NOT NULL,
+  year DATETIME
 );
 
 CREATE TABLE track (
