@@ -135,38 +135,6 @@ list below is sorted by "fastest response time":
 
 =back
 
-=head1 HOW TO CONTRIBUTE
-
-Contributions are always welcome, in all usable forms (we especially
-welcome documentation improvements). The delivery methods include git-
-or unified-diff formatted patches, GitHub pull requests, or plain bug
-reports either via RT or the Mailing list. Contributors are generally
-granted full access to the official repository after their first patch
-passes successful review.
-
-=for comment
-FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
-
-This project is maintained in a git repository. The code and related tools are
-accessible at the following locations:
-
-=over
-
-=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
-
-=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
-
-=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
-
-=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
-
-=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
-
-=for html
-<br>&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
-
-=back
-
 =head1 SYNOPSIS
 
 Create a schema class called MyApp/Schema.pm:
@@ -300,6 +268,38 @@ if they're reported and doing so doesn't cost the codebase anything.
 The test suite is quite substantial, and several developer releases
 are generally made to CPAN before the branch for the next release is
 merged back to trunk for a major release.
+
+=head1 HOW TO CONTRIBUTE
+
+Contributions are always welcome, in all usable forms (we especially
+welcome documentation improvements). The delivery methods include git-
+or unified-diff formatted patches, GitHub pull requests, or plain bug
+reports either via RT or the Mailing list. Contributors are generally
+granted full access to the official repository after their first patch
+passes successful review.
+
+=for comment
+FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
+
+This project is maintained in a git repository. The code and related tools are
+accessible at the following locations:
+
+=over
+
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+
+=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
+
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
+
+=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
+
+=for html
+&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+
+=back
 
 =head1 AUTHOR
 
