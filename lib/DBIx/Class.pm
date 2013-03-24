@@ -137,7 +137,7 @@ list below is sorted by "fastest response time":
 
 =head1 SYNOPSIS
 
-Create a schema class called MyApp/Schema.pm:
+Create a schema class called F<MyApp/Schema.pm>:
 
   package MyApp::Schema;
   use base qw/DBIx::Class::Schema/;
@@ -147,7 +147,7 @@ Create a schema class called MyApp/Schema.pm:
   1;
 
 Create a result class to represent artists, who have many CDs, in
-MyApp/Schema/Result/Artist.pm:
+F<MyApp/Schema/Result/Artist.pm>:
 
 See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
@@ -162,7 +162,7 @@ See L<DBIx::Class::ResultSource> for docs on defining result classes.
   1;
 
 A result class to represent a CD, which belongs to an artist, in
-MyApp/Schema/Result/CD.pm:
+F<MyApp/Schema/Result/CD.pm>:
 
   package MyApp::Schema::Result::CD;
   use base qw/DBIx::Class::Core/;
@@ -243,7 +243,8 @@ that allows abstract encapsulation of database operations. It aims to make
 representing queries in your code as perl-ish as possible while still
 providing access to as many of the capabilities of the database as possible,
 including retrieving related records from multiple tables in a single query,
-JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY, ORDER BY and HAVING support.
+C<JOIN>, C<LEFT JOIN>, C<COUNT>, C<DISTINCT>, C<GROUP BY>, C<ORDER BY> and
+C<HAVING> support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
@@ -256,8 +257,8 @@ and thread-safe out of the box (although
 L<your DBD may not be|DBI/Threads and Thread Safety>).
 
 This project is still under rapid development, so large new features may be
-marked EXPERIMENTAL - such APIs are still usable but may have edge bugs.
-Failing test cases are *always* welcome and point releases are put out rapidly
+marked B<experimental> - such APIs are still usable but may have edge bugs.
+Failing test cases are I<always> welcome and point releases are put out rapidly
 as bugs are found and fixed.
 
 We do our best to maintain full backwards compatibility for published
