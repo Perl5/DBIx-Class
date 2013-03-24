@@ -26,11 +26,15 @@ DBIx::Class::Manual::DocMap - What documentation do we have?
 
 =head1 Some essential reference documentation
 
+The first two list items are the most important.
+
 =over 4
 
-=item L<DBIx::Class::$resultclass (normally based on DBIx::Class::Core)|DBIx::Class::Manual::ResultClass> - Representing a single result (row) from a DB query
+=item L<DBIx::Class::ResultSet/search> - Selecting and manipulating sets.
 
-=item L<DBIx::Class::ResultSet> - Selecting and manipulating sets.
+=item L<DBIx::Class::$resultclass (normally based on DBIx::Class::Core)|DBIx::Class::Manual::ResultClass>
+- Representing a single result (row) from a DB query. The methods inherited from
+L<DBIx::Class::Row> and L<DBIx::Class::Relationship::Base> are used most often.
 
 =item L<DBIx::Class::ResultSetColumn> - Perform operations on a single column of a ResultSet.
 
