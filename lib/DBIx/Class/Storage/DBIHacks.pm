@@ -266,8 +266,7 @@ sub _adjust_select_args_for_complex_prefetch {
           # skip ourselves
           next if $chunk =~ $own_re;
 
-          my $is_desc = $chunk =~ s/\sDESC$//i;
-          $chunk =~ s/\sASC$//i;
+          ($chunk, my $is_desc) = $sql_maker->_split_order_chunk($chunk);
 
           # maybe our own unqualified column
           my $ord_bit = (
@@ -797,7 +796,7 @@ sub _extract_order_criteria {
     my @chunks;
     for ($sql_maker->_order_by_chunks ($order_by) ) {
       my $chunk = ref $_ ? [ @$_ ] : [ $_ ];
-      $chunk->[0] =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      ($chunk->[0]) = $sql_maker->_split_order_chunk($chunk->[0]);
 
       # order criteria may have come back pre-quoted (literals and whatnot)
       # this is fragile, but the best we can currently do

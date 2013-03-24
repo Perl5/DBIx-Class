@@ -358,12 +358,10 @@ sub _prep_for_skimming_limit {
     for my $ch ($self->_order_by_chunks ($inner_order)) {
       $ch = $ch->[0] if ref $ch eq 'ARRAY';
 
-      my $is_desc = (
-        $ch =~ s/\s+ ( ASC|DESC ) \s* $//ix
-          and
-        uc($1) eq 'DESC'
-      ) ? 1 : 0;
-      push @out_chunks, \join (' ', $ch, $is_desc ? 'ASC' : 'DESC' );
+      ($ch, my $is_desc) = $self->_split_order_chunk($ch);
+
+      # !NOTE! outside chunks come in reverse order ( !$is_desc )
+      push @out_chunks, { ($is_desc ? '-asc' : '-desc') => \$ch };
     }
 
     $sq_attrs->{order_by_middle} = $self->_order_by (\@out_chunks);
@@ -583,11 +581,7 @@ sub _GenericSubQ {
 
   for my $bit (@order_bits) {
 
-    my $is_desc = (
-      $bit =~ s/\s+ ( ASC|DESC ) \s* $//ix
-        and
-      uc($1) eq 'DESC'
-    ) ? 1 : 0;
+    ($bit, my $is_desc) = $self->_split_order_chunk($bit);
 
     push @is_desc, $is_desc;
     push @unqualified_names, $usable_order_ci->{$bit}{-colname};
@@ -805,7 +799,7 @@ sub _subqueried_limit_attrs {
   for my $chunk ($self->_order_by_chunks ($rs_attrs->{order_by})) {
     # order with bind
     $chunk = $chunk->[0] if (ref $chunk) eq 'ARRAY';
-    $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+    ($chunk) = $self->_split_order_chunk($chunk);
 
     next if $in_sel_index->{$chunk};
 
