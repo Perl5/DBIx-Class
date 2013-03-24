@@ -358,9 +358,12 @@ sub _prep_for_skimming_limit {
     for my $ch ($self->_order_by_chunks ($inner_order)) {
       $ch = $ch->[0] if ref $ch eq 'ARRAY';
 
-      $ch =~ s/\s+ ( ASC|DESC ) \s* $//ix;
-      my $dir = uc ($1||'ASC');
-      push @out_chunks, \join (' ', $ch, $dir eq 'ASC' ? 'DESC' : 'ASC' );
+      my $is_desc = (
+        $ch =~ s/\s+ ( ASC|DESC ) \s* $//ix
+          and
+        uc($1) eq 'DESC'
+      ) ? 1 : 0;
+      push @out_chunks, \join (' ', $ch, $is_desc ? 'ASC' : 'DESC' );
     }
 
     $sq_attrs->{order_by_middle} = $self->_order_by (\@out_chunks);
@@ -569,8 +572,9 @@ sub _GenericSubQ {
   . 'unique-column order criteria.'
   );
 
-  $first_order_by =~ s/\s+ ( ASC|DESC ) \s* $//ix;
-  my $direction = lc ($1 || 'asc');
+  my $direction = (
+    $first_order_by =~ s/\s+ ( ASC|DESC ) \s* $//ix
+  ) ? lc($1) : 'asc';
 
   my ($first_ord_alias, $first_ord_col) = $first_order_by =~ /^ (?: ([^\.]+) \. )? ([^\.]+) $/x;
 

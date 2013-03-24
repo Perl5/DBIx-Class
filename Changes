@@ -4,6 +4,10 @@ Revision history for DBIx::Class
         - Officially deprecate the 'cols' and 'include_columns' resultset
           attributes
 
+    * Fixes
+        - Audit and correct potential bugs associated with braindead reuse
+          of $1 on unsuccessful matches
+
 0.08209 2013-03-01 12:56 (UTC)
     * New Features / Changes
         - Debugging aid - warn on invalid result objects created by what

@@ -104,7 +104,7 @@ sub _dbh_get_autoinc_seq {
     ));
   }
 
-  return $1;
+  return $1;  # exception thrown unless match is made above
 }
 
 # custom method for fetching column default, since column_info has a

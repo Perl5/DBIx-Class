@@ -36,7 +36,7 @@ sub has_many {
       $f_key = $cond;
       $guess = "caller specified foreign key '$f_key'";
     } else {
-      $class =~ /([^\:]+)$/;
+      $class =~ /([^\:]+)$/;  # match is safe - $class can't be ''
       $f_key = lc $1; # go ahead and guess; best we can do
       $guess = "using our class name '$class' as foreign key";
     }
