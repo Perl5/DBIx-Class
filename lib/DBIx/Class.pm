@@ -137,6 +137,8 @@ list below is sorted by "fastest response time":
 
 =head1 SYNOPSIS
 
+=head2 Schema classes preparation
+
 Create a schema class called F<MyApp/Schema.pm>:
 
   package MyApp::Schema;
@@ -174,6 +176,8 @@ F<MyApp/Schema/Result/CD.pm>:
   __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
 
   1;
+
+=head2 API usage
 
 Then you can use these classes in your application's code:
 
