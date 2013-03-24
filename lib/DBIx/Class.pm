@@ -95,6 +95,10 @@ sub _attr_cache {
 
 1;
 
+__END__
+
+=encoding UTF-8
+
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
@@ -366,6 +370,8 @@ dariusj: Darius Jokilehto <dariusjokilehto@yahoo.co.uk>
 
 davewood: David Schmidt <davewood@gmx.at>
 
+daxim: Lars Dɪᴇᴄᴋᴏᴡ 迪拉斯 <daxim@cpan.org>
+
 debolaz: Anders Nor Berle <berle@cpan.org>
 
 dew: Dan Thomas <dan@godders.org>
@@ -565,5 +571,3 @@ as listed above.
 
 This library is free software and may be distributed under the same terms
 as perl itself.
-
-=cut
