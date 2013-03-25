@@ -173,7 +173,7 @@ is_deeply( \@cd, [qw/cdid artist title year genreid single_track/], 'column orde
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
-$cd = $schema->resultset("CD")->search(undef, { include_columns => [ { name => 'artist.name' } ], join => [ 'artist' ] })->find(1);
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ { name => 'artist.name' } ], join => [ 'artist' ] })->find(1);
 
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
@@ -299,7 +299,9 @@ $or_rs->reset;
 $rel_rs->reset;
 
 my $tag = $schema->resultset('Tag')->search(
-               [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
+  [ { 'me.tag' => 'Blue' } ],
+  { columns => 'tagid' }
+)->next;
 
 ok($tag->has_column_loaded('tagid'), 'Has tagid loaded');
 ok(!$tag->has_column_loaded('tag'), 'Has not tag loaded');
