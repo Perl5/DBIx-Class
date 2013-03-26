@@ -621,14 +621,12 @@ sub _resolve_ident_sources {
   my ($self, $ident) = @_;
 
   my $alias2source = {};
-  my $rs_alias;
 
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
   if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
     # this is compat mode for insert/update/delete which do not deal with aliases
     $alias2source->{me} = $ident;
-    $rs_alias = 'me';
   }
   elsif (ref $ident eq 'ARRAY') {
 
@@ -636,7 +634,6 @@ sub _resolve_ident_sources {
       my $tabinfo;
       if (ref $_ eq 'HASH') {
         $tabinfo = $_;
-        $rs_alias = $tabinfo->{-alias};
       }
       if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
         $tabinfo = $_->[0];
@@ -647,7 +644,7 @@ sub _resolve_ident_sources {
     }
   }
 
-  return ($alias2source, $rs_alias);
+  return $alias2source;
 }
 
 # Takes $ident, \@column_names
@@ -659,7 +656,7 @@ sub _resolve_ident_sources {
 # for all sources
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
-  my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
+  my $alias2src = $self->_resolve_ident_sources($ident);
 
   my (%seen_cols, @auto_colnames);
 

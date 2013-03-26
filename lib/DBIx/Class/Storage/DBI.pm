@@ -2296,15 +2296,18 @@ sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
   my $sql_maker = $self->sql_maker;
-  my ($alias2source, $rs_alias) = $self->_resolve_ident_sources ($ident);
+  my $alias2source = $self->_resolve_ident_sources ($ident);
 
   $attrs = {
     %$attrs,
     select => $select,
     from => $ident,
     where => $where,
-    $rs_alias && $alias2source->{$rs_alias}
-      ? ( _rsroot_rsrc => $alias2source->{$rs_alias} )
+
+    # limit dialects use this stuff
+    # yes, some CDBICompat crap does not supply an {alias} >.<
+    ( $attrs->{alias} and $alias2source->{$attrs->{alias}} )
+      ? ( _rsroot_rsrc => $alias2source->{$attrs->{alias}} )
       : ()
     ,
   };
@@ -2344,7 +2347,7 @@ sub _select_args {
       $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
     }
   ) {
-    $complex_prefetch = ! defined first { $_ ne $rs_alias } keys %{ $grp_aliases->{grouping} || {} };
+    $complex_prefetch = ! defined first { $_ ne $attrs->{alias} } keys %{ $grp_aliases->{grouping} || {} };
   }
 
   $complex_prefetch ||= ( $attrs->{rows} && $attrs->{collapse} );
