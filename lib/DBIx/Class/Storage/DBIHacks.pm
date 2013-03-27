@@ -146,7 +146,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # We can not just fetch everything because a potential has_many restricting
   # join collapse *will not work* on heavy data types.
   my $connecting_aliastypes = $self->_resolve_aliastypes_from_select_args(
-    [grep { ref($_) eq 'ARRAY' or ref($_) eq 'HASH' } @{$from}[$root_node_offset .. $#$from]],
+    $from,
     [],
     $where,
     $inner_attrs
@@ -186,7 +186,8 @@ sub _adjust_select_args_for_complex_prefetch {
     if (
       $inner_aliastypes->{multiplying}
         and
-      !$inner_aliastypes->{grouping}  # if there are groups - assume user knows wtf they are up to
+      # if there are user-supplied groups - assume user knows wtf they are up to
+      ( ! $inner_aliastypes->{grouping} or $inner_attrs->{_grouped_by_distinct} )
         and
       my @multipliers = grep { $_ ne $root_alias } keys %{$inner_aliastypes->{multiplying}}
     ) {
@@ -200,9 +201,11 @@ sub _adjust_select_args_for_complex_prefetch {
       ) {
 
         my $unprocessed_order_chunks;
-        ($inner_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
-          $inner_from, $inner_select, $inner_attrs->{order_by}
-        );
+        ($inner_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection ({
+          %$inner_attrs,
+          from => $inner_from,
+          select => $inner_select,
+        });
 
         $self->throw_exception (
           'A required group_by clause could not be constructed automatically due to a complex '
@@ -220,17 +223,6 @@ sub _adjust_select_args_for_complex_prefetch {
         # of the foreign order and convert them to MIN(X) for ASC or MAX(X)
         # for DESC, and group_by the root columns. The end result should be
         # exactly what we expect
-
-        # FIXME REMOVE LATER - (just a sanity check)
-        if (defined ( my $impostor = first
-          { $_ ne $root_alias }
-          keys %{ $inner_aliastypes->{selecting} }
-        ) ) {
-          $self->throw_exception(sprintf
-            'Unexpected inner selection during complex prefetch (%s)...',
-            join ', ', keys %{ $inner_aliastypes->{joining}{$impostor}{-seen_columns} || {} }
-          );
-        }
 
         # supplement the main selection with pks if not already there,
         # as they will have to be a part of the group_by to colapse
@@ -298,9 +290,11 @@ sub _adjust_select_args_for_complex_prefetch {
 
         # do not care about leftovers here - it will be all the functions
         # we just created
-        ($inner_attrs->{group_by}) = $self->_group_over_selection (
-          $inner_from, $inner_select, $inner_attrs->{order_by}
-        );
+        ($inner_attrs->{group_by}) = $self->_group_over_selection ({
+          %$inner_attrs,
+          from => $inner_from,
+          select => $inner_select,
+        });
       }
     }
 
@@ -334,7 +328,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # we may not be the head
   if ($root_node_offset) {
-    # first generate the outer_from, up to the substitution point
+    # first generate the outer_from, up and including the substitution point
     @outer_from = splice @$from, 0, $root_node_offset;
 
     push @outer_from, [
@@ -354,7 +348,7 @@ sub _adjust_select_args_for_complex_prefetch {
     };
   }
 
-  shift @$from; # it's replaced in @outer_from already
+  shift @$from; # what we just replaced above
 
   # scan the *remaining* from spec against different attributes, and see which joins are needed
   # in what role
@@ -386,9 +380,11 @@ sub _adjust_select_args_for_complex_prefetch {
 
   if ( $need_outer_group_by and $attrs->{_grouped_by_distinct} ) {
     my $unprocessed_order_chunks;
-    ($outer_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection (
-      \@outer_from, $outer_select, $outer_attrs->{order_by}
-    );
+    ($outer_attrs->{group_by}, $unprocessed_order_chunks) = $self->_group_over_selection ({
+      %$outer_attrs,
+      from => \@outer_from,
+      select => $outer_select,
+    });
 
     $self->throw_exception (
       'A required group_by clause could not be constructed automatically due to a complex '
@@ -571,43 +567,49 @@ sub _resolve_aliastypes_from_select_args {
 
 # This is the engine behind { distinct => 1 }
 sub _group_over_selection {
-  my ($self, $from, $select, $order_by) = @_;
+  my ($self, $attrs) = @_;
 
-  my $rs_column_list = $self->_resolve_column_info ($from);
+  my $colinfos = $self->_resolve_column_info ($attrs->{from});
 
   my (@group_by, %group_index);
 
   # the logic is: if it is a { func => val } we assume an aggregate,
   # otherwise if \'...' or \[...] we assume the user knows what is
   # going on thus group over it
-  for (@$select) {
+  for (@{$attrs->{select}}) {
     if (! ref($_) or ref ($_) ne 'HASH' ) {
       push @group_by, $_;
       $group_index{$_}++;
-      if ($rs_column_list->{$_} and $_ !~ /\./ ) {
+      if ($colinfos->{$_} and $_ !~ /\./ ) {
         # add a fully qualified version as well
-        $group_index{"$rs_column_list->{$_}{-source_alias}.$_"}++;
+        $group_index{"$colinfos->{$_}{-source_alias}.$_"}++;
       }
     }
   }
 
-  # add any order_by parts that are not already present in the group_by
+  # add any order_by parts *from the main source* that are not already
+  # present in the group_by
   # we need to be careful not to add any named functions/aggregates
   # i.e. order_by => [ ... { count => 'foo' } ... ]
   my @leftovers;
-  for ($self->_extract_order_criteria($order_by)) {
+  for ($self->_extract_order_criteria($attrs->{order_by})) {
     # only consider real columns (for functions the user got to do an explicit group_by)
     if (@$_ != 1) {
       push @leftovers, $_;
       next;
     }
     my $chunk = $_->[0];
-    my $colinfo = $rs_column_list->{$chunk} or do {
+
+    if (
+      !$colinfos->{$chunk}
+        or
+      $colinfos->{$chunk}{-source_alias} ne $attrs->{alias}
+    ) {
       push @leftovers, $_;
       next;
-    };
+    }
 
-    $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
+    $chunk = $colinfos->{$chunk}{-fq_colname};
     push @group_by, $chunk unless $group_index{$chunk}++;
   }
 

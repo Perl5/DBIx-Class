@@ -2328,36 +2328,50 @@ sub _select_args {
     $attrs->{rows} = $sql_maker->__max_int;
   }
 
-  my ($complex_prefetch, @limit);
-
   # see if we will need to tear the prefetch apart to satisfy group_by == select
-  # this is *extremely tricky* to get right
+  # this is *extremely tricky* to get right, I am still not sure I did
   #
-  # Follows heavy but necessary analyzis of the group_by - if it refers to any
-  # sort of non-root column assume the user knows what they are doing and do
-  # not try to be clever
-  if (
-    $attrs->{_related_results_construction}
+  my ($prefetch_needs_subquery, @limit_args);
+
+  if ( $attrs->{_grouped_by_distinct} and $attrs->{collapse} ) {
+    # we already know there is a valid group_by and we know it is intended
+    # to be based *only* on the main result columns
+    # short circuit the group_by parsing below
+    $prefetch_needs_subquery = 1;
+  }
+  elsif (
+    # The rationale is that even if we do *not* have collapse, we still
+    # need to wrap the core grouped select/group_by in a subquery
+    # so that databases that care about group_by/select equivalence
+    # are happy (this includes MySQL in strict_mode)
+    # If any of the other joined tables are referenced in the group_by
+    # however - the user is on their own
+    ( $prefetch_needs_subquery or $attrs->{_related_results_construction} )
       and
     $attrs->{group_by}
       and
     @{$attrs->{group_by}}
       and
-    my $grp_aliases = try {
+    my $grp_aliases = try { # try{} because $attrs->{from} may be unreadable
       $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
     }
   ) {
-    $complex_prefetch = ! defined first { $_ ne $attrs->{alias} } keys %{ $grp_aliases->{grouping} || {} };
+    # no aliases other than our own in group_by
+    # if there are - do not allow subquery even if limit is present
+    $prefetch_needs_subquery = ! scalar grep { $_ ne $attrs->{alias} } keys %{ $grp_aliases->{grouping} || {} };
+  }
+  elsif ( $attrs->{rows} && $attrs->{collapse} ) {
+    # active collapse with a limit - that one is a no-brainer unless
+    # overruled by a group_by above
+    $prefetch_needs_subquery = 1;
   }
 
-  $complex_prefetch ||= ( $attrs->{rows} && $attrs->{collapse} );
-
-  if ($complex_prefetch) {
+  if ($prefetch_needs_subquery) {
     ($ident, $select, $where, $attrs) =
       $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
   elsif (! $attrs->{software_limit} ) {
-    push @limit, (
+    push @limit_args, (
       $attrs->{rows} || (),
       $attrs->{offset} || (),
     );
@@ -2365,7 +2379,7 @@ sub _select_args {
 
   # try to simplify the joinmap further (prune unreferenced type-single joins)
   if (
-    ! $complex_prefetch
+    ! $prefetch_needs_subquery  # already pruned
       and
     ref $ident
       and
@@ -2386,7 +2400,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ('select', $ident, $select, $where, $attrs, @limit);
+  return ('select', $ident, $select, $where, $attrs, @limit_args);
 }
 
 # Returns a counting SELECT for a simple count

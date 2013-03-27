@@ -3480,11 +3480,7 @@ sub _resolved_attrs {
       $attrs->{_grouped_by_distinct} = 1;
       # distinct affects only the main selection part, not what prefetch may
       # add below.
-      $attrs->{group_by} = $source->storage->_group_over_selection (
-        $attrs->{from},
-        $attrs->{select},
-        $attrs->{order_by},
-      );
+      $attrs->{group_by} = $source->storage->_group_over_selection($attrs);
     }
   }
 

@@ -9,6 +9,7 @@ use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
+my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
 
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
@@ -398,28 +399,118 @@ for ($cd_rs->all) {
     );
 }
 
+# make sure distinct applies to the CD part only, not to the order_by part
 {
-    my $rs = $schema->resultset('CD')->search({},
-        {
-           '+select' => [{ count => 'tags.tag' }],
-           '+as' => ['test_count'],
-           prefetch => ['tags'],
-           distinct => 1,
-           order_by => {'-asc' => 'tags.tag'},
-           rows => 1
-        }
+  my $rs = $schema->resultset('CD')->search({}, {
+    columns => [qw( cdid title )],
+    '+select' => [{ count => 'tags.tag' }],
+    '+as' => ['test_count'],
+    prefetch => ['tags'],
+    distinct => 1,
+    order_by => {'-desc' => 'tags.tag'},
+    offset => 1,
+    rows => 3,
+  });
+
+  is_same_sql_bind($rs->as_query,
+    '(
+      SELECT me.cdid, me.title, me.test_count,
+             tags.tagid, tags.cd, tags.tag
+        FROM (
+          SELECT  me.cdid, me.title,
+                  COUNT( tags.tag ) AS test_count
+            FROM cd me
+            LEFT JOIN tags tags
+              ON tags.cd = me.cdid
+          GROUP BY me.cdid, me.title
+          ORDER BY MAX( tags.tag ) DESC
+          LIMIT ?
+          OFFSET ?
+        ) me
+        LEFT JOIN tags tags
+          ON tags.cd = me.cdid
+      ORDER BY tags.tag DESC
+    )',
+    [ [$ROWS => 3], [$OFFSET => 1] ],
+    'Expected limited prefetch with distinct SQL',
+  );
+
+  my $expected_hri = [
+    { cdid => 4, test_count => 2, title => "Generic Manufactured Singles", tags => [
+      { cd => 4, tag => "Shiny", tagid => 9 },
+      { cd => 4, tag => "Cheesy", tagid => 6 },
+    ]},
+    {
+      cdid => 5, test_count => 2, title => "Come Be Depressed With Us", tags => [
+      { cd => 5, tag => "Cheesy", tagid => 7 },
+      { cd => 5, tag => "Blue", tagid => 4 },
+    ]},
+    {
+      cdid => 1, test_count => 1, title => "Spoonful of bees", tags => [
+      { cd => 1, tag => "Blue", tagid => 1 },
+    ]},
+  ];
+
+  is_deeply (
+    $rs->all_hri,
+    $expected_hri,
+    'HRI dump of limited prefetch with distinct as expected'
+  );
+
+  # pre-multiplied main source also should work
+  $rs = $schema->resultset('CD')->search_related('artist')->search_related('cds', {}, {
+    columns => [qw( cdid title )],
+    '+select' => [{ count => 'tags.tag' }],
+    '+as' => ['test_count'],
+    prefetch => ['tags'],
+    distinct => 1,
+    order_by => {'-desc' => 'tags.tag'},
+    offset => 1,
+    rows => 3,
+  });
+
+  is_same_sql_bind($rs->as_query,
+    '(
+      SELECT cds.cdid, cds.title, cds.test_count,
+             tags.tagid, tags.cd, tags.tag
+        FROM cd me
+        JOIN artist artist
+          ON artist.artistid = me.artist
+        JOIN (
+          SELECT  cds.cdid, cds.title,
+                  COUNT( tags.tag ) AS test_count,
+                  cds.artist
+            FROM cd me
+            JOIN artist artist
+              ON artist.artistid = me.artist
+            JOIN cd cds
+              ON cds.artist = artist.artistid
+            LEFT JOIN tags tags
+              ON tags.cd = cds.cdid
+          GROUP BY cds.cdid, cds.title, cds.artist
+          ORDER BY MAX( tags.tag ) DESC
+          LIMIT ?
+          OFFSET ?
+        ) cds
+          ON cds.artist = artist.artistid
+        LEFT JOIN tags tags
+          ON tags.cd = cds.cdid
+      ORDER BY tags.tag DESC
+    )',
+    [ [$ROWS => 3], [$OFFSET => 1] ],
+    'Expected limited prefetch with distinct SQL on premultiplied head',
+  );
+
+  # Tag counts are multiplied by the cd->artist->cds multiplication
+  # I would *almost* call this "expected" without wraping an as_subselect_rs
+  {
+    local $TODO = 'Not sure if we can stop the count/group of premultiplication abstraction leak';
+    is_deeply (
+      $rs->all_hri,
+      $expected_hri,
+      'HRI dump of limited prefetch with distinct as expected on premultiplid head'
     );
-    is_same_sql_bind($rs->as_query, q{
-        (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.test_count, tags.tagid, tags.cd, tags.tag
-          FROM (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, COUNT( tags.tag ) AS test_count
-                FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid
-            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tag
-            ORDER BY tags.tag ASC LIMIT ?)
-            me
-          LEFT JOIN tags tags ON tags.cd = me.cdid
-         ORDER BY tags.tag ASC
-        )
-    }, [[$ROWS => 1]]);
+  }
 }
 
 done_testing;

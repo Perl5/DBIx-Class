@@ -6,6 +6,8 @@ Revision history for DBIx::Class
         - Fix update/delete operations on resultsets *joining* the updated
           table failing on MySQL. Resolves oversights in the fixes for
           RT#81378 and RT#81897
+        - Stop erroneously considering order_by criteria from a join under
+          distinct => 1 (the distinct should apply to the main source only)
         - Even more robust behavior of GenericSubQuery limit dialect
         - Stop Sybase ASE storage from generating invalid SQL in subselects
           when a limit without offset is encountered
