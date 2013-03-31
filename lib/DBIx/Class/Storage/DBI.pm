@@ -1706,22 +1706,63 @@ sub _execute {
 
   my ($sql, $bind) = $self->_prep_for_execute($op, $ident, \@args);
 
-  shift->dbh_do(    # retry over disconnects
-    '_dbh_execute',
+  shift->dbh_do( _dbh_execute =>     # retry over disconnects
     $sql,
     $bind,
-    $ident,
+    $self->_dbi_attrs_for_bind($ident, $bind),
   );
 }
 
 sub _dbh_execute {
-  my ($self, undef, $sql, $bind, $ident) = @_;
+  my ($self, $dbh, $sql, $bind, $bind_attrs) = @_;
 
   $self->_query_start( $sql, $bind );
 
-  my $bind_attrs = $self->_dbi_attrs_for_bind($ident, $bind);
+  my $sth = $self->_bind_sth_params(
+    $self->_prepare_sth($dbh, $sql),
+    $bind,
+    $bind_attrs,
+  );
 
-  my $sth = $self->_sth($sql);
+  # Can this fail without throwing an exception anyways???
+  my $rv = $sth->execute();
+  $self->throw_exception(
+    $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
+  ) if !$rv;
+
+  $self->_query_end( $sql, $bind );
+
+  return (wantarray ? ($rv, $sth, @$bind) : $rv);
+}
+
+sub _prepare_sth {
+  my ($self, $dbh, $sql) = @_;
+
+  # 3 is the if_active parameter which avoids active sth re-use
+  my $sth = $self->disable_sth_caching
+    ? $dbh->prepare($sql)
+    : $dbh->prepare_cached($sql, {}, 3);
+
+  # XXX You would think RaiseError would make this impossible,
+  #  but apparently that's not true :(
+  $self->throw_exception(
+    $dbh->errstr
+      ||
+    sprintf( "\$dbh->prepare() of '%s' through %s failed *silently* without "
+            .'an exception and/or setting $dbh->errstr',
+      length ($sql) > 20
+        ? substr($sql, 0, 20) . '...'
+        : $sql
+      ,
+      'DBD::' . $dbh->{Driver}{Name},
+    )
+  ) if !$sth;
+
+  $sth;
+}
+
+sub _bind_sth_params {
+  my ($self, $sth, $bind, $bind_attrs) = @_;
 
   for my $i (0 .. $#$bind) {
     if (ref $bind->[$i][1] eq 'SCALAR') {  # any scalarrefs are assumed to be bind_inouts
@@ -1744,15 +1785,7 @@ sub _dbh_execute {
     }
   }
 
-  # Can this fail without throwing an exception anyways???
-  my $rv = $sth->execute();
-  $self->throw_exception(
-    $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
-  ) if !$rv;
-
-  $self->_query_end( $sql, $bind );
-
-  return (wantarray ? ($rv, $sth, @$bind) : $rv);
+  $sth;
 }
 
 sub _prefetch_autovalues {
@@ -2080,7 +2113,7 @@ sub insert_bulk {
   my $guard = $self->txn_scope_guard;
 
   $self->_query_start( $sql, @$proto_bind ? [[undef => '__BULK_INSERT__' ]] : () );
-  my $sth = $self->_sth($sql);
+  my $sth = $self->_prepare_sth($self->_dbh, $sql);
   my $rv = do {
     if (@$proto_bind) {
       # proto bind contains the information on which pieces of $data to pull
@@ -2386,42 +2419,6 @@ to L<DBIx::Class::Schema/connect>. For a list of available limit dialects
 see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =cut
-
-sub _dbh_sth {
-  my ($self, $dbh, $sql) = @_;
-
-  # 3 is the if_active parameter which avoids active sth re-use
-  my $sth = $self->disable_sth_caching
-    ? $dbh->prepare($sql)
-    : $dbh->prepare_cached($sql, {}, 3);
-
-  # XXX You would think RaiseError would make this impossible,
-  #  but apparently that's not true :(
-  $self->throw_exception(
-    $dbh->errstr
-      ||
-    sprintf( "\$dbh->prepare() of '%s' through %s failed *silently* without "
-            .'an exception and/or setting $dbh->errstr',
-      length ($sql) > 20
-        ? substr($sql, 0, 20) . '...'
-        : $sql
-      ,
-      'DBD::' . $dbh->{Driver}{Name},
-    )
-  ) if !$sth;
-
-  $sth;
-}
-
-sub sth {
-  carp_unique 'sth was mistakenly marked/documented as public, stop calling it (will be removed before DBIC v0.09)';
-  shift->_sth(@_);
-}
-
-sub _sth {
-  my ($self, $sql) = @_;
-  $self->dbh_do('_dbh_sth', $sql);  # retry over disconnects
-}
 
 sub _dbh_columns_info_for {
   my ($self, $dbh, $table) = @_;

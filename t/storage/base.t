@@ -8,33 +8,6 @@ use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
 
-{
-    package DBICTest::ExplodingStorage::Sth;
-    use strict;
-    use warnings;
-
-    sub execute { die "Kablammo!" }
-
-    sub bind_param {}
-
-    package DBICTest::ExplodingStorage;
-    use strict;
-    use warnings;
-    use base 'DBIx::Class::Storage::DBI::SQLite';
-
-    my $count = 0;
-    sub sth {
-      my ($self, $sql) = @_;
-      return bless {},  "DBICTest::ExplodingStorage::Sth" unless $count++;
-      return $self->next::method($sql);
-    }
-
-    sub connected {
-      return 0 if $count == 1;
-      return shift->next::method(@_);
-    }
-}
-
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 is( ref($schema->storage), 'DBIx::Class::Storage::DBI::SQLite',
@@ -50,16 +23,6 @@ throws_ok {
 throws_ok {
     $schema->resultset('CD')->search_literal('broken +%$#$1')->all;
 } qr/prepare_cached failed/, 'exception via DBI->HandleError, etc';
-
-bless $storage, "DBICTest::ExplodingStorage";
-$schema->storage($storage);
-
-lives_ok {
-    $schema->resultset('Artist')->create({ name => "Exploding Sheep" });
-} 'Exploding $sth->execute was caught';
-
-is(1, $schema->resultset('Artist')->search({name => "Exploding Sheep" })->count,
-  "And the STH was retired");
 
 
 # testing various invocations of connect_info ([ ... ])

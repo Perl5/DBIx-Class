@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * New Features / Changes
         - Officially deprecate the 'cols' and 'include_columns' resultset
           attributes
+        - Remove ::Storage::DBI::sth() deprecated in 0.08191
 
     * Fixes
         - Audit and correct potential bugs associated with braindead reuse
