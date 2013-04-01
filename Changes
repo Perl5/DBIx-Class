@@ -6,6 +6,8 @@ Revision history for DBIx::Class
         - Remove ::Storage::DBI::sth() deprecated in 0.08191
 
     * Fixes
+        - Work around a *critical* bug with potential for data loss in
+          DBD::SQLite - RT#79576
         - Audit and correct potential bugs associated with braindead reuse
           of $1 on unsuccessful matches
 

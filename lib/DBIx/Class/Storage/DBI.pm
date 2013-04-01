@@ -1774,12 +1774,15 @@ sub _bind_sth_params {
       );
     }
     else {
+      # FIXME SUBOPTIMAL - most likely this is not necessary at all
+      # confirm with dbi-dev whether explicit stringification is needed
+      my $v = ( length ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""') )
+        ? "$bind->[$i][1]"
+        : $bind->[$i][1]
+      ;
       $sth->bind_param(
         $i + 1,
-        (ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""'))
-          ? "$bind->[$i][1]"
-          : $bind->[$i][1]
-        ,
+        $v,
         $bind_attrs->[$i],
       );
     }
@@ -1922,14 +1925,15 @@ sub insert_bulk {
 
   my @col_range = (0..$#$cols);
 
-  # FIXME - perhaps this is not even needed? does DBI stringify?
+  # FIXME SUBOPTIMAL - most likely this is not necessary at all
+  # confirm with dbi-dev whether explicit stringification is needed
   #
   # forcibly stringify whatever is stringifiable
   # ResultSet::populate() hands us a copy - safe to mangle
   for my $r (0 .. $#$data) {
     for my $c (0 .. $#{$data->[$r]}) {
       $data->[$r][$c] = "$data->[$r][$c]"
-        if ( ref $data->[$r][$c] and overload::Method($data->[$r][$c], '""') );
+        if ( length ref $data->[$r][$c] and overload::Method($data->[$r][$c], '""') );
     }
   }
 
