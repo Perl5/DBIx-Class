@@ -7,7 +7,6 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use DBIx::Class::Carp;
-use Scalar::Util 'looks_like_number';
 use Try::Tiny;
 use namespace::clean;
 
@@ -217,10 +216,10 @@ sub _dbi_attrs_for_bind {
         and
       $bindattrs->[$_] eq DBI::SQL_INTEGER()
         and
-      ! looks_like_number ($bind->[$_][1])
+      $bind->[$_][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
     ) {
       carp_unique( sprintf (
-        "Non-numeric value supplied for column '%s' despite the numeric datatype",
+        "Non-integer value supplied for column '%s' despite the integer datatype",
         $bind->[$_][0]{dbic_colname} || "# $_"
       ) );
       undef $bindattrs->[$_];
