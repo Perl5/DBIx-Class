@@ -106,28 +106,26 @@ sub last_insert_id { shift->_identity }
 # http://sqladvice.com/forums/permalink/18496/22931/ShowThread.aspx#22931
 #
 sub _select_args_to_query {
+  #my ($self, $ident, $select, $cond, $attrs) = @_;
   my $self = shift;
+  my $attrs = $_[3];
 
-  my ($sql, $prep_bind, @rest) = $self->next::method (@_);
+  my $sql_bind = $self->next::method (@_);
 
   # see if this is an ordered subquery
-  my $attrs = $_[3];
   if (
-    $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
-      &&
+    $$sql_bind->[0] !~ /^ \s* \( \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
+      and
     scalar $self->_extract_order_criteria ($attrs->{order_by})
   ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL'
     ) unless $attrs->{unsafe_subselect_ok};
-    my $max = $self->sql_maker->__max_int;
-    $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
+
+    $$sql_bind->[0] =~ s/^ \s* \( \s* SELECT (?=\s) / '(SELECT TOP ' . $self->sql_maker->__max_int /exi;
   }
 
-  return wantarray
-    ? ($sql, $prep_bind, @rest)
-    : \[ "($sql)", @$prep_bind ]
-  ;
+  $sql_bind;
 }
 
 

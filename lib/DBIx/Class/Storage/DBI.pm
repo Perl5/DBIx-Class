@@ -2279,13 +2279,11 @@ sub _select_args_to_query {
     $self->_select_args(@_);
 
   # my ($sql, $prepared_bind) = $self->_gen_sql_bind($op, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
-  my ($sql, $prepared_bind) = $self->_gen_sql_bind($op, $ident, \@args);
-  $prepared_bind ||= [];
+  my ($sql, $bind) = $self->_gen_sql_bind($op, $ident, \@args);
 
-  return wantarray
-    ? ($sql, $prepared_bind)
-    : \[ "($sql)", @$prepared_bind ]
-  ;
+  # reuse the bind arrayref
+  unshift @{$bind}, "($sql)";
+  \$bind;
 }
 
 sub _select_args {
