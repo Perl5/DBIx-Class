@@ -1964,19 +1964,9 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-  my @col_range = (0..$#$cols);
+  my $reference_row = ref $data eq 'CODE' ? $data->() : shift @$data;
 
-  # FIXME SUBOPTIMAL - most likely this is not necessary at all
-  # confirm with dbi-dev whether explicit stringification is needed
-  #
-  # forcibly stringify whatever is stringifiable
-  # ResultSet::populate() hands us a copy - safe to mangle
-  for my $r (0 .. $#$data) {
-    for my $c (0 .. $#{$data->[$r]}) {
-      $data->[$r][$c] = "$data->[$r][$c]"
-        if ( length ref $data->[$r][$c] and overload::Method($data->[$r][$c], '""') );
-    }
-  }
+  my @col_range = (0..$#$cols);
 
   my $colinfos = $source->columns_info($cols);
 
@@ -2010,14 +2000,14 @@ sub insert_bulk {
   my ($proto_data, $value_type_by_col_idx);
   for my $i (@col_range) {
     my $colname = $cols->[$i];
-    if (ref $data->[0][$i] eq 'SCALAR') {
+    if (ref $reference_row->[$i] eq 'SCALAR') {
       # no bind value at all - no type
 
-      $proto_data->{$colname} = $data->[0][$i];
+      $proto_data->{$colname} = $reference_row->[$i];
     }
-    elsif (ref $data->[0][$i] eq 'REF' and ref ${$data->[0][$i]} eq 'ARRAY' ) {
+    elsif (ref $reference_row->[$i] eq 'REF' and ref ${$reference_row->[$i]} eq 'ARRAY' ) {
       # repack, so we don't end up mangling the original \[]
-      my ($sql, @bind) = @${$data->[0][$i]};
+      my ($sql, @bind) = @${$reference_row->[$i]};
 
       # normalization of user supplied stuff
       my $resolved_bind = $self->_resolve_bindattrs(
@@ -2042,7 +2032,7 @@ sub insert_bulk {
       $proto_data->{$colname} = \[ '?', [
         { dbic_colname => $colname, _bind_data_slice_idx => $i }
           =>
-        $data->[0][$i]
+        $reference_row->[$i]
       ] ];
     }
   }
@@ -2081,11 +2071,13 @@ sub insert_bulk {
     );
   };
 
-  for my $col_idx (@col_range) {
-    my $reference_val = $data->[0][$col_idx];
+  my $col_validator = sub {
+    my ($row, $row_idx) = (@_);
 
-    for my $row_idx (1..$#$data) {  # we are comparing against what we got from [0] above, hence start from 1
-      my $val = $data->[$row_idx][$col_idx];
+    for my $col_idx (@col_range) {
+      my $reference_val = $reference_row->[$col_idx];
+
+      my $val = $row->[$col_idx];
 
       if (! exists $value_type_by_col_idx->{$col_idx}) { # literal no binds
         if (ref $val ne 'SCALAR') {
@@ -2150,7 +2142,30 @@ sub insert_bulk {
         }
       }
     }
-  }
+  };
+
+  my $row_idx = 0;
+  my $fetch_tuple = sub {
+    my $row
+      = !$row_idx++         ? $reference_row
+      : ref $data eq 'CODE' ? $data->()
+      :                     shift @$data;
+
+    return undef if !$row;
+
+    # FIXME - perhaps this is not even needed? does DBI stringify?
+    #
+    # forcibly stringify whatever is stringifiable
+    # ResultSet::populate() hands us a copy - safe to mangle
+    for my $c (0 .. $#{$row}) {
+      $row->[$c] = "$row->[$c]"
+        if ( ref $row->[$c] and overload::Method($row->[$c], '""') );
+    }
+
+    $col_validator->($row, $row_idx);
+
+    $row;
+  };
 
   # neither _dbh_execute_for_fetch, nor _dbh_execute_inserts_with_no_binds
   # are atomic (even if execute_for_fetch is a single call). Thus a safety
@@ -2163,11 +2178,11 @@ sub insert_bulk {
     if (@$proto_bind) {
       # proto bind contains the information on which pieces of $data to pull
       # $cols is passed in only for prettier error-reporting
-      $self->_dbh_execute_for_fetch( $source, $sth, $proto_bind, $cols, $data );
+      $self->_dbh_execute_for_fetch( $source, $sth, $proto_bind, $cols, $fetch_tuple );
     }
     else {
       # bind_param_array doesn't work if there are no binds
-      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar(@$data)+1 );
     }
   };
 
@@ -2212,14 +2227,23 @@ sub _dbh_execute_for_fetch {
 
   my $fetch_row_idx = -1; # saner loop this way
   my $fetch_tuple = sub {
-    return undef if ++$fetch_row_idx > $#$data;
+    my $row = do {
+      if (ref $data eq 'CODE') {
+        $data->();
+      }
+      else {
+        return undef if ++$fetch_row_idx > $#$data;
+        $data->[$fetch_row_idx];
+      }
+    };
+    return undef if not defined $row;
 
     return [ map { defined $_->{_literal_bind_subindex}
-      ? ${ $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]}
+      ? ${ $row->[ $_->{_bind_data_slice_idx} ]}
          ->[ $_->{_literal_bind_subindex} ]
           ->[1]
-      : $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]
-    } map { $_->[0] } @$proto_bind];
+      : $row->[ $_->{_bind_data_slice_idx} ]
+    } map { $_->[0] } @$proto_bind ];
   };
 
   my $tuple_status = [];

@@ -23,7 +23,7 @@ my $schema = DBICTest->init_schema();
 #   [ 10000, "ntn" ],
 
 my $start_id = 'populateXaaaaaa';
-my $rows = 10_000;
+my $rows = 10;
 my $offset = 3;
 
 $schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } shuffle ( 1 .. $rows ) ] );
