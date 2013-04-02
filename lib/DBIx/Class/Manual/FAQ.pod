@@ -242,15 +242,7 @@ documentation for details.
 To use an SQL function on the left hand side of a comparison you currently need
 to resort to literal SQL:
 
- ->search( \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ] );
-
-Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
-should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or in the
-case of a function it's currently treated as a dummy string (it is a good idea
-to use C<plain_value> or something similar to convey intent). The value is
-currently only significant when handling special column types (BLOBs, arrays,
-etc.), but this may change in the future.
+ ->search( \[ 'YEAR(date_of_birth) = ?', 1979 ] );
 
 =item .. find more help on constructing searches?
 

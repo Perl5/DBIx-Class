@@ -421,26 +421,23 @@ you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary by resorting to
 literal SQL:
 
-  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
+  $rs->search(
+    \[ 'YEAR(date_of_birth) = ?', 1979 ]
+  );
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
   $rs->search({ -and => [
     name => 'Bob',
-    \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
+    \[ 'YEAR(date_of_birth) = ?', 1979 ]
   ]});
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
 
-Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
-should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or in the
-case of a function it's currently treated as a dummy string (it is a good idea
-to use C<plain_value> or something similar to convey intent). The value is
-currently only significant when handling special column types (BLOBs, arrays,
-etc.), but this may change in the future.
+Note: the syntax for specifying the bind value's datatype and value is
+explained in L<DBIx::Class::ResultSet/DBIC BIND VALUES>.
 
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.
