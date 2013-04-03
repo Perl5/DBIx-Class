@@ -65,6 +65,7 @@ throws_ok {
 } qr/Unable to satisfy requested constraint 'primary'/;
 
 for (1, 0) {
+  local $ENV{DBIC_NULLABLE_KEY_NOWARN};
   warnings_like
     sub {
       $artist_rs->find({ artistid => undef }, { key => 'primary' })

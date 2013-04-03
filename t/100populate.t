@@ -312,6 +312,8 @@ lives_ok {
 
 # test all kinds of population with stringified objects
 warnings_like {
+  local $ENV{DBIC_RT79576_NOWARN};
+
   my $rs = $schema->resultset('Artist')->search({}, { columns => [qw(name rank)], order_by => 'artistid' });
 
   # the stringification has nothing to do with the artist name

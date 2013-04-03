@@ -3,6 +3,14 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
+# poison the environment - basically look through lib, find all mentioned
+# ENVvars and set them to true and see if anything explodes
+if [[ "$POISON_ENV" = "true" ]] ; then
+  for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
+    export $var=1
+  done
+fi
+
 # try Schwern's latest offering on a stock perl and a threaded blead
 # can't do this with CLEANTEST=true yet because a lot of our deps fail
 # tests left and right under T::B 1.5

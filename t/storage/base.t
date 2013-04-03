@@ -121,6 +121,7 @@ my $invocations = {
 };
 
 for my $type (keys %$invocations) {
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK};
 
   # we can not use a cloner portably because of the coderef
   # so compare dumps instead
@@ -129,7 +130,7 @@ for my $type (keys %$invocations) {
 
   warnings_exist (
     sub { $storage->connect_info ($invocations->{$type}{args}) },
-     $invocations->{$type}{warn} || (),
+     $invocations->{$type}{warn} || [],
     'Warned about ignored attributes',
   );
 
