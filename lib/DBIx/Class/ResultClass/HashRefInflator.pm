@@ -41,7 +41,7 @@ There are two ways of applying this class to a resultset:
 =item *
 
 Specify C<< $rs->result_class >> on a specific resultset to affect only that
-resultset (and any chained off of it); or
+resultset (and not any chained off of it); or
 
 =item *
 
