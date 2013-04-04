@@ -2,6 +2,8 @@
 
 set -e
 
+TEST_STDERR_LOG=/tmp/dbictest.stderr
+
 echo_err() { echo "$@" 1>&2 ; }
 
 if [[ "$TRAVIS" != "true" ]] ; then
