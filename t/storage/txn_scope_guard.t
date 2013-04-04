@@ -117,9 +117,10 @@ use DBICTest;
 
 # make sure it warns *big* on failed rollbacks
 # test with and without a poisoned $@
-for my $poison (0,1) {
+for my $pre_poison (0,1) {
+for my $post_poison (0,1) {
 
-  my $schema = DBICTest->init_schema();
+  my $schema = DBICTest->init_schema(no_populate => 1);
 
   no strict 'refs';
   no warnings 'redefine';
@@ -161,16 +162,30 @@ for my $poison (0,1) {
       warn $_[0];
     }
   };
+
   {
-      eval { die 'GIFT!' if $poison };
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+    eval { die 'pre-GIFT!' if $pre_poison };
+    my $guard = $schema->txn_scope_guard;
+    eval { die 'post-GIFT!' if $post_poison };
+    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
   }
 
-  is (@w, 2, 'Both expected warnings found' . ($poison ? ' (after $@ poisoning)' : '') );
+  local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
+    if ( $post_poison and (
+      # take no chances on installation
+      ( DBICTest::RunMode->is_plain and ($ENV{TRAVIS}||'') ne 'true' )
+        or
+      # this always fails
+      ! $pre_poison
+        or
+      # I do not underdtand why but on <= 5.8.8 and $pre_poison && $post_poison passes...
+      $] > 5.008008
+    ));
+
+  is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
 
   # just to mask off warning since we could not disconnect above
   $schema->storage->_dbh->disconnect;
-}
+}}
 
 done_testing;

@@ -19,15 +19,19 @@ sub new {
   # we are starting with an already set $@ - in order for things to work we need to
   # be able to recognize it upon destruction - store its weakref
   # recording it before doing the txn_begin stuff
+  #
+  # FIXME FRAGILE - any eval that fails but *does not* rethrow between here
+  # and the unwind will trample over $@ and invalidate the entire mechanism
+  # There got to be a saner way of doing this...
   if (defined $@ and $@ ne '') {
-    $guard->{existing_exception_ref} = (ref $@ ne '') ? $@ : \$@;
-    weaken $guard->{existing_exception_ref};
+    weaken(
+      $guard->{existing_exception_ref} = (ref $@ ne '') ? $@ : \$@
+    );
   }
 
   $storage->txn_begin;
 
-  $guard->{dbh} = $storage->_dbh;
-  weaken $guard->{dbh};
+  weaken( $guard->{dbh} = $storage->_dbh );
 
   bless $guard, ref $class || $class;
 
