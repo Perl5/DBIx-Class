@@ -15,7 +15,6 @@ use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use overload ();
 use Data::Compare (); # no imports!!! guard against insane architecture
-use DBI::Const::GetInfoType (); # no import of retarded global hash
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -1124,12 +1123,13 @@ sub _dbh_get_info {
   my ($self, $info) = @_;
 
   if ($info =~ /[^0-9]/) {
+    require DBI::Const::GetInfoType;
     $info = $DBI::Const::GetInfoType::GetInfoType{$info};
     $self->throw_exception("Info type '$_[1]' not provided by DBI::Const::GetInfoType")
       unless defined $info;
   }
 
-  return $self->_get_dbh->get_info($info);
+  $self->_get_dbh->get_info($info);
 }
 
 sub _describe_connection {

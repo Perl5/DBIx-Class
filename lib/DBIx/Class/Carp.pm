@@ -15,9 +15,9 @@ BEGIN {
   ;
 }
 
+# load Carp early to prevent tickling of the ::Internal stash being
+# interpreted as "Carp is already loaded" by some braindead loader
 use Carp ();
-use namespace::clean ();
-
 $Carp::Internal{ (__PACKAGE__) }++;
 
 sub __find_caller {

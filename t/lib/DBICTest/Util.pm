@@ -3,7 +3,6 @@ package DBICTest::Util;
 use warnings;
 use strict;
 
-use Carp;
 use Config;
 
 use base 'Exporter';
@@ -29,7 +28,6 @@ sub local_umask {
       if ($@ || $!);
   }
 }
-
 
 sub stacktrace {
   my $frame = shift;
