@@ -38,7 +38,9 @@ use DBICTest;
 
     sub thrower {
       sub {
-        DBICTest->init_schema(no_deploy => 1)->throw_exception('time to die');
+        DBICTest->init_schema(no_deploy => 1)->storage->dbh_do(sub {
+          shift->throw_exception('time to die');
+        })
       }->();
     }
 
