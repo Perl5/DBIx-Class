@@ -319,20 +319,34 @@ NULLINSEARCH: {
     );
   }
 
-  my $ac = $schema->resultset('Artist')->count_rs;
-  my $old_count = $ac->next;
-  $ac->reset;
+  is ($rs->count, 10, '10 artists present');
 
   my $orig_debug = $schema->storage->debug;
   $schema->storage->debug(1);
-  my $query_count = 0;
+  my $query_count;
   $schema->storage->debugcb(sub { $query_count++ });
+
+  $query_count = 0;
   $complex_rs->delete;
-  $schema->storage->debugcb(undef);
-  $schema->storage->debug($orig_debug);
 
   is ($query_count, 1, 'One delete query fired');
-  is ($old_count - $ac->next, 10, '10 Artists correctly deleted');
+  is ($rs->count, 0, '10 Artists correctly deleted');
+
+  $rs->create({
+    name => 'baby_with_cd',
+    cds => [ { title => 'babeeeeee', year => 2013 } ],
+  });
+  is ($rs->count, 1, 'Artist with cd created');
+
+  $query_count = 0;
+  $schema->resultset('CD')->search_related('artist',
+    { 'artist.name' => { -like => 'baby_with_%' } }
+  )->delete;
+  is ($query_count, 1, 'And one more delete query fired');
+  is ($rs->count, 0, 'Artist with cd deleted');
+
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug($orig_debug);
 }
 
 ZEROINSEARCH: {

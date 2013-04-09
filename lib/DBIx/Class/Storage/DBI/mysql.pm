@@ -78,7 +78,7 @@ sub _prep_for_execute {
   }
 
   local $sm->{_modification_target_referenced_re} =
-      qr/ (?<!DELETE) [\s\)] FROM \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
+      qr/ (?<!DELETE) [\s\)] (?: FROM | JOIN ) \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
     if $target_name;
 
   $self->next::method(@_);
