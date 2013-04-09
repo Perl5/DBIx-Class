@@ -54,6 +54,8 @@ Revision history for DBIx::Class
         - Stop Sybase ASE storage from generating invalid SQL in subselects
           when a limit without offset is encountered
         - Even more robust behavior of GenericSubQuery limit dialect
+        - Make sure deployment_statements() and cursor_class() are called on
+          a resolved storage subclass
 
 0.08210 2013-04-04 15:30 (UTC)
     * New Features / Changes

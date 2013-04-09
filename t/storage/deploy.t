@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Path::Class qw/dir/;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -14,8 +15,13 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
-use File::Spec;
-use Path::Class qw/dir/;
+# this is how maint/gen_schema did it (connect() to force a storage
+# instance, but no conninfo)
+# there ought to be more code like this in the wild
+like(
+  DBICTest::Schema->connect->deployment_statements('SQLite'),
+  qr/\bCREATE TABLE\b/i
+);
 
 lives_ok( sub {
     my $parse_schema = DBICTest->init_schema(no_deploy => 1);
