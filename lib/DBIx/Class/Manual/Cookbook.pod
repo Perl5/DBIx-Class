@@ -1357,9 +1357,9 @@ row.
     });
   } catch {
     $exception = $_;
-  }
+  };
 
-  if ($caught) {
+  if ($exception) {
     # There was an error while handling the $job. Rollback all changes
     # since the transaction started, including the already committed
     # ('released') savepoints. There will be neither a new $job nor any
