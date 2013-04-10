@@ -119,9 +119,11 @@ for my $meth (@rdbms_specific_methods) {
       # would e.g. be setting a default for an inherited accessor
       ref $_[0]
         and
-      ! $_[0]->_driver_determined
+      ! $_[0]->{_driver_determined}
         and
       ! $_[0]->{_in_determine_driver}
+        and
+      ($_[0]->_dbi_connect_info||[])->[0]
     ) {
       $_[0]->_determine_driver;
 
@@ -625,13 +627,13 @@ sub connect_info {
   my @args = @{ $info->{arguments} };
 
   if (keys %attrs and ref $args[0] ne 'CODE') {
-    carp
+    carp_unique (
         'You provided explicit AutoCommit => 0 in your connection_info. '
       . 'This is almost universally a bad idea (see the footnotes of '
       . 'DBIx::Class::Storage::DBI for more info). If you still want to '
       . 'do this you can set $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} to disable '
       . 'this warning.'
-      if ! $attrs{AutoCommit} and ! $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK};
+    ) if ! $attrs{AutoCommit} and ! $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK};
 
     push @args, \%attrs if keys %attrs;
   }
@@ -951,13 +953,13 @@ sub sql_maker {
         ||
       do {
         my $s_class = (ref $self) || $self;
-        carp (
+        carp_unique (
           "Your storage class ($s_class) does not set sql_limit_dialect and you "
         . 'have not supplied an explicit limit_dialect in your connection_info. '
         . 'DBIC will attempt to use the GenericSubQ dialect, which works on most '
         . 'databases but can be (and often is) painfully slow. '
-        . "Please file an RT ticket against '$s_class' ."
-        );
+        . "Please file an RT ticket against '$s_class'"
+        ) if $self->_dbi_connect_info->[0];
 
         'GenericSubQ';
       }
@@ -968,7 +970,7 @@ sub sql_maker {
     if ($opts{quote_names}) {
       $quote_char = (delete $opts{quote_char}) || $self->sql_quote_char || do {
         my $s_class = (ref $self) || $self;
-        carp (
+        carp_unique (
           "You requested 'quote_names' but your storage class ($s_class) does "
         . 'not explicitly define a default sql_quote_char and you have not '
         . 'supplied a quote_char as part of your connection_info. DBIC will '
@@ -1371,8 +1373,8 @@ sub _do_query {
 sub _connect {
   my ($self, @info) = @_;
 
-  $self->throw_exception("You failed to provide any connection info")
-    if !@info;
+  $self->throw_exception("You did not provide any connection_info")
+    if ( ! defined $info[0] and ! $ENV{DBI_DSN} and ! $ENV{DBI_DRIVER} );
 
   my ($old_connect_via, $dbh);
 

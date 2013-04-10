@@ -146,6 +146,31 @@ for my $type (keys %$invocations) {
   );
 }
 
+# make sure connection-less storages do not throw on _determine_driver
+{
+  my $s = DBICTest::Schema->connect;
+  is_deeply (
+    $s->storage->connect_info,
+    [],
+    'Starting with no connection info',
+  );
+
+  isa_ok(
+    $s->storage->sql_maker,
+    'DBIx::Class::SQLMaker',
+    'Getting back an SQLMaker succesfully',
+  );
+
+  ok (! $s->storage->_driver_determined, 'Driver undetermined');
+
+  ok (! $s->storage->connected, 'Storage does not appear connected');
+
+  throws_ok {
+    $s->storage->ensure_connected
+  } qr/You did not provide any connection_info/,
+  'sensible exception on empty conninfo connect'
+}
+
 done_testing;
 
 1;
