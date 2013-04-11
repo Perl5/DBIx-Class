@@ -188,4 +188,60 @@ for my $post_poison (0,1) {
   $schema->storage->_dbh->disconnect;
 }}
 
+# add a TODO to catch when Text::Balanced is finally fixed
+# https://rt.cpan.org/Public/Bug/Display.html?id=74994
+#
+# while it doesn't matter much for DBIC itself, this particular bug
+# is a *BANE*, and DBIC is to bump its dep as soon as possible
+{
+
+  require Text::Balanced;
+
+  my $great_success;
+  {
+    local $TODO = 'RT#74994 *STILL* not fixed';
+
+    lives_ok {
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      my $s = DBICTest->init_schema( deploy => 0 );
+      my $g = $s->txn_scope_guard;
+      $g->commit;
+      $great_success++;
+    } 'Text::Balanced is no longer screwing up $@';
+  }
+
+  # delete all of this when T::B dep is bumped
+  unless ($great_success) {
+
+# hacky workaround for desperate folk
+# intended to be copypasted into your app
+    {
+      require Text::Balanced;
+      require overload;
+
+      local $@;
+
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      if ($@ and overload::Overloaded($@) and ! overload::Method($@,'fallback') ) {
+        my $class = ref $@;
+        eval "package $class; overload->import(fallback => 1);"
+      }
+    }
+# end of hacky workaround
+
+    lives_ok {
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      my $s = DBICTest->init_schema( deploy => 0 );
+      my $g = $s->txn_scope_guard;
+      $g->commit;
+    } 'Monkeypatched Text::Balanced is no longer screwing up $@';
+  }
+}
+
 done_testing;
