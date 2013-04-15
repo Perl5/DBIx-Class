@@ -2649,8 +2649,7 @@ $version in the name with "$preversion-$version".
 See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
 The most common value for this would be C<< { add_drop_table => 1 } >>
 to have the SQL produced include a C<DROP TABLE> statement for each table
-created. For quoting purposes supply C<quote_table_names> and
-C<quote_field_names>.
+created. For quoting purposes supply C<quote_identifiers>.
 
 If no arguments are passed, then the following default values are assumed:
 
