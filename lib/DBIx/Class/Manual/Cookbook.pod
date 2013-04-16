@@ -428,6 +428,9 @@ literal SQL:
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
+To include the function as part of a larger search, use the '-and' keyword
+to collect the search conditions:
+
   $rs->search({ -and => [
     name => 'Bob',
     \[ 'YEAR(date_of_birth) = ?', 1979 ]
