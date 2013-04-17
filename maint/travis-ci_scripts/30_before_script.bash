@@ -3,6 +3,14 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
+# poison the environment - basically look through lib, find all mentioned
+# ENVvars and set them to true and see if anything explodes
+if [[ "$POISON_ENV" = "true" ]] ; then
+  for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
+    export $var=1
+  done
+fi
+
 # try Schwern's latest offering on a stock perl and a threaded blead
 # can't do this with CLEANTEST=true yet because a lot of our deps fail
 # tests left and right under T::B 1.5
@@ -66,17 +74,19 @@ else
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
-  # (e.g. once Carp is upgraded there's no more Carp::Heavy)
+  # (e.g. once Carp is upgraded there's no more Carp::Heavy,
+  # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
   parallel_installdeps_notest ExtUtils::MakeMaker
+  parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build ExtUtils::Depends
   parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Moo Class::Trigger JSON::XS DBI DateTime::Format::Builder
-  parallel_installdeps_notest Moose Class::Accessor::Grouped Module::Install JSON Package::Variant
+  parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
+  parallel_installdeps_notest Moose Module::Install JSON SQL::Translator
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is full of 5.10-isms, but works perfectly fine on 5.8

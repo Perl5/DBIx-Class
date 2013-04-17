@@ -24,7 +24,7 @@ to Microsoft SQL Server over ODBC
 =head1 DESCRIPTION
 
 This class implements support specific to Microsoft SQL Server over ODBC.  It is
-loaded automatically by by DBIx::Class::Storage::DBI::ODBC when it detects a
+loaded automatically by DBIx::Class::Storage::DBI::ODBC when it detects a
 MSSQL back-end.
 
 Most of the functionality is provided from the superclass

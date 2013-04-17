@@ -443,6 +443,7 @@ sub search_rs {
 
     # older deprecated name, use only if {columns} is not there
     if (my $c = delete $new_attrs->{cols}) {
+      carp_unique( "Resultset attribute 'cols' is deprecated, use 'columns' instead" );
       if ($new_attrs->{columns}) {
         carp "Resultset specifies both the 'columns' and the legacy 'cols' attributes - ignoring 'cols'";
       }
@@ -489,8 +490,12 @@ sub _normalize_selection {
   my ($self, $attrs) = @_;
 
   # legacy syntax
-  $attrs->{'+columns'} = $self->_merge_attr($attrs->{'+columns'}, delete $attrs->{include_columns})
-    if exists $attrs->{include_columns};
+  if ( exists $attrs->{include_columns} ) {
+    carp_unique( "Resultset attribute 'include_columns' is deprecated, use '+columns' instead" );
+    $attrs->{'+columns'} = $self->_merge_attr(
+      $attrs->{'+columns'}, delete $attrs->{include_columns}
+    );
+  }
 
   # columns are always placed first, however
 
@@ -2606,16 +2611,9 @@ sub as_query {
 
   my $attrs = { %{ $self->_resolved_attrs } };
 
-  # For future use:
-  #
-  # in list ctx:
-  # my ($sql, \@bind, \%dbi_bind_attrs) = _select_args_to_query (...)
-  # $sql also has no wrapping parenthesis in list ctx
-  #
-  my $sqlbind = $self->result_source->storage
-    ->_select_args_to_query ($attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs);
-
-  return $sqlbind;
+  $self->result_source->storage->_select_args_to_query (
+    $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
+  );
 }
 
 =head2 find_or_new
@@ -3919,7 +3917,7 @@ case the key is the C<as> value, and the value is used as the C<select>
 expression). Adds C<me.> onto the start of any column without a C<.> in
 it and sets C<select> from that, then auto-populates C<as> from
 C<select> as normal. (You may also use the C<cols> attribute, as in
-earlier versions of DBIC.)
+earlier versions of DBIC, but this is deprecated.)
 
 Essentially C<columns> does the same as L</select> and L</as>.
 
@@ -3938,10 +3936,10 @@ is the same as
 
 =back
 
-Indicates additional columns to be selected from storage. Works the same
-as L</columns> but adds columns to the selection. (You may also use the
-C<include_columns> attribute, as in earlier versions of DBIC). For
-example:-
+Indicates additional columns to be selected from storage. Works the same as
+L</columns> but adds columns to the selection. (You may also use the
+C<include_columns> attribute, as in earlier versions of DBIC, but this is
+deprecated). For example:-
 
   $schema->resultset('CD')->search(undef, {
     '+columns' => ['artist.name'],

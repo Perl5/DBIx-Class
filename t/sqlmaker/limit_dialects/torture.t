@@ -632,57 +632,6 @@ my $tests = {
     ],
   },
 
-  RowCountOrGenericSubQ => {
-    limit => [
-      '(
-        SET ROWCOUNT 4
-        SELECT me.id, owner.id, owner.name, ? * ?, ?
-          FROM books me
-          JOIN owners owner
-            ON owner.id = me.owner
-        WHERE source != ? AND me.title = ? AND source = ?
-        GROUP BY AVG(me.id / ?), MAX(owner.id)
-        HAVING ?
-        ORDER BY me.id
-        SET ROWCOUNT 0
-      )',
-      [
-        @select_bind,
-        @where_bind,
-        @group_bind,
-        @having_bind,
-      ],
-    ],
-    limit_offset => [
-      '(
-        SELECT me.id, owner__id, owner__name, bar, baz
-          FROM (
-            SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
-              FROM books me
-              JOIN owners owner
-                ON owner.id = me.owner
-            WHERE source != ? AND me.title = ? AND source = ?
-            GROUP BY AVG(me.id / ?), MAX(owner.id)
-            HAVING ?
-          ) me
-        WHERE (
-          SELECT COUNT( * )
-            FROM books rownum__emulation
-          WHERE rownum__emulation.id < me.id
-        ) BETWEEN ? AND ?
-        ORDER BY me.id
-      )',
-      [
-        @select_bind,
-        @where_bind,
-        @group_bind,
-        @having_bind,
-        [ { sqlt_datatype => 'integer' } => 3 ],
-        [ { sqlt_datatype => 'integer' } => 6 ],
-      ],
-    ],
-  },
-
   GenericSubQ => {
     limit => [
       '(

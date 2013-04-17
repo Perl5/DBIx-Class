@@ -35,6 +35,9 @@ BEGIN {
   my $s = DBICTest::Schema->connect($dsn, $user, $pass);
 }
 
+# in case it came from the env
+$ENV{DBIC_NO_VERSION_CHECK} = 0;
+
 use_ok('DBICVersion_v1');
 
 my $version_table_name = 'dbix_class_schema_versions';

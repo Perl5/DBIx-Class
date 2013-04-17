@@ -317,8 +317,6 @@ my $method_dispatch = {
     sql_maker_class
     _execute
     _do_query
-    _sth
-    _dbh_sth
     _dbh_execute
   /, Class::MOP::Class->initialize('DBIx::Class::Storage::DBIHacks')->get_method_list ],
   reader => [qw/
@@ -359,7 +357,8 @@ my $method_dispatch = {
     _is_binary_type
     _is_text_lob_type
 
-    sth
+    _prepare_sth
+    _bind_sth_params
   /,(
     # the capability framework
     # not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem

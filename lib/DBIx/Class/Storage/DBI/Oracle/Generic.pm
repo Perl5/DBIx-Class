@@ -284,7 +284,7 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  #my ($self, $dbh, $sql, $bind, $ident) = @_;
+  #my ($self, $dbh, $sql, $bind, $bind_attrs) = @_;
   my ($self, $bind) = @_[0,3];
 
   # Turn off sth caching for multi-part LOBs. See _prep_for_execute below

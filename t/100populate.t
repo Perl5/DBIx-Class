@@ -3,10 +3,13 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class::File ();
+use Math::BigInt;
 use List::Util qw/shuffle/;
+use Storable qw/nfreeze dclone/;
 
 my $schema = DBICTest->init_schema();
 
@@ -307,82 +310,108 @@ lives_ok {
   ]);
 } 'literal+bind with semantically identical attrs works after normalization';
 
-# the stringification has nothing to do with the artist name
-# this is solely for testing consistency
-my $fn = Path::Class::File->new ('somedir/somefilename.tmp');
-my $fn2 = Path::Class::File->new ('somedir/someotherfilename.tmp');
+# test all kinds of population with stringified objects
+warnings_like {
+  local $ENV{DBIC_RT79576_NOWARN};
 
-lives_ok {
-  $rs->populate([
-    {
-      name => 'supplied before stringifying object',
-    },
-    {
-      name => $fn,
-    }
-  ]);
-} 'stringifying objects pass through';
+  my $rs = $schema->resultset('Artist')->search({}, { columns => [qw(name rank)], order_by => 'artistid' });
 
-# ... and vice-versa.
+  # the stringification has nothing to do with the artist name
+  # this is solely for testing consistency
+  my $fn = Path::Class::File->new ('somedir/somefilename.tmp');
+  my $fn2 = Path::Class::File->new ('somedir/someotherfilename.tmp');
+  my $rank = Math::BigInt->new(42);
 
-lives_ok {
-  $rs->populate([
-    {
-      name => $fn2,
-    },
-    {
-      name => 'supplied after stringifying object',
-    },
-  ]);
-} 'stringifying objects pass through';
+  my $args = {
+    'stringifying objects after regular values' => [ map
+      { { name => $_, rank => $rank } }
+      (
+        'supplied before stringifying objects',
+        'supplied before stringifying objects 2',
+        $fn,
+        $fn2,
+      )
+    ],
+    'stringifying objects before regular values' => [ map
+      { { name => $_, rank => $rank } }
+      (
+        $fn,
+        $fn2,
+        'supplied after stringifying objects',
+        'supplied after stringifying objects 2',
+      )
+    ],
+    'stringifying objects between regular values' => [ map
+      { { name => $_, rank => $rank } }
+      (
+        'supplied before stringifying objects',
+        $fn,
+        $fn2,
+        'supplied after stringifying objects',
+      )
+    ],
+    'stringifying objects around regular values' => [ map
+      { { name => $_, rank => $rank } }
+      (
+        $fn,
+        'supplied between stringifying objects',
+        $fn2,
+      )
+    ],
+  };
 
-for (
-  $fn,
-  $fn2,
-  'supplied after stringifying object',
-  'supplied before stringifying object'
-) {
-  my $row = $rs->find ({name => $_});
-  ok ($row, "Stringification test row '$_' properly inserted");
-}
+  local $Storable::canonical = 1;
+  my $preimage = nfreeze([$fn, $fn2, $rank, $args]);
 
-$rs->delete;
+  for my $tst (keys %$args) {
 
-# test stringification with ->create rather than Storage::insert_bulk as well
+    # test void ctx
+    $rs->delete;
+    $rs->populate($args->{$tst});
+    is_deeply(
+      $rs->all_hri,
+      $args->{$tst},
+      "Populate() $tst in void context"
+    );
 
-lives_ok {
-  my @dummy = $rs->populate([
-    {
-      name => 'supplied before stringifying object',
-    },
-    {
-      name => $fn,
-    }
-  ]);
-} 'stringifying objects pass through';
+    # test non-void ctx
+    $rs->delete;
+    my $dummy = $rs->populate($args->{$tst});
+    is_deeply(
+      $rs->all_hri,
+      $args->{$tst},
+      "Populate() $tst in non-void context"
+    );
 
-# ... and vice-versa.
+    # test create() as we have everything set up already
+    $rs->delete;
+    $rs->create($_) for @{$args->{$tst}};
 
-lives_ok {
-  my @dummy = $rs->populate([
-    {
-      name => $fn2,
-    },
-    {
-      name => 'supplied after stringifying object',
-    },
-  ]);
-} 'stringifying objects pass through';
+    is_deeply(
+      $rs->all_hri,
+      $args->{$tst},
+      "Create() $tst"
+    );
+  }
 
-for (
-  $fn,
-  $fn2,
-  'supplied after stringifying object',
-  'supplied before stringifying object'
-) {
-  my $row = $rs->find ({name => $_});
-  ok ($row, "Stringification test row '$_' properly inserted");
-}
+  ok (
+    ($preimage eq nfreeze( [$fn, $fn2, $rank, $args] )),
+    'Arguments fed to populate()/create() unchanged'
+  );
+
+  $rs->delete;
+} [
+  # warning to be removed around Apr 1st 2015
+  # smokers start failing a month before that
+  (
+    ( DBICTest::RunMode->is_author and ( time() > 1427846400 ) )
+      or
+    ( DBICTest::RunMode->is_smoker and ( time() > 1425168000 ) )
+  )
+    ? ()
+    # one unique for populate() and create() each
+    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 2
+], 'Data integrity warnings as planned';
 
 lives_ok {
    $schema->resultset('TwoKeys')->populate([{

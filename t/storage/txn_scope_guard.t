@@ -117,9 +117,10 @@ use DBICTest;
 
 # make sure it warns *big* on failed rollbacks
 # test with and without a poisoned $@
-for my $poison (0,1) {
+for my $pre_poison (0,1) {
+for my $post_poison (0,1) {
 
-  my $schema = DBICTest->init_schema();
+  my $schema = DBICTest->init_schema(no_populate => 1);
 
   no strict 'refs';
   no warnings 'redefine';
@@ -161,16 +162,86 @@ for my $poison (0,1) {
       warn $_[0];
     }
   };
+
   {
-      eval { die 'GIFT!' if $poison };
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+    eval { die 'pre-GIFT!' if $pre_poison };
+    my $guard = $schema->txn_scope_guard;
+    eval { die 'post-GIFT!' if $post_poison };
+    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
   }
 
-  is (@w, 2, 'Both expected warnings found' . ($poison ? ' (after $@ poisoning)' : '') );
+  local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
+    if ( $post_poison and (
+      # take no chances on installation
+      ( DBICTest::RunMode->is_plain and ($ENV{TRAVIS}||'') ne 'true' )
+        or
+      # this always fails
+      ! $pre_poison
+        or
+      # I do not underdtand why but on <= 5.8.8 and $pre_poison && $post_poison passes...
+      $] > 5.008008
+    ));
+
+  is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
 
   # just to mask off warning since we could not disconnect above
   $schema->storage->_dbh->disconnect;
+}}
+
+# add a TODO to catch when Text::Balanced is finally fixed
+# https://rt.cpan.org/Public/Bug/Display.html?id=74994
+#
+# while it doesn't matter much for DBIC itself, this particular bug
+# is a *BANE*, and DBIC is to bump its dep as soon as possible
+{
+
+  require Text::Balanced;
+
+  my $great_success;
+  {
+    local $TODO = 'RT#74994 *STILL* not fixed';
+
+    lives_ok {
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      my $s = DBICTest->init_schema( deploy => 0 );
+      my $g = $s->txn_scope_guard;
+      $g->commit;
+      $great_success++;
+    } 'Text::Balanced is no longer screwing up $@';
+  }
+
+  # delete all of this when T::B dep is bumped
+  unless ($great_success) {
+
+# hacky workaround for desperate folk
+# intended to be copypasted into your app
+    {
+      require Text::Balanced;
+      require overload;
+
+      local $@;
+
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      if ($@ and overload::Overloaded($@) and ! overload::Method($@,'fallback') ) {
+        my $class = ref $@;
+        eval "package $class; overload->import(fallback => 1);"
+      }
+    }
+# end of hacky workaround
+
+    lives_ok {
+      # this is what poisons $@
+      Text::Balanced::extract_bracketed( '(foo', '()' );
+
+      my $s = DBICTest->init_schema( deploy => 0 );
+      my $g = $s->txn_scope_guard;
+      $g->commit;
+    } 'Monkeypatched Text::Balanced is no longer screwing up $@';
+  }
 }
 
 done_testing;

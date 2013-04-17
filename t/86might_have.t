@@ -40,6 +40,8 @@ is($queries, 1, 'liner_notes (might_have) prefetched - do not load
 liner_notes on update');
 
 warning_like {
+  local $ENV{DBIC_DONT_VALIDATE_RELS};
+
   DBICTest::Schema::Bookmark->might_have(
     linky => 'DBICTest::Schema::Link',
     { "foreign.id" => "self.link" },

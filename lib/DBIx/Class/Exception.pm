@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::Carp ();
+$Carp::Internal{ (__PACKAGE__) }++;
 
 use overload
     '""' => sub { shift->{msg} },

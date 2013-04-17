@@ -328,6 +328,9 @@ sub deploy_schema {
     my $schema = shift;
     my $args = shift || {};
 
+    local $schema->storage->{debug}
+      if ($ENV{TRAVIS}||'') eq 'true';
+
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
         $schema->deploy($args);
     } else {
@@ -355,6 +358,9 @@ the tables with test data.
 sub populate_schema {
     my $self = shift;
     my $schema = shift;
+
+    local $schema->storage->{debug}
+      if ($ENV{TRAVIS}||'') eq 'true';
 
     $schema->populate('Genre', [
       [qw/genreid name/],

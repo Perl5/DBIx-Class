@@ -16,7 +16,7 @@ sub constrain_column {
   } elsif (ref $how eq "Regexp") {
     $class->add_constraint(regexp => $col => sub { shift =~ $how });
   } else {
-    $how =~ m/([^:]+)$/;
+    $how =~ m/([^:]+)$/; # match is safe - we throw above on empty $how
     my $try_method = sprintf '_constrain_by_%s', lc $1; # $how->moniker;
     if (my $dispatch = $class->can($try_method)) {
       $class->$dispatch($col => ($how, @_));

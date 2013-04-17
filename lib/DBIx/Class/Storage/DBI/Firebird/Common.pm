@@ -60,9 +60,10 @@ EOF
   $sth->execute($table_name);
 
   while (my ($trigger) = $sth->fetchrow_array) {
-    my @trig_cols = map {
-      /^"([^"]+)/ ? $1 : uc($1)
-    } $trigger =~ /new\.("?\w+"?)/ig;
+    my @trig_cols = map
+      { /^"([^"]+)/ ? $1 : uc($_) }
+      $trigger =~ /new\.("?\w+"?)/ig
+    ;
 
     my ($quoted, $generator) = $trigger =~
 /(?:gen_id\s* \( \s* |next \s* value \s* for \s*)(")?(\w+)/ix;

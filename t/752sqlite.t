@@ -121,7 +121,7 @@ my $schema = DBICTest->init_schema();
 # make sure the side-effects of RT#67581 do not result in data loss
 my $row;
 warnings_exist { $row = $schema->resultset('Artist')->create ({ name => 'alpha rank', rank => 'abc' }) }
-  [qr/Non-numeric value supplied for column 'rank' despite the numeric datatype/],
+  [qr/Non-integer value supplied for column 'rank' despite the integer datatype/],
   'proper warning on string insertion into an numeric column'
 ;
 $row->discard_changes;

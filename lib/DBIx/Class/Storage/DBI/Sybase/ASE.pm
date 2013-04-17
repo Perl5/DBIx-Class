@@ -18,7 +18,7 @@ use Try::Tiny;
 use Context::Preserve 'preserve_context';
 use namespace::clean;
 
-__PACKAGE__->sql_limit_dialect ('RowCountOrGenericSubQ');
+__PACKAGE__->sql_limit_dialect ('GenericSubQ');
 __PACKAGE__->sql_quote_char ([qw/[ ]/]);
 __PACKAGE__->datetime_parser_type(
   'DBIx::Class::Storage::DBI::Sybase::ASE::DateTime::Format'
@@ -254,8 +254,7 @@ sub _is_lob_column {
 }
 
 sub _prep_for_execute {
-  my $self = shift;
-  my $ident = $_[1];
+  my ($self, $op, $ident, $args) = @_;
 
   #
 ### This is commented out because all tests pass. However I am leaving it
@@ -274,7 +273,20 @@ sub _prep_for_execute {
   #  = $self->_parent_storage->_perform_autoinc_retrieval
   #if ($op eq 'insert' or $op eq 'update') and $self->_parent_storage;
 
-  my ($sql, $bind) = $self->next::method (@_);
+  my $limit;  # extract and use shortcut on limit without offset
+  if ($op eq 'select' and ! $args->[4] and $limit = $args->[3]) {
+    $args = [ @$args ];
+    $args->[3] = undef;
+  }
+
+  my ($sql, $bind) = $self->next::method($op, $ident, $args);
+
+  # $limit is already sanitized by now
+  $sql = join( "\n",
+    "SET ROWCOUNT $limit",
+    $sql,
+    "SET ROWCOUNT 0",
+  ) if $limit;
 
   if (my $identity_col = $self->_perform_autoinc_retrieval) {
     $sql .= "\n" . $self->_fetch_identity_sql($ident, $identity_col)

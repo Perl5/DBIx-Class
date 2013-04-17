@@ -37,6 +37,7 @@ warnings_are (
 
 warnings_like (
   sub {
+    local $ENV{DBIC_UTF8COLUMNS_OK};
     package A::Test1Loud;
     use base 'DBIx::Class::Core';
     __PACKAGE__->load_components(qw(Core +A::Comp Ordered UTF8Columns));

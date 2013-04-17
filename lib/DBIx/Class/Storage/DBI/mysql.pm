@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
-use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
@@ -69,7 +68,7 @@ sub _prep_for_execute {
     ) {
       # this is just a plain-ish name, which has been literal-ed for
       # whatever reason
-      $target_name = first { defined $_ } ($1, $2);
+      $target_name = (defined $1) ? $1 : $2;
     }
     else {
       # this is something very complex, perhaps a custom result source or whatnot
@@ -79,7 +78,7 @@ sub _prep_for_execute {
   }
 
   local $sm->{_modification_target_referenced_re} =
-      qr/ (?<!DELETE) [\s\)] FROM \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
+      qr/ (?<!DELETE) [\s\)] (?: FROM | JOIN ) \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
     if $target_name;
 
   $self->next::method(@_);

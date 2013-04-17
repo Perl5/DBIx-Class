@@ -1,5 +1,28 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix _dbi_attrs_for_bind() being called befor DBI has been loaded
+          (regression in 0.08210)
+        - Fix update/delete operations on resultsets *joining* the updated
+          table failing on MySQL. Resolves oversights in the fixes for
+          RT#81378 and RT#81897
+        - Stop Sybase ASE storage from generating invalid SQL in subselects
+          when a limit without offset is encountered
+
+0.08210 2013-04-04 15:30 (UTC)
+    * New Features / Changes
+        - Officially deprecate the 'cols' and 'include_columns' resultset
+          attributes
+        - Remove ::Storage::DBI::sth() deprecated in 0.08191
+
+    * Fixes
+        - Work around a *critical* bug with potential for data loss in
+          DBD::SQLite - RT#79576
+        - Audit and correct potential bugs associated with braindead reuse
+          of $1 on unsuccessful matches
+        - Fix incorrect warning/exception originator reported by carp*() and
+          throw_exception()
+
 0.08242-TRIAL (EXPERIMENTAL BETA RELEASE) 2013-03-10 14:44 (UTC)
     * New Features / Changes
         - Prefetch with limit on right-side ordered resultsets now works

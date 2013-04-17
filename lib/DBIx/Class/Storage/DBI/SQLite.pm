@@ -7,7 +7,6 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use DBIx::Class::Carp;
-use Scalar::Util 'looks_like_number';
 use Try::Tiny;
 use namespace::clean;
 
@@ -29,6 +28,47 @@ DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
 =head1 DESCRIPTION
 
 This class implements autoincrements for SQLite.
+
+=head2 Known Issues
+
+=over
+
+=item RT79576
+
+ NOTE - This section applies to you only if ALL of these are true:
+
+  * You are or were using DBD::SQLite with a version lesser than 1.38_01
+
+  * You are or were using DBIx::Class versions between 0.08191 and 0.08209
+    (inclusive) or between 0.08240-TRIAL and 0.08242-TRIAL (also inclusive)
+
+  * You use objects with overloaded stringification and are feeding them
+    to DBIC CRUD methods directly
+
+An unfortunate chain of events led to DBIx::Class silently hitting the problem
+described in L<RT#79576|https://rt.cpan.org/Public/Bug/Display.html?id=79576>.
+
+In order to trigger the bug condition one needs to supply B<more than one>
+bind value that is an object with overloaded stringification (nummification
+is not relevant, only stringification is). When this is the case the internal
+DBIx::Class call to C<< $sth->bind_param >> would be executed in a way that
+triggers the above-mentioned DBD::SQLite bug. As a result all the logs and
+tracers will contain the expected values, however SQLite will receive B<all>
+these bind positions being set to the value of the B<last> supplied
+stringifiable object.
+
+Even if you upgrade DBIx::Class (which works around the bug starting from
+version 0.08210) you may still have corrupted/incorrect data in your database.
+DBIx::Class will currently detect when this condition (more than one
+stringifiable object in one CRUD call) is encountered and will issue a warning
+pointing to this section. This warning will be removed 2 years from now,
+around April 2015, You can disable it after you've audited your data by
+setting the C<DBIC_RT79576_NOWARN> environment variable. Note - the warning
+is emited only once per callsite per process and only when the condition in
+question is encountered. Thus it is very unlikey that your logsystem will be
+flooded as a result of this.
+
+=back
 
 =head1 METHODS
 
@@ -207,9 +247,17 @@ sub bind_attribute_by_data_type {
 # version is detected
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
+
   my $bindattrs = $self->next::method($ident, $bind);
 
+  # an attempt to detect former effects of RT#79576, bug itself present between
+  # 0.08191 and 0.08209 inclusive (fixed in 0.08210 and higher)
+  my $stringifiable = 0;
+
   for (0.. $#$bindattrs) {
+
+    $stringifiable++ if ( length ref $bind->[$_][1] and overload::Method($bind->[$_][1], '""') );
+
     if (
       defined $bindattrs->[$_]
         and
@@ -217,15 +265,23 @@ sub _dbi_attrs_for_bind {
         and
       $bindattrs->[$_] eq DBI::SQL_INTEGER()
         and
-      ! looks_like_number ($bind->[$_][1])
+      $bind->[$_][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
     ) {
       carp_unique( sprintf (
-        "Non-numeric value supplied for column '%s' despite the numeric datatype",
+        "Non-integer value supplied for column '%s' despite the integer datatype",
         $bind->[$_][0]{dbic_colname} || "# $_"
       ) );
       undef $bindattrs->[$_];
     }
   }
+
+  carp_unique(
+    'POSSIBLE *PAST* DATA CORRUPTION detected - see '
+  . 'DBIx::Class::Storage::DBI::SQLite/RT79576 or '
+  . 'http://v.gd/DBIC_SQLite_RT79576 for further details or set '
+  . '$ENV{DBIC_RT79576_NOWARN} to disable this warning. Trigger '
+  . 'condition encountered'
+  ) if (!$ENV{DBIC_RT79576_NOWARN} and $stringifiable > 1);
 
   return $bindattrs;
 }

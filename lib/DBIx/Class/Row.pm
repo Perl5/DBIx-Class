@@ -134,16 +134,16 @@ sub __new_related_find_or_new_helper {
   my $proc_data = { $new_rel_obj->get_columns };
 
   if ($self->__their_pk_needs_us($relname)) {
-    MULTICREATE_DEBUG and warn "MC $self constructing $relname via new_result";
+    MULTICREATE_DEBUG and print STDERR "MC $self constructing $relname via new_result\n";
     return $new_rel_obj;
   }
   elsif ($rsrc->_pk_depends_on($relname, $proc_data )) {
     if (! keys %$proc_data) {
       # there is nothing to search for - blind create
-      MULTICREATE_DEBUG and warn "MC $self constructing default-insert $relname";
+      MULTICREATE_DEBUG and print STDERR "MC $self constructing default-insert $relname\n";
     }
     else {
-      MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
+      MULTICREATE_DEBUG and print STDERR "MC $self constructing $relname via find_or_new\n";
       # this is not *really* find or new, as we don't want to double-new the
       # data (thus potentially double encoding or whatever)
       my $exists = $rel_rs->find ($proc_data);
@@ -214,7 +214,7 @@ sub new {
             $new->{_rel_in_storage}{$key} = 1;
             $new->set_from_related($key, $rel_obj);
           } else {
-            MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj\n";
+            MULTICREATE_DEBUG and print STDERR "MC $new uninserted $key $rel_obj\n";
           }
 
           $related->{$key} = $rel_obj;
@@ -234,7 +234,7 @@ sub new {
               $rel_obj->throw_exception ('A multi relationship can not be pre-existing when doing multicreate. Something went wrong');
             } else {
               MULTICREATE_DEBUG and
-                warn "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
+                print STDERR "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
             }
             push(@objects, $rel_obj);
           }
@@ -251,7 +251,7 @@ sub new {
             $new->{_rel_in_storage}{$key} = 1;
           }
           else {
-            MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj";
+            MULTICREATE_DEBUG and print STDERR "MC $new uninserted $key $rel_obj\n";
           }
           $inflated->{$key} = $rel_obj;
           next;
@@ -363,7 +363,7 @@ sub insert {
       # The guard will save us if we blow out of this scope via die
       $rollback_guard ||= $storage->txn_scope_guard;
 
-      MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
+      MULTICREATE_DEBUG and print STDERR "MC $self pre-reconstructing $relname $rel_obj\n";
 
       my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_columns };
       my $existing;
@@ -395,7 +395,7 @@ sub insert {
 
   MULTICREATE_DEBUG and do {
     no warnings 'uninitialized';
-    warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
+    print STDERR "MC $self inserting (".join(', ', $self->get_columns).")\n";
   };
 
   # perform the insert - the storage will return everything it is asked to
@@ -440,14 +440,14 @@ sub insert {
         $obj->set_from_related($_, $self) for keys %$reverse;
         if ($self->__their_pk_needs_us($relname)) {
           if (exists $self->{_ignore_at_insert}{$relname}) {
-            MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
+            MULTICREATE_DEBUG and print STDERR "MC $self skipping post-insert on $relname\n";
           }
           else {
-            MULTICREATE_DEBUG and warn "MC $self inserting $relname $obj";
+            MULTICREATE_DEBUG and print STDERR "MC $self inserting $relname $obj\n";
             $obj->insert;
           }
         } else {
-          MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
+          MULTICREATE_DEBUG and print STDERR "MC $self post-inserting $obj\n";
           $obj->insert();
         }
       }

@@ -49,7 +49,7 @@ bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
     'Correct delete-SQL with double-wrapped subquery',
   );
 
-  # and a really contrived example (we test it live in t/71mysql.t)
+  # and a couple of really contrived examples (we test them live in t/71mysql.t)
   my $rs = $schema->resultset('Artist')->search({ name => { -like => 'baby_%' } });
   my ($count_sql, @count_bind) = @${$rs->count_rs->as_query};
   eval {
@@ -84,6 +84,31 @@ bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
             ) `_forced_double_subquery` )
     ),
     [ ("'baby_%'") x 2 ],
+  );
+
+  eval {
+    $schema->resultset('CD')->search_related('artist',
+      { 'artist.name' => { -like => 'baby_with_%' } }
+    )->delete
+  };
+
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    q(
+      DELETE FROM `artist`
+      WHERE `artistid` IN (
+        SELECT *
+          FROM (
+            SELECT `artist`.`artistid`
+              FROM cd `me`
+              INNER JOIN `artist` `artist`
+                ON `artist`.`artistid` = `me`.`artist`
+            WHERE `artist`.`name` LIKE ?
+          ) `_forced_double_subquery`
+      )
+    ),
+    [ "'baby_with_%'" ],
   );
 
   $schema->storage->debugobj ($orig_debugobj);

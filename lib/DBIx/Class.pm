@@ -95,6 +95,10 @@ sub _attr_cache {
 
 1;
 
+__END__
+
+=encoding UTF-8
+
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
@@ -131,41 +135,11 @@ list below is sorted by "fastest response time":
 
 =back
 
-=head1 HOW TO CONTRIBUTE
-
-Contributions are always welcome, in all usable forms (we especially
-welcome documentation improvements). The delivery methods include git-
-or unified-diff formatted patches, GitHub pull requests, or plain bug
-reports either via RT or the Mailing list. Contributors are generally
-granted full access to the official repository after their first patch
-passes successful review.
-
-=for comment
-FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
-
-This project is maintained in a git repository. The code and related tools are
-accessible at the following locations:
-
-=over
-
-=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
-
-=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
-
-=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
-
-=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
-
-=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
-
-=for html
-<br>&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
-
-=back
-
 =head1 SYNOPSIS
 
-Create a schema class called MyApp/Schema.pm:
+=head2 Schema classes preparation
+
+Create a schema class called F<MyApp/Schema.pm>:
 
   package MyApp::Schema;
   use base qw/DBIx::Class::Schema/;
@@ -175,7 +149,7 @@ Create a schema class called MyApp/Schema.pm:
   1;
 
 Create a result class to represent artists, who have many CDs, in
-MyApp/Schema/Result/Artist.pm:
+F<MyApp/Schema/Result/Artist.pm>:
 
 See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
@@ -190,7 +164,7 @@ See L<DBIx::Class::ResultSource> for docs on defining result classes.
   1;
 
 A result class to represent a CD, which belongs to an artist, in
-MyApp/Schema/Result/CD.pm:
+F<MyApp/Schema/Result/CD.pm>:
 
   package MyApp::Schema::Result::CD;
   use base qw/DBIx::Class::Core/;
@@ -202,6 +176,8 @@ MyApp/Schema/Result/CD.pm:
   __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Result::Artist', 'artistid');
 
   1;
+
+=head2 API usage
 
 Then you can use these classes in your application's code:
 
@@ -271,7 +247,8 @@ that allows abstract encapsulation of database operations. It aims to make
 representing queries in your code as perl-ish as possible while still
 providing access to as many of the capabilities of the database as possible,
 including retrieving related records from multiple tables in a single query,
-JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY, ORDER BY and HAVING support.
+C<JOIN>, C<LEFT JOIN>, C<COUNT>, C<DISTINCT>, C<GROUP BY>, C<ORDER BY> and
+C<HAVING> support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
@@ -284,8 +261,8 @@ and thread-safe out of the box (although
 L<your DBD may not be|DBI/Threads and Thread Safety>).
 
 This project is still under rapid development, so large new features may be
-marked EXPERIMENTAL - such APIs are still usable but may have edge bugs.
-Failing test cases are *always* welcome and point releases are put out rapidly
+marked B<experimental> - such APIs are still usable but may have edge bugs.
+Failing test cases are I<always> welcome and point releases are put out rapidly
 as bugs are found and fixed.
 
 We do our best to maintain full backwards compatibility for published
@@ -296,6 +273,38 @@ if they're reported and doing so doesn't cost the codebase anything.
 The test suite is quite substantial, and several developer releases
 are generally made to CPAN before the branch for the next release is
 merged back to trunk for a major release.
+
+=head1 HOW TO CONTRIBUTE
+
+Contributions are always welcome, in all usable forms (we especially
+welcome documentation improvements). The delivery methods include git-
+or unified-diff formatted patches, GitHub pull requests, or plain bug
+reports either via RT or the Mailing list. Contributors are generally
+granted full access to the official repository after their first patch
+passes successful review.
+
+=for comment
+FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
+
+This project is maintained in a git repository. The code and related tools are
+accessible at the following locations:
+
+=over
+
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+
+=item * GitHub mirror: L<https://github.com/dbsrgits/DBIx-Class>
+
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/DBIx-Class.git>
+
+=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
+
+=for html
+&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+
+=back
 
 =head1 AUTHOR
 
@@ -362,7 +371,11 @@ clkao: CL Kao
 
 da5id: David Jack Olrik <djo@cpan.org>
 
+dariusj: Darius Jokilehto <dariusjokilehto@yahoo.co.uk>
+
 davewood: David Schmidt <davewood@gmx.at>
+
+daxim: Lars Dɪᴇᴄᴋᴏᴡ 迪拉斯 <daxim@cpan.org>
 
 debolaz: Anders Nor Berle <berle@cpan.org>
 
@@ -563,5 +576,3 @@ as listed above.
 
 This library is free software and may be distributed under the same terms
 as perl itself.
-
-=cut
