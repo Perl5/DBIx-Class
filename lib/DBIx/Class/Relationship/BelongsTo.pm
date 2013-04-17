@@ -73,6 +73,8 @@ sub belongs_to {
       and
     keys %$cond == 1
       and
+    (keys %$cond)[0] =~ /^foreign\./
+      and
     $class->has_column($rel)
   ) ? 'filter' : 'single';
 

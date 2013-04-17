@@ -1669,7 +1669,7 @@ our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 sub _resolve_condition {
   my ($self, $cond, $as, $for, $rel_name) = @_;
 
-  my $obj_rel = !!blessed $for;
+  my $obj_rel = defined blessed $for;
 
   if (ref $cond eq 'CODE') {
     my $relalias = $obj_rel ? 'me' : $as;

@@ -8,6 +8,8 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
+delete $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS};
+
 my $schema = DBICTest->init_schema(no_populate => 1);
 
 $schema->resultset('Artist')->create({ name => 'JMJ', cds => [{
@@ -117,18 +119,106 @@ cmp_deeply (
   'W00T, manual prefetch with collapse works'
 );
 
-TODO: {
-  my ($row) = $rs->all;
-  local $TODO = 'Something is wrong with filter type rels, they throw on incomplete objects >.<';
+lives_ok { my $dummy = $rs;  warnings_exist {
 
-  lives_ok {
-    cmp_deeply (
-      { $row->single_track->get_columns },
-      {},
-      'empty intermediate object ok',
-    )
-  } 'no exception';
-}
+##############
+### This is a bunch of workarounds for deprecated behavior - delete entire block when fixed
+  my $cd_obj = ($rs->all)[0]->single_track->cd;
+  my $art_obj = $cd_obj->artist;
+
+  my $empty_single_columns = {
+    cd => undef
+  };
+  my $empty_single_inflated_columns = {
+    cd => $cd_obj
+  };
+  my $empty_cd_columns = {
+    artist => $art_obj->artistid
+  };
+  my $empty_cd_inflated_columns = {
+    artist => $art_obj
+  };
+
+  {
+    local $TODO = "Returning prefetched 'filter' rels as part of get_columns/get_inflated_columns is deprecated";
+    is_deeply($_, {}) for (
+      $empty_single_columns, $empty_single_inflated_columns, $empty_cd_columns, $empty_cd_inflated_columns
+    );
+  }
+##############
+
+
+### this tests the standard root -> single -> filter ->filter
+  my ($row) = $rs->all; # don't trigger order warnings
+
+  is_deeply(
+    { $row->single_track->get_columns },
+    $empty_single_columns,
+    "No unexpected columns available on intermediate 'single' rel with a chained 'filter' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->get_inflated_columns },
+    $empty_single_inflated_columns,
+    "No unexpected inflated columns available on intermediate 'single' rel with a chained 'filter' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->cd->get_columns },
+    $empty_cd_columns,
+    "No unexpected columns available on intermediate 'single' rel with 2x chained 'filter' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->cd->get_inflated_columns },
+    $empty_cd_inflated_columns,
+    "No unexpected inflated columns available on intermediate 'single' rel with 2x chained 'filter' prefetch",
+  );
+
+### also try a different arangement root -> single -> single ->filter
+  ($row) = $rs->result_source->resultset->search({ 'artist.artistid' => 1 }, {
+    join => { single_track => { disc => { artist => 'cds' } } },
+    '+columns' => {
+      'single_track.disc.artist.artistid' => 'artist.artistid',
+      'single_track.disc.artist.cds.cdid' => 'cds.cdid',
+    },
+    collapse => 1,
+  })->all;
+
+  is_deeply(
+    { $row->single_track->get_columns },
+    {},
+    "No unexpected columns available on intermediate 'single' rel with a chained 'single' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->get_inflated_columns },
+    {},
+    "No unexpected inflated columns available on intermediate 'single' rel with a chained 'single' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->disc->get_columns },
+    $empty_cd_columns,
+    "No unexpected columns available on intermediate 'single' rel with chained 'single' and chained 'filter' prefetch",
+  );
+
+  is_deeply(
+    { $row->single_track->disc->get_inflated_columns },
+    $empty_cd_inflated_columns,
+    "No unexpected inflated columns available on intermediate 'single' rel with chained 'single' and chained 'filter' prefetch",
+  );
+
+} [
+  qr/\QReturning primary keys of prefetched 'filter' rels as part of get_columns()/,
+  qr/\QUnable to deflate 'filter'-type relationship 'cd' (related object primary key not retrieved)/,
+  qr/\QReturning prefetched 'filter' rels as part of get_inflated_columns()/,
+  qr/\QReturning primary keys of prefetched 'filter' rels as part of get_columns()/,
+  qr/\QReturning prefetched 'filter' rels as part of get_inflated_columns()/,
+  qr/\QReturning primary keys of prefetched 'filter' rels as part of get_columns()/,
+  qr/\QReturning prefetched 'filter' rels as part of get_inflated_columns()/,
+], 'expected_warnings'
+} 'traversing prefetch chain with empty intermediates works';
 
 TODO: {
 local $TODO = 'this does not work at all, need to promote rsattrs to an object on its own';

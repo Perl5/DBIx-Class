@@ -8,6 +8,7 @@ use base qw/DBIx::Class/;
 use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;
+use DBIx::Class::Carp;
 
 ###
 ### Internal method
@@ -718,8 +719,22 @@ sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
     foreach my $col (keys %{$self->{_inflated_column}}) {
-      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
-        unless exists $self->{_column_data}{$col};
+      unless (exists $self->{_column_data}{$col}) {
+
+        # if cached related_resultset is present assume this was a prefetch
+        carp_unique(
+          "Returning primary keys of prefetched 'filter' rels as part of get_columns() is deprecated and will "
+        . 'eventually be removed entirely (set DBIC_COLUMNS_INCLUDE_FILTER_RELS to disable this warning)'
+        ) if (
+          ! $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS}
+            and
+          defined $self->{related_resultsets}{$col}
+            and
+          defined $self->{related_resultsets}{$col}->get_cache
+        );
+
+        $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}));
+      }
     }
   }
   return %{$self->{_column_data}};
@@ -819,19 +834,43 @@ sub get_inflated_columns {
     grep { $self->has_column_loaded($_) } $self->columns
   ]);
 
-  my %inflated;
-  for my $col (keys %$loaded_colinfo) {
-    if (exists $loaded_colinfo->{$col}{accessor}) {
-      my $acc = $loaded_colinfo->{$col}{accessor};
-      $inflated{$col} = $self->$acc if defined $acc;
-    }
-    else {
-      $inflated{$col} = $self->$col;
+  my %cols_to_return = ( %{$self->{_column_data}}, %$loaded_colinfo );
+
+  unless ($ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS}) {
+    for (keys %$loaded_colinfo) {
+      # if cached related_resultset is present assume this was a prefetch
+      if (
+        $loaded_colinfo->{$_}{_inflate_info}
+          and
+        defined $self->{related_resultsets}{$_}
+          and
+        defined $self->{related_resultsets}{$_}->get_cache
+      ) {
+        carp_unique(
+          "Returning prefetched 'filter' rels as part of get_inflated_columns() is deprecated and will "
+        . 'eventually be removed entirely (set DBIC_COLUMNS_INCLUDE_FILTER_RELS to disable this warning)'
+        );
+        last;
+      }
     }
   }
 
-  # return all loaded columns with the inflations overlayed on top
-  return %{ { $self->get_columns, %inflated } };
+  map { $_ => (
+  (
+    ! exists $loaded_colinfo->{$_}
+      or
+    (
+      exists $loaded_colinfo->{$_}{accessor}
+        and
+      ! defined $loaded_colinfo->{$_}{accessor}
+    )
+  ) ? $self->get_column($_)
+    : $self->${ \(
+      defined $loaded_colinfo->{$_}{accessor}
+        ? $loaded_colinfo->{$_}{accessor}
+        : $_
+      )}
+  )} keys %cols_to_return;
 }
 
 sub _is_column_numeric {

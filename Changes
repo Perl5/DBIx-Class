@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - Deprecate returning of prefetched 'filter' rels as part of
+          get_columns() and get_inflated_columns() data
+        - Invoking get_inflated_columns() no longer fires get_columns() but
+          instead retrieves data from individual non-inflatable columns via
+          get_column()
+
     * Fixes
         - Fix _dbi_attrs_for_bind() being called befor DBI has been loaded
           (regression in 0.08210)
