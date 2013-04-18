@@ -34,8 +34,8 @@ sub _prune_unused_joins {
 
   my $aliastypes = $self->_resolve_aliastypes_from_select_args(@_);
 
-  # don't care
-  delete $aliastypes->{joining};
+  my $orig_joins = delete $aliastypes->{joining};
+  my $orig_multiplying = $aliastypes->{multiplying};
 
   # a grouped set will not be affected by amount of rows. Thus any
   # {multiplying} joins can go
@@ -56,13 +56,17 @@ sub _prune_unused_joins {
 
   for my $j (@{$from}[1..$#$from]) {
     push @newfrom, $j if (
-      (! $j->[0]{-alias}) # legacy crap
+      (! defined $j->[0]{-alias}) # legacy crap
         ||
       $need_joins{$j->[0]{-alias}}
     );
   }
 
-  return \@newfrom;
+  return ( \@newfrom, {
+    multiplying => { map { $need_joins{$_} ? ($_  => $orig_multiplying->{$_}) : () } keys %$orig_multiplying },
+    %$aliastypes,
+    joining => { map { $_ => $orig_joins->{$_} } keys %need_joins },
+  } );
 }
 
 #
@@ -175,12 +179,9 @@ sub _adjust_select_args_for_complex_prefetch {
     local $self->{_use_join_optimizer} = 1;
 
     # throw away multijoins since we def. do not care about those inside the subquery
-    my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
+    my ($inner_from, $inner_aliastypes) = $self->_prune_unused_joins ($from, $inner_select, $where, {
       %$inner_attrs, _force_prune_multiplying_joins => 1
     });
-
-    my $inner_aliastypes =
-      $self->_resolve_aliastypes_from_select_args( $inner_from, $inner_select, $where, $inner_attrs );
 
     # uh-oh a multiplier (which is not us) left in, this is a problem
     if (

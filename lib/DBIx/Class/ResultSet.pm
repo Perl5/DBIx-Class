@@ -1837,20 +1837,12 @@ sub _rs_update_delete {
 
   # simplify the joinmap, so we can further decide if a subq is necessary
   if (!$needs_subq and @{$attrs->{from}} > 1) {
-    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $self->{cond}, $attrs);
 
-    # check if there are any joins left after the prune
-    if ( @{$attrs->{from}} > 1 ) {
-      $join_classifications = $storage->_resolve_aliastypes_from_select_args (
-        [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
-        $attrs->{select},
-        $self->{cond},
-        $attrs
-      );
+    ($attrs->{from}, $join_classifications) =
+      $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $self->{cond}, $attrs);
 
-      # any non-pruneable joins imply subq
-      $needs_subq = scalar keys %{ $join_classifications->{restricting} || {} };
-    }
+    # any non-pruneable non-local restricting joins imply subq
+    $needs_subq = defined List::Util::first { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
   }
 
   # check if the head is composite (by now all joins are thrown out unless $needs_subq)

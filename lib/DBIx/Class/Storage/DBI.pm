@@ -2387,7 +2387,7 @@ sub _select_args {
       and
     @$ident != 1
   ) {
-    $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+    ($ident) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
   }
 
 ###
