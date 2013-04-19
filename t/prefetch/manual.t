@@ -220,29 +220,6 @@ lives_ok { my $dummy = $rs;  warnings_exist {
 ], 'expected_warnings'
 } 'traversing prefetch chain with empty intermediates works';
 
-TODO: {
-local $TODO = 'this does not work at all, need to promote rsattrs to an object on its own';
-# make sure has_many column redirection does not do weird stuff when collapse is requested
-for my $pref_args (
-  { prefetch => 'cds'},
-  { collapse => 1 }
-) {
-  for my $col_and_join_args (
-    { '+columns' => { 'cd_title' => 'cds_2.title' }, join => [ 'cds', 'cds' ] },
-    { '+columns' => { 'cd_title' => 'cds.title' }, join => 'cds', }
-  ) {
-
-    my $weird_rs = $schema->resultset('Artist')->search({}, {
-      %$col_and_join_args, %$pref_args,
-    });
-
-    for (qw/next all first/) {
-      throws_ok { $weird_rs->$_ } qr/not yet determined exception text/;
-    }
-  }
-}
-}
-
 # multi-has_many with underdefined root, with rather random order
 $rs = $schema->resultset ('CD')->search ({}, {
   join => [ 'tracks', { single_track => { cd => { artist => { cds => 'tracks' } } } }  ],

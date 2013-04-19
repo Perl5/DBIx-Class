@@ -70,4 +70,28 @@ throws_ok
   'Correct exception on illegal ::Row inflation attempt'
 ;
 
+# make sure has_many column redirection does not do weird stuff when collapse is requested
+for my $pref_args (
+  { prefetch => 'cds'},
+  { collapse => 1 }
+) {
+  for my $col_and_join_args (
+    { '+columns' => { 'cd_title' => 'cds_2.title' }, join => [ 'cds', 'cds' ] },
+    { '+columns' => { 'cd_title' => 'cds.title' }, join => 'cds' },
+    { '+columns' => { 'cd_gr_name' => 'genre.name' }, join => { cds => 'genre' } },
+  ) {
+    for my $call (qw(next all first)) {
+
+      my $weird_rs = $s->resultset('Artist')->search({}, {
+        %$col_and_join_args, %$pref_args,
+      });
+
+      throws_ok
+        { $weird_rs->$call }
+        qr/\QResult collapse not possible - selection from a has_many source redirected to the main object/
+      for (1,2);
+    }
+  }
+}
+
 done_testing;

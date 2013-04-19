@@ -1346,6 +1346,36 @@ sub _construct_results {
 
   return undef unless @{$rows||[]};
 
+  # sanity check - people are too clever for their own good
+  if ($attrs->{collapse} and my $aliastypes = $attrs->{_sqlmaker_select_args}[3]{_aliastypes} ) {
+
+    my $multiplied_selectors;
+    for my $sel_alias ( grep { $_ ne $attrs->{alias} } keys %{ $aliastypes->{selecting} } ) {
+      if (
+        $aliastypes->{multiplying}{$sel_alias}
+          or
+        scalar grep { $aliastypes->{multiplying}{(values %$_)[0]} } @{ $aliastypes->{selecting}{$sel_alias}{-parents} }
+      ) {
+        $multiplied_selectors->{$_} = 1 for values %{$aliastypes->{selecting}{$sel_alias}{-seen_columns}}
+      }
+    }
+
+    for my $i (0 .. $#{$attrs->{as}} ) {
+      my $sel = $attrs->{select}[$i];
+
+      if (ref $sel eq 'SCALAR') {
+        $sel = $$sel;
+      }
+      elsif( ref $sel eq 'REF' and ref $$sel eq 'ARRAY' ) {
+        $sel = $$sel->[0];
+      }
+
+      $self->throw_exception(
+        'Result collapse not possible - selection from a has_many source redirected to the main object'
+      ) if ($multiplied_selectors->{$sel} and $attrs->{as}[$i] !~ /\./);
+    }
+  }
+
   my @extra_collapser_args;
   if ($attrs->{collapse} and ! $did_fetch_all ) {
 
@@ -3522,9 +3552,6 @@ sub _resolved_attrs {
 
   if ( List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
     $attrs->{_related_results_construction} = 1;
-  }
-  else {
-    $attrs->{collapse} = 0;
   }
 
   # run through the resulting joinstructure (starting from our current slot)
