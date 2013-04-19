@@ -83,10 +83,10 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # generate inner/outer attribute lists, remove stuff that doesn't apply
   my $outer_attrs = { %$attrs };
-  delete $outer_attrs->{$_} for qw/where bind rows offset group_by _grouped_by_distinct having/;
+  delete @{$outer_attrs}{qw(where bind rows offset group_by _grouped_by_distinct having)};
 
   my $inner_attrs = { %$attrs };
-  delete $inner_attrs->{$_} for qw/from for collapse select as _related_results_construction/;
+  delete @{$inner_attrs}{qw(from for collapse select as _related_results_construction)};
 
   # there is no point of ordering the insides if there is no limit
   delete $inner_attrs->{order_by} if (

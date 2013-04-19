@@ -1896,7 +1896,7 @@ sub insert {
         unless (@pri_values == @missing_pri);
 
       @returned_cols{@missing_pri} = @pri_values;
-      delete $retrieve_cols{$_} for @missing_pri;
+      delete @retrieve_cols{@missing_pri};
     }
 
     # if there is more left to pull

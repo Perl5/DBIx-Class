@@ -142,7 +142,7 @@ is (
 
 throws_ok (
   sub { $use_prefetch->single },
-  qr/resultsets prefetching has_many/,
+  qr/\Qsingle() can not be used on resultsets collapsing a has_many/,
   'single() with multiprefetch is illegal',
 );
 

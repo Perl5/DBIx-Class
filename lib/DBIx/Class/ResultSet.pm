@@ -244,7 +244,9 @@ sub new {
   my ($source, $attrs) = @_;
   $source = $source->resolve
     if $source->isa('DBIx::Class::ResultSourceHandle');
+
   $attrs = { %{$attrs||{}} };
+  delete @{$attrs}{qw(_related_results_construction)};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -407,8 +409,7 @@ sub search_rs {
   }
 
   my $old_attrs = { %{$self->{attrs}} };
-  my $old_having = delete $old_attrs->{having};
-  my $old_where = delete $old_attrs->{where};
+  my ($old_having, $old_where) = delete @{$old_attrs}{qw(having where)};
 
   my $new_attrs = { %$old_attrs };
 
@@ -1062,7 +1063,7 @@ sub single {
   my $attrs = { %{$self->_resolved_attrs} };
 
   $self->throw_exception(
-    'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
+    'single() can not be used on resultsets collapsing a has_many. Use find( \%cond ) or next() instead'
   ) if $attrs->{collapse};
 
   if ($where) {
@@ -1410,28 +1411,31 @@ sub _construct_results {
   }
   # Special-case multi-object HRI (we always prune, and there is no $inflator_cref pass)
   elsif ($self->{_result_inflator}{is_hri}) {
+
+    # $args and $attrs to _mk_row_parser are seperated to delineate what is
+    # core collapser stuff and what is dbic $rs specific
     ( $self->{_row_parser}{hri} ||= $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
-      selection => $attrs->{select},
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
       hri_style => 1,
       prune_null_branches => 1,
-    }) )->($rows, @extra_collapser_args);
+    }, $attrs) )->($rows, @extra_collapser_args);
   }
   # Regular multi-object
   else {
     my $parser_type = $self->{_result_inflator}{is_core_row} ? 'classic_pruning' : 'classic_nonpruning';
 
+    # $args and $attrs to _mk_row_parser are seperated to delineate what is
+    # core collapser stuff and what is dbic $rs specific
     ( $self->{_row_parser}{$parser_type} ||= $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
-      selection => $attrs->{select},
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
       prune_null_branches => $self->{_result_inflator}{is_core_row},
-    }) )->($rows, @extra_collapser_args);
+    }, $attrs) )->($rows, @extra_collapser_args);
 
     $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;
   }
@@ -1579,10 +1583,10 @@ sub count_rs {
   # software based limiting can not be ported if this $rs is to be used
   # in a subquery itself (i.e. ->as_query)
   if ($self->_has_resolved_attr (qw/collapse group_by offset rows/)) {
-    return $self->_count_subq_rs;
+    return $self->_count_subq_rs($self->{_attrs});
   }
   else {
-    return $self->_count_rs;
+    return $self->_count_rs($self->{_attrs});
   }
 }
 
@@ -1593,19 +1597,17 @@ sub _count_rs {
   my ($self, $attrs) = @_;
 
   my $rsrc = $self->result_source;
-  $attrs ||= $self->_resolved_attrs;
 
   my $tmp_attrs = { %$attrs };
   # take off any limits, record_filter is cdbi, and no point of ordering nor locking a count
-  delete @{$tmp_attrs}{qw/rows offset order_by _related_results_construction record_filter for/};
+  delete @{$tmp_attrs}{qw/rows offset order_by record_filter for/};
 
   # overwrite the selector (supplied by the storage)
-  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
-  $tmp_attrs->{as} = 'count';
-
-  my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
-
-  return $tmp_rs;
+  $rsrc->resultset_class->new($rsrc, {
+    %$tmp_attrs,
+    select => $rsrc->storage->_count_select ($rsrc, $attrs),
+    as => 'count',
+  })->get_column ('count');
 }
 
 #
@@ -1615,11 +1617,10 @@ sub _count_subq_rs {
   my ($self, $attrs) = @_;
 
   my $rsrc = $self->result_source;
-  $attrs ||= $self->_resolved_attrs;
 
   my $sub_attrs = { %$attrs };
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
-  delete @{$sub_attrs}{qw/collapse columns as select _related_results_construction order_by for/};
+  delete @{$sub_attrs}{qw/collapse columns as select order_by for/};
 
   # if we multi-prefetch we group_by something unique, as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1875,7 +1876,7 @@ sub _rs_update_delete {
     );
 
     # make a new $rs selecting only the PKs (that's all we really need for the subq)
-    delete $attrs->{$_} for qw/select as collapse _related_results_construction/;
+    delete $attrs->{$_} for qw/select as collapse/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$idcols ];
 
     # this will be consumed by the pruner waaaaay down the stack
@@ -3534,7 +3535,7 @@ sub _resolved_attrs {
 
     if (ref $attrs->{from} eq 'ARRAY') {
 
-      if (@{$attrs->{from}} <= 1) {
+      if (@{$attrs->{from}} == 1) {
         # no joins - no collapse
         $attrs->{collapse} = 0;
       }

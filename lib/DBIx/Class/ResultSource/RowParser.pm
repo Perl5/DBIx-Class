@@ -93,7 +93,9 @@ sub _resolve_prefetch {
 # any sort of adjustment/rewrite should be relatively easy (fsvo relatively)
 #
 sub _mk_row_parser {
-  my ($self, $args) = @_;
+  # $args and $attrs are seperated to delineate what is core collapser stuff and
+  # what is dbic $rs specific
+  my ($self, $args, $attrs) = @_;
 
   die "HRI without pruning makes zero sense"
   if ( $args->{hri_style} && ! $args->{prune_null_branches} );
@@ -120,7 +122,7 @@ sub _mk_row_parser {
         # (it is now trivial as the attrs specify where things go out of sync
         # needs MOAR tests)
         as => { map
-          { ref $args->{selection}[$common{val_index}{$_}] ? () : ( $_ => $common{val_index}{$_} ) }
+          { ref $attrs->{select}[$common{val_index}{$_}] ? () : ( $_ => $common{val_index}{$_} ) }
           keys %{$common{val_index}}
         },
         premultiplied => $args->{premultiplied},
