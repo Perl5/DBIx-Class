@@ -21,9 +21,9 @@ my $infmap = [qw/
 /];
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
-  }),
+  }))[0],
   '$_ = [
     { year => $_->[1] },
     { single_track => ( ! defined( $_->[0]) )
@@ -60,9 +60,9 @@ $infmap = [qw/
 /];
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
-  }),
+  }))[0],
   '$_ = [
     { artist => $_->[5], title => $_->[4], year => $_->[2] },
     {
@@ -137,10 +137,10 @@ is_same_src (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     prune_null_branches => 1,
     inflate_map => $infmap,
-  }),
+  }))[0],
   '$_ = [
     { artist => $_->[5], title => $_->[4], year => $_->[2] },
     {
@@ -173,11 +173,11 @@ is_same_src (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     hri_style => 1,
     prune_null_branches => 1,
     inflate_map => $infmap,
-  }),
+  }))[0],
   '$_ = {
       artist => $_->[5], title => $_->[4], year => $_->[2],
 
@@ -243,10 +243,10 @@ is_deeply (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
@@ -301,12 +301,12 @@ is_same_src (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
     hri_style => 1,
     prune_null_branches => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data);
 
@@ -420,10 +420,10 @@ is_deeply (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
@@ -486,11 +486,11 @@ is_same_src (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
     prune_null_branches => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data);
 
@@ -601,10 +601,10 @@ is_deeply (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
@@ -669,12 +669,12 @@ is_same_src (
 );
 
 is_same_src (
-  $schema->source ('CD')->_mk_row_parser({
+  ($schema->source ('CD')->_mk_row_parser({
     inflate_map => $infmap,
     collapse => 1,
     hri_style => 1,
     prune_null_branches => 1,
-  }),
+  }))[0],
   ' my $rows_pos = 0;
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 

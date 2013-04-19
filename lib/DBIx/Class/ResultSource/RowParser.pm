@@ -109,34 +109,38 @@ sub _mk_row_parser {
     },
   );
 
-  my $src = $args->{collapse}
-    ? assemble_collapsing_parser({
-      %common,
-      collapse_map => $self->_resolve_collapse ({
-        # FIXME
-        # only consider real columns (not functions) during collapse resolution
-        # this check shouldn't really be here, as fucktards are not supposed to
-        # alias random crap to existing column names anyway, but still - just in
-        # case
-        # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
-        # (it is now trivial as the attrs specify where things go out of sync
-        # needs MOAR tests)
-        as => { map
-          { ref $attrs->{select}[$common{val_index}{$_}] ? () : ( $_ => $common{val_index}{$_} ) }
-          keys %{$common{val_index}}
-        },
-        premultiplied => $args->{premultiplied},
-      })
-    })
-    : assemble_simple_parser(
-      \%common
-    )
-  ;
+  my $check_null_columns;
 
-  return $args->{eval}
-    ? ( eval "sub $src" || die $@ )
-    : $src
-  ;
+  my $src = (! $args->{collapse} ) ? assemble_simple_parser(\%common) : do {
+    my $collapse_map = $self->_resolve_collapse ({
+      # FIXME
+      # only consider real columns (not functions) during collapse resolution
+      # this check shouldn't really be here, as fucktards are not supposed to
+      # alias random crap to existing column names anyway, but still - just in
+      # case
+      # FIXME !!!! - this does not yet deal with unbalanced selectors correctly
+      # (it is now trivial as the attrs specify where things go out of sync
+      # needs MOAR tests)
+      as => { map
+        { ref $attrs->{select}[$common{val_index}{$_}] ? () : ( $_ => $common{val_index}{$_} ) }
+        keys %{$common{val_index}}
+      },
+      premultiplied => $args->{premultiplied},
+    });
+
+    $check_null_columns = $collapse_map->{-identifying_columns}
+      if @{$collapse_map->{-identifying_columns}};
+
+    assemble_collapsing_parser({
+      %common,
+      collapse_map => $collapse_map,
+    });
+  };
+
+  return (
+    $args->{eval} ? ( eval "sub $src" || die $@ ) : $src,
+    $check_null_columns,
+  );
 }
 
 

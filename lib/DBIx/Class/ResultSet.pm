@@ -1376,16 +1376,6 @@ sub _construct_results {
     }
   }
 
-  my @extra_collapser_args;
-  if ($attrs->{collapse} and ! $did_fetch_all ) {
-
-    @extra_collapser_args = (
-      # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-      sub { my @r = $cursor->next or return; \@r }, # how the collapser gets more rows
-      ($self->{_stashed_rows} = []),                # where does it stuff excess
-    );
-  }
-
   # hotspot - skip the setter
   my $res_class = $self->_result_class;
 
@@ -1439,35 +1429,79 @@ sub _construct_results {
       );
     }
   }
-  # Special-case multi-object HRI (we always prune, and there is no $inflator_cref pass)
-  elsif ($self->{_result_inflator}{is_hri}) {
-
-    # $args and $attrs to _mk_row_parser are seperated to delineate what is
-    # core collapser stuff and what is dbic $rs specific
-    ( $self->{_row_parser}{hri} ||= $rsrc->_mk_row_parser({
-      eval => 1,
-      inflate_map => $infmap,
-      collapse => $attrs->{collapse},
-      premultiplied => $attrs->{_main_source_premultiplied},
-      hri_style => 1,
-      prune_null_branches => 1,
-    }, $attrs) )->($rows, @extra_collapser_args);
-  }
-  # Regular multi-object
   else {
-    my $parser_type = $self->{_result_inflator}{is_core_row} ? 'classic_pruning' : 'classic_nonpruning';
+    my $parser_type =
+        $self->{_result_inflator}{is_hri}       ? 'hri'
+      : $self->{_result_inflator}{is_core_row}  ? 'classic_pruning'
+      :                                           'classic_nonpruning'
+    ;
 
     # $args and $attrs to _mk_row_parser are seperated to delineate what is
     # core collapser stuff and what is dbic $rs specific
-    ( $self->{_row_parser}{$parser_type} ||= $rsrc->_mk_row_parser({
+    @{$self->{_row_parser}{$parser_type}}{qw(cref nullcheck)} = $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
       collapse => $attrs->{collapse},
       premultiplied => $attrs->{_main_source_premultiplied},
-      prune_null_branches => $self->{_result_inflator}{is_core_row},
-    }, $attrs) )->($rows, @extra_collapser_args);
+      hri_style => $self->{_result_inflator}{is_hri},
+      prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
+    }, $attrs) unless $self->{_row_parser}{$parser_type}{cref};
 
-    $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows;
+    # column_info metadata historically hasn't been too reliable.
+    # We need to start fixing this somehow (the collapse resolver
+    # can't work without it). Add an explicit check for the *main*
+    # result, hopefully this will gradually weed out such errors
+    #
+    # FIXME - this is a temporary kludge that reduces perfromance
+    # It is however necessary for the time being
+    my ($unrolled_non_null_cols_to_check, $err);
+
+    if (my $check_non_null_cols = $self->{_row_parser}{$parser_type}{nullcheck} ) {
+
+      $err =
+        'Collapse aborted due to invalid ResultSource metadata - the following '
+      . 'selections are declared non-nullable but NULLs were retrieved: '
+      ;
+
+      my @violating_idx;
+      COL: for my $i (@$check_non_null_cols) {
+        ! defined $_->[$i] and push @violating_idx, $i and next COL for @$rows;
+      }
+
+      $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
+        if @violating_idx;
+
+      $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
+    }
+
+    my $next_cref =
+      ($did_fetch_all or ! $attrs->{collapse})  ? undef
+    : defined $unrolled_non_null_cols_to_check  ? eval sprintf <<'EOS', $unrolled_non_null_cols_to_check
+sub {
+  # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+  my @r = $cursor->next or return;
+  if (my @violating_idx = grep { ! defined $r[$_] } (%s) ) {
+    $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
+  }
+  \@r
+}
+EOS
+    : sub {
+        # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+        my @r = $cursor->next or return;
+        \@r
+      }
+    ;
+
+    $self->{_row_parser}{$parser_type}{cref}->(
+      $rows,
+      $next_cref ? ( $next_cref, $self->{_stashed_rows} = [] ) : (),
+    );
+
+    # Special-case multi-object HRI - there is no $inflator_cref pass
+    unless ($self->{_result_inflator}{is_hri}) {
+      $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows
+    }
   }
 
   # The @$rows check seems odd at first - why wouldn't we want to warn
