@@ -80,8 +80,7 @@ is_same_sql_bind (
         ON tracks.cd = cds.cdid
     WHERE artwork.cd_id IS NULL
        OR tracks.title != ?
-    GROUP BY me.artistid + ?, me.artistid, me.name, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
-    ORDER BY name DESC, cds.artist, cds.year ASC
+    ORDER BY name DESC
   )',
   [
     $bind_int_resolved->(),  # outer select
@@ -90,7 +89,6 @@ is_same_sql_bind (
     $bind_int_resolved->(),  # inner group_by
     [ $ROWS => 3 ],
     $bind_vc_resolved->(), # outer where
-    $bind_int_resolved->(),  # outer group_by
   ],
   'Expected SQL on complex limited prefetch'
 );
@@ -144,7 +142,7 @@ is (
 
 throws_ok (
   sub { $use_prefetch->single },
-  qr/resultsets prefetching has_many/,
+  qr/\Qsingle() can not be used on resultsets collapsing a has_many/,
   'single() with multiprefetch is illegal',
 );
 
@@ -190,7 +188,6 @@ is_same_sql_bind (
       JOIN artist artist
         ON artist.artistid = me.artist
     WHERE ( ( artist.name = ? AND me.year = ? ) )
-    ORDER BY tracks.cd
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'artist.name' } => 'foo' ],

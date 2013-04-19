@@ -49,4 +49,16 @@ sub _bool {
     return $_[0]->count;
 }
 
+sub _construct_results {
+  my $self = shift;
+
+  my $rows = $self->next::method(@_);
+
+  if (my $f = $self->_resolved_attrs->{record_filter}) {
+    $_ = $f->($_) for @$rows;
+  }
+
+  return $rows;
+}
+
 1;

@@ -13,132 +13,128 @@ my ($ROWS, $OFFSET) = (
    DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
 );
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema(quote_names => 1);
 
 my $artist_rs = $schema->resultset('Artist');
-my $ar = $artist_rs->current_source_alias;
 
 my $filtered_cd_rs = $artist_rs->search_related('cds_unordered',
-  { "$ar.rank" => 13 },
+  { "me.rank" => 13 },
   {
-    prefetch => [ 'tracks' ],
-    order_by => [ { -asc => "$ar.name" }, "$ar.artistid DESC" ],
-    offset   => 3,
-    rows     => 3,
+    prefetch => 'tracks',
+    join => 'genre',
+    order_by => [ { -desc => 'genre.name' }, { -desc => \ 'tracks.title' }, { -asc => "me.name" }, { -desc => [qw(year cds_unordered.title)] } ], # me. is the artist, *NOT* the cd
   },
 );
 
-is_same_sql_bind(
-  $filtered_cd_rs->as_query,
-  q{(
-    SELECT  cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track,
-            tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
-      FROM artist me
-      JOIN (
-        SELECT cds_unordered.cdid, cds_unordered.artist, cds_unordered.title, cds_unordered.year, cds_unordered.genreid, cds_unordered.single_track
-          FROM artist me
-          JOIN cd cds_unordered
-            ON cds_unordered.artist = me.artistid
-        WHERE ( me.rank = ? )
-        ORDER BY me.name ASC, me.artistid DESC
-        LIMIT ?
-        OFFSET ?
-      ) cds_unordered
-        ON cds_unordered.artist = me.artistid
-      LEFT JOIN track tracks
-        ON tracks.cd = cds_unordered.cdid
-    WHERE ( me.rank = ? )
-    ORDER BY me.name ASC, me.artistid DESC, tracks.cd
-  )},
-  [
-    [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
-    [ $ROWS => 3 ],
-    [ $OFFSET => 3 ],
-    [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
-  ],
-  'correct SQL on limited prefetch over search_related ordered by root',
+my $hri_contents = [
+  {
+    artist => 1, cdid => 1, genreid => 1, single_track => undef, title => "Spoonful of bees", year => 1999, tracks => [
+      { cd => 1, last_updated_at => undef, last_updated_on => undef, position => 1, title => "The Bees Knees", trackid => 16 },
+      { cd => 1, last_updated_at => undef, last_updated_on => undef, position => 3, title => "Beehind You", trackid => 18 },
+      { cd => 1, last_updated_at => undef, last_updated_on => undef, position => 2, title => "Apiary", trackid => 17 },
+    ],
+  },
+  {
+    artist => 1, cdid => 3, genreid => undef, single_track => undef, title => "Caterwaulin' Blues", year => 1997, tracks => [
+      { cd => 3, last_updated_at => undef, last_updated_on => undef, position => 1, title => "Yowlin", trackid => 7 },
+      { cd => 3, last_updated_at => undef, last_updated_on => undef, position => 2, title => "Howlin", trackid => 8 },
+      { cd => 3, last_updated_at => undef, last_updated_on => undef, position => 3, title => "Fowlin", trackid => 9 },
+    ],
+  },
+  {
+    artist => 3, cdid => 5, genreid => undef, single_track => undef, title => "Come Be Depressed With Us", year => 1998, tracks => [
+      { cd => 5, last_updated_at => undef, last_updated_on => undef, position => 2, title => "Under The Weather", trackid => 14 },
+      { cd => 5, last_updated_at => undef, last_updated_on => undef, position => 3, title => "Suicidal", trackid => 15 },
+      { cd => 5, last_updated_at => undef, last_updated_on => undef, position => 1, title => "Sad", trackid => 13 },
+    ],
+  },
+  {
+    artist => 1, cdid => 2, genreid => undef, single_track => undef, title => "Forkful of bees", year => 2001, tracks => [
+      { cd => 2, last_updated_at => undef, last_updated_on => undef, position => 1, title => "Stung with Success", trackid => 4 },
+      { cd => 2, last_updated_at => undef, last_updated_on => undef, position => 2, title => "Stripy", trackid => 5 },
+      { cd => 2, last_updated_at => undef, last_updated_on => undef, position => 3, title => "Sticky Honey", trackid => 6 },
+    ],
+  },
+  {
+    artist => 2, cdid => 4, genreid => undef, single_track => undef, title => "Generic Manufactured Singles", year => 2001, tracks => [
+      { cd => 4, last_updated_at => undef, last_updated_on => undef, position => 3, title => "No More Ideas", trackid => 12 },
+      { cd => 4, last_updated_at => undef, last_updated_on => undef, position => 2, title => "Boring Song", trackid => 11 },
+      { cd => 4, last_updated_at => undef, last_updated_on => undef, position => 1, title => "Boring Name", trackid => 10},
+    ],
+  },
+];
+
+is_deeply(
+  $filtered_cd_rs->all_hri,
+  $hri_contents,
+  'Expected ordered unlimited contents',
 );
 
-# note: we only requested "get all cds of all artists with rank 13 then order
-# by the artist name and give me the fourth, fifth and sixth", consequently the
-# cds that belong to the same artist are unordered; fortunately we know that
-# the first artist have 3 cds and the second and third artist both have only
-# one, so the first 3 cds belong to the first artist and the fourth and fifth
-# cds belong to the second and third artist, respectively, and there's no sixth
-# row
-is_deeply (
-  $filtered_cd_rs->all_hri,
-  [
-    {
-      'artist' => '2',
-      'cdid' => '4',
-      'genreid' => undef,
-      'single_track' => undef,
-      'title' => 'Generic Manufactured Singles',
-      'tracks' => [
-        {
-          'cd' => '4',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '1',
-          'title' => 'Boring Name',
-          'trackid' => '10'
-        },
-        {
-          'cd' => '4',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '2',
-          'title' => 'Boring Song',
-          'trackid' => '11'
-        },
-        {
-          'cd' => '4',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '3',
-          'title' => 'No More Ideas',
-          'trackid' => '12'
-        }
-      ],
-      'year' => '2001'
-    },
-    {
-      'artist' => '3',
-      'cdid' => '5',
-      'genreid' => undef,
-      'single_track' => undef,
-      'title' => 'Come Be Depressed With Us',
-      'tracks' => [
-        {
-          'cd' => '5',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '1',
-          'title' => 'Sad',
-          'trackid' => '13'
-        },
-        {
-          'cd' => '5',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '3',
-          'title' => 'Suicidal',
-          'trackid' => '15'
-        },
-        {
-          'cd' => '5',
-          'last_updated_at' => undef,
-          'last_updated_on' => undef,
-          'position' => '2',
-          'title' => 'Under The Weather',
-          'trackid' => '14'
-        }
-      ],
-      'year' => '1998'
-    }
-  ],
-  'Correctly ordered result',
-);
+for (
+  [ 0, 1 ],
+  [ 2, 0 ],
+  [ 20, 2 ],
+  [ 1, 3 ],
+  [ 2, 4 ],
+) {
+  my ($limit, $offset) = @$_;
+
+  my $rs = $filtered_cd_rs->search({}, { $limit ? (rows => $limit) : (), offset => $offset });
+
+  my $used_limit = $limit || DBIx::Class::SQLMaker->__max_int;
+  my $offset_str = $offset ? 'OFFSET ?' : '';
+
+  is_same_sql_bind(
+    $rs->as_query,
+    qq{(
+      SELECT  "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track",
+              "tracks"."trackid", "tracks"."cd", "tracks"."position", "tracks"."title", "tracks"."last_updated_on", "tracks"."last_updated_at"
+        FROM "artist" "me"
+        JOIN (
+          SELECT "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
+            FROM "artist" "me"
+            JOIN cd "cds_unordered"
+              ON "cds_unordered"."artist" = "me"."artistid"
+            LEFT JOIN "genre" "genre"
+              ON "genre"."genreid" = "cds_unordered"."genreid"
+            LEFT JOIN "track" "tracks"
+              ON "tracks"."cd" = "cds_unordered"."cdid"
+          WHERE "me"."rank" = ?
+          GROUP BY "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
+          ORDER BY  MAX("genre"."name") DESC,
+                    MAX( tracks.title ) DESC,
+                    MIN("me"."name"),
+                    "year" DESC,
+                    "cds_unordered"."title" DESC
+          LIMIT ?
+          $offset_str
+        ) "cds_unordered"
+          ON "cds_unordered"."artist" = "me"."artistid"
+        LEFT JOIN "genre" "genre"
+          ON "genre"."genreid" = "cds_unordered"."genreid"
+        LEFT JOIN "track" "tracks"
+          ON "tracks"."cd" = "cds_unordered"."cdid"
+      WHERE "me"."rank" = ?
+      ORDER BY  "genre"."name" DESC,
+                tracks.title DESC,
+                "me"."name" ASC,
+                "year" DESC,
+                "cds_unordered"."title" DESC
+    )},
+    [
+      [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
+      [ $ROWS => $used_limit ],
+      $offset ? [ $OFFSET => $offset ] : (),
+      [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
+    ],
+    "correct SQL on prefetch over search_related ordered by external joins with limit '$limit', offset '$offset'",
+  );
+
+  is_deeply(
+    $rs->all_hri,
+    [ @{$hri_contents}[$offset .. List::Util::min( $used_limit+$offset-1, $#$hri_contents)] ],
+    "Correct slice of the resultset returned with limit '$limit', offset '$offset'",
+  );
+}
 
 done_testing;

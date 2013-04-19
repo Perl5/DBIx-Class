@@ -54,7 +54,7 @@ eval {
     $schema->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
 
     $parent_rs = $schema->resultset('CD')->search({ year => 1901 });
-    $parent_rs->next;
+    is ($parent_rs->count, 2);
 };
 ok(!$@) or diag "Creation eval failed: $@";
 

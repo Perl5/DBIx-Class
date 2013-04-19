@@ -53,6 +53,9 @@ __PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_trac
     { join_type => 'left'}
 );
 
+# add a non-left single relationship for the complex prefetch tests
+__PACKAGE__->belongs_to( existing_single_track => 'DBICTest::Schema::Track', 'single_track');
+
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(
     tags => 'DBICTest::Schema::Tag', undef,

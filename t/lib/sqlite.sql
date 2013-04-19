@@ -235,15 +235,15 @@ CREATE TABLE "cd" (
   "genreid" integer,
   "single_track" integer,
   FOREIGN KEY ("artist") REFERENCES "artist"("artistid") ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY ("genreid") REFERENCES "genre"("genreid") ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY ("single_track") REFERENCES "track"("trackid") ON DELETE CASCADE
+  FOREIGN KEY ("single_track") REFERENCES "track"("trackid") ON DELETE CASCADE,
+  FOREIGN KEY ("genreid") REFERENCES "genre"("genreid") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 CREATE INDEX "cd_idx_artist" ON "cd" ("artist");
 
-CREATE INDEX "cd_idx_genreid" ON "cd" ("genreid");
-
 CREATE INDEX "cd_idx_single_track" ON "cd" ("single_track");
+
+CREATE INDEX "cd_idx_genreid" ON "cd" ("genreid");
 
 CREATE UNIQUE INDEX "cd_artist_title" ON "cd" ("artist", "title");
 
@@ -286,6 +286,8 @@ CREATE TABLE "lyric_versions" (
 );
 
 CREATE INDEX "lyric_versions_idx_lyric_id" ON "lyric_versions" ("lyric_id");
+
+CREATE UNIQUE INDEX "lyric_versions_lyric_id_text" ON "lyric_versions" ("lyric_id", "text");
 
 CREATE TABLE "tags" (
   "tagid" INTEGER PRIMARY KEY NOT NULL,

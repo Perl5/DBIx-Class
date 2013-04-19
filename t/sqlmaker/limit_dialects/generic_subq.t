@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use lib qw(t/lib);
+use List::Util 'min';
 use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
@@ -42,7 +43,7 @@ is_same_sql_bind(
           FROM books rownum__emulation
         WHERE rownum__emulation.title < me.title
       ) < ?
-    ORDER BY me.title
+    ORDER BY me.title ASC
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
@@ -86,7 +87,7 @@ is_same_sql_bind(
           FROM "books" "rownum__emulation"
         WHERE "rownum__emulation"."title" > "me"."title"
       ) BETWEEN ? AND ?
-    ORDER BY "title" DESC
+    ORDER BY "me"."title" DESC
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
@@ -114,7 +115,7 @@ is_same_sql_bind(
   '(
     SELECT "owner_name"
       FROM (
-        SELECT "owner"."name" AS "owner_name", "title"
+        SELECT "owner"."name" AS "owner_name", "me"."title"
           FROM "books" "me"
           JOIN "owners" "owner" ON "owner"."id" = "me"."owner"
         WHERE ( "source" = ? )
@@ -125,7 +126,7 @@ is_same_sql_bind(
           FROM "books" "rownum__emulation"
         WHERE "rownum__emulation"."title" < "me"."title"
       ) BETWEEN ? AND ?
-    ORDER BY "title"
+    ORDER BY "me"."title" ASC
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
@@ -139,6 +140,177 @@ is_deeply (
   [ ('Newton') x 2 ],
   'Correct columns selected with rows',
 );
+
+$rs = $schema->resultset('CD')->search({}, {
+  columns => [qw( me.cdid me.title me.genreid me.year tracks.position tracks.title )],
+  join => 'tracks',
+  collapse => 1,
+  order_by => [ { -asc => 'me.genreid' }, { -desc => 'year' }, 'me.title', \ 'single_track DESC', { -desc => [qw( me.cdid tracks.position )] } ],
+});
+
+my @full_res = @{$rs->all_hri};
+
+is (@full_res, 5, 'Expected amount of CDs');
+
+is_deeply (
+  \@full_res,
+  [
+    { cdid => 2, genreid => undef, title => "Forkful of bees", year => 2001, tracks => [
+      { position => 3, title => "Sticky Honey" },
+      { position => 2, title => "Stripy" },
+      { position => 1, title => "Stung with Success" },
+    ] },
+    { cdid => 4, genreid => undef, title => "Generic Manufactured Singles", year => 2001, tracks => [
+      { position => 3, title => "No More Ideas" },
+      { position => 2, title => "Boring Song" },
+      { position => 1, title => "Boring Name" },
+    ] },
+    { cdid => 5, genreid => undef, title => "Come Be Depressed With Us", year => 1998, tracks => [
+      { position => 3, title => "Suicidal" },
+      { position => 2, title => "Under The Weather" },
+      { position => 1, title => "Sad" },
+    ] },
+    { cdid => 3, genreid => undef, title => "Caterwaulin' Blues", year => 1997, tracks => [
+      { position => 3, title => "Fowlin" },
+      { position => 2, title => "Howlin" },
+      { position => 1, title => "Yowlin" },
+    ] },
+    { cdid => 1, genreid => 1, title => "Spoonful of bees", year => 1999, tracks => [
+      { position => 3, title => "Beehind You" },
+      { position => 2, title => "Apiary" },
+      { position => 1, title => "The Bees Knees" },
+    ] },
+  ],
+  'Complex ordered gensubq limited cds and tracks in expected sqlite order'
+);
+
+for my $slice (
+  [0, 10],
+  [3, 5 ],
+  [4, 6 ],
+  [0, 2 ],
+  [1, 3 ],
+) {
+
+  my $rownum_cmp_op = $slice->[0]
+    ? 'BETWEEN ? AND ?'
+    : ' < ?'
+  ;
+
+  is_deeply(
+    $rs->slice(@$slice)->all_hri,
+    [ @full_res[ $slice->[0] .. min($#full_res, $slice->[1]) ] ],
+    "Expected array slice on complex ordered limited gensubq ($slice->[0] : $slice->[1])",
+  );
+
+  is_same_sql_bind(
+    $rs->slice(@$slice)->as_query,
+    qq{(
+      SELECT  "me"."cdid", "me"."title", "me"."genreid", "me"."year",
+              "tracks"."position", "tracks"."title"
+        FROM (
+          SELECT "me"."cdid", "me"."title", "me"."genreid", "me"."year", "me"."single_track"
+            FROM (
+              SELECT "me"."cdid", "me"."title", "me"."genreid", "me"."year", "me"."single_track"
+                FROM cd "me"
+                LEFT JOIN "track" "tracks"
+                  ON "tracks"."cd" = "me"."cdid"
+              GROUP BY "me"."cdid", "me"."title", "me"."genreid", "me"."year", "me"."single_track"
+             ) "me"
+          WHERE (
+            SELECT COUNT( * )
+              FROM cd "rownum__emulation"
+            WHERE (
+              ( "me"."genreid" IS NOT NULL AND "rownum__emulation"."genreid" IS NULL )
+                OR
+              (
+                "rownum__emulation"."genreid" < "me"."genreid"
+                  AND
+                "me"."genreid" IS NOT NULL
+                  AND
+                "rownum__emulation"."genreid" IS NOT NULL
+              )
+                OR
+              (
+                (
+                  "me"."genreid" = "rownum__emulation"."genreid"
+                    OR
+                  ( "me"."genreid" IS NULL AND "rownum__emulation"."genreid" IS NULL )
+                )
+                  AND
+                "rownum__emulation"."year" > "me"."year"
+              )
+                OR
+              (
+                (
+                  "me"."genreid" = "rownum__emulation"."genreid"
+                    OR
+                  ( "me"."genreid" IS NULL AND "rownum__emulation"."genreid" IS NULL )
+                )
+                  AND
+                "me"."year" = "rownum__emulation"."year"
+                  AND
+                "rownum__emulation"."title" < "me"."title"
+              )
+                OR
+              (
+                (
+                  "me"."genreid" = "rownum__emulation"."genreid"
+                    OR
+                  ( "me"."genreid" IS NULL AND "rownum__emulation"."genreid" IS NULL )
+                )
+                  AND
+                "me"."year" = "rownum__emulation"."year"
+                  AND
+                "me"."title" = "rownum__emulation"."title"
+                  AND
+                (
+                  ("me"."single_track" IS NULL AND "rownum__emulation"."single_track" IS NOT NULL )
+                    OR
+                  (
+                    "rownum__emulation"."single_track" > "me"."single_track"
+                      AND
+                    "me"."single_track" IS NOT NULL
+                      AND
+                    "rownum__emulation"."single_track" IS NOT NULL
+                  )
+                )
+              )
+                OR
+              (
+                (
+                  "me"."genreid" = "rownum__emulation"."genreid"
+                    OR
+                  ( "me"."genreid" IS NULL AND "rownum__emulation"."genreid" IS NULL )
+                )
+                AND
+                "me"."year" = "rownum__emulation"."year"
+                  AND
+                "me"."title" = "rownum__emulation"."title"
+                  AND
+                (
+                  ( "me"."single_track" = "rownum__emulation"."single_track" )
+                    OR
+                  ( "me"."single_track" IS NULL AND "rownum__emulation"."single_track" IS NULL )
+                )
+                  AND
+                "rownum__emulation"."cdid" > "me"."cdid"
+              )
+            )
+          ) $rownum_cmp_op
+          ORDER BY "me"."genreid" ASC, "me"."year" DESC, "me"."title" ASC, "me"."single_track" DESC, "me"."cdid" DESC
+        ) "me"
+        LEFT JOIN "track" "tracks"
+          ON "tracks"."cd" = "me"."cdid"
+      ORDER BY "me"."genreid" ASC, "year" DESC, "me"."title", single_track DESC, "me"."cdid" DESC, "tracks"."position" DESC
+    )},
+    [
+      ( $slice->[0] ? [ $OFFSET => $slice->[0] ] : () ),
+      [ $TOTAL => $slice->[1] + ($slice->[0] ? 0 : 1 ) ],
+    ],
+    "Expected sql on complex ordered limited gensubq ($slice->[0] : $slice->[1])",
+  );
+}
 
 {
   $rs = $schema->resultset('Artist')->search({}, {
@@ -154,41 +326,5 @@ is_deeply (
     'Newlines/spaces preserved in final sql',
   );
 }
-
-# this is a nonsensical order_by, we are just making sure the bind-transport is correct
-# (not that it'll be useful anywhere in the near future)
-my $attr = {};
-my $rs_selectas_rel = $schema->resultset('BooksInLibrary')->search(undef, {
-  columns => 'me.id',
-  offset => 3,
-  rows => 4,
-  '+columns' => { bar => \['? * ?', [ $attr => 11 ], [ $attr => 12 ]], baz => \[ '?', [ $attr => 13 ]] },
-  order_by => [ 'id', \['? / ?', [ $attr => 1 ], [ $attr => 2 ]], \[ '?', [ $attr => 3 ]] ],
-  having => \[ '?', [ $attr => 21 ] ],
-});
-
-is_same_sql_bind(
-  $rs_selectas_rel->as_query,
-  '(
-    SELECT "me"."id", "bar", "baz"
-      FROM (
-        SELECT "me"."id", ? * ? AS "bar", ? AS "baz"
-          FROM "books" "me"
-        WHERE ( "source" = ? )
-        HAVING ?
-      ) "me"
-    WHERE ( SELECT COUNT(*) FROM "books" "rownum__emulation" WHERE "rownum__emulation"."id" < "me"."id" ) BETWEEN ? AND ?
-    ORDER BY "id", ? / ?, ?
-  )',
-  [
-    [ $attr => 11 ], [ $attr => 12 ], [ $attr => 13 ],
-    [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
-    [ $attr => 21 ],
-    [ {%$OFFSET} => 3 ],
-    [ {%$TOTAL} => 6 ],
-    [ $attr => 1 ], [ $attr => 2 ], [ $attr => 3 ],
-  ],
-  'Pagination with sub-query in ORDER BY works'
-);
 
 done_testing;

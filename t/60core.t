@@ -253,11 +253,13 @@ is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct 
 is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
 
 # make sure sure distinct on a grouped rs is warned about
-my $cd_rs = $schema->resultset ('CD')
-              ->search ({}, { distinct => 1, group_by => 'title' });
-warnings_exist (sub {
-  $cd_rs->next;
-}, qr/Useless use of distinct/, 'UUoD warning');
+{
+  my $cd_rs = $schema->resultset ('CD')
+                ->search ({}, { distinct => 1, group_by => 'title' });
+  warnings_exist (sub {
+    $cd_rs->next;
+  }, qr/Useless use of distinct/, 'UUoD warning');
+}
 
 {
   my $tcount = $schema->resultset('Track')->search(
@@ -297,6 +299,14 @@ is($rel_rs->count, 5, 'Related search ok');
 is($or_rs->next->cdid, $rel_rs->next->cdid, 'Related object ok');
 $or_rs->reset;
 $rel_rs->reset;
+
+# at this point there should be no active statements
+# (finish() was called everywhere, either explicitly via
+# reset() or on DESTROY)
+for (keys %{$schema->storage->dbh->{CachedKids}}) {
+  fail("Unreachable cached statement still active: $_")
+    if $schema->storage->dbh->{CachedKids}{$_}->FETCH('Active');
+}
 
 my $tag = $schema->resultset('Tag')->search(
   [ { 'me.tag' => 'Blue' } ],

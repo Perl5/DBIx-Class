@@ -8,6 +8,7 @@ use base qw/DBIx::Class/;
 use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;
+use DBIx::Class::Carp;
 
 ###
 ### Internal method
@@ -21,6 +22,8 @@ BEGIN {
 }
 
 use namespace::clean;
+
+__PACKAGE__->mk_group_accessors ( simple => [ in_storage => '_in_storage' ] );
 
 =head1 NAME
 
@@ -122,13 +125,13 @@ with NULL as the default, and save yourself a SELECT.
 ## tests!
 
 sub __new_related_find_or_new_helper {
-  my ($self, $relname, $data) = @_;
+  my ($self, $relname, $values) = @_;
 
   my $rsrc = $self->result_source;
 
   # create a mock-object so all new/set_column component overrides will run:
   my $rel_rs = $rsrc->related_source($relname)->resultset;
-  my $new_rel_obj = $rel_rs->new_result($data);
+  my $new_rel_obj = $rel_rs->new_result($values);
   my $proc_data = { $new_rel_obj->get_columns };
 
   if ($self->__their_pk_needs_us($relname)) {
@@ -160,9 +163,9 @@ sub __new_related_find_or_new_helper {
 
 sub __their_pk_needs_us { # this should maybe be in resultsource.
   my ($self, $relname) = @_;
-  my $source = $self->result_source;
-  my $reverse = $source->reverse_relationship_info($relname);
-  my $rel_source = $source->related_source($relname);
+  my $rsrc = $self->result_source;
+  my $reverse = $rsrc->reverse_relationship_info($relname);
+  my $rel_source = $rsrc->related_source($relname);
   my $us = { $self->get_columns };
   foreach my $key (keys %$reverse) {
     # if their primary key depends on us, then we have to
@@ -176,18 +179,18 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = bless { _column_data => {} }, $class;
+  my $new = bless { _column_data => {}, _in_storage => 0 }, $class;
 
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
 
-    my $source = delete $attrs->{-result_source};
+    my $rsrc = delete $attrs->{-result_source};
     if ( my $h = delete $attrs->{-source_handle} ) {
-      $source ||= $h->resolve;
+      $rsrc ||= $h->resolve;
     }
 
-    $new->result_source($source) if $source;
+    $new->result_source($rsrc) if $rsrc;
 
     if (my $col_from_rel = delete $attrs->{-cols_from_relations}) {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
@@ -199,8 +202,8 @@ sub new {
       if (ref $attrs->{$key}) {
         ## Can we extract this lot to use with update(_or .. ) ?
         $new->throw_exception("Can't do multi-create without result source")
-          unless $source;
-        my $info = $source->relationship_info($key);
+          unless $rsrc;
+        my $info = $rsrc->relationship_info($key);
         my $acc_type = $info->{attrs}{accessor} || '';
         if ($acc_type eq 'single') {
           my $rel_obj = delete $attrs->{$key};
@@ -334,11 +337,11 @@ one, see L<DBIx::Class::ResultSet/create> for more details.
 sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
-  my $source = $self->result_source;
+  my $rsrc = $self->result_source;
   $self->throw_exception("No result_source set on this object; can't insert")
-    unless $source;
+    unless $rsrc;
 
-  my $storage = $source->storage;
+  my $storage = $rsrc->storage;
 
   my $rollback_guard;
 
@@ -354,7 +357,7 @@ sub insert {
     if (! $self->{_rel_in_storage}{$relname}) {
       next unless (blessed $rel_obj && $rel_obj->isa('DBIx::Class::Row'));
 
-      next unless $source->_pk_depends_on(
+      next unless $rsrc->_pk_depends_on(
                     $relname, { $rel_obj->get_columns }
                   );
 
@@ -400,7 +403,7 @@ sub insert {
   # (autoinc primary columns and any retrieve_on_insert columns)
   my %current_rowdata = $self->get_columns;
   my $returned_cols = $storage->insert(
-    $source,
+    $rsrc,
     { %current_rowdata }, # what to insert, copy because the storage *will* change it
   );
 
@@ -424,7 +427,7 @@ sub insert {
   $self->{related_resultsets} = {};
 
   foreach my $relname (keys %related_stuff) {
-    next unless $source->has_relationship ($relname);
+    next unless $rsrc->has_relationship ($relname);
 
     my @cands = ref $related_stuff{$relname} eq 'ARRAY'
       ? @{$related_stuff{$relname}}
@@ -433,7 +436,7 @@ sub insert {
 
     if (@cands && blessed $cands[0] && $cands[0]->isa('DBIx::Class::Row')
     ) {
-      my $reverse = $source->reverse_relationship_info($relname);
+      my $reverse = $rsrc->reverse_relationship_info($relname);
       foreach my $obj (@cands) {
         $obj->set_from_related($_, $self) for keys %$reverse;
         if ($self->__their_pk_needs_us($relname)) {
@@ -480,13 +483,6 @@ are used.
 Creating a result object using L<DBIx::Class::ResultSet/new_result>, or
 calling L</delete> on one, sets it to false.
 
-=cut
-
-sub in_storage {
-  my ($self, $val) = @_;
-  $self->{_in_storage} = $val if @_ > 1;
-  return $self->{_in_storage} ? 1 : 0;
-}
 
 =head2 update
 
@@ -619,7 +615,7 @@ sub delete {
     );
 
     delete $self->{_column_data_in_storage};
-    $self->in_storage(undef);
+    $self->in_storage(0);
   }
   else {
     my $rsrc = try { $self->result_source_instance }
@@ -723,8 +719,22 @@ sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
     foreach my $col (keys %{$self->{_inflated_column}}) {
-      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
-        unless exists $self->{_column_data}{$col};
+      unless (exists $self->{_column_data}{$col}) {
+
+        # if cached related_resultset is present assume this was a prefetch
+        carp_unique(
+          "Returning primary keys of prefetched 'filter' rels as part of get_columns() is deprecated and will "
+        . 'eventually be removed entirely (set DBIC_COLUMNS_INCLUDE_FILTER_RELS to disable this warning)'
+        ) if (
+          ! $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS}
+            and
+          defined $self->{related_resultsets}{$col}
+            and
+          defined $self->{related_resultsets}{$col}->get_cache
+        );
+
+        $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}));
+      }
     }
   }
   return %{$self->{_column_data}};
@@ -773,6 +783,7 @@ Marks a column as having been changed regardless of whether it has
 really changed.
 
 =cut
+
 sub make_column_dirty {
   my ($self, $column) = @_;
 
@@ -823,19 +834,43 @@ sub get_inflated_columns {
     grep { $self->has_column_loaded($_) } $self->columns
   ]);
 
-  my %inflated;
-  for my $col (keys %$loaded_colinfo) {
-    if (exists $loaded_colinfo->{$col}{accessor}) {
-      my $acc = $loaded_colinfo->{$col}{accessor};
-      $inflated{$col} = $self->$acc if defined $acc;
-    }
-    else {
-      $inflated{$col} = $self->$col;
+  my %cols_to_return = ( %{$self->{_column_data}}, %$loaded_colinfo );
+
+  unless ($ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS}) {
+    for (keys %$loaded_colinfo) {
+      # if cached related_resultset is present assume this was a prefetch
+      if (
+        $loaded_colinfo->{$_}{_inflate_info}
+          and
+        defined $self->{related_resultsets}{$_}
+          and
+        defined $self->{related_resultsets}{$_}->get_cache
+      ) {
+        carp_unique(
+          "Returning prefetched 'filter' rels as part of get_inflated_columns() is deprecated and will "
+        . 'eventually be removed entirely (set DBIC_COLUMNS_INCLUDE_FILTER_RELS to disable this warning)'
+        );
+        last;
+      }
     }
   }
 
-  # return all loaded columns with the inflations overlayed on top
-  return %{ { $self->get_columns, %inflated } };
+  map { $_ => (
+  (
+    ! exists $loaded_colinfo->{$_}
+      or
+    (
+      exists $loaded_colinfo->{$_}{accessor}
+        and
+      ! defined $loaded_colinfo->{$_}{accessor}
+    )
+  ) ? $self->get_column($_)
+    : $self->${ \(
+      defined $loaded_colinfo->{$_}{accessor}
+        ? $loaded_colinfo->{$_}{accessor}
+        : $_
+      )}
+  )} keys %cols_to_return;
 }
 
 sub _is_column_numeric {
@@ -905,20 +940,20 @@ sub set_column {
     #
     # FIXME - this is a quick *largely incorrect* hack, pending a more
     # serious rework during the merge of single and filter rels
-    my $rels = $self->result_source->{_relationships};
-    for my $rel (keys %$rels) {
+    my $relnames = $self->result_source->{_relationships};
+    for my $relname (keys %$relnames) {
 
-      my $acc = $rels->{$rel}{attrs}{accessor} || '';
+      my $acc = $relnames->{$relname}{attrs}{accessor} || '';
 
-      if ( $acc eq 'single' and $rels->{$rel}{attrs}{fk_columns}{$column} ) {
-        delete $self->{related_resultsets}{$rel};
-        delete $self->{_relationship_data}{$rel};
-        #delete $self->{_inflated_column}{$rel};
+      if ( $acc eq 'single' and $relnames->{$relname}{attrs}{fk_columns}{$column} ) {
+        delete $self->{related_resultsets}{$relname};
+        delete $self->{_relationship_data}{$relname};
+        #delete $self->{_inflated_column}{$relname};
       }
-      elsif ( $acc eq 'filter' and $rel eq $column) {
-        delete $self->{related_resultsets}{$rel};
-        #delete $self->{_relationship_data}{$rel};
-        delete $self->{_inflated_column}{$rel};
+      elsif ( $acc eq 'filter' and $relname eq $column) {
+        delete $self->{related_resultsets}{$relname};
+        #delete $self->{_relationship_data}{$relname};
+        delete $self->{_inflated_column}{$relname};
       }
     }
 
@@ -987,10 +1022,8 @@ Works as L</set_column>.
 =cut
 
 sub set_columns {
-  my ($self,$data) = @_;
-  foreach my $col (keys %$data) {
-    $self->set_column($col,$data->{$col});
-  }
+  my ($self, $values) = @_;
+  $self->set_column( $_, $values->{$_} ) for keys %$values;
   return $self;
 }
 
@@ -1034,9 +1067,9 @@ sub set_inflated_columns {
       my $info = $self->relationship_info($key);
       my $acc_type = $info->{attrs}{accessor} || '';
       if ($acc_type eq 'single') {
-        my $rel = delete $upd->{$key};
-        $self->set_from_related($key => $rel);
-        $self->{_relationship_data}{$key} = $rel;
+        my $rel_obj = delete $upd->{$key};
+        $self->set_from_related($key => $rel_obj);
+        $self->{_relationship_data}{$key} = $rel_obj;
       }
       elsif ($acc_type eq 'multi') {
         $self->throw_exception(
@@ -1099,19 +1132,19 @@ sub copy {
   # Its possible we'll have 2 relations to the same Source. We need to make
   # sure we don't try to insert the same row twice else we'll violate unique
   # constraints
-  my $rels_copied = {};
+  my $relnames_copied = {};
 
-  foreach my $rel ($self->result_source->relationships) {
-    my $rel_info = $self->result_source->relationship_info($rel);
+  foreach my $relname ($self->result_source->relationships) {
+    my $rel_info = $self->result_source->relationship_info($relname);
 
     next unless $rel_info->{attrs}{cascade_copy};
 
     my $resolved = $self->result_source->_resolve_condition(
-      $rel_info->{cond}, $rel, $new, $rel
+      $rel_info->{cond}, $relname, $new, $relname
     );
 
-    my $copied = $rels_copied->{ $rel_info->{source} } ||= {};
-    foreach my $related ($self->search_related($rel)) {
+    my $copied = $relnames_copied->{ $rel_info->{source} } ||= {};
+    foreach my $related ($self->search_related($relname)) {
       my $id_str = join("\0", $related->id);
       next if $copied->{$id_str};
       $copied->{$id_str} = 1;
@@ -1179,78 +1212,70 @@ L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
 =cut
 
 sub inflate_result {
-  my ($class, $source, $me, $prefetch) = @_;
-
-  $source = $source->resolve
-    if $source->isa('DBIx::Class::ResultSourceHandle');
+  my ($class, $rsrc, $me, $prefetch) = @_;
 
   my $new = bless
-    { _column_data => $me, _result_source => $source },
+    { _column_data => $me, _result_source => $rsrc },
     ref $class || $class
   ;
 
-  foreach my $pre (keys %{$prefetch||{}}) {
+  if ($prefetch) {
+    for my $relname ( keys %$prefetch ) {
 
-    my (@pre_vals, $is_multi);
-    if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
-      $is_multi = 1;
-      @pre_vals = @{$prefetch->{$pre}};
-    }
-    else {
-      @pre_vals = $prefetch->{$pre};
-    }
-
-    my $pre_source = try {
-      $source->related_source($pre)
-    }
-    catch {
-      $class->throw_exception(sprintf
-
-        "Can't inflate manual prefetch into non-existent relationship '%s' from '%s', "
-      . "check the inflation specification (columns/as) ending in '%s.%s'.",
-
-        $pre,
-        $source->source_name,
-        $pre,
-        (keys %{$pre_vals[0][0]})[0] || 'something.something...',
-      );
-    };
-
-    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
-      or $class->throw_exception("No accessor type declared for prefetched $pre");
-
-    if (! $is_multi and $accessor eq 'multi') {
-      $class->throw_exception("Manual prefetch (via select/columns) not supported with accessor 'multi'");
-    }
-
-    my @pre_objects;
-    for my $me_pref (@pre_vals) {
-
-        # FIXME - this should not be necessary
-        # the collapser currently *could* return bogus elements with all
-        # columns set to undef
-        my $has_def;
-        for (values %{$me_pref->[0]}) {
-          if (defined $_) {
-            $has_def++;
-            last;
-          }
+      my $relinfo = $rsrc->relationship_info($relname) or do {
+        my $err = sprintf
+          "Inflation into non-existent relationship '%s' of '%s' requested",
+          $relname,
+          $rsrc->source_name,
+        ;
+        if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$relname}[0] || {}} ) {
+          $err .= sprintf ", check the inflation specification (columns/as) ending in '...%s.%s'",
+          $relname,
+          $colname,
         }
-        next unless $has_def;
 
-        push @pre_objects, $pre_source->result_class->inflate_result(
-          $pre_source, @$me_pref
-        );
-    }
+        $rsrc->throw_exception($err);
+      };
 
-    if ($accessor eq 'single') {
-      $new->{_relationship_data}{$pre} = $pre_objects[0];
-    }
-    elsif ($accessor eq 'filter') {
-      $new->{_inflated_column}{$pre} = $pre_objects[0];
-    }
+      $class->throw_exception("No accessor type declared for prefetched relationship '$relname'")
+        unless $relinfo->{attrs}{accessor};
 
-    $new->related_resultset($pre)->set_cache(\@pre_objects);
+      my @rel_objects;
+      if (
+        $prefetch->{$relname}
+          and
+        @{$prefetch->{$relname}}
+          and
+        ref($prefetch->{$relname}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
+      ) {
+
+        my $rel_rs = $new->related_resultset($relname);
+
+        if (ref $prefetch->{$relname}[0] eq 'ARRAY') {
+          my $rel_rsrc = $rel_rs->result_source;
+          my $rel_class = $rel_rs->result_class;
+          my $rel_inflator = $rel_class->can('inflate_result');
+          @rel_objects = map
+            { $rel_class->$rel_inflator ( $rel_rsrc, @$_ ) }
+            @{$prefetch->{$relname}}
+          ;
+        }
+        else {
+          @rel_objects = $rel_rs->result_class->inflate_result(
+            $rel_rs->result_source, @{$prefetch->{$relname}}
+          );
+        }
+      }
+
+      if ($relinfo->{attrs}{accessor} eq 'single') {
+        $new->{_relationship_data}{$relname} = $rel_objects[0];
+      }
+      elsif ($relinfo->{attrs}{accessor} eq 'filter') {
+        $new->{_inflated_column}{$relname} = $rel_objects[0];
+      }
+
+      $new->related_resultset($relname)->set_cache(\@rel_objects);
+    }
   }
 
   $new->in_storage (1);

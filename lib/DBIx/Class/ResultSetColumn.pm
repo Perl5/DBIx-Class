@@ -93,11 +93,11 @@ sub new {
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+  if (!$orig_attrs->{group_by} && $orig_attrs->{collapse}) {
 
     if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
       $new_attrs->{group_by} = [ $select ];
-      delete $new_attrs->{distinct}; # it is ignored when group_by is present
+      delete @{$new_attrs}{qw(distinct _grouped_by_distinct)}; # it is ignored when group_by is present
     }
     else {
       carp (
@@ -422,12 +422,19 @@ Creates the resultset that C<func()> uses to run its query.
 
 sub func_rs {
   my ($self,$function) = @_;
-  return $self->{_parent_resultset}->search(
-    undef, {
-      select => {$function => $self->{_select}},
-      as => [$self->{_as}],
-    },
-  );
+
+  my $rs = $self->{_parent_resultset};
+  my $select = $self->{_select};
+
+  # wrap a grouped rs
+  if ($rs->_resolved_attrs->{group_by}) {
+    $select = $self->{_as};
+    $rs = $rs->as_subselect_rs;
+  }
+
+  $rs->search( undef, {
+    columns => { $self->{_as} => { $function => $select } }
+  } );
 }
 
 =head2 throw_exception

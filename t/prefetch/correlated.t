@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -45,7 +46,6 @@ is_same_sql_bind(
       LEFT JOIN track tracks
         ON tracks.cd = me.cdid
     WHERE me.artist != ?
-    ORDER BY tracks.cd
   )',
   [
 
@@ -67,7 +67,7 @@ my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
 $schema->storage->debug(1);
 
-is_deeply (
+cmp_deeply (
   { map
     { $_->cdid => {
       track_titles => [ map { $_->title } ($_->tracks->all) ],
@@ -117,7 +117,6 @@ is_same_sql_bind(
       LEFT JOIN track tracks
         ON tracks.cd = me.cdid
     WHERE me.artist != ?
-    ORDER BY tracks.cd
   )',
   [
 

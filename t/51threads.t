@@ -53,9 +53,55 @@ lives_ok (sub {
     $schema->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
 
     $parent_rs = $schema->resultset('CD')->search({ year => 1901 });
-    $parent_rs->next;
+    is ($parent_rs->count, 2);
 }, 'populate successfull');
 
+# basic tests
+{
+  ok ($schema->storage->connected(), 'Parent is connected');
+  is ($parent_rs->next->id, 1, 'Cursor advanced');
+  my $ct_num = Test::More->builder->current_test;
+
+  my $newthread = async {
+    my $out = '';
+
+    #simulate a  subtest to not confuse the parent TAP emission
+    my $tb = Test::More->builder;
+    $tb->reset;
+    for (qw/output failure_output todo_output/) {
+      close $tb->$_;
+      open ($tb->$_, '>', \$out);
+    }
+
+    ok(!$schema->storage->connected, "storage->connected() false in child");
+    for (1,2) {
+      throws_ok { $parent_rs->next } qr/\QMulti-thread access attempted while cursor in progress (position 1)/;
+    }
+
+    $parent_rs->reset;
+    is($parent_rs->next->id, 1, 'Resetting cursor reprepares it within child environment');
+
+    done_testing;
+
+    close $tb->$_ for (qw/output failure_output todo_output/);
+    sleep(1); # tasty crashes without this
+
+    $out;
+  };
+  die "Thread creation failed: $! $@" if !defined $newthread;
+
+  my $out = $newthread->join;
+  $out =~ s/^/   /gm;
+  print $out;
+
+  # workaround for older Test::More confusing the plan under threads
+  Test::More->builder->current_test($ct_num);
+
+  is ($parent_rs->next->id, 2, 'Cursor still intact in parent');
+  is ($parent_rs->next, undef, 'Cursor exhausted');
+}
+
+$parent_rs->reset;
 my @children;
 while(@children < $num_children) {
 
@@ -89,6 +135,7 @@ while(@children) {
 }
 
 ok(1, "Made it to the end");
+undef $parent_rs;
 
 $schema->storage->dbh->do("DROP TABLE cd");
 

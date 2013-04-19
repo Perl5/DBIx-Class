@@ -33,64 +33,54 @@ for the inner cursor class.
 
 =cut
 
-sub _dbh_next {
-  my ($storage, $dbh, $self) = @_;
-
-  my $next = $self->next::can;
-
-  my @row = $next->(@_);
-
-  my $col_info = $storage->_resolve_column_info($self->args->[0]);
-
-  my $select = $self->args->[1];
+my $unpack_guids = sub {
+  my ($select, $col_infos, $data, $storage) = @_;
 
   for my $select_idx (0..$#$select) {
+    next unless (
+      defined $data->[$select_idx]
+        and
+      length($data->[$select_idx]) == 16
+    );
+
     my $selected = $select->[$select_idx];
 
-    next if ref $selected;
+    my $data_type = $col_infos->{$select->[$select_idx]}{data_type}
+      or next;
 
-    my $data_type = $col_info->{$selected}{data_type};
-
-    if ($storage->_is_guid_type($data_type)) {
-      my $returned = $row[$select_idx];
-
-      if (length $returned == 16) {
-        $row[$select_idx] = $storage->_uuid_to_str($returned);
-      }
-    }
+    $data->[$select_idx] = $storage->_uuid_to_str($data->[$select_idx])
+      if $storage->_is_guid_type($data_type);
   }
+};
+
+
+sub next {
+  my $self = shift;
+
+  my @row = $self->next::method(@_);
+
+  $unpack_guids->(
+    $self->args->[1],
+    $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]),
+    \@row,
+    $self->storage
+  );
 
   return @row;
 }
 
-sub _dbh_all {
-  my ($storage, $dbh, $self) = @_;
+sub all {
+  my $self = shift;
 
-  my $next = $self->next::can;
+  my @rows = $self->next::method(@_);
 
-  my @rows = $next->(@_);
+  $unpack_guids->(
+    $self->args->[1],
+    $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]),
+    $_,
+    $self->storage
+  ) for @rows;
 
-  my $col_info = $storage->_resolve_column_info($self->args->[0]);
-
-  my $select = $self->args->[1];
-
-  for my $row (@rows) {
-    for my $select_idx (0..$#$select) {
-      my $selected = $select->[$select_idx];
-
-      next if ref $selected;
-
-      my $data_type = $col_info->{$selected}{data_type};
-
-      if ($storage->_is_guid_type($data_type)) {
-        my $returned = $row->[$select_idx];
-
-        if (length $returned == 16) {
-          $row->[$select_idx] = $storage->_uuid_to_str($returned);
-        }
-      }
-    }
-  }
 
   return @rows;
 }

@@ -9,6 +9,7 @@ use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
+my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
 
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
@@ -179,14 +180,14 @@ for ($cd_rs->all) {
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( me.cdid IS NOT NULL )
-      ORDER BY track_count DESC, maxtr ASC, tracks.cd
+      ORDER BY track_count DESC, maxtr ASC
     )',
     [[$ROWS => 2]],
     'next() query generated expected SQL',
   );
 
   is ($most_tracks_rs->count, 2, 'Limit works');
-  my $top_cd = $most_tracks_rs->first;
+  my ($top_cd) = $most_tracks_rs->all;
   is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) earlier
 
   my $query_cnt = 0;
@@ -207,6 +208,71 @@ for ($cd_rs->all) {
   $schema->storage->debug ($sdebug);
 }
 
+{
+  # test lifted from soulchild
+
+  my $most_tracks_rs = $schema->resultset ('CD')->search (
+    {
+      'me.cdid' => { '!=' => undef },  # this is just to test WHERE
+      'tracks.trackid' => { '!=' => undef },
+    },
+    {
+      join => 'tracks',
+      prefetch => 'liner_notes',
+      select => ['me.cdid', 'liner_notes.notes', { count => 'tracks.trackid', -as => 'tr_count' }, { max => 'tracks.trackid', -as => 'tr_maxid'} ],
+      as => [qw/cdid notes track_count max_track_id/],
+      order_by => [ { -desc => 'tr_count' }, { -asc => 'tr_maxid' } ],
+      group_by => 'me.cdid',
+      rows => 2,
+    }
+  );
+
+  is_same_sql_bind(
+    $most_tracks_rs->as_query,
+    '(SELECT  me.cdid, liner_notes.notes, me.tr_count, me.tr_maxid,
+              liner_notes.liner_id, liner_notes.notes
+        FROM (
+          SELECT me.cdid, COUNT(tracks.trackid) AS tr_count, MAX(tracks.trackid) AS tr_maxid
+            FROM cd me
+            LEFT JOIN track tracks
+              ON tracks.cd = me.cdid
+          WHERE me.cdid IS NOT NULL AND tracks.trackid IS NOT NULL
+          GROUP BY me.cdid
+          ORDER BY tr_count DESC, tr_maxid ASC
+          LIMIT ?
+        ) me
+        LEFT JOIN track tracks
+          ON tracks.cd = me.cdid
+        LEFT JOIN liner_notes liner_notes
+          ON liner_notes.liner_id = me.cdid
+      WHERE me.cdid IS NOT NULL AND tracks.trackid IS NOT NULL
+      ORDER BY tr_count DESC, tr_maxid ASC
+    )',
+    [[$ROWS => 2]],
+    'Oddball mysql-ish group_by usage yields valid SQL',
+  );
+
+  is ($most_tracks_rs->count, 2, 'Limit works');
+  my ($top_cd) = $most_tracks_rs->all;
+  is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) earlier
+
+  my $query_cnt = 0;
+  $schema->storage->debugcb ( sub { $query_cnt++ } );
+  $schema->storage->debug (1);
+
+  is ($top_cd->get_column ('track_count'), 4, 'Track count fetched correctly');
+  is (
+    $top_cd->liner_notes->notes,
+    'Buy Whiskey!',
+    'Correct liner pre-fetched with top cd',
+  );
+
+  is ($query_cnt, 0, 'No queries executed during prefetched data access');
+  $schema->storage->debugcb (undef);
+  $schema->storage->debug ($sdebug);
+}
+
+
 # make sure that distinct still works
 {
   my $rs = $schema->resultset("CD")->search({}, {
@@ -224,10 +290,9 @@ for ($cd_rs->all) {
           SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
             FROM cd me
           GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-          ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
-      ORDER BY cdid, tags.cd, tags.tag
+      ORDER BY cdid
     )',
     [],
     'Prefetch + distinct resulted in correct group_by',
@@ -334,28 +399,118 @@ for ($cd_rs->all) {
     );
 }
 
+# make sure distinct applies to the CD part only, not to the order_by part
 {
-    my $rs = $schema->resultset('CD')->search({},
-        {
-           '+select' => [{ count => 'tags.tag' }],
-           '+as' => ['test_count'],
-           prefetch => ['tags'],
-           distinct => 1,
-           order_by => {'-asc' => 'tags.tag'},
-           rows => 1
-        }
+  my $rs = $schema->resultset('CD')->search({}, {
+    columns => [qw( cdid title )],
+    '+select' => [{ count => 'tags.tag' }],
+    '+as' => ['test_count'],
+    prefetch => ['tags'],
+    distinct => 1,
+    order_by => {'-desc' => 'tags.tag'},
+    offset => 1,
+    rows => 3,
+  });
+
+  is_same_sql_bind($rs->as_query,
+    '(
+      SELECT me.cdid, me.title, me.test_count,
+             tags.tagid, tags.cd, tags.tag
+        FROM (
+          SELECT  me.cdid, me.title,
+                  COUNT( tags.tag ) AS test_count
+            FROM cd me
+            LEFT JOIN tags tags
+              ON tags.cd = me.cdid
+          GROUP BY me.cdid, me.title
+          ORDER BY MAX( tags.tag ) DESC
+          LIMIT ?
+          OFFSET ?
+        ) me
+        LEFT JOIN tags tags
+          ON tags.cd = me.cdid
+      ORDER BY tags.tag DESC
+    )',
+    [ [$ROWS => 3], [$OFFSET => 1] ],
+    'Expected limited prefetch with distinct SQL',
+  );
+
+  my $expected_hri = [
+    { cdid => 4, test_count => 2, title => "Generic Manufactured Singles", tags => [
+      { cd => 4, tag => "Shiny", tagid => 9 },
+      { cd => 4, tag => "Cheesy", tagid => 6 },
+    ]},
+    {
+      cdid => 5, test_count => 2, title => "Come Be Depressed With Us", tags => [
+      { cd => 5, tag => "Cheesy", tagid => 7 },
+      { cd => 5, tag => "Blue", tagid => 4 },
+    ]},
+    {
+      cdid => 1, test_count => 1, title => "Spoonful of bees", tags => [
+      { cd => 1, tag => "Blue", tagid => 1 },
+    ]},
+  ];
+
+  is_deeply (
+    $rs->all_hri,
+    $expected_hri,
+    'HRI dump of limited prefetch with distinct as expected'
+  );
+
+  # pre-multiplied main source also should work
+  $rs = $schema->resultset('CD')->search_related('artist')->search_related('cds', {}, {
+    columns => [qw( cdid title )],
+    '+select' => [{ count => 'tags.tag' }],
+    '+as' => ['test_count'],
+    prefetch => ['tags'],
+    distinct => 1,
+    order_by => {'-desc' => 'tags.tag'},
+    offset => 1,
+    rows => 3,
+  });
+
+  is_same_sql_bind($rs->as_query,
+    '(
+      SELECT cds.cdid, cds.title, cds.test_count,
+             tags.tagid, tags.cd, tags.tag
+        FROM cd me
+        JOIN artist artist
+          ON artist.artistid = me.artist
+        JOIN (
+          SELECT  cds.cdid, cds.title,
+                  COUNT( tags.tag ) AS test_count,
+                  cds.artist
+            FROM cd me
+            JOIN artist artist
+              ON artist.artistid = me.artist
+            JOIN cd cds
+              ON cds.artist = artist.artistid
+            LEFT JOIN tags tags
+              ON tags.cd = cds.cdid
+          GROUP BY cds.cdid, cds.title, cds.artist
+          ORDER BY MAX( tags.tag ) DESC
+          LIMIT ?
+          OFFSET ?
+        ) cds
+          ON cds.artist = artist.artistid
+        LEFT JOIN tags tags
+          ON tags.cd = cds.cdid
+      ORDER BY tags.tag DESC
+    )',
+    [ [$ROWS => 3], [$OFFSET => 1] ],
+    'Expected limited prefetch with distinct SQL on premultiplied head',
+  );
+
+  # Tag counts are multiplied by the cd->artist->cds multiplication
+  # I would *almost* call this "expected" without wraping an as_subselect_rs
+  {
+    local $TODO = 'Not sure if we can stop the count/group of premultiplication abstraction leak';
+    is_deeply (
+      $rs->all_hri,
+      $expected_hri,
+      'HRI dump of limited prefetch with distinct as expected on premultiplid head'
     );
-    is_same_sql_bind($rs->as_query, q{
-        (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.test_count, tags.tagid, tags.cd, tags.tag
-          FROM (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, COUNT( tags.tag ) AS test_count
-                FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid
-            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tag
-            ORDER BY tags.tag ASC LIMIT ?)
-            me
-          LEFT JOIN tags tags ON tags.cd = me.cdid
-         ORDER BY tags.tag ASC, tags.cd, tags.tag
-        )
-    }, [[$ROWS => 1]]);
+  }
 }
 
 done_testing;

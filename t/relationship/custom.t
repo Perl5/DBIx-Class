@@ -139,9 +139,6 @@ is_deeply(
   '16 correct cds found'
 );
 
-TODO: {
-local $TODO = 'Prefetch on custom rels can not work until the collapse rewrite is finished '
-  . '(currently collapser requires a right-side (which is indeterministic) order-by)';
 lives_ok {
 
 my @all_artists_with_80_cds_pref = $schema->resultset("Artist")->search
@@ -154,7 +151,6 @@ is_deeply(
 );
 
 } 'prefetchy-fetchy-fetch';
-} # end of TODO
 
 
 # try to create_related a 80s cd

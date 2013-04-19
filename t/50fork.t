@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -40,27 +41,58 @@ eval {
     $schema->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
 
     $parent_rs = $schema->resultset('CD')->search({ year => 1901 });
-    $parent_rs->next;
+    is ($parent_rs->count, 2);
 };
 ok(!$@) or diag "Creation eval failed: $@";
 
+# basic tests
 {
-    my $pid = fork;
-    if(!defined $pid) {
-        die "fork failed: $!";
+  ok ($schema->storage->connected(), 'Parent is connected');
+  is ($parent_rs->next->id, 1, 'Cursor advanced');
+
+  my ($parent_in, $child_out);
+  pipe( $parent_in, $child_out ) or die "Pipe open failed: $!";
+
+  my $pid = fork;
+  if(!defined $pid) {
+    die "fork failed: $!";
+  }
+
+  if (!$pid) {
+    close $parent_in;
+
+    #simulate a  subtest to not confuse the parent TAP emission
+    my $tb = Test::More->builder;
+    $tb->reset;
+    for (qw/output failure_output todo_output/) {
+      close $tb->$_;
+      open ($tb->$_, '>&', $child_out);
     }
 
-    if (!$pid) {
-        exit $schema->storage->connected ? 1 : 0;
+    ok(!$schema->storage->connected, "storage->connected() false in child");
+    for (1,2) {
+      throws_ok { $parent_rs->next } qr/\QMulti-process access attempted while cursor in progress (position 1)/;
     }
 
-    if (waitpid($pid, 0) == $pid) {
-        my $ex = $? >> 8;
-        ok($ex == 0, "storage->connected() returns false in child");
-        exit $ex if $ex; # skip remaining tests
-    }
+    $parent_rs->reset;
+    is($parent_rs->next->id, 1, 'Resetting cursor reprepares it within child environment');
+
+    done_testing;
+    exit 0;
+  }
+
+  close $child_out;
+  while (my $ln = <$parent_in>) {
+    print "   $ln";
+  }
+  waitpid( $pid, 0 );
+  ok(!$?, 'Child subtests passed');
+
+  is ($parent_rs->next->id, 2, 'Cursor still intact in parent');
+  is ($parent_rs->next, undef, 'Cursor exhausted');
 }
 
+$parent_rs->reset;
 my @pids;
 while(@pids < $num_children) {
 

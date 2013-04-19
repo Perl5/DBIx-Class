@@ -22,6 +22,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('id');
+__PACKAGE__->add_unique_constraint ([qw/lyric_id text/]);
 __PACKAGE__->belongs_to('lyric', 'DBICTest::Schema::Lyrics', 'lyric_id');
 
 1;

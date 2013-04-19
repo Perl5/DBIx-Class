@@ -176,7 +176,6 @@ sub new {
   $new->_sql_maker_opts({});
   $new->_dbh_details({});
   $new->{_in_do_block} = 0;
-  $new->{_dbh_gen} = 0;
 
   # read below to see what this does
   $new->_arm_global_destructor;
@@ -216,17 +215,17 @@ sub new {
     # soon as possible (DBIC will reconnect only on demand from within
     # the thread)
     my @instances = grep { defined $_ } values %seek_and_destroy;
+    %seek_and_destroy = ();
+
     for (@instances) {
-      $_->{_dbh_gen}++;  # so that existing cursors will drop as well
       $_->_dbh(undef);
 
       $_->transaction_depth(0);
       $_->savepoints([]);
-    }
 
-    # properly renumber all existing refs
-    %seek_and_destroy = ();
-    $_->_arm_global_destructor for @instances;
+      # properly renumber existing refs
+      $_->_arm_global_destructor
+    }
   }
 }
 
@@ -252,7 +251,6 @@ sub _verify_pid {
   my $pid = $self->_conn_pid;
   if( defined $pid and $pid != $$ and my $dbh = $self->_dbh ) {
     $dbh->{InactiveDestroy} = 1;
-    $self->{_dbh_gen}++;
     $self->_dbh(undef);
     $self->transaction_depth(0);
     $self->savepoints([]);
@@ -835,7 +833,6 @@ sub disconnect {
     %{ $self->_dbh->{CachedKids} } = ();
     $self->_dbh->disconnect;
     $self->_dbh(undef);
-    $self->{_dbh_gen}++;
   }
 }
 
@@ -1706,7 +1703,12 @@ sub _execute {
 
   my ($sql, $bind) = $self->_prep_for_execute($op, $ident, \@args);
 
-  shift->dbh_do( _dbh_execute =>     # retry over disconnects
+  # not even a PID check - we do not care about the state of the _dbh.
+  # All we need is to get the appropriate drivers loaded if they aren't
+  # already so that the assumption in ad7c50fc26e holds
+  $self->_populate_dbh unless $self->_dbh;
+
+  $self->dbh_do( _dbh_execute =>     # retry over disconnects
     $sql,
     $bind,
     $self->_dbi_attrs_for_bind($ident, $bind),
@@ -1894,7 +1896,7 @@ sub insert {
         unless (@pri_values == @missing_pri);
 
       @returned_cols{@missing_pri} = @pri_values;
-      delete $retrieve_cols{$_} for @missing_pri;
+      delete @retrieve_cols{@missing_pri};
     }
 
     # if there is more left to pull
@@ -2291,18 +2293,25 @@ sub _select_args_to_query {
 }
 
 sub _select_args {
-  my ($self, $ident, $select, $where, $attrs) = @_;
+  my ($self, $ident, $select, $where, $orig_attrs) = @_;
+
+  return (
+    'select', @{$orig_attrs->{_sqlmaker_select_args}}
+  ) if $orig_attrs->{_sqlmaker_select_args};
 
   my $sql_maker = $self->sql_maker;
-  my ($alias2source, $rs_alias) = $self->_resolve_ident_sources ($ident);
+  my $alias2source = $self->_resolve_ident_sources ($ident);
 
-  $attrs = {
-    %$attrs,
+  my $attrs = {
+    %$orig_attrs,
     select => $select,
     from => $ident,
     where => $where,
-    $rs_alias && $alias2source->{$rs_alias}
-      ? ( _rsroot_rsrc => $alias2source->{$rs_alias} )
+
+    # limit dialects use this stuff
+    # yes, some CDBICompat crap does not supply an {alias} >.<
+    ( $orig_attrs->{alias} and $alias2source->{$orig_attrs->{alias}} )
+      ? ( _rsroot_rsrc => $alias2source->{$orig_attrs->{alias}} )
       : ()
     ,
   };
@@ -2323,27 +2332,50 @@ sub _select_args {
     $attrs->{rows} = $sql_maker->__max_int;
   }
 
-  my @limit;
+  # see if we will need to tear the prefetch apart to satisfy group_by == select
+  # this is *extremely tricky* to get right, I am still not sure I did
+  #
+  my ($prefetch_needs_subquery, @limit_args);
 
-  # see if we need to tear the prefetch apart otherwise delegate the limiting to the
-  # storage, unless software limit was requested
-  if (
-    #limited has_many
-    ( $attrs->{rows} && keys %{$attrs->{collapse}} )
-       ||
-    # grouped prefetch (to satisfy group_by == select)
-    ( $attrs->{group_by}
-        &&
-      @{$attrs->{group_by}}
-        &&
-      $attrs->{_prefetch_selector_range}
-    )
+  if ( $attrs->{_grouped_by_distinct} and $attrs->{collapse} ) {
+    # we already know there is a valid group_by and we know it is intended
+    # to be based *only* on the main result columns
+    # short circuit the group_by parsing below
+    $prefetch_needs_subquery = 1;
+  }
+  elsif (
+    # The rationale is that even if we do *not* have collapse, we still
+    # need to wrap the core grouped select/group_by in a subquery
+    # so that databases that care about group_by/select equivalence
+    # are happy (this includes MySQL in strict_mode)
+    # If any of the other joined tables are referenced in the group_by
+    # however - the user is on their own
+    ( $prefetch_needs_subquery or $attrs->{_related_results_construction} )
+      and
+    $attrs->{group_by}
+      and
+    @{$attrs->{group_by}}
+      and
+    my $grp_aliases = try { # try{} because $attrs->{from} may be unreadable
+      $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
+    }
   ) {
-    ($ident, $select, $where, $attrs)
-      = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+    # no aliases other than our own in group_by
+    # if there are - do not allow subquery even if limit is present
+    $prefetch_needs_subquery = ! scalar grep { $_ ne $attrs->{alias} } keys %{ $grp_aliases->{grouping} || {} };
+  }
+  elsif ( $attrs->{rows} && $attrs->{collapse} ) {
+    # active collapse with a limit - that one is a no-brainer unless
+    # overruled by a group_by above
+    $prefetch_needs_subquery = 1;
+  }
+
+  if ($prefetch_needs_subquery) {
+    ($ident, $select, $where, $attrs) =
+      $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
   elsif (! $attrs->{software_limit} ) {
-    push @limit, (
+    push @limit_args, (
       $attrs->{rows} || (),
       $attrs->{offset} || (),
     );
@@ -2351,13 +2383,15 @@ sub _select_args {
 
   # try to simplify the joinmap further (prune unreferenced type-single joins)
   if (
+    ! $prefetch_needs_subquery  # already pruned
+      and
     ref $ident
       and
     reftype $ident eq 'ARRAY'
       and
     @$ident != 1
   ) {
-    $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+    ($ident, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
   }
 
 ###
@@ -2370,7 +2404,9 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ('select', $ident, $select, $where, $attrs, @limit);
+  return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
+    $ident, $select, $where, $attrs, @limit_args
+  ]} );
 }
 
 # Returns a counting SELECT for a simple count

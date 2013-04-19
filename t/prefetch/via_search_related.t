@@ -145,4 +145,30 @@ lives_ok (sub {
     $schema->storage->debug ($orig_debug);
 }, 'distinct generally works with prefetch on deep search_related chains');
 
+# pathological "user knows what they're doing" case
+# lifted from production somewhere
+{
+  $schema->resultset('CD')
+   ->search({ cdid => [1,2] })
+    ->search_related('tracks', { position => [3,1] })
+     ->delete_all;
+
+  my $rs = $schema->resultset('CD')->search_related('tracks', {}, {
+    group_by => 'me.title',
+    columns => { title => 'me.title', max_trk => \ 'MAX(tracks.position)' },
+  });
+
+  is_deeply(
+    $rs->all_hri,
+    [
+      { title => "Caterwaulin' Blues", max_trk => 3 },
+      { title => "Come Be Depressed With Us", max_trk => 3 },
+      { title => "Forkful of bees", max_trk => 1 },
+      { title => "Generic Manufactured Singles", max_trk => 3 },
+      { title => "Spoonful of bees", max_trk => 1 },
+    ],
+    'Expected nonsense',
+  );
+}
+
 done_testing;
