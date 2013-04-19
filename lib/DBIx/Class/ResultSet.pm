@@ -246,7 +246,7 @@ sub new {
     if $source->isa('DBIx::Class::ResultSourceHandle');
 
   $attrs = { %{$attrs||{}} };
-  delete @{$attrs}{qw(_related_results_construction)};
+  delete @{$attrs}{qw(_sqlmaker_select_args _related_results_construction)};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -1004,7 +1004,7 @@ sub cursor {
   my $self = shift;
 
   return $self->{cursor} ||= do {
-    my $attrs = { %{$self->_resolved_attrs } };
+    my $attrs = $self->_resolved_attrs;
     $self->result_source->storage->select(
       $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
     );
@@ -1082,6 +1082,7 @@ sub single {
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
   )];
+  $self->{_attrs}{_sqlmaker_select_args} = $attrs->{_sqlmaker_select_args};
   return undef unless @$data;
   $self->{_stashed_rows} = [ $data ];
   $self->_construct_results->[0];
@@ -1364,7 +1365,6 @@ sub _construct_results {
   };
 
   my $infmap = $attrs->{as};
-
 
   $self->{_result_inflator}{is_core_row} = ( (
     $inflator_cref
@@ -2588,9 +2588,13 @@ sub as_query {
 
   my $attrs = { %{ $self->_resolved_attrs } };
 
-  $self->result_source->storage->_select_args_to_query (
+  my $aq = $self->result_source->storage->_select_args_to_query (
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
   );
+
+  $self->{_attrs}{_sqlmaker_select_args} = $attrs->{_sqlmaker_select_args};
+
+  $aq;
 }
 
 =head2 find_or_new

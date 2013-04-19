@@ -353,7 +353,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # scan the *remaining* from spec against different attributes, and see which joins are needed
   # in what role
-  my $outer_aliastypes =
+  my $outer_aliastypes = $outer_attrs->{_aliastypes} =
     $self->_resolve_aliastypes_from_select_args( $from, $outer_select, $where, $outer_attrs );
 
   # unroll parents

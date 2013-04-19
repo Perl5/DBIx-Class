@@ -2293,21 +2293,25 @@ sub _select_args_to_query {
 }
 
 sub _select_args {
-  my ($self, $ident, $select, $where, $attrs) = @_;
+  my ($self, $ident, $select, $where, $orig_attrs) = @_;
+
+  return (
+    'select', @{$orig_attrs->{_sqlmaker_select_args}}
+  ) if $orig_attrs->{_sqlmaker_select_args};
 
   my $sql_maker = $self->sql_maker;
   my $alias2source = $self->_resolve_ident_sources ($ident);
 
-  $attrs = {
-    %$attrs,
+  my $attrs = {
+    %$orig_attrs,
     select => $select,
     from => $ident,
     where => $where,
 
     # limit dialects use this stuff
     # yes, some CDBICompat crap does not supply an {alias} >.<
-    ( $attrs->{alias} and $alias2source->{$attrs->{alias}} )
-      ? ( _rsroot_rsrc => $alias2source->{$attrs->{alias}} )
+    ( $orig_attrs->{alias} and $alias2source->{$orig_attrs->{alias}} )
+      ? ( _rsroot_rsrc => $alias2source->{$orig_attrs->{alias}} )
       : ()
     ,
   };
@@ -2387,7 +2391,7 @@ sub _select_args {
       and
     @$ident != 1
   ) {
-    ($ident) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+    ($ident, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
   }
 
 ###
@@ -2400,7 +2404,9 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ('select', $ident, $select, $where, $attrs, @limit_args);
+  return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
+    $ident, $select, $where, $attrs, @limit_args
+  ]} );
 }
 
 # Returns a counting SELECT for a simple count
