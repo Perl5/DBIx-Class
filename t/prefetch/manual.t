@@ -63,7 +63,7 @@ my $rs = $schema->resultset ('CD')->search ({}, {
     { 'title'                                   => 'me.title' },              # uniquiness for me
     { 'artist'                                  => 'me.artist' },             # uniquiness for me
   ],
-  order_by => [{ -desc => 'cds.year' }, { -desc => 'me.title'} ],
+  order_by => [{ -desc => 'cds.year' }, { -desc => 'me.title'}, 'tracks.title', 'tracks_2.title' ],
 });
 
 my $hri_rs = $rs->search({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' });

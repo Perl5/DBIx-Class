@@ -11,7 +11,7 @@ use DBIC::SqlMakerTest;
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
 
-my $artist = $schema->resultset ('Artist')->first;
+my $artist = $schema->resultset ('Artist')->find(1);
 
 my $genre = $schema->resultset ('Genre')
             ->create ({ name => 'par excellence' });

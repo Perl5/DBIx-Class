@@ -9,6 +9,8 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
     export $var=1
   done
+
+  export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
 fi
 
 # try Schwern's latest offering on a stock perl and a threaded blead

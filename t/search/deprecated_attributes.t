@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $cd_rs = $schema->resultset("CD");
+my $cd_rs = $schema->resultset("CD")->search({ 'me.cdid' => 1 });
 
 warnings_exist( sub {
   my $cd = $cd_rs->search( undef, {

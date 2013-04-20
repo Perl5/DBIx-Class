@@ -24,7 +24,7 @@ my $mo_rs = $schema->resultset('Artist')->search(
 
     result_class => 'DBIx::Class::ResultClass::HashRefInflator',
 
-    order_by => [qw/tracks.position tracks.trackid producer.producerid/],
+    order_by => [qw/tracks.position tracks.trackid producer.producerid tracks_2.trackid artwork.cd_id/],
   }
 );
 
@@ -72,7 +72,7 @@ $schema->resultset('Artist')->create(
       }
     ],
     artwork_to_artist => [
-      { artwork => {cd_id => 1 } },
+      { artwork => { cd_id => 1 } },
       { artwork => { cd_id => 2 } }
     ]
   }

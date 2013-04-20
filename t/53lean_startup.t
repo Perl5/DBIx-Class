@@ -153,7 +153,7 @@ BEGIN {
 {
   require DBICTest;
   my $s = DBICTest->init_schema;
-  is ($s->resultset('Artist')->next->name, 'Caterwauler McCrae');
+  is ($s->resultset('Artist')->find(1)->name, 'Caterwauler McCrae');
   assert_no_missing_expected_requires();
 }
 

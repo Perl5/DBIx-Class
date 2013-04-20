@@ -116,6 +116,7 @@ $rs = $schema->resultset("Artist")->search(
     prefetch => {
       cds => 'tags'
     },
+    order_by => { -desc => 'cds.cdid' },
   }
 );
 {
@@ -138,16 +139,9 @@ $artist = ($rs->all)[0];
 
 is($queries, 1, 'only one SQL statement executed');
 
-$schema->storage->debug($sdebug);
-$schema->storage->debugcb (undef);
+$queries = 0;
 
 my @objs;
-#$artist = $rs->find(1);
-
-$queries = 0;
-$schema->storage->debug(1);
-$schema->storage->debugcb ($debugcb);
-
 my $cds = $artist->cds;
 my $tags = $cds->next->tags;
 while( my $tag = $tags->next ) {
@@ -162,7 +156,7 @@ while( my $tag = $tags->next ) {
   push @objs, $tag->id; #warn "tag: ", $tag->ID;
 }
 
-is_deeply( \@objs, [ 2, 5, 8 ], 'third cd has correct tags' );
+is_deeply( [ sort @objs] , [ 2, 5, 8 ], 'third cd has correct tags' );
 
 $tags = $cds->next->tags;
 @objs = ();

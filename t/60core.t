@@ -243,7 +243,7 @@ is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdat
 
 my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
-my( $or_rs ) = $schema->resultset("CD")->search_rs($search, { join => 'tags',
+my $or_rs = $schema->resultset("CD")->search_rs($search, { join => 'tags',
                                                   order_by => 'cdid' });
 is($or_rs->all, 5, 'Joined search with OR returned correct number of rows');
 is($or_rs->count, 5, 'Search count with OR ok');
@@ -292,7 +292,7 @@ is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 
-my $rel_rs = $tag_rs->search_related('cd');
+my $rel_rs = $tag_rs->search_related('cd', {}, { order_by => 'cd.cdid'} );
 
 is($rel_rs->count, 5, 'Related search ok');
 

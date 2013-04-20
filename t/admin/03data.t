@@ -51,7 +51,7 @@ use_ok 'DBIx::Class::Admin';
     [2,2,undef,undef,undef,'Aran',undef]
   ];
   my $data;
-  lives_ok { $data = $admin->select('Employee')} 'can retrive data from database';
+  lives_ok { $data = $admin->select('Employee', undef, { order_by => 'employee_id' })} 'can retrive data from database';
   is_deeply($data, $expected_data, 'DB matches whats expected');
 
   $admin->delete('Employee', {name=>'Trout'});

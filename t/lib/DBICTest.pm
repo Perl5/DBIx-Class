@@ -187,6 +187,9 @@ sub _database {
         # no fsync on commit
         $dbh->do ('PRAGMA synchronous = OFF');
 
+        $dbh->do ('PRAGMA reverse_unordered_selects = ON')
+          if $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER};
+
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
         # an open database, which fails on Win32)

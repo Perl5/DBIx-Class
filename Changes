@@ -57,6 +57,10 @@ Revision history for DBIx::Class
         - Make sure deployment_statements() and cursor_class() are called on
           a resolved storage subclass
 
+    * Misc
+        - Fix tests failing due to unspecified resultset retrieval order
+          (test suite now will pass with newest SQLite libs)
+
 0.08210 2013-04-04 15:30 (UTC)
     * New Features / Changes
         - Officially deprecate the 'cols' and 'include_columns' resultset

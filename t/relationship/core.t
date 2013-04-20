@@ -155,7 +155,7 @@ throws_ok {
 
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
-my @producers = $cd->producers();
+my @producers = $cd->producers(undef, { order_by => 'producerid'} );
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 is( $cd->producers_sorted->next->name, 'Bob The Builder',
     'sorted many_to_many ok' );

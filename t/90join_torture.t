@@ -78,7 +78,9 @@ cmp_ok(scalar($rs3->all), '==', 15, "All cds for artist returned");
 
 cmp_ok($rs3->count, '==', 15, "All cds for artist returned via count");
 
-my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join => ['tracks', 'artist'], prefetch => 'artist' });
+my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, {
+  join => ['tracks', 'artist'], prefetch => 'artist', order_by => 'me.cdid'
+});
 my @rs4_results = $rs4->all;
 
 is($rs4_results[0]->cdid, 1, "correct artist returned");

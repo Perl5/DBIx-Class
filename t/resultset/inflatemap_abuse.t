@@ -26,8 +26,8 @@ my $rs_2nd_track = $s->resultset('Track')->search(
   { 'me.position' => 2 },
   {
     join => { cd => 'artist' },
-    'columns' => [ 'me.title', { 'artist.cdtitle' => 'cd.title' }, 'artist.name' ],
-    order_by => 'artist.name',
+    columns => [ 'me.title', { 'artist.cdtitle' => 'cd.title' }, 'artist.name' ],
+    order_by => [ 'artist.name', { -desc => 'cd.cdid' }, 'me.trackid' ],
   }
 );
 

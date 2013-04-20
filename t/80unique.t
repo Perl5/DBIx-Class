@@ -226,7 +226,7 @@ is($row->baz, 3, 'baz is correct');
 
 # make sure the ident condition is assembled sanely
 {
-  my $artist = $schema->resultset('Artist')->next;
+  my $artist = $schema->resultset('Artist')->find(1);
 
   my ($sql, @bind);
   my $old_debugobj = $schema->storage->debugobj;

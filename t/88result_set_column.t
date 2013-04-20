@@ -14,7 +14,7 @@ my $rs = $schema->resultset("CD");
 
 cmp_ok (
   $rs->count,
-    '!=',
+    '>',
   $rs->search ({}, {columns => ['year'], distinct => 1})->count,
   'At least one year is the same in rs'
 );
@@ -23,25 +23,31 @@ my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
 my $max_year = $rs->get_column(\'MAX (year)');
 
-is($rs_title->next, 'Spoonful of bees', "next okay");
+my @all_titles = $rs_title->all;
+cmp_ok(scalar @all_titles, '==', 5, "five titles returned");
+
+my @nexted_titles;
+while (my $r = $rs_title->next) {
+  push @nexted_titles, $r;
+}
+
+is_deeply (\@all_titles, \@nexted_titles, 'next works');
+
 is_deeply( [ sort $rs_year->func('DISTINCT') ], [ 1997, 1998, 1999, 2001 ],  "wantarray context okay");
 ok ($max_year->next == $rs_year->max, q/get_column (\'FUNC') ok/);
-
-my @all = $rs_title->all;
-cmp_ok(scalar @all, '==', 5, "five titles returned");
 
 cmp_ok($rs_year->max, '==', 2001, "max okay for year");
 is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
 
-$rs_year->reset;
-is($rs_year->next, 1999, "reset okay");
+my $rso_year = $rs->search({}, { order_by => 'cdid' })->get_column('year');
+is($rso_year->next, 1999, "reset okay");
 
-is($rs_year->first, 1999, "first okay");
+is($rso_year->first, 1999, "first okay");
 
 warnings_exist (sub {
-  is($rs_year->single, 1999, "single okay");
+  is($rso_year->single, 1999, "single okay");
 }, qr/Query returned more than one row/, 'single warned');
 
 
@@ -136,7 +142,6 @@ is ($owner->search_related ('books')->get_column ('price')->sum, 60, 'Correctly 
 
 
 # make sure joined/prefetched get_column of a PK dtrt
-
 $rs->reset;
 my $j_rs = $rs->search ({}, { join => 'tracks' })->get_column ('cdid');
 is_deeply (
@@ -148,8 +153,8 @@ is_deeply (
 $rs->reset;
 my $p_rs = $rs->search ({}, { prefetch => 'tracks' })->get_column ('cdid');
 is_deeply (
-  [ $p_rs->all ],
-  [ $rs->get_column ('cdid')->all ],
+  [ sort $p_rs->all ],
+  [ sort $rs->get_column ('cdid')->all ],
   'prefetch properly collapses amount of rows from get_column',
 );
 

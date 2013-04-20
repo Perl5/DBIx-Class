@@ -116,6 +116,7 @@ throws_ok(
   my $pref_rs = $schema->resultset('Owners')->search({}, {
     rows => 3,
     offset => 1,
+    order_by => 'name',
     columns => 'name',  # only the owner name, still prefetch all the books
     prefetch => 'books',
   });
@@ -127,11 +128,13 @@ throws_ok(
         FROM (
           SELECT me.name, me.id
             FROM owners me
+          ORDER BY name
           LIMIT ?
           OFFSET ?
         ) me
         LEFT JOIN books books
           ON books.owner = me.id
+      ORDER BY name
     )',
     [ [ { sqlt_datatype => "integer" } => 3 ], [ { sqlt_datatype => "integer" } => 1 ] ],
     'Expected SQL on complex limited prefetch with non-selected join condition',

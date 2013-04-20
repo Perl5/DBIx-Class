@@ -112,7 +112,7 @@ lives_ok ( sub {
 #                                               /
 #                                          Producer
 lives_ok ( sub {
-  my $artist = $schema->resultset('Artist')->first;
+  my $artist = $schema->resultset('Artist')->find(1);
   my $cd = $schema->resultset('CD')->create ({
     artist => $artist,
     title => 'Music to code by at night',
@@ -152,7 +152,7 @@ lives_ok ( sub {
   is ($cd->title, 'Music to code by at night', 'Correct CD title');
   is ($cd->tracks->count, 2, 'Two tracks on main CD');
 
-  my ($t1, $t2) = $cd->tracks->all;
+  my ($t1, $t2) = sort { $a->id <=> $b->id } $cd->tracks->all;
   is ($t1->title, 'Off by one again', 'Correct 1st track name');
   is ($t1->cd_single, undef, 'No single for 1st track');
   is ($t2->title, 'The dereferencer', 'Correct 2nd track name');

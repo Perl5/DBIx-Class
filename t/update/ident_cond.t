@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $artist = $schema->resultset('Artist')->next;
+my $artist = $schema->resultset('Artist')->find(1);
 
 is_deeply(
   [ $artist->id, $artist->ident_condition, $artist->_storage_ident_condition ],
