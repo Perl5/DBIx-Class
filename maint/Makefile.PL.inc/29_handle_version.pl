@@ -21,9 +21,6 @@ if ($v_point >= 300) {
 }
 
 Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
-  # 0.08240 ~ 0.08249 shall be TRIALs for the collapser rewrite
-  ( $v_point >= 240  and $v_point <= 249 )
-    or
   # all odd releases *after* 0.08200 generate a -TRIAL, no exceptions
   ( $v_point > 200 and int($v_point / 100) % 2 )
 );
