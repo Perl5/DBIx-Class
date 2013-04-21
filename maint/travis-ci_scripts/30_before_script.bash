@@ -11,14 +11,11 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   done
 
   export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
-fi
-
-# try Schwern's latest offering on a stock perl and a threaded blead
-# can't do this with CLEANTEST=true yet because a lot of our deps fail
-# tests left and right under T::B 1.5
-if [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "blead" ]] ) ; then
-  # FIXME - there got to be a way to ask metacpan for this dynamically
-  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_005.tar.gz"
+elif [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "blead" ]] ) ; then
+  # try CPAN's latest offering on a stock perl and a threaded blead
+  # can't do this with CLEANTEST=true yet because a lot of our deps fail
+  # tests left and right under T::B 1.5
+  PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
 fi
 
 
@@ -34,12 +31,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
     "SHELL=/bin/true cpanm --look DBIx::Class"
 
   mv ~/.cpanm/latest-build/DBIx-Class-*/inc .
-
-  # this should be installable anywhere, regardles of prereqs
-  if [[ -n "$TEST_BUILDER_BETA_CPAN_TARBALL" ]] ; then
-    run_or_err "Pre-installing dev-beta of Test::Builder ($TEST_BUILDER_BETA_CPAN_TARBALL)" \
-      "cpan $TEST_BUILDER_BETA_CPAN_TARBALL"
-  fi
 
   # older perls do not have a CPAN which understands configure_requires
   # properly and what is worse a `cpan Foo` run exits with 0 even if some
