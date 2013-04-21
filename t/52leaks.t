@@ -302,7 +302,15 @@ my @compose_ns_classes;
 
   SKIP: {
     if ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks') ) {
-      Test::Memory::Cycle::memory_cycle_ok ($base_collection, 'No cycles in the object collection')
+      my @w;
+      local $SIG{__WARN__} = sub { $_[0] =~ /\QUnhandled type: REGEXP/ ? push @w, @_ : warn @_ };
+
+      Test::Memory::Cycle::memory_cycle_ok ($base_collection, 'No cycles in the object collection');
+
+      if ( $] > 5.011 ) {
+        local $TODO = 'Silence warning due to RT56681';
+        is (@w, 0, 'No Devel::Cycle emitted warnings');
+      }
     }
     else {
       skip 'Circular ref test needs ' .  DBIx::Class::Optional::Dependencies->req_missing_for ('test_leaks'), 1;
