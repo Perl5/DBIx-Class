@@ -145,8 +145,8 @@ is ($owner->search_related ('books')->get_column ('price')->sum, 60, 'Correctly 
 $rs->reset;
 my $j_rs = $rs->search ({}, { join => 'tracks' })->get_column ('cdid');
 is_deeply (
-  [ $j_rs->all ],
-  [ map { my $c = $rs->next; ( ($c->id) x $c->tracks->count ) } (1 .. $rs->count) ],
+  [ sort $j_rs->all ],
+  [ sort map { my $c = $rs->next; ( ($c->id) x $c->tracks->count ) } (1 .. $rs->count) ],
   'join properly explodes amount of rows from get_column',
 );
 

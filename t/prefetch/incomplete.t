@@ -55,6 +55,7 @@ lives_ok ( sub {
     for my $tr ($cd->tracks->all) {
       push @{$data->{tracks}}, { $tr->get_columns };
     }
+    @{$data->{tracks}} = sort { $a->{trackid} <=> $b->{trackid} } @{$data->{tracks}};
     push @cds_and_tracks, $data;
   }
 
@@ -66,6 +67,7 @@ lives_ok ( sub {
     for my $tr ($cd->tracks->all) {
       push @{$data->{tracks}}, { $tr->get_columns };
     }
+    @{$data->{tracks}} = sort { $a->{trackid} <=> $b->{trackid} } @{$data->{tracks}};
     push @pref_cds_and_tracks, $data;
   }
 
@@ -76,7 +78,7 @@ lives_ok ( sub {
   );
 
   cmp_deeply (
-    [ $pref_rs->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' })->all ],
+    $pref_rs->search ({}, { order_by => [ { -desc => 'me.year' }, 'trackid' ] })->all_hri,
     \@cds_and_tracks,
     'Correct HRI collapsing on non-unique primary object'
   );
