@@ -151,6 +151,7 @@ BEGIN {
 
 # and do full populate() as well, just in case - shouldn't add new stuff
 {
+  local $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER};
   require DBICTest;
   my $s = DBICTest->init_schema;
   is ($s->resultset('Artist')->find(1)->name, 'Caterwauler McCrae');

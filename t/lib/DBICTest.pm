@@ -187,8 +187,14 @@ sub _database {
         # no fsync on commit
         $dbh->do ('PRAGMA synchronous = OFF');
 
-        $dbh->do ('PRAGMA reverse_unordered_selects = ON')
-          if $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER};
+        if ($ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER}) {
+
+          $storage->throw_exception(
+            'PRAGMA reverse_unordered_selects does not work correctly before libsqlite 3.7.9'
+          ) if $storage->_server_info->{normalized_dbms_version} < 3.007009;
+
+          $dbh->do ('PRAGMA reverse_unordered_selects = ON');
+        }
 
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
