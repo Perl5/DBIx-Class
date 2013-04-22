@@ -108,6 +108,12 @@ END {
   }
   my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
 
+  $meta =~ /^\Qname: DBIx-Class\E$/m or do {
+    warn "Seemingly malformed META.yml...?\n";
+    unlink 'Makefile';
+    exit 1;
+  };
+
   # this is safe as there is a fatal check earlier in the main Makefile.PL
   # to make sure there are no duplicates (i.e. $opt_testdeps does not contain
   # any real dependencies)
