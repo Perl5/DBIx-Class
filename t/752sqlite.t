@@ -48,6 +48,14 @@ use DBICTest;
 #
 # As per https://metacpan.org/source/ADAMK/DBD-SQLite-1.37/lib/DBD/SQLite.pm#L921
 # SQLite does *not* try to synchronize
+#
+# However DBD::SQLite 1.38_02 seems to fix this, with an accompanying test:
+# https://metacpan.org/source/ADAMK/DBD-SQLite-1.38_02/t/54_literal_txn.t
+
+my $lit_txn_todo = eval { DBD::SQLite->VERSION(1.38_02) }
+  ? undef
+  : "DBD::SQLite before 1.38_02 is retarded wrt detecting literal BEGIN/COMMIT statements"
+;
 
 for my $prefix_comment (qw/Begin_only Commit_only Begin_and_Commit/) {
   note "Testing with comment prefixes on $prefix_comment";
@@ -56,7 +64,7 @@ for my $prefix_comment (qw/Begin_only Commit_only Begin_and_Commit/) {
   # perhaps when (if ever) DBD::SQLite gets fixed,
   # we can do something extra here
   local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /Internal transaction state .+? does not seem to match/ }
-    unless $ENV{TEST_VERBOSE};
+    if ( $lit_txn_todo && !$ENV{TEST_VERBOSE} );
 
   my ($c_begin, $c_commit) = map { $prefix_comment =~ $_ ? 1 : 0 } (qr/Begin/, qr/Commit/);
 
@@ -86,7 +94,7 @@ DDL
   );
   ok ($schema->storage->connected, 'Still connected');
   {
-    local $TODO = 'SQLite is retarded wrt detecting BEGIN' if $c_begin;
+    local $TODO = $lit_txn_todo if $c_begin;
     ok (! $schema->storage->_dbh->{AutoCommit}, "DBD aware of txn begin with comments on $prefix_comment");
   }
 
@@ -96,7 +104,7 @@ DDL
   );
   ok ($schema->storage->connected, 'Still connected');
   {
-    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if $c_commit and ! $c_begin;
+    local $TODO = $lit_txn_todo if $c_commit and ! $c_begin;
     ok ($schema->storage->_dbh->{AutoCommit}, "DBD aware txn ended with comments on $prefix_comment");
   }
 
@@ -104,7 +112,7 @@ DDL
 
   {
     # this never worked in the 1st place
-    local $TODO = 'SQLite is retarded wrt detecting COMMIT' if ! $c_begin and $c_commit;
+    local $TODO = $lit_txn_todo if ! $c_begin and $c_commit;
 
     # odd argument passing, because such nested crefs leak on 5.8
     lives_ok {

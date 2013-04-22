@@ -147,69 +147,78 @@ sub _ping {
   return undef unless $dbh->FETCH('Active');
   return undef unless $dbh->ping;
 
-  # since we do not have access to sqlite3_get_autocommit(), do a trick
-  # to attempt to *safely* determine what state are we *actually* in.
-  # FIXME
-  # also using T::T here leads to bizarre leaks - will figure it out later
-  my $really_not_in_txn = do {
-    local $@;
-
-    # older versions of DBD::SQLite do not properly detect multiline BEGIN/COMMIT
-    # statements to adjust their {AutoCommit} state. Hence use such a statement
-    # pair here as well, in order to escape from poking {AutoCommit} needlessly
-    # https://rt.cpan.org/Public/Bug/Display.html?id=80087
-    eval {
-      # will fail instantly if already in a txn
-      $dbh->do("-- multiline\nBEGIN");
-      $dbh->do("-- multiline\nCOMMIT");
-      1;
-    } or do {
-      ($@ =~ /transaction within a transaction/)
-        ? 0
-        : undef
-      ;
-    };
-  };
-
   my $ping_fail;
 
-  # if we were unable to determine this - we may very well be dead
-  if (not defined $really_not_in_txn) {
-    $ping_fail = 1;
-  }
-  # check the AC sync-state
-  elsif ($really_not_in_txn xor $dbh->{AutoCommit}) {
-    carp_unique (sprintf
-      'Internal transaction state of handle %s (apparently %s a transaction) does not seem to '
-    . 'match its AutoCommit attribute setting of %s - this is an indication of a '
-    . 'potentially serious bug in your transaction handling logic',
-      $dbh,
-      $really_not_in_txn ? 'NOT in' : 'in',
-      $dbh->{AutoCommit} ? 'TRUE' : 'FALSE',
-    );
-
-    # it is too dangerous to execute anything else in this state
-    # assume everything works (safer - worst case scenario next statement throws)
-    return 1;
-  }
-  else {
-    # do the actual test
-    $ping_fail = ! try { $dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 };
+  # older DBD::SQLite does not properly synchronize commit state between
+  # the libsqlite and the $dbh
+  unless (defined $DBD::SQLite::__DBIC_TXN_SYNC_SANE__) {
+    local $@;
+    $DBD::SQLite::__DBIC_TXN_SYNC_SANE__ = eval { DBD::SQLite->VERSION(1.38_02); 1 }
+      ? 1
+      : 0
+    ;
   }
 
-  if ($ping_fail) {
-    # it is possible to have a proper "connection", and have "ping" return
-    # false anyway (e.g. corrupted file). In such cases DBD::SQLite still
-    # keeps the actual file handle open. We don't really want this to happen,
-    # so force-close the handle via DBI itself
-    #
-    local $@; # so that we do not clober the real error as set above
-    eval { $dbh->disconnect }; # if it fails - it fails
-    return undef # the actual RV of _ping()
+  # fallback to travesty
+  unless ($DBD::SQLite::__DBIC_TXN_SYNC_SANE__) {
+    # since we do not have access to sqlite3_get_autocommit(), do a trick
+    # to attempt to *safely* determine what state are we *actually* in.
+    # FIXME
+    # also using T::T here leads to bizarre leaks - will figure it out later
+    my $really_not_in_txn = do {
+      local $@;
+
+      # older versions of DBD::SQLite do not properly detect multiline BEGIN/COMMIT
+      # statements to adjust their {AutoCommit} state. Hence use such a statement
+      # pair here as well, in order to escape from poking {AutoCommit} needlessly
+      # https://rt.cpan.org/Public/Bug/Display.html?id=80087
+      eval {
+        # will fail instantly if already in a txn
+        $dbh->do("-- multiline\nBEGIN");
+        $dbh->do("-- multiline\nCOMMIT");
+        1;
+      } or do {
+        ($@ =~ /transaction within a transaction/)
+          ? 0
+          : undef
+        ;
+      };
+    };
+
+    # if we were unable to determine this - we may very well be dead
+    if (not defined $really_not_in_txn) {
+      $ping_fail = 1;
+    }
+    # check the AC sync-state
+    elsif ($really_not_in_txn xor $dbh->{AutoCommit}) {
+      carp_unique (sprintf
+        'Internal transaction state of handle %s (apparently %s a transaction) does not seem to '
+      . 'match its AutoCommit attribute setting of %s - this is an indication of a '
+      . 'potentially serious bug in your transaction handling logic',
+        $dbh,
+        $really_not_in_txn ? 'NOT in' : 'in',
+        $dbh->{AutoCommit} ? 'TRUE' : 'FALSE',
+      );
+
+      # it is too dangerous to execute anything else in this state
+      # assume everything works (safer - worst case scenario next statement throws)
+      return 1;
+    }
   }
-  else {
-    return 1;
-  }
+
+  # do the actual test and return on no failure
+  ( $ping_fail ||= ! try { $dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 } )
+    or return 1; # the actual RV of _ping()
+
+  # ping failed (or so it seems) - need to do some cleanup
+  # it is possible to have a proper "connection", and have "ping" return
+  # false anyway (e.g. corrupted file). In such cases DBD::SQLite still
+  # keeps the actual file handle open. We don't really want this to happen,
+  # so force-close the handle via DBI itself
+  #
+  local $@; # so that we do not clober the real error as set above
+  eval { $dbh->disconnect }; # if it fails - it fails
+  undef; # the actual RV of _ping()
 }
 
 sub deployment_statements {
