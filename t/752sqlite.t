@@ -9,6 +9,7 @@ use Config;
 
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'modver_gt_or_eq';
 
 # savepoints test
 {
@@ -52,7 +53,7 @@ use DBICTest;
 # However DBD::SQLite 1.38_02 seems to fix this, with an accompanying test:
 # https://metacpan.org/source/ADAMK/DBD-SQLite-1.38_02/t/54_literal_txn.t
 
-my $lit_txn_todo = eval { DBD::SQLite->VERSION(1.38_02) }
+my $lit_txn_todo = modver_gt_or_eq('DBD::SQLite', '1.38_02')
   ? undef
   : "DBD::SQLite before 1.38_02 is retarded wrt detecting literal BEGIN/COMMIT statements"
 ;
@@ -151,7 +152,7 @@ $schema->storage->dbh_do(sub {
 # range is -(2**63) .. 2**63 - 1
 SKIP: {
   skip 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail with DBD::SQLite < 1.37', 1
-    if ($Config{ivsize} < 8 and ! eval { DBD::SQLite->VERSION(1.37); 1 });
+    if ($Config{ivsize} < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37') );
 
   for my $bi (qw/
     -9223372036854775808

@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
+use DBIx::Class::_Util 'modver_gt_or_eq';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -152,11 +153,7 @@ sub _ping {
   # older DBD::SQLite does not properly synchronize commit state between
   # the libsqlite and the $dbh
   unless (defined $DBD::SQLite::__DBIC_TXN_SYNC_SANE__) {
-    local $@;
-    $DBD::SQLite::__DBIC_TXN_SYNC_SANE__ = eval { DBD::SQLite->VERSION(1.38_02); 1 }
-      ? 1
-      : 0
-    ;
+    $DBD::SQLite::__DBIC_TXN_SYNC_SANE__ = modver_gt_or_eq('DBD::SQLite', '1.38_02');
   }
 
   # fallback to travesty

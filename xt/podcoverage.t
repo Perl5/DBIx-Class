@@ -131,6 +131,7 @@ my $exceptions = {
     'DBIx::Class::SQLMaker::LimitDialects'          => {},
 
 # internals
+    'DBIx::Class::_Util'                            => { skip => 1 },
     'DBIx::Class::SQLMaker*'                        => { skip => 1 },
     'DBIx::Class::SQLAHacks*'                       => { skip => 1 },
     'DBIx::Class::Storage::DBI*'                    => { skip => 1 },

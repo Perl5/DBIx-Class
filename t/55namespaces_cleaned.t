@@ -80,8 +80,9 @@ my $skip_idx = { map { $_ => 1 } (
   # from the parent
   'DBIx::Class::ResultSet::Pager',
 
-  # a utility class, not part of the inheritance chain
+  # utility classes, not part of the inheritance chain
   'DBIx::Class::ResultSource::RowParser::Util',
+  'DBIx::Class::_Util',
 ) };
 
 my $has_cmop = eval { require Class::MOP };
