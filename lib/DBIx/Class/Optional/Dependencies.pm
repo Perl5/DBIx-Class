@@ -164,7 +164,7 @@ my $reqs = {
 
   test_pod => {
     req => {
-      'Test::Pod'                 => '1.41',
+      'Test::Pod'                 => '1.42',
     },
   },
 
