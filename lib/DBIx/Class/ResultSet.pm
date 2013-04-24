@@ -1299,20 +1299,23 @@ sub _construct_results {
     $attrs->{_order_is_artificial} = 1;
   }
 
-  my $cursor = $self->cursor;
-
   # this will be used as both initial raw-row collector AND as a RV of
   # _construct_results. Not regrowing the array twice matters a lot...
   # a surprising amount actually
   my $rows = delete $self->{_stashed_rows};
 
+  my $cursor; # we may not need one at all
+
   my $did_fetch_all = $fetch_all;
 
   if ($fetch_all) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-    $rows = [ ($rows ? @$rows : ()), $cursor->all ];
+    $rows = [ ($rows ? @$rows : ()), $self->cursor->all ];
   }
   elsif( $attrs->{collapse} ) {
+
+    # a cursor will need to be closed over in case of collapse
+    $cursor = $self->cursor;
 
     $attrs->{_ordered_for_collapse} = (
       (
@@ -1339,6 +1342,7 @@ sub _construct_results {
 
   if (! $did_fetch_all and ! @{$rows||[]} ) {
     # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
+    $cursor ||= $self->cursor;
     if (scalar (my @r = $cursor->next) ) {
       $rows = [ \@r ];
     }

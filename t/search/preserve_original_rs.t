@@ -96,6 +96,7 @@ for my $s (qw/a2a artw cd artw_back/) {
   is ($fresh->count({ cdid => 1}), 1 );
   is ($fresh->count_rs({ cdid => 1})->next, 1 );
 
+  ok (! exists $fresh->{cursor}, 'Still no cursor on fresh rs');
   ok (! exists $fresh->{_attrs}{_sqlmaker_select_args}, 'select args did not leak through' );
 }
 
