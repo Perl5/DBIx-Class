@@ -2679,7 +2679,7 @@ sub as_query {
     { artist => 'fred' }, { key => 'artists' });
 
   $cd->cd_to_producer->find_or_new({ producer => $producer },
-                                   { key => 'primary });
+                                   { key => 'primary' });
 
 Find an existing record from this resultset using L</find>. if none exists,
 instantiate a new result object and return it. The object will not be saved
