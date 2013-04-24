@@ -1082,7 +1082,7 @@ sub single {
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
   )];
-  $self->{_attrs}{_sqlmaker_select_args} = $attrs->{_sqlmaker_select_args};
+
   return undef unless @$data;
   $self->{_stashed_rows} = [ $data ];
   $self->_construct_results->[0];

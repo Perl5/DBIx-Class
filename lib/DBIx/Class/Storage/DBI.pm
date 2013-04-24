@@ -2330,9 +2330,16 @@ sub _select_args_to_query {
 sub _select_args {
   my ($self, $ident, $select, $where, $orig_attrs) = @_;
 
-  return (
-    'select', @{$orig_attrs->{_sqlmaker_select_args}}
-  ) if $orig_attrs->{_sqlmaker_select_args};
+  # FIXME - that kind of caching would be nice to have
+  # however currently we *may* pass the same $orig_attrs
+  # with different ident/select/where
+  # the whole interface needs to be rethought, since it
+  # was centered around the flawed SQLA API. We can do
+  # soooooo much better now. But that is also another
+  # battle...
+  #return (
+  #  'select', @{$orig_attrs->{_sqlmaker_select_args}}
+  #) if $orig_attrs->{_sqlmaker_select_args};
 
   my $sql_maker = $self->sql_maker;
   my $alias2source = $self->_resolve_ident_sources ($ident);
