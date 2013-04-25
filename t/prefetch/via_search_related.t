@@ -69,6 +69,47 @@ lives_ok ( sub {
 
 }, 'search_related prefetch with condition referencing unqualified column of a joined table works');
 
+# make sure chains off prefetched results still work
+{
+  my $cd = $schema->resultset('CD')->search({}, { prefetch => 'cd_to_producer' })->find(1);
+
+  $queries = 0;
+  $schema->storage->debugcb ($debugcb);
+  $schema->storage->debug (1);
+
+  is( $cd->cd_to_producer->count, 3 ,'Count of prefetched m2m links via accessor' );
+  is( scalar $cd->cd_to_producer->all, 3, 'Amount of prefetched m2m link objects via accessor' );
+  is( $cd->search_related('cd_to_producer')->count, 3, 'Count of prefetched m2m links via search_related' );
+  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Amount of prefetched m2m links via search_related' );
+
+  is($queries, 0, 'No queries ran so far');
+
+  is( scalar $cd->cd_to_producer->search_related('producer')->all, 3,
+      'Amount of objects via search_related off prefetched linker' );
+  is( $cd->cd_to_producer->search_related('producer')->count, 3,
+      'Count via search_related off prefetched linker' );
+  is( scalar $cd->search_related('cd_to_producer')->search_related('producer')->all, 3,
+      'Amount of objects via chained search_related off prefetched linker' );
+  is( $cd->search_related('cd_to_producer')->search_related('producer')->count, 3,
+      'Count via chained search_related off prefetched linker' );
+  is( scalar $cd->producers->all, 3,
+      'Amount of objects via m2m accessor' );
+  is( $cd->producers->count, 3,
+      'Count via m2m accessor' );
+
+  $queries = 0;
+
+  is( $cd->cd_to_producer->count, 3 ,'Review count of prefetched m2m links via accessor' );
+  is( scalar $cd->cd_to_producer->all, 3, 'Review amount of prefetched m2m link objects via accessor' );
+  is( $cd->search_related('cd_to_producer')->count, 3, 'Review count of prefetched m2m links via search_related' );
+  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Rreview amount of prefetched m2m links via search_related' );
+
+  is($queries, 0, 'Still no queries on prefetched linker');
+  $schema->storage->debugcb (undef);
+  $schema->storage->debug ($orig_debug);
+}
+
+# tests with distinct => 1
 lives_ok (sub {
     my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
               ->search_related('artwork_to_artist')->search_related('artist',

@@ -3163,15 +3163,6 @@ sub related_resultset {
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
 
-    my $related_cache;
-
-    if (my $cache = $self->get_cache) {
-      $related_cache = [ map
-        { @{$_->related_resultset($rel)->get_cache||[]} }
-        @$cache
-      ];
-    }
-
     my $rel_source = $rsrc->related_source($rel);
 
     my $new = do {
@@ -3192,7 +3183,16 @@ sub related_resultset {
                        where => $attrs->{where},
                    });
     };
-    $new->set_cache($related_cache) if $related_cache;
+
+    if (my $cache = $self->get_cache) {
+      my @related_cache = map
+        { @{$_->related_resultset($rel)->get_cache||[]} }
+        @$cache
+      ;
+
+      $new->set_cache(\@related_cache) if @related_cache;
+    }
+
     $new;
   };
 }
