@@ -56,8 +56,6 @@ Revision history for DBIx::Class
         - Even more robust behavior of GenericSubQuery limit dialect
         - Make sure deployment_statements() and cursor_class() are called on
           a resolved storage subclass
-        - fixes cache-miss bug when adding empty caches to related resultsets
-          chained off prefetched objects
 
     * Misc
         - Fix tests failing due to unspecified resultset retrieval order
