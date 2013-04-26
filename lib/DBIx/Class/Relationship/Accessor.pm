@@ -69,13 +69,13 @@ sub add_relationship_accessor {
             "Relationship '$rel' of type 'filter' can not work with a multicolumn primary key on source '$f_class'"
           ) if @rest;
 
-          my $v = $val->$pk_col;
+          my $pk_val = $val->get_column($pk_col);
           carp_unique (
             "Unable to deflate 'filter'-type relationship '$rel' (related object "
           . "primary key not retrieved), assuming undef instead"
-          ) if ( ! defined $v and $val->in_storage );
+          ) if ( ! defined $pk_val and $val->in_storage );
 
-          return $v;
+          return $pk_val;
         }
       }
     );
