@@ -1514,6 +1514,258 @@ sub compose_connection {
   return $schema;
 }
 
+# Internal method use by source_tree.
+# Returns the following details for the foreign key relations for a
+# given source: name of referenced source, foreign key relation,
+# flag indicating whether the relation is hard or not (relations
+# defined by code have undef as value for this flag, in case one of
+# the referencing fields involved in the relation is nullable or the
+# join type is 'LEFT', we have hard = 0, otherwise hard = 1).
+sub _get_foreign_key_info {
+  my ($self, $source) = @_;
+  my %foreign_key_info;
+  foreach my $rel_name ( $source->relationships ) {
+    my $rel_info = $source->relationship_info($rel_name);
+
+    #filter for foreign key relations
+    if ( defined $rel_info->{attrs}->{is_foreign_key_constraint}
+      && $rel_info->{attrs}->{is_foreign_key_constraint} eq '1' )
+    {
+      #remove package prefix
+      my $rel_moniker = $rel_info->{source};
+      $rel_moniker =~ s/(?:.*::)?([^:]+)/$1/;
+
+      #determine hard flag and condition defining the relation
+      my $rel_is_hard;
+      my $rel_defined_by_code = ref $rel_info->{cond} eq 'CODE';
+      if ($rel_defined_by_code) {
+        $rel_is_hard = undef;
+      }
+      elsif ( defined $rel_info->{attrs}->{join_type}
+        && uc $rel_info->{attrs}->{join_type} eq 'LEFT' )
+      {
+        $rel_is_hard = 0;
+      }
+      else {
+        my @nullable_info =
+          grep {defined}
+          map { /([^.]+$)/; $source->column_info($1)->{is_nullable}; }
+          values $rel_info->{cond};
+
+        $rel_is_hard =
+          ( @nullable_info == 0 || grep {/0/} @nullable_info )
+          ? 1
+          : 0;
+      }
+
+      $foreign_key_info{$rel_name} = {
+        referenced => $rel_moniker,
+        cond       => $rel_defined_by_code ? 'CODE' : $rel_info->{cond},
+        hard       => $rel_is_hard
+      };
+    }
+  }
+  return \%foreign_key_info;
+}
+
+# Internal method use by source_tree.
+# Returns the part of the structure returned by the source_tree
+# method related to a given referenced source. Is called recursively.
+
+# $distance is the distance of the source with moniker $moniker
+# relative to the base source of the current recursion and defined
+# by the current path (which may not be the shortest)
+
+# $seen is a reference to a hash where we store which sources well
+# have already encountered to avoid loops. We have to take special
+# care of self-references ($distance = 0).
+sub _handle_source {
+  my ( $self, $moniker, $rel_is_hard, $distance, $seen ) = @_;
+
+  #determine all sources referenced by the current one and loops
+  #over them
+  my %foreign_key_info =
+    %{ $self->_get_foreign_key_info( $self->source($moniker) ) };
+  my %fkey_info;
+  foreach my $fkey_name ( keys %foreign_key_info ) {
+    my $fkey_info   = $foreign_key_info{$fkey_name};
+    my $rel_moniker = ${$fkey_info}{referenced};
+    my $cond        = ${$fkey_info}{cond};
+    my $rel_is_hard = $rel_is_hard && ${$fkey_info}{hard};
+    #for each loop, $rel_distance is initialized with $distance,
+    #when $distance is 0 (i.e. in the first recursive step), the
+    #distance is left at 0 in case of a self-reference and set to 1
+    #otherwise
+    my $rel_distance =
+      $distance == 0 && $rel_moniker ne $moniker ? 1 : $distance;
+
+    #we need to avoid infinite loops, but take into account
+    #multiple relations to the same referenced source (criterion:
+    #source has already been seen, but it is at distance 1)
+    #as well as self-references (moniker = moniker of reference)
+    if ( !${$seen}{$rel_moniker}
+      || $rel_distance eq 1
+      || $moniker eq $rel_moniker )
+    {
+      #determine type of referenced object (Table / View / undef)
+      my $rel_type;
+      my $rel_source = $self->source($rel_moniker);
+      if ( $rel_source->isa('DBIx::Class::ResultSource::Table') ) {
+        $rel_type = 'Table';
+      }
+      elsif ( $rel_source->isa('DBIx::Class::ResultSource::View') ) {
+        $rel_type = 'View';
+      }
+      else {
+        $rel_type = undef;
+      }
+
+      #collect the attributes of the current relation
+      my $rel_info;
+      $fkey_info{$rel_moniker} ||= [];
+      if ( $rel_distance <= 1 ) {
+        $rel_info = {
+          type          => $rel_type,
+          distance      => $rel_distance,
+          hard          => $rel_is_hard,
+          relation_name => $fkey_name,
+          cond          => $cond,
+        };
+      }
+      else {
+        $rel_info = {
+          type     => $rel_type,
+          distance => $rel_distance,
+          hard     => $rel_is_hard,
+        };
+      }
+
+      push @{ $fkey_info{$rel_moniker} }, $rel_info;
+
+      #in case the referenced object is a table, continue recursively
+      next
+        unless $self->source($rel_moniker)
+        ->isa('DBIx::Class::ResultSource::Table');
+
+      #ignore self-references, they have already been handled
+      if ( $moniker ne $rel_moniker && $rel_distance > 0 ) {
+        ${$seen}{$rel_moniker}++;
+
+        my $ref_fkey_info =
+          $self->_handle_source( $rel_moniker, $rel_is_hard,
+          $rel_distance + 1, $seen );
+        foreach my $ref_fkey_name ( keys %{$ref_fkey_info} ) {
+          $fkey_info{$ref_fkey_name} = ${$ref_fkey_info}{$ref_fkey_name};
+        }
+      }
+    }
+    elsif ( defined $fkey_info{$rel_moniker} ) {
+
+      #The current referenced source has already been handled, but since
+      #we do a depth-first transversal, we need to update distance(s)
+      #since the current path may be shorter than one encountered before!
+      foreach my $rel_info ( @{ $fkey_info{$rel_moniker} } ) {
+      if ($rel_distance < ${$rel_info}{distance}) {
+          ${$rel_info}{distance} = $rel_distance;
+        }
+      }
+    }
+  }
+
+  return \%fkey_info;
+}
+
+=head2 source_tree
+
+=over 4
+
+=item Arguments: none
+
+=item Return value: A data structure of the following form:
+
+=back
+
+  {
+    'Table source 1' => {
+
+      'Referenced source 1' => [
+        {
+          'cond'          => { 'foreign.col_2' => 'self.col_1' },
+          'relation_name' => 'rel_name 2',
+          'distance'      => 1,
+          'type'          => 'Table',
+          'hard'          => 1
+        }
+      ],
+
+      'Referenced source 2' => [
+        {
+          'distance' => 3,
+          'type'     => 'View',
+          'hard'     => 0
+        }
+      ],...
+    },
+
+    'Table source 2' => {...}
+  }
+
+source_tree returns information about the dependency tree(s) defined by the
+foreign key constraints, showing which sources are referenced by a given source,
+whether the relationship is optional or not as well as other details.
+
+The keys of the returned hash are the names of all table sources, the values are
+hashes where the keys are all tables and views referenced by a chain of foreign
+key constraints starting at the current table source. Since there may be more
+than one relation between the base source and a referenced one, each value of
+the latter hashes is an array having the number of relations as length (i.e. 1
+in most cases). Each element of such an array contains a description of one such
+relation containing some or all of the following attributes:
+
+=over 4
+
+=item cond: The column correspondence between the referenced columns (prefix
+'foreign.') and the columns in the current source (prefix 'self.'). This key is
+only defined for distance 0 or 1 since only in this case such a column
+correspondence is well-defined.
+
+=item relation_name: The name of the foreign key relation, only for distance 0
+or 1.
+
+=item distance: The length of the shortest path defined by a chain of foreign
+key constraints. For self-references, this distance is 0.
+
+=item type: The type of the referenced object, either 'Table', 'View' or undef
+in case the type could not be determined.
+
+=item hard: This attribute has 0 ("optional"), 1 ("required") and undef ("dunno")
+as possible values. It is 1 if none of the relations in the current chain has
+been defined by a constraint specified in code form, a left join or a foreign
+key relation where all involved columns in the referencing table are nullable.
+The attribute is undef in case one of the intermediate constraints has been
+specified in code form. In all other cases, it has 0 as value.
+
+=back
+
+=cut
+
+sub source_tree {
+  my ($self) = @_;
+  my %tree;
+
+  #determine the sources to be handled (only tables)
+  my @table_monikers =
+    grep { $self->source($_)->isa('DBIx::Class::ResultSource::Table') }
+    $self->sources;
+
+  #handle each source
+  foreach my $table_moniker (@table_monikers) {
+    $tree{$table_moniker} =
+      $self->_handle_source( $table_moniker, 1, 0,{ $table_moniker => 1 } );
+  }
+  return \%tree;
+}
+
 1;
 
 =head1 AUTHOR AND CONTRIBUTORS
