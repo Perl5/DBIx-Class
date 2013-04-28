@@ -1537,8 +1537,8 @@ sub _get_foreign_key_info {
 
       #determine hard flag and condition defining the relation
       my $rel_is_hard;
-      my $rel_defined_by_code = ref $rel_info->{cond} eq 'CODE';
-      if ($rel_defined_by_code) {
+      my $rel_defined_by_hash = ref $rel_info->{cond} eq 'HASH';
+      if (!$rel_defined_by_hash) {
         $rel_is_hard = undef;
       }
       elsif ( defined $rel_info->{attrs}->{join_type}
@@ -1560,7 +1560,7 @@ sub _get_foreign_key_info {
 
       $foreign_key_info{$rel_name} = {
         referenced => $rel_moniker,
-        cond       => $rel_defined_by_code ? 'CODE' : $rel_info->{cond},
+        cond       => $rel_defined_by_hash ? $rel_info->{cond} : undef,
         hard       => $rel_is_hard
       };
     }
@@ -1727,7 +1727,8 @@ relation containing some or all of the following attributes:
 =item cond: The column correspondence between the referenced columns (prefix
 'foreign.') and the columns in the current source (prefix 'self.'). This key is
 only defined for distance 0 or 1 since only in this case such a column
-correspondence is well-defined.
+correspondence is well-defined. Its value is undef if the relation has not been
+defined via a hash.
 
 =item relation_name: The name of the foreign key relation, only for distance 0
 or 1.

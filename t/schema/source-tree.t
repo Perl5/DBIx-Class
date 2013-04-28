@@ -340,13 +340,13 @@ is_deeply(
           'type'          => 'Table',
           'hard'          => 1
         },
-        { 'cond'          => 'CODE',
+        { 'cond'          => undef,
           'relation_name' => 'artist_test_m2m_noopt',
           'distance'      => 1,
           'type'          => 'Table',
           'hard'          => undef
         },
-        { 'cond'          => 'CODE',
+        { 'cond'          => undef,
           'relation_name' => 'artist_test_m2m',
           'distance'      => 1,
           'type'          => 'Table',
