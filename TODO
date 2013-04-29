@@ -1,5 +1,4 @@
 2005-04-16 by mst
-  - set_from_related should take undef
   - ResultSource objects caching ->resultset causes interesting problems
   - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
 
