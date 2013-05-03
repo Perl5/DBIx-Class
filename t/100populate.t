@@ -446,3 +446,16 @@ lives_ok ( sub {
 }, 'empty has_many relationship accepted by populate');
 
 done_testing;
+
+use DDP; use Data::Dumper;
+my $q = $schema->resultset('Artist')
+               ->search({
+                  artist => { '<' => $schema->resultset('Artist')->search->get_column('id')->max_rs->as_query },
+                  name => 'foo'
+                })->as_query;
+              use DDP; p $q;
+#p $q;
+#diag Dumper($q);
+#p $schema->resultset('Artist')->result_source;
+#p Dumper $q;
+$schema->storage->insert_bulk($schema->resultset('Artist')->result_source, [qw/artistid name/], $q);

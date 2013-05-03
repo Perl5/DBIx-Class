@@ -1961,10 +1961,28 @@ sub insert {
   return { %$prefetched_values, %returned_cols };
 }
 
+# $data is an array of one or many of
+# - [[col1, col2], [col1, col2]],
+# \['(SELECT...)'
+# [ { bind..}, val] ]
+
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-  my $reference_row = ref $data eq 'CODE' ? $data->() : shift @$data;
+  my $reference_row = do {
+    if (ref $data eq 'CODE') {
+      $data->();
+    }
+    elsif (ref $data eq 'ARRAY') {
+      shift @$data;
+    }
+    elsif (ref $data eq 'REF' && ref $$data eq 'ARRAY') {
+      $data;
+    }
+    else {
+      $self->throw_exception('invalid data (not CODE, ARRAY or ARRAYREF) passed to insert_bulk');
+    }
+  };
 
   my @col_range = (0..$#$cols);
 
@@ -2000,9 +2018,12 @@ sub insert_bulk {
   my ($proto_data, $value_type_by_col_idx);
   for my $i (@col_range) {
     my $colname = $cols->[$i];
-    if (ref $reference_row->[$i] eq 'SCALAR') {
+    if (ref $reference_row eq 'REF' && ref $$reference_row eq 'ARRAY') {
+      $proto_data = $reference_row;
+      last;
+    }
+    elsif (ref $reference_row eq 'ARRAY' && ref $reference_row->[$i] eq 'SCALAR') {
       # no bind value at all - no type
-
       $proto_data->{$colname} = $reference_row->[$i];
     }
     elsif (ref $reference_row->[$i] eq 'REF' and ref ${$reference_row->[$i]} eq 'ARRAY' ) {
@@ -2042,6 +2063,8 @@ sub insert_bulk {
     $source,
     [ $proto_data ],
   );
+
+    use DDP; p $proto_data;
 
   if (! @$proto_bind and keys %$value_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
