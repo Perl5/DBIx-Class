@@ -17,7 +17,7 @@ See DBIx::Class::CDBICompat for usage directions.
 
 Emulates the I<undocumnted> behavior of Class::DBI where the object can be accessed as a hash of columns.  This is often used as a performance hack.
 
-    my $column = $row->{column};
+    my $column = $result->{column};
 
 =head2 Differences from Class::DBI
 

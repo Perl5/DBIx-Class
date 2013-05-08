@@ -398,8 +398,8 @@ L<DBIx::Class::Storage::TxnScopeGuard>:
 
  my $txn_guard = $storage->txn_scope_guard;
 
- $row->col1("val1");
- $row->update;
+ $result->col1("val1");
+ $result->update;
 
  $txn_guard->commit;
 

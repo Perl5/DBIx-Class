@@ -66,9 +66,9 @@ objects.  Refer to L<DBIx::Class::Manual::ResultClass> for more info.
 
 =head2 new
 
-  my $row = My::Class->new(\%attrs);
+  my $result = My::Class->new(\%attrs);
 
-  my $row = $schema->resultset('MySource')->new(\%colsandvalues);
+  my $result = $schema->resultset('MySource')->new(\%colsandvalues);
 
 =over
 
@@ -279,18 +279,18 @@ sub new {
   # Each pair does the same thing
 
   # (un-inflated, regular column)
-  my $val = $row->get_column('first_name');
-  my $val = $row->first_name;
+  my $val = $result->get_column('first_name');
+  my $val = $result->first_name;
 
-  $row->set_column('first_name' => $val);
-  $row->first_name($val);
+  $result->set_column('first_name' => $val);
+  $result->first_name($val);
 
   # (inflated column via DBIx::Class::InflateColumn::DateTime)
-  my $val = $row->get_inflated_column('last_modified');
-  my $val = $row->last_modified;
+  my $val = $result->get_inflated_column('last_modified');
+  my $val = $result->last_modified;
 
-  $row->set_inflated_column('last_modified' => $val);
-  $row->last_modified($val);
+  $result->set_inflated_column('last_modified' => $val);
+  $result->last_modified($val);
 
 =over
 
@@ -312,7 +312,7 @@ is called on the row.
 
 =head2 insert
 
-  $row->insert;
+  $result->insert;
 
 =over
 
@@ -464,8 +464,8 @@ sub insert {
 
 =head2 in_storage
 
-  $row->in_storage; # Get value
-  $row->in_storage(1); # Set value
+  $result->in_storage; # Get value
+  $result->in_storage(1); # Set value
 
 =over
 
@@ -486,7 +486,7 @@ calling L</delete> on one, sets it to false.
 
 =head2 update
 
-  $row->update(\%columns?)
+  $result->update(\%columns?)
 
 =over
 
@@ -497,7 +497,7 @@ calling L</delete> on one, sets it to false.
 =back
 
 Throws an exception if the result object is not yet in the database,
-according to L</in_storage>.
+according to L</in_storage>. Returns the object itself.
 
 This method issues an SQL UPDATE query to commit any changes to the
 object to the database if required (see L</get_dirty_columns>).
@@ -516,9 +516,9 @@ to C<update>, e.g. ( { %{ $href } } )
 If the values passed or any of the column values set on the object
 contain scalar references, e.g.:
 
-  $row->last_modified(\'NOW()')->update();
+  $result->last_modified(\'NOW()')->update();
   # OR
-  $row->update({ last_modified => \'NOW()' });
+  $result->update({ last_modified => \'NOW()' });
 
 The update will pass the values verbatim into SQL. (See
 L<SQL::Abstract> docs).  The values in your Result object will NOT change
@@ -526,7 +526,7 @@ as a result of the update call, if you want the object to be updated
 with the actual values from the database, call L</discard_changes>
 after the update.
 
-  $row->update()->discard_changes();
+  $result->update()->discard_changes();
 
 To determine before calling this method, which column values have
 changed and will be updated, call L</get_dirty_columns>.
@@ -564,7 +564,7 @@ sub update {
 
 =head2 delete
 
-  $row->delete
+  $result->delete
 
 =over
 
@@ -630,7 +630,7 @@ sub delete {
 
 =head2 get_column
 
-  my $val = $row->get_column($col);
+  my $val = $result->get_column($col);
 
 =over
 
@@ -651,7 +651,7 @@ will be deflated and returned.
 
 Note that if you used the C<columns> or the C<select/as>
 L<search attributes|DBIx::Class::ResultSet/ATTRIBUTES> on the resultset from
-which C<$row> was derived, and B<did not include> C<$columnname> in the list,
+which C<$result> was derived, and B<did not include> C<$columnname> in the list,
 this method will return C<undef> even if the database contains some value.
 
 To retrieve all loaded column values as a hash, use L</get_columns>.
@@ -672,7 +672,7 @@ sub get_column {
 
 =head2 has_column_loaded
 
-  if ( $row->has_column_loaded($col) ) {
+  if ( $result->has_column_loaded($col) ) {
      print "$col has been loaded from db";
   }
 
@@ -698,7 +698,7 @@ sub has_column_loaded {
 
 =head2 get_columns
 
-  my %data = $row->get_columns;
+  my %data = $result->get_columns;
 
 =over
 
@@ -742,7 +742,7 @@ sub get_columns {
 
 =head2 get_dirty_columns
 
-  my %data = $row->get_dirty_columns;
+  my %data = $result->get_dirty_columns;
 
 =over
 
@@ -767,7 +767,7 @@ sub get_dirty_columns {
 
 =head2 make_column_dirty
 
-  $row->make_column_dirty($col)
+  $result->make_column_dirty($col)
 
 =over
 
@@ -895,7 +895,7 @@ sub _is_column_numeric {
 
 =head2 set_column
 
-  $row->set_column($col => $val);
+  $result->set_column($col => $val);
 
 =over
 
@@ -1005,7 +1005,7 @@ sub _track_storage_value {
 
 =head2 set_columns
 
-  $row->set_columns({ $col => $val, ... });
+  $result->set_columns({ $col => $val, ... });
 
 =over
 
@@ -1029,7 +1029,7 @@ sub set_columns {
 
 =head2 set_inflated_columns
 
-  $row->set_inflated_columns({ $col => $val, $relname => $obj, ... });
+  $result->set_inflated_columns({ $col => $val, $relname => $obj, ... });
 
 =over
 
@@ -1157,7 +1157,7 @@ sub copy {
 
 =head2 store_column
 
-  $row->store_column($col => $val);
+  $result->store_column($col => $val);
 
 =over
 
@@ -1284,7 +1284,7 @@ sub inflate_result {
 
 =head2 update_or_insert
 
-  $row->update_or_insert
+  $result->update_or_insert
 
 =over
 
@@ -1314,8 +1314,8 @@ sub update_or_insert {
 
 =head2 is_changed
 
-  my @changed_col_names = $row->is_changed();
-  if ($row->is_changed()) { ... }
+  my @changed_col_names = $result->is_changed();
+  if ($result->is_changed()) { ... }
 
 =over
 
@@ -1337,7 +1337,7 @@ sub is_changed {
 
 =head2 is_column_changed
 
-  if ($row->is_column_changed('col')) { ... }
+  if ($result->is_column_changed('col')) { ... }
 
 =over
 
@@ -1358,7 +1358,7 @@ sub is_column_changed {
 
 =head2 result_source
 
-  my $resultsource = $row->result_source;
+  my $resultsource = $result->result_source;
 
 =over
 
@@ -1425,7 +1425,7 @@ sub register_column {
 
 =head2 get_from_storage
 
-  my $copy = $row->get_from_storage($attrs)
+  my $copy = $result->get_from_storage($attrs)
 
 =over
 
@@ -1469,7 +1469,7 @@ sub get_from_storage {
 
 =head2 discard_changes
 
-  $row->discard_changes
+  $result->discard_changes
 
 =over
 
@@ -1543,7 +1543,7 @@ sub throw_exception {
 
 =head2 id
 
-  my @pk = $row->id;
+  my @pk = $result->id;
 
 =over
 

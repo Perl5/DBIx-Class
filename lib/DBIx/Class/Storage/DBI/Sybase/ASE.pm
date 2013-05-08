@@ -1033,9 +1033,9 @@ For example, this will not work:
 
   $schema->txn_do(sub {
     my $rs = $schema->resultset('Book');
-    while (my $row = $rs->next) {
+    while (my $result = $rs->next) {
       $schema->resultset('MetaData')->create({
-        book_id => $row->id,
+        book_id => $result->id,
         ...
       });
     }

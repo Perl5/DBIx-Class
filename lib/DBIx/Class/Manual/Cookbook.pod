@@ -1737,7 +1737,7 @@ methods:
     numbers => [1, 2, 3]
   });
 
-  $row->update(
+  $result->update(
     {
       numbers => [1, 2, 3]
     },

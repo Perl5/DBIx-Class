@@ -96,7 +96,7 @@ You can retrieve the result source at runtime in the following ways:
 
 =item From a Result object:
 
-   $row->result_source;
+   $result->result_source;
 
 =item From a ResultSet object:
 

@@ -312,7 +312,7 @@ in the cookbook can do the same if you pass a C<rows> attribute to the search.
 
 Use L<DBIx::Class::Row/discard_changes>.
 
-  $row->discard_changes
+  $result->discard_changes
 
 Discarding changes and refreshing from storage are two sides fo the same coin.  When you
 want to discard your local changes, just re-fetch the row from storage.  When you want
@@ -384,17 +384,17 @@ object. To fetch the new value, use the C<discard_changes> method on
 the Row.
 
   # will return the scalar reference:
-  $row->somecolumn()
+  $result->somecolumn()
 
   # issue a select using the PK to re-fetch the row data:
-  $row->discard_changes();
+  $result->discard_changes();
 
   # Now returns the correct new value:
-  $row->somecolumn()
+  $result->somecolumn()
 
 To update and refresh at once, chain your calls:
 
-  $row->update({ 'somecolumn' => { -ident => 'othercolumn' } })->discard_changes;
+  $result->update({ 'somecolumn' => { -ident => 'othercolumn' } })->discard_changes;
 
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
@@ -491,15 +491,15 @@ An another method is to use L<Moose> with your L<DBIx::Class> package.
 
 With either of these methods the resulting use of the accesssor would be
 
-	my $row;
+	my $result;
 
-	# assume that somewhere in here $row will get assigned to a MyTable row
+	# assume that somewhere in here $result will get assigned to a MyTable row
 
-	$row->non_column_data('some string'); # would set the non_column_data accessor
+	$result->non_column_data('some string'); # would set the non_column_data accessor
 
 	# some other stuff happens here
 
-	$row->update(); # would not inline the non_column_data accessor into the update
+	$result->update(); # would not inline the non_column_data accessor into the update
 
 
 =item How do I use DBIx::Class objects in my TT templates?

@@ -1079,7 +1079,7 @@ sub _get_server_version {
 Due to the fact that replicants can lag behind a master, you must take care to
 make sure you use one of the methods to force read queries to a master should
 you need realtime data integrity.  For example, if you insert a row, and then
-immediately re-read it from the database (say, by doing $row->discard_changes)
+immediately re-read it from the database (say, by doing $result->discard_changes)
 or you insert a row and then immediately build a query that expects that row
 to be an item, you should force the master to handle reads.  Otherwise, due to
 the lag, there is no certainty your data will be in the expected state.
@@ -1091,7 +1091,7 @@ method to force the master to handle all read queries.
 Otherwise, you can force a single query to use the master with the 'force_pool'
 attribute:
 
-  my $row = $resultset->search(undef, {force_pool=>'master'})->find($pk);
+  my $result = $resultset->search(undef, {force_pool=>'master'})->find($pk);
 
 This attribute will safely be ignore by non replicated storages, so you can use
 the same code for both types of systems.

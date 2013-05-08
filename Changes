@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Misc
+        - Replace $row with $result in all docs to be consistent and to
+          clarify various return values
+
 0.08250 2013-04-29 22:00 (UTC)
     * New Features / Changes
         - Rewrite from scratch the result constructor codepath - many bugfixes

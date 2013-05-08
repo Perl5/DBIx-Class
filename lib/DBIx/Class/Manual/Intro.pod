@@ -445,10 +445,10 @@ L<delete|DBIx::Class::ResultSet/delete>
 For example, the following would not work (assuming C<People> does not have
 a declared PK):
 
- my $row = $schema->resultset('People')
+ my $result = $schema->resultset('People')
                    ->search({ last_name => 'Dantes' })
                     ->next;
- $row->update({ children => 2 }); # <-- exception thrown because $row isn't
+ $result->update({ children => 2 }); # <-- exception thrown because $result isn't
                                   # necessarily unique
 
 So instead the following should be done:

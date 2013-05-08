@@ -154,17 +154,17 @@ Which will produce the query:
 Note that the '+as' does not produce an SQL 'AS' keyword in the
 output, see the L<DBIx::Class::Manual::FAQ> for an explanation.
 
-This type of column restriction has a downside, the resulting $row
+This type of column restriction has a downside, the returned $result
 object will have no 'track_name' accessor:
 
-  while(my $row = $search_rs->next) {
-     print $row->track_name; ## ERROR
+  while(my $result = $search_rs->next) {
+     print $result->track_name; ## ERROR
   }
 
 Instead C<get_column> must be used:
 
-  while(my $row = $search_rs->next) {
-     print $row->get_column('track_name'); ## WORKS
+  while(my $result = $search_rs->next) {
+     print $result->get_column('track_name'); ## WORKS
   }
 
 =head2 Incomplete related objects
@@ -193,8 +193,8 @@ Which will produce same query as above;
 
 Now you can access the result using the relationship accessor:
 
-  while(my $row = $search_rs->next) {
-     print $row->tracks->name; ## WORKS
+  while(my $result = $search_rs->next) {
+     print $result->tracks->name; ## WORKS
   }
 
 However, this will produce broken objects. If the tracks id column is
