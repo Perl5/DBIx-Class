@@ -48,8 +48,8 @@ relationship accessors of L<Result|DBIx::Class::Manual::ResultClass> objects.
 =head1 NOTE
 
 All "Row objects" derived from a Schema-attached L<DBIx::Class::ResultSet>
-object (such as a typical C<< L<search|DBIx::Class::ResultSet/search
->->L<next|DBIx::Class::ResultSet/next> >> call) are actually Result
+object (such as a typical C<< L<search|DBIx::Class::ResultSet/search>->
+L<next|DBIx::Class::ResultSet/next> >> call) are actually Result
 instances, based on your application's
 L<Result class|DBIx::Class::Manual::Glossary/Result_class>.
 
