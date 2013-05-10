@@ -1976,12 +1976,6 @@ sub insert_bulk {
     elsif (ref $data eq 'ARRAY') {
       shift @$data;
     }
-    elsif (ref $data eq 'REF' && ref $$data eq 'ARRAY') {
-      $data;
-    }
-    else {
-      $self->throw_exception('invalid data (not CODE, ARRAY or ARRAYREF) passed to insert_bulk');
-    }
   };
 
   my @col_range = (0..$#$cols);
@@ -2016,55 +2010,55 @@ sub insert_bulk {
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
   my ($proto_data, $value_type_by_col_idx);
-  for my $i (@col_range) {
-    my $colname = $cols->[$i];
-    if (ref $reference_row eq 'REF' && ref $$reference_row eq 'ARRAY') {
-      $proto_data = $reference_row;
-      last;
-    }
-    elsif (ref $reference_row eq 'ARRAY' && ref $reference_row->[$i] eq 'SCALAR') {
-      # no bind value at all - no type
-      $proto_data->{$colname} = $reference_row->[$i];
-    }
-    elsif (ref $reference_row->[$i] eq 'REF' and ref ${$reference_row->[$i]} eq 'ARRAY' ) {
-      # repack, so we don't end up mangling the original \[]
-      my ($sql, @bind) = @${$reference_row->[$i]};
+    for my $i (@col_range) {
+      last if not $reference_row;
 
-      # normalization of user supplied stuff
-      my $resolved_bind = $self->_resolve_bindattrs(
-        $source, \@bind, $colinfos,
-      );
+      my $colname = $cols->[$i];
+      if (ref $reference_row eq 'REF' && ref $$reference_row eq 'ARRAY') {
+        $proto_data = $reference_row;
+        last;
+      }
+      elsif (ref $reference_row eq 'ARRAY' && ref $reference_row->[$i] eq 'SCALAR') {
+        # no bind value at all - no type
+        $proto_data->{$colname} = $reference_row->[$i];
+      }
+      elsif (ref $reference_row->[$i] eq 'REF' and ref ${$reference_row->[$i]} eq 'ARRAY' ) {
+        # repack, so we don't end up mangling the original \[]
+        my ($sql, @bind) = @${$reference_row->[$i]};
 
-      # store value-less (attrs only) bind info - we will be comparing all
-      # supplied binds against this for sanity
-      $value_type_by_col_idx->{$i} = [ map { $_->[0] } @$resolved_bind ];
+        # normalization of user supplied stuff
+        my $resolved_bind = $self->_resolve_bindattrs(
+          $source, \@bind, $colinfos,
+        );
 
-      $proto_data->{$colname} = \[ $sql, map { [
-        # inject slice order to use for $proto_bind construction
-          { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $i, _literal_bind_subindex => $_+1 }
+        # store value-less (attrs only) bind info - we will be comparing all
+        # supplied binds against this for sanity
+        $value_type_by_col_idx->{$i} = [ map { $_->[0] } @$resolved_bind ];
+
+        $proto_data->{$colname} = \[ $sql, map { [
+          # inject slice order to use for $proto_bind construction
+            { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $i, _literal_bind_subindex => $_+1 }
+              =>
+            $resolved_bind->[$_][1]
+          ] } (0 .. $#bind)
+        ];
+      }
+      else {
+        $value_type_by_col_idx->{$i} = undef;
+
+        $proto_data->{$colname} = \[ '?', [
+          { dbic_colname => $colname, _bind_data_slice_idx => $i }
             =>
-          $resolved_bind->[$_][1]
-        ] } (0 .. $#bind)
-      ];
+          $reference_row->[$i]
+        ] ];
+      }
     }
-    else {
-      $value_type_by_col_idx->{$i} = undef;
-
-      $proto_data->{$colname} = \[ '?', [
-        { dbic_colname => $colname, _bind_data_slice_idx => $i }
-          =>
-        $reference_row->[$i]
-      ] ];
-    }
-  }
 
   my ($sql, $proto_bind) = $self->_prep_for_execute (
     'insert',
     $source,
-    [ $proto_data ],
+    [ $proto_data || ($cols => $data) ],
   );
-
-    use DDP; p $proto_data;
 
   if (! @$proto_bind and keys %$value_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
