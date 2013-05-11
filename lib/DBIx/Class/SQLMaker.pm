@@ -227,31 +227,20 @@ sub insert {
 sub _insert_ARRAYREFREF {
   my ($self, $data) = @_;
 
-  my ($cols, $subquery) = @$data;
-  if (not $subuery) {
-    # if somehow someone is calling this with the original SQLA api,
-    # pass it along
+  my ($cols, $subquery) = @$$data;
+  if (not $subquery) {
     return next::method($self, $cols);
   }
 
-  my $subsql, @subbind = @$subquery;
-
   my @fields = sort @$cols;
 
-  my ($sql, @bind) = $self->_insert_values($data);
+  my ($sql, @bind) = next::method($self, $subquery);
 
-  $_ = $self->_quote($_) foreach @$fields;
-  $sql = "( ".join(", ", sort @$fields).") ".$sql;
+  # as_query wraps in brackets. drop them
+  $_ = $self->_quote($_) for @fields;
+  $sql = "( ".join(", ", @fields).") " . substr($sql, 1, -1);
 
   return ($sql, @bind);
-
-  # when passing ARRAYREFREF with [cols], SQLA drops INTO $table (cols)
-  # we inject the returned sql here
-  #$_ = $self->_quote($_) foreach @fields;
-  #  $sql = "( ".join(", ", @fields).") ".$sql;
-    my $sql = sprintf(
-      'INSERT INTO %s( %s ) VALUES', $_[0]->_quote($_[1])
-    );
 }
 
 sub _recurse_fields {

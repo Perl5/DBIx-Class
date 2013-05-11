@@ -2057,7 +2057,7 @@ sub insert_bulk {
   my ($sql, $proto_bind) = $self->_prep_for_execute (
     'insert',
     $source,
-    [ $proto_data || ($cols => $data) ],
+    [ $proto_data || \[ $cols => $data ] ],
   );
 
   if (! @$proto_bind and keys %$value_type_by_col_idx) {
@@ -2199,7 +2199,7 @@ sub insert_bulk {
     }
     else {
       # bind_param_array doesn't work if there are no binds
-      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar(@$data)+1 );
+      $self->_dbh_execute_inserts_with_no_binds( $sth, ref $data eq 'ARRAY' ? (scalar(@$data)+1) : 1 );
     }
   };
 
