@@ -17,12 +17,12 @@ instead. Skip this part if you know what joins are..
 But I'll explain anyway. Assuming you have created your database in a
 more or less sensible way, you will end up with several tables that
 contain C<related> information. For example, you may have a table
-containing information about C<CD>s, containing the CD title and it's
+containing information about C<CD>s, containing the CD title and its
 year of publication, and another table containing all the C<Track>s
 for the CDs, one track per row.
 
 When you wish to extract information about a particular CD and all
-it's tracks, You can either fetch the CD row, then make another query
+its tracks, You can either fetch the CD row, then make another query
 to fetch the tracks, or you can use a join. Compare:
 
   SELECT ID, Title, Year FROM CD WHERE Title = 'Funky CD';

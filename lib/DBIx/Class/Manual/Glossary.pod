@@ -127,7 +127,7 @@ See Join.
 
 =head2 prefetch
 
-Similiar to a join, except the related result objects are fetched and
+Similar to a join, except the related result objects are fetched and
 cached for future use, instead of used directly from the ResultSet.  This
 allows you to jump to different relationships within a Result without
 worrying about generating a ton of extra SELECT statements.

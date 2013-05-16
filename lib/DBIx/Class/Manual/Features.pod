@@ -274,7 +274,7 @@ I use populate L<here|http://blog.afoolishmanifesto.com/archives/1255> to export
 
 =head2 Multicreate
 
-Create an object and it's related objects all at once
+Create an object and its related objects all at once
 
  $schema->resultset('Author')->create({
     name => 'Stephen King',

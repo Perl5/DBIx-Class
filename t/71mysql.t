@@ -210,7 +210,7 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
         INNER JOIN `artist` `artist` ON `artist`.`artistid` = `me`.`artist`
     )',
     [],
-    'overriden default join type works',
+    'overridden default join type works',
   );
 }
 

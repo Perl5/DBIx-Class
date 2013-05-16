@@ -27,7 +27,7 @@ by prepending the component name with a +.
 
   __PACKAGE__->load_components(qw/ +My::Component /);
 
-Once a component is loaded all of it's methods, or otherwise,
+Once a component is loaded all of its methods, or otherwise,
 that it provides will be available in your class.
 
 The order in which is you load the components may be very
