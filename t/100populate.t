@@ -263,7 +263,6 @@ throws_ok {
     }
   ]);
 } qr/\QIncorrect value (expecting SCALAR-ref/, 'bind where literal sql expected throws';
-die;
 
 throws_ok {
   $rs->populate([
@@ -448,14 +447,12 @@ lives_ok ( sub {
 
 done_testing;
 
-use DDP; use Data::Dumper;
 my $q = $schema->resultset('Artist')
                ->search({
                 },
                 {
                   columns => [qw/name rank/]
                 })->as_query;
-              use DDP; p $q;
 #p $q;
 #diag Dumper($q);
 #p $schema->resultset('Artist')->result_source;

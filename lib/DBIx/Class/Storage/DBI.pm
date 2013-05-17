@@ -2119,7 +2119,6 @@ sub _insert_bulk {
     $source,
     [ $proto_data || \[ $cols => $data ] ],
   );
-  use DDP; p $proto_bind; p $proto_data;
 
   if (! @$proto_bind and keys %$value_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
@@ -2149,15 +2148,8 @@ sub _insert_bulk {
     );
   };
 
-  my $row_idx = 0;
-  my $fetch_tuple = sub {
-    my $row
-      = !$row_idx++         ? $reference_row
-      : ref $data eq 'CODE' ? $data->()
-      :                     shift @$data;
-
-    return undef if !$row;
-
+  my $data_filter = sub {
+    my ($row, $row_idx) = @_;
     # FIXME - perhaps this is not even needed? does DBI stringify?
     #
     # forcibly stringify whatever is stringifiable
@@ -2167,7 +2159,6 @@ sub _insert_bulk {
         if ( ref $row->[$c] and overload::Method($row->[$c], '""') );
     }
 
-    # column validation
     for my $col_idx (@col_range) {
       my $reference_val = $reference_row->[$col_idx];
 
@@ -2175,6 +2166,7 @@ sub _insert_bulk {
 
       if (! exists $value_type_by_col_idx->{$col_idx}) { # literal no binds
         if (ref $val ne 'SCALAR') {
+          use DDP; p @_;
           $bad_slice_report_cref->(
             "Incorrect value (expecting SCALAR-ref \\'$$reference_val')",
             $row_idx,
@@ -2236,9 +2228,13 @@ sub _insert_bulk {
         }
       }
     }
-
-    $row;
   };
+
+  # we have a split codepath here where col validation happens in the
+  # fetch_tuple, but the tuple isnt used in no proto_bind situations, so we run it
+  if (not @$proto_bind) {
+    $data_filter->($data->[$_], $_) for (0..$#$data);
+  }
 
   # neither _dbh_execute_for_fetch, nor _dbh_execute_inserts_with_no_binds
   # are atomic (even if execute_for_fetch is a single call). Thus a safety
@@ -2251,11 +2247,24 @@ sub _insert_bulk {
     if (@$proto_bind) {
       # proto bind contains the information on which pieces of $data to pull
       # $cols is passed in only for prettier error-reporting
+      my $row_idx = 0;
+      my $fetch_tuple = sub {
+        my $row
+          = !$row_idx++         ? $reference_row
+          : ref $data eq 'CODE' ? $data->()
+          :                     shift @$data;
+
+        return undef if !$row;
+
+        $data_filter->($row, $row_idx);
+
+        $row;
+      };
+
       $self->_dbh_execute_for_fetch( $source, $sth, $proto_bind, $cols, $fetch_tuple );
     }
     else {
       # bind_param_array doesn't work if there are no binds
-      p $proto_bind;
       $self->_dbh_execute_inserts_with_no_binds( $sth, ref $data eq 'ARRAY' ? (scalar(@$data)+1) : 1 );
     }
   };
