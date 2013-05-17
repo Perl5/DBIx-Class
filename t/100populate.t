@@ -447,9 +447,14 @@ lives_ok ( sub {
 
 done_testing;
 
-my $q = $schema->resultset('Artist')->search({}, { columns => [qw/name rank/] })->as_query;
+my $q = $schema->resultset('CD')->search({}, { columns => [qw/artist year/], group_by => 'artist' })->as_query;
 #p $q;
 #diag Dumper($q);
 #p $schema->resultset('Artist')->result_source;
 #p Dumper $q;
-$schema->storage->insert_bulk($schema->resultset('Artist')->result_source, [qw/name rank/], [$q]);
+my $count = 0;
+my $name = "zaaaaa";
+$schema->storage->insert_bulk($schema->resultset('Artist')->result_source, [qw/name rank/], [[[qw/foo 1/], [qw/baz 2/]], sub {
+  return [$name++, ++$count] unless $count > 5;
+  return undef;
+}, $q, [[qw/asdf 5/], [qw/uhiuh 6/]]]);

@@ -1983,7 +1983,7 @@ sub insert_bulk {
     for my $datum (@$data) {
       if ((ref $datum eq 'ARRAY' && ref $datum->[0] eq 'ARRAY') ||
           ref $datum eq 'CODE') {
-        $chunked[-1] ||= [];
+        push @chunked, [] if ref $chunked[-1] ne 'ARRAY';
         push @{$chunked[-1]}, $datum;
       }
       elsif (ref $datum eq 'REF') {
