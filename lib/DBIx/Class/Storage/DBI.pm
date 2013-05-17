@@ -1961,22 +1961,72 @@ sub insert {
   return { %$prefetched_values, %returned_cols };
 }
 
-# $data is an array of one or many of
-# - [[col1, col2], [col1, col2]],
-# \['(SELECT...)'
-# [ { bind..}, val] ]
-
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-  my $reference_row = do {
-    if (ref $data eq 'CODE') {
-      $data->();
+  # data can either be:
+  # 1. an array of arrays of data like [[col,col],[],...]
+  # 2. a coderef tuple generator to be passed to _execute_for_fetch
+  # 3. an arrayrefref subquery
+  # 4. an array containing any combination of the above
+  #
+  # in the case of 4, we can flatten 1. and 2. together into a single
+  # tuple/_prep_for exectute call
+  # 3. requires a fresh _prep_for_execute call
+  if (ref $data eq 'ARRAY' &&
+        ((ref $data->[0] eq 'ARRAY' && ref $data->[0][0] eq 'ARRAY') ||
+          ref $data->[0] eq 'CODE' ||
+          ref $data->[0] eq 'REF')) {
+    # group colsets and coderefs, as we can combine them with a new tuple
+    my @chunked;
+
+    for my $datum (@$data) {
+      if ((ref $datum eq 'ARRAY' && ref $datum->[0] eq 'ARRAY') ||
+          ref $datum eq 'CODE') {
+        $chunked[-1] ||= [];
+        push @{$chunked[-1]}, $datum;
+      }
+      elsif (ref $datum eq 'REF') {
+        push @chunked, $datum;
+      }
+      else {
+        $self->throw_exception('Expecting ARRAYREF or ARRAYREF-ref or CODE or not '.ref $datum);
+      }
     }
-    elsif (ref $data eq 'ARRAY') {
-      shift @$data;
+
+    for my $chunk (@chunked) {
+      my $current = shift @$chunk;
+
+      my $tuple;
+      $tuple = sub {
+        my $row = do {
+          if (ref $current eq 'ARRAY') {
+            shift @$current;
+          }
+          elsif (ref $current eq 'CODE') {
+            $current->();
+          }
+        };
+
+        if ($row) {
+          return $row;
+        }
+        elsif (!defined $row && @$chunk) {
+          $current = shift @$chunk;
+          return $tuple->();
+        }
+      };
+
+      $self->_insert_bulk($source, $cols, $tuple);
     }
-  };
+  }
+  else {
+    $self->_insert_bulk($source, $cols, $data);
+  }
+}
+
+sub _insert_bulk {
+  my ($self, $source, $cols, $data) = @_;
 
   my @col_range = (0..$#$cols);
 
@@ -1988,30 +2038,39 @@ sub insert_bulk {
       : 0
   ;
 
-  # get a slice type index based on first row of data
-  # a "column" in this context may refer to more than one bind value
-  # e.g. \[ '?, ?', [...], [...] ]
-  #
-  # construct the value type index - a description of values types for every
-  # per-column slice of $data:
-  #
-  # nonexistent - nonbind literal
-  # 0 - regular value
-  # [] of bindattrs - resolved attribute(s) of bind(s) passed via literal+bind \[] combo
-  #
-  # also construct the column hash to pass to the SQL generator. For plain
-  # (non literal) values - convert the members of the first row into a
-  # literal+bind combo, with extra positional info in the bind attr hashref.
-  # This will allow us to match the order properly, and is so contrived
-  # because a user-supplied literal/bind (or something else specific to a
-  # resultsource and/or storage driver) can inject extra binds along the
-  # way, so one can't rely on "shift positions" ordering at all. Also we
-  # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
-  # can be later matched up by address), because we want to supply a real
-  # value on which perhaps e.g. datatype checks will be performed
   my ($proto_data, $value_type_by_col_idx);
+  my $reference_row = do {
+    if (ref $data eq 'CODE') {
+      $data->();
+    }
+    elsif (ref $data eq 'ARRAY') {
+      shift @$data;
+    }
+  };
+
+  if ($reference_row) {
+    # get a slice type index based on first row of data
+    # a "column" in this context may refer to more than one bind value
+    # e.g. \[ '?, ?', [...], [...] ]
+    #
+    # construct the value type index - a description of values types for every
+    # per-column slice of $data:
+    #
+    # nonexistent - nonbind literal
+    # 0 - regular value
+    # [] of bindattrs - resolved attribute(s) of bind(s) passed via literal+bind \[] combo
+    #
+    # also construct the column hash to pass to the SQL generator. For plain
+    # (non literal) values - convert the members of the first row into a
+    # literal+bind combo, with extra positional info in the bind attr hashref.
+    # This will allow us to match the order properly, and is so contrived
+    # because a user-supplied literal/bind (or something else specific to a
+    # resultsource and/or storage driver) can inject extra binds along the
+    # way, so one can't rely on "shift positions" ordering at all. Also we
+    # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
+    # can be later matched up by address), because we want to supply a real
+    # value on which perhaps e.g. datatype checks will be performed
     for my $i (@col_range) {
-      last if not $reference_row;
 
       my $colname = $cols->[$i];
       if (ref $reference_row eq 'REF' && ref $$reference_row eq 'ARRAY') {
@@ -2053,12 +2112,14 @@ sub insert_bulk {
         ] ];
       }
     }
+  }
 
   my ($sql, $proto_bind) = $self->_prep_for_execute (
     'insert',
     $source,
     [ $proto_data || \[ $cols => $data ] ],
   );
+  use DDP; p $proto_bind; p $proto_data;
 
   if (! @$proto_bind and keys %$value_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
@@ -2088,9 +2149,25 @@ sub insert_bulk {
     );
   };
 
-  my $col_validator = sub {
-    my ($row, $row_idx) = (@_);
+  my $row_idx = 0;
+  my $fetch_tuple = sub {
+    my $row
+      = !$row_idx++         ? $reference_row
+      : ref $data eq 'CODE' ? $data->()
+      :                     shift @$data;
 
+    return undef if !$row;
+
+    # FIXME - perhaps this is not even needed? does DBI stringify?
+    #
+    # forcibly stringify whatever is stringifiable
+    # ResultSet::populate() hands us a copy - safe to mangle
+    for my $c (0 .. $#{$row}) {
+      $row->[$c] = "$row->[$c]"
+        if ( ref $row->[$c] and overload::Method($row->[$c], '""') );
+    }
+
+    # column validation
     for my $col_idx (@col_range) {
       my $reference_val = $reference_row->[$col_idx];
 
@@ -2159,27 +2236,6 @@ sub insert_bulk {
         }
       }
     }
-  };
-
-  my $row_idx = 0;
-  my $fetch_tuple = sub {
-    my $row
-      = !$row_idx++         ? $reference_row
-      : ref $data eq 'CODE' ? $data->()
-      :                     shift @$data;
-
-    return undef if !$row;
-
-    # FIXME - perhaps this is not even needed? does DBI stringify?
-    #
-    # forcibly stringify whatever is stringifiable
-    # ResultSet::populate() hands us a copy - safe to mangle
-    for my $c (0 .. $#{$row}) {
-      $row->[$c] = "$row->[$c]"
-        if ( ref $row->[$c] and overload::Method($row->[$c], '""') );
-    }
-
-    $col_validator->($row, $row_idx);
 
     $row;
   };
@@ -2199,6 +2255,7 @@ sub insert_bulk {
     }
     else {
       # bind_param_array doesn't work if there are no binds
+      p $proto_bind;
       $self->_dbh_execute_inserts_with_no_binds( $sth, ref $data eq 'ARRAY' ? (scalar(@$data)+1) : 1 );
     }
   };
@@ -2299,9 +2356,10 @@ sub _dbh_execute_for_fetch {
       if ($i > $#$tuple_status);
 
     require Data::Dumper::Concise;
-    $self->throw_exception(sprintf "execute_for_fetch() aborted with '%s' at populate slice:\n%s",
+
+    $self->throw_exception(sprintf "execute_for_fetch() aborted with '%s' at populate slice: %s",
       ($tuple_status->[$i][1] || $err),
-      Data::Dumper::Concise::Dumper( { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) } ),
+      $i,
     );
   }
 
