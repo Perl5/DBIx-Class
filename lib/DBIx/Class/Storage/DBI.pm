@@ -1995,29 +1995,34 @@ sub insert_bulk {
     }
 
     for my $chunk (@chunked) {
-      my $current = shift @$chunk;
+      if (ref $chunk eq 'REF') {
+        $self->_insert_bulk($source, $cols, $chunk);
+      }
+      else {
+        my $current = shift @$chunk;
 
-      my $tuple;
-      $tuple = sub {
-        my $row = do {
-          if (ref $current eq 'ARRAY') {
-            shift @$current;
+        my $tuple;
+        $tuple = sub {
+          my $row = do {
+            if (ref $current eq 'ARRAY') {
+              shift @$current;
+            }
+            elsif (ref $current eq 'CODE') {
+              $current->();
+            }
+          };
+
+          if ($row) {
+            return $row;
           }
-          elsif (ref $current eq 'CODE') {
-            $current->();
+          elsif (!defined $row && @$chunk) {
+            $current = shift @$chunk;
+            return $tuple->();
           }
         };
 
-        if ($row) {
-          return $row;
-        }
-        elsif (!defined $row && @$chunk) {
-          $current = shift @$chunk;
-          return $tuple->();
-        }
-      };
-
-      $self->_insert_bulk($source, $cols, $tuple);
+        $self->_insert_bulk($source, $cols, $tuple);
+      }
     }
   }
   else {
@@ -2232,7 +2237,7 @@ sub _insert_bulk {
 
   # we have a split codepath here where col validation happens in the
   # fetch_tuple, but the tuple isnt used in no proto_bind situations, so we run it
-  if (not @$proto_bind) {
+  if (!@$proto_bind && ref $data eq 'ARRAY') {
     $data_filter->($data->[$_], $_) for (0..$#$data);
   }
 
