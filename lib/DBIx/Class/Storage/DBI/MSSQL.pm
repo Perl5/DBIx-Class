@@ -27,6 +27,17 @@ __PACKAGE__->datetime_parser_type (
 
 __PACKAGE__->new_guid('NEWID()');
 
+sub _sql_server_2005_or_higher {
+  if (exists $_[0]->_server_info->{normalized_dbms_version}) {
+    if ($_[0]->_server_info->{normalized_dbms_version} >= 9) {
+       return 1
+    } else {
+       return 0
+    }
+  }
+  return undef;
+}
+
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $ident, $args) = @_;
@@ -151,12 +162,9 @@ sub sqlt_type { 'SQLServer' }
 sub sql_limit_dialect {
   my $self = shift;
 
-  my $supports_rno = 0;
+  my $supports_rno = $self->_sql_server_2005_or_higher;
 
-  if (exists $self->_server_info->{normalized_dbms_version}) {
-    $supports_rno = 1 if $self->_server_info->{normalized_dbms_version} >= 9;
-  }
-  else {
+  unless (defined $supports_rno) {
     # User is connecting via DBD::Sybase and has no permission to run
     # stored procedures like xp_msver, or version detection failed for some
     # other reason.
