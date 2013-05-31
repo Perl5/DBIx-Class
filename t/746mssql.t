@@ -16,6 +16,12 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
+my $schema;
+for my $use_insert_returning (0, 1) {
+  no warnings qw/redefine once/;
+  require DBIx::Class::Storage::DBI::MSSQL;
+  local *DBIx::Class::Storage::DBI::MSSQL::_use_insert_returning =
+    sub { $use_insert_returning };
 
 {
   my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};
@@ -23,7 +29,7 @@ plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this
 }
 
 DBICTest::Schema->load_classes('ArtistGUID');
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+$schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 {
   no warnings 'redefine';
@@ -499,6 +505,7 @@ SQL
       }
     }
   }
+}
 }
 
 done_testing;

@@ -71,7 +71,11 @@ sub _prep_for_execute {
   # point we don't have many guarantees we will get what we expected.
   # http://msdn.microsoft.com/en-us/library/ms190315.aspx
   # http://davidhayden.com/blog/dave/archive/2006/01/17/2736.aspx
-  if ($self->_perform_autoinc_retrieval and not $self->_no_scope_identity_query) {
+  if (
+    not $self->_use_insert_returning and
+    $self->_perform_autoinc_retrieval and
+    not $self->_no_scope_identity_query
+  ) {
     $sql .= "\nSELECT SCOPE_IDENTITY()";
   }
 
@@ -91,7 +95,9 @@ sub _execute {
     my $identity;
 
     # we didn't even try on ftds
-    unless ($self->_no_scope_identity_query) {
+    if (not $self->_use_insert_returning and
+        not $self->_no_scope_identity_query
+    ) {
       ($identity) = try { $sth->fetchrow_array };
       $sth->finish;
     }
@@ -193,6 +199,9 @@ sub _ping {
     0;
   };
 }
+
+# check for 2005 or greater here.
+sub _use_insert_returning { $_[0]->_sql_server_2005_or_higher }
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::MSSQL::DateTime::Format;
