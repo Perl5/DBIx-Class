@@ -1,0 +1,2 @@
+OffsetFetch *requires* and ORDER BY clause: http://msdn.microsoft.com/en-us/library/gg699618%28v=SQL.110%29.aspx
+Test emilation with ORDER_BY(SELECT 1) like what we did for RowNumberOver
