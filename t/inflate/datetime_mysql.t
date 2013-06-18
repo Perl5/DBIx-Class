@@ -18,6 +18,13 @@ plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->
   DBICTest::Schema->load_classes('EventTZDeprecated');
 }
 
+{
+  local $SIG{__WARN__} = sub {
+    like shift, qr/Putting 'time_zone', please put 'timezone' Instead of 'time_zone' into the 'starts_at' column definition\./;
+  };
+  DBICTest::Schema->load_classes('EventTZWarning');
+}
+
 my $schema = DBICTest->init_schema();
 
 # Test "timezone" parameter
