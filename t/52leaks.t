@@ -472,8 +472,11 @@ SKIP: {
   require IPC::Open2;
 
   for my $type (keys %$persistence_tests) { SKIP: {
-      skip "$type module not found", 1
-        unless eval "require $type";
+    unless (eval "require $type") {
+      # Don't terminate what we didn't start
+      delete $persistence_tests->{$type}{termcmd};
+      skip "$type module not found", 1;
+    }
 
     my @cmd = @{$persistence_tests->{$type}{cmd}};
 
@@ -517,6 +520,7 @@ END {
   unless ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
     close $_ for (*STDIN, *STDOUT, *STDERR);
     local $?; # otherwise test will inherit $? of the system()
-    system (@{$persistence_tests->{PPerl}{termcmd}});
+    system (@{$persistence_tests->{PPerl}{termcmd}})
+      if $persistence_tests->{PPerl}{termcmd};
   }
 }
