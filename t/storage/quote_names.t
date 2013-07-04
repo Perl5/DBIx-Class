@@ -126,6 +126,14 @@ for my $db (sort {
   is $schema->storage->sql_maker->name_sep,
     $exp_name_sep,
     "$db name_sep with quote_names => 1 is $name_sep_text";
+
+  # if something was produced - it better be quoted
+  if ( my $ddl = try { $schema->deployment_statements } ) {
+
+    my $quoted_artist = $schema->storage->sql_maker->_quote('artist');
+
+    like ($ddl, qr/^CREATE\s+TABLE\s+\Q$quoted_artist/msi, "$db DDL contains expected quoted table name");
+  }
 }
 
 done_testing;

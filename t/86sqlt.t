@@ -26,7 +26,7 @@ sub DBICTest::Schema::deployment_statements {
 # Check deployment statements ctx sensitivity
 {
   my $schema = DBICTest->init_schema (no_deploy => 1);
-  my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
+  my $not_first_table_creation_re = qr/CREATE TABLE "fourkeys_to_twokeys"/;
 
   my $statements = $schema->deployment_statements;
   like (
