@@ -10,6 +10,9 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     export $var=1
   done
 
+  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
+  export DBI_DRIVER="ADO"
+
   export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
 elif [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "blead" ]] ) ; then
   # try CPAN's latest offering on a stock perl and a threaded blead

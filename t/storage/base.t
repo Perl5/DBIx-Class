@@ -148,6 +148,9 @@ for my $type (keys %$invocations) {
 
 # make sure connection-less storages do not throw on _determine_driver
 {
+  local $ENV{DBI_DSN};
+  local $ENV{DBI_DRIVER};
+
   my $s = DBICTest::Schema->connect;
   is_deeply (
     $s->storage->connect_info,

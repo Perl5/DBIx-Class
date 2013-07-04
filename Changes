@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * Fixes
         - Setting quote_names propagates to SQL::Translator when producing
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
+        - Tests no longer fail if $ENV{DBI_DSN} is set
 
     * Misc
         - Replace $row with $result in all docs to be consistent and to
