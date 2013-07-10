@@ -2446,6 +2446,10 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
+  # Small hack, remove potential infinity _sql_maker_select_args chain
+  # when call queries on the same resultset many times
+  delete $attrs->{_sqlmaker_select_args};
+
   return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
     $ident, $select, $where, $attrs, @limit_args
   ]} );
