@@ -32,15 +32,12 @@ run_or_err() {
 extract_prereqs() {
   # once --verbose is set, --no-verbose can't disable it
   # do this by hand
-  ORIG_CPANM_OPT="$PERL_CPANM_OPT"
-  PERL_CPANM_OPT="$( echo $PERL_CPANM_OPT | sed 's/--verbose//' )"
+  local PERL_CPANM_OPT="$( echo $PERL_CPANM_OPT | sed 's/--verbose\s*//' )"
 
   # hack-hack-hack
   LASTEXIT=0
   COMBINED_OUT="$( { stdout="$(cpanm --quiet --scandeps --format tree "$@")" ; } 2>&1; echo "!!!STDERRSTDOUTSEPARATOR!!!$stdout")" \
     || LASTEXIT=$?
-
-  PERL_CPANM_OPT="$ORIG_CPANM_OPT"
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
   ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
