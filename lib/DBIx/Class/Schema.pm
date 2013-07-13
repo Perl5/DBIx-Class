@@ -3,6 +3,8 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
@@ -10,8 +12,6 @@ use Sub::Name 'subname';
 use B 'svref_2object';
 use Devel::GlobalDestruction;
 use namespace::clean;
-
-use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});

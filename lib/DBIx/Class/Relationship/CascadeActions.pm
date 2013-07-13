@@ -4,6 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::Class::Carp;
+use namespace::clean;
 
 our %_pod_inherit_config =
   (

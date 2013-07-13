@@ -4,6 +4,7 @@ use warnings;
 
 use Storable();
 use DBIx::Class::Carp;
+use namespace::clean;
 
 carp 'The Serialize::Storable component is now *DEPRECATED*. It has not '
     .'been providing any useful functionality for quite a while, and in fact '

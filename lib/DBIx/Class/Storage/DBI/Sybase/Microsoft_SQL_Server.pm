@@ -10,6 +10,7 @@ use base qw/
 use mro 'c3';
 
 use DBIx::Class::Carp;
+use namespace::clean;
 
 =head1 NAME
 

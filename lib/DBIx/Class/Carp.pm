@@ -4,17 +4,6 @@ package # hide from pause
 use strict;
 use warnings;
 
-# This is here instead of DBIx::Class because of load-order issues
-BEGIN {
-  # something is tripping up V::M on 5.8.1, leading  to segfaults.
-  # A similar test in n::c itself is disabled on 5.8.1 for the same
-  # reason. There isn't much motivation to try to find why it happens
-  *DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN = ($] < 5.008005)
-    ? sub () { 1 }
-    : sub () { 0 }
-  ;
-}
-
 # load Carp early to prevent tickling of the ::Internal stash being
 # interpreted as "Carp is already loaded" by some braindead loader
 use Carp ();
@@ -130,13 +119,6 @@ sub import {
       $msg,
     );
   };
-
-  # cleanup after ourselves
-  namespace::clean->import(-cleanee => $into, qw/carp carp_once carp_unique/)
-    ## FIXME FIXME FIXME - something is tripping up V::M on 5.8.1, leading
-    # to segfaults. When n::c/B::H::EndOfScope is rewritten in terms of tie()
-    # see if this starts working
-    unless DBIx::Class::_ENV_::BROKEN_NAMESPACE_CLEAN;
 }
 
 sub unimport {

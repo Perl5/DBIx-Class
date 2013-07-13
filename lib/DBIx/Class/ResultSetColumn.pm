@@ -5,6 +5,7 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
+use namespace::clean;
 
 # not importing first() as it will clash with our own method
 use List::Util ();
