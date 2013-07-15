@@ -834,7 +834,7 @@ sub _normalize_storage_type {
 
 =item Arguments: $target_namespace, $additional_base_class?
 
-=item Retur Value: $new_schema
+=item Return Value: $new_schema
 
 =back
 
