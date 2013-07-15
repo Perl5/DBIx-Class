@@ -84,7 +84,7 @@ created, see L<DBIx::Class::ResultSource::View> for full details.
 =head2 Finding result source objects
 
 As mentioned above, a result source instance is created and stored for
-you when you define a L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
+you when you define a L<result class|DBIx::Class::Manual::Glossary/Result class>.
 
 You can retrieve the result source at runtime in the following ways:
 
