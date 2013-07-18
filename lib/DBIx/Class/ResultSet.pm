@@ -3892,7 +3892,7 @@ case the key is the C<as> value, and the value is used as the C<select>
 expression). Adds C<me.> onto the start of any column without a C<.> in
 it and sets C<select> from that, then auto-populates C<as> from
 C<select> as normal. (You may also use the C<cols> attribute, as in
-earlier versions of DBIC, but this is deprecated.)
+earlier versions of DBIC, but this is deprecated)
 
 Essentially C<columns> does the same as L</select> and L</as>.
 
@@ -3905,16 +3905,20 @@ is the same as
 
 =head2 +columns
 
+B<NOTE:> You B<MUST> explicitly quote C<'+columns'> when using this attribute.
+Not doing so causes Perl to incorrectly interpret C<+columns> as a bareword
+with a unary plus operator before it, which is the same as simply C<columns>.
+
 =over 4
 
-=item Value: \@columns
+=item Value: \@extra_columns
 
 =back
 
 Indicates additional columns to be selected from storage. Works the same as
-L</columns> but adds columns to the selection. (You may also use the
+L</columns> but adds columns to the current selection. (You may also use the
 C<include_columns> attribute, as in earlier versions of DBIC, but this is
-deprecated). For example:-
+deprecated)
 
   $schema->resultset('CD')->search(undef, {
     '+columns' => ['artist.name'],
@@ -3925,20 +3929,6 @@ would return all CDs and include a 'name' column to the information
 passed to object inflation. Note that the 'artist' is the name of the
 column (or relationship) accessor, and 'name' is the name of the column
 accessor in the related table.
-
-B<NOTE:> You need to explicitly quote '+columns' when defining the attribute.
-Not doing so causes Perl to incorrectly interpret +columns as a bareword with a
-unary plus operator before it.
-
-=head2 include_columns
-
-=over 4
-
-=item Value: \@columns
-
-=back
-
-Deprecated.  Acts as a synonym for L</+columns> for backward compatibility.
 
 =head2 select
 
@@ -3970,19 +3960,21 @@ identifier aliasing. You can however alias a function, so you can use it in
 e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
 attribute> supplied as shown in the example above.
 
-B<NOTE:> You need to explicitly quote '+select'/'+as' when defining the attributes.
-Not doing so causes Perl to incorrectly interpret them as a bareword with a
-unary plus operator before it.
-
 =head2 +select
+
+B<NOTE:> You B<MUST> explicitly quote C<'+select'> when using this attribute.
+Not doing so causes Perl to incorrectly interpret C<+select> as a bareword
+with a unary plus operator before it, which is the same as simply C<select>.
 
 =over 4
 
-Indicates additional columns to be selected from storage.  Works the same as
-L</select> but adds columns to the default selection, instead of specifying
-an explicit list.
+=item Value: \@extra_select_columns
 
 =back
+
+Indicates additional columns to be selected from storage.  Works the same as
+L</select> but adds columns to the current selection, instead of specifying
+a new explicit list.
 
 =head2 as
 
@@ -3992,7 +3984,7 @@ an explicit list.
 
 =back
 
-Indicates column names for object inflation. That is L</as> indicates the
+Indicates DBIC-side names for object inflation. That is L</as> indicates the
 slot name in which the column value will be stored within the
 L<Row|DBIx::Class::Row> object. The value will then be accessible via this
 identifier by the C<get_column> method (or via the object accessor B<if one
@@ -4028,11 +4020,17 @@ L<DBIx::Class::Manual::Cookbook> for details.
 
 =head2 +as
 
+B<NOTE:> You B<MUST> explicitly quote C<'+as'> when using this attribute.
+Not doing so causes Perl to incorrectly interpret C<+as> as a bareword
+with a unary plus operator before it, which is the same as simply C<as>.
+
 =over 4
 
-Indicates additional column names for those added via L</+select>. See L</as>.
+=item Value: \@extra_inflation_names
 
 =back
+
+Indicates additional inflation names for selectors added via L</+select>. See L</as>.
 
 =head2 join
 
