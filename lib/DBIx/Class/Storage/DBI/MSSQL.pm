@@ -27,9 +27,11 @@ __PACKAGE__->datetime_parser_type (
 
 __PACKAGE__->new_guid('NEWID()');
 
-sub _sql_server_2005_or_higher {
+sub __sql_server_x_or_higher {
+  my ($self, $version) = @_;
+
   if (exists $_[0]->_server_info->{normalized_dbms_version}) {
-    if ($_[0]->_server_info->{normalized_dbms_version} >= 9) {
+    if ($_[0]->_server_info->{normalized_dbms_version} >= $version) {
        return 1
     } else {
        return 0
@@ -37,6 +39,9 @@ sub _sql_server_2005_or_higher {
   }
   return undef;
 }
+
+sub _sql_server_2005_or_higher { shift->__sql_server_x_or_higher(9) }
+sub _sql_server_2012_or_higher { shift->__sql_server_x_or_higher(11) }
 
 sub _prep_for_execute {
   my $self = shift;
