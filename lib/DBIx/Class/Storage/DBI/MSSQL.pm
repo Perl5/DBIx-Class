@@ -40,6 +40,9 @@ sub __sql_server_x_or_higher {
   return undef;
 }
 
+sub __offset_bindtype { +{ dbd_attrs => DBI::SQL_INTEGER() } }
+sub __rows_bindtype   { +{ dbd_attrs => DBI::SQL_INTEGER() } }
+
 sub _sql_server_2005_or_higher { shift->__sql_server_x_or_higher(9) }
 sub _sql_server_2012_or_higher { shift->__sql_server_x_or_higher(11) }
 
