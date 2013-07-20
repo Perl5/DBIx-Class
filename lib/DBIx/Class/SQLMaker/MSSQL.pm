@@ -20,31 +20,22 @@ sub insert {
   my $data    = shift || return;
   my $options = shift;
 
+  my ($sql, @bind);
+
   if (! $data or (ref $data eq 'HASH' and !keys %{$data} ) ) {
-    my @bind;
-    my $sql = sprintf(
-      'INSERT INTO %s DEFAULT VALUES', $_[0]->_quote($table)
-    );
-
-    if ( ($options||{})->{returning} ) {
-      my $s;
-      ($s, @bind) = $self->_insert_returning ($options);
-      $sql .= $s;
-    }
-
-    return ($sql, @bind);
+    $sql = $self->_sqlcase('default values');
+  } else {
+    my $method = $self->_METHOD_FOR_refkind("_insert", $data);
+    ($sql, @bind) = $self->$method($data);
   }
 
-  my $method = $self->_METHOD_FOR_refkind("_insert", $data);
-  my ($sql, @bind) = $self->$method($data);
-
-  $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
-
-  if ($options->{returning}) {
+  if ( ($options||{})->{returning} ) {
     my ($s, @b) = $self->_insert_returning ($options);
-    $sql =~ s/\bVALUES\b/$s VALUES/;
+    $sql = join ' ', $s, $sql;
     @bind = (@b, @bind);
   }
+
+  $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
 
   return wantarray ? ($sql, @bind) : $sql;
 }
