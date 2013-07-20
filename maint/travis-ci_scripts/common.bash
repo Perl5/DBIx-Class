@@ -22,7 +22,12 @@ run_or_err() {
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" != "0" ]] ; then
-    echo_err -e "FAILED !!! (after ${DELTA_TIME}s)\nCommand executed:\n$2\nSTDOUT+STDERR:\n$LASTOUT"
+    echo_err "FAILED !!! (after ${DELTA_TIME}s)"
+    echo_err "Command executed:"
+    echo_err "$2"
+    echo_err "STDOUT+STDERR:"
+    echo_err "$LASTOUT"
+
     return $LASTEXIT
   else
     echo_err "done (took ${DELTA_TIME}s)"
@@ -43,7 +48,9 @@ extract_prereqs() {
   ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
 
   if [[ "$LASTEXIT" != "0" ]] || [[ -n "$ERR" ]] ; then
-    echo_err "$(echo -e "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:\n$ERR\n$OUT")"
+    echo_err "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:"
+    echo_err "$ERR"
+    echo_err "$OUT"
     exit 1
   fi
 
@@ -54,8 +61,8 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
-  # flatten list into one string
-  MODLIST=$(echo "$@")
+  # one module spec per line
+  MODLIST="$(printf '%s\n' "$@")"
 
   # The reason we do things so "non-interactively" is that xargs -P will have the
   # latest cpanm instance overwrite the buildlog. There seems to be no way to
@@ -71,10 +78,12 @@ parallel_installdeps_notest() {
   # [09:39] <G> or --, yes
   # [09:39] <T> ribasushi: you could put "giant space monkey penises" instead of "--" and it would work just as well
   #
-  run_or_err "Installing (without testing) $MODLIST" \
-    "echo $MODLIST | xargs -n 1 -P $NUMTHREADS bash -c \\
-      'OUT=\$(cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
-      'giant space monkey penises'
+  run_or_err "Installing (without testing) $(echo $MODLIST)" \
+    "echo \\
+\"$MODLIST\" \\
+      | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
+        'OUT=\$(cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'giant space monkey penises'
     "
 }
 
