@@ -264,7 +264,7 @@ NULLINSEARCH: {
 
     my $artist = $artist2_rs->single;
 
-    is $artist => undef
+    is $artist => undef,
       => 'Nothing Found!';
 }
 
