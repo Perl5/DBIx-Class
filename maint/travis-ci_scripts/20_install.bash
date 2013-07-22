@@ -20,9 +20,17 @@ if [[ -n "$BREWVER" ]] ; then
   run_or_err "Compiling/installing Perl $BREWVER (without testing, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --verbose $BREWOPTS -j 2  $BREWVER"
 
-  # can not do 'perlbrew uss' in the run_or_err subshell above
-  perlbrew use $BREWVER || \
-    ( echo_err -e "Unable to switch to $BREWVER - compillation failed?\n$LASTOUT"; exit 1 )
+  # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
+  # furthermore `perlbrew use` returns 0 regardless of whether the perl is
+  # found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
+  perlbrew use $BREWVER
+
+  if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]] ; then
+    echo_err "Unable to switch to $BREWVER - compilation failed...?"
+    echo_err "$LASTOUT"
+    exit 1
+  fi
+
 fi
 
 # configure CPAN.pm - older versions go into an endless loop
