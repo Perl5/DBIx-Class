@@ -54,9 +54,16 @@ source, indicated by its class name.
 The condition argument describes the C<ON> clause of the C<JOIN>
 expression used to connect the two sources when creating SQL queries.
 
-To create simple equality joins, supply a hashref containing the
-remote table column name as the key(s), and the local table column
-name as the value(s), for example given:
+=head4 Simple equality
+
+To create simple equality joins, supply a hashref containing the remote
+table column name as the key(s) prefixed by C<'foreign.'>, and the
+corresponding local table column name as the value(s) prefixed by C<'self.'>.
+Both C<foreign> and C<self> are pseudo aliases and must be entered
+literally. They will be replaced with the actual correct table alias
+when the SQL is produced.
+
+For example given:
 
   My::Schema::Author->has_many(
     books => 'My::Schema::Book',
@@ -74,10 +81,6 @@ will result in the following C<JOIN> clause:
 This describes a relationship between the C<Author> table and the
 C<Book> table where the C<Book> table has a column C<author_id>
 containing the ID value of the C<Author>.
-
-C<foreign> and C<self> are pseudo aliases and must be entered
-literally. They will be replaced with the actual correct table alias
-when the SQL is produced.
 
 Similarly:
 
@@ -103,9 +106,11 @@ will result in the C<JOIN> clause:
 This describes the relationship from C<Book> to C<Edition>, where the
 C<Edition> table refers to a publisher and a type (e.g. "paperback"):
 
+=head4 Multiple groups of simple equality conditions
+
 As is the default in L<SQL::Abstract>, the key-value pairs will be
-C<AND>ed in the result. C<OR> can be achieved with an arrayref, for
-example a condition like:
+C<AND>ed in the resulting C<JOIN> clause. An C<OR> can be achieved with
+an arrayref. For example a condition like:
 
   My::Schema::Item->has_many(
     related_item_links => My::Schema::Item::Links,
@@ -126,6 +131,12 @@ C<Item::Links> is a many-to-many linking table, linking items back to
 themselves in a peer fashion (without a "parent-child" designation)
 
 =head4 Custom join conditions
+
+  NOTE: The custom join condition specification mechanism is capable of
+  generating JOIN clauses of virtually unlimited complexity. This may limit
+  your ability to traverse some of the more involved relationship chains the
+  way you expect, *and* may bring your RDBMS to its knees. Exercise care
+  when declaring relationships as described here.
 
 To specify joins which describe more than a simple equality of column
 values, the custom join condition coderef syntax can be used. For
