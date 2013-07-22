@@ -45,9 +45,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # possible, mainly to catch "but X is perl core" mistakes
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
-  CPAN_is_sane || \
-    run_or_err "Pre-installing ExtUtils::MakeMaker and Module::Build" \
-      "cpan ExtUtils::MakeMaker Module::Build"
+  if ! CPAN_is_sane ; then
+    for m in ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build ; do
+      run_or_err "Pre-installing $m" "cpan $m"
+    done
+  fi
 
   if ! perl -MModule::Build -e 1 &> /dev/null ; then
     echo_err -e "Module::Build installation failed\n$LASTOUT"
