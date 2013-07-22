@@ -47,7 +47,7 @@ extract_prereqs() {
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
   ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
 
-  if [[ "$LASTEXIT" != "0" ]] || [[ -n "$ERR" ]] ; then
+  if [[ "$LASTEXIT" != "0" ]] ; then
     echo_err "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:"
     echo_err "$ERR"
     echo_err "$OUT"
