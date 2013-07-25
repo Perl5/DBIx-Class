@@ -35,7 +35,10 @@ sub _has_one {
       $class->ensure_class_loaded($f_class);
 
       $f_rsrc = try {
-        $f_class->result_source_instance;
+        my $r = $f_class->result_source_instance;
+        die "There got to be some columns by now... (exception caught and rewritten by catch below)"
+          unless $r->columns;
+        $r;
       }
       catch {
         $class->throw_exception(
@@ -54,13 +57,14 @@ sub _has_one {
       }
     }
 
-    # only perform checks if the far side was not preloaded above *AND*
-    # appears to have been loaded by something else (has a rsrc_instance)
-    if (! $f_rsrc and $f_rsrc = try { $f_class->result_source_instance }) {
-      $class->throw_exception(
-        "No such column '$f_key' on foreign class ${f_class} ($guess)"
-      ) if !$f_rsrc->has_column($f_key);
-    }
+# FIXME - this check needs to be moved to schema-composition time...
+#    # only perform checks if the far side was not preloaded above *AND*
+#    # appears to have been loaded by something else (has a rsrc_instance)
+#    if (! $f_rsrc and $f_rsrc = try { $f_class->result_source_instance }) {
+#      $class->throw_exception(
+#        "No such column '$f_key' on foreign class ${f_class} ($guess)"
+#      ) if !$f_rsrc->has_column($f_key);
+#    }
 
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }

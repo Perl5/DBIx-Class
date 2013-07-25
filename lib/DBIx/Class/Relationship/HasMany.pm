@@ -28,12 +28,13 @@ sub has_many {
       $guess = "using our class name '$class' as foreign key source";
     }
 
-    # only perform checks if the far side appears already loaded
-    if (my $f_rsrc = try { $f_class->result_source_instance } ) {
-      $class->throw_exception(
-        "No such column '$f_key' on foreign class ${f_class} ($guess)"
-      ) if !$f_rsrc->has_column($f_key);
-    }
+# FIXME - this check needs to be moved to schema-composition time...
+#    # only perform checks if the far side appears already loaded
+#    if (my $f_rsrc = try { $f_class->result_source_instance } ) {
+#      $class->throw_exception(
+#        "No such column '$f_key' on foreign class ${f_class} ($guess)"
+#      ) if !$f_rsrc->has_column($f_key);
+#    }
 
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
