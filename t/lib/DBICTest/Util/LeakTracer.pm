@@ -5,6 +5,7 @@ use strict;
 
 use Carp;
 use Scalar::Util qw/isweak weaken blessed reftype refaddr/;
+use B 'svref_2object';
 use DBICTest::Util 'stacktrace';
 
 use base 'Exporter';
@@ -20,23 +21,28 @@ sub populate_weakregistry {
   croak 'Expecting a registry hashref' unless ref $weak_registry eq 'HASH';
   croak 'Target is not a reference' unless length ref $target;
 
+  my $refaddr = refaddr $target;
+
   $slot ||= (sprintf '%s%s(0x%x)', # so we don't trigger stringification
     (defined blessed $target) ? blessed($target) . '=' : '',
     reftype $target,
-    refaddr $target,
+    $refaddr,
   );
 
   if (defined $weak_registry->{$slot}{weakref}) {
-    if ( refaddr($weak_registry->{$slot}{weakref}) != (refaddr $target) ) {
-      print STDERR "Bail out! Weak Registry slot collision: $weak_registry->{$slot}{weakref} / $target\n";
+    if ( $weak_registry->{$slot}{refaddr} != $refaddr ) {
+      print STDERR "Bail out! Weak Registry slot collision $slot: $weak_registry->{$slot}{weakref} / $target\n";
       exit 255;
     }
   }
   else {
-    $refs_traced++;
+    $weak_registry->{$slot} = {
+      stacktrace => stacktrace(1),
+      refaddr => $refaddr,
+      renumber => $_[2] ? 0 : 1,
+    };
     weaken( $weak_registry->{$slot}{weakref} = $target );
-    $weak_registry->{$slot}{stacktrace} = stacktrace(1);
-    $weak_registry->{$slot}{renumber} = 1 unless $_[2];
+    $refs_traced++;
   }
 
   weaken( $reg_of_regs{ refaddr($weak_registry) } = $weak_registry )
@@ -63,7 +69,9 @@ sub CLONE {
       my $slot = shift @live_slots;
       my $inst = shift @live_instances;
 
-      $slot =~ s/0x[0-9A-F]+/'0x' . sprintf ('0x%x', refaddr($inst))/ieg
+      my $refaddr = $inst->{refaddr} = refaddr($inst);
+
+      $slot =~ s/0x[0-9A-F]+/'0x' . sprintf ('0x%x', $refaddr)/ieg
         if $inst->{renumber};
 
       $reg->{$slot} = $inst;
@@ -87,6 +95,60 @@ sub assert_empty_weakregistry {
       unless isweak( $weak_registry->{$slot}{weakref} );
   }
 
+
+  # compile a list of refs stored as CAG class data, so we can skip them
+  # intelligently below
+  my ($classdata_refcounts, $symwalker, $refwalker);
+
+  $refwalker = sub {
+    return unless length ref $_[0];
+
+    my $seen = $_[1] || {};
+    return if $seen->{refaddr $_[0]}++;
+
+    $classdata_refcounts->{refaddr $_[0]}++;
+
+    my $type = reftype $_[0];
+    if ($type eq 'HASH') {
+      $refwalker->($_, $seen) for values %{$_[0]};
+    }
+    elsif ($type eq 'ARRAY') {
+      $refwalker->($_, $seen) for @{$_[0]};
+    }
+    elsif ($type eq 'REF') {
+      $refwalker->($$_, $seen);
+    }
+  };
+
+  $symwalker = sub {
+    no strict 'refs';
+    my $pkg = shift || '::';
+
+    $refwalker->(${"${pkg}$_"}) for grep { $_ =~ /__cag_(?!pkg_gen__|supers__)/ } keys %$pkg;
+
+    $symwalker->("${pkg}$_") for grep { $_ =~ /(?<!^main)::$/ } keys %$pkg;
+  };
+
+  # run things twice, some cycles will be broken, introducing new
+  # candidates for pseudo-GC
+  for (1,2) {
+    undef $classdata_refcounts;
+
+    $symwalker->();
+
+    for my $slot (keys %$weak_registry) {
+      if (
+        defined $weak_registry->{$slot}{weakref}
+          and
+        my $expected_refcnt = $classdata_refcounts->{$weak_registry->{$slot}{refaddr}}
+      ) {
+        # need to store the SVref and examine it separately,
+        # to push the weakref instance off the pad
+        my $sv = svref_2object($weak_registry->{$slot}{weakref});
+        delete $weak_registry->{$slot} if $sv->REFCNT == $expected_refcnt;
+      }
+    }
+  }
 
   for my $slot (sort keys %$weak_registry) {
     ! defined $weak_registry->{$slot}{weakref} and next if $quiet;
