@@ -1386,6 +1386,29 @@ sub _connect {
 
   local $DBI::connect_via = 'connect' if $INC{'Apache/DBI.pm'} && $ENV{MOD_PERL};
 
+  # this odd anonymous coderef dereference is in fact really
+  # necessary to avoid the unwanted effect described in perl5
+  # RT#75792
+  #
+  # in addition the coderef itself can't reside inside the try{} block below
+  # as it somehow triggers a leak under perl -d
+  my $dbh_error_handler_installer = sub {
+    weaken (my $weak_self = $_[0]);
+
+    # the coderef is blessed so we can distinguish it from externally
+    # supplied handles (which must be preserved)
+    $_[1]->{HandleError} = bless sub {
+      if ($weak_self) {
+        $weak_self->throw_exception("DBI Exception: $_[0]");
+      }
+      else {
+        # the handler may be invoked by something totally out of
+        # the scope of DBIC
+        DBIx::Class::Exception->throw("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
+      }
+    }, '__DBIC__DBH__ERROR__HANDLER__';
+  };
+
   try {
     if(ref $info[0] eq 'CODE') {
       $dbh = $info[0]->();
@@ -1429,26 +1452,7 @@ sub _connect {
         $dbh->{RaiseError} = 1;
       }
 
-      # this odd anonymous coderef dereference is in fact really
-      # necessary to avoid the unwanted effect described in perl5
-      # RT#75792
-      sub {
-        my $weak_self = $_[0];
-        weaken $weak_self;
-
-        # the coderef is blessed so we can distinguish it from externally
-        # supplied handles (which must be preserved)
-        $_[1]->{HandleError} = bless sub {
-          if ($weak_self) {
-            $weak_self->throw_exception("DBI Exception: $_[0]");
-          }
-          else {
-            # the handler may be invoked by something totally out of
-            # the scope of DBIC
-            DBIx::Class::Exception->throw("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
-          }
-        }, '__DBIC__DBH__ERROR__HANDLER__';
-      }->($self, $dbh);
+      $dbh_error_handler_installer->($self, $dbh);
     }
   }
   catch {
