@@ -840,7 +840,7 @@ AKA multi-class object inflation from one table
 L<DBIx::Class> classes are proxy classes, therefore some different
 techniques need to be employed for more than basic subclassing.  In
 this example we have a single user table that carries a boolean bit
-for admin.  We would like like to give the admin users
+for admin.  We would like to give the admin users
 objects (L<DBIx::Class::Row>) the same methods as a regular user but
 also special admin only methods.  It doesn't make sense to create two
 separate proxy-class files for this.  We would be copying all the user
@@ -1108,7 +1108,7 @@ as follows:
 
 =head2 Filtering a relationship result set
 
-If you want to get a filtered result set, you can just add add to $attr as follows:
+If you want to get a filtered result set, you can just add to $attr as follows:
 
  __PACKAGE__->has_many('pages' => 'Page', 'book', { where => { scrap => 0 } } );
 
@@ -1223,7 +1223,7 @@ building a renaming facility, like so:
 
   1;
 
-By overridding the L<connection|DBIx::Class::Schama/connection>
+By overriding the L<connection|DBIx::Class::Schama/connection>
 method and extracting a custom option from the provided \%attr hashref one can
 then simply iterate over all the Schema's ResultSources, renaming them as
 needed.
@@ -2190,7 +2190,7 @@ L<DBIx::Class|DBIx::Class> programs can have a significant startup delay
 as the ORM loads all the relevant classes. This section examines
 techniques for reducing the startup delay.
 
-These tips are are listed in order of decreasing effectiveness - so the
+These tips are listed in order of decreasing effectiveness - so the
 first tip, if applicable, should have the greatest effect on your
 application.
 
