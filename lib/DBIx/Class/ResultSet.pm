@@ -4219,7 +4219,7 @@ object with all of its related data.
 If an L</order_by> is already declared, and orders the resultset in a way that
 makes collapsing as described above impossible (e.g. C<< ORDER BY
 has_many_rel.column >> or C<ORDER BY RANDOM()>), DBIC will automatically
-switch to "eager" mode and slurp the entire resultset before consturcting the
+switch to "eager" mode and slurp the entire resultset before constructing the
 first object returned by L</next>.
 
 Setting this attribute on a resultset that does not join any has_many
@@ -4643,7 +4643,7 @@ or to a sensible value based on the "data_type".
 =item dbic_colname
 
 Used to fill in missing sqlt_datatype and sqlt_size attributes (if they are
-explicitly specified they are never overriden).  Also used by some weird DBDs,
+explicitly specified they are never overridden).  Also used by some weird DBDs,
 where the column name should be available at bind_param time (e.g. Oracle).
 
 =back
