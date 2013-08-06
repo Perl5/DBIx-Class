@@ -93,7 +93,7 @@ sub _resolve_prefetch {
 # any sort of adjustment/rewrite should be relatively easy (fsvo relatively)
 #
 sub _mk_row_parser {
-  # $args and $attrs are seperated to delineate what is core collapser stuff and
+  # $args and $attrs are separated to delineate what is core collapser stuff and
   # what is dbic $rs specific
   my ($self, $args, $attrs) = @_;
 
@@ -243,7 +243,7 @@ sub _resolve_collapse {
       if $args->{_parent_info}{collapser_reusable};
   }
 
-  # Still dont know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
+  # Still don't know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
   if (
     ! $collapse_map->{-identifying_columns}
       and
@@ -364,7 +364,7 @@ sub _resolve_collapse {
       # if we got here - we are good to go, but the construction is tricky
       # since our children will want to include our collapse criteria - we
       # don't give them anything (safe, since they are all collapsible on their own)
-      # in addition we record the individual collapse posibilities
+      # in addition we record the individual collapse possibilities
       # of all left children node collapsers, and merge them in the rowparser
       # coderef later
       $collapse_map->{-identifying_columns} = [];

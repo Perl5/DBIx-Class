@@ -1440,7 +1440,7 @@ sub _construct_results {
       :                                           'classic_nonpruning'
     ;
 
-    # $args and $attrs to _mk_row_parser are seperated to delineate what is
+    # $args and $attrs to _mk_row_parser are separated to delineate what is
     # core collapser stuff and what is dbic $rs specific
     @{$self->{_row_parser}{$parser_type}}{qw(cref nullcheck)} = $rsrc->_mk_row_parser({
       eval => 1,
@@ -1456,7 +1456,7 @@ sub _construct_results {
     # can't work without it). Add an explicit check for the *main*
     # result, hopefully this will gradually weed out such errors
     #
-    # FIXME - this is a temporary kludge that reduces perfromance
+    # FIXME - this is a temporary kludge that reduces performance
     # It is however necessary for the time being
     my ($unrolled_non_null_cols_to_check, $err);
 
@@ -2323,7 +2323,7 @@ sub populate {
 }
 
 
-# populate() argumnets went over several incarnations
+# populate() arguments went over several incarnations
 # What we ultimately support is AoH
 sub _normalize_populate_args {
   my ($self, $arg) = @_;
@@ -2497,7 +2497,7 @@ sub _merge_with_rscond {
     );
   }
   else {
-    # precendence must be given to passed values over values inherited from
+    # precedence must be given to passed values over values inherited from
     # the cond, so the order here is important.
     my $collapsed_cond = $self->_collapse_cond($self->{cond});
     my %implied = %{$self->_remove_alias($collapsed_cond, $alias)};
@@ -2532,7 +2532,7 @@ sub _merge_with_rscond {
 # determines if the resultset defines at least one
 # of the attributes supplied
 #
-# used to determine if a subquery is neccessary
+# used to determine if a subquery is necessary
 #
 # supports some virtual attributes:
 #   -join
@@ -3593,7 +3593,7 @@ sub _resolved_attrs {
   }
 
   # run through the resulting joinstructure (starting from our current slot)
-  # and unset collapse if proven unnesessary
+  # and unset collapse if proven unnecessary
   #
   # also while we are at it find out if the current root source has
   # been premultiplied by previous related_source chaining
@@ -4219,7 +4219,7 @@ object with all of its related data.
 If an L</order_by> is already declared, and orders the resultset in a way that
 makes collapsing as described above impossible (e.g. C<< ORDER BY
 has_many_rel.column >> or C<ORDER BY RANDOM()>), DBIC will automatically
-switch to "eager" mode and slurp the entire resultset before consturcting the
+switch to "eager" mode and slurp the entire resultset before constructing the
 first object returned by L</next>.
 
 Setting this attribute on a resultset that does not join any has_many
@@ -4643,7 +4643,7 @@ or to a sensible value based on the "data_type".
 =item dbic_colname
 
 Used to fill in missing sqlt_datatype and sqlt_size attributes (if they are
-explicitly specified they are never overriden).  Also used by some weird DBDs,
+explicitly specified they are never overridden).  Also used by some weird DBDs,
 where the column name should be available at bind_param time (e.g. Oracle).
 
 =back

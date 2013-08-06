@@ -792,7 +792,7 @@ sub dbh_do {
 
   # short circuit when we know there is no need for a runner
   #
-  # FIXME - asumption may be wrong
+  # FIXME - assumption may be wrong
   # the rationale for the txn_depth check is that if this block is a part
   # of a larger transaction, everything up to that point is screwed anyway
   return $self->$run_target($self->_get_dbh, @_)
@@ -2938,7 +2938,7 @@ sub deployment_statements {
     $self->throw_exception("Can't deploy without a ddl_dir or " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
   }
 
-  # sources needs to be a parser arg, but for simplicty allow at top level
+  # sources needs to be a parser arg, but for simplicity allow at top level
   # coming in
   $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
       if exists $sqltargs->{sources};

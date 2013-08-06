@@ -1000,7 +1000,7 @@ sub svp_rollback {
 
 Clones the schema and its associated result_source objects and returns the
 copy. The resulting copy will have the same attributes as the source schema,
-except for those attributes explicitly overriden by the provided C<%attrs>.
+except for those attributes explicitly overridden by the provided C<%attrs>.
 
 =cut
 

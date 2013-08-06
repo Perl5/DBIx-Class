@@ -29,7 +29,7 @@ toggles like:
 =cut
 
 # SET IDENTITY_X only works as part of a statement scope. We can not
-# $dbh->do the $sql and the wrapping set()s individualy. Hence the
+# $dbh->do the $sql and the wrapping set()s individually. Hence the
 # sql mangling. The newlines are important.
 sub _prep_for_execute {
   my $self = shift;

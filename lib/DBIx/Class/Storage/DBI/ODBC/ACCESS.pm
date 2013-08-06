@@ -26,7 +26,7 @@ It is a subclass of L<DBIx::Class::Storage::DBI::ODBC> and
 L<DBIx::Class::Storage::DBI::ACCESS>, see those classes for more
 information.
 
-It is loaded automatically by by L<DBIx::Class::Storage::DBI::ODBC> when it
+It is loaded automatically by L<DBIx::Class::Storage::DBI::ODBC> when it
 detects a MS Access back-end.
 
 This driver implements workarounds for C<IMAGE> and C<MEMO> columns, and

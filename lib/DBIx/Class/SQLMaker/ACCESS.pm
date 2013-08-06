@@ -27,7 +27,7 @@ sub _recurse_from {
     $fin_join = sprintf '( %s ) %s', $fin_join, (shift @j);
   }
 
-  # the entire FROM is *ALSO* expected aprenthesized
+  # the entire FROM is *ALSO* expected parenthesized
   "( $fin_join )";
 }
 

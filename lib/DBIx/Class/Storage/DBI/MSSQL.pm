@@ -53,7 +53,7 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
   # SELECT SCOPE_IDENTITY only works within a statement scope. We
-  # must try to always use this particular idiom frist, as it is the
+  # must try to always use this particular idiom first, as it is the
   # only one that guarantees retrieving the correct id under high
   # concurrency. When this fails we will fall back to whatever secondary
   # retrieval method is specified in _identity_method, but at this

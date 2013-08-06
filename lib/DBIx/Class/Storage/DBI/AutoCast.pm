@@ -42,7 +42,7 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
 # If we're using ::NoBindVars, there are no binds by this point so this code
-# gets skippeed.
+# gets skipped.
   if ($self->auto_cast && @$bind) {
     my $new_sql;
     my @sql_part = split /\?/, $sql, scalar @$bind + 1;

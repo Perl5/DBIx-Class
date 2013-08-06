@@ -75,7 +75,7 @@ lot later.
 
 =item .. use DBIx::Class across multiple databases?
 
-If your database server allows you to run querys across multiple
+If your database server allows you to run queries across multiple
 databases at once, then so can DBIx::Class. All you need to do is make
 sure you write the database name as part of the
 L<DBIx::Class::ResultSource/table> call. Eg:
@@ -314,7 +314,7 @@ Use L<DBIx::Class::Row/discard_changes>.
 
   $result->discard_changes
 
-Discarding changes and refreshing from storage are two sides fo the same coin.  When you
+Discarding changes and refreshing from storage are two sides of the same coin.  When you
 want to discard your local changes, just re-fetch the row from storage.  When you want
 to get a new, fresh copy of the row, just re-fetch the row from storage.
 L<DBIx::Class::Row/discard_changes> does just that by re-fetching the row from storage
@@ -489,7 +489,7 @@ An another method is to use L<Moose> with your L<DBIx::Class> package.
 
 	__PACKAGE__->table('foo'); # etc
 
-With either of these methods the resulting use of the accesssor would be
+With either of these methods the resulting use of the accessor would be
 
 	my $result;
 

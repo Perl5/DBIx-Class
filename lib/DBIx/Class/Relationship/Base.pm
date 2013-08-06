@@ -225,7 +225,7 @@ hashref which does not depend on joins being available, but the hashref must
 contain only plain values/deflatable objects, such that the result can be
 passed directly to L<DBIx::Class::Relationship::Base/set_from_related>. For
 instance the C<year> constraint in the above example prevents the relationship
-from being used to to create related objects (an exception will be thrown).
+from being used to create related objects (an exception will be thrown).
 
 In order to allow the user to go truly crazy when generating a custom C<ON>
 clause, the C<$args> hashref passed to the subroutine contains some extra
@@ -297,7 +297,7 @@ For a 'belongs_to relationship, note the 'cascade_update':
 =item \%column
 
 A hashref where each key is the accessor you want installed in the main class,
-and its value is the name of the original in the fireign class.
+and its value is the name of the original in the foreign class.
 
   MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
       proxy => { cd_title => 'title' },

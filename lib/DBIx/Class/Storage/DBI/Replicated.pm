@@ -643,8 +643,8 @@ around connect_replicants => sub {
 
 =head2 all_storages
 
-Returns an array of of all the connected storage backends.  The first element
-in the returned array is the master, and the remainings are each of the
+Returns an array of all the connected storage backends.  The first element
+in the returned array is the master, and the rest are each of the
 replicants.
 
 =cut
@@ -1117,8 +1117,8 @@ using the Schema clone method.
 
 Based on code originated by:
 
-  Norbert Csongrádi <bert@cpan.org>
-  Peter Siklósi <einon@einon.hu>
+  Norbert Csongrï¿½di <bert@cpan.org>
+  Peter Siklï¿½si <einon@einon.hu>
 
 =head1 LICENSE
 

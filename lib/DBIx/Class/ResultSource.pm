@@ -1664,7 +1664,7 @@ our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 
 # Resolves the passed condition to a concrete query fragment and a flag
 # indicating whether this is a cross-table condition. Also an optional
-# list of non-triviail values (notmally conditions) returned as a part
+# list of non-trivial values (normally conditions) returned as a part
 # of a joinfree condition hash
 sub _resolve_condition {
   my ($self, $cond, $as, $for, $rel_name) = @_;
