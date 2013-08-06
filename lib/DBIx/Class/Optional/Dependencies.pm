@@ -897,7 +897,7 @@ EOD
     '=item Return Value: \%list_of_loaderrors_per_module',
     '=back',
     <<'EOD',
-Returns a hashref containing the actual errors that occured while attempting
+Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group.
 EOD
     '=head1 AUTHOR',
