@@ -420,7 +420,7 @@ similarity ends. Any time you call a CRUD operation on a row (e.g.
 L<delete|DBIx::Class::Row/delete>,
 L<update|DBIx::Class::Row/update>,
 L<discard_changes|DBIx::Class::Row/discard_changes>,
-etc.) DBIx::Class will use the values of of the
+etc.) DBIx::Class will use the values of the
 L<primary key|DBIx::Class::ResultSource/set_primary_key> columns to populate
 the C<WHERE> clause necessary to accomplish the operation. This is why it is
 important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
