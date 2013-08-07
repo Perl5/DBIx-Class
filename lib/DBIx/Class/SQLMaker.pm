@@ -278,7 +278,7 @@ sub _recurse_fields {
 # What we have been doing forever is hijacking the $order arg of
 # SQLA::select to pass in arbitrary pieces of data (first the group_by,
 # then pretty much the entire resultset attr-hash, as more and more
-# things in the SQLA space need to have mopre info about the $rs they
+# things in the SQLA space need to have more info about the $rs they
 # create SQL for. The alternative would be to keep expanding the
 # signature of _select with more and more positional parameters, which
 # is just gross. All hail SQLA2!
