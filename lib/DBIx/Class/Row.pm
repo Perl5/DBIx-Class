@@ -118,7 +118,7 @@ with NULL as the default, and save yourself a SELECT.
 =cut
 
 ## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
-## This only works because DBIC doesnt yet care to check whether the new_related objects have been passed all their mandatory columns
+## This only works because DBIC doesn't yet care to check whether the new_related objects have been passed all their mandatory columns
 ## When doing the later insert, we need to make sure the PKs are set.
 ## using _relationship_data in new and funky ways..
 ## check Relationship::CascadeActions and Relationship::Accessor for compat
