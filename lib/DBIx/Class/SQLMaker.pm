@@ -288,7 +288,7 @@ sub _parse_rs_attrs {
   my $sql = '';
 
   if ($arg->{group_by}) {
-    # horible horrible, waiting for refactor
+    # horrible, waiting for refactor
     local $self->{select_bind};
     if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
       $sql .= $self->_sqlcase(' group by ') . $g;
