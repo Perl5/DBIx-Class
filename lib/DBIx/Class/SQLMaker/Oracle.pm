@@ -92,7 +92,7 @@ sub _order_siblings_by {
     return wantarray ? ( $sql, @bind ) : $sql;
 }
 
-# we need to add a '=' only when PRIOR is used against a column diretly
+# we need to add a '=' only when PRIOR is used against a column directly
 # i.e. when it is invoked by a special_op callback
 sub _where_field_PRIOR {
   my ($self, $lhs, $op, $rhs) = @_;
@@ -177,7 +177,7 @@ sub _shorten_identifier {
     }
   }
 
-  # still too long - just start cuting proportionally
+  # still too long - just start cutting proportionally
   if ($concat_len > $max_trunc) {
     my $trim_ratio = $max_trunc / $concat_len;
 
