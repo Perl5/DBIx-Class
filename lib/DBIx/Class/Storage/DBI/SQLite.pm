@@ -50,7 +50,7 @@ An unfortunate chain of events led to DBIx::Class silently hitting the problem
 described in L<RT#79576|https://rt.cpan.org/Public/Bug/Display.html?id=79576>.
 
 In order to trigger the bug condition one needs to supply B<more than one>
-bind value that is an object with overloaded stringification (nummification
+bind value that is an object with overloaded stringification (numification
 is not relevant, only stringification is). When this is the case the internal
 DBIx::Class call to C<< $sth->bind_param >> would be executed in a way that
 triggers the above-mentioned DBD::SQLite bug. As a result all the logs and
@@ -65,8 +65,8 @@ stringifiable object in one CRUD call) is encountered and will issue a warning
 pointing to this section. This warning will be removed 2 years from now,
 around April 2015, You can disable it after you've audited your data by
 setting the C<DBIC_RT79576_NOWARN> environment variable. Note - the warning
-is emited only once per callsite per process and only when the condition in
-question is encountered. Thus it is very unlikey that your logsystem will be
+is emitted only once per callsite per process and only when the condition in
+question is encountered. Thus it is very unlikely that your logsystem will be
 flooded as a result of this.
 
 =back
@@ -213,7 +213,7 @@ sub _ping {
   # keeps the actual file handle open. We don't really want this to happen,
   # so force-close the handle via DBI itself
   #
-  local $@; # so that we do not clober the real error as set above
+  local $@; # so that we do not clobber the real error as set above
   eval { $dbh->disconnect }; # if it fails - it fails
   undef; # the actual RV of _ping()
 }
@@ -247,13 +247,13 @@ sub bind_attribute_by_data_type {
 }
 
 # DBD::SQLite (at least up to version 1.31 has a bug where it will
-# non-fatally nummify a string value bound as an integer, resulting
+# non-fatally numify a string value bound as an integer, resulting
 # in insertions of '0' into supposed-to-be-numeric fields
 # Since this can result in severe data inconsistency, remove the
-# bind attr if such a sitation is detected
+# bind attr if such a situation is detected
 #
 # FIXME - when a DBD::SQLite version is released that eventually fixes
-# this sutiation (somehow) - no-op this override once a proper DBD
+# this situation (somehow) - no-op this override once a proper DBD
 # version is detected
 sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
