@@ -194,7 +194,7 @@ sub _adjust_select_args_for_complex_prefetch {
     ) {
 
       # if none of the multipliers came from an order_by (guaranteed to have been combined
-      # with a limit) - easy - just slap a group_by to simulate a collape and be on our way
+      # with a limit) - easy - just slap a group_by to simulate a collapse and be on our way
       if (
         ! $inner_aliastypes->{ordering}
           or
@@ -226,7 +226,7 @@ sub _adjust_select_args_for_complex_prefetch {
         # exactly what we expect
 
         # supplement the main selection with pks if not already there,
-        # as they will have to be a part of the group_by to colapse
+        # as they will have to be a part of the group_by to collapse
         # things properly
         my $cur_sel = { map { $_ => 1 } @$inner_select };
 
@@ -399,7 +399,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
   # then if where conditions apply to the *right* side of the prefetch, you may have
   # to both filter the inner select (e.g. to apply a limit) and then have to re-filter
-  # the outer select to exclude joins you didin't want in the first place
+  # the outer select to exclude joins you didn't want in the first place
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
   return (\@outer_from, $outer_select, $where, $outer_attrs);
@@ -410,7 +410,7 @@ sub _adjust_select_args_for_complex_prefetch {
 #
 # Due to a lack of SQLA2 we fall back to crude scans of all the
 # select/where/order/group attributes, in order to determine what
-# aliases are neded to fulfill the query. This information is used
+# aliases are needed to fulfill the query. This information is used
 # throughout the code to prune unnecessary JOINs from the queries
 # in an attempt to reduce the execution time.
 # Although the method is pretty horrific, the worst thing that can
@@ -918,7 +918,7 @@ sub _main_source_order_by_portion_is_stable {
   die 'How did we get here...';
 }
 
-# returns an arrayref of column names which *definitely* have som
+# returns an arrayref of column names which *definitely* have some
 # sort of non-nullable equality requested in the given condition
 # specification. This is used to figure out if a resultset is
 # constrained to a column which is part of a unique constraint,

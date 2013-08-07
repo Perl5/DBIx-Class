@@ -40,7 +40,7 @@ L<DBIx::Class::Row> and L<DBIx::Class::Relationship::Base> are used most often.
 
 =item L<DBIx::Class::ResultSource> - Source/Table definition functions.
 
-=item L<DBIx::Class::Schema> - Overall sourcess, and connection container.
+=item L<DBIx::Class::Schema> - Overall sources, and connection container.
 
 =item L<DBIx::Class::Relationship> - Simple relationship declarations.
 

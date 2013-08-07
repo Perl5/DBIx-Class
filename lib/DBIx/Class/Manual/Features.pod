@@ -258,7 +258,7 @@ See L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base/CONST
 
 =head2 Populate
 
-Made for inserting lots of rows very quicky into database
+Made for inserting lots of rows very quickly into database
 
  $schema->populate([ Users =>
     [qw( username password )],
@@ -605,7 +605,7 @@ L<DBIx::Class::ResultSet/group_by>
 
 =over 1
 
-=item Careful, get_column can basicaly mean B<three> things
+=item Careful, get_column can basically mean B<three> things
 
 =item private in which case you should use an accessor
 

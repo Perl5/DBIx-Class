@@ -109,7 +109,7 @@ Downgrades in addition to upgrades
 
 =item *
 
-Multiple sql files files per upgrade/downgrade/install
+Multiple sql files per upgrade/downgrade/install
 
 =item *
 
