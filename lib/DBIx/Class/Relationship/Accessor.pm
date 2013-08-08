@@ -64,7 +64,7 @@ sub add_relationship_accessor {
           # fixup the code a bit to make things saner, but ideally 'filter' needs to
           # be deprecated ASAP and removed shortly after
           # Not doing so before 0.08250 however, too many things in motion already
-          my ($pk_col, @rest) = $val->_pri_cols;
+          my ($pk_col, @rest) = $val->result_source->_pri_cols_or_die;
           $self->throw_exception(
             "Relationship '$rel' of type 'filter' can not work with a multicolumn primary key on source '$f_class'"
           ) if @rest;

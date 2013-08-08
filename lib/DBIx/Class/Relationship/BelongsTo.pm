@@ -26,7 +26,7 @@ sub belongs_to {
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my %f_primaries = map { $_ => 1 } try { $f_class->_pri_cols }
+    my %f_primaries = map { $_ => 1 } try { $f_class->result_source_instance->_pri_cols_or_die }
       catch {
         $class->throw_exception( "Can't infer join condition for '$rel' on ${class}: $_");
       };

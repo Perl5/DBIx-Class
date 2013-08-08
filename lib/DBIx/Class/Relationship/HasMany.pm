@@ -16,7 +16,7 @@ sub has_many {
 
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my ($pri, $too_many) = try { $class->_pri_cols }
+    my ($pri, $too_many) = try { $class->result_source_instance->_pri_cols_or_die }
       catch {
         $class->throw_exception("Can't infer join condition for '$rel' on ${class}: $_");
       };

@@ -748,7 +748,7 @@ sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
   my @primary_cols = try
-    { $source->_pri_cols }
+    { $source->_pri_cols_or_die }
     catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
     };
@@ -783,7 +783,7 @@ sub _insert_blobs {
 
   my %row = %$row;
   my @primary_cols = try
-    { $source->_pri_cols }
+    { $source->_pri_cols_or_die }
     catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
     };

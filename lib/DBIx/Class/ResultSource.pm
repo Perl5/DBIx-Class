@@ -627,7 +627,7 @@ sub primary_columns {
 # a helper method that will automatically die with a descriptive message if
 # no pk is defined on the source in question. For internal use to save
 # on if @pks... boilerplate
-sub _pri_cols {
+sub _pri_cols_or_die {
   my $self = shift;
   my @pcols = $self->primary_columns
     or $self->throw_exception (sprintf(

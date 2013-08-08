@@ -66,7 +66,7 @@ sub _has_one {
 sub _get_primary_key {
   my ( $class, $target_class ) = @_;
   $target_class ||= $class;
-  my ($pri, $too_many) = try { $target_class->_pri_cols }
+  my ($pri, $too_many) = try { $target_class->result_source_instance->_pri_cols_or_die }
     catch {
       $class->throw_exception("Can't infer join condition on ${target_class}: $_");
     };

@@ -40,7 +40,7 @@ sub _ident_values {
 
   my (@ids, @missing);
 
-  for ($self->_pri_cols) {
+  for ($self->result_source->_pri_cols_or_die) {
     push @ids, ($use_storage_state and exists $self->{_column_data_in_storage}{$_})
       ? $self->{_column_data_in_storage}{$_}
       : $self->get_column($_)
@@ -113,7 +113,7 @@ sub _storage_ident_condition {
 sub _mk_ident_cond {
   my ($self, $alias, $use_storage_state) = @_;
 
-  my @pks = $self->_pri_cols;
+  my @pks = $self->result_source->_pri_cols_or_die;
   my @vals = $self->_ident_values($use_storage_state);
 
   my (%cond, @undef);
