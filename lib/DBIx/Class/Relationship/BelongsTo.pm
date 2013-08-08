@@ -47,7 +47,7 @@ sub belongs_to {
 
   }
   # explicit join condition
-  elsif (ref $cond) {
+  else {
     if (ref $cond eq 'HASH') { # ARRAY is also valid
       my $cond_rel;
       for (keys %$cond) {
@@ -59,13 +59,6 @@ sub belongs_to {
       }
       $cond = $cond_rel;
     }
-  }
-  # dunno
-  else {
-    $class->throw_exception(
-      'third argument for belongs_to must be undef, a column name, '.
-      'or a join condition'
-    );
   }
 
   my $acc_type = (
