@@ -3896,12 +3896,26 @@ earlier versions of DBIC, but this is deprecated)
 
 Essentially C<columns> does the same as L</select> and L</as>.
 
-    columns => [ 'foo', { bar => 'baz' } ]
+    columns => [ 'some_column', { dbic_slot => 'another_column' } ]
 
 is the same as
 
-    select => [qw/foo baz/],
-    as => [qw/foo bar/]
+    select => [qw(some_column another_column)],
+    as     => [qw(some_column dbic_slot)]
+
+If you want to individually retrieve related columns (in essence perform
+manual prefetch) you have to make sure to specify the correct inflation slot
+chain such that it matches existing relationships:
+
+    my $rs = $schema->resultset('Artist')->search({}, {
+        # required to tell DBIC to collapse has_many relationships
+        collapse => 1,
+        join     => { cds => 'tracks'},
+        '+columns'  => {
+          'cds.cdid'         => 'cds.cdid',
+          'cds.tracks.title' => 'tracks.title',
+        },
+    });
 
 =head2 +columns
 
