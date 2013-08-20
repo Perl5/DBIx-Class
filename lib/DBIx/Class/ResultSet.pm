@@ -239,7 +239,11 @@ creation B<will not work>. See also warning pertaining to L</create>.
 
 sub new {
   my $class = shift;
-  return $class->new_result(@_) if ref $class;
+
+  if (ref $class) {
+    carp_unique 'Calling $rs->new usually indicates a mistake - you either wanted $rs->new_result or $rs->search';
+    return $class->new_result(@_);
+  }
 
   my ($source, $attrs) = @_;
   $source = $source->resolve
