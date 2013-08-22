@@ -114,7 +114,7 @@ sub run {
 
 # this is the actual recursing worker
 sub _run {
-  # warnings here mean I did not anticipate some uber-complex case
+  # warnings here mean I did not anticipate some ueber-complex case
   # fatal warnings are not warranted
   no warnings;
   use warnings;
