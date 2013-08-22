@@ -56,7 +56,7 @@ notifications:
       # Temporary - if it proves to be too noisy, we'll shut it off
       #- dbix-class-devel@lists.scsys.co.uk
     on_success: change
-    on_failure: change
+    on_failure: always
 
 language: perl
 
