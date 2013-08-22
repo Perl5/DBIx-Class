@@ -32,9 +32,13 @@ The first two list items are the most important.
 
 =item L<DBIx::Class::ResultSet/search> - Selecting and manipulating sets.
 
-=item L<DBIx::Class::$resultclass (normally based on DBIx::Class::Core)|DBIx::Class::Manual::ResultClass>
-- Representing a single result (row) from a DB query. The methods inherited from
-L<DBIx::Class::Row> and L<DBIx::Class::Relationship::Base> are used most often.
+=item L< C<$schema>::Result::C<$resultclass>|DBIx::Class::Manual::ResultClass>
+- Classes representing a single result (row) from a DB query.
+
+Such classes normally subclass L<DBIx::Class::Core>, the methods inherited
+from L<DBIx::Class::Row|DBIx::Class::Row/METHODS> and
+L<DBIx::Class::Relationship::Base|DBIx::Class::Relationship::Base/METHODS>
+are used most often.
 
 =item L<DBIx::Class::ResultSetColumn> - Perform operations on a single column of a ResultSet.
 
