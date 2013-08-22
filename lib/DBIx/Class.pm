@@ -348,7 +348,7 @@ arcanez: Justin Hunter <justin.d.hunter@gmail.com>
 
 ash: Ash Berlin <ash@cpan.org>
 
-bert: Norbert Csongradi <bert@cpan.org>
+bert: Norbert Csongrádi <bert@cpan.org>
 
 blblack: Brandon L. Black <blblack@gmail.com>
 
@@ -491,6 +491,8 @@ penguin: K J Cheetham
 perigrin: Chris Prather <chris@prather.org>
 
 peter: Peter Collingbourne <peter@pcc.me.uk>
+
+Peter Siklósi <einon@einon.hu>
 
 Peter Valdemar ME<oslash>rch <peter@morch.com>
 

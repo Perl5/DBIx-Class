@@ -1117,8 +1117,8 @@ using the Schema clone method.
 
 Based on code originated by:
 
-  Norbert Csongr�di <bert@cpan.org>
-  Peter Sikl�si <einon@einon.hu>
+  Norbert Csongrádi <bert@cpan.org>
+  Peter Siklósi <einon@einon.hu>
 
 =head1 LICENSE
 
