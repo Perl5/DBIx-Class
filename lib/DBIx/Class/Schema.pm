@@ -102,6 +102,11 @@ All of the namespace and classname options are by default relative to
 the schema classname.  To specify a fully-qualified name, prefix it
 with a literal C<+>.  For example, C<+Other::NameSpace::Result>.
 
+Experimental: It is also possible to load the result source classes when they
+are requested by L</source>. Giving C<lazy_load> as an argument to
+L</load_namespaces> will enable this. This will decrease start up time if you
+have large schemas.
+
 =head3 Warnings
 
 You will be warned if ResultSet classes are discovered for which there
@@ -135,6 +140,12 @@ L</resultset_class> to some other class, you will be warned like this:
   My::Schema->load_namespaces(
     result_namespace => '+Some::Place::Results',
     resultset_namespace => '+Another::Place::RSets',
+  );
+
+  # Postpone loading of result sources
+  My::Schema->load_namespaces(
+    lazy_load => 1,
+    # ...
   );
 
 To search multiple namespaces for either Result or ResultSet classes,
@@ -207,6 +218,7 @@ sub load_namespaces {
   my $resultset_namespace = delete $args{resultset_namespace} || 'ResultSet';
 
   my $default_resultset_class = delete $args{default_resultset_class};
+  my $lazy_load = delete $args{lazy_load};
 
   $default_resultset_class = $class->_expand_relative_name($default_resultset_class)
     if $default_resultset_class;
@@ -228,7 +240,14 @@ sub load_namespaces {
   my $results_by_source_name = $class->_map_namespaces($result_namespace);
   my $resultsets_by_source_name = $class->_map_namespaces($resultset_namespace);
 
+  if($lazy_load) {
+    # abusing the attribute to store $moniker => [@classnames] information
+    $class->class_mappings->{$_} = [ $results{$_}, $resultsets{$_} || $default_resultset_class ] for keys %results;
+    return;
+  }
+
   my @to_register;
+
   {
     no warnings qw/redefine/;
     local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
@@ -591,10 +610,31 @@ sub source {
   my $sreg = $self->source_registrations;
   return $sreg->{$source_name} if exists $sreg->{$source_name};
 
-  # if we got here, they probably passed a full class name
+  # if we got here, they probably passed a full class name or something to lazy load
   my $mapped = $self->class_mappings->{$source_name};
-  $self->throw_exception("Can't find source for ${source_name}")
-    unless $mapped && exists $sreg->{$mapped};
+
+  # if we got here, they probably passed a full class name
+  if(!$mapped) {
+    my $last;
+    for(%{ $self->class_mappings }) {
+      next unless ref $_ and $_->[0] eq $source_name;
+      $mapped = $_;
+      last;
+    }
+  }
+  if(ref $mapped eq 'ARRAY') {
+    my $source_class = $mapped->[0];
+    $self->ensure_class_loaded($source_class);
+    $source_class->resultset_class($mapped->[1]) if $mapped->[1];
+    $self->register_class($source_name, $source_class);
+    $mapped = $source_name;
+    $sreg = $self->source_registrations; # jhthorsen: No idea why data is copied all over the place instead of just changing the ref...
+  }
+
+  if(!$mapped or !exists $sreg->{$mapped}) {
+    $self->throw_exception("Can't find source for ${source_name}");
+  }
+
   return $sreg->{$mapped};
 }
 
@@ -1014,7 +1054,7 @@ sub clone {
   };
   bless $clone, (ref $self || $self);
 
-  $clone->$_(undef) for qw/class_mappings source_registrations storage/;
+  $clone->$_(undef) for qw/class_mappings source_registrations storage /;
 
   $clone->_copy_state_from($self);
 
