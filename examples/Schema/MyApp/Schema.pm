@@ -1,4 +1,4 @@
-package MyDatabase::Main;
+package MyApp::Schema;
 
 use warnings;
 use strict;

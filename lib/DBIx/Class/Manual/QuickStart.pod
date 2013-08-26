@@ -33,8 +33,8 @@ Inspect the database:
 You can also use a GUI database browser such as
 L<SQLite Manager|https://addons.mozilla.org/firefox/addon/sqlite-manager>.
 
-Have a look at the schema classes files in the subdirectory F<MyDatabase>. The
-C<MyDatabase::Main> class is the entry point for loading the other classes and
+Have a look at the schema classes files in the subdirectory F<MyApp>. The
+C<MyApp::Schema> class is the entry point for loading the other classes and
 interacting with the database through DBIC and the C<Result> classes correspond
 to the tables in the database. L<DBIx::Class::Manual::Example> shows how to
 write all that Perl code. That is almost never necessary, though. Instead use
@@ -46,8 +46,8 @@ chapter L</"Resetting the database"> below shows an example invocation.
 
 A L<schema|DBIx::Class::Manual::Glossary/Schema> object represents the database.
 
-    use MyDatabase::Main qw();
-    my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
+    use MyApp::Schema qw();
+    my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
 
 The first four arguments are the same as for L<DBI/connect>.
 
@@ -114,7 +114,7 @@ Set up a condition.
         }
     );
 
-Iterate over result objects of class C<MyDatabase::Main::Result::Artist>.
+Iterate over result objects of class C<MyApp::Schema::Result::Artist>.
 L<Result|DBIx::Class::Manual::Glossary/Result> objects represent a row and
 automatically get accessors for their column names.
 
@@ -175,11 +175,11 @@ From a detail to the root:
     DBIx-Class/examples/Schema$ perl ./insertdb.pl
 
     # delete the schema classes files
-    DBIx-Class/examples/Schema$ rm -rf MyDatabase/
+    DBIx-Class/examples/Schema$ rm -rf MyApp
 
     # recreate schema classes files from database file
     DBIx-Class/examples/Schema$ dbicdump \
-        -o dump_directory=. MyDatabase::Main dbi:SQLite:db/example.db
+        -o dump_directory=. MyApp::Schema dbi:SQLite:db/example.db
 
 =head2 Where to go next
 

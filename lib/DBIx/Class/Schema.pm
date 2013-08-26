@@ -73,12 +73,13 @@ particular which module inherits off which.
 
 =back
 
+  package MyApp::Schema;
   __PACKAGE__->load_namespaces();
 
   __PACKAGE__->load_namespaces(
      result_namespace => 'Res',
      resultset_namespace => 'RSet',
-     default_resultset_class => '+MyDB::Othernamespace::RSet',
+     default_resultset_class => '+MyApp::Othernamespace::RSet',
   );
 
 With no arguments, this method uses L<Module::Find> to load all of the

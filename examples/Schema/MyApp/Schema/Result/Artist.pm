@@ -1,4 +1,4 @@
-package MyDatabase::Main::Result::Artist;
+package MyApp::Schema::Result::Artist;
 
 use warnings;
 use strict;
@@ -11,7 +11,7 @@ __PACKAGE__->add_columns(qw/ artistid name /);
 
 __PACKAGE__->set_primary_key('artistid');
 
-__PACKAGE__->has_many('cds' => 'MyDatabase::Main::Result::Cd');
+__PACKAGE__->has_many('cds' => 'MyApp::Schema::Result::Cd');
 
 1;
 

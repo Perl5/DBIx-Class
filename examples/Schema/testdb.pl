@@ -3,9 +3,9 @@
 use warnings;
 use strict;
 
-use MyDatabase::Main;
+use MyApp::Schema;
 
-my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
+my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
 # driver, e.g perldoc L<DBD::mysql>.
 

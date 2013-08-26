@@ -1,4 +1,4 @@
-package MyDatabase::Main::Result::Cd;
+package MyApp::Schema::Result::Cd;
 
 use warnings;
 use strict;
@@ -11,7 +11,7 @@ __PACKAGE__->add_columns(qw/ cdid artist title year /);
 
 __PACKAGE__->set_primary_key('cdid');
 
-__PACKAGE__->belongs_to('artist' => 'MyDatabase::Main::Result::Artist');
-__PACKAGE__->has_many('tracks' => 'MyDatabase::Main::Result::Track');
+__PACKAGE__->belongs_to('artist' => 'MyApp::Schema::Result::Artist');
+__PACKAGE__->has_many('tracks' => 'MyApp::Schema::Result::Track');
 
 1;

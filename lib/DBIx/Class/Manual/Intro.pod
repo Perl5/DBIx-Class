@@ -209,7 +209,7 @@ If you have a mixed-case database, use the C<preserve_case> option, e.g.:
 If you are using L<Catalyst>, then you can use the helper that comes with
 L<Catalyst::Model::DBIC::Schema>:
 
-    $ script/myapp_create.pl model MyDB DBIC::Schema MyDB::Schema \
+    $ script/myapp_create.pl model MyModel DBIC::Schema MyApp::Schema \
         create=static moniker_map='{ foo => "FOO" }' dbi:SQLite:./myapp.db \
         on_connect_do='PRAGMA foreign_keys=ON' quote_char='"'
 

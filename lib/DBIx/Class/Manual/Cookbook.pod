@@ -1163,14 +1163,14 @@ as each other and your connecting database user has the proper permissions to th
 To accomplish this one only needs to specify the DB schema name in the table
 declaration, like so...
 
-  package MyDatabase::Main::Artist;
+  package MyApp::Schema::Result::Artist;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
 
   __PACKAGE__->add_columns(qw/ artist_id name /);
   __PACKAGE__->set_primary_key('artist_id');
-  __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Cd');
+  __PACKAGE__->has_many('cds' => 'MyApp::Schema::Result::Cd');
 
   1;
 
@@ -1186,7 +1186,7 @@ However, one can dynamically "map" to the proper DB schema by overriding the
 L<connection|DBIx::Class::Schama/connection> method in your Schema class and
 building a renaming facility, like so:
 
-  package MyDatabase::Schema;
+  package MyApp::Schema;
   use Moose;
 
   extends 'DBIx::Class::Schema';
@@ -1232,7 +1232,7 @@ To use this facility, simply add or modify the \%attr hashref that is passed to
 L<connection|DBIx::Class::Schama/connect>, as follows:
 
   my $schema
-    = MyDatabase::Schema->connect(
+    = MyApp::Schema->connect(
       $dsn,
       $user,
       $pass,
