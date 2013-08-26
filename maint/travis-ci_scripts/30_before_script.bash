@@ -87,16 +87,20 @@ else
   parallel_installdeps_notest Moose Module::Install JSON SQL::Translator
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
-    # the official version is full of 5.10-isms, but works perfectly fine on 5.8
-    # pull in our patched copy
+    # pull in patched unreleased copy with restored 5.8 compat
     run_or_err "Fetching patched DBD::Firebird" \
-      "git clone https://github.com/dbsrgits/perl-dbd-firebird-5.8.git ~/dbd-firebird"
+      "git clone https://github.com/mariuz/perl-dbd-firebird ~/dbd-firebird"
 
     # the official version is very much outdated and does not compile on 5.14+
     # use this rather updated source tree (needs to go to PAUSE):
     # https://github.com/pilcrow/perl-dbd-interbase
     run_or_err "Fetching patched DBD::InterBase" \
       "git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase"
+
+    # Now part of DBD::Firebird configure_requires, which are not present
+    # in the cloned repo (no META.*)
+    # FIXME - need to get this off metacpan or something instead
+    parallel_installdeps_notest File::Which
 
     parallel_installdeps_notest ~/dbd-interbase/ ~/dbd-firebird/
   fi
@@ -112,11 +116,13 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we may need to prepend some stuff to that list
   HARD_DEPS="$(echo $(make listdeps))"
 
-  # this is a fucked CPAN - won't understand configure_requires of
-  # various pieces we may run into
-  CPAN_is_sane || HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
 
 ##### TEMPORARY WORKAROUNDS
+
+  # this is a fucked CPAN - won't understand configure_requires of
+  # various pieces we may run into
+  # FIXME - need to get these off metacpan or something instead
+  CPAN_is_sane || HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
 
   # The unicode-in-yaml bug on older cpan clients
   # FIXME there got to be a saner way to fix this...
