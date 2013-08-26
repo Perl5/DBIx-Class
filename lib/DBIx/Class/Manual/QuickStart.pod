@@ -28,7 +28,7 @@ mentioned earlier, the next command will download and unpack it:
 
 Inspect the database:
 
-    DBIx-Class/examples/Schema$ echo .dump | sqlite3 db/example.db
+    DBIx-Class/examples/Schema$ sqlite3 db/example.db .dump
 
 You can also use a GUI database browser such as
 L<SQLite Manager|https://addons.mozilla.org/firefox/addon/sqlite-manager>.
@@ -38,7 +38,7 @@ C<MyApp::Schema> class is the entry point for loading the other classes and
 interacting with the database through DBIC and the C<Result> classes correspond
 to the tables in the database. L<DBIx::Class::Manual::Example> shows how to
 write all that Perl code. That is almost never necessary, though. Instead use
-L<dbicdump> (part of the distribution C<DBIx-Class-Schema-Loader>) to
+L<dbicdump> (part of the distribution L<DBIx::Class::Schema::Loader>) to
 automatically create schema classes files from an existing database. The
 chapter L</"Resetting the database"> below shows an example invocation.
 

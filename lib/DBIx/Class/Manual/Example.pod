@@ -11,7 +11,7 @@ as the database frontend.
 The database consists of the following:
 
   table 'artist' with columns:  artistid, name
-  table 'cd'     with columns:  cdid, artist, title
+  table 'cd'     with columns:  cdid, artist, title, year
   table 'track'  with columns:  trackid, cd, title
 
 
@@ -104,7 +104,7 @@ MyApp/Schema/Result/Cd.pm:
   use base qw/DBIx::Class::Core/;
   __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/ cdid artist title/);
+  __PACKAGE__->add_columns(qw/ cdid artist title year/);
   __PACKAGE__->set_primary_key('cdid');
   __PACKAGE__->belongs_to('artist' => 'MyApp::Schema::Result::Artist');
   __PACKAGE__->has_many('tracks' => 'MyApp::Schema::Result::Track');
@@ -347,7 +347,7 @@ It should output:
 
 A reference implementation of the database and scripts in this example
 are available in the main distribution for DBIx::Class under the
-directory F<t/examples/Schema>.
+directory F<examples/Schema>.
 
 With these scripts we're relying on @INC looking in the current
 working directory.  You may want to add the MyApp namespaces to
@@ -357,10 +357,12 @@ The F<testdb.pl> script is an excellent start for testing your database
 model.
 
 This example uses L<DBIx::Class::Schema/load_namespaces> to load in the
-appropriate L<Row|DBIx::Class::Row> classes from the MyApp::Schema::Result namespace,
-and any required resultset classes from the MyApp::Schema::ResultSet
-namespace (although we created the directory in the directions above we
-did not add, or need to add, any resultset classes).
+appropriate L<Result|DBIx::Class::Manual::ResultClass> classes from the
+C<MyApp::Schema::Result> namespace, and any required
+L<ResultSet|DBIx::Class::ResultSet> classes from the
+C<MyApp::Schema::ResultSet> namespace (although we created the directory
+in the directions above we did not add, or need to add, any resultset
+classes).
 
 =head1 TODO
 
