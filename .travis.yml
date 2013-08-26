@@ -61,7 +61,7 @@ notifications:
 language: perl
 
 perl:
-  - "5.16"
+  - "5.18"
 
 env:
   - CLEANTEST=false
@@ -114,19 +114,19 @@ matrix:
         - BREWVER=5.8.8
 
     # some permutations of tracing and envvar poisoning
-    - perl: 5.16
+    - perl: 5.18
       env:
         - CLEANTEST=false
         - POISON_ENV=true
 
-    - perl: 5.16
+    - perl: 5.18
       env:
         - CLEANTEST=true
         - POISON_ENV=true
         - DBIC_TRACE=1
         - DBIC_TRACE_PROFILE=console
 
-    - perl: 5.16
+    - perl: 5.18
       env:
         - CLEANTEST=false
         - POISON_ENV=true
