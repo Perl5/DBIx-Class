@@ -150,14 +150,9 @@ sub connection {
     # Also if there is no connection - there is no lock to be had
     if ($locktype and (!$locker or $locker->{type} ne $locktype)) {
 
-      warn "$$ $0 $locktype" if (
-        ($locktype eq 'generic' or $locktype eq 'SQLite')
-          and
-        DBICTest::RunMode->is_author
-      );
-
       my $lockpath = DBICTest::RunMode->tmpdir->file(".dbictest_$locktype.lock");
 
+      #warn "$$ $0 $locktype GRABBING LOCK";
       my $lock_fh;
       {
         my $u = local_umask(0); # so that the file opens as 666, and any user can lock
