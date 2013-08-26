@@ -5,7 +5,10 @@ use warnings;
 
 use MyApp::Schema;
 
-my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
+use Path::Class 'file';
+my $db_fn = file($INC{'MyApp/Schema.pm'})->dir->parent->file('db/example.db');
+
+my $schema = MyApp::Schema->connect("dbi:SQLite:$db_fn");
 
 my @artists = (['Michael Jackson'], ['Eminem']);
 $schema->populate('Artist', [

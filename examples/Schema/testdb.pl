@@ -5,9 +5,12 @@ use strict;
 
 use MyApp::Schema;
 
-my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
+use Path::Class 'file';
+my $db_fn = file($INC{'MyApp/Schema.pm'})->dir->parent->file('db/example.db');
+
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
 # driver, e.g perldoc L<DBD::mysql>.
+my $schema = MyApp::Schema->connect("dbi:SQLite:$db_fn");
 
 get_tracks_by_cd('Bad');
 get_tracks_by_artist('Michael Jackson');
