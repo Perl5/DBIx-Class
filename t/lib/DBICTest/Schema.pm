@@ -74,7 +74,7 @@ our $locker;
 END {
   # we need the $locker to be referenced here for delayed destruction
   if ($locker->{lock_name} and ($ENV{DBICTEST_LOCK_HOLDER}||0) == $$) {
-    #warn "$$ $0 $locktype LOCK RELEASED";
+    #warn "$$ $0 $locker->{type} LOCK RELEASED";
   }
 }
 
@@ -149,6 +149,10 @@ sub connection {
     # unrelated tests may have
     # Also if there is no connection - there is no lock to be had
     if ($locktype and (!$locker or $locker->{type} ne $locktype)) {
+
+      # this will release whatever lock we may currently be holding
+      # which is fine since the type does not match as checked above
+      undef $locker;
 
       my $lockpath = DBICTest::RunMode->tmpdir->file(".dbictest_$locktype.lock");
 
