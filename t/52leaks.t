@@ -48,7 +48,7 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 use lib qw(t/lib);
 use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs hrefaddr);
-use Scalar::Util qw(weaken);
+use Scalar::Util qw(weaken blessed);
 use DBIx::Class;
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
@@ -239,8 +239,8 @@ unless (DBICTest::RunMode->is_plain) {
     get_column_rs_pref => $pref_getcol_rs,
 
     # twice so that we make sure only one H::M object spawned
-    chained_resultset => $rs->search_rs ({}, { '+columns' => [ 'foo' ] } ),
-    chained_resultset2 => $rs->search_rs ({}, { '+columns' => [ 'bar' ] } ),
+    chained_resultset => $rs->search_rs ({}, { '+columns' => { foo => 'artistid' } } ),
+    chained_resultset2 => $rs->search_rs ({}, { '+columns' => { bar => 'artistid' } } ),
 
     row_object => $row_obj,
 
@@ -256,9 +256,22 @@ unless (DBICTest::RunMode->is_plain) {
     leaky_resultset_cond => $cond_rowobj,
   };
 
-  # this needs to fire, even if it can't find anything
-  # see FIXME below
-  $rs_bind_circref->next;
+  # fire all resultsets multiple times
+  # even if some of them can't find anything
+  # (notably leaky_resultset)
+  my @rsets = grep
+    { blessed $_ and $_->isa('DBIx::Class::ResultSet') }
+    values %$base_collection
+  ;
+
+  push @{$base_collection->{random_results}}, map { $_->all } @rsets
+    for (1,2);
+
+  # FIXME - something throws a Storable for a spin if we keep
+  # the results in-collection. The same problem is seen above,
+  # swept under the rug back in 0a03206a, damned lazy ribantainer
+{
+  local $base_collection->{random_results};
 
   require Storable;
   %$base_collection = (
@@ -273,6 +286,7 @@ unless (DBICTest::RunMode->is_plain) {
     fresh_pager => $rs->page(5)->pager,
     pager => $pager,
   );
+}
 
   # FIXME - ideally this kind of collector ought to be global, but attempts
   # with an invasive debugger-based tracer did not quite work out... yet
