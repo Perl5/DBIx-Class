@@ -19,6 +19,9 @@ elif [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "b
   # can't do this with CLEANTEST=true yet because a lot of our deps fail
   # tests left and right under T::B 1.5
   PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
+
+  # FIXME work around https://github.com/miyagawa/cpanminus/issues/308
+  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_006.tar.gz"
 fi
 
 
