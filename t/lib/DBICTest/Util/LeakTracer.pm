@@ -52,8 +52,12 @@ sub populate_weakregistry {
       stacktrace => stacktrace(1),
       weakref => $target,
     };
-    weaken( $weak_registry->{$refaddr}{weakref} );
-    $refs_traced++;
+
+    # on perl < 5.8.3 sometimes a weaken can throw (can't find RT)
+    # so guard against that unlikely event
+    local $@;
+    eval { weaken( $weak_registry->{$refaddr}{weakref} ); $refs_traced++ }
+      or delete $weak_registry->{$refaddr};
   }
 
   my $desc = refdesc $target;

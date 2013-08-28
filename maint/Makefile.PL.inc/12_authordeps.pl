@@ -35,8 +35,13 @@ EOW
   my %reqs_for_group = %{DBIx::Class::Optional::Dependencies->req_group_list};
 
   # exclude the rdbms_* groups which are for DBIC users
+  # and the moose-related stuff iff we are under 5.8.3
   $opt_testdeps = {
-    map { %{$reqs_for_group{$_}} } grep { !/^rdbms_|^dist_/ } keys %reqs_for_group
+    map { %{$reqs_for_group{$_}} } grep {
+      !/^rdbms_|^dist_/
+        and
+      ($] > 5.008002 or !/^ (?: test_ )? (?: admin | admin_script | replicated ) $/x )
+    } keys %reqs_for_group
   };
 
   print "Including all optional deps\n";
