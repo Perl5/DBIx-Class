@@ -3,16 +3,6 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# do some extra short-circuiting here
-
-# when smoking master do not attempt bleadperl (not release-critical)
-if [[ "$TRAVIS_BRANCH" = "master" ]] && [[ "$BREWVER" = "blead" ]]; then
-  echo_err "$(tstamp) master branch is not smoked with bleadperl - bailing out"
-  export SHORT_CIRCUIT_SMOKE=1
-fi
-
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
-
 # Different boxes we run on may have different amount of hw threads
 # Hence why we need to query
 # Originally we used to read /sys/devices/system/cpu/online

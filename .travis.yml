@@ -69,13 +69,6 @@ env:
 
 matrix:
   include:
-    # bleadperl
-    - perl: bleadperl_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=blead
-
     # minimum supported with threads
     - perl: 5.8.5_thr
       env:
@@ -132,6 +125,22 @@ matrix:
         - POISON_ENV=true
         - DBIC_TRACE=1
         - DBIC_TRACE_PROFILE=console_monochrome
+
+    ###
+    # Start of the allow_failures block
+
+    # bleadperl
+    - perl: bleadperl_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=blead
+
+
+  # which ones of the above can fail
+  allow_failures:
+    - perl: bleadperl_thr_mb
+
 
 # sourcing the files is *EXTREMELY* important - otherwise
 # no envvars will survive
