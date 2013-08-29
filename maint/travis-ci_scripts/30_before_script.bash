@@ -14,16 +14,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   export DBI_DRIVER="ADO"
 
   export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
-elif [[ "$CLEANTEST" != "true" ]] && ( [[ -z "$BREWVER" ]] || [[ "$BREWVER" = "blead" ]] ) ; then
-  # try CPAN's latest offering on a stock perl and a threaded blead
-  # can't do this with CLEANTEST=true yet because a lot of our deps fail
-  # tests left and right under T::B 1.5
-  PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
-
-  # FIXME work around https://github.com/miyagawa/cpanminus/issues/308
-  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_006.tar.gz"
 fi
-
 
 if [[ "$CLEANTEST" = "true" ]]; then
   # get the last inc/ off cpan - we will get rid of MI

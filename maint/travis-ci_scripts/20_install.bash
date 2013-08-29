@@ -14,6 +14,20 @@ fi
 
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 PERLBREW_CPAN_MIRROR="$CPAN_MIRROR"
 
+# try CPAN's latest offering if requested
+if [[ "$DEVREL_DEPS" == "true" ]] ; then
+
+  if [[ "$CLEANTEST" == "true" ]] ; then
+    echo_err "DEVREL_DEPS combined with CLEANTEST makes no sense - it is only possible with cpanm"
+    exit 1
+  fi
+
+  PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
+
+  # FIXME work around https://github.com/miyagawa/cpanminus/issues/308
+  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_006.tar.gz"
+fi
+
 # Fixup CPANM_OPT to behave more like a traditional cpan client
 export PERL_CPANM_OPT="--verbose --no-interactive $( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 

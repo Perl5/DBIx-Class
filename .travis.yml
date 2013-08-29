@@ -129,17 +129,35 @@ matrix:
     ###
     # Start of the allow_failures block
 
-    # bleadperl
+    # recentish stable with blead CPAN
+    - perl: devcpan_5.18.1_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.18.1
+        - DEVREL_DEPS=true
+
+    # bleadperl with stock CPAN
     - perl: bleadperl_thr_mb
       env:
         - CLEANTEST=false
         - BREWOPTS="-Duseithreads -Dusemorebits"
         - BREWVER=blead
 
+    # bleadperl with blead CPAN
+    - perl: devcpan_bleadperl_thr_mb
+      env:
+        - CLEANTEST=false
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=blead
+        - DEVREL_DEPS=true
+
 
   # which ones of the above can fail
   allow_failures:
+    - perl: devcpan_5.18.1_thr_mb
     - perl: bleadperl_thr_mb
+    - perl: devcpan_bleadperl_thr_mb
 
 
 # sourcing the files is *EXTREMELY* important - otherwise
