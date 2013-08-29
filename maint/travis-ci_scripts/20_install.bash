@@ -29,11 +29,11 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
 fi
 
 # Fixup CPANM_OPT to behave more like a traditional cpan client
-export PERL_CPANM_OPT="--verbose --no-interactive $( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
+export PERL_CPANM_OPT="--verbose --no-interactive --no-man-pages $( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 
 if [[ -n "$BREWVER" ]] ; then
   run_or_err "Compiling/installing Perl $BREWVER (without testing, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest --verbose $BREWOPTS -j 2  $BREWVER"
+    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j 2  $BREWVER"
 
   # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
   # furthermore `perlbrew use` returns 0 regardless of whether the perl is
