@@ -1,8 +1,13 @@
 Revision history for DBIx::Class
 
+    * New Features / Changes
+        - A new zero-to-DBIC style manual: DBIx::Class::Manual::QuickStart
+
     * Fixes
         - Setting quote_names propagates to SQL::Translator when producing
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
+        - Back out self-cleaning from DBIx::Class::Carp for the time being
+          (as a side effect fixes RT#86267)
         - Tests no longer fail if $ENV{DBI_DSN} is set
 
     * Misc
