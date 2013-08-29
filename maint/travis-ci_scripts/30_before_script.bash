@@ -7,7 +7,9 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # ENVvars and set them to true and see if anything explodes
 if [[ "$POISON_ENV" = "true" ]] ; then
   for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
-    export $var=1
+    if [[ -z "${!var}" ]] ; then
+      export $var=1
+    fi
   done
 
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
