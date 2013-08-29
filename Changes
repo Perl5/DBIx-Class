@@ -7,6 +7,8 @@ Revision history for DBIx::Class
         - More robust handling of circular relationship declarations by loading
           foreign classes less frequently (should resolve issues like
           http://lists.scsys.co.uk/pipermail/dbix-class/2013-June/011374.html)
+        - Fix multiple edge cases steming from interaction of a non-selecting
+          order_by specification and distinct and/or complex prefetch
         - Setting quote_names propagates to SQL::Translator when producing
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
         - Fix incorrect binding of large integers on old versions of

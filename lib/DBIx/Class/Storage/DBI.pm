@@ -2384,8 +2384,8 @@ sub _select_args {
   my ($prefetch_needs_subquery, @limit_args);
 
   if ( $attrs->{_grouped_by_distinct} and $attrs->{collapse} ) {
-    # we already know there is a valid group_by and we know it is intended
-    # to be based *only* on the main result columns
+    # we already know there is a valid group_by (we made it) and we know it is
+    # intended to be based *only* on non-multi stuff
     # short circuit the group_by parsing below
     $prefetch_needs_subquery = 1;
   }

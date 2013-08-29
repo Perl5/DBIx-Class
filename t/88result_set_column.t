@@ -58,6 +58,51 @@ is_deeply (
   'distinct => 1 is passed through properly',
 );
 
+# test illogical distinct
+my $dist_rs = $rs->search ({}, {
+  columns => ['year'],
+  distinct => 1,
+  order_by => { -desc => [qw( cdid year )] },
+});
+
+is_same_sql_bind(
+  $dist_rs->as_query,
+  '(
+    SELECT me.year
+      FROM cd me
+    GROUP BY me.year
+    ORDER BY MAX(cdid) DESC, year DESC
+  )',
+  [],
+  'Correct SQL on external-ordered distinct',
+);
+
+is_same_sql_bind(
+  $dist_rs->count_rs->as_query,
+  '(
+    SELECT COUNT( * )
+      FROM (
+        SELECT me.year
+          FROM cd me
+        GROUP BY me.year
+      ) me
+  )',
+  [],
+  'Correct SQL on count of external-orderdd distinct',
+);
+
+is (
+  $dist_rs->count_rs->next,
+  4,
+  'Correct rs-count',
+);
+
+is (
+  $dist_rs->count,
+  4,
+  'Correct direct count',
+);
+
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},
     {

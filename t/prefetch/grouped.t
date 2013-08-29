@@ -399,7 +399,7 @@ for ($cd_rs->all) {
     );
 }
 
-# make sure distinct applies to the CD part only, not to the order_by part
+# make sure distinct applies to the CD part only, not to the prefetched/collapsed order_by part
 {
   my $rs = $schema->resultset('CD')->search({}, {
     columns => [qw( cdid title )],

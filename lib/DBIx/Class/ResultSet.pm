@@ -1358,7 +1358,7 @@ sub _construct_results {
       if (
         $aliastypes->{multiplying}{$sel_alias}
           or
-        scalar grep { $aliastypes->{multiplying}{(values %$_)[0]} } @{ $aliastypes->{selecting}{$sel_alias}{-parents} }
+        $aliastypes->{premultiplied}{$sel_alias}
       ) {
         $multiplied_selectors->{$_} = 1 for values %{$aliastypes->{selecting}{$sel_alias}{-seen_columns}}
       }
@@ -1970,6 +1970,8 @@ sub _rs_update_delete {
       if (
         $existing_group_by
           or
+        # we do not need to check pre-multipliers, since if the premulti is there, its
+        # parent (who is multi) will be there too
         keys %{ $join_classifications->{multiplying} || {} }
       ) {
         # make sure if there is a supplied group_by it matches the columns compiled above
@@ -3425,6 +3427,9 @@ sub _resolved_attrs {
   my $source = $self->result_source;
   my $alias  = $attrs->{alias};
 
+  $self->throw_exception("Specifying distinct => 1 in conjunction with collapse => 1 is unsupported")
+    if $attrs->{collapse} and $attrs->{distinct};
+
   # default selection list
   $attrs->{columns} = [ $source->columns ]
     unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;
@@ -3535,22 +3540,9 @@ sub _resolved_attrs {
     $attrs->{group_by} = [ $attrs->{group_by} ];
   }
 
-  # generate the distinct induced group_by early, as prefetch will be carried via a
-  # subquery (since a group_by is present)
-  if (delete $attrs->{distinct}) {
-    if ($attrs->{group_by}) {
-      carp_unique ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
-    }
-    else {
-      $attrs->{_grouped_by_distinct} = 1;
-      # distinct affects only the main selection part, not what prefetch may
-      # add below.
-      $attrs->{group_by} = $source->storage->_group_over_selection($attrs);
-    }
-  }
 
   # generate selections based on the prefetch helper
-  my $prefetch;
+  my ($prefetch, @prefetch_select, @prefetch_as);
   $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} )
     if defined $attrs->{prefetch};
 
@@ -3558,6 +3550,9 @@ sub _resolved_attrs {
 
     $self->throw_exception("Unable to prefetch, resultset contains an unnamed selector $attrs->{_dark_selector}{string}")
       if $attrs->{_dark_selector};
+
+    $self->throw_exception("Specifying prefetch in conjunction with an explicit collapse => 0 is unsupported")
+      if defined $attrs->{collapse} and ! $attrs->{collapse};
 
     $attrs->{collapse} = 1;
 
@@ -3584,12 +3579,9 @@ sub _resolved_attrs {
 
     my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map );
 
-    push @{ $attrs->{select} }, (map { $_->[0] } @prefetch);
-    push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
-  }
-
-  if ( List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
-    $attrs->{_related_results_construction} = 1;
+    # save these for after distinct resolution
+    @prefetch_select = map { $_->[0] } @prefetch;
+    @prefetch_as = map { $_->[1] } @prefetch;
   }
 
   # run through the resulting joinstructure (starting from our current slot)
@@ -3639,6 +3631,34 @@ sub _resolved_attrs {
       # if we can not analyze the from - err on the side of safety
       $attrs->{_main_source_premultiplied} = 1;
     }
+  }
+
+  # generate the distinct induced group_by before injecting the prefetched select/as parts
+  if (delete $attrs->{distinct}) {
+    if ($attrs->{group_by}) {
+      carp_unique ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
+    }
+    else {
+      $attrs->{_grouped_by_distinct} = 1;
+      # distinct affects only the main selection part, not what prefetch may add below
+      ($attrs->{group_by}, my $new_order) = $source->storage->_group_over_selection($attrs);
+
+      # FIXME possibly ignore a rewritten order_by (may turn out to be an issue)
+      # The thinking is: if we are collapsing the subquerying prefetch engine will
+      # rip stuff apart for us anyway, and we do not want to have a potentially
+      # function-converted external order_by
+      # ( there is an explicit if ( collapse && _grouped_by_distinct ) check in DBIHacks )
+      $attrs->{order_by} = $new_order unless $attrs->{collapse};
+    }
+  }
+
+  # inject prefetch-bound selection (if any)
+  push @{$attrs->{select}}, @prefetch_select;
+  push @{$attrs->{as}}, @prefetch_as;
+
+  # whether we can get away with the dumbest (possibly DBI-internal) collapser
+  if ( List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
+    $attrs->{_related_results_construction} = 1;
   }
 
   # if both page and offset are specified, produce a combined offset
@@ -4433,8 +4453,17 @@ or with an in-place function in which case literal SQL is required:
 
 =back
 
-Set to 1 to group by all columns. If the resultset already has a group_by
-attribute, this setting is ignored and an appropriate warning is issued.
+Set to 1 to automatically generate a L</group_by> clause based on the selection
+(including intelligent handling of L</order_by> contents). Note that the group
+criteria calculation takes place over the B<final> selection. This includes
+any L</+columns>, L</+select> or L</order_by> additions in subsequent
+L</search> calls, and standalone columns selected via
+L<DBIx::Class::ResultSetColumn> (L</get_column>). A notable exception are the
+extra selections specified via L</prefetch> - such selections are explicitly
+excluded from group criteria calculations.
+
+If the final ResultSet also explicitly defines a L</group_by> attribute, this
+setting is ignored and an appropriate warning is issued.
 
 =head2 where
 

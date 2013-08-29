@@ -100,10 +100,10 @@ for (
             LEFT JOIN "track" "tracks"
               ON "tracks"."cd" = "cds_unordered"."cdid"
           WHERE "me"."rank" = ?
-          GROUP BY "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
+          GROUP BY "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track", "me"."name"
           ORDER BY  MAX("genre"."name") DESC,
                     MAX( tracks.title ) DESC,
-                    MIN("me"."name"),
+                    "me"."name" ASC,
                     "year" DESC,
                     "cds_unordered"."title" DESC
           LIMIT ?
