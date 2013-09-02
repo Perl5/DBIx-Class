@@ -2189,7 +2189,7 @@ first element should be a list of column names and each subsequent
 element should be a data value in the earlier specified column order.
 For example:
 
-  $Arstist_rs->populate([
+  $schema->resultset("Artist")->populate([
     [ qw( artistid name ) ],
     [ 100, 'A Formally Unknown Singer' ],
     [ 101, 'A singer that jumped the shark two albums ago' ],
