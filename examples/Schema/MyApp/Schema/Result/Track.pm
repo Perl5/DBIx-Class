@@ -12,7 +12,7 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
     is_auto_increment => 1
   },
-  cd => {
+  cdid => {
     data_type => 'integer',
   },
   title => {
@@ -22,8 +22,8 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('trackid');
 
-__PACKAGE__->add_unique_constraint([qw( title cd )]);
+__PACKAGE__->add_unique_constraint([qw( title cdid )]);
 
-__PACKAGE__->belongs_to('cd' => 'MyApp::Schema::Result::Cd');
+__PACKAGE__->belongs_to('cd' => 'MyApp::Schema::Result::Cd', 'cdid');
 
 1;

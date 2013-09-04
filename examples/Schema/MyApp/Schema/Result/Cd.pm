@@ -12,7 +12,7 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
     is_auto_increment => 1
   },
-  artist => {
+  artistid => {
     data_type => 'integer',
   },
   title => {
@@ -26,9 +26,9 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('cdid');
 
-__PACKAGE__->add_unique_constraint([qw( title artist )]);
+__PACKAGE__->add_unique_constraint([qw( title artistid )]);
 
-__PACKAGE__->belongs_to('artist' => 'MyApp::Schema::Result::Artist');
-__PACKAGE__->has_many('tracks' => 'MyApp::Schema::Result::Track');
+__PACKAGE__->belongs_to('artist' => 'MyApp::Schema::Result::Artist', 'artistid');
+__PACKAGE__->has_many('tracks' => 'MyApp::Schema::Result::Track', 'cdid');
 
 1;
