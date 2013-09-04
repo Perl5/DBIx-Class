@@ -21,7 +21,7 @@ __PACKAGE__->set_primary_key('artistid');
 
 __PACKAGE__->add_unique_constraint([qw( name )]);
 
-__PACKAGE__->has_many('cds' => 'MyApp::Schema::Result::Cd');
+__PACKAGE__->has_many('cds' => 'MyApp::Schema::Result::Cd', 'artistid');
 
 1;
 

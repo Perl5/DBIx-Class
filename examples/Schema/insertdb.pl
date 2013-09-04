@@ -31,7 +31,7 @@ foreach my $lp (keys %albums) {
 }
 
 $schema->populate('Cd', [
-    [qw/title artist/],
+    [qw/title artistid/],
     @cds,
 ]);
 
@@ -55,6 +55,6 @@ foreach my $track (keys %tracks) {
 }
 
 $schema->populate('Track',[
-    [qw/cd title/],
+    [qw/cdid title/],
     @tracks,
 ]);
