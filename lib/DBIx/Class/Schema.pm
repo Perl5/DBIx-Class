@@ -245,8 +245,12 @@ sub load_namespaces {
   my %resultsets = $class->_map_namespaces(@$resultset_namespace);
 
   if($lazy_load) {
-    # abusing the attribute to store $moniker => [@classnames] information
-    $class->class_mappings->{$_} = [ $results{$_}, $resultsets{$_} || $default_resultset_class ] for keys %results;
+    for(keys %results) {
+      # $source_class => [$source_name, $resultset_class]
+      $class->class_mappings->{$results{$_}} = [ $_, $resultsets{$_} || $default_resultset_class ];
+      # $source_name => [$source_class, $resultset_class]
+      $class->source_registrations->{$_} = [ $results{$_}, $resultsets{$_} || $default_resultset_class ];
+    }
     return;
   }
 
@@ -608,36 +612,28 @@ sub source {
     unless @_;
 
   my $source_name = shift;
-
   my $sreg = $self->source_registrations;
-  return $sreg->{$source_name} if exists $sreg->{$source_name};
 
-  # if we got here, they probably passed a full class name or something to lazy load
-  my $mapped = $self->class_mappings->{$source_name};
+  if(exists $sreg->{$source_name}) {
+    my $source = $sreg->{$source_name};
+    return $self->_lazy_source($source_name, @$source) if ref $source eq 'ARRAY';
+    return $source;
+  }
 
   # if we got here, they probably passed a full class name
-  if(!$mapped) {
-    my $last;
-    for(%{ $self->class_mappings }) {
-      next unless ref $_ and $_->[0] eq $source_name;
-      $mapped = $_;
-      last;
-    }
-  }
-  if(ref $mapped eq 'ARRAY') {
-    my $source_class = $mapped->[0];
-    $self->ensure_class_loaded($source_class);
-    $source_class->resultset_class($mapped->[1]) if $mapped->[1];
-    $self->register_class($source_name, $source_class);
-    $mapped = $source_name;
-    $sreg = $self->source_registrations; # jhthorsen: No idea why data is copied all over the place instead of just changing the ref...
-  }
+  my $mapped = $self->class_mappings->{$source_name};
 
-  if(!$mapped or !exists $sreg->{$mapped}) {
-    $self->throw_exception("Can't find source for ${source_name}");
-  }
+  $self->throw_exception("Can't find source for ${source_name}") unless $mapped;
+  return $self->_lazy_source($mapped->[0], $source_name, $mapped->[1]) if ref $mapped eq 'ARRAY';
+  return $mapped;
+}
 
-  return $sreg->{$mapped};
+sub _lazy_source {
+  my($self, $source_name, $source_class, $resultset_class) = @_;
+
+  $self->ensure_class_loaded($source_class);
+  $source_class->resultset_class($resultset_class) if $resultset_class;
+  $self->source_registrations->{$source_name} = $self->register_class($source_name, $source_class);
 }
 
 =head2 class
