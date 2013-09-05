@@ -625,7 +625,7 @@ sub source {
 
   $self->throw_exception("Can't find source for ${source_name}") unless $mapped;
   return $self->_lazy_source($mapped->[0], $source_name, $mapped->[1]) if ref $mapped eq 'ARRAY';
-  return $mapped;
+  return $sreg->{$mapped};
 }
 
 sub _lazy_source {
