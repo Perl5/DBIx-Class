@@ -42,7 +42,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
   if ! CPAN_is_sane ; then
-    for m in B/BI/BINGOS/ExtUtils-MakeMaker-6.72.tar.gz ExtUtils::CBuilder Module::Build ; do
+    for m in B/BI/BINGOS/ExtUtils-MakeMaker-6.72.tar.gz ExtUtils::CBuilder R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz Module::Build ; do
       run_or_err "Pre-installing $m" "cpan $m"
     done
   fi
@@ -76,7 +76,7 @@ else
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build ExtUtils::Depends
   parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz
   parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
