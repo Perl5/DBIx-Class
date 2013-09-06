@@ -8,20 +8,19 @@ This tutorial will guide you through the process of setting up and
 testing a very basic CD database using SQLite, with DBIx::Class::Schema
 as the database frontend.
 
-The database consists of the following:
+The database structure is based on the following rules:
+
+  An artist can have many cds, and each cd belongs to just one artist.
+  A cd can have many tracks, and each track belongs to just one cd.
+
+The database is implemented with the following:
 
   table 'artist' with columns:  artistid, name
-  table 'cd'     with columns:  cdid, artist, title
-  table 'track'  with columns:  trackid, cd, title
+  table 'cd'     with columns:  cdid, artistid, title, year
+  table 'track'  with columns:  trackid, cdid, title
 
-
-And these rules exists:
-
-  one artist can have many cds
-  one cd belongs to one artist
-  one cd can have many tracks
-  one track belongs to one cd
-
+Each of the table's first columns is the primary key; any subsequent
+keys are foreign keys.
 
 =head2 Installation
 
@@ -30,17 +29,14 @@ install sqlite3 (not sqlite) if it's not already intalled.
 
 =head3 Create the database/tables
 
-First, create the database directory, then get into that directory, as
-we'll create the database there:
+First, create the database directory under the application directory,
+then get into that directory, as we'll create the database there:
 
   mkdir app
   mkdir app/db
   cd app/db
 
-This example uses SQLite which is a dependency of DBIx::Class, so you
-shouldn't have to install extra software.
-
-Save the following into a example.sql in the directory app/db
+Save the following into a file called example.sql:
 
   CREATE TABLE artist (
     artistid INTEGER PRIMARY KEY,
@@ -50,7 +46,8 @@ Save the following into a example.sql in the directory app/db
   CREATE TABLE cd (
     cdid INTEGER PRIMARY KEY,
     artist INTEGER NOT NULL REFERENCES artist(artistid),
-    title TEXT NOT NULL
+    title TEXT NOT NULL,
+    year TEXT
   );
 
   CREATE TABLE track (
@@ -59,272 +56,27 @@ Save the following into a example.sql in the directory app/db
     title TEXT NOT NULL
   );
 
-and create the SQLite database file:
+Now create the SQLite database using that file:
 
   sqlite3 example.db < example.sql
 
 =head3 Set up DBIx::Class::Schema
 
-Change directory back from db to the directory app:
+Go back to the app/ directory:
 
   cd ../
 
-Now we'll create some more directories for the classes:
+Now copy the examples/Schema/MyApp directory to this directory.
 
-  mkdir MyApp
-  mkdir MyApp/Schema
-  mkdir MyApp/Schema/Result
+=head3 Populate the database
 
-Create the following DBIx::Class::Schema classes:
-
-MyApp/Schema.pm:
-
-  package MyApp::Schema;
-  use base qw/DBIx::Class::Schema/;
-  __PACKAGE__->load_namespaces;
-
-  1;
-
-
-MyApp/Schema/Result/Artist.pm:
-
-  package MyApp::Schema::Result::Artist;
-  use base qw/DBIx::Class::Core/;
-  __PACKAGE__->table('artist');
-  __PACKAGE__->add_columns(qw/ artistid name /);
-  __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many('cds' => 'MyApp::Schema::Result::Cd');
-
-  1;
-
-
-MyApp/Schema/Result/Cd.pm:
-
-  package MyApp::Schema::Result::Cd;
-  use base qw/DBIx::Class::Core/;
-  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
-  __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/ cdid artist title /);
-  __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to('artist' => 'MyApp::Schema::Result::Artist');
-  __PACKAGE__->has_many('tracks' => 'MyApp::Schema::Result::Track');
-
-  1;
-
-
-MyApp/Schema/Result/Track.pm:
-
-  package MyApp::Schema::Result::Track;
-  use base qw/DBIx::Class::Core/;
-  __PACKAGE__->table('track');
-  __PACKAGE__->add_columns(qw/ trackid cd title /);
-  __PACKAGE__->set_primary_key('trackid');
-  __PACKAGE__->belongs_to('cd' => 'MyApp::Schema::Result::Cd');
-
-  1;
-
-
-=head3 Write a script to insert some records
-
-This script should be created in the app/ directory, since it access the
-database in the app/db directory.
-
-insertdb.pl:
-
-  #!/usr/bin/perl
-
-  use strict;
-  use warnings;
-
-  use MyApp::Schema;
-
-  my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
-
-  my @artists = (['Michael Jackson'], ['Eminem']);
-  $schema->populate('Artist', [
-     [qw/name/],
-     @artists,
-  ]);
-
-  my %albums = (
-    'Thriller' => 'Michael Jackson',
-    'Bad' => 'Michael Jackson',
-    'The Marshall Mathers LP' => 'Eminem',
-  );
-
-  my @cds;
-  foreach my $lp (keys %albums) {
-    my $artist = $schema->resultset('Artist')->find({
-      name => $albums{$lp}
-    });
-    push @cds, [$lp, $artist->id];
-  }
-
-  $schema->populate('Cd', [
-    [qw/title artist/],
-    @cds,
-  ]);
-
-
-  my %tracks = (
-    'Beat It'         => 'Thriller',
-    'Billie Jean'     => 'Thriller',
-    'Dirty Diana'     => 'Bad',
-    'Smooth Criminal' => 'Bad',
-    'Leave Me Alone'  => 'Bad',
-    'Stan'            => 'The Marshall Mathers LP',
-    'The Way I Am'    => 'The Marshall Mathers LP',
-  );
-
-  my @tracks;
-  foreach my $track (keys %tracks) {
-    my $cdname = $schema->resultset('Cd')->find({
-      title => $tracks{$track},
-    });
-    push @tracks, [$cdname->id, $track];
-  }
-
-  $schema->populate('Track',[
-    [qw/cd title/],
-    @tracks,
-  ]);
-
-Once created, this script should be run once to fill the database with
-the required data for the following test script.
+Run the script insertdb.pl, which will fill the database with the
+required data for the following test script.
 
 =head3 Create and run the test scripts
 
-Like the previous script, this script should also be create in the app/
-directory.
-
-testdb.pl:
-
-  #!/usr/bin/perl
-
-  use strict;
-  use warnings;
-
-  use MyApp::Schema;
-
-  my $schema = MyApp::Schema->connect('dbi:SQLite:db/example.db');
-  # for other DSNs, e.g. MySQL, see the perldoc for the relevant dbd
-  # driver, e.g perldoc L<DBD::mysql>.
-
-  get_tracks_by_cd('Bad');
-  get_tracks_by_artist('Michael Jackson');
-
-  get_cd_by_track('Stan');
-  get_cds_by_artist('Michael Jackson');
-
-  get_artist_by_track('Dirty Diana');
-  get_artist_by_cd('The Marshall Mathers LP');
-
-
-  sub get_tracks_by_cd {
-    my $cdtitle = shift;
-    print "get_tracks_by_cd($cdtitle):\n";
-    my $rs = $schema->resultset('Track')->search(
-      {
-        'cd.title' => $cdtitle
-      },
-      {
-        join     => [qw/ cd /],
-      }
-    );
-    while (my $track = $rs->next) {
-      print $track->title . "\n";
-    }
-    print "\n";
-  }
-
-  sub get_tracks_by_artist {
-    my $artistname = shift;
-    print "get_tracks_by_artist($artistname):\n";
-    my $rs = $schema->resultset('Track')->search(
-      {
-        'artist.name' => $artistname
-      },
-      {
-        join => {
-          'cd' => 'artist'
-        },
-      }
-    );
-    while (my $track = $rs->next) {
-      print $track->title . " (from the CD '" . $track->cd->title 
-        . "')\n";
-    }
-    print "\n";
-  }
-
-
-  sub get_cd_by_track {
-    my $tracktitle = shift;
-    print "get_cd_by_track($tracktitle):\n";
-    my $rs = $schema->resultset('Cd')->search(
-      {
-        'tracks.title' => $tracktitle
-      },
-      {
-        join     => [qw/ tracks /],
-      }
-    );
-    my $cd = $rs->first;
-    print $cd->title . " has the track '$tracktitle'.\n\n";
-  }
-
-  sub get_cds_by_artist {
-    my $artistname = shift;
-    print "get_cds_by_artist($artistname):\n";
-    my $rs = $schema->resultset('Cd')->search(
-      {
-        'artist.name' => $artistname
-      },
-      {
-        join     => [qw/ artist /],
-      }
-    );
-    while (my $cd = $rs->next) {
-      print $cd->title . "\n";
-    }
-    print "\n";
-  }
-
-
-
-  sub get_artist_by_track {
-    my $tracktitle = shift;
-    print "get_artist_by_track($tracktitle):\n";
-    my $rs = $schema->resultset('Artist')->search(
-      {
-        'tracks.title' => $tracktitle
-      },
-      {
-        join => {
-          'cds' => 'tracks'
-        }
-      }
-    );
-    my $artist = $rs->first;
-    print $artist->name . " recorded the track '$tracktitle'.\n\n";
-  }
-
-  sub get_artist_by_cd {
-    my $cdtitle = shift;
-    print "get_artist_by_cd($cdtitle):\n";
-    my $rs = $schema->resultset('Artist')->search(
-      {
-        'cds.title' => $cdtitle
-      },
-      {
-        join     => [qw/ cds /],
-      }
-    );
-    my $artist = $rs->first;
-    print $artist->name . " recorded the CD '$cdtitle'.\n\n";
-  }
-
-
+Run the script testdb.pl, which will test that the database has
+successfully been filled.
 
 When this script is run, it should output the following:
 
@@ -334,24 +86,24 @@ When this script is run, it should output the following:
  Dirty Diana
  
  get_tracks_by_artist(Michael Jackson):
- Billie Jean (from the CD 'Thriller')
- Leave Me Alone (from the CD 'Bad')
- Smooth Criminal (from the CD 'Bad')
- Beat It (from the CD 'Thriller')
- Dirty Diana (from the CD 'Bad')
+ Billie Jean
+ Leave Me Alone
+ Smooth Criminal
+ Beat It
+ Dirty Diana
  
  get_cd_by_track(Stan):
- The Marshall Mathers LP has the track 'Stan'.
+ The Marshall Mathers LP
  
  get_cds_by_artist(Michael Jackson):
  Thriller
  Bad
  
  get_artist_by_track(Dirty Diana):
- Michael Jackson recorded the track 'Dirty Diana'.
+ Michael Jackson
  
  get_artist_by_cd(The Marshall Mathers LP):
- Eminem recorded the CD 'The Marshall Mathers LP'.
+ Eminem
 
 =head3 Discussion about the results
 
