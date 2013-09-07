@@ -21,7 +21,7 @@ find({
       }
 
       local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /\bdeprecated\b/i };
-      require( ($_ =~ /(.+)/)[0] ); # untaint
+      require( ( $_ =~ m| t/lib/ (.+) |x )[0] ); # untaint and strip lib-part (. is unavailable under -T)
       exit 0;
     }
 
