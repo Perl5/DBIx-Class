@@ -49,12 +49,15 @@ __PACKAGE__->belongs_to( very_long_artist_relationship => 'DBICTest::Schema::Art
 });
 
 # in case this is a single-cd it promotes a track from another cd
-__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_track',
-    { join_type => 'left'}
+__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track',
+  { 'foreign.trackid' => 'self.single_track' },
+  { join_type => 'left'},
 );
 
 # add a non-left single relationship for the complex prefetch tests
-__PACKAGE__->belongs_to( existing_single_track => 'DBICTest::Schema::Track', 'single_track');
+__PACKAGE__->belongs_to( existing_single_track => 'DBICTest::Schema::Track',
+  { 'foreign.trackid' => 'self.single_track' },
+);
 
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(
@@ -65,6 +68,8 @@ __PACKAGE__->has_many(
     cd_to_producer => 'DBICTest::Schema::CD_to_Producer' => 'cd'
 );
 
+# the undef condition in this rel is *deliberate*
+# tests oddball legacy syntax
 __PACKAGE__->might_have(
     liner_notes => 'DBICTest::Schema::LinerNotes', undef,
     { proxy => [ qw/notes/ ] },
@@ -79,7 +84,7 @@ __PACKAGE__->many_to_many(
 );
 
 __PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
-    { 'foreign.genreid' => 'self.genreid' },
+    'genreid',
     {
         join_type => 'left',
         on_delete => 'SET NULL',

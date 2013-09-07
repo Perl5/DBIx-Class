@@ -48,7 +48,8 @@ __PACKAGE__->add_unique_constraint([ qw/cd title/ ]);
 __PACKAGE__->position_column ('position');
 __PACKAGE__->grouping_column ('cd');
 
-
+# the undef condition in this rel is *deliberate*
+# tests oddball legacy syntax
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD', undef, {
     proxy => { cd_title => 'title' },
 });
@@ -62,13 +63,13 @@ __PACKAGE__->might_have( lyrics => 'DBICTest::Schema::Lyrics', 'track_id' );
 __PACKAGE__->belongs_to(
     "year1999cd",
     "DBICTest::Schema::Year1999CDs",
-    { "foreign.cdid" => "self.cd" },
+    'cd',
     { join_type => 'left' },  # the relationship is of course optional
 );
 __PACKAGE__->belongs_to(
     "year2000cd",
     "DBICTest::Schema::Year2000CDs",
-    { "foreign.cdid" => "self.cd" },
+    'cd',
     { join_type => 'left' },
 );
 

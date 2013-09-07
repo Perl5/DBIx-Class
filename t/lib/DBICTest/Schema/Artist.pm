@@ -44,6 +44,8 @@ __PACKAGE__->mk_classdata('field_name_for', {
     name        => 'artist name',
 });
 
+# the undef condition in this rel is *deliberate*
+# tests oddball legacy syntax
 __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
     { order_by => { -asc => 'year'} },
