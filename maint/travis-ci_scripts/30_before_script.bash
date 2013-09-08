@@ -44,13 +44,20 @@ if [[ "$CLEANTEST" = "true" ]]; then
   if ! CPAN_is_sane ; then
     for m in ExtUtils::MakeMaker ExtUtils::CBuilder R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz Module::Build ; do
       run_or_err "Pre-installing $m" "cpan $m"
+      if ! perl -e '
+
+eval ( q{require } . (
+  $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
+    ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
+    : $ARGV[0]
+) ) or ( print $@ and exit 1)' "$m" 2> /dev/null ; then
+
+        echo_err -e "$m installation failed\n$LASTOUT"
+        exit 1
+      fi
     done
   fi
 
-  if ! perl -MModule::Build -e 1 &> /dev/null ; then
-    echo_err -e "Module::Build installation failed\n$LASTOUT"
-    exit 1
-  fi
 
   # DBI has by far the longest test runtime - run less tests
   # FIXME horrible horrible hack, need to implement in DBI itself
