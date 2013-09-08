@@ -42,7 +42,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
   if ! CPAN_is_sane ; then
-    for m in B/BI/BINGOS/ExtUtils-MakeMaker-6.72.tar.gz ExtUtils::CBuilder R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz Module::Build ; do
+    for m in ExtUtils::MakeMaker ExtUtils::CBuilder R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz Module::Build ; do
       run_or_err "Pre-installing $m" "cpan $m"
     done
   fi
@@ -71,7 +71,7 @@ else
   # (e.g. once Carp is upgraded there's no more Carp::Heavy,
   # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
-  parallel_installdeps_notest B/BI/BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
+  parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build ExtUtils::Depends
