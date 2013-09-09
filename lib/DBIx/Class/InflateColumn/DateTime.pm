@@ -160,6 +160,11 @@ sub register_column {
     }
   }
 
+  if ($info->{time_zone}) {
+    carp "Putting 'time_zone', ".
+         "please put 'timezone' Instead of 'time_zone' into the '$column' column definition.";
+  }
+
   # shallow copy to avoid unfounded(?) Devel::Cycle complaints
   my $infcopy = {%$info};
 
