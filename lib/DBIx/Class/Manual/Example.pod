@@ -86,24 +86,25 @@ When this script is run, it should output the following:
  Dirty Diana
  
  get_tracks_by_artist(Michael Jackson):
- Billie Jean
- Leave Me Alone
- Smooth Criminal
- Beat It
- Dirty Diana
+ Billie Jean (from the CD 'Thriller')
+ Leave Me Alone (from the CD 'Bad')
+ Smooth Criminal (from the CD 'Bad')
+ Beat It (from the CD 'Thriller')
+ Dirty Diana (from the CD 'Bad')
  
  get_cd_by_track(Stan):
- The Marshall Mathers LP
+ The Marshall Mathers LP has the track 'Stan'.
  
  get_cds_by_artist(Michael Jackson):
  Thriller
  Bad
  
  get_artist_by_track(Dirty Diana):
- Michael Jackson
+ Michael Jackson recorded the track 'Dirty Diana'.
  
  get_artist_by_cd(The Marshall Mathers LP):
- Eminem
+ Eminem recorded the CD 'The Marshall Mathers LP'.
+
 
 =head3 Discussion about the results
 
