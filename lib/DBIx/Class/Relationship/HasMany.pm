@@ -16,15 +16,8 @@ sub has_many {
 
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my ($pri, $too_many) = try { $class->result_source_instance->_pri_cols_or_die }
-      catch {
-        $class->throw_exception("Can't infer join condition for '$rel' on ${class}: $_");
-      };
 
-    $class->throw_exception(
-      "has_many can only infer join for a single primary key; ".
-      "${class} has more"
-    ) if $too_many;
+    my $pri = $class->result_source_instance->_single_pri_col_or_die;
 
     my ($f_key,$guess);
     if (defined $cond && length $cond) {
@@ -33,7 +26,7 @@ sub has_many {
     } else {
       $class =~ /([^\:]+)$/;  # match is safe - $class can't be ''
       $f_key = lc $1; # go ahead and guess; best we can do
-      $guess = "using our class name '$class' as foreign key";
+      $guess = "using our class name '$class' as foreign key source";
     }
 
     my $f_class_loaded = try { $f_class->columns };

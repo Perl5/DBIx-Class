@@ -638,6 +638,20 @@ sub _pri_cols_or_die {
   return @pcols;
 }
 
+# same as above but mandating single-column PK (used by relationship condition
+# inferrence)
+sub _single_pri_col_or_die {
+  my $self = shift;
+  my ($pri, @too_many) = $self->_pri_cols_or_die;
+
+  $self->throw_exception( sprintf(
+    "Operation requires a single-column primary key declared on '%s'",
+    $self->source_name || $self->result_class || $self->name || 'Unknown source...?',
+  )) if @too_many;
+  return $pri;
+}
+
+
 =head2 sequence
 
 Manually define the correct sequence for your table, to avoid the overhead

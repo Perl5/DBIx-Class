@@ -25,28 +25,27 @@ sub _has_one {
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
 
-    my $pri = $class->_get_primary_key;
-
-    $class->throw_exception(
-      "might_have/has_one needs a primary key  to infer a join; ".
-      "${class} has none"
-    ) if !defined $pri && (!defined $cond || !length $cond);
+    my $pri = $class->result_source_instance->_single_pri_col_or_die;
 
     my $f_class_loaded = try { $f_class->columns };
-    my ($f_key,$too_many,$guess);
+    my ($f_key,$guess);
     if (defined $cond && length $cond) {
       $f_key = $cond;
       $guess = "caller specified foreign key '$f_key'";
     } elsif ($f_class_loaded && $f_class->has_column($rel)) {
       $f_key = $rel;
-      $guess = "using given relationship '$rel' for foreign key";
-    } else {
-      $f_key = $class->_get_primary_key($f_class);
+      $guess = "using given relationship name '$rel' as foreign key column name";
+    } elsif ($f_class_loaded and my $f_pri = try {
+      $f_class->result_source_instance->_single_pri_col_or_die
+    }) {
+      $f_key = $f_pri;
       $guess = "using primary key of foreign class for foreign key";
     }
+
     $class->throw_exception(
       "No such column '$f_key' on foreign class ${f_class} ($guess)"
     ) if $f_class_loaded && !$f_class->has_column($f_key);
+
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
   $class->_validate_has_one_condition($cond);
@@ -61,21 +60,6 @@ sub _has_one {
      ($join_type ? ('join_type' => $join_type) : ()),
      %{$attrs || {}} });
   1;
-}
-
-sub _get_primary_key {
-  my ( $class, $target_class ) = @_;
-  $target_class ||= $class;
-  my ($pri, $too_many) = try { $target_class->result_source_instance->_pri_cols_or_die }
-    catch {
-      $class->throw_exception("Can't infer join condition on ${target_class}: $_");
-    };
-
-  $class->throw_exception(
-    "might_have/has_one can only infer join for a single primary key; ".
-    "${class} has more"
-  ) if $too_many;
-  return $pri;
 }
 
 sub _validate_has_one_condition {

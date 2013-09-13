@@ -26,24 +26,24 @@ sub belongs_to {
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my %f_primaries = map { $_ => 1 } try { $f_class->result_source_instance->_pri_cols_or_die }
-      catch {
-        $class->throw_exception( "Can't infer join condition for '$rel' on ${class}: $_");
-      };
 
-    my ($pri, $too_many) = keys %f_primaries;
+    my $pri = $f_class->result_source_instance->_single_pri_col_or_die;
+
+    my ($f_key, $guess);
+    if (defined $cond and length $cond) {
+      $f_key = $cond;
+      $guess = "caller specified foreign key '$f_key'";
+    }
+    else {
+      $f_key = $rel;
+      $guess = "using given relationship name '$rel' as foreign key column name";
+    }
+
     $class->throw_exception(
-      "Can't infer join condition for '$rel' on ${class}: "
-    . "${f_class} has multiple primary keys"
-    ) if $too_many;
+      "No such column '$f_key' declared yet on ${class} ($guess)"
+    )  unless $class->has_column($f_key);
 
-    my $fk = defined $cond ? $cond : $rel;
-    $class->throw_exception(
-      "Can't infer join condition for '$rel' on ${class}: "
-    . "'$fk' is not a column of $class"
-    ) unless $class->has_column($fk);
-
-    $cond = { "foreign.${pri}" => "self.${fk}" };
+    $cond = { "foreign.${pri}" => "self.${f_key}" };
 
   }
   # explicit join condition
