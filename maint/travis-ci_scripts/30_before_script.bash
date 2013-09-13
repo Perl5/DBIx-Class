@@ -42,7 +42,13 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
   if ! CPAN_is_sane ; then
-    for m in ExtUtils::MakeMaker ExtUtils::CBuilder R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz Module::Build ; do
+    for m in \
+ExtUtils::MakeMaker \
+ExtUtils::CBuilder \
+R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz \
+Module::Build \
+E/ET/ETHER/Class-Method-Modifiers-2.04.tar.gz \
+; do
       run_or_err "Pre-installing $m" "cpan $m"
       if ! perl -e '
 
