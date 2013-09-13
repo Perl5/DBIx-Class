@@ -237,7 +237,7 @@ sub parse {
                 # Constraints are added only if applicable
                 next unless $fk_constraint;
 
-                # Make sure we dont create the same foreign key constraint twice
+                # Make sure we don't create the same foreign key constraint twice
                 my $key_test = join("\x00", sort @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
 
