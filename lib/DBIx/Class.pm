@@ -398,6 +398,8 @@ dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 edenc: Eden Cardim <edencardim@gmail.com>
 
+ether: Karen Etheridge <ether@cpan.org>
+
 felliott: Fitz Elliott <fitz.elliott@gmail.com>
 
 freetime: Bill Moseley <moseley@hank.org>

@@ -85,11 +85,11 @@ my $skip_idx = { map { $_ => 1 } (
   'DBIx::Class::_Util',
 ) };
 
-my $has_cmop = eval { require Class::MOP };
+my $has_moose = eval { require Moose::Util };
 
 # can't use Class::Inspector for the mundane parts as it does not
 # distinguish imports from anything else, what a crock of...
-# Class::MOP is not always available either - hence just do it ourselves
+# Moose is not always available either - hence just do it ourselves
 
 my $seen; #inheritance means we will see the same method multiple times
 
@@ -105,7 +105,7 @@ for my $mod (@modules) {
     my %parents = map { $_ => 1 } @{mro::get_linear_isa($mod)};
 
     my %roles;
-    if ($has_cmop and my $mc = Class::MOP::class_of($mod)) {
+    if ($has_moose and my $mc = Moose::Util::find_meta($mod)) {
       if ($mc->can('calculate_all_roles_with_inheritance')) {
         $roles{$_->name} = 1 for ($mc->calculate_all_roles_with_inheritance);
       }
