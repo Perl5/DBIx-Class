@@ -25,9 +25,6 @@ sub belongs_to {
 
   # no join condition or just a column name
   if (!ref $cond) {
-    $class->ensure_class_loaded($f_class);
-
-    my $pri = $f_class->result_source_instance->_single_pri_col_or_die;
 
     my ($f_key, $guess);
     if (defined $cond and length $cond) {
@@ -42,6 +39,19 @@ sub belongs_to {
     $class->throw_exception(
       "No such column '$f_key' declared yet on ${class} ($guess)"
     )  unless $class->has_column($f_key);
+
+    $class->ensure_class_loaded($f_class);
+    my $f_rsrc = try {
+      $f_class->result_source_instance;
+    }
+    catch {
+      $class->throw_exception(
+        "Foreign class '$f_class' does not seem to be a Result class "
+      . "(or it simply did not load entirely due to a circular relation chain)"
+      );
+    };
+
+    my $pri = $f_rsrc->_single_pri_col_or_die;
 
     $cond = { "foreign.${pri}" => "self.${f_key}" };
 

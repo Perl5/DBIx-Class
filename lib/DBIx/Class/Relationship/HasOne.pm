@@ -23,28 +23,44 @@ sub has_one {
 sub _has_one {
   my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
   unless (ref $cond) {
-    $class->ensure_class_loaded($f_class);
-
     my $pri = $class->result_source_instance->_single_pri_col_or_die;
 
-    my $f_class_loaded = try { $f_class->columns };
-    my ($f_key,$guess);
+    my ($f_key,$guess,$f_rsrc);
     if (defined $cond && length $cond) {
       $f_key = $cond;
       $guess = "caller specified foreign key '$f_key'";
-    } elsif ($f_class_loaded && $f_class->has_column($rel)) {
-      $f_key = $rel;
-      $guess = "using given relationship name '$rel' as foreign key column name";
-    } elsif ($f_class_loaded and my $f_pri = try {
-      $f_class->result_source_instance->_single_pri_col_or_die
-    }) {
-      $f_key = $f_pri;
-      $guess = "using primary key of foreign class for foreign key";
+    }
+    else {
+      # at this point we need to load the foreigner, expensive or not
+      $class->ensure_class_loaded($f_class);
+
+      $f_rsrc = try {
+        $f_class->result_source_instance;
+      }
+      catch {
+        $class->throw_exception(
+          "Foreign class '$f_class' does not seem to be a Result class "
+        . "(or it simply did not load entirely due to a circular relation chain)"
+        );
+      };
+
+      if ($f_rsrc->has_column($rel)) {
+        $f_key = $rel;
+        $guess = "using given relationship name '$rel' as foreign key column name";
+      }
+      else {
+        $f_key = $f_rsrc->_single_pri_col_or_die;
+        $guess = "using primary key of foreign class for foreign key";
+      }
     }
 
-    $class->throw_exception(
-      "No such column '$f_key' on foreign class ${f_class} ($guess)"
-    ) if $f_class_loaded && !$f_class->has_column($f_key);
+    # only perform checks if the far side was not preloaded above *AND*
+    # appears to have been loaded by something else (has a rsrc_instance)
+    if (! $f_rsrc and $f_rsrc = try { $f_class->result_source_instance }) {
+      $class->throw_exception(
+        "No such column '$f_key' on foreign class ${f_class} ($guess)"
+      ) if !$f_rsrc->has_column($f_key);
+    }
 
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }

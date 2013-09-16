@@ -15,7 +15,6 @@ sub has_many {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
   unless (ref $cond) {
-    $class->ensure_class_loaded($f_class);
 
     my $pri = $class->result_source_instance->_single_pri_col_or_die;
 
@@ -29,10 +28,12 @@ sub has_many {
       $guess = "using our class name '$class' as foreign key source";
     }
 
-    my $f_class_loaded = try { $f_class->columns };
-    $class->throw_exception(
-      "No such column '$f_key' on foreign class ${f_class} ($guess)"
-    ) if $f_class_loaded && !$f_class->has_column($f_key);
+    # only perform checks if the far side appears already loaded
+    if (my $f_rsrc = try { $f_class->result_source_instance } ) {
+      $class->throw_exception(
+        "No such column '$f_key' on foreign class ${f_class} ($guess)"
+      ) if !$f_rsrc->has_column($f_key);
+    }
 
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
