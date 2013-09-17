@@ -93,25 +93,16 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest Moose Module::Install JSON SQL::Translator
+  parallel_installdeps_notest Moose Module::Install JSON SQL::Translator File::Which
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
-    # pull in patched unreleased copy with restored 5.8 compat
-    run_or_err "Fetching patched DBD::Firebird" \
-      "git clone https://github.com/mariuz/perl-dbd-firebird ~/dbd-firebird"
-
     # the official version is very much outdated and does not compile on 5.14+
     # use this rather updated source tree (needs to go to PAUSE):
     # https://github.com/pilcrow/perl-dbd-interbase
     run_or_err "Fetching patched DBD::InterBase" \
       "git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase"
 
-    # Now part of DBD::Firebird configure_requires, which are not present
-    # in the cloned repo (no META.*)
-    # FIXME - need to get this off metacpan or something instead
-    parallel_installdeps_notest File::Which
-
-    parallel_installdeps_notest ~/dbd-interbase/ ~/dbd-firebird/
+    parallel_installdeps_notest ~/dbd-interbase/
   fi
 
 fi
