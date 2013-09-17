@@ -40,9 +40,6 @@ install_script (qw|
 ### All of them *MUST* go to DBIx::Class::Optional::Dependencies
 ###
 my $runtime_requires = {
-  # FIXME - temporary workaround for RT#83143 (Path::Class)
-  'File::Spec'               => '3.30',
-
   # FIXME - temporary, needs throwing out for something more efficient
   'Data::Compare'            => '1.22',
 
