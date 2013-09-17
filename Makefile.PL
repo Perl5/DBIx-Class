@@ -103,17 +103,6 @@ my $test_requires = {
   'Package::Stash'           => '0.28',
 };
 
-# make strictures.pm happy (DO NOT LIKE, TOO MUCH XS!)
-# (i.e. what if the .git/.svn is *not* because of DBIC?)
-#
-# Note - this is added as test_requires *directly*, so it gets properly
-# excluded on META.yml cleansing
-if (-e '.git' or -e '.svn') {
-  test_requires 'indirect'              => '0.25';
-  test_requires 'multidimensional'      => '0.008';
-  test_requires 'bareword::filehandles' => '0.003';
-}
-
 # if the user has this env var set and no SQLT installed, tests will fail
 # same rationale for direct test_requires as the strictures stuff above
 # (even though no dist will be created from this)

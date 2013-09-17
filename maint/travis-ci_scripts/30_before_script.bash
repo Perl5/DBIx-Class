@@ -87,10 +87,10 @@ else
   parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
-  parallel_installdeps_notest Module::Build ExtUtils::Depends
-  parallel_installdeps_notest Module::Runtime File::Spec Data::Dumper
+  parallel_installdeps_notest Module::Build Module::Runtime
+  parallel_installdeps_notest File::Spec Data::Dumper
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal R/RS/RSAVAGE/Tree-DAG_Node-1.13.tgz
-  parallel_installdeps_notest Test::Warn bareword::filehandles B::Hooks::EndOfScope Test::Differences HTTP::Status
+  parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest Moose Module::Install JSON SQL::Translator
@@ -125,19 +125,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we may need to prepend some stuff to that list
   HARD_DEPS="$(echo $(make listdeps))"
 
-
 ##### TEMPORARY WORKAROUNDS
-
-  # this is a fucked CPAN - won't understand configure_requires of
-  # various pieces we may run into
-  # FIXME - need to get these off metacpan or something instead
-  CPAN_is_sane || HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
-
-  # The unicode-in-yaml bug on older cpan clients
-  # FIXME there got to be a saner way to fix this...
-  perl -M5.008008 -e 1 &> /dev/null || \
-     run_or_err "Installing multidimensional and bareword::filehandles via cpanm" \
-        "cpanm multidimensional bareword::filehandles"
 
   # work around Params::Validate not having a Makefile.PL so really old
   # toolchains can not figure out what the prereqs are ;(
