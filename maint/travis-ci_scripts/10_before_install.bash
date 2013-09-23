@@ -13,6 +13,11 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # `processor    : XX` line
 export NUMTHREADS=$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))
 
+run_or_err "Installing App::Nopaste from APT" "sudo apt-get install --allow-unauthenticated -y libapp-nopaste-perl"
+# FIXME - the debian package is oddly broken - uses a bin/env based shebang
+# so nothing works under a brew. Fix here until #debian-perl patches it up
+sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
+
 if [[ "$CLEANTEST" != "true" ]]; then
 ### apt-get invocation - faster to grab everything at once
   #

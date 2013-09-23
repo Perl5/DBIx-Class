@@ -45,6 +45,9 @@ if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]
     echo "============================================================="
     echo
   fi
+
+  echo "Full dep install log at $(/usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
+  echo
 fi
 
 echo "$(tstamp) Testing took a total of $(( $TEST_T1 - $TEST_T0 ))s"
