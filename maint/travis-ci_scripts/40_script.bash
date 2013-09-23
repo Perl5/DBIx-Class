@@ -37,6 +37,14 @@ if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]
   echo "============================================================="
   echo "End of test run STDERR output ($STDERR_LOG_SIZE lines)"
   echo
+
+  if [[ -n "$INSTALLDEPS_SKIPPED_TESTLIST" ]] ; then
+    echo "The following non-essential tests were skipped during deps installation"
+    echo "============================================================="
+    echo "$INSTALLDEPS_SKIPPED_TESTLIST"
+    echo "============================================================="
+    echo
+  fi
 fi
 
 echo "$(tstamp) Testing took a total of $(( $TEST_T1 - $TEST_T0 ))s"

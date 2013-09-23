@@ -174,7 +174,12 @@ matrix:
 
   # which ones of the above can fail
   allow_failures:
-    - perl: 5.12.4_thr_mb
+
+    # Fails tests because of https://github.com/Perl-Toolchain-Gang/CPAN-Meta/issues/25
+    # Can't be simply masked due to https://rt.cpan.org/Ticket/Display.html?id=88903
+    - perl: 5.10.0_thr_dbg
+
+    # these run with various dev snapshots - allowed to fail
     - perl: devcpan_5.18.1_thr_mb
     - perl: bleadperl_thr_mb
     - perl: devcpan_bleadperl_thr_mb

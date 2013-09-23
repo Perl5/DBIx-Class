@@ -54,8 +54,16 @@ extract_prereqs() {
     exit 1
   fi
 
-  # throw away non-children (what was in $@), throw away ascii art, convert to modnames
-  perl -p -e 's/^[a-z].+//i; s/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT"
+  # throw away ascii art, convert to modnames
+  PQ=$(perl -p -e 's/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
+
+  # throw away what was in $@
+  for m in "$@" ; do
+    PQ=$( perl -p -e 's/(?:\s|^)\Q'"$m"'\E(?:\s|$)/ /mg' <<< "$PQ")
+  done
+
+  # RV
+  echo "$PQ"
 }
 
 parallel_installdeps_notest() {
@@ -87,5 +95,6 @@ parallel_installdeps_notest() {
     "
 }
 
-
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+
+CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
