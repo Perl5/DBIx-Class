@@ -95,6 +95,65 @@ parallel_installdeps_notest() {
     "
 }
 
+installdeps() {
+  if [[ -z "$@" ]] ; then return; fi
+
+  echo_err "$(tstamp) Processing dependencies: $@"
+
+  local -x HARNESS_OPTIONS
+
+  HARNESS_OPTIONS="j$NUMTHREADS"
+
+  echo_err -n "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ... "
+
+  LASTEXIT=0
+  START_TIME=$SECONDS
+  LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
+  DELTA_TIME=$(( $SECONDS - $START_TIME ))
+
+  if [[ "$LASTEXIT" = "0" ]] ; then
+    echo_err "done (took ${DELTA_TIME}s)"
+  else
+    echo_err -n "failed (Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")) retrying with sequential testing ... "
+
+    HARNESS_OPTIONS=""
+    LASTEXIT=0
+    START_TIME=$SECONDS
+    LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
+    DELTA_TIME=$(( $SECONDS - $START_TIME ))
+
+    if [[ "$LASTEXIT" = "0" ]] ; then
+      echo_err "done (took ${DELTA_TIME}s)"
+    else
+      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
+      echo_err "STDOUT+STDERR:"
+      echo_err "$LASTOUT"
+      exit 1
+    fi
+  fi
+
+  INSTALLDEPS_OUT="${INSTALLDEPS_OUT}${LASTOUT}"
+}
+
+cpan_inst() {
+  cpan "$@" 2>&1
+
+  # older perls do not have a CPAN which can exit with error on failed install
+  for m in "$@"; do
+    if ! perl -e '
+
+eval ( q{require } . (
+  $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
+    ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
+    : $ARGV[0]
+) ) or ( print $@ and exit 1)' "$m" 2> /dev/null ; then
+
+      echo -e "$m installation seems to have failed"
+      return 1
+    fi
+  done
+}
+
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
