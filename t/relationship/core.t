@@ -136,6 +136,10 @@ lives_ok(
     'No back rel'
 );
 
+throws_ok {
+    my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
+    $new_bookmark->new_related( no_such_rel => {} );
+} qr/No such relationship 'no_such_rel'/, 'creating in uknown rel throws';
 
 {
   local $TODO = "relationship checking needs fixing";

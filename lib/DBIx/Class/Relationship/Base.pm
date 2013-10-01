@@ -640,8 +640,10 @@ sub new_related {
   if (ref $self) {  # cdbi calls this as a class method, /me vomits
 
     my $rsrc = $self->result_source;
+    my $rel_info = $rsrc->relationship_info($rel)
+      or $self->throw_exception( "No such relationship '$rel'" );
     my (undef, $crosstable, $cond_targets) = $rsrc->_resolve_condition (
-      $rsrc->relationship_info($rel)->{cond}, $rel, $self, $rel
+      $rel_info->{cond}, $rel, $self, $rel
     );
 
     $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
