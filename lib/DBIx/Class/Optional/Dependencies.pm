@@ -18,6 +18,7 @@ my $json_any = {
 my $moose_basic = {
   'Moose'                         => '0.98',
   'MooseX::Types'                 => '0.21',
+  'MooseX::Types::LoadableClass'  => '0.011',
 };
 
 my $replicated = {

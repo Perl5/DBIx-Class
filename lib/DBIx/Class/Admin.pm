@@ -12,6 +12,7 @@ use MooseX::Types::Moose qw/Int Str Any Bool/;
 use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
+use MooseX::Types::LoadableClass qw(LoadableClass);
 use Try::Tiny;
 use JSON::Any qw(DWIW XS JSON);
 use namespace::autoclean;
@@ -68,7 +69,7 @@ the class of the schema to load
 
 has 'schema_class' => (
   is  => 'ro',
-  isa => Str,
+  isa => LoadableClass,
 );
 
 
@@ -87,8 +88,6 @@ has 'schema' => (
 sub _build_schema {
   my ($self)  = @_;
 
-  require Class::MOP;
-  Class::MOP::load_class($self->schema_class);
   $self->connect_info->[3]{ignore_version} = 1;
   return $self->schema_class->connect(@{$self->connect_info});
 }

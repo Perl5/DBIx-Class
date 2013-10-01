@@ -15,6 +15,7 @@ Revision history for DBIx::Class
         - Throw clearer exception on ->new_related() with a non-existent
           relationship.
         - Fix t/storage/replicated.t class loading problem
+        - Stop using the deprecated Class::MOP::load_class()
 
     * Misc
         - Replace $row with $result in all docs to be consistent and to
