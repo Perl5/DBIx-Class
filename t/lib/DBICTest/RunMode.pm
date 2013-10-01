@@ -93,6 +93,7 @@ sub _check_author_makefile {
   }
 
   if (@fail_reasons) {
+    print STDOUT "\nBail out!\n";
     print STDERR <<'EOE';
 
 
