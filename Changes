@@ -14,6 +14,7 @@ Revision history for DBIx::Class
         - Tests no longer fail if $ENV{DBI_DSN} is set
         - Throw clearer exception on ->new_related() with a non-existent
           relationship.
+        - Fix t/storage/replicated.t class loading problem
 
     * Misc
         - Replace $row with $result in all docs to be consistent and to
