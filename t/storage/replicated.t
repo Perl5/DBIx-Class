@@ -31,10 +31,26 @@ note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Typ
 
 my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
 
-use DBIx::Class::Storage::DBI::Replicated::Pool;
-use DBIx::Class::Storage::DBI::Replicated::Balancer;
-use DBIx::Class::Storage::DBI::Replicated::Replicant;
+## Add a connect_info option to test option merging.
 use DBIx::Class::Storage::DBI::Replicated;
+{
+    package DBIx::Class::Storage::DBI::Replicated;
+
+    use Moose;
+
+    __PACKAGE__->meta->make_mutable;
+
+    around connect_info => sub {
+      my ($next, $self, $info) = @_;
+      $info->[3]{master_option} = 1;
+      $self->$next($info);
+    };
+
+    __PACKAGE__->meta->make_immutable;
+
+    no Moose;
+}
+
 
 
 =head1 HOW TO USE
@@ -122,27 +138,6 @@ TESTSCHEMACLASSES: {
     sub generate_replicant_connect_info {}
     sub replicate {}
     sub cleanup {}
-
-    ## --------------------------------------------------------------------- ##
-    ## Add a connect_info option to test option merging.
-    ## --------------------------------------------------------------------- ##
-    {
-    package DBIx::Class::Storage::DBI::Replicated;
-
-    use Moose;
-
-    __PACKAGE__->meta->make_mutable;
-
-    around connect_info => sub {
-      my ($next, $self, $info) = @_;
-      $info->[3]{master_option} = 1;
-      $self->$next($info);
-    };
-
-    __PACKAGE__->meta->make_immutable;
-
-    no Moose;
-    }
 
     ## --------------------------------------------------------------------- ##
     ## Subclass for when you are using SQLite for testing, this provides a fake
