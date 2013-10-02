@@ -93,9 +93,7 @@ sub _check_author_makefile {
   }
 
   if (@fail_reasons) {
-    print STDOUT "\nBail out!\n";
     print STDERR <<'EOE';
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ======================== FATAL ERROR ===========================
@@ -133,6 +131,9 @@ EOE
     }
     print STDERR "\n\n\n";
 
+    require Time::HiRes;
+    Time::HiRes::sleep(0.005);
+    print STDOUT "\nBail out!\n";
     exit 1;
   }
 }
