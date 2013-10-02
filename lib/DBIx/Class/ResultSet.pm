@@ -141,8 +141,8 @@ another.
 
 =head3 Resolving conditions and attributes
 
-When a resultset is chained from another resultset (ie:
-C<my $new_rs = $old_rs->search(\%extra_cond, \%attrs)>), conditions
+When a resultset is chained from another resultset (e.g.:
+C<< my $new_rs = $old_rs->search(\%extra_cond, \%attrs) >>), conditions
 and attributes with the same keys need resolving.
 
 If any of L</columns>, L</select>, L</as> are present, they reset the
