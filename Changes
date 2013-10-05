@@ -11,6 +11,7 @@ Revision history for DBIx::Class
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
         - Back out self-cleaning from DBIx::Class::Carp for the time being
           (as a side effect fixes RT#86267)
+        - Fix incorrect internal use of implicit list context in copy()
         - Tests no longer fail if $ENV{DBI_DSN} is set
         - Throw clearer exception on ->new_related() with a non-existent
           relationship.

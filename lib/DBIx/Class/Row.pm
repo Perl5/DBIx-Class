@@ -1144,7 +1144,7 @@ sub copy {
     );
 
     my $copied = $relnames_copied->{ $rel_info->{source} } ||= {};
-    foreach my $related ($self->search_related($relname)) {
+    foreach my $related ($self->search_related($relname)->all) {
       my $id_str = join("\0", $related->id);
       next if $copied->{$id_str};
       $copied->{$id_str} = 1;

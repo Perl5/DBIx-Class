@@ -5,6 +5,7 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use namespace::clean;
 
 # not importing first() as it will clash with our own method
@@ -401,6 +402,7 @@ sub func {
   my $cursor = $self->func_rs($function)->cursor;
 
   if( wantarray ) {
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray($self);
     return map { $_->[ 0 ] } $cursor->all;
   }
 

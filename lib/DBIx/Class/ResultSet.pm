@@ -6,6 +6,7 @@ use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
+use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
 
@@ -327,6 +328,7 @@ sub search {
   my $rs = $self->search_rs( @_ );
 
   if (wantarray) {
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray($rs);
     return $rs->all;
   }
   elsif (defined wantarray) {
@@ -1211,8 +1213,6 @@ sub slice {
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
   return $self->search(undef, $attrs);
-  #my $slice = (ref $self)->new($self->result_source, $attrs);
-  #return (wantarray ? $slice->all : $slice);
 }
 
 =head2 next
