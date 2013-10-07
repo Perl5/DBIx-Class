@@ -478,11 +478,20 @@ sub _resolve_aliastypes_from_select_args {
   # generate sql chunks
   my $to_scan = {
     restricting => [
-      $sql_maker->_recurse_where ($where),
-      $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} }),
+      ($where
+        ? ($sql_maker->_recurse_where($where))[0]
+        : ()
+      ),
+      ($attrs->{having}
+        ? ($sql_maker->_recurse_where($attrs->{having}))[0]
+        : ()
+      ),
     ],
     grouping => [
-      $sql_maker->_parse_rs_attrs ({ group_by => $attrs->{group_by} }),
+      ($attrs->{group_by}
+        ? ($sql_maker->_render_sqla(group_by => $attrs->{group_by}))[0]
+        : (),
+      )
     ],
     joining => [
       $sql_maker->_recurse_from (
@@ -491,12 +500,17 @@ sub _resolve_aliastypes_from_select_args {
       ),
     ],
     selecting => [
-      $sql_maker->_recurse_fields ($select),
+      scalar $sql_maker->_render_sqla(select_select => $select),
     ],
     ordering => [
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
     ],
   };
+
+  # local is not enough - need to ensure the inner objects get rebuilt
+  # with the original quoting setup (or lack thereof)
+  $sql_maker->clear_renderer;
+  $sql_maker->clear_converter;
 
   # throw away empty chunks
   $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
