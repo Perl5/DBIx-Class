@@ -54,8 +54,8 @@ my @j3 = (
     [ { father => 'person', -join_type => 'inner' }, { 'father.person_id' => 'child.father_id' }, ],
     [ { mother => 'person', -join_type => 'inner'  }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-$match = 'person child INNER JOIN person father ON ( father.person_id = '
-          . 'child.father_id ) INNER JOIN person mother ON ( mother.person_id '
+$match = 'person child JOIN person father ON ( father.person_id = '
+          . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
 
