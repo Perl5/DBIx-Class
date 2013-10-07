@@ -1,9 +1,6 @@
 package # Hide from PAUSE
   DBIx::Class::SQLMaker::MSSQL;
 
-use warnings;
-use strict;
-
 use base qw( DBIx::Class::SQLMaker );
 
 #

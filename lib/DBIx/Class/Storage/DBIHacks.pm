@@ -16,6 +16,7 @@ use mro 'c3';
 use List::Util 'first';
 use Scalar::Util 'blessed';
 use Sub::Name 'subname';
+use Data::Query::ExprHelpers;
 use namespace::clean;
 
 #
@@ -783,6 +784,18 @@ sub _inner_join_to_node {
 
 sub _extract_order_criteria {
   my ($self, $order_by, $sql_maker) = @_;
+
+  $sql_maker ||= $self->sql_maker;
+
+  my $order_dq = $sql_maker->converter->_order_by_to_dq($order_by);
+
+  my @by;
+  while (is_Literal($order_dq)) {
+    push @by, $order_dq->{by};
+    $order_dq = $order_dq->{from};
+  }
+
+  return map { [ $sql_maker->_render_dq($_) ] } @by;
 
   my $parser = sub {
     my ($sql_maker, $order_by, $orig_quote_chars) = @_;

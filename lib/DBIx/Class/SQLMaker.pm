@@ -27,22 +27,50 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
+=item * The L</-ident> operator
+
+=item * The L</-value> operator
+
 =back
 
 =cut
 
 use base qw/
-  DBIx::Class::SQLMaker::LimitDialects
   SQL::Abstract
-  DBIx::Class
+  DBIx::Class::SQLMaker::LimitDialects
 /;
 use mro 'c3';
 
+use Module::Runtime qw(use_module);
 use Sub::Name 'subname';
 use DBIx::Class::Carp;
+use DBIx::Class::Exception;
+use Moo;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
+has limit_dialect => (
+  is => 'rw', default => sub { 'LimitOffset' },
+  trigger => sub { shift->clear_renderer_class }
+);
+
+our %LIMIT_DIALECT_MAP = (
+  'GenericSubQ' => 'GenericSubquery',
+  'RowCountOrGenericSubQ' => 'RowCountOrGenericSubquery',
+);
+
+sub mapped_limit_dialect {
+  my ($self) = @_;
+  my $unmapped = $self->limit_dialect;
+  $LIMIT_DIALECT_MAP{$unmapped}||$unmapped;
+}
+
+around _build_renderer_roles => sub {
+  my ($orig, $self) = (shift, shift);
+  return (
+    $self->$orig(@_),
+    'Data::Query::Renderer::SQL::Slice::'.$self->mapped_limit_dialect
+  );
+};
 
 # for when I need a normalized l/r pair
 sub _quote_chars {
@@ -50,6 +78,10 @@ sub _quote_chars {
     { defined $_ ? $_ : '' }
     ( ref $_[0]->{quote_char} ? (@{$_[0]->{quote_char}}) : ( ($_[0]->{quote_char}) x 2 ) )
   ;
+}
+
+sub _build_converter_class {
+  Module::Runtime::use_module('DBIx::Class::SQLMaker::Converter')
 }
 
 # FIXME when we bring in the storage weaklink, check its schema
@@ -70,6 +102,9 @@ BEGIN {
     my($func) = (caller(1))[3];
     __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
+
+  # Current SQLA pollutes its namespace - clean for the time being
+  namespace::clean->clean_subroutines(qw/SQL::Abstract carp croak confess/);
 }
 
 # the "oh noes offset/top without limit" constant
@@ -84,10 +119,6 @@ BEGIN {
 # refers to it (i.e. for the case of software_limit or
 # as the value to abuse with MSSQL ordered subqueries)
 sub __max_int () { 0x7FFFFFFF };
-
-# we ne longer need to check this - DBIC has ways of dealing with it
-# specifically ::Storage::DBI::_resolve_bindattrs()
-sub _assert_bindval_matches_bindtype () { 1 };
 
 # poor man's de-qualifier
 sub _quote {
@@ -109,9 +140,6 @@ sub _where_op_NEST {
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
-
-  $fields = $self->_recurse_fields($fields);
-
   if (defined $offset) {
     $self->throw_exception('A supplied offset must be a non-negative integer')
       if ( $offset =~ /\D/ or $offset < 0 );
@@ -126,53 +154,66 @@ sub select {
     $limit = $self->__max_int;
   }
 
+  my %final_attrs = (%{$rs_attrs||{}}, limit => $limit, offset => $offset);
 
-  my ($sql, @bind);
-  if ($limit) {
-    # this is legacy code-flow from SQLA::Limit, it is not set in stone
+  if ($limit or $offset) {
+    my %slice_stability = $self->renderer->slice_stability;
 
-    ($sql, @bind) = $self->next::method ($table, $fields, $where);
+    if (my $stability = $slice_stability{$offset ? 'offset' : 'limit'}) {
+      my $source = $rs_attrs->{_rsroot_rsrc};
+      unless (
+        $final_attrs{order_is_stable}
+        = $final_attrs{preserve_order}
+        = $source->schema->storage
+                 ->_order_by_is_stable(
+                     @final_attrs{qw(from order_by where)}
+                   )
+      ) {
+        if ($stability eq 'requires') {
+          if ($self->converter->_order_by_to_dq($final_attrs{order_by})) {
+            $self->throw_exception(
+                $self->limit_dialect.' limit/offset implementation requires a stable order for offset'
+            );
+          }
+          if (my $ident_cols = $source->_identifying_column_set) {
+            $final_attrs{order_by} = [
+                map "$final_attrs{alias}.$_", @$ident_cols
+            ];
+            $final_attrs{order_is_stable} = 1;
+          } else {
+            $self->throw_exception(sprintf(
+              'Unable to auto-construct stable order criteria for "skimming type" 
+  limit '
+              . "dialect based on source '%s'", $source->name) );
+          }
+        }
+      }
 
-    my $limiter;
-
-    if( $limiter = $self->can ('emulate_limit') ) {
-      carp_unique(
-        'Support for the legacy emulate_limit() mechanism inherited from '
-      . 'SQL::Abstract::Limit has been deprecated, and will be removed when '
-      . 'DBIC transitions to Data::Query. If your code uses this type of '
-      . 'limit specification please file an RT and provide the source of '
-      . 'your emulate_limit() implementation, so an acceptable upgrade-path '
-      . 'can be devised'
-      );
     }
-    else {
-      my $dialect = $self->limit_dialect
-        or $self->throw_exception( "Unable to generate SQL-limit - no limit dialect specified on $self" );
 
-      $limiter = $self->can ("_$dialect")
-        or $self->throw_exception(__PACKAGE__ . " does not implement the requested dialect '$dialect'");
+    my %slice_subquery = $self->renderer->slice_subquery;
+
+    if (my $subquery = $slice_subquery{$offset ? 'offset' : 'limit'}) {
+      $fields = [ map {
+        my $f = $fields->[$_];
+        if (ref $f) {
+          $f = { '' => $f } unless ref($f) eq 'HASH';
+          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
+        } elsif ($f !~ /^\Q$final_attrs{alias}${\$self->name_sep}/) {
+          $f = { '' => $f };
+          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
+        }
+        $f;
+        } 0 .. $#$fields ];
     }
-
-    $sql = $self->$limiter (
-      $sql,
-      { %{$rs_attrs||{}}, _selector_sql => $fields },
-      $limit,
-      $offset
-    );
-  }
-  else {
-    ($sql, @bind) = $self->next::method ($table, $fields, $where, $rs_attrs);
   }
 
-  push @{$self->{where_bind}}, @bind;
-
-# this *must* be called, otherwise extra binds will remain in the sql-maker
-  my @all_bind = $self->_assemble_binds;
+  my ($sql, @bind) = $self->next::method ($table, $fields, $where, $final_attrs{order_by}, \%final_attrs );
 
   $sql .= $self->_lock_select ($rs_attrs->{for})
     if $rs_attrs->{for};
 
-  return wantarray ? ($sql, @all_bind) : $sql;
+  return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub _assemble_binds {
@@ -192,333 +233,53 @@ sub _lock_select {
     $sql = "FOR $$type";
   }
   else {
-    $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FOR type '$type' requested" );
+    $sql = $for_syntax->{$type} || $self->throw_exception( "Unknown SELECT .. FO
+R type '$type' requested" );
   }
 
   return " $sql";
 }
 
-# Handle default inserts
-sub insert {
-# optimized due to hotttnesss
-#  my ($self, $table, $data, $options) = @_;
-
-  # SQLA will emit INSERT INTO $table ( ) VALUES ( )
-  # which is sadly understood only by MySQL. Change default behavior here,
-  # until SQLA2 comes with proper dialect support
-  if (! $_[2] or (ref $_[2] eq 'HASH' and !keys %{$_[2]} ) ) {
-    my @bind;
-    my $sql = sprintf(
-      'INSERT INTO %s DEFAULT VALUES', $_[0]->_quote($_[1])
-    );
-
-    if ( ($_[3]||{})->{returning} ) {
-      my $s;
-      ($s, @bind) = $_[0]->_insert_returning ($_[3]);
-      $sql .= $s;
-    }
-
-    return ($sql, @bind);
-  }
-
-  next::method(@_);
-}
-
-sub _recurse_fields {
-  my ($self, $fields) = @_;
-  my $ref = ref $fields;
-  return $self->_quote($fields) unless $ref;
-  return $$fields if $ref eq 'SCALAR';
-
-  if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
-  }
-  elsif ($ref eq 'HASH') {
-    my %hash = %$fields;  # shallow copy
-
-    my $as = delete $hash{-as};   # if supplied
-
-    my ($func, $args, @toomany) = %hash;
-
-    # there should be only one pair
-    if (@toomany) {
-      $self->throw_exception( "Malformed select argument - too many keys in hash: " . join (',', keys %$fields ) );
-    }
-
-    if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
-      $self->throw_exception (
-        'The select => { distinct => ... } syntax is not supported for multiple columns.'
-       .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
-       .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
-      );
-    }
-
-    my $select = sprintf ('%s( %s )%s',
-      $self->_sqlcase($func),
-      $self->_recurse_fields($args),
-      $as
-        ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
-        : ''
-    );
-
-    return $select;
-  }
-  # Is the second check absolutely necessary?
-  elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    push @{$self->{select_bind}}, @{$$fields}[1..$#$$fields];
-    return $$fields->[0];
-  }
-  else {
-    $self->throw_exception( $ref . qq{ unexpected in _recurse_fields()} );
-  }
-}
-
-
-# this used to be a part of _order_by but is broken out for clarity.
-# What we have been doing forever is hijacking the $order arg of
-# SQLA::select to pass in arbitrary pieces of data (first the group_by,
-# then pretty much the entire resultset attr-hash, as more and more
-# things in the SQLA space need to have more info about the $rs they
-# create SQL for. The alternative would be to keep expanding the
-# signature of _select with more and more positional parameters, which
-# is just gross. All hail SQLA2!
-sub _parse_rs_attrs {
-  my ($self, $arg) = @_;
-
-  my $sql = '';
-
-  if ($arg->{group_by}) {
-    # horrible horrible, waiting for refactor
-    local $self->{select_bind};
-    if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
-      $sql .= $self->_sqlcase(' group by ') . $g;
-      push @{$self->{group_bind} ||= []}, @{$self->{select_bind}||[]};
-    }
-  }
-
-  if (defined $arg->{having}) {
-    my ($frag, @bind) = $self->_recurse_where($arg->{having});
-    push(@{$self->{having_bind}}, @bind);
-    $sql .= $self->_sqlcase(' having ') . $frag;
-  }
-
-  if (defined $arg->{order_by}) {
-    $sql .= $self->_order_by ($arg->{order_by});
-  }
-
-  return $sql;
-}
-
-sub _order_by {
-  my ($self, $arg) = @_;
-
-  # check that we are not called in legacy mode (order_by as 4th argument)
-  if (ref $arg eq 'HASH' and not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg ) {
-    return $self->_parse_rs_attrs ($arg);
-  }
-  else {
-    my ($sql, @bind) = $self->next::method($arg);
-    push @{$self->{order_bind}}, @bind;
-    return $sql;
-  }
-}
-
-sub _split_order_chunk {
-  my ($self, $chunk) = @_;
-
-  # strip off sort modifiers, but always succeed, so $1 gets reset
-  $chunk =~ s/ (?: \s+ (ASC|DESC) )? \s* $//ix;
-
-  return (
-    $chunk,
-    ( $1 and uc($1) eq 'DESC' ) ? 1 : 0,
-  );
-}
-
-sub _table {
-# optimized due to hotttnesss
-#  my ($self, $from) = @_;
-  if (my $ref = ref $_[1] ) {
-    if ($ref eq 'ARRAY') {
-      return $_[0]->_recurse_from(@{$_[1]});
-    }
-    elsif ($ref eq 'HASH') {
-      return $_[0]->_recurse_from($_[1]);
-    }
-    elsif ($ref eq 'REF' && ref ${$_[1]} eq 'ARRAY') {
-      my ($sql, @bind) = @{ ${$_[1]} };
-      push @{$_[0]->{from_bind}}, @bind;
-      return $sql
-    }
-  }
-  return $_[0]->next::method ($_[1]);
-}
-
-sub _generate_join_clause {
-    my ($self, $join_type) = @_;
-
-    $join_type = $self->{_default_jointype}
-      if ! defined $join_type;
-
-    return sprintf ('%s JOIN ',
-      $join_type ?  $self->_sqlcase($join_type) : ''
-    );
-}
-
 sub _recurse_from {
-  my $self = shift;
-  return join (' ', $self->_gen_from_blocks(@_) );
-}
-
-sub _gen_from_blocks {
-  my ($self, $from, @joins) = @_;
-
-  my @fchunks = $self->_from_chunk_to_sql($from);
-
-  for (@joins) {
-    my ($to, $on) = @$_;
-
-    # check whether a join type exists
-    my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
-    my $join_type;
-    if (ref($to_jt) eq 'HASH' and defined($to_jt->{-join_type})) {
-      $join_type = $to_jt->{-join_type};
-      $join_type =~ s/^\s+ | \s+$//xg;
-    }
-
-    my @j = $self->_generate_join_clause( $join_type );
-
-    if (ref $to eq 'ARRAY') {
-      push(@j, '(', $self->_recurse_from(@$to), ')');
-    }
-    else {
-      push(@j, $self->_from_chunk_to_sql($to));
-    }
-
-    my ($sql, @bind) = $self->_join_condition($on);
-    push(@j, ' ON ', $sql);
-    push @{$self->{from_bind}}, @bind;
-
-    push @fchunks, join '', @j;
-  }
-
-  return @fchunks;
-}
-
-sub _from_chunk_to_sql {
-  my ($self, $fromspec) = @_;
-
-  return join (' ', do {
-    if (! ref $fromspec) {
-      $self->_quote($fromspec);
-    }
-    elsif (ref $fromspec eq 'SCALAR') {
-      $$fromspec;
-    }
-    elsif (ref $fromspec eq 'REF' and ref $$fromspec eq 'ARRAY') {
-      push @{$self->{from_bind}}, @{$$fromspec}[1..$#$$fromspec];
-      $$fromspec->[0];
-    }
-    elsif (ref $fromspec eq 'HASH') {
-      my ($as, $table, $toomuch) = ( map
-        { $_ => $fromspec->{$_} }
-        ( grep { $_ !~ /^\-/ } keys %$fromspec )
-      );
-
-      $self->throw_exception( "Only one table/as pair expected in from-spec but an exra '$toomuch' key present" )
-        if defined $toomuch;
-
-      ($self->_from_chunk_to_sql($table), $self->_quote($as) );
-    }
-    else {
-      $self->throw_exception('Unsupported from refkind: ' . ref $fromspec );
-    }
-  });
-}
-
-sub _join_condition {
-  my ($self, $cond) = @_;
-
-  # Backcompat for the old days when a plain hashref
-  # { 't1.col1' => 't2.col2' } meant ON t1.col1 = t2.col2
-  # Once things settle we should start warning here so that
-  # folks unroll their hacks
-  if (
-    ref $cond eq 'HASH'
-      and
-    keys %$cond == 1
-      and
-    (keys %$cond)[0] =~ /\./
-      and
-    ! ref ( (values %$cond)[0] )
-  ) {
-    $cond = { keys %$cond => { -ident => values %$cond } }
-  }
-  elsif ( ref $cond eq 'ARRAY' ) {
-    # do our own ORing so that the hashref-shim above is invoked
-    my @parts;
-    my @binds;
-    foreach my $c (@$cond) {
-      my ($sql, @bind) = $self->_join_condition($c);
-      push @binds, @bind;
-      push @parts, $sql;
-    }
-    return join(' OR ', @parts), @binds;
-  }
-
-  return $self->_recurse_where($cond);
-}
-
-# This is hideously ugly, but SQLA does not understand multicol IN expressions
-# FIXME TEMPORARY - DQ should have native syntax for this
-# moved here to raise API questions
-#
-# !!! EXPERIMENTAL API !!! WILL CHANGE !!!
-sub _where_op_multicolumn_in {
-  my ($self, $lhs, $rhs) = @_;
-
-  if (! ref $lhs or ref $lhs eq 'ARRAY') {
-    my (@sql, @bind);
-    for (ref $lhs ? @$lhs : $lhs) {
-      if (! ref $_) {
-        push @sql, $self->_quote($_);
-      }
-      elsif (ref $_ eq 'SCALAR') {
-        push @sql, $$_;
-      }
-      elsif (ref $_ eq 'REF' and ref $$_ eq 'ARRAY') {
-        my ($s, @b) = @$$_;
-        push @sql, $s;
-        push @bind, @b;
-      }
-      else {
-        $self->throw_exception("ARRAY of @{[ ref $_ ]}es unsupported for multicolumn IN lhs...");
-      }
-    }
-    $lhs = \[ join(', ', @sql), @bind];
-  }
-  elsif (ref $lhs eq 'SCALAR') {
-    $lhs = \[ $$lhs ];
-  }
-  elsif (ref $lhs eq 'REF' and ref $$lhs eq 'ARRAY' ) {
-    # noop
-  }
-  else {
-    $self->throw_exception( ref($lhs) . "es unsupported for multicolumn IN lhs...");
-  }
-
-  # is this proper...?
-  $rhs = \[ $self->_recurse_where($rhs) ];
-
-  for ($lhs, $rhs) {
-    $$_->[0] = "( $$_->[0] )"
-      unless $$_->[0] =~ /^ \s* \( .* \) \s* ^/xs;
-  }
-
-  \[ join( ' IN ', shift @$$lhs, shift @$$rhs ), @$$lhs, @$$rhs ];
+  scalar shift->_render_sqla(table => \@_);
 }
 
 1;
+
+=head1 OPERATORS
+
+=head2 -ident
+
+Used to explicitly specify an SQL identifier. Takes a plain string as value
+which is then invariably treated as a column name (and is being properly
+quoted if quoting has been requested). Most useful for comparison of two
+columns:
+
+    my %where = (
+        priority => { '<', 2 },
+        requestor => { -ident => 'submitter' }
+    );
+
+which results in:
+
+    $stmt = 'WHERE "priority" < ? AND "requestor" = "submitter"';
+    @bind = ('2');
+
+=head2 -value
+
+The -value operator signals that the argument to the right is a raw bind value.
+It will be passed straight to DBI, without invoking any of the SQL::Abstract
+condition-parsing logic. This allows you to, for example, pass an array as a
+column value for databases that support array datatypes, e.g.:
+
+    my %where = (
+        array => { -value => [1, 2, 3] }
+    );
+
+which results in:
+
+    $stmt = 'WHERE array = ?';
+    @bind = ([1, 2, 3]);
 
 =head1 AUTHORS
 

@@ -358,10 +358,9 @@ sub _prep_for_skimming_limit {
     for my $ch ($self->_order_by_chunks ($inner_order)) {
       $ch = $ch->[0] if ref $ch eq 'ARRAY';
 
-      ($ch, my $is_desc) = $self->_split_order_chunk($ch);
-
-      # !NOTE! outside chunks come in reverse order ( !$is_desc )
-      push @out_chunks, { ($is_desc ? '-asc' : '-desc') => \$ch };
+      $ch =~ s/\s+ ( ASC|DESC ) \s* $//ix;
+      my $dir = uc ($1||'ASC');
+      push @out_chunks, \join (' ', $ch, $dir eq 'ASC' ? 'DESC' : 'ASC' );
     }
 
     $sq_attrs->{order_by_middle} = $self->_order_by (\@out_chunks);
@@ -384,6 +383,18 @@ sub _prep_for_skimming_limit {
       # Whatever order bindvals there are, they will be realiased and
       # reselected, and need to show up at end of the initial inner select
       push @{$self->{select_bind}}, @{$self->{order_bind}};
+
+      # if this is a part of something bigger, we need to add back all
+      # the extra order_by's, as they may be relied upon by the outside
+      # of a prefetch or something
+      if ($rs_attrs->{_is_internal_subuery}) {
+        $sq_attrs->{selection_outer} .= sprintf ", $extra_order_sel->{$_} AS $_"
+          for sort
+            { $extra_order_sel->{$a} cmp $extra_order_sel->{$b} }
+              grep { $_ !~ /[^\w\-]/ }  # ignore functions
+              keys %$extra_order_sel
+        ;
+      }
     }
 
     # and this is order re-alias magic
@@ -507,6 +518,32 @@ sub _FetchFirst {
   return $sql;
 }
 
+=head2 RowCountOrGenericSubQ
+
+This is not exactly a limit dialect, but more of a proxy for B<Sybase ASE>.
+If no $offset is supplied the limit is simply performed as:
+
+ SET ROWCOUNT $limit
+ SELECT ...
+ SET ROWCOUNT 0
+
+Otherwise we fall back to L</GenericSubQ>
+
+=cut
+
+sub _RowCountOrGenericSubQ {
+  my $self = shift;
+  my ($sql, $rs_attrs, $rows, $offset) = @_;
+
+  return $self->_GenericSubQ(@_) if $offset;
+
+  return sprintf <<"EOF", $rows, $sql, $self->_parse_rs_attrs( $rs_attrs );
+SET ROWCOUNT %d
+%s %s
+SET ROWCOUNT 0
+EOF
+}
+
 =head2 GenericSubQ
 
  SELECT * FROM (
@@ -533,106 +570,59 @@ sub _GenericSubQ {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
   my $root_rsrc = $rs_attrs->{_rsroot_rsrc};
-
-  # Explicitly require an order_by
-  # GenSubQ is slow enough as it is, just emulating things
-  # like in other cases is not wise - make the user work
-  # to shoot their DBA in the foot
-  my $supplied_order = delete $rs_attrs->{order_by} or $self->throw_exception (
-    'Generic Subquery Limit does not work on resultsets without an order. Provide a stable, '
-  . 'root-table-based order criteria.'
-  );
-
-  my $usable_order_ci = $root_rsrc->storage->_main_source_order_by_portion_is_stable(
-    $root_rsrc,
-    $supplied_order,
-    $rs_attrs->{where},
-  ) or $self->throw_exception(
-    'Generic Subquery Limit can not work with order criteria based on sources other than the current one'
-  );
-
-###
-###
-### we need to know the directions after we figured out the above - reextract *again*
-### this is eyebleed - trying to get it to work at first
-  my @order_bits = do {
-    local $self->{quote_char};
-    local $self->{order_bind};
-    map { ref $_ ? $_->[0] : $_ } $self->_order_by_chunks ($supplied_order)
-  };
-
-  # truncate to what we'll use
-  $#order_bits = ( (keys %$usable_order_ci) - 1 );
-
-  # @order_bits likely will come back quoted (due to how the prefetch
-  # rewriter operates
-  # Hence supplement the column_info lookup table with quoted versions
-  if ($self->quote_char) {
-    $usable_order_ci->{$self->_quote($_)} = $usable_order_ci->{$_}
-      for keys %$usable_order_ci;
-  }
-
-# calculate the condition
-  my $count_tbl_alias = 'rownum__emulation';
-  my $root_alias = $rs_attrs->{alias};
   my $root_tbl_name = $root_rsrc->name;
 
-  my (@unqualified_names, @qualified_names, @is_desc, @new_order_by);
+  my ($first_order_by) = do {
+    local $self->{quote_char};
+    local $self->{order_bind};
+    map { ref $_ ? $_->[0] : $_ } $self->_order_by_chunks ($rs_attrs->{order_by})
+  } or $self->throw_exception (
+    'Generic Subquery Limit does not work on resultsets without an order. Provide a single, '
+  . 'unique-column order criteria.'
+  );
 
-  for my $bit (@order_bits) {
+  $first_order_by =~ s/\s+ ( ASC|DESC ) \s* $//ix;
+  my $direction = lc ($1 || 'asc');
 
-    ($bit, my $is_desc) = $self->_split_order_chunk($bit);
+  my ($first_ord_alias, $first_ord_col) = $first_order_by =~ /^ (?: ([^\.]+) \. )? ([^\.]+) $/x;
 
-    push @is_desc, $is_desc;
-    push @unqualified_names, $usable_order_ci->{$bit}{-colname};
-    push @qualified_names, $usable_order_ci->{$bit}{-fq_colname};
+  $self->throw_exception(sprintf
+    "Generic Subquery Limit order criteria can be only based on the root-source '%s'"
+  . " (aliased as '%s')", $root_rsrc->source_name, $rs_attrs->{alias},
+  ) if ($first_ord_alias and $first_ord_alias ne $rs_attrs->{alias});
 
-    push @new_order_by, { ($is_desc ? '-desc' : '-asc') => $usable_order_ci->{$bit}{-fq_colname} };
+  $first_ord_alias ||= $rs_attrs->{alias};
+
+  $self->throw_exception(
+    "Generic Subquery Limit first order criteria '$first_ord_col' must be unique"
+  ) unless $root_rsrc->_identifying_column_set([$first_ord_col]);
+
+  my $sq_attrs = do {
+    # perform the mangling only using the very first order crietria
+    # (the one we care about)
+    local $rs_attrs->{order_by} = $first_order_by;
+    $self->_subqueried_limit_attrs ($sql, $rs_attrs);
   };
 
-  my (@where_cond, @skip_colpair_stack);
-  for my $i (0 .. $#order_bits) {
-    my $ci = $usable_order_ci->{$order_bits[$i]};
+  my $cmp_op = $direction eq 'desc' ? '>' : '<';
+  my $count_tbl_alias = 'rownum__emulation';
 
-    my ($subq_col, $main_col) = map { "$_.$ci->{-colname}" } ($count_tbl_alias, $root_alias);
-    my $cur_cond = { $subq_col => { ($is_desc[$i] ? '>' : '<') => { -ident => $main_col } } };
-
-    push @skip_colpair_stack, [
-      { $main_col => { -ident => $subq_col } },
-    ];
-
-    # we can trust the nullability flag because
-    # we already used it during _id_col_set resolution
-    #
-    if ($ci->{is_nullable}) {
-      push @{$skip_colpair_stack[-1]}, { $main_col => undef, $subq_col=> undef };
-
-      $cur_cond = [
-        {
-          ($is_desc[$i] ? $subq_col : $main_col) => { '!=', undef },
-          ($is_desc[$i] ? $main_col : $subq_col) => undef,
-        },
-        {
-          $subq_col => { '!=', undef },
-          $main_col => { '!=', undef },
-          -and => $cur_cond,
-        },
-      ];
-    }
-
-    push @where_cond, { '-and', => [ @skip_colpair_stack[0..$i-1], $cur_cond ] };
-  }
-
-# reuse the sqlmaker WHERE, this will not be returning binds
-  my $counted_where = do {
-    local $self->{where_bind};
-    $self->where(\@where_cond);
+  my ($order_sql, @order_bind) = do {
+    local $self->{order_bind};
+    my $s = $self->_order_by (delete $rs_attrs->{order_by});
+    ($s, @{$self->{order_bind}});
   };
+  my $group_having_sql = $self->_parse_rs_attrs($rs_attrs);
 
-# construct the rownum condition by hand
+  my $in_sel = $sq_attrs->{selection_inner};
+
+  # add the order supplement (if any) as this is what will be used for the outer WHERE
+  $in_sel .= ", $_" for keys %{$sq_attrs->{order_supplement}};
+
   my $rownum_cond;
   if ($offset) {
     $rownum_cond = 'BETWEEN ? AND ?';
+
     push @{$self->{limit_bind}},
       [ $self->__offset_bindtype => $offset ],
       [ $self->__total_bindtype => $offset + $rows - 1]
@@ -640,51 +630,30 @@ sub _GenericSubQ {
   }
   else {
     $rownum_cond = '< ?';
+
     push @{$self->{limit_bind}},
       [ $self->__rows_bindtype => $rows ]
     ;
   }
 
-# and what we will order by inside
-  my $inner_order_sql = do {
-    local $self->{order_bind};
-
-    my $s = $self->_order_by (\@new_order_by);
-
-    $self->throw_exception('Inner gensubq order may not contain binds... something went wrong')
-      if @{$self->{order_bind}};
-
-    $s;
-  };
-
-### resume originally scheduled programming
-###
-###
-
-  # we need to supply the order for the supplements to be properly calculated
-  my $sq_attrs = $self->_subqueried_limit_attrs (
-    $sql, { %$rs_attrs, order_by => \@new_order_by }
-  );
-
-  my $in_sel = $sq_attrs->{selection_inner};
-
-  # add the order supplement (if any) as this is what will be used for the outer WHERE
-  $in_sel .= ", $_" for sort keys %{$sq_attrs->{order_supplement}};
-
-  my $group_having_sql = $self->_parse_rs_attrs($rs_attrs);
-
+  # even though binds in order_by make no sense here (the rs needs to be
+  # ordered by a unique column first) - pass whatever there may be through
+  # anyway
+  push @{$self->{limit_bind}}, @order_bind;
 
   return sprintf ("
 SELECT $sq_attrs->{selection_outer}
   FROM (
     SELECT $in_sel $sq_attrs->{query_leftover}${group_having_sql}
   ) %s
-WHERE ( SELECT COUNT(*) FROM %s %s $counted_where ) $rownum_cond
-$inner_order_sql
+WHERE ( SELECT COUNT(*) FROM %s %s WHERE %s $cmp_op %s ) $rownum_cond
+$order_sql
   ", map { $self->_quote ($_) } (
     $rs_attrs->{alias},
     $root_tbl_name,
     $count_tbl_alias,
+    "$count_tbl_alias.$first_ord_col",
+    "$first_ord_alias.$first_ord_col",
   ));
 }
 
@@ -799,7 +768,7 @@ sub _subqueried_limit_attrs {
   for my $chunk ($self->_order_by_chunks ($rs_attrs->{order_by})) {
     # order with bind
     $chunk = $chunk->[0] if (ref $chunk) eq 'ARRAY';
-    ($chunk) = $self->_split_order_chunk($chunk);
+    $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
 
     next if $in_sel_index->{$chunk};
 
