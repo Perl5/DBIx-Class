@@ -106,6 +106,10 @@ BEGIN {
 
     Class::Accessor::Grouped
     Class::C3::Componentised
+
+    Module::Runtime
+    Data::Query::Constants
+    Data::Query::ExprHelpers
   ));
 
   require DBICTest::Schema;
