@@ -416,7 +416,7 @@ sub _resolve_aliastypes_from_select_args {
   # generate sql chunks
   my $to_scan = {
     restricting => [
-      $sql_maker->_recurse_where ($attrs->{where}),
+      ($sql_maker->_recurse_where ($attrs->{where}))[0],
       $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} }),
     ],
     grouping => [
