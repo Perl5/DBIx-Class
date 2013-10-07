@@ -39,7 +39,6 @@ around _insert_to_dq => sub {
     map {
       my $r_dq = $dq->{returning}[$_];
       no warnings 'once';
-::Dwarn($r_dq);
       local $SQL::Abstract::Converter::Cur_Col_Meta = (
         is_Identifier($r_dq)
           ? join('.', @{$r_dq->{elements}})
