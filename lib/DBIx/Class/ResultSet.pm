@@ -1927,11 +1927,13 @@ sub _rs_update_delete {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
-    $cond = do {
-      my $sqla = $rsrc->storage->sql_maker;
-      local $sqla->{_dequalify_idents} = 1;
-      \[ $sqla->_recurse_where($self->{cond}) ];
-    };
+    if ($self->{cond}) {
+      $cond = do {
+        my $sqla = $rsrc->storage->sql_maker;
+        local $sqla->{_dequalify_idents} = 1;
+        \[ $sqla->_recurse_where($self->{cond}) ];
+      };
+    }
   }
   else {
     # we got this far - means it is time to wrap a subquery
