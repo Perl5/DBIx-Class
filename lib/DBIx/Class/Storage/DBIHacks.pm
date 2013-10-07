@@ -804,7 +804,7 @@ sub _extract_order_criteria {
   my $order_dq = $sql_maker->converter->_order_by_to_dq($order_by);
 
   my @by;
-  while (is_Literal($order_dq)) {
+  while (is_Order($order_dq)) {
     push @by, $order_dq->{by};
     $order_dq = $order_dq->{from};
   }
