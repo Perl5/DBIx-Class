@@ -8,7 +8,8 @@ use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
-
+use Data::Query::Constants;
+use Data::Query::ExprHelpers;
 # not importing first() as it will clash with our own method
 use List::Util ();
 
@@ -1926,12 +1927,16 @@ sub _rs_update_delete {
   if (! $needs_subq) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
-    # at all. Tell SQLMaker to dequalify idents via a gross hack.
+    # at all - so we convert the WHERE to a dq tree now, dequalify all
+    # identifiers found therein via a scan across the tree, and then use
+    # \{} style to pass the result onwards for use in the final query
     if ($self->{cond}) {
       $cond = do {
-        my $sqla = $rsrc->storage->sql_maker;
-        local $sqla->{_dequalify_idents} = 1;
-        \[ $sqla->_recurse_where($self->{cond}) ];
+        my $converter = $rsrc->storage->sql_maker->converter;
+        scan_dq_nodes({
+          DQ_IDENTIFIER ,=> sub { $_ = [ $_->[-1] ] for $_[0]->{elements} }
+        }, my $where_dq = $converter->_where_to_dq($self->{cond}));
+        \$where_dq;
       };
     }
   }
