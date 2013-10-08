@@ -46,6 +46,12 @@ my $runtime_requires = {
   # DBI itself should be capable of installation and execution in pure-perl
   # mode. However it has never been tested yet, so consider XS for the time
   # being
+###
+### IMPORTANT - do not raise this dependency
+### even though many bugfixes are present in newer versions, the general DBIC
+### rule is to bend over backwards for available DBI versions (given upgrading
+### them is often *not* easy or even possible)
+###
   'DBI'                      => '1.57',
 
   # on older versions first() leaks
@@ -86,6 +92,12 @@ my $runtime_requires = {
 my $build_requires = {
   # needed for testing only, not for operation
   # we will move away from this dep eventually, perhaps to DBD::CSV or something
+###
+### IMPORTANT - do not raise this dependency
+### even though many bugfixes are present in newer versions, the general DBIC
+### rule is to bend over backwards for available DBDs (given upgrading them is
+### often *not* easy or even possible)
+###
   'DBD::SQLite'              => '1.29',
 };
 
