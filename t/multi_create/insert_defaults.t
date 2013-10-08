@@ -4,8 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-
-plan tests => 8;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 my $schema = DBICTest->init_schema();
 
@@ -39,6 +38,8 @@ is_deeply ({ $o0->columns}, {$last_bookmark->columns}, 'Correctly identify a row
 my $o3 = $last_link->create_related ('bookmarks', {});
 is ($o3->id, $last_bookmark->id + 3, '3rd bookmark ID');
 
-local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /Query returned more than one row/ };
+local $SIG{__WARN__} = sigwarn_silencer( qr/Query returned more than one row/ );
 my $oX = $bookmark_rs->find_or_create ({ link => $last_link });
 is_deeply ({ $oX->columns}, {$last_bookmark->columns}, 'Correctly identify a row given a relationship');
+
+done_testing;

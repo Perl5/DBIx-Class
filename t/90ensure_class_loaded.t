@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 use Class::Inspector;
 
 BEGIN {
@@ -100,13 +101,9 @@ ok( Class::Inspector->loaded('DBICTest::FakeComponent'),
 
 {
   # Squash warnings about syntax errors in SytaxErrorComponent.pm
-  local $SIG{__WARN__} = sub {
-    my $warning = shift;
-    warn $warning unless (
-      $warning =~ /String found where operator expected/ or
-      $warning =~ /Missing operator before/
-    );
-  };
+  local $SIG{__WARN__} = sigwarn_silencer(
+    qr/String found where operator expected|Missing operator before/
+  );
 
   eval { $schema->ensure_class_loaded('DBICTest::SyntaxErrorComponent1') };
   like( $@, qr/syntax error/,

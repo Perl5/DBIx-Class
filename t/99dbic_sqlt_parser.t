@@ -8,6 +8,7 @@ use Scalar::Util ();
 
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 BEGIN {
   require DBIx::Class;
@@ -78,6 +79,8 @@ SKIP: {
 
   eval <<'EOE' or die $@;
   END {
+    # we are in END - everything remains global
+    #
     $^W = 1;  # important, otherwise DBI won't trip the next fail()
     $SIG{__WARN__} = sub {
       fail "Unexpected global destruction warning"
@@ -216,10 +219,9 @@ lives_ok (sub {
   lives_ok (sub {
     my $sqlt_schema = do {
 
-      local $SIG{__WARN__} = sub {
-        warn @_
-          unless $_[0] =~ /Ignoring relationship .+ related resultsource .+ is not registered with this schema/
-      };
+      local $SIG{__WARN__} = sigwarn_silencer(
+        qr/Ignoring relationship .+ related resultsource .+ is not registered with this schema/
+      );
 
       create_schema({ schema => $partial_schema });
     };

@@ -9,7 +9,7 @@ use Config;
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::_Util 'modver_gt_or_eq';
+use DBIx::Class::_Util qw(sigwarn_silencer modver_gt_or_eq);
 
 # savepoints test
 {
@@ -64,7 +64,7 @@ for my $prefix_comment (qw/Begin_only Commit_only Begin_and_Commit/) {
   # FIXME warning won't help us for the time being
   # perhaps when (if ever) DBD::SQLite gets fixed,
   # we can do something extra here
-  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /Internal transaction state .+? does not seem to match/ }
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Internal transaction state .+? does not seem to match/ )
     if ( $lit_txn_todo && !$ENV{TEST_VERBOSE} );
 
   my ($c_begin, $c_commit) = map { $prefix_comment =~ $_ ? 1 : 0 } (qr/Begin/, qr/Commit/);

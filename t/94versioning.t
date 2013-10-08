@@ -11,6 +11,7 @@ use Time::HiRes qw/time sleep/;
 
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 my ($dsn, $user, $pass);
 
@@ -167,7 +168,7 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 
 # attempt v1 -> v3 upgrade
 {
-  local $SIG{__WARN__} = sub { warn $_[0] if $_[0] !~ /Attempting upgrade\.$/ };
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Attempting upgrade\.$/ );
   $schema_v3->upgrade();
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 }
@@ -196,7 +197,7 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 
 # Then attempt v1 -> v3 upgrade
 {
-  local $SIG{__WARN__} = sub { warn $_[0] if $_[0] !~ /Attempting upgrade\.$/ };
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Attempting upgrade\.$/ );
   $schema_v3->upgrade();
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded to 3.0');
 
@@ -250,7 +251,8 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
     $schema_v2->deploy;
   }
 
-  local $SIG{__WARN__} = sub { warn $_[0] if $_[0] !~ /Attempting upgrade\.$/ };
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Attempting upgrade\.$/ );
+
   $schema_v2->upgrade();
 
   is($schema_v2->get_db_version(), '3.0', 'Fast deploy/upgrade');

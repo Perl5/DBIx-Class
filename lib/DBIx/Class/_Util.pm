@@ -10,7 +10,17 @@ use Carp;
 use Scalar::Util qw(refaddr weaken);
 
 use base 'Exporter';
-our @EXPORT_OK = qw(modver_gt_or_eq fail_on_internal_wantarray);
+our @EXPORT_OK = qw(sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray);
+
+sub sigwarn_silencer {
+  my $pattern = shift;
+
+  croak "Expecting a regexp" if ref $pattern ne 'Regexp';
+
+  my $orig_sig_warn = $SIG{__WARN__} || sub { CORE::warn(@_) };
+
+  return sub { &$orig_sig_warn unless $_[0] =~ $pattern };
+}
 
 sub modver_gt_or_eq {
   my ($mod, $ver) = @_;
@@ -21,12 +31,8 @@ sub modver_gt_or_eq {
   croak "Nonsensical minimum version supplied"
     if ! defined $ver or $ver =~ /[^0-9\.\_]/;
 
-  local $SIG{__WARN__} = do {
-    my $orig_sig_warn = $SIG{__WARN__} || sub { warn @_ };
-    sub {
-      $orig_sig_warn->(@_) unless $_[0] =~ /\Qisn't numeric in subroutine entry/
-    }
-  } if SPURIOUS_VERSION_CHECK_WARNINGS;
+  local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
+    if SPURIOUS_VERSION_CHECK_WARNINGS;
 
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
