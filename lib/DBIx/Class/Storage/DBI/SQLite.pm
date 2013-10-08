@@ -264,24 +264,24 @@ sub _dbi_attrs_for_bind {
   # 0.08191 and 0.08209 inclusive (fixed in 0.08210 and higher)
   my $stringifiable = 0;
 
-  for (0.. $#$bindattrs) {
+  for my $i (0.. $#$bindattrs) {
 
-    $stringifiable++ if ( length ref $bind->[$_][1] and overload::Method($bind->[$_][1], '""') );
+    $stringifiable++ if ( length ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""') );
 
     if (
-      defined $bindattrs->[$_]
+      defined $bindattrs->[$i]
         and
-      defined $bind->[$_][1]
+      defined $bind->[$i][1]
         and
-      $bindattrs->[$_] eq DBI::SQL_INTEGER()
+      $bindattrs->[$i] eq DBI::SQL_INTEGER()
         and
-      $bind->[$_][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
+      $bind->[$i][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
     ) {
       carp_unique( sprintf (
         "Non-integer value supplied for column '%s' despite the integer datatype",
-        $bind->[$_][0]{dbic_colname} || "# $_"
+        $bind->[$i][0]{dbic_colname} || "# $i"
       ) );
-      undef $bindattrs->[$_];
+      undef $bindattrs->[$i];
     }
   }
 
