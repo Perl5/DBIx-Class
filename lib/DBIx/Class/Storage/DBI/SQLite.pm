@@ -273,7 +273,9 @@ sub _dbi_attrs_for_bind {
         and
       defined $bind->[$i][1]
         and
-      $bindattrs->[$i] eq DBI::SQL_INTEGER()
+      grep { $bindattrs->[$i] eq $_ } (
+        DBI::SQL_INTEGER(), DBI::SQL_TINYINT(), DBI::SQL_SMALLINT(), DBI::SQL_BIGINT()
+      )
         and
       $bind->[$i][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
     ) {
