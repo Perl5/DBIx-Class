@@ -5,7 +5,6 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Time::HiRes 'time';
-use Config;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -150,32 +149,81 @@ $schema->storage->dbh_do(sub {
 
 # test upper/lower boundaries for sqlite and some values inbetween
 # range is -(2**63) .. 2**63 - 1
-SKIP: {
-  skip 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail with DBD::SQLite < 1.37', 1
-    if ($Config{ivsize} < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37') );
+for my $bi ( qw(
+  -9223372036854775808
+  -9223372036854775807
+  -8694837494948124658
+  -6848440844435891639
+  -5664812265578554454
+  -5380388020020483213
+  -2564279463598428141
+  2442753333597784273
+  4790993557925631491
+  6773854980030157393
+  7627910776496326154
+  8297530189347439311
+  9223372036854775806
+  9223372036854775807
 
-  for my $bi (qw/
-    -9223372036854775808
-    -9223372036854775807
-    -8694837494948124658
-    -6848440844435891639
-    -5664812265578554454
-    -5380388020020483213
-    -2564279463598428141
-    2442753333597784273
-    4790993557925631491
-    6773854980030157393
-    7627910776496326154
-    8297530189347439311
-    9223372036854775806
-    9223372036854775807
-  /) {
+  4294967295
+  4294967296
+
+  -4294967296
+  -4294967295
+  -4294967294
+
+  -2147483649
+  -2147483648
+  -2147483647
+  -2147483646
+
+  2147483646
+  2147483647
+),
+  # these values cause exceptions even with all workarounds in place on these
+  # fucked DBD::SQLite versions *regardless* of ivsize >.<
+  ( modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37') )
+    ? ()
+    : ( '2147483648', '2147483649' )
+) {
+  # unsigned 32 bit ints have a range of −2,147,483,648 to 2,147,483,647
+  # alternatively expressed as the hexadecimal numbers below
+  # the comparison math will come out right regardless of ivsize, since
+  # we are operating within 31 bits
+  # P.S. 31 because one bit is lost for the sign
+  my $v_bits = ($bi > 0x7fff_ffff || $bi < -0x8000_0000) ? 64 : 32;
+
+  my $v_desc = sprintf '%s (%d bit signed int)', $bi, $v_bits;
+
+  my $w;
+  lives_ok {
+    local $SIG{__WARN__} = sigwarn_silencer( qr/datatype mismatch/ );
     $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-    is ($row->bigint, $bi, "value in object correct ($bi)");
+  } "Insering value $bi ($v_desc)" or next;
 
-    $row->discard_changes;
-    is ($row->bigint, $bi, "value in database correct ($bi)");
-  }
+  is ($w, undef, 'No mismatch warning on bigints' );
+
+  # explicitly using eq, to make sure we did not nummify the argument
+  # which can be an issue on 32 bit ivsize
+  cmp_ok ($row->bigint, 'eq', $bi, "value in object correct ($v_desc)");
+
+  $row->discard_changes;
+
+  cmp_ok (
+    $row->bigint,
+
+    # the test will not pass an == if we are running under 32 bit ivsize
+    # use 'eq' on the numified (and possibly "scientificied") returned value
+    DBIx::Class::_ENV_::IV_SIZE < 8 ? 'eq' : '==',
+
+    # in 1.37 DBD::SQLite switched to proper losless representation of bigints
+    # regardless of ivize
+    # before this use 'eq' (from above) on the numified (and possibly
+    # "scientificied") returned value
+    (DBIx::Class::_ENV_::IV_SIZE < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37')) ? $bi+0 : $bi,
+
+    "value in database correct ($v_desc)"
+  );
 }
 
 done_testing;

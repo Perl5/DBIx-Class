@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-use DBIx::Class::_Util 'modver_gt_or_eq';
+use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -240,10 +240,35 @@ sub deployment_statements {
 }
 
 sub bind_attribute_by_data_type {
-  $_[1] =~ /^ (?: int(?:eger)? | (?:tiny|small|medium)int ) $/ix
-    ? DBI::SQL_INTEGER()
+
+  # According to http://www.sqlite.org/datatype3.html#storageclasses
+  # all numeric types are dynamically allocated up to 8 bytes per
+  # individual value
+  # Thus it should be safe and non-wasteful to bind everything as
+  # SQL_BIGINT and have SQLite deal with storage/comparisons however
+  # it deems correct
+  $_[1] =~ /^ (?: int(?:[1248]|eger)? | (?:tiny|small|medium|big)int ) $/ix
+    ? DBI::SQL_BIGINT()
     : undef
   ;
+}
+
+# FIXME - what the flying fuck... work around RT#76395
+# DBD::SQLite warns on binding >32 bit values with 32 bit IVs
+sub _dbh_execute {
+  if (DBIx::Class::_ENV_::IV_SIZE < 8) {
+
+    if (! defined $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT) {
+      $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT = (
+        modver_gt_or_eq('DBD::SQLite', '1.37')
+      ) ? 1 : 0;
+    }
+
+    local $SIG{__WARN__} = sigwarn_silencer( qr/datatype mismatch/ )
+      if $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT;
+  }
+
+  shift->next::method(@_);
 }
 
 # DBD::SQLite (at least up to version 1.31 has a bug where it will
@@ -259,6 +284,15 @@ sub _dbi_attrs_for_bind {
   my ($self, $ident, $bind) = @_;
 
   my $bindattrs = $self->next::method($ident, $bind);
+
+  # somewhere between 1.33 and 1.37 things went horribly wrong
+  if (! defined $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values) {
+    $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values = (
+      modver_gt_or_eq('DBD::SQLite', '1.34')
+        and
+      ! modver_gt_or_eq('DBD::SQLite', '1.37')
+    ) ? 0 : 1;
+  }
 
   # an attempt to detect former effects of RT#79576, bug itself present between
   # 0.08191 and 0.08209 inclusive (fixed in 0.08210 and higher)
@@ -276,14 +310,34 @@ sub _dbi_attrs_for_bind {
       grep { $bindattrs->[$i] eq $_ } (
         DBI::SQL_INTEGER(), DBI::SQL_TINYINT(), DBI::SQL_SMALLINT(), DBI::SQL_BIGINT()
       )
-        and
-      $bind->[$i][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x
     ) {
-      carp_unique( sprintf (
-        "Non-integer value supplied for column '%s' despite the integer datatype",
-        $bind->[$i][0]{dbic_colname} || "# $i"
-      ) );
-      undef $bindattrs->[$i];
+      if ( $bind->[$i][1] !~ /^ [\+\-]? [0-9]+ (?: \. 0* )? $/x ) {
+        carp_unique( sprintf (
+          "Non-integer value supplied for column '%s' despite the integer datatype",
+          $bind->[$i][0]{dbic_colname} || "# $i"
+        ) );
+        undef $bindattrs->[$i];
+      }
+      elsif (
+        ! $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values
+          and
+        # unsigned 32 bit ints have a range of −2,147,483,648 to 2,147,483,647
+        # alternatively expressed as the hexadecimal numbers below
+        # the comparison math will come out right regardless of ivsize, since
+        # we are operating within 31 bits
+        # P.S. 31 because one bit is lost for the sign
+        ($bind->[$i][1] > 0x7fff_ffff or $bind->[$i][1] < -0x8000_0000)
+      ) {
+        carp_unique( sprintf (
+          "An integer value occupying more than 32 bits was supplied for column '%s' "
+        . 'which your version of DBD::SQLite (%s) can not bind properly so DBIC '
+        . 'will treat it as a string instead, consider upgrading to at least '
+        . 'DBD::SQLite version 1.37',
+          $bind->[$i][0]{dbic_colname} || "# $i",
+          DBD::SQLite->VERSION,
+        ) );
+        undef $bindattrs->[$i];
+      }
     }
   }
 
