@@ -262,9 +262,9 @@ sub _adjust_select_args_for_complex_prefetch {
         while (is_Order($order_dq)) {
           my ($chunk, @args) = $sql_maker->_render_dq($order_dq->{by});
 
-          push @new_order, \[ $chunk, @args ];
-
           my $is_desc = $order_dq->{reverse};
+
+          push @new_order, \[ $chunk.($is_desc ? ' DESC' : ''), @args ];
 
           $order_dq = $order_dq->{from};
 
