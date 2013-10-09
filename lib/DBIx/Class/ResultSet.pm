@@ -1729,15 +1729,22 @@ sub _count_subq_rs {
         $sql_maker->{name_sep} = '';
       }
 
+      $sql_maker->clear_renderer;
+      $sql_maker->clear_converter;
+
       my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
-      my $having_sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
+      my $having_sql = $sql_maker->_render_sqla(where => $attrs->{having});
+
+      $sql_maker->clear_renderer;
+      $sql_maker->clear_converter;
+
       my %seen_having;
 
       # search for both a proper quoted qualified string, for a naive unquoted scalarref
       # and if all fails for an utterly naive quoted scalar-with-function
       while ($having_sql =~ /
-        $rquote $sep $lquote (.+?) $rquote
+        (?: $rquote $sep)? $lquote (.+?) $rquote
           |
         [\s,] \w+ \. (\w+) [\s,]
           |
