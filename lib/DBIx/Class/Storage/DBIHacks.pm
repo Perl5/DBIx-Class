@@ -473,6 +473,10 @@ sub _resolve_aliastypes_from_select_args {
     $sql_maker->{name_sep} = '';
   }
 
+  # local is not enough - need to ensure the inner objects get rebuilt
+  $sql_maker->clear_renderer;
+  $sql_maker->clear_converter;
+
   my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
   # generate sql chunks
@@ -508,7 +512,6 @@ sub _resolve_aliastypes_from_select_args {
   };
 
   # local is not enough - need to ensure the inner objects get rebuilt
-  # with the original quoting setup (or lack thereof)
   $sql_maker->clear_renderer;
   $sql_maker->clear_converter;
 
