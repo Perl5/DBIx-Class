@@ -152,7 +152,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # join collapse *will not work* on heavy data types.
   my $connecting_aliastypes = $self->_resolve_aliastypes_from_select_args(
     $from,
-    [],
+    undef,
     $where,
     $inner_attrs
   );
@@ -504,7 +504,9 @@ sub _resolve_aliastypes_from_select_args {
       ),
     ],
     selecting => [
-      scalar $sql_maker->_render_sqla(select_select => $select),
+      ($select
+        ? ($sql_maker->_render_sqla(select_select => $select))[0]
+        : ()),
     ],
     ordering => [
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
