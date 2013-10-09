@@ -1972,9 +1972,14 @@ sub _rs_update_delete {
     elsif ($storage->_use_multicolumn_in) {
       # no syntax for calling this properly yet
       # !!! EXPERIMENTAL API !!! WILL CHANGE !!!
-      $cond = $storage->sql_maker->_where_op_multicolumn_in (
-        $idcols, # how do I convey a list of idents...? can binds reside on lhs?
-        $subrs->as_query
+      my $left = $storage->sql_maker->_render_sqla(select_select => $idcols);
+      $left =~ s/^SELECT //i;
+      my $right = $storage->sql_maker
+                          ->converter
+                          ->_literal_to_dq(${$subrs->as_query});
+      $cond = \Operator(
+        { 'SQL.Naive' => 'in' },
+        [ Literal(SQL => "( $left )"), $right ],
       ),
     }
     else {
