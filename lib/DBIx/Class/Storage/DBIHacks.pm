@@ -249,20 +249,27 @@ sub _adjust_select_args_for_complex_prefetch {
         my $sql_maker = $self->sql_maker;
         my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
         my $own_re = qr/ $lquote \Q$root_alias\E $rquote $sep | \b \Q$root_alias\E $sep /x;
-        my @order_chunks = map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by});
-        my @new_order = map { \$_ } @order_chunks;
         my $inner_columns_info = $self->_resolve_column_info($inner_from);
+
+        my $order_dq = $sql_maker->converter
+                                 ->_order_by_to_dq($attrs->{order_by});
+
+        my @new_order;
 
         # loop through and replace stuff that is not "ours" with a min/max func
         # everything is a literal at this point, since we are likely properly
         # quoted and stuff
-        for my $i (0 .. $#new_order) {
-          my $chunk = $order_chunks[$i][0];
+        while (is_Order($order_dq)) {
+          my ($chunk, @args) = $sql_maker->_render_dq($order_dq->{by});
+
+          push @new_order, \[ $chunk, @args ];
+
+          my $is_desc = $order_dq->{reverse};
+
+          $order_dq = $order_dq->{from};
 
           # skip ourselves
           next if $chunk =~ $own_re;
-
-          ($chunk, my $is_desc) = $sql_maker->_split_order_chunk($chunk);
 
           # maybe our own unqualified column
           my $ord_bit = (
@@ -277,14 +284,14 @@ sub _adjust_select_args_for_complex_prefetch {
             $inner_columns_info->{$ord_bit}{-source_alias} eq $root_alias
           );
 
-          $new_order[$i] = \[
+          $new_order[-1] = \[
             sprintf(
               '%s(%s)%s',
               ($is_desc ? 'MAX' : 'MIN'),
               $chunk,
               ($is_desc ? ' DESC' : ''),
             ),
-            @ {$order_chunks[$i]} [ 1 .. $#{$order_chunks[$i]} ]
+            @args
           ];
         }
 
