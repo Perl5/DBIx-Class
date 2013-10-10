@@ -305,7 +305,7 @@ call it as C<search(undef, \%attrs)>.
 
 For a list of attributes that can be passed to C<search>, see
 L</ATTRIBUTES>. For more examples of using this function, see
-L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
+L<Searching|DBIx::Class::Manual::Cookbook/SEARCHING>. For a complete
 documentation for the first argument, see L<SQL::Abstract/"WHERE CLAUSES">
 and its extension L<DBIx::Class::SQLMaker>.
 
@@ -648,7 +648,7 @@ should only be used in that context. C<search_literal> is a convenience
 method. It is equivalent to calling C<< $schema->search(\[]) >>, but if you
 want to ensure columns are bound correctly, use L</search>.
 
-See L<DBIx::Class::Manual::Cookbook/Searching> and
+See L<DBIx::Class::Manual::Cookbook/SEARCHING> and
 L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
 require C<search_literal>.
 
