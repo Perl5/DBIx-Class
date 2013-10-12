@@ -256,17 +256,23 @@ sub bind_attribute_by_data_type {
 # FIXME - what the flying fuck... work around RT#76395
 # DBD::SQLite warns on binding >32 bit values with 32 bit IVs
 sub _dbh_execute {
-  if (DBIx::Class::_ENV_::IV_SIZE < 8) {
-
-    if (! defined $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT) {
-      $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT = (
-        modver_gt_or_eq('DBD::SQLite', '1.37')
-      ) ? 1 : 0;
-    }
-
-    local $SIG{__WARN__} = sigwarn_silencer( qr/datatype mismatch/ )
-      if $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT;
+  if (
+    DBIx::Class::_ENV_::IV_SIZE < 8
+      and
+    ! defined $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT
+  ) {
+    $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT = (
+      modver_gt_or_eq('DBD::SQLite', '1.37')
+    ) ? 1 : 0;
   }
+
+  local $SIG{__WARN__} = sigwarn_silencer( qr/
+    \Qdatatype mismatch: bind\E \s (?:
+      param \s+ \( \d+ \) \s+ [-+]? \d+ (?: \. 0*)? \Q as integer\E
+        |
+      \d+ \s type \s @{[ DBI::SQL_BIGINT() ]} \s as \s [-+]? \d+ (?: \. 0*)?
+    )
+  /x ) if DBIx::Class::_ENV_::IV_SIZE < 8 and $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT;
 
   shift->next::method(@_);
 }

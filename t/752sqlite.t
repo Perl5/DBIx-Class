@@ -195,13 +195,12 @@ for my $bi ( qw(
 
   my $v_desc = sprintf '%s (%d bit signed int)', $bi, $v_bits;
 
-  my $w;
-  lives_ok {
-    local $SIG{__WARN__} = sigwarn_silencer( qr/datatype mismatch/ );
-    $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-  } "Insering value $bi ($v_desc)" or next;
+  my @w;
+  local $SIG{__WARN__} = sub { $_[0] =~ /datatype mismatch/ ? push @w, @_ : warn @_ };
 
-  is ($w, undef, 'No mismatch warning on bigints' );
+  lives_ok {
+    $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
+  } "Insering value ($v_desc)" or next;
 
   # explicitly using eq, to make sure we did not nummify the argument
   # which can be an issue on 32 bit ivsize
@@ -224,6 +223,8 @@ for my $bi ( qw(
 
     "value in database correct ($v_desc)"
   );
+
+  is_deeply (\@w, [], 'No mismatch warnings on bigint operations' );
 }
 
 done_testing;
