@@ -205,9 +205,9 @@ is_same_sql_bind (
                 GROUP BY title
                 ORDER BY title
               ) me
-            ORDER BY title DESC
+            ORDER BY me.title DESC
           ) me
-        ORDER BY title
+        ORDER BY me.title
       ) me
       JOIN owners owner ON owner.id = me.owner
     WHERE ( source = ? )
