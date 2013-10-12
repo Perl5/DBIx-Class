@@ -4,12 +4,9 @@ sub map_descending (&;@) {
   my ($block, $in) = @_;
   local $_ = $in;
   $_ = $block->($_) if ref($_) eq 'HASH';
-#::Dwarn([mapped => $_]);
   if (ref($_) eq 'REF' and ref($$_) eq 'HASH') {
     $$_;
   } elsif (ref($_) eq 'HASH') {
-#::Dwarn([unmapped => $_]);
-#::Dwarn([mapped => $mapped]);
     my $mapped = $_;
     local $_;
     +{ map +($_ => &map_descending($block, $mapped->{$_})), keys %$mapped };
@@ -34,8 +31,6 @@ around render => sub {
 sub _oracle_joins_unroll {
   my ($self, $dq) = @_;
   map_descending {
-#warn "here";
-#::Dwarn([unroll => $_]);
     return $_ unless is_Join;
     return \$self->_oracle_joins_mangle_join($_);
   } $dq;
@@ -46,7 +41,7 @@ sub _oracle_joins_mangle_join {
   my ($mangled, $where) = $self->_oracle_joins_recurse_join($dq);
   Where(
     (@$where > 1
-      ? Operator({ 'SQL.Naive' => 'and' }, $where)
+      ? Operator({ 'SQL.Naive' => 'AND' }, $where)
       : $where->[0]),
     $mangled
   );
