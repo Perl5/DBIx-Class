@@ -180,7 +180,7 @@ sub select {
         if ($stability eq 'requires') {
           if ($self->converter->_order_by_to_dq($final_attrs{order_by})) {
             $self->throw_exception(
-                $self->limit_dialect.' limit/offset implementation requires a stable order for offset'
+                $self->limit_dialect.' limit/offset implementation requires a stable order for '.($offset ? 'offset' : 'limit').' but you gave me '.$self->_render_sqla(order_by => $final_attrs{order_by})
             );
           }
           if (my $ident_cols = $source->_identifying_column_set) {
