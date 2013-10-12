@@ -56,7 +56,7 @@ sub _oracle_joins_recurse_join {
   my ($self, $dq) = @_;
   die "Can't handle cross join" unless $dq->{on};
   my $mangled = { %$dq };
-  delete $mangled->{on};
+  delete @{$mangled}{qw(on outer)};
   my @where;
   my %idents;
   foreach my $side (qw(left right)) {
