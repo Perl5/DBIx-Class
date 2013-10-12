@@ -22,7 +22,7 @@ use DBIx::Class::SQLMaker::Oracle;
 my @handle_tests = (
     {
         connect_by  => { 'parentid' => { '-prior' => \'artistid' } },
-        stmt        => '"parentid" = PRIOR artistid',
+        stmt        => '"parentid" = ( PRIOR artistid )',
         bind        => [],
         msg         => 'Simple: "parentid" = PRIOR artistid',
     },
@@ -40,7 +40,7 @@ my @handle_tests = (
             last_name => { '!=' => 'King' },
             manager_id => { '-prior' => { -ident => 'employee_id' } },
         ],
-        stmt        => '( "last_name" != ? OR "manager_id" = PRIOR "employee_id" )',
+        stmt        => '( "last_name" != ? OR "manager_id" = ( PRIOR "employee_id" ) )',
         bind        => ['King'],
         msg         => 'oracle.com example #1',
     },
@@ -51,7 +51,7 @@ my @handle_tests = (
             manager_id => { '-prior' => { -ident => 'employee_id' } },
             customer_id => { '>', { '-prior' => \'account_mgr_id' } },
         },
-        stmt        => '( "customer_id" > ( PRIOR account_mgr_id ) AND "manager_id" = PRIOR "employee_id" )',
+        stmt        => '( "customer_id" > ( PRIOR account_mgr_id ) AND "manager_id" = ( PRIOR "employee_id" ) )',
         bind        => [],
         msg         => 'oracle.com example #2',
     },
@@ -120,6 +120,8 @@ $sqla_oracle->{bindtype} = 'columns';
 
 for my $q ('', '"') {
   local $sqla_oracle->{quote_char} = $q;
+  $sqla_oracle->clear_renderer;
+  $sqla_oracle->clear_converter;
 
   my ($sql, @bind) = $sqla_oracle->insert(
     'artist',
