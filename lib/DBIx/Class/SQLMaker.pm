@@ -53,6 +53,15 @@ has limit_dialect => (
   trigger => sub { shift->clear_renderer_class }
 );
 
+sub BUILD {
+  if ($_[0]->can('emulate_limit')) {
+    die <<EODIE;
+The ancient and horrible emulate_limit method was deprecated for many moons.
+Now, it is no more. Time to rewrite the code in ${\ref($_[0])}
+EODIE
+  }
+}
+
 our %LIMIT_DIALECT_MAP = (
   'GenericSubQ' => 'GenericSubquery',
 );
