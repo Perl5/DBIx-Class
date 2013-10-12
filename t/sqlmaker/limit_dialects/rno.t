@@ -106,12 +106,12 @@ is_same_sql_bind(
   '(
     SELECT [owner_name], [owner_books]
       FROM (
-        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ORDER BY [ORDER__BY__001] ) AS [rno__row__index]
+        SELECT [owner_name], [owner_books], ROW_NUMBER() OVER( ORDER BY [me].[id] ) AS [rno__row__index]
           FROM (
             SELECT  [owner].[name] AS [owner_name],
               ( SELECT COUNT( * ) FROM [owners] [owner]
                 WHERE [count].[id] = [owner].[id] and [count].[name] = ? ) AS [owner_books],
-              [me].[id] AS [ORDER__BY__001]
+              [me].[id]
                 FROM [books] [me]
                 JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
             WHERE ( [source] = ? )
