@@ -39,7 +39,7 @@ like($sql, qr/ORDER BY `\Q${order}\E`/, 'quoted ORDER BY with DESC (should use a
 $rs = $schema->resultset('CD')->search({},
             { 'order_by' => \$order });
 eval { $rs->first };
-like($sql, qr/ORDER BY \Q${order}\E/, 'did not quote ORDER BY with scalarref');
+like($sql, qr/ORDER BY `year` DESC/, 'did not misquote ORDER BY with scalarref');
 
 $schema->storage->sql_maker->quote_char([qw/[ ]/]);
 $schema->storage->sql_maker->name_sep('.');
