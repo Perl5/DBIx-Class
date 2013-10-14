@@ -158,12 +158,10 @@ while (@chunks) {
   fi
 
 else
-  if [[ -n "$TEST_BUILDER_BETA_CPAN_TARBALL" ]] ; then
-    parallel_installdeps_notest $TEST_BUILDER_BETA_CPAN_TARBALL
-  fi
 
   # listalldeps is deliberate - will upgrade everything it can find
   parallel_installdeps_notest $(make listalldeps)
+
 fi
 
 echo_err "$(tstamp) Dependency installation finished"

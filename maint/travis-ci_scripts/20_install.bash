@@ -24,8 +24,10 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
   PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
 
-  # FIXME work around https://github.com/miyagawa/cpanminus/issues/308
-  TEST_BUILDER_BETA_CPAN_TARBALL="M/MS/MSCHWERN/Test-Simple-1.005000_006.tar.gz"
+  # FIXME inline-upgrade cpanm, work around https://github.com/travis-ci/travis-ci/issues/1477
+  cpanm_loc="$(which cpanm)"
+  run_or_err "Upgrading cpanm ($cpanm_loc) to latest stable" \
+    "wget -q -O $cpanm_loc cpanmin.us && chmod a+x $cpanm_loc"
 fi
 
 # Fixup CPANM_OPT to behave more like a traditional cpan client
