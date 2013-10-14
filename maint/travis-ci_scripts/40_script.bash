@@ -30,24 +30,23 @@ TEST_T1=$SECONDS
 if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]] ; then
   STDERR_LOG_SIZE=$(wc -l < "$TEST_STDERR_LOG")
 
-  echo
-  echo "Test run produced $STDERR_LOG_SIZE lines of output on STDERR:"
-  echo "============================================================="
-  cat "$TEST_STDERR_LOG"
-  echo "============================================================="
-  echo "End of test run STDERR output ($STDERR_LOG_SIZE lines)"
-  echo
-
-  if [[ -n "$INSTALLDEPS_SKIPPED_TESTLIST" ]] ; then
-    echo "The following non-essential tests were skipped during deps installation"
-    echo "============================================================="
-    echo "$INSTALLDEPS_SKIPPED_TESTLIST"
-    echo "============================================================="
+  # prepend STDERR log
+  POSTMORTEM="$(
     echo
-  fi
-
-  echo "Full dep install log at $(/usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
-  echo
+    echo "Test run produced $STDERR_LOG_SIZE lines of output on STDERR:"
+    echo "============================================================="
+    cat "$TEST_STDERR_LOG"
+    echo "============================================================="
+    echo "End of test run STDERR output ($STDERR_LOG_SIZE lines)"
+    echo
+  )$POSTMORTEM"
 fi
 
+echo
+echo "${POSTMORTEM:- \o/ No notable smoke run issues \o/ }"
+echo
 echo "$(tstamp) Testing took a total of $(( $TEST_T1 - $TEST_T0 ))s"
+if [[ -n "$INSTALLDEPS_OUT" ]] ; then
+  echo "$(tstamp) Full dep install log at $(/usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
+fi
+echo

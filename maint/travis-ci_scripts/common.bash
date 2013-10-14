@@ -114,7 +114,12 @@ installdeps() {
   if [[ "$LASTEXIT" = "0" ]] ; then
     echo_err "done (took ${DELTA_TIME}s)"
   else
-    echo_err -n "failed (after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")) retrying with sequential testing ... "
+    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")"
+    echo_err -n "failed ($errlog) retrying with sequential testing ... "
+    POSTMORTEM="$POSTMORTEM$(
+      echo
+      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog (while attempting install of $@)"
+    )"
 
     HARNESS_OPTIONS=""
     LASTEXIT=0
