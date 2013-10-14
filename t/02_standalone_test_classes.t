@@ -5,6 +5,7 @@ use Test::More;
 use File::Find;
 
 use lib 't/lib';
+use lib 't/dqlib';
 
 find({
   wanted => sub {

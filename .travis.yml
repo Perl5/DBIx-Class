@@ -65,38 +65,9 @@ perl:
 
 env:
   - CLEANTEST=false
-  - CLEANTEST=true
 
 matrix:
   include:
-    # this particular perl is quite widespread
-    - perl: 5.8.8_thr_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.8.8
-
-    # so is this one (test a sane CPAN.pm)
-    - perl: 5.12.4_thr_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.12.4
-
-    # this is the perl suse ships
-    - perl: 5.10.0_thr_dbg
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-DDEBUGGING -Duseithreads"
-        - BREWVER=5.10.0
-
-    # CLEANTEST of minimum supported
-    - perl: 5.8.3_nt_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Dusemorebits"
-        - BREWVER=5.8.3
-
     # Full Test of minimum supported with threads
     - perl: 5.8.5_thr
       env:
@@ -104,14 +75,6 @@ matrix:
         - BREWOPTS="-Duseithreads"
         - BREWVER=5.8.5
         - DBIC_TRACE_PROFILE=console
-
-    # Full Test of minimum supported without threads
-    - perl: 5.8.3_nt
-      env:
-        - CLEANTEST=false
-        - BREWOPTS=""
-        - BREWVER=5.8.3
-        - DBIC_TRACE_PROFILE=console_monochrome
 
     ###
     # some permutations of tracing and envvar poisoning
@@ -144,46 +107,6 @@ matrix:
         - POISON_ENV=true
         - DBIC_TRACE=1
         - DBIC_TRACE_PROFILE=console_monochrome
-
-    ###
-    # Start of the allow_failures block
-
-    # recentish stable with blead CPAN
-    - perl: devcpan_5.18.1_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.18.1
-        - DEVREL_DEPS=true
-
-    # bleadperl with stock CPAN
-    - perl: bleadperl_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=blead
-
-    # bleadperl with blead CPAN
-    - perl: devcpan_bleadperl_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=blead
-        - DEVREL_DEPS=true
-
-
-  # which ones of the above can fail
-  allow_failures:
-
-    # Fails tests because of https://github.com/Perl-Toolchain-Gang/CPAN-Meta/issues/25
-    # Can't be simply masked due to https://rt.cpan.org/Ticket/Display.html?id=88903
-    - perl: 5.10.0_thr_dbg
-
-    # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.18.1_thr_mb
-    - perl: bleadperl_thr_mb
-    - perl: devcpan_bleadperl_thr_mb
-
 
 # sourcing the files is *EXTREMELY* important - otherwise
 # no envvars will survive

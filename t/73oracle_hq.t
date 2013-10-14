@@ -3,8 +3,11 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use DBIx::Class::Optional::Dependencies ();
+
 use lib qw(t/lib);
+use DBICTest;
+
+use DBIx::Class::Optional::Dependencies ();
 use DBICTest::RunMode;
 use DBIC::SqlMakerTest;
 
