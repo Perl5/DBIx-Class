@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Time::HiRes 'time';
+use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -147,9 +148,27 @@ $schema->storage->dbh_do(sub {
   $_[1]->do('ALTER TABLE artist ADD COLUMN bigint BIGINT');
 });
 
+my $sqlite_broken_bigint = (
+  modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37')
+);
+
+# 63 bit integer
+my $many_bits = (Math::BigInt->new(2) ** 62);
+
 # test upper/lower boundaries for sqlite and some values inbetween
 # range is -(2**63) .. 2**63 - 1
+#
+# Not testing -0 - it seems to overflow to ~0 on some combinations,
+# thus not triggering the >32 bit guards
+# interesting read: https://en.wikipedia.org/wiki/Signed_zero#Representations
 for my $bi ( qw(
+  -2
+  -1
+  0
+  +0
+  1
+  2
+
   -9223372036854775808
   -9223372036854775807
   -8694837494948124658
@@ -182,7 +201,7 @@ for my $bi ( qw(
 ),
   # these values cause exceptions even with all workarounds in place on these
   # fucked DBD::SQLite versions *regardless* of ivsize >.<
-  ( modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37') )
+  $sqlite_broken_bigint
     ? ()
     : ( '2147483648', '2147483649' )
 ) {
@@ -198,9 +217,14 @@ for my $bi ( qw(
   my @w;
   local $SIG{__WARN__} = sub { $_[0] =~ /datatype mismatch/ ? push @w, @_ : warn @_ };
 
-  lives_ok {
+  # some combinations of SQLite 1.35 and older 5.8 faimly is wonky
+  # instead of a warning we get a full exception. Sod it
+  eval {
     $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-  } "Insering value ($v_desc)" or next;
+  } or do {
+    fail("Exception on inserting $v_desc") unless $sqlite_broken_bigint;
+    next;
+  };
 
   # explicitly using eq, to make sure we did not nummify the argument
   # which can be an issue on 32 bit ivsize
@@ -213,7 +237,7 @@ for my $bi ( qw(
 
     # the test will not pass an == if we are running under 32 bit ivsize
     # use 'eq' on the numified (and possibly "scientificied") returned value
-    DBIx::Class::_ENV_::IV_SIZE < 8 ? 'eq' : '==',
+    (DBIx::Class::_ENV_::IV_SIZE < 8 and $v_bits > 32) ? 'eq' : '==',
 
     # in 1.37 DBD::SQLite switched to proper losless representation of bigints
     # regardless of ivize
@@ -224,7 +248,48 @@ for my $bi ( qw(
     "value in database correct ($v_desc)"
   );
 
-  is_deeply (\@w, [], 'No mismatch warnings on bigint operations' );
+# FIXME - temporary smoke-only escape
+SKIP: {
+  skip 'Potential for false negatives - investigation pending', 1
+    if DBICTest::RunMode->is_plain;
+
+  # check if math works
+  # start by adding/subtracting a 50 bit integer, and then divide by 2 for good measure
+  my ($sqlop, $expect) = $bi < 0
+    ? ( '(bigint + ? )', ($bi + $many_bits) )
+    : ( '(bigint - ? )', ($bi - $many_bits) )
+  ;
+
+  $expect = ($expect + ($expect % 2)) / 2;
+
+  # read https://en.wikipedia.org/wiki/Modulo_operation#Common_pitfalls
+  # and check the tables on the right side of the article for an
+  # enlightening journey on why a mere bigint % 2 won't work
+  $sqlop = "( $sqlop + ( ((bigint % 2)+2)%2 ) ) / 2";
+
+  for my $dtype (undef, \'int', \'bigint') {
+
+    # FIXME - the double-load should not be needed
+    # will fix in the future
+    $row->update({ bigint => $bi });
+    $row->discard_changes;
+    $row->update({ bigint => \[ $sqlop, [ $dtype => $many_bits ] ] });
+    $row->discard_changes;
+
+    # can't use cmp_ok - will not engage the M::BI overload of $many_bits
+    ok (
+      $row->bigint
+
+      ==
+
+      (DBIx::Class::_ENV_::IV_SIZE < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37')) ? $expect->bstr + 0 : $expect
+    , "simple integer math with@{[ $dtype ? '' : 'out' ]} bindtype in database correct (base $v_desc)")
+      or diag sprintf '%s != %s', $row->bigint, $expect;
+  }
+# end of fixme
+}
+
+  is_deeply (\@w, [], "No mismatch warnings on bigint operations ($v_desc)" );
 }
 
 done_testing;
