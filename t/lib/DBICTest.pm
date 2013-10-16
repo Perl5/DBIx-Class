@@ -3,6 +3,21 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+
+# this noop trick initializes the STDOUT, so that the TAP::Harness
+# issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
+# keep spinning and scheduling jobs
+# This results in an overall much smoother job-queue drainage, since
+# the Harness blocks less
+# (ideally this needs to be addressed in T::H, but a quick patchjob
+# broke everything so tabling it for now)
+BEGIN {
+  if ($INC{'Test/Builder.pm'}) {
+    local $| = 1;
+    print "#\n";
+  }
+}
+
 use DBICTest::RunMode;
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
