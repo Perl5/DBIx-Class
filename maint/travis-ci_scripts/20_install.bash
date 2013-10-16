@@ -34,8 +34,14 @@ fi
 export PERL_CPANM_OPT="--verbose --no-interactive --no-man-pages $( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 
 if [[ -n "$BREWVER" ]] ; then
-  run_or_err "Compiling/installing Perl $BREWVER (without testing, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j 2  $BREWVER"
+  # since perl 5.14 a perl can safely be built concurrently with -j$large
+  # (according to brute force testing and my power bill)
+  if [[ "$BREWVER" == "blead" ]] || perl -Mversion -e "exit !!(version->new(q($BREWVER)) < 5.014)" ; then
+    perlbrew_jopt="$NUMTHREADS"
+  fi
+
+  run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
+    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWVER"
 
   # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
   # furthermore `perlbrew use` returns 0 regardless of whether the perl is
