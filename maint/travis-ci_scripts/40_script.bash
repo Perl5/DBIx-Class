@@ -4,7 +4,6 @@ source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 run_harness_tests() {
-  local -x HARNESS_TIMER=1
   local -x HARNESS_OPTIONS=c:j$NUMTHREADS
   make test 2> >(tee "$TEST_STDERR_LOG")
 }
@@ -15,7 +14,7 @@ if [[ "$CLEANTEST" = "true" ]] ; then
   run_or_err "Prepare blib" "make pure_all"
   run_harness_tests
 else
-  PROVECMD="prove --timer -lrswj$NUMTHREADS t xt"
+  PROVECMD="prove -lrswj$NUMTHREADS t xt"
 
   # FIXME - temporary, until Package::Stash is fixed
   if perl -M5.010 -e 1 &>/dev/null ; then
