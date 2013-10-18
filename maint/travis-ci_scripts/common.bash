@@ -118,7 +118,10 @@ installdeps() {
     echo_err -n "failed ($errlog) retrying with sequential testing ... "
     POSTMORTEM="$POSTMORTEM$(
       echo
-      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog (while attempting install of $@)"
+      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog"
+      echo "============================================================="
+      echo "Attempted installation of: $@"
+      echo "============================================================="
     )"
 
     HARNESS_OPTIONS=""

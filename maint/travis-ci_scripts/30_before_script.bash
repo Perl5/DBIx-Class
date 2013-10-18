@@ -146,6 +146,7 @@ while (@chunks) {
 
     if [[ -n "$INSTALLDEPS_SKIPPED_TESTLIST" ]] ; then
       POSTMORTEM="$POSTMORTEM$(
+        echo
         echo "The following non-essential tests were skipped during deps installation"
         echo "============================================================="
         echo "$INSTALLDEPS_SKIPPED_TESTLIST"
