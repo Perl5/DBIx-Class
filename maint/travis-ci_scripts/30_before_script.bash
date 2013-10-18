@@ -190,7 +190,7 @@ $(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
 $(free -m -t)
 
 = Environment
-$(env | grep -P 'TEST|HARNESS|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
 
 = Perl in use
 $(perl -V)

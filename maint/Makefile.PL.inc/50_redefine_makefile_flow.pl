@@ -7,6 +7,8 @@
     return <<"EOM";
 $snippet
 
+.NOTPARALLEL :
+
 create_distdir : check_create_distdir_prereqs clonedir_generate_files clonedir_post_generate_files fresh_manifest create_distdir_copy_manifested clonedir_cleanup_generated_files
 \t\$(NOECHO) \$(NOOP)
 
