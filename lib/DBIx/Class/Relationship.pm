@@ -72,7 +72,7 @@ we can do this instead:
  my $fredsbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books;
 
 Each relationship sets up an accessor method on the
-L<Row|DBIx::Class::Manual::Glossary/"Row"> objects that represent the items
+L<Result|DBIx::Class::Manual::Glossary/"Result"> objects that represent the items
 of your table. From L<ResultSet|DBIx::Class::Manual::Glossary/"ResultSet"> objects,
 the relationships can be searched using the "search_related" method.
 In list context, each returns a list of Result objects for the related class,
