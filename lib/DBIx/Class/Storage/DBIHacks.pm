@@ -821,6 +821,8 @@ sub _extract_order_criteria {
     $order_dq = $order_dq->{from};
   }
 
+  delete local @{$sql_maker}{qw(quote_char renderer converter)};
+
   return map { [ $sql_maker->_render_dq($_) ] } @by;
 
   my $parser = sub {
