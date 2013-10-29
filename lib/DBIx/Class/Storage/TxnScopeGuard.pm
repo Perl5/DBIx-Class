@@ -25,7 +25,7 @@ sub new {
   # There got to be a saner way of doing this...
   if (defined $@ and "$@" ne '') {
     weaken(
-      $guard->{existing_exception_ref} = (ref $@ ne '') ? $@ : \$@
+      $guard->{existing_exception_ref} = (ref $@ eq '') ? \$@ : $@
     );
   }
 
