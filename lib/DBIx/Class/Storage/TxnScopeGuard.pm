@@ -23,7 +23,7 @@ sub new {
   # FIXME FRAGILE - any eval that fails but *does not* rethrow between here
   # and the unwind will trample over $@ and invalidate the entire mechanism
   # There got to be a saner way of doing this...
-  if (defined $@ and $@ ne '') {
+  if (defined $@ and "$@" ne '') {
     weaken(
       $guard->{existing_exception_ref} = (ref $@ ne '') ? $@ : \$@
     );
@@ -60,7 +60,7 @@ sub DESTROY {
   my $exception = $@ if (
     defined $@
       and
-    $@ ne ''
+    "$@" ne ''
       and
     (
       ! defined $self->{existing_exception_ref}
