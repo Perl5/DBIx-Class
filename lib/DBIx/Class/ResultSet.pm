@@ -1908,7 +1908,7 @@ sub _rs_update_delete {
   if (!$needs_subq and @{$attrs->{from}} > 1) {
 
     ($attrs->{from}, $join_classifications) =
-      $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $self->{cond}, $attrs);
+      $storage->_prune_unused_joins ($attrs);
 
     # any non-pruneable non-local restricting joins imply subq
     $needs_subq = defined List::Util::first { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };

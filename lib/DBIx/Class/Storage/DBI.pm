@@ -2403,7 +2403,7 @@ sub _select_args {
     @{$attrs->{group_by}}
       and
     my $grp_aliases = try { # try{} because $attrs->{from} may be unreadable
-      $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
+      $self->_resolve_aliastypes_from_select_args({ from => $attrs->{from}, group_by => $attrs->{group_by} })
     }
   ) {
     # no aliases other than our own in group_by
@@ -2417,8 +2417,7 @@ sub _select_args {
   }
 
   if ($prefetch_needs_subquery) {
-    ($ident, $select, $where, $attrs) =
-      $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+    $attrs = $self->_adjust_select_args_for_complex_prefetch ($attrs);
   }
   elsif (! $attrs->{software_limit} ) {
     push @limit_args, (
@@ -2431,17 +2430,17 @@ sub _select_args {
   if (
     ! $prefetch_needs_subquery  # already pruned
       and
-    ref $ident
+    ref $attrs->{from}
       and
-    reftype $ident eq 'ARRAY'
+    reftype $attrs->{from} eq 'ARRAY'
       and
-    @$ident != 1
+    @{$attrs->{from}} != 1
   ) {
-    ($ident, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+    ($attrs->{from}, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($attrs);
   }
 
 ###
-  # This would be the point to deflate anything found in $where
+  # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial
   # to extract deflator coderefs via $alias2source above).
@@ -2451,7 +2450,7 @@ sub _select_args {
 ###
 
   return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
-    $ident, $select, $where, $attrs, @limit_args
+    @{$attrs}{qw(from select where)}, $attrs, @limit_args
   ]} );
 }
 
