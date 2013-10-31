@@ -62,7 +62,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest Moose Module::Install JSON F/FR/FREW/SQL-Translator-0.11016.tar.gz File::Which
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is very much outdated and does not compile on 5.14+
@@ -161,7 +161,7 @@ while (@chunks) {
 else
 
   # listalldeps is deliberate - will upgrade everything it can find
-  parallel_installdeps_notest $(make listalldeps)
+  parallel_installdeps_notest $(make listalldeps | grep -v SQL::Translator)
 
 fi
 
