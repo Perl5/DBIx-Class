@@ -7,6 +7,7 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
 }
 
+use JSON::Any qw(DWIW PP JSON CPANEL XS);
 use Moose;
 use MooseX::Types::Moose qw/Int Str Any Bool/;
 use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
@@ -14,7 +15,6 @@ use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use MooseX::Types::LoadableClass qw(LoadableClass);
 use Try::Tiny;
-use JSON::Any qw(DWIW XS JSON);
 use namespace::autoclean;
 
 =head1 NAME

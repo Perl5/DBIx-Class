@@ -12,7 +12,7 @@ use Carp ();
 # Makefile.PL in $AUTHOR mode
 
 my $json_any = {
-  'JSON::Any'                     => '1.22',
+  'JSON::Any'                     => '1.23',
 };
 
 my $moose_basic = {
@@ -196,7 +196,10 @@ my $reqs = {
   test_admin_script => {
     req => {
       %$admin_script,
+      'JSON::Any' => '1.30',
       'JSON' => 0,
+      'JSON::PP' => 0,
+      'Cpanel::JSON::XS' => 0,
       'JSON::XS' => 0,
       $^O eq 'MSWin32'
         # for t/admin/10script.t

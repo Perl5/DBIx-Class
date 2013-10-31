@@ -22,7 +22,7 @@ $ENV{PATH} = '';
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
 require JSON::Any;
-my @json_backends = qw/XS JSON DWIW/;
+my @json_backends = qw(DWIW PP JSON CPANEL XS);
 
 # test the script is setting @INC properly
 test_exec (qw|-It/lib/testinclude --schema=DBICTestAdminInc --connect=[] --insert|);
