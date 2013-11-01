@@ -260,11 +260,11 @@ sub _adjust_select_args_for_complex_prefetch {
         # everything is a literal at this point, since we are likely properly
         # quoted and stuff
         while (is_Order($order_dq)) {
-          my ($chunk, @args) = $sql_maker->_render_dq($order_dq->{by});
+          my ($chunk, @args) = $sql_maker->_render_dq(my $by = $order_dq->{by});
 
           my $is_desc = $order_dq->{reverse};
 
-          push @new_order, \[ $chunk.($is_desc ? ' DESC' : ''), @args ];
+          push @new_order, $is_desc ? { -desc => \$by } : \$by;
 
           $order_dq = $order_dq->{from};
 
@@ -284,12 +284,13 @@ sub _adjust_select_args_for_complex_prefetch {
             $inner_columns_info->{$ord_bit}{-source_alias} eq $root_alias
           );
 
-          $new_order[-1] = \[
+          ($new_order[-1]) = map {
+            ($is_desc ? { -desc => $_ } : $_)
+          } \[
             sprintf(
-              '%s(%s)%s',
+              '%s(%s)',
               ($is_desc ? 'MAX' : 'MIN'),
               $chunk,
-              ($is_desc ? ' DESC' : ''),
             ),
             @args
           ];
