@@ -811,7 +811,7 @@ sub _inner_join_to_node {
 }
 
 sub _extract_order_criteria {
-  my ($self, $order_by, $sql_maker) = @_;
+  my ($self, $order_by, $sql_maker, $ident_only) = @_;
 
   $sql_maker ||= $self->sql_maker;
 
@@ -825,11 +825,15 @@ sub _extract_order_criteria {
 
   delete local @{$sql_maker}{qw(quote_char renderer converter)};
 
-  my @by_ident;
-
-  scan_dq_nodes({ DQ_IDENTIFIER ,=> sub { push @by_ident, $_[0] } }, @by);
-
-  return map { [ $sql_maker->_render_dq($_) ] } @by_ident;
+  return map { [ $sql_maker->_render_dq($_) ] } do {
+    if ($ident_only) {
+      my @by_ident;
+      scan_dq_nodes({ DQ_IDENTIFIER ,=> sub { push @by_ident, $_[0] } }, @by);
+      @by_ident
+    } else {
+      @by
+    }
+  };
 
   my $parser = sub {
     my ($sql_maker, $order_by, $orig_quote_chars) = @_;
@@ -877,7 +881,7 @@ sub _order_by_is_stable {
   my ($self, $ident, $order_by, $where) = @_;
 
   my $colinfo = $self->_resolve_column_info($ident, [
-    (map { $_->[0] } $self->_extract_order_criteria($order_by)),
+    (map { $_->[0] } $self->_extract_order_criteria($order_by, undef, 1)),
     $where ? @{$self->_extract_fixed_condition_columns($where)} :(),
   ]);
 
