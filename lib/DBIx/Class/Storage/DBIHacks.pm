@@ -834,47 +834,6 @@ sub _extract_order_criteria {
       @by
     }
   };
-
-  my $parser = sub {
-    my ($sql_maker, $order_by, $orig_quote_chars) = @_;
-
-    return scalar $sql_maker->_order_by_chunks ($order_by)
-      unless wantarray;
-
-    my ($lq, $rq, $sep) = map { quotemeta($_) } (
-      ($orig_quote_chars ? @$orig_quote_chars : $sql_maker->_quote_chars),
-      $sql_maker->name_sep
-    );
-
-    my @chunks;
-    for ($sql_maker->_order_by_chunks ($order_by) ) {
-      my $chunk = ref $_ ? [ @$_ ] : [ $_ ];
-      ($chunk->[0]) = $sql_maker->_split_order_chunk($chunk->[0]);
-
-      # order criteria may have come back pre-quoted (literals and whatnot)
-      # this is fragile, but the best we can currently do
-      $chunk->[0] =~ s/^ $lq (.+?) $rq $sep $lq (.+?) $rq $/"$1.$2"/xe
-        or $chunk->[0] =~ s/^ $lq (.+) $rq $/$1/x;
-
-      push @chunks, $chunk;
-    }
-
-    return @chunks;
-  };
-
-  if ($sql_maker) {
-    return $parser->($sql_maker, $order_by);
-  }
-  else {
-    $sql_maker = $self->sql_maker;
-
-    # pass these in to deal with literals coming from
-    # the user or the deep guts of prefetch
-    my $orig_quote_chars = [$sql_maker->_quote_chars];
-
-    local $sql_maker->{quote_char};
-    return $parser->($sql_maker, $order_by, $orig_quote_chars);
-  }
 }
 
 sub _order_by_is_stable {
