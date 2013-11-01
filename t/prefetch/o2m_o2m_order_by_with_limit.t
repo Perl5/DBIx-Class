@@ -102,7 +102,7 @@ for (
           WHERE "me"."rank" = ?
           GROUP BY "cds_unordered"."cdid", "cds_unordered"."artist", "cds_unordered"."title", "cds_unordered"."year", "cds_unordered"."genreid", "cds_unordered"."single_track"
           ORDER BY  MAX("genre"."name") DESC,
-                    MAX( tracks.title ) DESC,
+                    MAX("tracks"."title") DESC,
                     MIN("me"."name"),
                     "year" DESC,
                     "cds_unordered"."title" DESC
@@ -116,7 +116,7 @@ for (
           ON "tracks"."cd" = "cds_unordered"."cdid"
       WHERE "me"."rank" = ?
       ORDER BY  "genre"."name" DESC,
-                tracks.title DESC,
+                "tracks"."title" DESC,
                 "me"."name" ASC,
                 "year" DESC,
                 "cds_unordered"."title" DESC
