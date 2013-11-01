@@ -115,7 +115,7 @@ is_same_sql_bind(
   '(
     SELECT "owner_name"
       FROM (
-        SELECT "owner"."name" AS "owner_name", "me"."title"
+        SELECT "owner"."name" AS "owner_name", "title" AS "ORDER__BY__001"
           FROM "books" "me"
           JOIN "owners" "owner" ON "owner"."id" = "me"."owner"
         WHERE ( "source" = ? )
@@ -124,9 +124,9 @@ is_same_sql_bind(
       (
         SELECT COUNT(*)
           FROM "books" "rownum__emulation"
-        WHERE "rownum__emulation"."title" < "me"."title"
+        WHERE "rownum__emulation"."title" < "ORDER__BY__001"
       ) BETWEEN ? AND ?
-    ORDER BY "me"."title" ASC
+    ORDER BY "ORDER__BY__001" ASC
   )',
   [
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' } => 'Library' ],
