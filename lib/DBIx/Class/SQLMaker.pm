@@ -144,79 +144,23 @@ sub _where_op_NEST {
   shift->next::method(@_);
 }
 
+around _converter_args => sub {
+  my ($orig, $self) = (shift, shift);
+  +{
+    %{$self->$orig(@_)},
+    name_sep => $self->name_sep,
+    limit_dialect => $self->limit_dialect,
+    slice_stability => { $self->renderer->slice_stability },
+    slice_subquery => { $self->renderer->slice_subquery },
+  }
+};
+
 # Handle limit-dialect selection
 sub select {
-  my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
+  my $self = shift;
+  my ($table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
-  if (defined $offset) {
-    $self->throw_exception('A supplied offset must be a non-negative integer')
-      if ( $offset =~ /\D/ or $offset < 0 );
-  }
-  $offset ||= 0;
-
-  if (defined $limit) {
-    $self->throw_exception('A supplied limit must be a positive integer')
-      if ( $limit =~ /\D/ or $limit <= 0 );
-  }
-  elsif ($offset) {
-    $limit = $self->__max_int;
-  }
-
-  my %final_attrs = (%{$rs_attrs||{}}, limit => $limit, offset => $offset);
-
-  if ($limit or $offset) {
-    my %slice_stability = $self->renderer->slice_stability;
-
-    if (my $stability = $slice_stability{$offset ? 'offset' : 'limit'}) {
-      my $source = $rs_attrs->{_rsroot_rsrc};
-      unless (
-        $final_attrs{order_is_stable}
-        = $final_attrs{preserve_order}
-        = $source->schema->storage
-                 ->_order_by_is_stable(
-                     @final_attrs{qw(from order_by where)}
-                   )
-      ) {
-        if ($stability eq 'requires') {
-          if ($self->converter->_order_by_to_dq($final_attrs{order_by})) {
-            $self->throw_exception(
-                $self->limit_dialect.' limit/offset implementation requires a stable order for '.($offset ? 'offset' : 'limit').' but you gave me '.$self->_render_sqla(order_by => $final_attrs{order_by})
-            );
-          }
-          if (my $ident_cols = $source->_identifying_column_set) {
-            $final_attrs{order_by} = [
-                map "$final_attrs{alias}.$_", @$ident_cols
-            ];
-            $final_attrs{order_is_stable} = 1;
-          } else {
-            $self->throw_exception(sprintf(
-              'Unable to auto-construct stable order criteria for "skimming type" 
-  limit '
-              . "dialect based on source '%s'", $source->name) );
-          }
-        }
-      }
-
-    }
-
-    my %slice_subquery = $self->renderer->slice_subquery;
-
-    if (my $subquery = $slice_subquery{$offset ? 'offset' : 'limit'}) {
-      $fields = [ map {
-        my $f = $fields->[$_];
-        if (ref $f) {
-          $f = { '' => $f } unless ref($f) eq 'HASH';
-          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
-        } elsif ($f !~ /^\Q$final_attrs{alias}${\$self->name_sep}/) {
-          $f = { '' => $f };
-          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
-        }
-        $f;
-        } 0 .. $#$fields ];
-    }
-  }
-
-  my ($sql, @bind) = $self->next::method ($table, $fields, $where, $final_attrs{order_by}, \%final_attrs );
+  my ($sql, @bind) = $self->next::method(@_);
 
   $sql .= $self->_lock_select ($rs_attrs->{for})
     if $rs_attrs->{for};

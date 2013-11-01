@@ -1967,7 +1967,7 @@ sub _rs_update_delete {
     my $subrs = (ref $self)->new($rsrc, $attrs);
 
     if (@$idcols == 1) {
-      $cond = { $idcols->[0] => { -in => $subrs->as_query } };
+      $cond = { $idcols->[0] => { -in => \$subrs->_as_select_dq } };
     }
     elsif ($storage->_use_multicolumn_in) {
       # no syntax for calling this properly yet
@@ -2682,6 +2682,19 @@ sub as_query {
   $self->{_attrs}{_sqlmaker_select_args} = $attrs->{_sqlmaker_select_args};
 
   $aq;
+}
+
+sub _as_select_dq {
+  my $self = shift;
+  my $attrs = { %{ $self->_resolved_attrs } };
+  my $storage = $self->result_source->storage;
+  my (undef, $ident, @args) = $storage->_select_args(
+    $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
+  );
+  $ident = $ident->from if blessed($ident);
+  $storage->sql_maker->converter->_select_to_dq(
+    $ident, @args
+  );
 }
 
 =head2 find_or_new

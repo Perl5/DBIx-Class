@@ -6,10 +6,93 @@ use namespace::clean;
 
 extends 'SQL::Abstract::Converter';
 
+has limit_dialect => (is => 'ro', required => 1);
+has name_sep => (is => 'ro', required => 1);
+has slice_stability => (is => 'ro', required => 1);
+has slice_subquery => (is => 'ro', required => 1);
+
+sub __max_int () { 0x7FFFFFFF }
+
+# Handle limit-dialect selection
+sub _select_attrs {
+  my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
+
+  if (defined $offset) {
+    die('A supplied offset must be a non-negative integer')
+      if ( $offset =~ /\D/ or $offset < 0 );
+  }
+  $offset ||= 0;
+
+  if (defined $limit) {
+    die('A supplied limit must be a positive integer')
+      if ( $limit =~ /\D/ or $limit <= 0 );
+  }
+  elsif ($offset) {
+    $limit = $self->__max_int;
+  }
+
+  my %final_attrs = (%{$rs_attrs||{}}, limit => $limit, offset => $offset);
+
+  if ($limit or $offset) {
+    my %slice_stability = %{$self->slice_stability};
+
+    if (my $stability = $slice_stability{$offset ? 'offset' : 'limit'}) {
+      my $source = $rs_attrs->{_rsroot_rsrc};
+      unless (
+        $final_attrs{order_is_stable}
+        = $final_attrs{preserve_order}
+        = $source->schema->storage
+                 ->_order_by_is_stable(
+                     @final_attrs{qw(from order_by where)}
+                   )
+      ) {
+        if ($stability eq 'requires') {
+          if ($self->_order_by_to_dq($final_attrs{order_by})) {
+            die(
+                $self->limit_dialect.' limit/offset implementation requires a stable order for '.($offset ? 'offset' : 'limit')
+            );
+          }
+          if (my $ident_cols = $source->_identifying_column_set) {
+            $final_attrs{order_by} = [
+                map "$final_attrs{alias}.$_", @$ident_cols
+            ];
+            $final_attrs{order_is_stable} = 1;
+          } else {
+            die(sprintf(
+              'Unable to auto-construct stable order criteria for "skimming type" 
+  limit '
+              . "dialect based on source '%s'", $source->name) );
+          }
+        }
+      }
+
+    }
+
+    my %slice_subquery = %{$self->slice_subquery};
+
+    if (my $subquery = $slice_subquery{$offset ? 'offset' : 'limit'}) {
+      $fields = [ map {
+        my $f = $fields->[$_];
+        if (ref $f) {
+          $f = { '' => $f } unless ref($f) eq 'HASH';
+          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
+        } elsif ($f !~ /^\Q$final_attrs{alias}${\$self->name_sep}/) {
+          $f = { '' => $f };
+          ($f->{-as} ||= $final_attrs{as}[$_]) =~ s/\Q${\$self->name_sep}/__/g;
+        }
+        $f;
+        } 0 .. $#$fields ];
+    }
+  }
+
+  return ($fields, \%final_attrs);
+}
+
 around _select_to_dq => sub {
   my ($orig, $self) = (shift, shift);
-  my $attrs = $_[4];
-  my $orig_dq = $self->$orig(@_);
+  my ($table, undef, $where) = @_;
+  my ($fields, $attrs) = $self->_select_attrs(@_);
+  my $orig_dq = $self->$orig($table, $fields, $where, $attrs->{order_by}, $attrs);
   return $orig_dq unless $attrs->{limit};
   +{
     type => DQ_SLICE,
