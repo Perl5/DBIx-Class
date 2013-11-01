@@ -16,6 +16,7 @@ use mro 'c3';
 use List::Util 'first';
 use Scalar::Util 'blessed';
 use Sub::Name 'subname';
+use Data::Query::Constants;
 use Data::Query::ExprHelpers;
 use namespace::clean;
 
@@ -824,7 +825,11 @@ sub _extract_order_criteria {
 
   delete local @{$sql_maker}{qw(quote_char renderer converter)};
 
-  return map { [ $sql_maker->_render_dq($_) ] } @by;
+  my @by_ident;
+
+  scan_dq_nodes({ DQ_IDENTIFIER ,=> sub { push @by_ident, $_[0] } }, @by);
+
+  return map { [ $sql_maker->_render_dq($_) ] } @by_ident;
 
   my $parser = sub {
     my ($sql_maker, $order_by, $orig_quote_chars) = @_;
