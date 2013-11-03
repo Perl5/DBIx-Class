@@ -3,6 +3,10 @@ package # Hide from PAUSE
 
 use base qw( DBIx::Class::SQLMaker );
 
+sub _build_converter_class {
+  Module::Runtime::use_module('DBIx::Class::SQLMaker::Converter::MySQL');
+}
+
 sub _build_base_renderer_class {
   Module::Runtime::use_module('Data::Query::Renderer::SQL::MySQL');
 }
