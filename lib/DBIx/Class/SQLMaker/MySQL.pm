@@ -1,7 +1,12 @@
 package # Hide from PAUSE
   DBIx::Class::SQLMaker::MySQL;
 
-use base qw( DBIx::Class::SQLMaker );
+use Moo;
+use namespace::clean;
+
+extends 'DBIx::Class::SQLMaker';
+
+has needs_inner_join => (is => 'rw', trigger => sub { shift->clear_renderer });
 
 sub _build_converter_class {
   Module::Runtime::use_module('DBIx::Class::SQLMaker::Converter::MySQL');
@@ -10,6 +15,11 @@ sub _build_converter_class {
 sub _build_base_renderer_class {
   Module::Runtime::use_module('Data::Query::Renderer::SQL::MySQL');
 }
+
+around _renderer_args => sub {
+  my ($orig, $self) = (shift, shift);
+  +{ %{$self->$orig(@_)}, needs_inner_join => $self->needs_inner_join };
+};
 
 # Allow STRAIGHT_JOIN's
 sub _generate_join_clause {

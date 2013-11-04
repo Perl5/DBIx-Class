@@ -111,7 +111,7 @@ sub sql_maker {
 
     # mysql 3 does not understand a bare JOIN
     my $mysql_ver = $self->_dbh_get_info('SQL_DBMS_VER');
-    $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
+    $maker->needs_inner_join(1) if $mysql_ver =~ /^3/;
   }
 
   return $self->_sql_maker;
