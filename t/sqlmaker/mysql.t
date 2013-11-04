@@ -115,4 +115,27 @@ bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
   $schema->storage->debug ($orig_debug);
 }
 
+# Test support for straight joins
+{
+  my $cdsrc = $schema->source('CD');
+  my $artrel_info = $cdsrc->relationship_info ('artist');
+  $cdsrc->add_relationship(
+    'straight_artist',
+    $artrel_info->{class},
+    $artrel_info->{cond},
+    { %{$artrel_info->{attrs}}, join_type => 'straight' },
+  );
+  is_same_sql_bind (
+    $cdsrc->resultset->search({}, { prefetch => 'straight_artist' })->as_query,
+    '(
+      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
+             `straight_artist`.`artistid`, `straight_artist`.`name`, `straight_artist`.`rank`, `straight_artist`.`charfield`
+        FROM cd `me`
+        STRAIGHT_JOIN `artist` `straight_artist` ON `straight_artist`.`artistid` = `me`.`artist`
+    )',
+    [],
+    'straight joins correctly supported for mysql'
+  );
+}
+
 done_testing;
