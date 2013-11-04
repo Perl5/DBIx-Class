@@ -11,11 +11,6 @@ plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missin
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
-use DBIx::Class::SQLMaker::LimitDialects;
-
-my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
-my $TOTAL  = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
@@ -373,77 +368,6 @@ SQL
           },
         );
 
-        is_same_sql_bind (
-          $owners->page(3)->as_query,
-          $dialect eq 'Top'
-            ? '(
-              SELECT TOP 2147483647 [me].[id], [me].[name],
-                                    [books].[id], [books].[source], [books].[owner], [books].[title], [books].[price]
-                FROM (
-                  SELECT TOP 2147483647 [me].[id], [me].[name]
-                    FROM (
-                      SELECT TOP 3 [me].[id], [me].[name], [ORDER__BY__001]
-                        FROM (
-                          SELECT TOP 9 [me].[id], [me].[name], name + ? AS [ORDER__BY__001]
-                            FROM [owners] [me]
-                            LEFT JOIN [books] [books]
-                              ON [books].[owner] = [me].[id]
-                          WHERE [books].[id] IS NOT NULL AND [me].[name] != ?
-                          GROUP BY [me].[id], [me].[name]
-                          ORDER BY name + ? ASC, [me].[id]
-                        ) [me]
-                      ORDER BY [ORDER__BY__001] DESC, [me].[id] DESC
-                    ) [me]
-                  ORDER BY [ORDER__BY__001] ASC, [me].[id]
-                ) [me]
-                LEFT JOIN [books] [books]
-                  ON [books].[owner] = [me].[id]
-              WHERE [books].[id] IS NOT NULL AND [me].[name] != ?
-              ORDER BY name + ? ASC, [me].[id]
-            )'
-            : '(
-              SELECT TOP 2147483647 [me].[id], [me].[name],
-                                    [books].[id], [books].[source], [books].[owner], [books].[title], [books].[price]
-                FROM (
-                  SELECT TOP 2147483647 [me].[id], [me].[name]
-                    FROM (
-                      SELECT [me].[id], [me].[name],
-                             ROW_NUMBER() OVER( ORDER BY [ORDER__BY__001] ASC, [me].[id] ) AS [rno__row__index]
-                        FROM (
-                          SELECT [me].[id], [me].[name], name + ? AS [ORDER__BY__001]
-                            FROM [owners] [me]
-                            LEFT JOIN [books] [books]
-                              ON [books].[owner] = [me].[id]
-                          WHERE [books].[id] IS NOT NULL AND [me].[name] != ?
-                          GROUP BY [me].[id], [me].[name]
-                        ) [me]
-                    ) [me]
-                  WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
-                ) [me]
-                LEFT JOIN [books] [books]
-                  ON [books].[owner] = [me].[id]
-              WHERE [books].[id] IS NOT NULL AND [me].[name] != ?
-              ORDER BY name + ? ASC, [me].[id]
-            )'
-          ,
-          [
-            [ { dbic_colname => 'test' }
-              => 'xxx' ],
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
-              => 'somebogusstring' ],
-
-            ($dialect eq 'Top'
-              ? [ { dbic_colname => 'test' } => 'xxx' ]  # the extra re-order bind
-              : ([ $OFFSET => 7 ], [ $TOTAL => 9 ]) # parameterised RNO
-            ),
-
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.name' }
-              => 'somebogusstring' ],
-            [ { dbic_colname => 'test' }
-              => 'xxx' ],
-          ],
-        ) if $quoted;
-
         is ($owners->page(1)->all, 3, "$test_type: has_many prefetch returns correct number of rows");
         is ($owners->page(1)->count, 3, "$test_type: has-many prefetch returns correct count");
 
@@ -470,88 +394,6 @@ SQL
             unsafe_subselect_ok => 1,
           },
         );
-
-        is_same_sql_bind (
-          $books->page(3)->as_query,
-          $dialect eq 'Top'
-            ? '(
-              SELECT TOP 2147483647 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price],
-                                    [owner].[id], [owner].[name]
-                FROM (
-                  SELECT TOP 2147483647 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                    FROM (
-                      SELECT TOP 2 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                        FROM (
-                          SELECT TOP 6 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                            FROM [books] [me]
-                            JOIN [owners] [owner]
-                              ON [owner].[id] = [me].[owner]
-                          WHERE ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ?
-                          GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                          HAVING 1 = ?
-                          ORDER BY [me].[owner] DESC, [me].[id]
-                        ) [me]
-                      ORDER BY [me].[owner] ASC, [me].[id] DESC
-                    ) [me]
-                  ORDER BY [me].[owner] DESC, [me].[id]
-                ) [me]
-                JOIN [owners] [owner]
-                  ON [owner].[id] = [me].[owner]
-              WHERE ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ?
-              ORDER BY [me].[owner] DESC, [me].[id]
-            )'
-            : '(
-              SELECT TOP 2147483647 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price],
-                                    [owner].[id], [owner].[name]
-                FROM (
-                  SELECT TOP 2147483647 [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                    FROM (
-                      SELECT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price],
-                             ROW_NUMBER() OVER( ORDER BY [me].[owner] DESC, [me].[id] ) AS [rno__row__index]
-                        FROM (
-                          SELECT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                            FROM [books] [me]
-                            JOIN [owners] [owner]
-                              ON [owner].[id] = [me].[owner]
-                          WHERE ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ?
-                          GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-                          HAVING 1 = ?
-                        ) [me]
-                    ) [me]
-                  WHERE [rno__row__index] >= ? AND [rno__row__index] <= ?
-                ) [me]
-                JOIN [owners] [owner]
-                  ON [owner].[id] = [me].[owner]
-              WHERE ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ?
-              ORDER BY [me].[owner] DESC, [me].[id]
-            )'
-          ,
-          [
-            # inner
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
-              => 'wiggle' ],
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
-              => 'woggle' ],
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
-              => 'Library' ],
-            [ { dbic_colname => 'test' }
-              => '1' ],
-
-            # top(?)
-            $dialect eq 'Top'
-              ? ()
-              : ( [ $OFFSET => 5 ], [ $TOTAL => 6 ] )
-            ,
-
-            # outer
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
-              => 'wiggle' ],
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'owner.name' }
-              => 'woggle' ],
-            [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
-              => 'Library' ],
-          ],
-        ) if $quoted;
 
         is ($books->page(1)->all, 2, "$test_type: Prefetched grouped search returns correct number of rows");
         is ($books->page(1)->count, 2, "$test_type: Prefetched grouped search returns correct count");

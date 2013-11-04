@@ -164,6 +164,8 @@ EOF
 
   s/^'//, s/'\z// for @bind;
 
+  # test is duplicated in t/sqlmaker/msaccess.t, keep a duplicate here anyway, just to be safe
+  # -- ribasushi
   is_same_sql_bind(
     $sql,
     \@bind,
@@ -195,6 +197,8 @@ EOF
 
   s/^'//, s/'\z// for @bind;
 
+  # test is duplicated in t/sqlmaker/msaccess.t, keep a duplicate here anyway, just to be safe
+  # -- ribasushi
   is_same_sql_bind(
     $sql,
     \@bind,
