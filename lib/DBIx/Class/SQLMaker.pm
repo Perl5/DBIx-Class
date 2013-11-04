@@ -149,7 +149,7 @@ around _converter_args => sub {
   +{
     %{$self->$orig(@_)},
     name_sep => $self->name_sep,
-    limit_dialect => $self->limit_dialect,
+    limit_dialect => $self->mapped_limit_dialect,
     slice_stability => { $self->renderer->slice_stability },
     slice_subquery => { $self->renderer->slice_subquery },
   }

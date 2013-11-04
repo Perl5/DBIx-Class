@@ -1,6 +1,7 @@
 package DBIx::Class::SQLMaker::Converter;
 
-use Data::Query::Constants qw(DQ_ALIAS DQ_GROUP DQ_WHERE DQ_JOIN DQ_SLICE);
+use Data::Query::Constants;
+use Data::Query::ExprHelpers;
 use Moo;
 use namespace::clean;
 
@@ -83,6 +84,7 @@ sub _select_attrs {
         $f;
         } 0 .. $#$fields ];
     }
+
   }
 
   return ($fields, \%final_attrs);
@@ -94,6 +96,25 @@ around _select_to_dq => sub {
   my ($fields, $attrs) = $self->_select_attrs(@_);
   my $orig_dq = $self->$orig($table, $fields, $where, $attrs->{order_by}, $attrs);
   return $orig_dq unless $attrs->{limit};
+  if ($self->limit_dialect eq 'GenericSubquery') {
+    my $col_info = $attrs->{_rsroot_rsrc}->columns_info;
+    scan_dq_nodes({
+      DQ_ORDER ,=> sub {
+        if (
+          is_Identifier($_[0]->{by})
+          and (
+            (@{$_[0]->{by}{elements}} == 2
+            and $_[0]->{by}{elements}[0] eq $attrs->{alias})
+          or (@{$_[0]->{by}{elements}} == 1))
+        ) {
+          my $this_col = $col_info->{$_[0]->{by}{elements}[-1]};
+          if ($this_col and not $this_col->{is_nullable}) {
+            $_[0]->{nulls} = 'none'
+          }
+        }
+      }
+    }, $orig_dq);
+  }
   +{
     type => DQ_SLICE,
     from => $orig_dq,
