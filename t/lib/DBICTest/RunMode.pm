@@ -104,7 +104,7 @@ checkout and that you, the user, did not run `perl Makefile.PL`
 before using this code. You absolutely _must_ perform this step,
 to ensure you have all required dependencies present. Not doing
 so often results in a lot of wasted time for other contributors
-trying to assit you with spurious "its broken!" problems.
+trying to assist you with spurious "its broken!" problems.
 
 By default DBICs Makefile.PL turns all optional dependenciess into
 *HARD REQUIREMENTS*, in order to make sure that the entire test
