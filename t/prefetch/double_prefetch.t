@@ -3,8 +3,8 @@ use strict;
 
 use Test::More;
 use lib qw(t/lib);
-use DBIC::SqlMakerTest;
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 

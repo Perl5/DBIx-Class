@@ -4,11 +4,10 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 
-
-use_ok('DBICTest');
-use_ok('DBIC::DebugObj');
 my $schema = DBICTest->init_schema();
 
 $schema->storage->sql_maker->quote_char('`');

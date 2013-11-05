@@ -18,6 +18,25 @@ BEGIN {
   }
 }
 
+use Module::Runtime 'module_notional_filename';
+BEGIN {
+  for my $mod (qw( DBIC::SqlMakerTest SQL::Abstract )) {
+    if ( $INC{ module_notional_filename($mod) } ) {
+      # FIXME this does not seem to work in BEGIN - why?!
+      #require Carp;
+      #$Carp::Internal{ (__PACKAGE__) }++;
+      #Carp::croak( __PACKAGE__ . " must be loaded before $mod" );
+
+      my ($fr, @frame) = 1;
+      while (@frame = caller($fr++)) {
+        last if $frame[1] !~ m|^t/lib/DBICTest|;
+      }
+
+      die __PACKAGE__ . " must be loaded before $mod (or modules using $mod) at $frame[1] line $frame[2]\n";
+    }
+  }
+}
+
 use DBICTest::RunMode;
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
