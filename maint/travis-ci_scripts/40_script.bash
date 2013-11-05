@@ -14,7 +14,7 @@ if [[ "$CLEANTEST" = "true" ]] ; then
   run_or_err "Prepare blib" "make pure_all"
   run_harness_tests
 else
-  PROVECMD="prove -lrswj$NUMTHREADS t xt"
+  PROVECMD="prove -lrswj$NUMTHREADS xt t"
 
   # FIXME - temporary, until Package::Stash is fixed
   if perl -M5.010 -e 1 &>/dev/null ; then
