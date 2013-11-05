@@ -7,10 +7,19 @@ Revision history for DBIx::Class
         - More robust handling of circular relationship declarations by loading
           foreign classes less frequently (should resolve issues like
           http://lists.scsys.co.uk/pipermail/dbix-class/2013-June/011374.html)
+        - Fix multiple edge cases steming from interaction of a non-selecting
+          order_by specification and distinct and/or complex prefetch
+        - Clarify ambiguous behavior of distinct when used with ResultSetColumn
+          i.e. $rs->search({}, { distinct => 1 })->get_column (...)
         - Setting quote_names propagates to SQL::Translator when producing
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
+        - Fix incorrect binding of large integers on old versions of
+          DBD::SQLite (now DBIC simply always binds SQLite ints as BIGINT)
+        - Silence (harmless) warnings on recent DBD::SQLite versions, when
+          inserting/updating large integers on 32bit ivsize systems (RT#76395)
         - Back out self-cleaning from DBIx::Class::Carp for the time being
           (as a side effect fixes RT#86267)
+        - Fix incorrect internal use of implicit list context in copy()
         - Tests no longer fail if $ENV{DBI_DSN} is set
         - Throw clearer exception on ->new_related() with a non-existent
           relationship.

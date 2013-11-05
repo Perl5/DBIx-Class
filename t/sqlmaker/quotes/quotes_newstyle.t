@@ -4,10 +4,9 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
-
-use_ok('DBICTest');
-use_ok('DBIC::DebugObj');
+use DBIC::DebugObj;
 
 my $schema = DBICTest->init_schema();
 

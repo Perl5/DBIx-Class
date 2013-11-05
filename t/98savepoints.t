@@ -96,7 +96,7 @@ for my $prefix (keys %$env2optdep) { SKIP: {
   cmp_ok($arty->name, 'eq', 'gphat', 'name changed');
   # Active: 0 1 2
   # Rollback doesn't DESTROY the savepoint, it just rolls back to the value
-  # at it's conception
+  # at its conception
   $schema->svp_rollback('testing2');
   $arty->discard_changes;
   cmp_ok($arty->name, 'eq', 'yourmom', 'testing2 reverted');

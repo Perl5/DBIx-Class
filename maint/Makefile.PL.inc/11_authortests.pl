@@ -12,7 +12,7 @@ File::Find::find(sub {
 my @xt_tests = map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dirs;
 
 # this will add the xt tests to the `make test` target among other things
-Meta->tests(join (' ', map { $_ || () } Meta->tests, @xt_tests ) );
+Meta->tests(join (' ', map { $_ || () } @xt_tests, Meta->tests ) );
 
 # inject an explicit xt test run, mainly to check the contents of
 # lib and the generated POD's *before* anything is copied around

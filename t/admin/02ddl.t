@@ -9,6 +9,7 @@ use Path::Class;
 
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 BEGIN {
     require DBIx::Class;
@@ -48,7 +49,7 @@ isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
 lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
 lives_ok {
-  $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/s };
+  local $SIG{__WARN__} = sigwarn_silencer( qr/no such table.+DROP TABLE/s );
   $admin->deploy()
 } 'Can Deploy schema';
 }
@@ -86,9 +87,9 @@ $admin = DBIx::Class::Admin->new(
 
 lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can create diff for ' . $schema->storage->sqlt_type;
 {
-  local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /DB version .+? is lower than the schema version/ };
-  lives_ok {$admin->upgrade();} 'upgrade the schema';
-  dies_ok {$admin->deploy} 'cannot deploy installed schema, should upgrade instead';
+  local $SIG{__WARN__} = sigwarn_silencer( qr/DB version .+? is lower than the schema version/ );
+  lives_ok { $admin->upgrade() } 'upgrade the schema';
+  dies_ok { $admin->deploy } 'cannot deploy installed schema, should upgrade instead';
 }
 
 is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versions match');

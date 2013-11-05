@@ -5,11 +5,11 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Time::HiRes 'time';
-use Config;
+use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::_Util 'modver_gt_or_eq';
+use DBIx::Class::_Util qw(sigwarn_silencer modver_gt_or_eq);
 
 # savepoints test
 {
@@ -64,7 +64,7 @@ for my $prefix_comment (qw/Begin_only Commit_only Begin_and_Commit/) {
   # FIXME warning won't help us for the time being
   # perhaps when (if ever) DBD::SQLite gets fixed,
   # we can do something extra here
-  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /Internal transaction state .+? does not seem to match/ }
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Internal transaction state .+? does not seem to match/ )
     if ( $lit_txn_todo && !$ENV{TEST_VERBOSE} );
 
   my ($c_begin, $c_commit) = map { $prefix_comment =~ $_ ? 1 : 0 } (qr/Begin/, qr/Commit/);
@@ -148,34 +148,148 @@ $schema->storage->dbh_do(sub {
   $_[1]->do('ALTER TABLE artist ADD COLUMN bigint BIGINT');
 });
 
+my $sqlite_broken_bigint = (
+  modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37')
+);
+
+# 63 bit integer
+my $many_bits = (Math::BigInt->new(2) ** 62);
+
 # test upper/lower boundaries for sqlite and some values inbetween
 # range is -(2**63) .. 2**63 - 1
-SKIP: {
-  skip 'This perl does not seem to have 64bit int support - DBI roundtrip of large int will fail with DBD::SQLite < 1.37', 1
-    if ($Config{ivsize} < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37') );
+#
+# Not testing -0 - it seems to overflow to ~0 on some combinations,
+# thus not triggering the >32 bit guards
+# interesting read: https://en.wikipedia.org/wiki/Signed_zero#Representations
+for my $bi ( qw(
+  -2
+  -1
+  0
+  +0
+  1
+  2
 
-  for my $bi (qw/
-    -9223372036854775808
-    -9223372036854775807
-    -8694837494948124658
-    -6848440844435891639
-    -5664812265578554454
-    -5380388020020483213
-    -2564279463598428141
-    2442753333597784273
-    4790993557925631491
-    6773854980030157393
-    7627910776496326154
-    8297530189347439311
-    9223372036854775806
-    9223372036854775807
-  /) {
+  -9223372036854775808
+  -9223372036854775807
+  -8694837494948124658
+  -6848440844435891639
+  -5664812265578554454
+  -5380388020020483213
+  -2564279463598428141
+  2442753333597784273
+  4790993557925631491
+  6773854980030157393
+  7627910776496326154
+  8297530189347439311
+  9223372036854775806
+  9223372036854775807
+
+  4294967295
+  4294967296
+
+  -4294967296
+  -4294967295
+  -4294967294
+
+  -2147483649
+  -2147483648
+  -2147483647
+  -2147483646
+
+  2147483646
+  2147483647
+),
+  # these values cause exceptions even with all workarounds in place on these
+  # fucked DBD::SQLite versions *regardless* of ivsize >.<
+  $sqlite_broken_bigint
+    ? ()
+    : ( '2147483648', '2147483649' )
+) {
+  # unsigned 32 bit ints have a range of −2,147,483,648 to 2,147,483,647
+  # alternatively expressed as the hexadecimal numbers below
+  # the comparison math will come out right regardless of ivsize, since
+  # we are operating within 31 bits
+  # P.S. 31 because one bit is lost for the sign
+  my $v_bits = ($bi > 0x7fff_ffff || $bi < -0x8000_0000) ? 64 : 32;
+
+  my $v_desc = sprintf '%s (%d bit signed int)', $bi, $v_bits;
+
+  my @w;
+  local $SIG{__WARN__} = sub { $_[0] =~ /datatype mismatch/ ? push @w, @_ : warn @_ };
+
+  # some combinations of SQLite 1.35 and older 5.8 faimly is wonky
+  # instead of a warning we get a full exception. Sod it
+  eval {
     $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
-    is ($row->bigint, $bi, "value in object correct ($bi)");
+  } or do {
+    fail("Exception on inserting $v_desc") unless $sqlite_broken_bigint;
+    next;
+  };
 
+  # explicitly using eq, to make sure we did not nummify the argument
+  # which can be an issue on 32 bit ivsize
+  cmp_ok ($row->bigint, 'eq', $bi, "value in object correct ($v_desc)");
+
+  $row->discard_changes;
+
+  cmp_ok (
+    $row->bigint,
+
+    # the test will not pass an == if we are running under 32 bit ivsize
+    # use 'eq' on the numified (and possibly "scientificied") returned value
+    (DBIx::Class::_ENV_::IV_SIZE < 8 and $v_bits > 32) ? 'eq' : '==',
+
+    # in 1.37 DBD::SQLite switched to proper losless representation of bigints
+    # regardless of ivize
+    # before this use 'eq' (from above) on the numified (and possibly
+    # "scientificied") returned value
+    (DBIx::Class::_ENV_::IV_SIZE < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37')) ? $bi+0 : $bi,
+
+    "value in database correct ($v_desc)"
+  );
+
+# FIXME - temporary smoke-only escape
+SKIP: {
+  skip 'Potential for false negatives - investigation pending', 1
+    if DBICTest::RunMode->is_plain;
+
+  # check if math works
+  # start by adding/subtracting a 50 bit integer, and then divide by 2 for good measure
+  my ($sqlop, $expect) = $bi < 0
+    ? ( '(bigint + ? )', ($bi + $many_bits) )
+    : ( '(bigint - ? )', ($bi - $many_bits) )
+  ;
+
+  $expect = ($expect + ($expect % 2)) / 2;
+
+  # read https://en.wikipedia.org/wiki/Modulo_operation#Common_pitfalls
+  # and check the tables on the right side of the article for an
+  # enlightening journey on why a mere bigint % 2 won't work
+  $sqlop = "( $sqlop + ( ((bigint % 2)+2)%2 ) ) / 2";
+
+  for my $dtype (undef, \'int', \'bigint') {
+
+    # FIXME - the double-load should not be needed
+    # will fix in the future
+    $row->update({ bigint => $bi });
     $row->discard_changes;
-    is ($row->bigint, $bi, "value in database correct ($bi)");
+    $row->update({ bigint => \[ $sqlop, [ $dtype => $many_bits ] ] });
+    $row->discard_changes;
+
+    # can't use cmp_ok - will not engage the M::BI overload of $many_bits
+    ok (
+      $row->bigint
+
+      ==
+
+      (DBIx::Class::_ENV_::IV_SIZE < 8 and ! modver_gt_or_eq('DBD::SQLite', '1.37')) ? $expect->bstr + 0 : $expect
+    , "simple integer math with@{[ $dtype ? '' : 'out' ]} bindtype in database correct (base $v_desc)")
+      or diag sprintf '%s != %s', $row->bigint, $expect;
   }
+# end of fixme
+}
+
+  is_deeply (\@w, [], "No mismatch warnings on bigint operations ($v_desc)" );
 }
 
 done_testing;

@@ -8,6 +8,7 @@ use mro 'c3';
 
 use Sub::Name;
 use Try::Tiny;
+use DBIx::Class::_Util 'sigwarn_silencer';
 use namespace::clean;
 
 =head1 NAME
@@ -29,12 +30,9 @@ sub _rebless { shift->_determine_connector_driver('ADO') }
 sub _dbh_get_info {
   my $self = shift;
 
-  my $warn_handler = $SIG{__WARN__} || sub { warn @_ };
-
-  local $SIG{__WARN__} = sub {
-    $warn_handler->(@_)
-      unless $_[0] =~ m{^Missing argument in sprintf at \S+/ADO/GetInfo\.pm};
-  };
+  local $SIG{__WARN__} = sigwarn_silencer(
+    qr{^Missing argument in sprintf at \S+/ADO/GetInfo\.pm}
+  );
 
   $self->next::method(@_);
 }
@@ -52,11 +50,9 @@ sub _init {
       my $disconnect = *DBD::ADO::db::disconnect{CODE};
 
       *DBD::ADO::db::disconnect = subname 'DBD::ADO::db::disconnect' => sub {
-        my $warn_handler = $SIG{__WARN__} || sub { warn @_ };
-        local $SIG{__WARN__} = sub {
-          $warn_handler->(@_)
-            unless $_[0] =~ /Not a Win32::OLE object|uninitialized value/;
-        };
+        local $SIG{__WARN__} = sigwarn_silencer(
+          qr/Not a Win32::OLE object|uninitialized value/
+        );
         $disconnect->(@_);
       };
     }

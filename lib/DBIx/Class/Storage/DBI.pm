@@ -1386,6 +1386,29 @@ sub _connect {
 
   local $DBI::connect_via = 'connect' if $INC{'Apache/DBI.pm'} && $ENV{MOD_PERL};
 
+  # this odd anonymous coderef dereference is in fact really
+  # necessary to avoid the unwanted effect described in perl5
+  # RT#75792
+  #
+  # in addition the coderef itself can't reside inside the try{} block below
+  # as it somehow triggers a leak under perl -d
+  my $dbh_error_handler_installer = sub {
+    weaken (my $weak_self = $_[0]);
+
+    # the coderef is blessed so we can distinguish it from externally
+    # supplied handles (which must be preserved)
+    $_[1]->{HandleError} = bless sub {
+      if ($weak_self) {
+        $weak_self->throw_exception("DBI Exception: $_[0]");
+      }
+      else {
+        # the handler may be invoked by something totally out of
+        # the scope of DBIC
+        DBIx::Class::Exception->throw("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
+      }
+    }, '__DBIC__DBH__ERROR__HANDLER__';
+  };
+
   try {
     if(ref $info[0] eq 'CODE') {
       $dbh = $info[0]->();
@@ -1429,26 +1452,7 @@ sub _connect {
         $dbh->{RaiseError} = 1;
       }
 
-      # this odd anonymous coderef dereference is in fact really
-      # necessary to avoid the unwanted effect described in perl5
-      # RT#75792
-      sub {
-        my $weak_self = $_[0];
-        weaken $weak_self;
-
-        # the coderef is blessed so we can distinguish it from externally
-        # supplied handles (which must be preserved)
-        $_[1]->{HandleError} = bless sub {
-          if ($weak_self) {
-            $weak_self->throw_exception("DBI Exception: $_[0]");
-          }
-          else {
-            # the handler may be invoked by something totally out of
-            # the scope of DBIC
-            DBIx::Class::Exception->throw("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
-          }
-        }, '__DBIC__DBH__ERROR__HANDLER__';
-      }->($self, $dbh);
+      $dbh_error_handler_installer->($self, $dbh);
     }
   }
   catch {
@@ -2380,8 +2384,8 @@ sub _select_args {
   my ($prefetch_needs_subquery, @limit_args);
 
   if ( $attrs->{_grouped_by_distinct} and $attrs->{collapse} ) {
-    # we already know there is a valid group_by and we know it is intended
-    # to be based *only* on the main result columns
+    # we already know there is a valid group_by (we made it) and we know it is
+    # intended to be based *only* on non-multi stuff
     # short circuit the group_by parsing below
     $prefetch_needs_subquery = 1;
   }
@@ -2399,7 +2403,7 @@ sub _select_args {
     @{$attrs->{group_by}}
       and
     my $grp_aliases = try { # try{} because $attrs->{from} may be unreadable
-      $self->_resolve_aliastypes_from_select_args( $attrs->{from}, undef, undef, { group_by => $attrs->{group_by} } )
+      $self->_resolve_aliastypes_from_select_args({ from => $attrs->{from}, group_by => $attrs->{group_by} })
     }
   ) {
     # no aliases other than our own in group_by
@@ -2413,8 +2417,7 @@ sub _select_args {
   }
 
   if ($prefetch_needs_subquery) {
-    ($ident, $select, $where, $attrs) =
-      $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+    $attrs = $self->_adjust_select_args_for_complex_prefetch ($attrs);
   }
   elsif (! $attrs->{software_limit} ) {
     push @limit_args, (
@@ -2427,17 +2430,17 @@ sub _select_args {
   if (
     ! $prefetch_needs_subquery  # already pruned
       and
-    ref $ident
+    ref $attrs->{from}
       and
-    reftype $ident eq 'ARRAY'
+    reftype $attrs->{from} eq 'ARRAY'
       and
-    @$ident != 1
+    @{$attrs->{from}} != 1
   ) {
-    ($ident, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
+    ($attrs->{from}, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($attrs);
   }
 
 ###
-  # This would be the point to deflate anything found in $where
+  # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial
   # to extract deflator coderefs via $alias2source above).
@@ -2447,7 +2450,7 @@ sub _select_args {
 ###
 
   return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
-    $ident, $select, $where, $attrs, @limit_args
+    @{$attrs}{qw(from select where)}, $attrs, @limit_args
   ]} );
 }
 

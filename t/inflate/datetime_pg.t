@@ -10,10 +10,7 @@ use DBICTest;
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
 
-{
-  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
-  DBICTest::Schema->load_classes('EventTZPg');
-}
+DBICTest::Schema->load_classes('EventTZPg');
 
 my $schema = DBICTest->init_schema();
 

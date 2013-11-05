@@ -128,7 +128,7 @@ SCHEMA_POPULATE1: {
 ARRAY_CONTEXT: {
 
   ## These first set of tests are cake because array context just delegates
-  ## all it's processing to $resultset->create
+  ## all its processing to $resultset->create
 
   HAS_MANY_NO_PKS: {
 

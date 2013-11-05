@@ -3,17 +3,9 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-
-use lib qw(t/lib);
-use DBICTest;
-
 use DBIx::Class::Optional::Dependencies ();
+use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBIC::SqlMakerTest;
-
-use DBIx::Class::SQLMaker::LimitDialects;
-my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
-my $TOTAL = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
 
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
@@ -44,6 +36,11 @@ BEGIN {
 
 use DBICTest;
 use DBICTest::Schema;
+use DBIC::SqlMakerTest;
+
+use DBIx::Class::SQLMaker::LimitDialects;
+my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
+my $TOTAL = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 

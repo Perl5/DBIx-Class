@@ -8,13 +8,14 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use DBICTest::Schema;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_mysql')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_mysql');
 
 {
-  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
   DBICTest::Schema->load_classes('EventTZ');
+  local $SIG{__WARN__} = sigwarn_silencer( qr/extra \=\> .+? has been deprecated/ );
   DBICTest::Schema->load_classes('EventTZDeprecated');
 }
 

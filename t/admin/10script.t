@@ -18,12 +18,11 @@ BEGIN {
   delete $ENV{JSON_ANY_ORDER};
 }
 
-use JSON::Any;
-
 $ENV{PATH} = '';
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
-my @json_backends = qw/XS JSON DWIW/;
+require JSON::Any;
+my @json_backends = qw(DWIW PP JSON CPANEL XS);
 
 # test the script is setting @INC properly
 test_exec (qw|-It/lib/testinclude --schema=DBICTestAdminInc --connect=[] --insert|);
@@ -42,9 +41,9 @@ cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
 for my $js (@json_backends) {
 
-    eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("JSON backend $js is not available, skip testing", 1) if $@;
+        eval {JSON::Any->import ($js); 1 }
+          or skip ("JSON backend $js is not available, skip testing", 1);
 
         local $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };

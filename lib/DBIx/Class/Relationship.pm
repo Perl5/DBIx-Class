@@ -72,8 +72,8 @@ we can do this instead:
  my $fredsbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books;
 
 Each relationship sets up an accessor method on the
-L<DBIx::Class::Manual::Glossary/"Row"> objects that represent the items
-of your table. From L<DBIx::Class::Manual::Glossary/"ResultSet"> objects,
+L<Result|DBIx::Class::Manual::Glossary/"Result"> objects that represent the items
+of your table. From L<ResultSet|DBIx::Class::Manual::Glossary/"ResultSet"> objects,
 the relationships can be searched using the "search_related" method.
 In list context, each returns a list of Result objects for the related class,
 in scalar context, a new ResultSet representing the joined tables is
@@ -196,7 +196,7 @@ If the relationship is optional -- i.e. the column containing the
 foreign key can be NULL -- then the belongs_to relationship does the
 right thing. Thus, in the example above C<< $obj->author >> would
 return C<undef>.  However in this case you would probably want to set
-the L<join_type|DBIx::Class::Relationship/join_type> attribute so that
+the L<join_type|DBIx::Class::Relationship::Base/join_type> attribute so that
 a C<LEFT JOIN> is done, which makes complex resultsets involving
 C<join> or C<prefetch> operations work correctly.  The modified
 declaration is shown below:

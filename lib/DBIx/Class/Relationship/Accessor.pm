@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Sub::Name;
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -80,7 +81,10 @@ sub add_relationship_accessor {
       }
     );
   } elsif ($acc_type eq 'multi') {
-    $meth{$rel} = sub { shift->search_related($rel, @_) };
+    $meth{$rel} = sub {
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and wantarray and my $sog = fail_on_internal_wantarray($_[0]);
+      shift->search_related($rel, @_)
+    };
     $meth{"${rel}_rs"} = sub { shift->search_related_rs($rel, @_) };
     $meth{"add_to_${rel}"} = sub { shift->create_related($rel, @_); };
   } else {

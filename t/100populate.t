@@ -6,6 +6,7 @@ use Test::Exception;
 use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 use Path::Class::File ();
 use Math::BigInt;
 use List::Util qw/shuffle/;
@@ -209,6 +210,11 @@ is($link7->title, 'gtitle', 'Link 7 title');
 my $rs = $schema->resultset('Artist');
 $rs->delete;
 throws_ok {
+    # this warning is correct, but we are not testing it here
+    # what we are after is the correct exception when an int
+    # fails to coerce into a sqlite rownum
+    local $SIG{__WARN__} = sigwarn_silencer( qr/datatype mismatch.+ foo as integer/ );
+
     $rs->populate([
         {
             artistid => 1,
@@ -223,7 +229,7 @@ throws_ok {
             name => 'foo3',
         },
     ]);
-} qr/\Qexecute_for_fetch() aborted with 'datatype mismatch\E\b/, 'bad slice';
+} qr/\Qexecute_for_fetch() aborted with 'datatype mismatch\E\b/, 'bad slice fails PK insert';
 
 is($rs->count, 0, 'populate is atomic');
 

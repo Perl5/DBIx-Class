@@ -61,7 +61,7 @@ my $fks = $schema->resultset ('FourKeys')->search (
   {
     sensors => { '!=', 'c' },
     ( map { $_ => [1, 2] } qw/foo bar hello goodbye/ ),
-  }, { join => 'fourkeys_to_twokeys'}
+  }, { join => { fourkeys_to_twokeys => 'twokeys' }}
 );
 
 is ($fks->count, 4, 'Joined FourKey count correct (2x2)');
@@ -88,11 +88,11 @@ is ($fb->discard_changes->read_count, 21, 'Update ran only once on discard-join 
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 # make the multi-join stick
-$fks = $fks->search({ 'fourkeys_to_twokeys.pilot_sequence' => { '!=' => 666 } });
+my $fks_multi = $fks->search({ 'fourkeys_to_twokeys.pilot_sequence' => { '!=' => 666 } });
 
 $schema->storage->debugobj ($debugobj);
 $schema->storage->debug (1);
-$fks->update ({ read_count => \ 'read_count + 1' });
+$fks_multi->update ({ read_count => \ 'read_count + 1' });
 $schema->storage->debugobj ($orig_debugobj);
 $schema->storage->debug ($orig_debug);
 
@@ -114,7 +114,7 @@ is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 $schema->storage->_use_multicolumn_in (1);
 $schema->storage->debugobj ($debugobj);
 $schema->storage->debug (1);
-throws_ok { $fks->update ({ read_count => \ 'read_count + 1' }) } # this can't actually execute, we just need the "as_query"
+throws_ok { $fks_multi->update ({ read_count => \ 'read_count + 1' }) } # this can't actually execute, we just need the "as_query"
   qr/\QDBI Exception:/ or do { $sql = ''; @bind = () };
 $schema->storage->_use_multicolumn_in (undef);
 $schema->storage->debugobj ($orig_debugobj);
@@ -145,6 +145,30 @@ is_same_sql_bind (
   ],
   'Correct update-SQL with multicolumn in support',
 );
+
+# make a *premultiplied* join stick
+my $fks_premulti = $fks->search({ 'twokeys.artist' => { '!=' => 666 } });
+
+$schema->storage->debugobj ($debugobj);
+$schema->storage->debug (1);
+$fks_premulti->update ({ read_count => \ 'read_count + 1' });
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'UPDATE fourkeys
+   SET read_count = read_count + 1
+   WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )',
+  [ map { "'$_'" } ( (1) x 4, (2) x 4 ) ],
+  'Correct update-SQL with premultiplied restricting join without pruning',
+);
+
+is ($fa->discard_changes->read_count, 13, 'Update ran only once on joined resultset');
+is ($fb->discard_changes->read_count, 23, 'Update ran only once on joined resultset');
+is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+
 
 #
 # Make sure multicolumn in or the equivalent functions correctly

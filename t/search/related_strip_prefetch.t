@@ -4,8 +4,8 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-use DBIC::SqlMakerTest;
 use DBICTest;
+use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;

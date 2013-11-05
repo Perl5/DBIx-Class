@@ -101,14 +101,6 @@ fetch the data.
 
 See also: L<DBIx::Class::ResultSet/METHODS>
 
-=head2 Record
-
-See Result.
-
-=head2 Row
-
-See Result.
-
 =head2 Result
 
 Result objects contain your actual data. They are returned from
@@ -117,13 +109,17 @@ row objects, including older versions of the DBIC documentation.
 
 See also: L<DBIx::Class::Manual::ResultClass>
 
+=head2 Row
+
+See Result.
+
 =head2 Object
 
 See Result.
 
-=head2 join
+=head2 Record
 
-See Join.
+See Result.
 
 =head2 prefetch
 

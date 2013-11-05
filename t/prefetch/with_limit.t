@@ -153,7 +153,7 @@ throws_ok (
       { order_by => \ 'some oddball literal sql', join => { cds => 'tracks' } }
     )->next
   }, qr/A required group_by clause could not be constructed automatically/,
-);
+) || exit;
 
 my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->next;
 is($artist->cds->count, 1, "count on search limiting prefetched has_many");
@@ -197,6 +197,93 @@ is_same_sql_bind (
     [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'me.year' } => 2010 ],
   ],
   'No grouping of non-multiplying resultsets',
+);
+
+my $many_one_many_rs = $schema->resultset('CD')->search({}, {
+  prefetch => { tracks => { lyrics => 'lyric_versions' } },
+  rows => 2,
+  order_by => ['lyrics.track_id'],
+});
+
+is_same_sql_bind(
+  $many_one_many_rs->as_query,
+  '(
+    SELECT  me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+            tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
+            lyrics.lyric_id, lyrics.track_id, lyric_versions.id, lyric_versions.lyric_id, lyric_versions.text
+      FROM (
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          FROM cd me
+          LEFT JOIN track tracks
+            ON tracks.cd = me.cdid
+          LEFT JOIN lyrics lyrics
+            ON lyrics.track_id = tracks.trackid
+        GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+        ORDER BY MIN(lyrics.track_id)
+        LIMIT ?
+      ) me
+      LEFT JOIN track tracks
+        ON tracks.cd = me.cdid
+      LEFT JOIN lyrics lyrics
+        ON lyrics.track_id = tracks.trackid
+      LEFT JOIN lyric_versions lyric_versions
+        ON lyric_versions.lyric_id = lyrics.lyric_id
+    ORDER BY lyrics.track_id
+  )',
+  [
+    [ { sqlt_datatype => 'integer' } => 2 ]
+  ],
+  'Correct SQL on indirectly multiplied orderer',
+);
+
+my $cond_on_multi_ord_by_single = $schema->resultset('CD')->search(
+  {
+    'tracks.position' => { '!=', 1 },
+  },
+  {
+    prefetch => [qw( tracks artist )],
+    order_by => 'artist.name',
+    rows => 1,
+  },
+);
+
+is_same_sql_bind(
+  $cond_on_multi_ord_by_single->as_query,
+  '(
+    SELECT  me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+            tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at,
+            artist.artistid, artist.name, artist.rank, artist.charfield
+      FROM (
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          FROM cd me
+          LEFT JOIN track tracks
+            ON tracks.cd = me.cdid
+          JOIN artist artist
+            ON artist.artistid = me.artist
+        WHERE tracks.position != ?
+        GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, artist.name
+        ORDER BY artist.name
+        LIMIT ?
+      ) me
+      LEFT JOIN track tracks
+        ON tracks.cd = me.cdid
+      JOIN artist artist
+        ON artist.artistid = me.artist
+    WHERE tracks.position != ?
+    ORDER BY artist.name
+  )',
+  [
+    [ { dbic_colname => "tracks.position", sqlt_datatype => "int" }
+      => 1
+    ],
+    [ { sqlt_datatype => "integer" }
+      => 1
+    ],
+    [ { dbic_colname => "tracks.position", sqlt_datatype => "int" }
+      => 1
+    ],
+  ],
+  'Correct SQl on prefetch with limit of restricting multi ordered by a single'
 );
 
 done_testing;

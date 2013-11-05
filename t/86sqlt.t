@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -118,18 +119,14 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 
 my $translator = SQL::Translator->new(
   parser_args => {
-    'DBIx::Schema' => $schema,
+    dbic_schema => $schema,
   },
   producer_args => {},
 );
 
-{
-    my $warn = '';
-    local $SIG{__WARN__} = sub { $warn = shift };
-
+warnings_exist {
     my $relinfo = $schema->source('Artist')->relationship_info ('cds');
     local $relinfo->{attrs}{on_delete} = 'restrict';
-
 
     $translator->parser('SQL::Translator::Parser::DBIx::Class');
     $translator->producer('SQLite');
@@ -139,13 +136,9 @@ my $translator = SQL::Translator->new(
     ok($output, "SQLT produced someoutput")
       or diag($translator->error);
 
-
-    like (
-      $warn,
-      qr/SQLT attribute .+? was supplied for relationship .+? which does not appear to be a foreign constraint/,
-      'Warn about dubious on_delete/on_update attributes',
-    );
-}
+} [
+  (qr/SQLT attribute .+? was supplied for relationship .+? which does not appear to be a foreign constraint/) x 2
+], 'Warn about dubious on_delete/on_update attributes';
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are

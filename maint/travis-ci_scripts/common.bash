@@ -114,7 +114,15 @@ installdeps() {
   if [[ "$LASTEXIT" = "0" ]] ; then
     echo_err "done (took ${DELTA_TIME}s)"
   else
-    echo_err -n "failed (Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")) retrying with sequential testing ... "
+    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")"
+    echo_err -n "failed ($errlog) retrying with sequential testing ... "
+    POSTMORTEM="$POSTMORTEM$(
+      echo
+      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog"
+      echo "============================================================="
+      echo "Attempted installation of: $@"
+      echo "============================================================="
+    )"
 
     HARNESS_OPTIONS=""
     LASTEXIT=0
@@ -136,7 +144,7 @@ installdeps() {
 }
 
 cpan_inst() {
-  cpan "$@" 2>&1
+  /usr/bin/timeout --kill-after=9.5m --signal=TERM 9m cpan "$@" 2>&1
 
   # older perls do not have a CPAN which can exit with error on failed install
   for m in "$@"; do
