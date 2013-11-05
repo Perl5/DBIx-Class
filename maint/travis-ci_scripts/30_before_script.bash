@@ -48,6 +48,12 @@ else
   # using SQLT and set up whatever databases necessary
   export DBICTEST_SQLT_DEPLOY=1
 
+  # if we run under --dev install latest github of TB1.5 first
+  # (unreleased workaround for precedence warnings)
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    parallel_installdeps_notest git://github.com/nthykier/test-more.git@fix-return-precedence-issue
+  fi
+
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
   # (e.g. once Carp is upgraded there's no more Carp::Heavy,
