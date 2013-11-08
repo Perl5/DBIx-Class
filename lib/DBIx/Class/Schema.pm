@@ -155,8 +155,7 @@ entries in the list of namespaces will override earlier ones.
 #   be stripped.
 sub _expand_relative_name {
   my ($class, $name) = @_;
-  return if !$name;
-  $name = $class . '::' . $name if ! ($name =~ s/^\+//);
+  $name =~ s/^\+// or $name = "${class}::${name}";
   return $name;
 }
 
@@ -164,31 +163,26 @@ sub _expand_relative_name {
 # namespace of $class. Untaints all findings as they can be assumed
 # to be safe
 sub _findallmod {
-  my $proto = shift;
-  my $ns = shift || ref $proto || $proto;
-
   require Module::Find;
-
-  # untaint result
-  return map { $_ =~ /(.+)/ } Module::Find::findallmod($ns);
+  return map
+    { $_ =~ /(.+)/ }   # untaint result
+    Module::Find::findallmod( $_[1] || ref $_[0] || $_[0] )
+  ;
 }
 
 # returns a hash of $shortname => $fullname for every package
 # found in the given namespaces ($shortname is with the $fullname's
 # namespace stripped off)
 sub _map_namespaces {
-  my ($class, @namespaces) = @_;
+  my ($me, $namespaces) = @_;
 
-  my @results_hash;
-  foreach my $namespace (@namespaces) {
-    push(
-      @results_hash,
-      map { (substr($_, length "${namespace}::"), $_) }
-      $class->_findallmod($namespace)
-    );
+  my %res;
+  for my $ns (@$namespaces) {
+    $res{ substr($_, length "${ns}::") } = $_
+      for $me->_findallmod($ns);
   }
 
-  @results_hash;
+  \%res;
 }
 
 # returns the result_source_instance for the passed class/object,
@@ -211,17 +205,18 @@ sub load_namespaces {
 
   my $result_namespace = delete $args{result_namespace} || 'Result';
   my $resultset_namespace = delete $args{resultset_namespace} || 'ResultSet';
+
   my $default_resultset_class = delete $args{default_resultset_class};
+
+  $default_resultset_class = $class->_expand_relative_name($default_resultset_class)
+    if $default_resultset_class;
 
   $class->throw_exception('load_namespaces: unknown option(s): '
     . join(q{,}, map { qq{'$_'} } keys %args))
       if scalar keys %args;
 
-  $default_resultset_class
-    = $class->_expand_relative_name($default_resultset_class);
-
   for my $arg ($result_namespace, $resultset_namespace) {
-    $arg = [ $arg ] if !ref($arg) && $arg;
+    $arg = [ $arg ] if ( $arg and ! ref $arg );
 
     $class->throw_exception('load_namespaces: namespace arguments must be '
       . 'a simple string or an arrayref')
@@ -230,8 +225,8 @@ sub load_namespaces {
     $_ = $class->_expand_relative_name($_) for (@$arg);
   }
 
-  my %results = $class->_map_namespaces(@$result_namespace);
-  my %resultsets = $class->_map_namespaces(@$resultset_namespace);
+  my $results_by_source_name = $class->_map_namespaces($result_namespace);
+  my $resultsets_by_source_name = $class->_map_namespaces($resultset_namespace);
 
   my @to_register;
   {
@@ -240,54 +235,56 @@ sub load_namespaces {
     use warnings qw/redefine/;
 
     # ensure classes are loaded and attached in inheritance order
-    for my $res (values %results) {
-      $class->ensure_class_loaded($res);
+    for my $result_class (values %$results_by_source_name) {
+      $class->ensure_class_loaded($result_class);
     }
     my %inh_idx;
-    my @subclass_last = sort {
+    my @source_names_by_subclass_last = sort {
 
       ($inh_idx{$a} ||=
-        scalar @{mro::get_linear_isa( $results{$a} )}
+        scalar @{mro::get_linear_isa( $results_by_source_name->{$a} )}
       )
 
           <=>
 
       ($inh_idx{$b} ||=
-        scalar @{mro::get_linear_isa( $results{$b} )}
+        scalar @{mro::get_linear_isa( $results_by_source_name->{$b} )}
       )
 
-    } keys(%results);
+    } keys(%$results_by_source_name);
 
-    foreach my $result (@subclass_last) {
-      my $result_class = $results{$result};
+    foreach my $source_name (@source_names_by_subclass_last) {
+      my $result_class = $results_by_source_name->{$source_name};
 
-      my $rs_class = delete $resultsets{$result};
-      my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
+      my $preset_resultset_class = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
+      my $found_resultset_class = delete $resultsets_by_source_name->{$source_name};
 
-      if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
-        if($rs_class && $rs_class ne $rs_set) {
-          carp "We found ResultSet class '$rs_class' for '$result', but it seems "
-             . "that you had already set '$result' to use '$rs_set' instead";
+      if($preset_resultset_class && $preset_resultset_class ne 'DBIx::Class::ResultSet') {
+        if($found_resultset_class && $found_resultset_class ne $preset_resultset_class) {
+          carp "We found ResultSet class '$found_resultset_class' matching '$results_by_source_name->{$source_name}', but it seems "
+             . "that you had already set the '$results_by_source_name->{$source_name}' resultet to '$preset_resultset_class' instead";
         }
       }
-      elsif($rs_class ||= $default_resultset_class) {
-        $class->ensure_class_loaded($rs_class);
-        if(!$rs_class->isa("DBIx::Class::ResultSet")) {
-            carp "load_namespaces found ResultSet class $rs_class that does not subclass DBIx::Class::ResultSet";
+      # elsif - there may be *no* default_resultset_class, in which case we fallback to
+      # DBIx::Class::Resultset and there is nothing to check
+      elsif($found_resultset_class ||= $default_resultset_class) {
+        $class->ensure_class_loaded($found_resultset_class);
+        if(!$found_resultset_class->isa("DBIx::Class::ResultSet")) {
+            carp "load_namespaces found ResultSet class '$found_resultset_class' that does not subclass DBIx::Class::ResultSet";
         }
 
-        $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
+        $class->_ns_get_rsrc_instance ($result_class)->resultset_class($found_resultset_class);
       }
 
-      my $source_name = $class->_ns_get_rsrc_instance ($result_class)->source_name || $result;
+      my $source_name = $class->_ns_get_rsrc_instance ($result_class)->source_name || $source_name;
 
       push(@to_register, [ $source_name, $result_class ]);
     }
   }
 
-  foreach (sort keys %resultsets) {
-    carp "load_namespaces found ResultSet class $_ with no "
-      . 'corresponding Result class';
+  foreach (sort keys %$resultsets_by_source_name) {
+    carp "load_namespaces found ResultSet class '$resultsets_by_source_name->{$_}' "
+        .'with no corresponding Result class';
   }
 
   Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
@@ -367,7 +364,7 @@ sub load_classes {
     }
   } else {
     my @comp = map { substr $_, length "${class}::"  }
-                 $class->_findallmod;
+                 $class->_findallmod($class);
     $comps_for{$class} = \@comp;
   }
 
@@ -564,7 +561,7 @@ Lists names of all the sources registered on this Schema object.
 
 =cut
 
-sub sources { return keys %{shift->source_registrations}; }
+sub sources { keys %{shift->source_registrations} }
 
 =head2 source
 
@@ -799,11 +796,13 @@ sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
 
-  my ($storage_class, $args) = ref $self->storage_type ?
-    ($self->_normalize_storage_type($self->storage_type),{}) : ($self->storage_type, {});
+  my ($storage_class, $args) = ref $self->storage_type
+    ? $self->_normalize_storage_type($self->storage_type)
+    : $self->storage_type
+  ;
 
-  $storage_class = 'DBIx::Class::Storage'.$storage_class
-    if $storage_class =~ m/^::/;
+  $storage_class =~ s/^::/DBIx::Class::Storage::/;
+
   try {
     $self->ensure_class_loaded ($storage_class);
   }
@@ -812,7 +811,8 @@ sub connection {
       "Unable to load storage class ${storage_class}: $_"
     );
   };
-  my $storage = $storage_class->new($self=>$args);
+
+  my $storage = $storage_class->new( $self => $args||{} );
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;
