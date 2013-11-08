@@ -1,4 +1,4 @@
-package DBICNSTest::RtBug41083::Schema::Foo;
+package DBICNSTest::RtBug41083::Result::Foo;
 use strict;
 use warnings;
 use base 'DBIx::Class::Core';
