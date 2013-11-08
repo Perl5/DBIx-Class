@@ -2326,28 +2326,54 @@ sub populate {
 
 
 # populate() arguments went over several incarnations
-# What we ultimately support is AoH
+# can be any mixture of :
+# 1. AoA
+# 2. AoH
+# 3. AoS(calar) followed buy Arrayrefref (\@cols, $rs->as_query)
+# 4. coderef (tuple generator)
 sub _normalize_populate_args {
-  my ($self, $arg) = @_;
+  my ($self, $args) = @_;
 
-  if (ref $arg eq 'ARRAY') {
-    if (!@$arg) {
-      return [];
-    }
-    elsif (ref $arg->[0] eq 'HASH') {
-      return $arg;
-    }
-    elsif (ref $arg->[0] eq 'ARRAY') {
-      my @ret;
-      my @colnames = @{$arg->[0]};
-      foreach my $values (@{$arg}[1 .. $#$arg]) {
-        push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
+  use DDP;
+  my @normalized;
+
+ARG: for (my $idx = 0; $idx < $#$args; $idx++) {
+    my $arg = $args->[$idx];
+
+    if (ref $arg eq 'ARRAY') {
+      # AoH
+      if (ref $arg eq 'ARRAY' && @$arg > 0 && ref $arg->[0] eq 'HASH') {
+        push @normalized, $arg;
+        next ARG;
       }
-      return \@ret;
+      # AoA
+      elsif (ref $arg eq 'ARRAY' && @$arg > 0 && ref $arg->[0] eq 'ARRAY') {
+        my @ret;
+        my @colnames = @{$arg->[0]};
+        foreach my $values (@{$arg}[1 .. $#$arg]) {
+          push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
+        }
+        push @normalized, \@ret;
+        next ARG;
+      }
+      # AoS, Arrayrefref (subq)
+      elsif (ref $arg eq 'ARRAY' && ref $arg->[0] eq '') {
+        push @normalized, $arg, $args->[$idx+1];
+        $idx += 1; # we are consuming the next element, skip it next time
+      }
+      # Coderef
+      elsif (ref $arg eq 'CODE') {
+        push @normalized, $arg;
+      }
     }
   }
 
-  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
+  if (scalar @normalized == 0) {
+    $self->throw_exception('Populate expects some combination of arrayref of hashrefs, arrayref of arrayrefs, array of cols followed by arrayrefref or coderef');
+  }
+
+  p @normalized;
+  return \@normalized;
 }
 
 =head2 pager

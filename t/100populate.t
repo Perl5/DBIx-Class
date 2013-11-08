@@ -23,7 +23,7 @@ my $schema = DBICTest->init_schema();
 #   [ 10000, "ntn" ],
 
 my $start_id = 'populateXaaaaaa';
-my $rows = 10_000;
+my $rows = 10;
 my $offset = 3;
 
 $schema->populate('Artist', [ [ qw/artistid name/ ], map { [ ($_ + $offset) => $start_id++ ] } shuffle ( 1 .. $rows ) ] );
@@ -446,3 +446,18 @@ lives_ok ( sub {
 }, 'empty has_many relationship accepted by populate');
 
 done_testing;
+
+my $artist_rs = $schema->resultset('Artist');
+my $artist_src = $artist_rs->result_source;
+
+my $q = $schema->resultset('CD')->search({}, { columns => [qw/artist year/], group_by => 'artist' })->as_query;
+my $count = 0;
+my $name = "zaaaaa";
+
+#$schema->storage->insert_bulk($artist_src, [qw/name rank/], [[[qw/foo 1/], [qw/baz 2/]], sub {
+#  return [$name++, ++$count] unless $count > 5;
+#  return undef;
+#}, $q, [[qw/asdf 5/], [qw/uhiuh 6/]]]);
+
+my @cols = $artist_src->columns;
+$rs->populate(\@cols, $rs->search(undef)->as_query )
