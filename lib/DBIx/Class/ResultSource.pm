@@ -1536,6 +1536,43 @@ sub __strip_relcond {
   return undef;
 }
 
+sub _extract_fixed_values_for {
+  my ($self, $dq, $alias) = @_;
+  my $fixed = $self->_extract_fixed_conditions_for($dq, $alias);
+  return +{ map {
+    is_Value($fixed->{$_})
+      ? ($_ => $fixed->{$_}{value})
+      : ()
+  } keys %$fixed };
+}
+
+sub _extract_fixed_conditions_for {
+  my ($self, $dq, $alias) = @_;
+  my (@q, %found) = ($dq);
+  while (my $n = shift @q) {
+    if (is_Operator($n)) {
+      if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
+        my ($l, $r) = @{$n->{args}};
+        if (
+          is_Identifier($r) and @{$r->{elements}} == 2
+          and $r->{elements}[0] eq $alias
+        ) {
+          ($l, $r) = ($r, $l);
+        }
+        if (
+          is_Identifier($l) and @{$l->{elements}} == 2
+          and $l->{elements}[0] eq $alias
+        ) {
+          $found{$l->{elements}[1]} = $r;
+        } elsif (($n->{operator}{Perl}||'') eq 'and') {
+          push @q, @{$n->{args}};
+        }
+      }
+    }
+  }
+  return \%found;
+}
+
 sub compare_relationship_keys {
   carp 'compare_relationship_keys is a private method, stop calling it';
   my $self = shift;

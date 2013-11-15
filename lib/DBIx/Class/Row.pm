@@ -1125,7 +1125,7 @@ sub copy {
   my $new = { _column_data => $col_data };
   bless $new, ref $self;
 
-  $new->result_source($self->result_source);
+  $new->result_source(my $source = $self->result_source);
   $new->set_inflated_columns($changes);
   $new->insert;
 
@@ -1134,14 +1134,18 @@ sub copy {
   # constraints
   my $relnames_copied = {};
 
-  foreach my $relname ($self->result_source->relationships) {
-    my $rel_info = $self->result_source->relationship_info($relname);
+  foreach my $relname ($source->relationships) {
+    my $rel_info = $source->relationship_info($relname);
 
     next unless $rel_info->{attrs}{cascade_copy};
 
-    my $resolved = $self->result_source->_resolve_condition(
+    my $resolved = $source->_resolve_condition(
       $rel_info->{cond}, $relname, $new, $relname
     );
+
+    if (ref($resolved) eq 'REF') {
+      $resolved = $source->_extract_fixed_values_for($$resolved, 'me');
+    }
 
     my $copied = $relnames_copied->{ $rel_info->{source} } ||= {};
     foreach my $related ($self->search_related($relname)->all) {

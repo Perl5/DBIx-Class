@@ -2339,7 +2339,8 @@ sub populate {
         );
 
         if (ref($related) eq 'REF' and ref($$related) eq 'HASH') {
-          $related = $self->_extract_fixed_values_for($$related, $rel);
+          $related = $self->result_source
+                          ->_extract_fixed_values_for($$related, $rel);
         }
 
         my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
@@ -2349,43 +2350,6 @@ sub populate {
       }
     }
   }
-}
-
-sub _extract_fixed_values_for {
-  my ($self, $dq, $alias) = @_;
-  my $fixed = $self->_extract_fixed_conditions_for($dq, $alias);
-  return +{ map {
-    is_Value($fixed->{$_})
-      ? ($_ => $fixed->{$_}{value})
-      : ()
-  } keys %$fixed };
-}
-
-sub _extract_fixed_conditions_for {
-  my ($self, $dq, $alias) = @_;
-  my (@q, %found) = ($dq);
-  while (my $n = shift @q) {
-    if (is_Operator($n)) {
-      if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
-        my ($l, $r) = @{$n->{args}};
-        if (
-          is_Identifier($r) and @{$r->{elements}} == 2
-          and $r->{elements}[0] eq $alias
-        ) {
-          ($l, $r) = ($r, $l);
-        }
-        if (
-          is_Identifier($l) and @{$l->{elements}} == 2
-          and $l->{elements}[0] eq $alias
-        ) {
-          $found{$l->{elements}[1]} = $r;
-        } elsif (($n->{operator}{Perl}||'') eq 'and') {
-          push @q, @{$n->{args}};
-        }
-      }
-    }
-  }
-  return \%found;
 }
 
 # populate() arguments went over several incarnations
@@ -2579,7 +2543,8 @@ sub _merge_with_rscond {
     }
   }
   elsif (ref $self->{cond} eq 'REF' and ref ${$self->{cond}} eq 'HASH') {
-    %new_data = %{$self->_extract_fixed_values_for(${$self->{cond}}, $alias)};
+    %new_data = %{$self->result_source
+                       ->_extract_fixed_values_for(${$self->{cond}}, $alias)};
   }
   else {
     $self->throw_exception(
