@@ -2338,6 +2338,10 @@ sub populate {
           $rel,
         );
 
+        if (ref($related) eq 'REF' and ref($$related) eq 'HASH') {
+          $related = $self->_extract_fixed_values_for($$related, $rel);
+        }
+
         my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
         my @populate = map { {%$_, %$related} } @rows_to_add;
 
@@ -2347,6 +2351,42 @@ sub populate {
   }
 }
 
+sub _extract_fixed_values_for {
+  my ($self, $dq, $alias) = @_;
+  my $fixed = $self->_extract_fixed_conditions_for($dq, $alias);
+  return +{ map {
+    is_Value($fixed->{$_})
+      ? ($_ => $fixed->{$_}{value})
+      : ()
+  } keys %$fixed };
+}
+
+sub _extract_fixed_conditions_for {
+  my ($self, $dq, $alias) = @_;
+  my (@q, %found) = ($dq);
+  while (my $n = shift @q) {
+    if (is_Operator($n)) {
+      if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
+        my ($l, $r) = @{$n->{args}};
+        if (
+          is_Identifier($r) and @{$r->{elements}} == 2
+          and $r->{elements}[0] eq $alias
+        ) {
+          ($l, $r) = ($r, $l);
+        }
+        if (
+          is_Identifier($l) and @{$l->{elements}} == 2
+          and $l->{elements}[0] eq $alias
+        ) {
+          $found{$l->{elements}[1]} = $r;
+        } elsif (($n->{operator}{Perl}||'') eq 'and') {
+          push @q, @{$n->{args}};
+        }
+      }
+    }
+  }
+  return \%found;
+}
 
 # populate() arguments went over several incarnations
 # What we ultimately support is AoH
@@ -2516,12 +2556,7 @@ sub _merge_with_rscond {
     %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
     @cols_from_relations = keys %new_data;
   }
-  elsif (ref $self->{cond} ne 'HASH') {
-    $self->throw_exception(
-      "Can't abstract implicit construct, resultset condition not a hash"
-    );
-  }
-  else {
+  elsif (ref $self->{cond} eq 'HASH') {
     # precedence must be given to passed values over values inherited from
     # the cond, so the order here is important.
     my $collapsed_cond = $self->_collapse_cond($self->{cond});
@@ -2542,6 +2577,14 @@ sub _merge_with_rscond {
         $new_data{$col} = $value;
       }
     }
+  }
+  elsif (ref $self->{cond} eq 'REF' and ref ${$self->{cond}} eq 'HASH') {
+    %new_data = %{$self->_extract_fixed_values_for(${$self->{cond}}, $alias)};
+  }
+  else {
+    $self->throw_exception(
+      "Can't abstract implicit construct, resultset condition not a hash"
+    );
   }
 
   %new_data = (

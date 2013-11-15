@@ -1498,12 +1498,42 @@ sub reverse_relationship_info {
 
 # all this does is removes the foreign/self prefix from a condition
 sub __strip_relcond {
-  return undef unless ref($_[1]) eq 'HASH';
-  +{
-    map
-      { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
-      keys %{$_[1]}
+  if (ref($_[1]) eq 'HASH') {
+    return +{
+      map
+        { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
+        keys %{$_[1]}
+    };
+  } elsif (blessed($_[1]) and $_[1]->isa('Data::Query::ExprBuilder')) {
+    my (@q, %found) = ($_[1]->{expr});
+    Q: while (my $n = shift @q) {
+      if (is_Operator($n)) {
+        if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
+          my ($l, $r) = @{$n->{args}};
+          if (
+            is_Identifier($l) and @{$l->{elements}} == 2
+            and is_Identifier($r) and @{$r->{elements}} == 2
+          ) {
+            ($l, $r) = ($r, $l) if $l->{elements}[0] eq 'self';
+            if (
+              $l->{elements}[0] eq 'foreign'
+              and $r->{elements}[0] eq 'self'
+            ) {
+              $found{$l->{elements}[1]} = $r->{elements}[1];
+              next Q;
+            }
+          }
+        } elsif (($n->{operator}{Perl}||'') eq 'and') {
+          push @q, @{$n->{args}};
+          next Q;
+        }
+      }
+      # didn't match as 'and' or 'foreign.x = self.y', can't handle this
+      return undef;
+    }
+    return \%found;
   }
+  return undef;
 }
 
 sub compare_relationship_keys {

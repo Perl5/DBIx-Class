@@ -6,6 +6,7 @@ use strict;
 
 use base qw/DBICTest::BaseResult/;
 use Carp qw/confess/;
+use Data::Query::ExprDeclare;
 
 __PACKAGE__->table('artist');
 __PACKAGE__->source_info({
@@ -47,7 +48,8 @@ __PACKAGE__->mk_classdata('field_name_for', {
 # the undef condition in this rel is *deliberate*
 # tests oddball legacy syntax
 __PACKAGE__->has_many(
-    cds => 'DBICTest::Schema::CD', undef,
+    cds => 'DBICTest::Schema::CD',
+    expr { $_->foreign->artist == $_->self->artistid },
     { order_by => { -asc => 'year'} },
 );
 
