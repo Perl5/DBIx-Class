@@ -1496,6 +1496,37 @@ sub reverse_relationship_info {
   return $ret;
 }
 
+sub _join_condition_to_hashref {
+  my ($self, $dq) = @_;
+  my (@q, %found) = ($dq);
+  Q: while (my $n = shift @q) {
+    if (is_Operator($n)) {
+      if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
+        my ($l, $r) = @{$n->{args}};
+        if (
+          is_Identifier($l) and @{$l->{elements}} == 2
+          and is_Identifier($r) and @{$r->{elements}} == 2
+        ) {
+          ($l, $r) = ($r, $l) if $l->{elements}[0] eq 'self';
+          if (
+            $l->{elements}[0] eq 'foreign'
+            and $r->{elements}[0] eq 'self'
+          ) {
+            $found{$l->{elements}[1]} = $r->{elements}[1];
+            next Q;
+          }
+        }
+      } elsif (($n->{operator}{Perl}||'') eq 'and') {
+        push @q, @{$n->{args}};
+        next Q;
+      }
+    }
+    # didn't match as 'and' or 'foreign.x = self.y', can't handle this
+    return undef;
+  }
+  return keys %found ? \%found : undef;
+}
+
 # all this does is removes the foreign/self prefix from a condition
 sub __strip_relcond {
   if (ref($_[1]) eq 'HASH') {
@@ -1505,33 +1536,7 @@ sub __strip_relcond {
         keys %{$_[1]}
     };
   } elsif (blessed($_[1]) and $_[1]->isa('Data::Query::ExprBuilder')) {
-    my (@q, %found) = ($_[1]->{expr});
-    Q: while (my $n = shift @q) {
-      if (is_Operator($n)) {
-        if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
-          my ($l, $r) = @{$n->{args}};
-          if (
-            is_Identifier($l) and @{$l->{elements}} == 2
-            and is_Identifier($r) and @{$r->{elements}} == 2
-          ) {
-            ($l, $r) = ($r, $l) if $l->{elements}[0] eq 'self';
-            if (
-              $l->{elements}[0] eq 'foreign'
-              and $r->{elements}[0] eq 'self'
-            ) {
-              $found{$l->{elements}[1]} = $r->{elements}[1];
-              next Q;
-            }
-          }
-        } elsif (($n->{operator}{Perl}||'') eq 'and') {
-          push @q, @{$n->{args}};
-          next Q;
-        }
-      }
-      # didn't match as 'and' or 'foreign.x = self.y', can't handle this
-      return undef;
-    }
-    return \%found;
+    return $_[0]->_join_condition_to_hashref($_[1]->{expr});
   }
   return undef;
 }
@@ -1715,10 +1720,19 @@ sub _pk_depends_on {
     if exists ($relinfo->{attrs}{is_foreign_key_constraint});
 
   my $cond = $relinfo->{cond};
-  return 0 unless ref($cond) eq 'HASH';
+  my $keyhash = do {
+    if (ref($cond) eq 'HASH') {
 
-  # map { foreign.foo => 'self.bar' } to { bar => 'foo' }
-  my $keyhash = { map { my $x = $_; $x =~ s/.*\.//; $x; } reverse %$cond };
+      # map { foreign.foo => 'self.bar' } to { bar => 'foo' }
+      +{ map { my $x = $_; $x =~ s/.*\.//; $x; } reverse %$cond };
+    } elsif (ref($cond) eq 'REF' and ref($$cond) eq 'HASH') {
+      my $fixed = $self->_join_condition_to_hashref($$cond);
+      return 0 unless $fixed;
+      +{ reverse %$fixed };
+    } else {
+      return 0;
+    }
+  };
 
   # assume anything that references our PK probably is dependent on us
   # rather than vice versa, unless the far side is (a) defined or (b)
@@ -1882,7 +1896,7 @@ sub _resolve_condition {
     return wantarray ? (\@ret, $crosstable) : \@ret;
   }
   elsif (blessed($cond) and $cond->isa('Data::Query::ExprBuilder')) {
-    my %cross;
+    my (%cross, $unresolvable);
     my $as = blessed($for) ? 'me' : $as;
     my $mapped = map_dq_tree {
       if (is_Identifier and @{$_->{elements}} == 2) {
@@ -1897,6 +1911,20 @@ sub _resolve_condition {
             } elsif ((ref($thing)||'') eq 'HASH') {
               return \perl_scalar_value($thing->{$_->{elements}[1]});
             } elsif (blessed($thing)) {
+              unless ($thing->has_column_loaded($_->{elements}[1])) {
+                if ($thing->in_storage) {
+                  $self->throw_exception(sprintf
+                    "Unable to resolve relationship '%s' from object %s: column '%s' not "
+                  . 'loaded from storage (or not passed to new() prior to insert()). You '
+                  . 'probably need to call ->discard_changes to get the server-side defaults '
+                  . 'from the database.',
+                    $as,
+                    $thing,
+                    $_->{elements}[1]
+                  );
+                }
+                $unresolvable = 1;
+              }
               return \perl_scalar_value($thing->get_column($_->{elements}[1]));
             } else {
               die "I have no idea what ${thing} is supposed to be";
@@ -1906,6 +1934,7 @@ sub _resolve_condition {
       }
       return $_;
     } $cond->{expr};
+    return $UNRESOLVABLE_CONDITION if $unresolvable;
     return (wantarray ? (\$mapped, (keys %cross == 2)) : \$mapped);
   }
   else {
