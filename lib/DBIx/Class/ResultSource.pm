@@ -1444,9 +1444,9 @@ sub reverse_relationship_info {
 
   my $ret = {};
 
-  return $ret unless ((ref $rel_info->{cond}) eq 'HASH');
-
   my $stripped_cond = $self->__strip_relcond ($rel_info->{cond});
+
+  return $ret unless $stripped_cond;
 
   my $registered_source_name = $self->source_name;
 
@@ -1478,8 +1478,9 @@ sub reverse_relationship_info {
     # this can happen when we have a self-referential class
     next if $other_rel_info eq $rel_info;
 
-    next unless ref $other_rel_info->{cond} eq 'HASH';
     my $other_stripped_cond = $self->__strip_relcond($other_rel_info->{cond});
+
+    next unless $other_stripped_cond;
 
     $ret->{$other_rel} = $other_rel_info if (
       $self->_compare_relationship_keys (
@@ -1497,6 +1498,7 @@ sub reverse_relationship_info {
 
 # all this does is removes the foreign/self prefix from a condition
 sub __strip_relcond {
+  return undef unless ref($_[1]) eq 'HASH';
   +{
     map
       { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
