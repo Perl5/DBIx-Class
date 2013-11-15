@@ -112,6 +112,7 @@ BEGIN {
     Module::Runtime
     Data::Query::Constants
     Data::Query::ExprHelpers
+    Data::Query::ExprDeclare
   ));
 
   require DBICTest::Schema;
