@@ -13,6 +13,7 @@ use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
 use Scalar::Util qw/blessed weaken isweak/;
+use Data::Query::ExprHelpers;
 
 use namespace::clean;
 
@@ -1810,6 +1811,33 @@ sub _resolve_condition {
       $crosstable ||= $crosstab;
     }
     return wantarray ? (\@ret, $crosstable) : \@ret;
+  }
+  elsif (blessed($cond) and $cond->isa('Data::Query::ExprBuilder')) {
+    my %cross;
+    my $as = blessed($for) ? 'me' : $as;
+    my $mapped = map_dq_tree {
+      if (is_Identifier and @{$_->{elements}} == 2) {
+        foreach my $check ([ foreign => $as ], [ self => $for ]) {
+          my ($ident, $thing) = @$check;
+          if ($_->{elements}[0] eq $ident) {
+            if ($thing and !ref($thing)) {
+              $cross{$thing} = 1;
+              return \Identifier($thing, $_->{elements}[1]);
+            } elsif (!defined($thing)) {
+              return \perl_scalar_value(undef);
+            } elsif ((ref($thing)||'') eq 'HASH') {
+              return \perl_scalar_value($thing->{$_->{elements}[1]});
+            } elsif (blessed($thing)) {
+              return \perl_scalar_value($thing->get_column($_->{elements}[1]));
+            } else {
+              die "I have no idea what ${thing} is supposed to be";
+            }
+          }
+        }
+      }
+      return $_;
+    } $cond->{expr};
+    return (wantarray ? (\$mapped, (keys %cross == 2)) : \$mapped);
   }
   else {
     $self->throw_exception ("Can't handle condition $cond for relationship '$rel_name' yet :(");
