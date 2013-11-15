@@ -9,6 +9,7 @@ use base 'DBIx::Class';
 use Try::Tiny;
 use List::Util qw(first max);
 use B 'perlstring';
+use Scalar::Util qw(blessed);
 
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
@@ -200,6 +201,9 @@ sub _resolve_collapse {
         $_ =~ s/^ (?: foreign | self ) \.//x for ($f, $s);
         $relinfo->{$rel}{fk_map}{$s} = $f;
       }
+    } elsif (blessed($cond) and $cond->isa('Data::Query::ExprBuilder')) {
+      my $cols = $self->_join_condition_to_hashref($cond->{expr});
+      @{$relinfo->{$rel}{fk_map}}{values %$cols} = keys %$cols;
     }
   }
 
