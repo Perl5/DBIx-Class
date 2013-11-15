@@ -398,6 +398,10 @@ sub search_rs {
     $call_cond = { @_ };
   }
 
+  if (blessed($call_cond) and $call_cond->isa('Data::Query::ExprBuilder')) {
+    $call_cond = \$call_cond->{expr};
+  }
+
   # see if we can keep the cache (no $rs changes)
   my $cache;
   my %safe = (alias => 1, cache => 1);
