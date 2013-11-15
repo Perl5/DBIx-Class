@@ -981,6 +981,12 @@ sub _main_source_order_by_portion_is_stable {
 sub _extract_fixed_condition_columns {
   my ($self, $where) = @_;
 
+  if (ref($where) eq 'REF' and ref($$where) eq 'HASH') {
+    # Yes. I know.
+    my $fixed = DBIx::Class::ResultSource->_extract_fixed_values_for($$where);
+    return [ keys %$fixed ];
+  }
+
   return unless ref $where eq 'HASH';
 
   my @cols;
