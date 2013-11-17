@@ -1916,39 +1916,64 @@ sub _resolve_condition {
   elsif (blessed($cond) and $cond->isa('Data::Query::ExprBuilder')) {
     my (%cross, $unresolvable);
     my $as = blessed($for) ? 'me' : $as;
-    my $mapped = map_dq_tree {
-      if (is_Identifier and @{$_->{elements}} == 2) {
-        foreach my $check ([ foreign => $as ], [ self => $for ]) {
-          my ($ident, $thing) = @$check;
-          if ($_->{elements}[0] eq $ident) {
-            if ($thing and !ref($thing)) {
-              $cross{$thing} = 1;
-              return \Identifier($thing, $_->{elements}[1]);
-            } elsif (!defined($thing)) {
-              return \perl_scalar_value(undef);
-            } elsif ((ref($thing)||'') eq 'HASH') {
-              return \perl_scalar_value($thing->{$_->{elements}[1]});
-            } elsif (blessed($thing)) {
-              unless ($thing->has_column_loaded($_->{elements}[1])) {
-                if ($thing->in_storage) {
-                  $self->throw_exception(sprintf
-                    "Unable to resolve relationship '%s' from object %s: column '%s' not "
-                  . 'loaded from storage (or not passed to new() prior to insert()). You '
-                  . 'probably need to call ->discard_changes to get the server-side defaults '
-                  . 'from the database.',
-                    $as,
-                    $thing,
-                    $_->{elements}[1]
-                  );
-                }
-                $unresolvable = 1;
-              }
-              return \perl_scalar_value($thing->get_column($_->{elements}[1]));
-            } else {
-              die "I have no idea what ${thing} is supposed to be";
-            }
+    my %action = map {
+      my ($ident, $thing, $other) = @$_;
+      ($ident => do {
+        if ($thing and !ref($thing)) {
+          sub {
+            $cross{$thing} = 1;
+            return \Identifier($thing, $_[0]->{elements}[1]);
           }
+        } elsif (!defined($thing)) {
+          sub {
+            \perl_scalar_value(
+              undef,
+              $_[1] ? join('.', $other, $_[1]->{elements}[1]) : ()
+            );
+          }
+        } elsif ((ref($thing)||'') eq 'HASH') {
+          sub {
+            \perl_scalar_value(
+              $thing->{$_->{elements}[1]},
+              $_[1] ? join('.', $other, $_[1]->{elements}[1]) : ()
+            );
+          }
+        } elsif (blessed($thing)) {
+          sub {
+            unless ($thing->has_column_loaded($_[0]->{elements}[1])) {
+              if ($thing->in_storage) {
+                $self->throw_exception(sprintf
+                  "Unable to resolve relationship '%s' from object %s: column '%s' not "
+                . 'loaded from storage (or not passed to new() prior to insert()). You '
+                . 'probably need to call ->discard_changes to get the server-side defaults '
+                . 'from the database.',
+                  $as,
+                  $thing,
+                  $_[0]->{elements}[1]
+                );
+              }
+              $unresolvable = 1;
+            }
+            return \perl_scalar_value(
+                      $thing->get_column($_[0]->{elements}[1]),
+                      $_[1] ? join('.', $other, $_[1]->{elements}[1]) : ()
+                    );
+          }
+        } else {
+            die "I have no idea what ${thing} is supposed to be";
         }
+      })
+    } ([ foreign => $as, $for ], [ self => $for, $as ]);
+    my %seen;
+    my $mapped = map_dq_tree {
+      if (is_Operator and @{$_->{args}} == 2) {
+        @seen{@{$_->{args}}} = reverse @{$_->{args}};
+      }
+      if (
+        is_Identifier and @{$_->{elements}} == 2
+        and my $act = $action{$_->{elements}[0]}
+      ) {
+        return $act->($_, $seen{$_});
       }
       return $_;
     } $cond->{expr};
