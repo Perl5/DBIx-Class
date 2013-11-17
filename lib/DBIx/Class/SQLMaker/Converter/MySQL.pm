@@ -80,4 +80,14 @@ sub _mangle_mutation_dq {
   } $dq;
 };
 
+around _generate_join_node => sub {
+  my ($orig, $self) = (shift, shift);
+  my $node = $self->$orig(@_);
+  my $to_jt = ref($_[0][0]) eq 'ARRAY' ? $_[0][0][0] : $_[0][0];
+  if (ref($to_jt) eq 'HASH' and ($to_jt->{-join_type}||'') =~ /^STRAIGHT\z/i) {
+    $node->{'Data::Query::Renderer::SQL::MySQL.straight_join'} = 1;
+  }
+  return $node;
+};
+
 1;

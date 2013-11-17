@@ -256,29 +256,34 @@ sub _join_to_dq {
   }
 
   foreach my $join (@joins) {
-    my ($to, $on) = @$join;
-
-    # check whether a join type exists
-    my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
-    my $join_type;
-    if (ref($to_jt) eq 'HASH' and defined($to_jt->{-join_type})) {
-      $join_type = lc($to_jt->{-join_type});
-      $join_type =~ s/^\s+ | \s+$//xg;
-      undef($join_type) unless $join_type =~ s/^(left|right).*/$1/;
-    }
-
-    $cur_dq = +{
-      type => DQ_JOIN,
-      ($join_type ? (outer => $join_type) : ()),
-      left => $cur_dq,
-      right => $self->_table_to_dq($to),
-      ($on
-        ? (on => $self->_expr_to_dq($self->_expand_join_condition($on)))
-        : ()),
-    };
+    $cur_dq = $self->_generate_join_node($join, $cur_dq);
   }
 
   return $cur_dq;
+}
+
+sub _generate_join_node {
+  my ($self, $join, $inner) = @_;
+  my ($to, $on) = @$join;
+
+  # check whether a join type exists
+  my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
+  my $join_type;
+  if (ref($to_jt) eq 'HASH' and defined($to_jt->{-join_type})) {
+    $join_type = lc($to_jt->{-join_type});
+    $join_type =~ s/^\s+ | \s+$//xg;
+    undef($join_type) unless $join_type =~ s/^(left|right).*/$1/;
+  }
+
+  return +{
+    type => DQ_JOIN,
+    ($join_type ? (outer => $join_type) : ()),
+    left => $inner,
+    right => $self->_table_to_dq($to),
+    ($on
+      ? (on => $self->_expr_to_dq($self->_expand_join_condition($on)))
+      : ()),
+  };
 }
 
 sub _expand_join_condition {
