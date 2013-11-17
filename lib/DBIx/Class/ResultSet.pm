@@ -1696,15 +1696,13 @@ sub _count_subq_rs {
         $sql_maker->{name_sep} = '';
       }
 
-      $sql_maker->clear_renderer;
-      $sql_maker->clear_converter;
+      # delete local is 5.12+
+      local @{$sql_maker}{qw(renderer converter)};
+      delete @{$sql_maker}{qw(renderer converter)};
 
       my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
       my $having_sql = $sql_maker->_render_sqla(where => $attrs->{having});
-
-      $sql_maker->clear_renderer;
-      $sql_maker->clear_converter;
 
       my %seen_having;
 

@@ -119,9 +119,11 @@ sub UREF { \do { my $x } };
 $sqla_oracle->{bindtype} = 'columns';
 
 for my $q ('', '"') {
-  local $sqla_oracle->{quote_char} = $q;
-  $sqla_oracle->clear_renderer;
-  $sqla_oracle->clear_converter;
+  # delete local is 5.12+
+  local @{$sqla_oracle}{qw(quote_char renderer converter)};
+  delete @{$sqla_oracle}{qw(quote_char renderer converter)};
+
+  $sqla_oracle->{quote_char} = $q;
 
   my ($sql, @bind) = $sqla_oracle->insert(
     'artist',

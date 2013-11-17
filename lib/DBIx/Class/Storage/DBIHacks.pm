@@ -413,9 +413,9 @@ sub _resolve_aliastypes_from_select_args {
     $sql_maker->{name_sep} = '';
   }
 
-  # local is not enough - need to ensure the inner objects get rebuilt
-  $sql_maker->clear_renderer;
-  $sql_maker->clear_converter;
+  # delete local is 5.12+
+  local @{$sql_maker}{qw(renderer converter)};
+  delete @{$sql_maker}{qw(renderer converter)};
 
   my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
@@ -452,10 +452,6 @@ sub _resolve_aliastypes_from_select_args {
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
     ],
   };
-
-  # local is not enough - need to ensure the inner objects get rebuilt
-  $sql_maker->clear_renderer;
-  $sql_maker->clear_converter;
 
   # throw away empty chunks
   $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
@@ -852,7 +848,9 @@ sub _extract_order_criteria {
     $order_dq = $order_dq->{from};
   }
 
-  delete local @{$sql_maker}{qw(quote_char renderer converter)};
+  # delete local is 5.12+
+  local @{$sql_maker}{qw(quote_char renderer converter)};
+  delete @{$sql_maker}{qw(quote_char renderer converter)};
 
   return map { [ $sql_maker->_render_dq($_) ] } do {
     if ($ident_only) {
