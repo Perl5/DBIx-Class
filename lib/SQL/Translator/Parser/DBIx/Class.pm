@@ -168,8 +168,25 @@ sub parse {
 
             my $rel_info = $source->relationship_info($rel);
 
-            # Ignore any rel cond that isn't a straight hash
-            next unless ref $rel_info->{cond} eq 'HASH';
+            # Ignore any rel cond that isn't a straight hash or DQ expr
+
+            my $rel_cond = do {
+              if (ref($rel_info->{cond}) eq 'HASH') {
+                # strip foreign. and self.
+                +{ map {/^\w+\.(\w+)$/} %{$rel_info->{cond}} };
+              } elsif (
+                blessed($rel_info->{cond})
+                and $rel_info->{cond}->isa('Data::Query::ExprBuilder')
+              ) {
+                $source->_join_condition_to_hashref($rel_info->{cond}{expr});
+              } else {
+                undef;
+              }
+            };
+
+            # non-equality join DQ expr will also have produced undef
+
+            next unless $rel_cond;
 
             my $relsource = try { $source->related_source($rel) };
             unless ($relsource) {
@@ -191,12 +208,10 @@ sub parse {
 
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
-            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
-            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
+            my %other_columns_idx = map { $_ => ++$idx } $relsource->columns;
+            my @refkeys = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_cond});
 
-            # Get the key information, mapping off the foreign/self markers
-            my @refkeys = map {/^\w+\.(\w+)$/} @cond;
-            my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
+            my @keys = @{$rel_cond}{@refkeys};
 
             # determine if this relationship is a self.fk => foreign.pk (i.e. belongs_to)
             my $fk_constraint;
