@@ -1547,7 +1547,7 @@ sub _extract_fixed_values_for {
   return +{ map {
     is_Value($fixed->{$_})
       ? ($_ => $fixed->{$_}{value})
-      : ()
+      : (is_Literal($fixed->{$_}) ? ($_ => \($fixed->{$_})) : ())
   } keys %$fixed };
 }
 
