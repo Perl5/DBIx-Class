@@ -58,7 +58,7 @@ my $cd_rs = $schema->resultset('CD');
 {
   my $artist;
   lives_ok {
-    $artist = $artist_rs->search({ name => [ q/ some stupid names here/]})
+    $artist = $artist_rs->search({ name => [ qw(some stupid names here) ]})
       ->create({artistid => undef});
   };
   is($artist->name, undef);
