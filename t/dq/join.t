@@ -32,4 +32,14 @@ is($mccrae->cds2->count, 3, 'CDs returned from expr join');
 
 is($mccrae->cds2_pre2k->count, 2, 'CDs returned from expr w/cond');
 
+my $cds = $schema->resultset('CD')
+                 ->search(expr { $_->artist->name eq 'Caterwauler McCrae' });
+
+is($cds->count, 3, 'CDs via join injection');
+
+my $tags = $schema->resultset('Tag')
+                  ->search(expr { $_->cd->artist->name eq 'Caterwauler McCrae' });
+
+is($tags->count, 5, 'Tags via two step join injection');
+
 done_testing;

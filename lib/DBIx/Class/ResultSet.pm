@@ -399,7 +399,14 @@ sub search_rs {
   }
 
   if (blessed($call_cond) and $call_cond->isa('Data::Query::ExprBuilder')) {
-    $call_cond = \$call_cond->{expr};
+    my ($mapped_expr, $extra_join)
+      = $self->_remap_identifiers($call_cond->{expr});
+    $call_cond = \$mapped_expr;
+    if (@$extra_join) {
+      $self->throw_exception("Can't handle join-requiring DQ expr when join attribute specified")
+        if $call_attrs->{join};
+      $call_attrs->{join} = $extra_join;
+    }
   }
 
   # see if we can keep the cache (no $rs changes)
@@ -491,6 +498,44 @@ sub search_rs {
   $rs->set_cache($cache) if ($cache);
 
   return $rs;
+}
+
+sub _remap_identifiers {
+  my ($self, $dq) = @_;
+  my $map = {};
+  my $attrs = $self->_resolved_attrs;
+  foreach my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
+    next unless $j->[0]{-alias};
+    next unless $j->[0]{-join_path};
+    my $p = $map;
+    $p = $p->{$_} ||= {} for map { keys %$_ } @{$j->[0]{-join_path}};
+    $p->{''} = $j->[0]{-alias};
+  }
+
+  my $seen_join = { %{$attrs->{seen_join}||{}} };
+  my $storage = $self->result_source->storage;
+  my @need_join;
+  my $mapped = map_dq_tree {
+    return $_ unless is_Identifier;
+    my @el = @{$_->{elements}};
+    my $last = pop @el;
+    unless (@el) {
+      return Identifier($attrs->{alias}, $last);
+    }
+    my $p = $map;
+    $p = $p->{$_} ||= {} for @el;
+    if (my $alias = $p->{''}) {
+      return Identifier($alias, $last);
+    }
+    my $need = my $j = {};
+    $j = $j->{$_} = {} for @el;
+    push @need_join, $need;
+    my $alias = $storage->relname_to_table_alias(
+      $el[-1], ++$seen_join->{$el[-1]}
+    );
+    return Identifier($alias, $last);
+  } $dq;
+  return ($mapped, \@need_join);
 }
 
 my $dark_sel_dumper;
@@ -3528,7 +3573,7 @@ sub _resolved_attrs {
         $source->_resolve_join(
           $join,
           $alias,
-          { %{ $attrs->{seen_join} || {} } },
+          ($attrs->{seen_join} = { %{ $attrs->{seen_join} || {} } }),
           ( $attrs->{seen_join} && keys %{$attrs->{seen_join}})
             ? $attrs->{from}[-1][0]{-join_path}
             : []
