@@ -600,9 +600,11 @@ sub _stack_cond {
 
   return undef unless @top;
 
-  my %top = map +(Data::Dumper::Concise::Dumper($_) => $_), @top;
+  my %seen;
 
-  return \Operator({ 'SQL.Naive' => 'AND' }, [ values %top ]);
+  my @uniq = grep { !$seen{Data::Dumper::Concise::Dumper($_)}++ } @top;
+
+  return \Operator({ 'SQL.Naive' => 'AND' }, \@uniq);
 }
 
 =head2 search_literal
