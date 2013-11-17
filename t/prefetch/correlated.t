@@ -138,4 +138,99 @@ is_same_sql_bind(
   'Expected SQL on correlated realiased subquery'
 );
 
+# test for subselect identifier leakage
+# NOTE - the hodge-podge mix of literal and regular identifuers is *deliberate*
+for my $quote_names (0,1) {
+  my $schema = DBICTest->init_schema( quote_names => $quote_names );
+
+  my ($ql, $qr) = $schema->storage->sql_maker->_quote_chars;
+
+  my $art_rs = $schema->resultset('Artist')->search ({}, {
+    order_by => 'me.artistid',
+    prefetch => 'cds',
+    rows => 2,
+  });
+
+  my $inner_lim_bindtype = { sqlt_datatype => 'integer' };
+
+  for my $inner_relchain (qw( cds_unordered cds ) ) {
+
+    my $stupid_latest_competition_release_query = $schema->resultset('Artist')->search(
+      { 'competition.artistid' => { '!=', { -ident => 'me.artistid' } } },
+      { alias => 'competition' },
+    )->search_related( $inner_relchain, {}, {
+      rows => 1, order_by => 'year', columns => { year => \'year' }, distinct => 1
+    })->get_column(\'year')->max_rs;
+
+    my $final_query = $art_rs->search( {}, {
+      '+columns' => { max_competition_release => \[
+        @${ $stupid_latest_competition_release_query->as_query }
+      ]},
+    });
+
+    is_deeply (
+      $final_query->all_hri,
+      [
+        { artistid => 1, charfield => undef, max_competition_release => 1998, name => "Caterwauler McCrae", rank => 13, cds => [
+          { artist => 1, cdid => 3, genreid => undef, single_track => undef, title => "Caterwaulin' Blues", year => 1997 },
+          { artist => 1, cdid => 2, genreid => undef, single_track => undef, title => "Forkful of bees", year => 2001 },
+          { artist => 1, cdid => 1, genreid => 1, single_track => undef, title => "Spoonful of bees", year => 1999 },
+        ] },
+        { artistid => 2, charfield => undef, max_competition_release => 1997, name => "Random Boy Band", rank => 13, cds => [
+          { artist => 2, cdid => 4, genreid => undef, single_track => undef, title => "Generic Manufactured Singles", year => 2001 },
+        ] },
+      ],
+      "Expected result from weird query",
+    );
+
+    # the decomposition to sql/bind is *deliberate* in both instances
+    # we want to ensure this keeps working for lietral sql, even when
+    # as_query switches to return an overloaded dq node
+    my ($sql, @bind) = @${ $final_query->as_query };
+
+    my $correlated_sql = qq{ (
+      SELECT MAX( year )
+        FROM (
+          SELECT year
+            FROM ${ql}artist${qr} ${ql}competition${qr}
+            JOIN cd ${ql}${inner_relchain}${qr}
+              ON ${ql}${inner_relchain}${qr}.${ql}artist${qr} = ${ql}competition${qr}.${ql}artistid${qr}
+          WHERE ${ql}competition${qr}.${ql}artistid${qr} != ${ql}me${qr}.${ql}artistid${qr}
+          GROUP BY year
+          ORDER BY MIN( ${ql}year${qr} )
+          LIMIT ?
+        ) ${ql}${inner_relchain}${qr}
+    )};
+
+    is_same_sql_bind(
+      $sql,
+      \@bind,
+      qq{ (
+        SELECT  ${ql}me${qr}.${ql}artistid${qr}, ${ql}me${qr}.${ql}name${qr}, ${ql}me${qr}.${ql}rank${qr}, ${ql}me${qr}.${ql}charfield${qr},
+                $correlated_sql,
+                ${ql}cds${qr}.${ql}cdid${qr}, ${ql}cds${qr}.${ql}artist${qr}, ${ql}cds${qr}.${ql}title${qr}, ${ql}cds${qr}.${ql}year${qr}, ${ql}cds${qr}.${ql}genreid${qr}, ${ql}cds${qr}.${ql}single_track${qr}
+          FROM (
+            SELECT  ${ql}me${qr}.${ql}artistid${qr}, ${ql}me${qr}.${ql}name${qr}, ${ql}me${qr}.${ql}rank${qr}, ${ql}me${qr}.${ql}charfield${qr},
+                    $correlated_sql
+              FROM ${ql}artist${qr} ${ql}me${qr}
+              ORDER BY ${ql}me${qr}.${ql}artistid${qr}
+              LIMIT ?
+          ) ${ql}me${qr}
+          LEFT JOIN cd ${ql}cds${qr}
+            ON ${ql}cds${qr}.${ql}artist${qr} = ${ql}me${qr}.${ql}artistid${qr}
+        ORDER BY ${ql}me${qr}.${ql}artistid${qr}
+      ) },
+      [
+        [ $inner_lim_bindtype
+          => 1 ],
+        [ $inner_lim_bindtype
+          => 1 ],
+        [ { sqlt_datatype => 'integer' }
+          => 2 ],
+      ],
+      "No leakage of correlated subquery identifiers (quote_names => $quote_names, inner alias '$inner_relchain')"
+    );
+  }
+}
+
 done_testing;

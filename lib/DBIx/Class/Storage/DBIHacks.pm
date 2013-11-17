@@ -429,15 +429,46 @@ sub _resolve_aliastypes_from_select_args {
       ),
     ],
     selecting => [
-      $sql_maker->_recurse_fields ($attrs->{select}),
+      map { $sql_maker->_recurse_fields($_) } @{$attrs->{select}},
     ],
     ordering => [
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
     ],
   };
 
-  # throw away empty chunks
-  $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
+  # throw away empty chunks and all 2-value arrayrefs: the thinking is that these are
+  # bind value specs left in by the sloppy renderer above. It is ok to do this
+  # at this point, since we are going to end up rewriting this crap anyway
+  for my $v (values %$to_scan) {
+    my @nv;
+    for (@$v) {
+      next if (
+        ! defined $_
+          or
+        (
+          ref $_ eq 'ARRAY'
+            and
+          ( @$_ == 0 or @$_ == 2 )
+        )
+      );
+
+      if (ref $_) {
+        require Data::Dumper::Concise;
+        $self->throw_exception("Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($v) );
+      }
+
+      push @nv, $_;
+    }
+
+    $v = \@nv;
+  }
+
+  # kill all selectors which look like a proper subquery
+  # this is a sucky heuristic *BUT* - if we get it wrong the query will simply
+  # fail to run, so we are relatively safe
+  $to_scan->{selecting} = [ grep {
+    $_ !~ / \A \s* \( \s* SELECT \s+ .+? \s+ FROM \s+ .+? \) \s* \z /xsi
+  } @{ $to_scan->{selecting} || [] } ];
 
   # first see if we have any exact matches (qualified or unqualified)
   for my $type (keys %$to_scan) {
