@@ -1554,28 +1554,46 @@ sub _extract_fixed_values_for {
 sub _extract_fixed_conditions_for {
   my ($self, $dq, $alias) = @_;
   my (@q, %found) = ($dq);
-  while (my $n = shift @q) {
-    if (is_Operator($n)) {
-      if (($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/) {
-        my ($l, $r) = @{$n->{args}};
-        if (
-          is_Identifier($r) and @{$r->{elements}} == 2
-          and (!$alias or $r->{elements}[0] eq $alias)
-        ) {
-          ($l, $r) = ($r, $l);
-        }
-        if (
-          is_Identifier($l) and @{$l->{elements}} == 2
-          and (!$alias or $l->{elements}[0] eq $alias)
-        ) {
-          $found{$l->{elements}[1]} = $r;
-        } elsif (($n->{operator}{Perl}||'') eq 'and') {
-          push @q, @{$n->{args}};
-        }
+  foreach my $n ($self->_extract_top_level_conditions($dq)) {
+    if (
+      is_Operator($n)
+      and (
+        ($n->{operator}{Perl}||'') =~ /^(?:==|eq)$/
+        or ($n->{operator}{'SQL.Naive'}||'') eq '='
+     )
+    ) {
+      my ($l, $r) = @{$n->{args}};
+      if (
+        is_Identifier($r) and @{$r->{elements}} == 2
+        and (!$alias or $r->{elements}[0] eq $alias)
+      ) {
+        ($l, $r) = ($r, $l);
+      }
+      if (
+        is_Identifier($l) and @{$l->{elements}} == 2
+        and (!$alias or $l->{elements}[0] eq $alias)
+      ) {
+        $found{$l->{elements}[1]} = $r;
       }
     }
   }
   return \%found;
+}
+
+sub _extract_top_level_conditions {
+  my ($self, $dq) = @_;
+  my (@q, @found) = ($dq);
+  while (my $n = shift @q) {
+    if (
+      is_Operator($n)
+      and ($n->{operator}{Perl}||$n->{operator}{'SQL.Naive'}||'') =~ /^and$/i
+    ) {
+      push @q, @{$n->{args}};
+    } else {
+      push @found, $n;
+    }
+  }
+  return @found;
 }
 
 sub compare_relationship_keys {

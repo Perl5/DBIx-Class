@@ -8,7 +8,7 @@ use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use Try::Tiny;
-use Data::Compare (); # no imports!!! guard against insane architecture
+use Data::Dumper::Concise ();
 use Data::Query::Constants;
 use Data::Query::ExprHelpers;
 # not importing first() as it will clash with our own method
@@ -590,60 +590,19 @@ sub _normalize_selection {
 sub _stack_cond {
   my ($self, $left, $right) = @_;
 
-  # collapse single element top-level conditions
-  # (single pass only, unlikely to need recursion)
-  for ($left, $right) {
-    if (ref $_ eq 'ARRAY') {
-      if (@$_ == 0) {
-        $_ = undef;
-      }
-      elsif (@$_ == 1) {
-        $_ = $_->[0];
-      }
-    }
-    elsif (ref $_ eq 'HASH') {
-      my ($first, $more) = keys %$_;
+  my $source = $self->result_source;
 
-      # empty hash
-      if (! defined $first) {
-        $_ = undef;
-      }
-      # one element hash
-      elsif (! defined $more) {
-        if ($first eq '-and' and ref $_->{'-and'} eq 'HASH') {
-          $_ = $_->{'-and'};
-        }
-        elsif ($first eq '-or' and ref $_->{'-or'} eq 'ARRAY') {
-          $_ = $_->{'-or'};
-        }
-      }
-    }
-  }
+  my $converter = $source->schema->storage->sql_maker->converter;
 
-  # merge hashes with weeding out of duplicates (simple cases only)
-  if (ref $left eq 'HASH' and ref $right eq 'HASH') {
+  my @top = map $source->_extract_top_level_conditions(
+    $converter->_expr_to_dq($_)
+  ), grep defined, $left, $right;
 
-    # shallow copy to destroy
-    $right = { %$right };
-    for (grep { exists $right->{$_} } keys %$left) {
-      # the use of eq_deeply here is justified - the rhs of an
-      # expression can contain a lot of twisted weird stuff
-      delete $right->{$_} if Data::Compare::Compare( $left->{$_}, $right->{$_} );
-    }
+  return undef unless @top;
 
-    $right = undef unless keys %$right;
-  }
+  my %top = map +(Data::Dumper::Concise::Dumper($_) => $_), @top;
 
-
-  if (defined $left xor defined $right) {
-    return defined $left ? $left : $right;
-  }
-  elsif (! defined $left) {
-    return undef;
-  }
-  else {
-    return { -and => [ $left, $right ] };
-  }
+  return \Operator({ 'SQL.Naive' => 'AND' }, [ values %top ]);
 }
 
 =head2 search_literal
