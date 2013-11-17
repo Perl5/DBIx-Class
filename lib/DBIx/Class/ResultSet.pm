@@ -604,6 +604,8 @@ sub _stack_cond {
 
   my @uniq = grep { !$seen{Data::Dumper::Concise::Dumper($_)}++ } @top;
 
+  return \$uniq[0] if @uniq == 1;
+
   return \Operator({ 'SQL.Naive' => 'AND' }, \@uniq);
 }
 
@@ -2477,10 +2479,6 @@ sub _merge_with_rscond {
   if (! defined $self->{cond}) {
     # just massage $data below
   }
-  elsif ($self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
-    %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
-    @cols_from_relations = keys %new_data;
-  }
   elsif (ref $self->{cond} eq 'HASH') {
     # precedence must be given to passed values over values inherited from
     # the cond, so the order here is important.
@@ -2504,11 +2502,16 @@ sub _merge_with_rscond {
     }
   }
   elsif (ref $self->{cond} eq 'REF' and ref ${$self->{cond}} eq 'HASH') {
-    %new_data = %{$self->_remove_alias(
-      $self->result_source
-           ->_extract_fixed_values_for(${$self->{cond}}),
-      $alias
-    )};
+    if ((${$self->{cond}})->{'DBIx::Class::ResultSource.UNRESOLVABLE'}) {
+      %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
+      @cols_from_relations = keys %new_data;
+    } else {
+      %new_data = %{$self->_remove_alias(
+        $self->result_source
+             ->_extract_fixed_values_for(${$self->{cond}}),
+        $alias
+      )};
+    }
   }
   else {
     $self->throw_exception(

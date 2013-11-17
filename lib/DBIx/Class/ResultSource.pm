@@ -1782,7 +1782,9 @@ sub resolve_condition {
   $self->_resolve_condition (@_);
 }
 
-our $UNRESOLVABLE_CONDITION = \ '1 = 0';
+our $UNRESOLVABLE_CONDITION = \Literal(SQL => '1 = 0');
+
+${$UNRESOLVABLE_CONDITION}->{'DBIx::Class::ResultSource.UNRESOLVABLE'} = 1;
 
 # Resolves the passed condition to a concrete query fragment and a flag
 # indicating whether this is a cross-table condition. Also an optional
