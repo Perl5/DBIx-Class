@@ -1564,16 +1564,22 @@ sub _extract_fixed_conditions_for {
     ) {
       my ($l, $r) = @{$n->{args}};
       if (
-        is_Identifier($r) and @{$r->{elements}} == 2
-        and (!$alias or $r->{elements}[0] eq $alias)
+        is_Identifier($r) and (
+          !$alias
+          or (@{$r->{elements}} == 2
+              and $r->{elements}[0] eq $alias)
+        )
       ) {
         ($l, $r) = ($r, $l);
       }
       if (
-        is_Identifier($l) and @{$l->{elements}} == 2
-        and (!$alias or $l->{elements}[0] eq $alias)
+        is_Identifier($l) and (
+          !$alias
+          or (@{$l->{elements}} == 2
+              and $l->{elements}[0] eq $alias)
+        )
       ) {
-        $found{$l->{elements}[1]} = $r;
+        $found{$alias ? $l->{elements}[1] : join('.',@{$l->{elements}})} = $r;
       }
     }
   }

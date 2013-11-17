@@ -2504,8 +2504,11 @@ sub _merge_with_rscond {
     }
   }
   elsif (ref $self->{cond} eq 'REF' and ref ${$self->{cond}} eq 'HASH') {
-    %new_data = %{$self->result_source
-                       ->_extract_fixed_values_for(${$self->{cond}}, $alias)};
+    %new_data = %{$self->_remove_alias(
+      $self->result_source
+           ->_extract_fixed_values_for(${$self->{cond}}),
+      $alias
+    )};
   }
   else {
     $self->throw_exception(
