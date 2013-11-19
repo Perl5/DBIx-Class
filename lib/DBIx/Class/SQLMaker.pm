@@ -50,7 +50,10 @@ use namespace::clean;
 
 has limit_dialect => (
   is => 'rw', default => sub { 'LimitOffset' },
-  trigger => sub { shift->clear_renderer_class }
+  trigger => sub {
+    $_[0]->clear_renderer_class;
+    $_[0]->clear_converter;
+  }
 );
 
 sub BUILD {
