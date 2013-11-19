@@ -9,6 +9,7 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::LimitDialects;
+use Data::Query::ExprDeclare;
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
 
@@ -155,7 +156,7 @@ throws_ok (
   }, qr/A required group_by clause could not be constructed automatically/,
 ) || exit;
 
-my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->next;
+my $artist = $use_prefetch->search(expr { $_->cds->title eq $artist_many_cds->cds->first->title })->next;
 is($artist->cds->count, 1, "count on search limiting prefetched has_many");
 
 # try with double limit
