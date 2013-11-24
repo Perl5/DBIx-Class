@@ -5,33 +5,23 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use lib qw(t/lib);
+use Data::Query::ExprDeclare;
 use DBICTest;
 use DBIC::SqlMakerTest;
-use Data::Query::ExprDeclare;
 
 my $schema = DBICTest->init_schema();
 
-my $mccrae = $schema->resultset('Artist')
-                    ->find({ name => 'Caterwauler McCrae' });
+$schema->source($_)->resultset_class('DBIx::Class::ResultSet::WithDQMethods')
+  for qw(CD Tag);
 
-my @cds = $schema->resultset('CD')
-                 ->search(expr { $_->artist == $mccrae->artistid });
+my $cds = $schema->resultset('CD')
+                 ->where(expr { $_->artist->name eq 'Caterwauler McCrae' });
 
-is(@cds, 3, 'CDs returned from expr search by artistid');
+is($cds->count, 3, 'CDs via join injection');
 
-my @years = $schema->resultset('CD')
-                   ->search(expr { $_->year < 2000 })
-                   ->get_column('year')
-                   ->all;
+my $tags = $schema->resultset('Tag')
+                  ->where(expr { $_->cd->artist->name eq 'Caterwauler McCrae' });
 
-is_deeply([ sort @years ], [ 1997, 1998, 1999 ], 'Years for < search');
-
-my $tag_cond = expr { $_->tag eq 'Blue' };
-
-is($schema->resultset('Tag')->search($tag_cond)->count, 4, 'Simple tag cond');
-
-$tag_cond &= expr { $_->cd < 4 };
-
-is($schema->resultset('Tag')->search($tag_cond)->count, 3, 'Combi tag cond');
+is($tags->count, 5, 'Tags via two step join injection');
 
 done_testing;
