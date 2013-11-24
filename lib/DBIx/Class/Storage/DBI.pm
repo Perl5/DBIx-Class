@@ -145,6 +145,14 @@ for my $meth (@rdbms_specific_methods) {
   };
 }
 
+sub perl_renderer {
+  my ($self) = @_;
+  $self->{perl_renderer} ||= do {
+    require DBIx::Class::PerlRenderer;
+    DBIx::Class::PerlRenderer->new;
+  };
+}
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler

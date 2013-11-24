@@ -24,7 +24,7 @@ sub where {
 sub _apply_dq_where {
   my ($self, $expr) = @_;
   my ($mapped, $need_join) = $self->_remap_identifiers($expr);
-  $self->search_rs(\$mapped, { join => $need_join });
+  $self->search_rs(\$mapped, (@$need_join ? { join => $need_join } : ()));
 }
 
 sub _remap_identifiers {

@@ -413,6 +413,18 @@ sub search_rs {
     ref $call_cond eq 'ARRAY' && ! @$call_cond
   )) {
     $cache = $self->get_cache;
+  } elsif (
+    $self->{attrs}{cache} and
+    ($self->{attrs}{grep_cache} or $call_attrs->{grep_cache})
+  ) {
+    if (
+      keys %$call_attrs
+      and not (exists $call_attrs->{grep_cache} and !$call_attrs->{grep_cache})
+    ) {
+      die "Can't do complex search on resultset with grep_cache set";
+    }
+    my $grep_one = $self->_construct_perl_predicate($call_cond);
+    $cache = [ grep $grep_one->($_), $self->all ];
   }
 
   my $old_attrs = { %{$self->{attrs}} };
@@ -607,6 +619,87 @@ sub _stack_cond {
   return \$uniq[0] if @uniq == 1;
 
   return \Operator({ 'SQL.Naive' => 'AND' }, \@uniq);
+}
+
+my %perl_op_map = (
+  '=' => { numeric => '==', string => 'eq' },
+);
+
+sub _construct_perl_predicate {
+  my ($self, $cond) = @_;
+
+  # This shouldn't really live here but it'll do for the moment.
+
+  my %alias_map = (
+    $self->current_source_alias => {
+      join_path => [],
+      source => $self->result_source,
+      columns_info => $self->result_source->columns_info,
+    },
+  );
+
+  my $attrs = $self->_resolved_attrs;
+  foreach my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
+    next unless $j->[0]{-alias};
+    next unless $j->[0]{-join_path};
+    $alias_map{$j->[0]{-alias}} = {
+      join_path => [ map { keys %$_ } @{$j->[0]{-join_path}} ],
+      source => $j->[0]{-rsrc},
+      columns_info => $j->[0]{-rsrc}->columns_info,
+    };
+  }
+
+  my %as_map = map +($attrs->{select}[$_] => $attrs->{as}[$_]),
+                 grep !ref($attrs->{select}[$_]), 0..$#{$attrs->{select}};
+
+  my $storage = $self->result_source->schema->storage;
+  my $sql_maker = $storage->sql_maker;
+  my $tree = map_dq_tree {
+    if (is_Operator) {
+      my $op = $_->{operator}{'SQL.Naive'} or die "No operator";
+      if (lc($op) =~ /^(?:and|or|not)$/i) {
+        return Operator({ 'Perl' => lc($op) }, $op->{args});
+      }
+      if (my $op_map = $perl_op_map{$op}) {
+        die "Binop doesn't have two args - wtf?"
+          unless @{$_->{args}} == 2;
+        my $data_type;
+        my @mapped_args = map {
+          if (is_Identifier) {
+            die "Identifier not alias.colname"
+              unless @{$_->{elements}} == 2;
+            my ($alias, $col) = @{$_->{elements}};
+            die "${alias}.${col} not selected"
+              unless $as_map{"${alias}.${col}"};
+            unless ($data_type) {
+              my $colinfo = $alias_map{$alias}{columns_info}{$col};
+              unless (defined $colinfo->{is_numeric}) {
+                $colinfo->{is_numeric} = (
+                  $storage->is_datatype_numeric($colinfo->{data_type})
+                    ? 1
+                    : 0
+                );
+              }
+              $data_type = $colinfo->{is_numeric} ? 'numeric' : 'string';
+            }
+            Identifier(@{$alias_map{$alias}{join_path}}, $col);
+          } elsif (is_Value) {
+            $_;
+          } else {
+            die "Argument to operator neither identifier nor value";
+          }
+        } @{$_->{args}};
+        die "Couldn't determine numeric versus string" unless $data_type;
+        return \Operator({ Perl => $op_map->{$data_type} }, \@mapped_args);
+      }
+    }
+    die "Unable to map node to perl";
+  } $sql_maker->converter->_where_to_dq($cond);
+  my ($code, @values) = @{$storage->perl_renderer->render($tree)};
+  my $sub = eval q!sub { !.$code.q! }!
+    or die "Failed to build sub: $@";
+  my @args = map $_->{value}, @values;
+  return sub { local $_ = $_[0]; $sub->(@args) };
 }
 
 =head2 search_literal
