@@ -29,14 +29,19 @@ sub _apply_dq_where {
 
 sub _remap_identifiers {
   my ($self, $dq) = @_;
-  my $map = {};
+  my $map = {
+    '' => {
+      -alias => $self->current_source_alias,
+      -rsrc => $self->result_source,
+    }
+  };
   my $attrs = $self->_resolved_attrs;
   foreach my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
     next unless $j->[0]{-alias};
     next unless $j->[0]{-join_path};
     my $p = $map;
     $p = $p->{$_} ||= {} for map { keys %$_ } @{$j->[0]{-join_path}};
-    $p->{''} = $j->[0]{-alias};
+    $p->{''} = $j->[0];
   }
 
   my $seen_join = { %{$attrs->{seen_join}||{}} };
@@ -46,12 +51,9 @@ sub _remap_identifiers {
     return $_ unless is_Identifier;
     my @el = @{$_->{elements}};
     my $last = pop @el;
-    unless (@el) {
-      return Identifier($attrs->{alias}, $last);
-    }
     my $p = $map;
     $p = $p->{$_} ||= {} for @el;
-    if (my $alias = $p->{''}) {
+    if (my $alias = $p->{''}{'-alias'}) {
       return Identifier($alias, $last);
     }
     my $need = my $j = {};
