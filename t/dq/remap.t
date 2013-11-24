@@ -27,6 +27,10 @@ is_deeply(
   'Remap column on me'
 );
 
+throws_ok {
+  $cds->_remap_identifiers(Identifier('artist'))
+} qr/Invalid name on me: artist is a relationship/;
+
 is_deeply(
   [ $cds->_remap_identifiers(Identifier('artist', 'name')) ],
   [ Identifier('artist', 'name'), [ { artist => {} } ] ],

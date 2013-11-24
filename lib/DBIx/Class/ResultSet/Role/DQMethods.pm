@@ -47,6 +47,7 @@ sub _remap_identifiers {
   my $seen_join = { %{$attrs->{seen_join}||{}} };
   my $storage = $self->result_source->storage;
   my @need_join;
+  my %seen_op;
   my $mapped = map_dq_tree {
     return $_ unless is_Identifier;
     my @el = @{$_->{elements}};
@@ -65,6 +66,9 @@ sub _remap_identifiers {
       $p->{''} = { -alias => $alias, -rsrc => $rsrc };
     }
     my $info = $p->{''};
+    if ($info->{-rsrc}->has_relationship($last)) {
+      die "Invalid name on ".(join(',',@el)||'me').": $last is a relationship";
+    }
     my $col_map = $info->{-column_mapping} ||= do {
       my $colinfo = $info->{-rsrc}->columns_info;
       +{ map +(($colinfo->{$_}{rename_for_dq}||$_) => $_), keys %$colinfo }
