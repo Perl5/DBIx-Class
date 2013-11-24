@@ -17,6 +17,7 @@ __PACKAGE__->add_columns(
   },
   'artist' => {
     data_type => 'integer',
+    rename_for_dq => 'artist_id',
   },
   'title' => {
     data_type => 'varchar',

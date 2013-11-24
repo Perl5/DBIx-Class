@@ -53,16 +53,25 @@ sub _remap_identifiers {
     my $last = pop @el;
     my $p = $map;
     $p = $p->{$_} ||= {} for @el;
-    if (my $alias = $p->{''}{'-alias'}) {
-      return Identifier($alias, $last);
+    unless ($p->{''}) {
+      my $need = my $j = {};
+      $j = $j->{$_} = {} for @el;
+      my $rsrc = $map->{''}{-rsrc};
+      $rsrc = $rsrc->related_source($_) for @el;
+      push @need_join, $need;
+      my $alias = $storage->relname_to_table_alias(
+        $el[-1], ++$seen_join->{$el[-1]}
+      );
+      $p->{''} = { -alias => $alias, -rsrc => $rsrc };
     }
-    my $need = my $j = {};
-    $j = $j->{$_} = {} for @el;
-    push @need_join, $need;
-    my $alias = $storage->relname_to_table_alias(
-      $el[-1], ++$seen_join->{$el[-1]}
-    );
-    return Identifier($alias, $last);
+    my $info = $p->{''};
+    my $col_map = $info->{-column_mapping} ||= do {
+      my $colinfo = $info->{-rsrc}->columns_info;
+      +{ map +(($colinfo->{$_}{rename_for_dq}||$_) => $_), keys %$colinfo }
+    };
+    die "Invalid name on ".(join(',',@el)||'me').": $last"
+      unless $col_map->{$last};
+    return Identifier($info->{-alias}, $col_map->{$last});
   } $dq;
   return ($mapped, \@need_join);
 }

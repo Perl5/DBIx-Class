@@ -17,9 +17,13 @@ $schema->source($_)->resultset_class('DBIx::Class::ResultSet::WithDQMethods')
 
 my $cds = $schema->resultset('CD');
 
+throws_ok {
+  $cds->_remap_identifiers(Identifier('name'))
+} qr/Invalid name on me: name/;
+
 is_deeply(
-  [ $cds->_remap_identifiers(Identifier('name')) ],
-  [ Identifier('me', 'name'), [] ],
+  [ $cds->_remap_identifiers(Identifier('title')) ],
+  [ Identifier('me', 'title'), [] ],
   'Remap column on me'
 );
 
@@ -34,6 +38,20 @@ is_deeply(
         ->_remap_identifiers(Identifier('artist', 'name')) ],
   [ Identifier('artist_2', 'name'), [ { artist => {} } ] ],
   'Remap column on rel with re-alias'
+);
+
+is_deeply(
+  [ $cds->_remap_identifiers(Identifier('artist_id')) ],
+  [ Identifier('me', 'artist'), [] ],
+  'Remap column w/column name rename'
+);
+
+my $double_name = expr { $_->artist->name == $_->artist->name }->{expr};
+
+is_deeply(
+  [ $cds->_remap_identifiers($double_name) ],
+  [ $double_name, [ { artist => {} } ] ],
+  'Remap column on rel only adds rel once'
 );
 
 done_testing;
