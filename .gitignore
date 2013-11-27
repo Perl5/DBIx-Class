@@ -20,4 +20,4 @@ t/var/
 maint/.Generated_Pod
 examples/Schema/db
 
-t/dqlib
+lib/DBIx/Class/Bundled

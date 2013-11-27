@@ -3,6 +3,8 @@ package DBIx::Class;
 use strict;
 use warnings;
 
+use DBIx::Class::Bundled;
+
 our $VERSION;
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports

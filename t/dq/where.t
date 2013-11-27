@@ -5,8 +5,8 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use lib qw(t/lib);
-use Data::Query::ExprDeclare;
 use DBICTest;
+use Data::Query::ExprDeclare;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();

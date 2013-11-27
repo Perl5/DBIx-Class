@@ -64,8 +64,6 @@ use strict;
 use warnings;
 use Test::More;
 
-use lib 't/dqlib';
-
 BEGIN {
   plan skip_all => 'A defined PERL5OPT may inject extra deps crashing this test'
     if $ENV{PERL5OPT};
@@ -109,6 +107,8 @@ BEGIN {
     Class::C3::Componentised
 
     Data::Dumper::Concise
+
+    File::Spec
 
     Module::Runtime
     Data::Query::Constants

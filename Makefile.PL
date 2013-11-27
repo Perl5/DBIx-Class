@@ -8,8 +8,8 @@ use inc::Module::Install 1.06;
 ## TEMPORARY (and non-portable)
 ## Get the dq stuff
 ##
-`rm -rf t/dqlib`;
-`mkdir t/dqlib`;
+`rm -rf lib/DBIx/Class/Bundled`;
+`mkdir lib/DBIx/Class/Bundled`;
 for (
   [ 'Data-Query' => 'master' ],
   [ 'SQL-Abstract' => 'dq' ],
@@ -23,12 +23,12 @@ for (
     $_->[0],
     scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
   ;
-  `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC t/dqlib`;
+  `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC lib/DBIx/Class/Bundled`;
 
   `rm -rf $tdir`;
 }
 `cpanm SQL::ReservedWords 2>&1`;
-use lib 't/dqlib';
+use lib 'lib/DBIx/Class/Bundled';
 
 
 ##

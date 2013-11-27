@@ -4,8 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use lib 't/dqlib';
-
 # this noop trick initializes the STDOUT, so that the TAP::Harness
 # issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
 # keep spinning and scheduling jobs

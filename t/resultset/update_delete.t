@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use lib qw(t/lib);
-use lib qw(t/dqlib);
 use Test::More;
 use Test::Exception;
 
