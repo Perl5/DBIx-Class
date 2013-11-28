@@ -5,6 +5,8 @@ use Test::More;
 use lib 't/lib';
 use DBICTest;
 
+local $TODO = 'Temporarily todo-ed for dq2eb';
+
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_strictures') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_strictures');
   $ENV{RELEASE_TESTING}
