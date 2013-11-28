@@ -16,8 +16,8 @@ if ($v_maj != 0 or $v_min > 8) {
   die "Illegal version $version_string - we are still in the 0.08 cycle\n"
 }
 
-if ($v_point >= 300) {
-  die "Illegal version $version_string - we are still in the 0.082xx cycle\n"
+if ($v_point <= 900) {
+  die "Illegal version $version_string - we are in the 0.089xx cycle\n"
 }
 
 Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
