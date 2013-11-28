@@ -103,7 +103,7 @@ my $runtime_requires = {
   'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0.09',
   'Hash::Merge'              => '0.12',
-  'Moo'                      => '1.000006',
+  'Moo'                      => '1.003000',
   'MRO::Compat'              => '0.12',
   'Module::Find'             => '0.07',
   'namespace::clean'         => '0.24',
@@ -116,6 +116,10 @@ my $runtime_requires = {
   # by the MySQL codepath. However this particular version is bundled
   # since 5.10.0 and is a pure-perl module anyway - let it slide
   'Text::Balanced'           => '2.00',
+
+  # deps for Data::Query
+  'SQL::ReservedWords'       => '0.8',
+  'Safe::Isa'                => '1.000003',
 };
 
 my $build_requires = {
