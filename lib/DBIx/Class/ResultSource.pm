@@ -1602,12 +1602,6 @@ sub _extract_top_level_conditions {
   return @found;
 }
 
-sub compare_relationship_keys {
-  carp 'compare_relationship_keys is a private method, stop calling it';
-  my $self = shift;
-  $self->_compare_relationship_keys (@_);
-}
-
 # Returns true if both sets of keynames are the same, false otherwise.
 sub _compare_relationship_keys {
 #  my ($self, $keys1, $keys2) = @_;
@@ -1725,12 +1719,6 @@ sub _resolve_join {
   }
 }
 
-sub pk_depends_on {
-  carp 'pk_depends_on is a private method, stop calling it';
-  my $self = shift;
-  $self->_pk_depends_on (@_);
-}
-
 # Determines whether a relation is dependent on an object from this source
 # having already been inserted. Takes the name of the relationship and a
 # hashref of columns of the related object.
@@ -1774,12 +1762,6 @@ sub _pk_depends_on {
   }
 
   return 1;
-}
-
-sub resolve_condition {
-  carp 'resolve_condition is a private method, stop calling it';
-  my $self = shift;
-  $self->_resolve_condition (@_);
 }
 
 our $UNRESOLVABLE_CONDITION = \Literal(SQL => '1 = 0');
