@@ -1,12 +1,10 @@
 use warnings;
 use strict;
 
-use Test::More;
+use Test::More skip_all => 'Would TODO but Test::EOL ignores $TODO';
 use File::Glob 'bsd_glob';
 use lib 't/lib';
 use DBICTest ':GlobalLock';
-
-local $TODO = 'Temporarily todo-ed for dq2eb';
 
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_whitespace') ) {
