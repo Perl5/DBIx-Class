@@ -13,8 +13,6 @@ our $HERE = File::Spec->catdir(
 
 ($HERE) = ($HERE =~ /^(.*)$/); # screw you, taint mode
 
-sub import {
-  unshift @INC, $HERE;
-}
+unshift @INC, $HERE;
 
 1;
