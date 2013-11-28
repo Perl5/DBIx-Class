@@ -17,9 +17,16 @@ BEGIN {
   }
 }
 
+# We need to specify 'lib' here as well because even if it was already in
+# @INC, the above will have put our local::lib in front of it, so now an
+# installed DBIx::Class will take precedence over the one we're trying to test.
+# In some cases, prove will have supplied ./lib as an absolute path so it
+# doesn't seem worth trying to remove the second copy since it won't hurt
+# anything.
+use lib qw(t/lib lib);
+
 use Test::More;
 use Test::Exception;
-use lib qw(t/lib);
 use DBICTest;
 
 throws_ok (
