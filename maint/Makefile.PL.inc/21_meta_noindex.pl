@@ -5,6 +5,7 @@ no_index directory => $_ for (qw|
   lib/DBIx/Class/Admin
   lib/DBIx/Class/PK/Auto
   lib/DBIx/Class/CDBICompat
+  lib/DBIx/Class/Bundled
   maint
 |);
 no_index package => $_ for (qw/
