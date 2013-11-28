@@ -8,26 +8,28 @@ use inc::Module::Install 1.06;
 ## TEMPORARY (and non-portable)
 ## Get the dq stuff
 ##
-`rm -rf lib/DBIx/Class/Bundled`;
-`mkdir lib/DBIx/Class/Bundled`;
-for (
-  [ 'Data-Query' => 'master' ],
-  [ 'SQL-Abstract' => 'dq' ],
-) {
-  my $tdir = '/tmp/dqlib_tmp_clone';
-
-  `rm -rf $tdir`;
-
-  `GIT_SSH=maint/careless_ssh.bash git clone --quiet git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
-  printf "\nIncluding %s git rev %s\n",
-    $_->[0],
-    scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
-  ;
-  `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC lib/DBIx/Class/Bundled`;
-
-  `rm -rf $tdir`;
+if ($Module::Install::AUTHOR) {
+  `rm -rf lib/DBIx/Class/Bundled`;
+  `mkdir lib/DBIx/Class/Bundled`;
+  for (
+    [ 'Data-Query' => 'master' ],
+    [ 'SQL-Abstract' => 'dq' ],
+  ) {
+    my $tdir = '/tmp/dqlib_tmp_clone';
+  
+    `rm -rf $tdir`;
+  
+    `GIT_SSH=maint/careless_ssh.bash git clone --quiet git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
+    printf "\nIncluding %s git rev %s\n",
+      $_->[0],
+      scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
+    ;
+    `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC lib/DBIx/Class/Bundled`;
+  
+    `rm -rf $tdir`;
+  }
+  `cpanm SQL::ReservedWords 2>&1`;
 }
-`cpanm SQL::ReservedWords 2>&1`;
 use lib 'lib/DBIx/Class/Bundled';
 
 
