@@ -60,7 +60,7 @@ my @modules = grep {
     (); # empty RV for @modules
   };
 
-} find_modules();
+} grep !/Bundled::/, find_modules();
 
 # have an exception table for old and/or weird code we are not sure
 # we *want* to clean in the first place
@@ -83,6 +83,12 @@ my $skip_idx = { map { $_ => 1 } (
   # utility classes, not part of the inheritance chain
   'DBIx::Class::ResultSource::RowParser::Util',
   'DBIx::Class::_Util',
+
+  # skip for the moment - XXX fixme
+  'DBIx::Class::ResultSet::Role::DQMethods',
+  'DBIx::Class::ResultSet::WithDQMethods',
+  'DBIx::Class::PerlRenderer',
+  'DBIx::Class::PerlRenderer::MangleStrings',
 ) };
 
 my $has_moose = eval { require Moose::Util };
