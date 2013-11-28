@@ -58,6 +58,13 @@ notifications:
     on_success: change
     on_failure: always
 
+# FIXME - This stuff is not yet available for free OSS accounts, sadpanda
+# First paragrah on http://about.travis-ci.org/docs/user/caching/
+#cache:
+#  apt: true
+#  directories:
+#    - /var/cache/apt/archives
+
 language: perl
 
 perl:

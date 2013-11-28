@@ -18,6 +18,8 @@ run_or_err() {
 
   LASTEXIT=0
   START_TIME=$SECONDS
+  # the tee is a handy debugging tool when stumpage is exceedingly strong
+  #LASTOUT=$( bash -c "$2" 2>&1 | tee /dev/stderr) || LASTEXIT=$?
   LASTOUT=$( bash -c "$2" 2>&1 ) || LASTEXIT=$?
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
@@ -32,6 +34,16 @@ run_or_err() {
   else
     echo_err "done (took ${DELTA_TIME}s)"
   fi
+}
+
+apt_install() {
+  # flatten
+  pkgs="$@"
+
+  # Need to do this at every step, the sources list may very well have changed
+  run_or_err "Updating APT available package list" "sudo apt-get update"
+
+  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {

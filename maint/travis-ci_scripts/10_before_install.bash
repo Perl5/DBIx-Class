@@ -11,9 +11,13 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # The oneliner is a tad convoluted - basicaly what we do is
 # slurp the entire file and get the index off the last
 # `processor    : XX` line
-export NUMTHREADS=$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))
+export NUMTHREADS="$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))"
 
-run_or_err "Installing common tools from APT" "sudo apt-get install --allow-unauthenticated -y libapp-nopaste-perl tree"
+export CACHE_DIR="/tmp/poormanscache"
+
+# install some common tools from APT, more below unless CLEANTEST
+apt_install libapp-nopaste-perl tree apt-transport-https
+
 # FIXME - the debian package is oddly broken - uses a bin/env based shebang
 # so nothing works under a brew. Fix here until #debian-perl patches it up
 sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
@@ -25,8 +29,15 @@ if [[ "$CLEANTEST" != "true" ]]; then
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
-  APT_PACKAGES="memcached firebird2.5-super firebird2.5-dev expect"
-  run_or_err "Installing packages ($APT_PACKAGES)" "sudo apt-get install --allow-unauthenticated -y $APT_PACKAGES"
+  # add extra APT repo for Oracle
+  # (https is critical - apt-get update can't seem to follow the 302)
+  sudo bash -c 'echo -e "\ndeb [arch=i386] https://oss.oracle.com/debian unstable main non-free" >> /etc/apt/sources.list'
+
+  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --branch=poor_mans_travis_cache https://github.com/ribasushi/travis_futzing.git $CACHE_DIR && $CACHE_DIR/reassemble"
+
+  run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
+
+  apt_install memcached firebird2.5-super firebird2.5-dev expect oracle-xe
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
@@ -51,8 +62,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
     expect "Password for SYSDBA"
     send "123\r"
     sleep 1
-    wait
-    sleep 1
+    expect eof
   '
   # creating testdb
   # FIXME - this step still fails from time to time >:(((
@@ -90,13 +100,61 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   done
 
-### oracle
-  # FIXME: todo
-  #DBICTEST_ORA_DSN=dbi:Oracle:host=localhost;sid=XE
-  #DBICTEST_ORA_USER=dbic_test
-  #DBICTEST_ORA_PASS=123
-  #DBICTEST_ORA_EXTRAUSER_DSN=dbi:Oracle:host=localhost;sid=XE
-  #DBICTEST_ORA_EXTRAUSER_USER=dbic_test_extra
-  #DBICTEST_ORA_EXTRAUSER_PASS=123
-  #ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/client
+### config oracle
+  EXPECT_ORA_SCRIPT='
+    spawn /etc/init.d/oracle-xe configure
+
+    sleep 1
+    set send_slow {1 .005}
+
+    expect "Specify the HTTP port that will be used for Oracle Application Express"
+    sleep 0.5
+    send -s "8021\r"
+
+    expect "Specify a port that will be used for the database listener"
+    sleep 0.5
+    send -s "1521\r"
+
+    expect "Specify a password to be used for database accounts"
+    sleep 0.5
+    send -s "adminpass\r"
+
+    expect "Confirm the password"
+    sleep 0.5
+    send -s "adminpass\r"
+
+    expect "Do you want Oracle Database 10g Express Edition to be started on boot"
+    sleep 0.5
+    send -s "n\r"
+
+    sleep 0.5
+    expect "Configuring Database"
+
+    sleep 1
+    expect eof
+    wait
+  '
+
+  # if we do not redirect to some random file, but instead try to capture
+  # into a var the way run_or_err does - everything hangs
+  # FIXME: I couldn't figure it out after 3 hours of headdesking,
+  # would be nice to know the reason eventually
+  run_or_err "Configuring OracleXE" "sudo $(which expect) -c '$EXPECT_ORA_SCRIPT' &>/tmp/ora_configure_10.2.log"
+  SRV_ORA_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/server
+
+  export DBICTEST_ORA_DSN=dbi:Oracle://localhost:1521/XE
+  export DBICTEST_ORA_USER=dbic_test
+  export DBICTEST_ORA_PASS=abc123456
+  export DBICTEST_ORA_EXTRAUSER_DSN=dbi:Oracle://localhost:1521/XE
+  export DBICTEST_ORA_EXTRAUSER_USER=dbic_test_extra
+  export DBICTEST_ORA_EXTRAUSER_PASS=abc123456
+
+  run_or_err "Create Oracle users" "ORACLE_SID=XE ORACLE_HOME=$SRV_ORA_HOME $SRV_ORA_HOME/bin/sqlplus -L -S system/adminpass @/dev/stdin <<< '
+    CREATE USER $DBICTEST_ORA_USER IDENTIFIED BY $DBICTEST_ORA_PASS;
+    GRANT connect,resource TO $DBICTEST_ORA_USER;
+    CREATE USER $DBICTEST_ORA_EXTRAUSER_USER IDENTIFIED BY $DBICTEST_ORA_EXTRAUSER_PASS;
+    GRANT connect,resource TO $DBICTEST_ORA_EXTRAUSER_USER;
+  '"
+
+  export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
 fi

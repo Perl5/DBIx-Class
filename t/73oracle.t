@@ -488,7 +488,7 @@ sub _run_tests {
     # create identically named tables/sequences in the other schema
     do_creates($dbh2, $q);
 
-    # grand select privileges to the 2nd user
+    # grant select privileges to the 2nd user
     $dbh->do("GRANT INSERT ON ${q}artist${q} TO " . uc $user2);
     $dbh->do("GRANT SELECT ON ${q}artist${q} TO " . uc $user2);
     $dbh->do("GRANT SELECT ON ${q}artist_pk_seq${q} TO " . uc $user2);

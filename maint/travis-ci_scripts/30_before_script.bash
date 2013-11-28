@@ -196,6 +196,9 @@ $(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
 = Meminfo
 $(free -m -t)
 
+= Network Status
+$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+
 = Environment
 $(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
 
