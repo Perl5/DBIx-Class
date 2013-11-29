@@ -3,7 +3,7 @@ package DBIx::Class;
 use strict;
 use warnings;
 
-use DBIx::Class::Bundled;
+use DBIx::Class::_TempExtlib;
 
 our $VERSION;
 # Always remember to do all digits for the version even if they're 0

@@ -5,7 +5,7 @@ no_index directory => $_ for (qw|
   lib/DBIx/Class/Admin
   lib/DBIx/Class/PK/Auto
   lib/DBIx/Class/CDBICompat
-  lib/DBIx/Class/Bundled
+  lib/DBIx/Class/_TempExtlib
   maint
 |);
 no_index package => $_ for (qw/
@@ -13,6 +13,7 @@ no_index package => $_ for (qw/
   DBIx::Class::Storage::BlockRunner
   DBIx::Class::Carp
   DBIx::Class::_Util
+  DBIx::Class::_TempExtlib
   DBIx::Class::ResultSet::Pager
 /);
 

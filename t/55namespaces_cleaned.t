@@ -60,7 +60,7 @@ my @modules = grep {
     (); # empty RV for @modules
   };
 
-} grep !/Bundled::/, find_modules();
+} grep { $_ !~ /_TempExtlib/ } find_modules();
 
 # have an exception table for old and/or weird code we are not sure
 # we *want* to clean in the first place

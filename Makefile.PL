@@ -8,30 +8,35 @@ use inc::Module::Install 1.06;
 ## TEMPORARY (and non-portable)
 ## Get the dq stuff
 ##
-if ($Module::Install::AUTHOR) {
-  `rm -rf lib/DBIx/Class/Bundled`;
-  `mkdir lib/DBIx/Class/Bundled`;
-  for (
-    [ 'Data-Query' => 'master' ],
-    [ 'SQL-Abstract' => 'dq' ],
-  ) {
-    my $tdir = '/tmp/dqlib_tmp_clone';
-  
-    `rm -rf $tdir`;
-  
-    `GIT_SSH=maint/careless_ssh.bash git clone --quiet git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
-    printf "\nIncluding %s git rev %s\n",
-      $_->[0],
-      scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
-    ;
-    `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC lib/DBIx/Class/Bundled`;
-  
-    `rm -rf $tdir`;
-  }
-  `cpanm SQL::ReservedWords 2>&1`;
-}
-use lib 'lib/DBIx/Class/Bundled';
+my $target_libdir;
+BEGIN {
+  $target_libdir = 'lib/DBIx/Class/_TempExtlib';
 
+  if ($Module::Install::AUTHOR) {
+
+    `rm -rf $target_libdir`;
+    `mkdir $target_libdir`;
+    for (
+      [ 'Data-Query' => 'master' ],
+      [ 'SQL-Abstract' => 'dq' ],
+    ) {
+      my $tdir = "/tmp/dqlib/$_->[0]/_tmp_clone";
+
+      `rm -rf $tdir`;
+
+      `GIT_SSH=maint/careless_ssh.bash git clone --quiet git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
+      printf "\nIncluding %s git rev %s\n",
+        $_->[0],
+        scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
+      ;
+      `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC $target_libdir`;
+
+      `rm -rf $tdir`;
+    }
+  }
+}
+
+use lib $target_libdir;
 
 ##
 ## DO NOT USE THIS HACK IN YOUR DISTS!!! (it makes #toolchain sad)

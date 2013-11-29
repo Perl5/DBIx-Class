@@ -4,6 +4,9 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+# Needs to load 1st so that the correct SQLA::Test is picked up
+use DBIx::Class::_TempExtlib;
+
 # this noop trick initializes the STDOUT, so that the TAP::Harness
 # issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
 # keep spinning and scheduling jobs
