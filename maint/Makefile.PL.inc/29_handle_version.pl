@@ -21,8 +21,8 @@ if ($v_point <= 900) {
 }
 
 Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
-  # all odd releases *after* 0.08200 generate a -TRIAL, no exceptions
-  ( $v_point > 200 and int($v_point / 100) % 2 )
+  # all DQ releases ( *after* 0.08800) generate a -TRIAL, no exceptions
+  $v_point > 800
 );
 
 
