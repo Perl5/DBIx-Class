@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.08900-TRIAL (EXPERIMENTAL BETA RELEASE)
+0.08901-TRIAL (EXPERIMENTAL BETA RELEASE)
     * Start of experimental Data::Query-based release cycle
         - Any and all newly introduced syntax features may very well change
           or disappear altogether before the 0.09000 release
