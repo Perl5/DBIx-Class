@@ -200,7 +200,8 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   }, 'join does not throw (mysql 3 test)';
 
   # induce a jointype override, make sure it works even if we don't have mysql3
-  local $schema->storage->sql_maker->{_default_jointype} = 'inner';
+  my $needs_inner_join = $schema->storage->sql_maker->needs_inner_join;
+  $schema->storage->sql_maker->needs_inner_join(1);
   is_same_sql_bind (
     $rs->as_query,
     '(
@@ -212,6 +213,7 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
     [],
     'overridden default join type works',
   );
+  $schema->storage->sql_maker->needs_inner_join($needs_inner_join);
 }
 
 ## Can we properly deal with the null search problem?
