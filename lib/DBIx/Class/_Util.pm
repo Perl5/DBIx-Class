@@ -6,6 +6,47 @@ use strict;
 
 use constant SPURIOUS_VERSION_CHECK_WARNINGS => ($] < 5.010 ? 1 : 0);
 
+BEGIN {
+  package # hide from pause
+    DBIx::Class::_ENV_;
+
+  use Config;
+
+  use constant {
+
+    # but of course
+    BROKEN_FORK => ($^O eq 'MSWin32') ? 1 : 0,
+
+    HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
+
+    # ::Runmode would only be loaded by DBICTest, which in turn implies t/
+    DBICTEST => eval { DBICTest::RunMode->is_author } ? 1 : 0,
+
+    # During 5.13 dev cycle HELEMs started to leak on copy
+    PEEPEENESS =>
+      # request for all tests would force "non-leaky" illusion and vice-versa
+      defined $ENV{DBICTEST_ALL_LEAKS}                                              ? !$ENV{DBICTEST_ALL_LEAKS}
+      # otherwise confess that this perl is busted ONLY on smokers
+    : eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006)  ? 1
+      # otherwise we are good
+                                                                                    : 0
+    ,
+
+    ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
+
+    IV_SIZE => $Config{ivsize},
+  };
+
+  if ($] < 5.009_005) {
+    require MRO::Compat;
+    constant->import( OLD_MRO => 1 );
+  }
+  else {
+    require mro;
+    constant->import( OLD_MRO => 0 );
+  }
+}
+
 use Carp;
 use Scalar::Util qw(refaddr weaken);
 
