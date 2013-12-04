@@ -11,8 +11,14 @@ use Carp ();
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
-my $json_any = {
+# NOTE: the rationale for 2 JSON::Any versions is that
+# we need the newer only to work around JSON::XS, which
+# itself is an optional dep
+my $min_json_any = {
   'JSON::Any'                     => '1.23',
+};
+my $test_and_dist_json_any = {
+  'JSON::Any'                     => '1.31',
 };
 
 my $moose_basic = {
@@ -27,7 +33,7 @@ my $replicated = {
 
 my $admin_basic = {
   %$moose_basic,
-  %$json_any,
+  %$min_json_any,
   'MooseX::Types::Path::Class'    => '0.05',
   'MooseX::Types::JSON'           => '0.02',
   'namespace::autoclean'          => '0.09',
@@ -190,13 +196,13 @@ my $reqs = {
   },
 
   test_prettydebug => {
-    req => $json_any,
+    req => $min_json_any,
   },
 
   test_admin_script => {
     req => {
       %$admin_script,
-      'JSON::Any' => '1.30',
+      %$test_and_dist_json_any,
       'JSON' => 0,
       'JSON::PP' => 0,
       'Cpanel::JSON::XS' => 0,
@@ -615,6 +621,7 @@ my $reqs = {
 
   dist_dir => {
     req => {
+      %$test_and_dist_json_any,
       'ExtUtils::MakeMaker' => '6.64',
       'Pod::Inherit'        => '0.90',
       'Pod::Tree'           => '0',
