@@ -20,18 +20,18 @@ BEGIN {
       [ 'Data-Query' => 'master' ],
       [ 'SQL-Abstract' => 'dq' ],
     ) {
-      my $tdir = "/tmp/dqlib/$_->[0]/_tmp_clone";
+      my $tdir = "/tmp/dqlib/$_->[0]/";
 
       `rm -rf $tdir`;
 
-      `GIT_SSH=maint/careless_ssh.bash git clone --quiet git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
+      `GIT_SSH=maint/careless_ssh.bash git clone --bare --quiet --branch=$_->[1] --depth=1 git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
       printf "\nIncluding %s git rev %s\n",
         $_->[0],
-        scalar `GIT_DIR=$tdir/.git git rev-parse origin/$_->[1]`,
+        scalar `GIT_DIR=$tdir git rev-parse $_->[1]`,
       ;
-      `git archive --format=tar --remote=file://$tdir origin/$_->[1] lib/ | tar --strip-components=1 -xC $target_libdir`;
+      `git archive --format=tar --remote=file://$tdir $_->[1] lib/ | tar --strip-components=1 -xC $target_libdir`;
 
-      `rm -rf $tdir`;
+      #`rm -rf $tdir`;
     }
   }
 }
