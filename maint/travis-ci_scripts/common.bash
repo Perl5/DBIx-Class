@@ -54,8 +54,8 @@ extract_prereqs() {
     exit 1
   fi
 
-  # throw away ascii art, convert to modnames
-  PQ=$(perl -p -e 's/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
+  # throw away warnings, ascii art, convert to modnames
+  PQ=$(perl -p -e 's/^\!.*//; s/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
 
   # throw away what was in $@
   for m in "$@" ; do
