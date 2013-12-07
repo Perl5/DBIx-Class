@@ -1,6 +1,7 @@
 package DBIx::Class::PerlRenderer::MangleStrings;
 
 use Moo;
+use namespace::clean;
 
 extends 'DBIx::Class::PerlRenderer';
 

@@ -3,6 +3,7 @@ package DBIx::Class::ResultSet::Role::DQMethods;
 use Data::Query::ExprHelpers;
 use Safe::Isa;
 use Moo::Role;
+use namespace::clean;
 
 sub _dq_converter {
   shift->result_source->schema->storage->sql_maker->converter;

@@ -84,11 +84,9 @@ my $skip_idx = { map { $_ => 1 } (
   'DBIx::Class::ResultSource::RowParser::Util',
   'DBIx::Class::_Util',
 
-  # skip for the moment - XXX fixme
-  'DBIx::Class::ResultSet::Role::DQMethods',
+  # FIXME - this can't be right - Role::Tiny's with() seems to
+  # import Role::Tiny::does_role() at a dones() slot... wtf?
   'DBIx::Class::ResultSet::WithDQMethods',
-  'DBIx::Class::PerlRenderer',
-  'DBIx::Class::PerlRenderer::MangleStrings',
 ) };
 
 my $has_moose = eval { require Moose::Util };

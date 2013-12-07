@@ -2,6 +2,7 @@ package DBIx::Class::PerlRenderer;
 
 use B qw(perlstring);
 use Moo;
+use namespace::clean;
 
 extends 'Data::Query::Renderer::Perl';
 
