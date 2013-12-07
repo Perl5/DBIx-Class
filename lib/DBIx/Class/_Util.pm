@@ -35,6 +35,8 @@ BEGIN {
     ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
 
     IV_SIZE => $Config{ivsize},
+
+    OS_NAME => $^O,
   };
 
   if ($] < 5.009_005) {

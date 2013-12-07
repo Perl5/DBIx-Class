@@ -257,7 +257,11 @@ sub bind_attribute_by_data_type {
 # DBD::SQLite warns on binding >32 bit values with 32 bit IVs
 sub _dbh_execute {
   if (
-    DBIx::Class::_ENV_::IV_SIZE < 8
+    (
+      DBIx::Class::_ENV_::IV_SIZE < 8
+        or
+      DBIx::Class::_ENV_::OS_NAME eq 'MSWin32'
+    )
       and
     ! defined $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT
   ) {
@@ -272,7 +276,15 @@ sub _dbh_execute {
         |
       \d+ \s type \s @{[ DBI::SQL_BIGINT() ]} \s as \s [-+]? \d+ (?: \. 0*)?
     )
-  /x ) if DBIx::Class::_ENV_::IV_SIZE < 8 and $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT;
+  /x ) if (
+    (
+      DBIx::Class::_ENV_::IV_SIZE < 8
+        or
+      DBIx::Class::_ENV_::OS_NAME eq 'MSWin32'
+    )
+      and
+    $DBD::SQLite::__DBIC_CHECK_dbd_mishandles_bound_BIGINT
+  );
 
   shift->next::method(@_);
 }
