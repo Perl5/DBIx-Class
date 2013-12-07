@@ -551,6 +551,26 @@ sub _run_tests {
     do_clean ($dbh2);
   }}
 
+# test driver determination issues that led to the diagnosis/fix in 37b5ab51
+# observed side-effect when count-is-first on a fresh env-based connect
+  {
+    local $ENV{DBI_DSN};
+    ($ENV{DBI_DSN}, my @user_pass_args) = @{ $schema->storage->connect_info };
+    my $s2 = DBICTest::Schema->connect( undef, @user_pass_args );
+    ok (! $s2->storage->connected, 'Not connected' );
+    is (ref $s2->storage, 'DBIx::Class::Storage::DBI', 'Undetermined driver' );
+
+    ok (
+      $s2->resultset('Artist')->search({ 'me.name' => { like => '%' } }, { prefetch => 'cds' })->count,
+      'Some artist count'
+    );
+    ok (
+      scalar $s2->resultset('CD')->search({}, { join => 'tracks' } )->all,
+      'Some cds returned'
+    );
+    $s2->storage->disconnect;
+  }
+
   do_clean ($dbh);
 }
 
