@@ -29,6 +29,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
   run_or_err "Installing packages ($APT_PACKAGES)" "sudo apt-get install --allow-unauthenticated -y $APT_PACKAGES"
 
 ### config memcached
+  run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
