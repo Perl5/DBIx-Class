@@ -2234,127 +2234,266 @@ case there are obviously no benefits to using this method over L</create>.
 sub populate {
   my $self = shift;
 
-  # cruft placed in standalone method
-  my $data = $self->_normalize_populate_args(@_);
+  my ($data, $guard);
 
-  return unless @$data;
+  # this is naive and just a quick check
+  # the types will need to be checked more thoroughly when the
+  # multi-source populate gets added
+  if (ref $_[0] eq 'ARRAY') {
+    return unless @{$_[0]};
+
+    $data = $_[0] if (ref $_[0][0] eq 'HASH' or ref $_[0][0] eq 'ARRAY');
+  }
+
+  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs')
+    unless $data;
+
+  # FIXME - no cref handling
+  # At this point assume either hashes or arrays
 
   if(defined wantarray) {
-    my @created = map { $self->new_result($_)->insert } @$data;
-    return wantarray ? @created : \@created;
-  }
-  else {
-    my $first = $data->[0];
+    my @results;
 
-    # if a column is a registered relationship, and is a non-blessed hash/array, consider
-    # it relationship data
-    my (@rels, @columns);
-    my $rsrc = $self->result_source;
-    my $rels = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
-    for (keys %$first) {
-      my $ref = ref $first->{$_};
-      $rels->{$_} && ($ref eq 'ARRAY' or $ref eq 'HASH')
-        ? push @rels, $_
-        : push @columns, $_
+    $guard = $self->result_source->schema->storage->txn_scope_guard
+      if ( @$data > 2 or ( @$data == 2 and ref $data->[0] eq 'ARRAY' ) );
+
+    if (ref $data->[0] eq 'ARRAY') {
+      @results = map
+        { my $vals = $_; $self->new_result({ map { $data->[0][$_] => $vals->[$_] } 0..$#{$data->[0]} })->insert }
+        @{$data}[1 .. $#$data]
       ;
     }
+    else {
+      @results = map { $self->new_result($_)->insert } @$data;
+    }
 
-    my @pks = $rsrc->primary_columns;
+    $guard->commit if $guard;
+    return wantarray ? @results : \@results;
+  }
 
-    ## do the belongs_to relationships
-    foreach my $index (0..$#$data) {
+  # we have to deal with *possibly incomplete* related data
+  # this means we have to walk the data structure twice
+  # whether we want this or not
+  # jnap, I hate you ;)
+  my $rsrc = $self->result_source;
+  my $rel_info = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
 
-      # delegate to create() for any dataset without primary keys with specified relationships
-      if (grep { !defined $data->[$index]->{$_} } @pks ) {
-        for my $r (@rels) {
-          if (grep { ref $data->[$index]{$r} eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
-            my @ret = $self->populate($data);
-            return;
+  my ($colinfo, $colnames, $slices_with_rels);
+  my $data_start = 0;
+
+  DATA_SLICE:
+  for my $i (0 .. $#$data) {
+
+    my $current_slice_seen_rel_infos;
+
+### Determine/Supplement collists
+### BEWARE - This is a hot piece of code, a lot of weird idioms were used
+    if( ref $data->[$i] eq 'ARRAY' ) {
+
+      # positional(!) explicit column list
+      if ($i == 0) {
+
+        $colinfo->{$data->[0][$_]} = { pos => $_, name => $data->[0][$_] } and push @$colnames, $data->[0][$_]
+          for 0 .. $#{$data->[0]};
+
+        $data_start = 1;
+
+        next DATA_SLICE;
+      }
+      else {
+        for (values %$colinfo) {
+          if ($_->{is_rel} ||= (
+            $rel_info->{$_->{name}}
+              and
+            (
+              ref $data->[$i][$_->{pos}] eq 'ARRAY'
+                or
+              ref $data->[$i][$_->{pos}] eq 'HASH'
+                or
+              ( defined blessed $data->[$i][$_->{pos}] and $data->[$i][$_->{pos}]->isa('DBIx::Class::Row') )
+            )
+              and
+            1
+          )) {
+
+            # moar sanity check... sigh
+            for ( ref $data->[$i][$_->{pos}] eq 'ARRAY' ? @{$data->[$i][$_->{pos}]} : $data->[$i][$_->{pos}] ) {
+              if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+                carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
+                return my $throwaway = $self->populate(@_);
+              }
+            }
+
+            push @$current_slice_seen_rel_infos, $rel_info->{$_->{name}};
           }
         }
       }
 
-      foreach my $rel (@rels) {
-        next unless ref $data->[$index]->{$rel} eq "HASH";
-        my $result = $self->related_resultset($rel)->new_result($data->[$index]->{$rel})->insert;
-        my (undef, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
-        my $related = $result->result_source->_resolve_condition(
-          $reverse_relinfo->{cond},
-          $self,
-          $result,
-          $rel,
-        );
+     if ($current_slice_seen_rel_infos) {
+        push @$slices_with_rels, { map { $colnames->[$_] => $data->[$i][$_] } 0 .. $#$colnames };
 
-        delete $data->[$index]->{$rel};
-        $data->[$index] = {%{$data->[$index]}, %$related};
-
-        push @columns, keys %$related if $index == 0;
+        # this is needed further down to decide whether or not to fallback to create()
+        $colinfo->{$colnames->[$_]}{seen_null} ||= ! defined $data->[$i][$_]
+          for 0 .. $#$colnames;
       }
     }
+    elsif( ref $data->[$i] eq 'HASH' ) {
 
-    ## inherit the data locked in the conditions of the resultset
-    my ($rs_data) = $self->_merge_with_rscond({});
-    delete @{$rs_data}{@columns};
+      for ( sort keys %{$data->[$i]} ) {
 
-    ## do bulk insert on current row
-    $rsrc->storage->insert_bulk(
-      $rsrc,
-      [@columns, keys %$rs_data],
-      [ map { [ @$_{@columns}, values %$rs_data ] } @$data ],
-    );
+        $colinfo->{$_} ||= do {
 
-    ## do the has_many relationships
-    foreach my $item (@$data) {
+          $self->throw_exception("Column '$_' must be present in supplied explicit column list")
+            if $data_start; # it will be 0 on AoH, 1 on AoA
 
-      my $main_row;
+          push @$colnames, $_;
 
-      foreach my $rel (@rels) {
-        next unless ref $item->{$rel} eq "ARRAY" && @{ $item->{$rel} };
+          # RV
+          { pos => $#$colnames, name => $_ }
+        };
 
-        $main_row ||= $self->new_result({map { $_ => $item->{$_} } @pks});
+        if ($colinfo->{$_}{is_rel} ||= (
+          $rel_info->{$_}
+            and
+          (
+            ref $data->[$i]{$_} eq 'ARRAY'
+              or
+            ref $data->[$i]{$_} eq 'HASH'
+              or
+            ( defined blessed $data->[$i]{$_} and $data->[$i]{$_}->isa('DBIx::Class::Row') )
+          )
+            and
+          1
+        )) {
 
-        my $child = $main_row->$rel;
+          # moar sanity check... sigh
+          for ( ref $data->[$i]{$_} eq 'ARRAY' ? @{$data->[$i]{$_}} : $data->[$i]{$_} ) {
+            if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+              carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
+              return my $throwaway = $self->populate(@_);
+            }
+          }
 
-        my $related = $child->result_source->_resolve_condition(
-          $rels->{$rel}{cond},
-          $child,
-          $main_row,
-          $rel,
-        );
+          push @$current_slice_seen_rel_infos, $rel_info->{$_};
+        }
+      }
 
-        my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
-        my @populate = map { {%$_, %$related} } @rows_to_add;
+      if ($current_slice_seen_rel_infos) {
+        push @$slices_with_rels, $data->[$i];
 
-        $child->populate( \@populate );
+        # this is needed further down to decide whether or not to fallback to create()
+        $colinfo->{$_}{seen_null} ||= ! defined $data->[$i]{$_}
+          for keys %{$data->[$i]};
       }
     }
-  }
-}
-
-
-# populate() arguments went over several incarnations
-# What we ultimately support is AoH
-sub _normalize_populate_args {
-  my ($self, $arg) = @_;
-
-  if (ref $arg eq 'ARRAY') {
-    if (!@$arg) {
-      return [];
+    else {
+      $self->throw_exception('Unexpected populate() data structure member type: ' . ref $data->[$i] );
     }
-    elsif (ref $arg->[0] eq 'HASH') {
-      return $arg;
-    }
-    elsif (ref $arg->[0] eq 'ARRAY') {
-      my @ret;
-      my @colnames = @{$arg->[0]};
-      foreach my $values (@{$arg}[1 .. $#$arg]) {
-        push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
-      }
-      return \@ret;
+
+    if ( grep
+      { $_->{attrs}{is_depends_on} }
+      @{ $current_slice_seen_rel_infos || [] }
+    ) {
+      carp_unique("Fast-path populate() of belongs_to relationship data is not possible - falling back to regular create()");
+      return my $throwaway = $self->populate(@_);
     }
   }
 
-  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
+  if( $slices_with_rels ) {
+
+    # need to exclude the rel "columns"
+    $colnames = [ grep { ! $colinfo->{$_}{is_rel} } @$colnames ];
+
+    # extra sanity check - ensure the main source is in fact identifiable
+    # the localizing of nullability is insane, but oh well... the use-case is legit
+    my $ci = $rsrc->columns_info($colnames);
+
+    $ci->{$_} = { %{$ci->{$_}}, is_nullable => 0 }
+      for grep { ! $colinfo->{$_}{seen_null} } keys %$ci;
+
+    unless( $rsrc->_identifying_column_set($ci) ) {
+      carp_unique("Fast-path populate() of non-uniquely identifiable rows with related data is not possible - falling back to regular create()");
+      return my $throwaway = $self->populate(@_);
+    }
+  }
+
+### inherit the data locked in the conditions of the resultset
+  my ($rs_data) = $self->_merge_with_rscond({});
+  delete @{$rs_data}{@$colnames};  # passed-in stuff takes precedence
+
+  # if anything left - decompose rs_data
+  my $rs_data_vals;
+  if (keys %$rs_data) {
+     push @$rs_data_vals, $rs_data->{$_}
+      for sort keys %$rs_data;
+  }
+
+### start work
+  $guard = $rsrc->schema->storage->txn_scope_guard
+    if $slices_with_rels;
+
+### main source data
+  # FIXME - need to switch entirely to a coderef-based thing,
+  # so that large sets aren't copied several times... I think
+  $rsrc->storage->insert_bulk(
+    $rsrc,
+    [ @$colnames, sort keys %$rs_data ],
+    [ map {
+      ref $data->[$_] eq 'ARRAY'
+      ? (
+          $slices_with_rels ? [ @{$data->[$_]}[0..$#$colnames], @{$rs_data_vals||[]} ]  # the collist changed
+        : $rs_data_vals     ? [ @{$data->[$_]}, @$rs_data_vals ]
+        :                     $data->[$_]
+      )
+      : [ @{$data->[$_]}{@$colnames}, @{$rs_data_vals||[]} ]
+    } $data_start .. $#$data ],
+  );
+
+### do the children relationships
+  if ( $slices_with_rels ) {
+    my @rels = grep { $colinfo->{$_}{is_rel} } keys %$colinfo
+      or die 'wtf... please report a bug with DBIC_TRACE=1 output (stacktrace)';
+
+    for my $sl (@$slices_with_rels) {
+
+      my ($main_proto, $main_proto_rs);
+      for my $rel (@rels) {
+        next unless defined $sl->{$rel};
+
+        $main_proto ||= {
+          %$rs_data,
+          (map { $_ => $sl->{$_} } @$colnames),
+        };
+
+        unless (defined $colinfo->{$rel}{rs}) {
+
+          $colinfo->{$rel}{rs} = $rsrc->related_source($rel)->resultset;
+
+          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->_resolve_relationship_condition(
+            rel_name => $rel,
+            self_alias => "\xFE", # irrelevant
+            foreign_alias => "\xFF", # irrelevant
+          )->{identity_map} || {} } };
+
+        }
+
+        $colinfo->{$rel}{rs}->search({ map # only so that we inherit them values properly, no actual search
+          {
+            $_ => { '=' =>
+              ( $main_proto_rs ||= $rsrc->resultset->search($main_proto) )
+                ->get_column( $colinfo->{$rel}{fk_map}{$_} )
+                 ->as_query
+            }
+          }
+          keys %{$colinfo->{$rel}{fk_map}}
+        })->populate( ref $sl->{$rel} eq 'ARRAY' ? $sl->{$rel} : [ $sl->{$rel} ] );
+
+        1;
+      }
+    }
+  }
+
+  $guard->commit if $guard;
 }
 
 =head2 pager

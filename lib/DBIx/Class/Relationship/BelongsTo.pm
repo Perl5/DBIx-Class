@@ -89,6 +89,7 @@ sub belongs_to {
   $class->add_relationship($rel, $f_class,
     $cond,
     {
+      is_depends_on => 1,
       accessor => $acc_type,
       $fk_columns ? ( fk_columns => $fk_columns ) : (),
       %{$attrs || {}}

@@ -88,6 +88,15 @@ is($link4->id, 4, 'Link 4 id');
 is($link4->url, undef, 'Link 4 url');
 is($link4->title, 'dtitle', 'Link 4 title');
 
+## variable size dataset
+@links = $schema->populate('Link', [
+[ qw/id title url/ ],
+[ 41 ],
+[ 42, undef, 'url42' ],
+]);
+is(scalar @links, 2);
+is($links[0]->url, undef);
+is($links[1]->url, 'url42');
 
 ## make sure populate -> insert_bulk honors fields/orders in void context
 ## schema order
@@ -119,6 +128,63 @@ my $link7 = $schema->resultset('Link')->find(7);
 is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
+
+## variable size dataset in void ctx
+$schema->populate('Link', [
+[ qw/id title url/ ],
+[ 71 ],
+[ 72, undef, 'url72' ],
+]);
+@links = $schema->resultset('Link')->search({ id => [71, 72]}, { order_by => 'id' })->all;
+is(scalar @links, 2);
+is($links[0]->url, undef);
+is($links[1]->url, 'url72');
+
+## variable size dataset in void ctx, hash version
+$schema->populate('Link', [
+  { id => 73 },
+  { id => 74, title => 't74' },
+  { id => 75, url => 'u75' },
+]);
+@links = $schema->resultset('Link')->search({ id => [73..75]}, { order_by => 'id' })->all;
+is(scalar @links, 3);
+is($links[0]->url, undef);
+is($links[0]->title, undef);
+is($links[1]->url, undef);
+is($links[1]->title, 't74');
+is($links[2]->url, 'u75');
+is($links[2]->title, undef);
+
+## Make sure the void ctx trace is sane
+{
+  for (
+    [
+      [ qw/id title url/ ],
+      [ 81 ],
+      [ 82, 't82' ],
+      [ 83, undef, 'url83' ],
+    ],
+    [
+      { id => 91 },
+      { id => 92, title => 't92' },
+      { id => 93, url => 'url93' },
+    ]
+  ) {
+    $schema->is_executed_sql_bind(
+      sub {
+        $schema->populate('Link', $_);
+      },
+      [
+        [ 'BEGIN' ],
+        [
+          'INSERT INTO link( id, title, url ) VALUES( ?, ?, ? )',
+          "__BULK_INSERT__"
+        ],
+        [ 'COMMIT' ],
+      ]
+    );
+  }
+}
 
 # populate with literals
 {
@@ -419,7 +485,8 @@ warnings_like {
     : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 2
 ], 'Data integrity warnings as planned';
 
-lives_ok {
+$schema->is_executed_sql_bind(
+  sub {
    $schema->resultset('TwoKeys')->populate([{
       artist => 1,
       cd     => 5,
@@ -437,7 +504,26 @@ lives_ok {
             autopilot => 'b',
       }]
    }])
-} 'multicol-PK has_many populate works';
+  },
+  [
+    [ 'BEGIN' ],
+    [ 'INSERT INTO twokeys ( artist, cd)
+        VALUES ( ?, ? )',
+      '__BULK_INSERT__'
+    ],
+    [ 'INSERT INTO fourkeys_to_twokeys ( autopilot, f_bar, f_foo, f_goodbye, f_hello, t_artist, t_cd)
+        VALUES (
+          ?, ?, ?, ?, ?,
+          ( SELECT me.artist FROM twokeys me WHERE artist = ? AND cd = ? ),
+          ( SELECT me.cd FROM twokeys me WHERE artist = ? AND cd = ? )
+        )
+      ',
+      '__BULK_INSERT__'
+    ],
+    [ 'COMMIT' ],
+  ],
+  'multicol-PK has_many populate expected trace'
+);
 
 lives_ok ( sub {
   $schema->populate('CD', [

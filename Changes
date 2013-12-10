@@ -25,6 +25,8 @@ Revision history for DBIx::Class
           resultsets with no rows
         - Fix incorrect handling of custom relationship conditions returning
           SQLA literal expressions
+        - Fix long standing bug with populate() getting confused by hashrefs
+          with different sets of keys: http://is.gd/2011_dbic_populate_gotcha
         - Fix multi-value literal populate not working with simplified bind
           specifications
         - Massively improve the implied resultset condition parsing - now all

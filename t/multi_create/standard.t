@@ -3,10 +3,9 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
-
-plan tests => 91;
 
 my $schema = DBICTest->init_schema();
 
@@ -403,8 +402,11 @@ lives_ok ( sub {
 
   $kurt_cobain->{cds} = [ $in_utero ];
 
+  warnings_exist {
+    $schema->resultset('Artist')->populate([ $kurt_cobain ]);
+  }  qr/\QFast-path populate() with supplied related objects is not possible/;
 
-  $schema->resultset('Artist')->populate([ $kurt_cobain ]); # %)
+
   my $artist = $schema->resultset('Artist')->find({name => 'Kurt Cobain'});
 
   is($artist->name, 'Kurt Cobain', 'Artist insertion ok');
@@ -468,4 +470,4 @@ lives_ok ( sub {
   is ($m2m_cd->first->producers->first->name, 'Cowboy Neal', 'Correct producer row created');
 }, 'Test multi create over many_to_many');
 
-1;
+done_testing;
