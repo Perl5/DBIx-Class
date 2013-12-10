@@ -338,6 +338,7 @@ my $method_dispatch = {
     _dbh_get_info
 
     _determine_connector_driver
+    _extract_driver_from_connect_info
     _describe_connection
     _warn_undetermined_driver
 

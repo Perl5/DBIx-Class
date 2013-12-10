@@ -4,6 +4,7 @@ use lib qw(t/lib);
 use DBICTest;
 use Test::More;
 use Test::Exception;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 BEGIN { delete @ENV{qw(DBI_DSN DBI_DRIVER)} }
 
@@ -16,6 +17,17 @@ my $dbname = DBICTest->_sqlite_dbname(sqlite_use_file => 1);
 
 sub count_sheep {
     my $schema = shift;
+
+    local $SIG{__WARN__} = sigwarn_silencer(
+      qr/
+        \QThis version of DBIC does not yet seem to supply a driver for your particular RDBMS\E
+          |
+        \QUnable to extract a driver name from connect info\E
+          |
+        \QYour storage class (DBIx::Class::Storage::DBI) does not set sql_limit_dialect\E
+      /x
+    );
+
     scalar $schema->resultset('Artist')->search( { name => "Exploding Sheep" } )
         ->all;
 }
@@ -86,5 +98,22 @@ $ENV{DBI_DRIVER} = 'SQLite';
 $schema = DBICTest::Schema->connect;
 lives_ok { count_sheep($schema) } 'SQLite in DBI_DRIVER (not DBI_DSN)';
 isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
+
+# make sure that dynamically setting DBI_DSN post-connect works
+{
+  local $ENV{DBI_DSN};
+
+  my $s = DBICTest::Schema->connect();
+
+  throws_ok {
+    $s->storage->ensure_connected
+  } qr/You did not provide any connection_info/,
+  'sensible exception on empty conninfo connect';
+
+  $ENV{DBI_DSN} = 'dbi:SQLite::memory:';
+
+  lives_ok { $s->storage->ensure_connected } 'Second connection attempt worked';
+  isa_ok ( $s->storage, 'DBIx::Class::Storage::DBI::SQLite' );
+}
 
 done_testing;

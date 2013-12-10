@@ -83,8 +83,7 @@ sub _ping {
 
   if ($dbh->{syb_no_child_con}) {
     return try {
-      $self->_connect(@{$self->_dbi_connect_info || [] })
-        ->do('select 1');
+      $self->_connect->do('select 1');
       1;
     }
     catch {

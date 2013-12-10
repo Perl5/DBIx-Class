@@ -32,7 +32,7 @@ __PACKAGE__->datetime_parser_type('DateTime::Format::MySQL'); # historic default
 __PACKAGE__->sql_name_sep('.');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
-  _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
+  _connect_info _dbic_connect_attributes _driver_determined
   _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts _dbh_autocommit
   _perform_autoinc_retrieval _autoinc_supplied_for_op
 /);
@@ -129,7 +129,10 @@ for my $meth (@rdbms_specific_methods) {
         and
       ! $_[0]->{_in_determine_driver}
         and
-      ($_[0]->_dbi_connect_info||[])->[0]
+      # Only try to determine stuff if we have *something* that either is or can
+      # provide a DSN. Allows for bare $schema's generated with a plain ->connect()
+      # to still be marginally useful
+      $_[0]->_dbi_connect_info->[0]
     ) {
       $_[0]->_determine_driver;
 
@@ -608,23 +611,6 @@ sub connect_info {
   $info = $self->_normalize_connect_info($info)
     if ref $info eq 'ARRAY';
 
-  for my $storage_opt (keys %{ $info->{storage_options} }) {
-    my $value = $info->{storage_options}{$storage_opt};
-
-    $self->$storage_opt($value);
-  }
-
-  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-  #  the new set of options
-  $self->_sql_maker(undef);
-  $self->_sql_maker_opts({});
-
-  for my $sql_maker_opt (keys %{ $info->{sql_maker_options} }) {
-    my $value = $info->{sql_maker_options}{$sql_maker_opt};
-
-    $self->_sql_maker_opts->{$sql_maker_opt} = $value;
-  }
-
   my %attrs = (
     %{ $self->_default_dbi_connect_attributes || {} },
     %{ $info->{attributes} || {} },
@@ -643,15 +629,57 @@ sub connect_info {
 
     push @args, \%attrs if keys %attrs;
   }
+
+  # this is the authoritative "always an arrayref" thing fed to DBI->connect
+  # OR a single-element coderef-based $dbh factory
   $self->_dbi_connect_info(\@args);
 
+  # extract the individual storage options
+  for my $storage_opt (keys %{ $info->{storage_options} }) {
+    my $value = $info->{storage_options}{$storage_opt};
+
+    $self->$storage_opt($value);
+  }
+
+  # Extract the individual sqlmaker options
+  #
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
+
+  for my $sql_maker_opt (keys %{ $info->{sql_maker_options} }) {
+    my $value = $info->{sql_maker_options}{$sql_maker_opt};
+
+    $self->_sql_maker_opts->{$sql_maker_opt} = $value;
+  }
+
   # FIXME - dirty:
-  # save attributes them in a separate accessor so they are always
+  # save attributes in a separate accessor so they are always
   # introspectable, even in case of a CODE $dbhmaker
   $self->_dbic_connect_attributes (\%attrs);
 
   return $self->_connect_info;
 }
+
+sub _dbi_connect_info {
+  my $self = shift;
+
+  return $self->{_dbi_connect_info} = $_[0]
+    if @_;
+
+  my $conninfo = $self->{_dbi_connect_info} || [];
+
+  # last ditch effort to grab a DSN
+  if ( ! defined $conninfo->[0] and $ENV{DBI_DSN} ) {
+    my @new_conninfo = @$conninfo;
+    $new_conninfo[0] = $ENV{DBI_DSN};
+    $conninfo = \@new_conninfo;
+  }
+
+  return $conninfo;
+}
+
 
 sub _normalize_connect_info {
   my ($self, $info_arg) = @_;
@@ -1009,11 +1037,10 @@ sub _init {}
 sub _populate_dbh {
   my ($self) = @_;
 
-  my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh(undef); # in case ->connected failed we might get sent here
   $self->_dbh_details({}); # reset everything we know
 
-  $self->_dbh($self->_connect(@info));
+  $self->_dbh($self->_connect);
 
   $self->_conn_pid($$) unless DBIx::Class::_ENV_::BROKEN_FORK; # on win32 these are in fact threads
 
@@ -1144,15 +1171,28 @@ sub _describe_connection {
   require DBI::Const::GetInfoReturn;
 
   my $self = shift;
-  $self->ensure_connected;
+
+  my $drv;
+  try {
+    $drv = $self->_extract_driver_from_connect_info;
+    $self->ensure_connected;
+  };
+
+  $drv = "DBD::$drv" if $drv;
 
   my $res = {
     DBIC_DSN => $self->_dbi_connect_info->[0],
     DBI_VER => DBI->VERSION,
     DBIC_VER => DBIx::Class->VERSION,
     DBIC_DRIVER => ref $self,
+    $drv ? (
+      DBD => $drv,
+      DBD_VER => try { $drv->VERSION },
+    ) : (),
   };
 
+  # try to grab data even if we never managed to connect
+  # will cover us in cases of an oddly broken half-connect
   for my $inf (
     #keys %DBI::Const::GetInfoType::GetInfoType,
     qw/
@@ -1213,20 +1253,7 @@ sub _determine_driver {
         $started_connected = 1;
       }
       else {
-        # if connect_info is a CODEREF, we have no choice but to connect
-        if (ref $self->_dbi_connect_info->[0] &&
-            reftype $self->_dbi_connect_info->[0] eq 'CODE') {
-          $self->_populate_dbh;
-          $driver = $self->_dbh->{Driver}{Name};
-        }
-        else {
-          # try to use dsn to not require being connected, the driver may still
-          # force a connection in _rebless to determine version
-          # (dsn may not be supplied at all if all we do is make a mock-schema)
-          my $dsn = $self->_dbi_connect_info->[0] || $ENV{DBI_DSN} || '';
-          ($driver) = $dsn =~ /dbi:([^:]+):/i;
-          $driver ||= $ENV{DBI_DRIVER};
-        }
+        $driver = $self->_extract_driver_from_connect_info;
       }
 
       if ($driver) {
@@ -1269,6 +1296,31 @@ sub _determine_driver {
     $self->_run_connection_actions
         if !$started_connected && defined $self->_dbh;
   }
+}
+
+sub _extract_driver_from_connect_info {
+  my $self = shift;
+
+  my $drv;
+
+  # if connect_info is a CODEREF, we have no choice but to connect
+  if (
+    ref $self->_dbi_connect_info->[0]
+      and
+    reftype $self->_dbi_connect_info->[0] eq 'CODE'
+  ) {
+    $self->_populate_dbh;
+    $drv = $self->_dbh->{Driver}{Name};
+  }
+  else {
+    # try to use dsn to not require being connected, the driver may still
+    # force a connection later in _rebless to determine version
+    # (dsn may not be supplied at all if all we do is make a mock-schema)
+    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:]+):/i;
+    $drv ||= $ENV{DBI_DRIVER};
+  }
+
+  return $drv;
 }
 
 sub _determine_connector_driver {
@@ -1377,10 +1429,12 @@ sub _do_query {
 }
 
 sub _connect {
-  my ($self, @info) = @_;
+  my $self = shift;
+
+  my $info = $self->_dbi_connect_info;
 
   $self->throw_exception("You did not provide any connection_info")
-    if ( ! defined $info[0] and ! $ENV{DBI_DSN} and ! $ENV{DBI_DRIVER} );
+    unless defined $info->[0];
 
   my ($old_connect_via, $dbh);
 
@@ -1410,12 +1464,12 @@ sub _connect {
   };
 
   try {
-    if(ref $info[0] eq 'CODE') {
-      $dbh = $info[0]->();
+    if(ref $info->[0] eq 'CODE') {
+      $dbh = $info->[0]->();
     }
     else {
       require DBI;
-      $dbh = DBI->connect(@info);
+      $dbh = DBI->connect(@$info);
     }
 
     die $DBI::errstr unless $dbh;
@@ -1423,8 +1477,8 @@ sub _connect {
     die sprintf ("%s fresh DBI handle with a *false* 'Active' attribute. "
       . 'This handle is disconnected as far as DBIC is concerned, and we can '
       . 'not continue',
-      ref $info[0] eq 'CODE'
-        ? "Connection coderef $info[0] returned a"
+      ref $info->[0] eq 'CODE'
+        ? "Connection coderef $info->[0] returned a"
         : 'DBI->connect($schema->storage->connect_info) resulted in a'
     ) unless $dbh->FETCH('Active');
 
@@ -1439,7 +1493,7 @@ sub _connect {
       # Default via _default_dbi_connect_attributes is 1, hence it was an explicit
       # request, or an external handle. Complain and set anyway
       unless ($dbh->{RaiseError}) {
-        carp( ref $info[0] eq 'CODE'
+        carp( ref $info->[0] eq 'CODE'
 
           ? "The 'RaiseError' of the externally supplied DBI handle is set to false. "
            ."DBIx::Class will toggle it back to true, unless the 'unsafe' connect "
@@ -1460,7 +1514,7 @@ sub _connect {
   };
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
-  $dbh;
+  return $dbh;
 }
 
 sub txn_begin {
