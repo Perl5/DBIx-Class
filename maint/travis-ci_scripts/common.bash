@@ -3,6 +3,7 @@
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
 
 echo_err() { echo "$@" 1>&2 ; }
 
@@ -102,7 +103,7 @@ parallel_installdeps_notest() {
     "echo \\
 \"$MODLIST\" \\
       | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$(cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'OUT=\$($TIMEOUT_CMD cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
@@ -156,7 +157,7 @@ installdeps() {
 }
 
 cpan_inst() {
-  /usr/bin/timeout --kill-after=9.5m --signal=TERM 9m cpan "$@" 2>&1
+  $TIMEOUT_CMD cpan "$@" 2>&1
 
   # older perls do not have a CPAN which can exit with error on failed install
   for m in "$@"; do
