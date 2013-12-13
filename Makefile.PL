@@ -156,9 +156,14 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
 
   # We need the MM facilities to generate the pieces for the final MM run.
   # Just instantiate a throaway object here
+  #
+  # Also EUMM and MI disagree on what is the format of Meta->name, just
+  # punt here until a new M::I is shipped (if at all)
+  my $name = Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?';
+  $name =~ s/\-/::/g;
   my $mm_proto = ExtUtils::MakeMaker->new({
     NORECURS => 1,
-    NAME => Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?',
+    NAME => $name,
   });
 
   # Crutch for DISTBUILDING_IN_HELL
