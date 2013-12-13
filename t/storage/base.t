@@ -152,7 +152,7 @@ SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
   skip 'Subtest relies on being connected to SQLite', 1
     if $env_dsn and $env_dsn !~ /\:SQLite\:/;
 
-  local $ENV{DBI_DSN} = $env_dsn;
+  local $ENV{DBI_DSN} = $env_dsn || '';
 
   my $s = DBICTest::Schema->connect();
   is_deeply (
@@ -164,7 +164,7 @@ SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
 
   my $sm = $s->storage->sql_maker;
 
-  ok (! $s->storage->connected, 'Storage does not appear connected (SQLite determined by DSN-only analysis)');
+  ok (! $s->storage->connected, 'Storage does not appear connected after SQLMaker instance is taken');
 
   if ($env_dsn) {
     isa_ok($sm, 'DBIx::Class::SQLMaker');

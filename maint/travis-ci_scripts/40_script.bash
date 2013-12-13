@@ -38,6 +38,7 @@ if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]
     echo "============================================================="
     echo "End of test run STDERR output ($STDERR_LOG_SIZE lines)"
     echo
+    echo
   )$POSTMORTEM"
 fi
 
