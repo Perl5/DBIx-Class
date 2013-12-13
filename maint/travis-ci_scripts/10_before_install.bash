@@ -101,6 +101,12 @@ if [[ "$CLEANTEST" != "true" ]]; then
   done
 
 ### config oracle
+  SRV_ORA_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/server
+
+  # without this some of the more zealous tests can exhaust the amount
+  # of listeners and oracle is too slow to spin extras up :(
+  sudo bash -c "echo -e '\nprocesses=150' >> $SRV_ORA_HOME/config/scripts/init.ora"
+
   EXPECT_ORA_SCRIPT='
     spawn /etc/init.d/oracle-xe configure
 
@@ -140,12 +146,11 @@ if [[ "$CLEANTEST" != "true" ]]; then
   # FIXME: I couldn't figure it out after 3 hours of headdesking,
   # would be nice to know the reason eventually
   run_or_err "Configuring OracleXE" "sudo $(which expect) -c '$EXPECT_ORA_SCRIPT' &>/tmp/ora_configure_10.2.log"
-  SRV_ORA_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/server
 
   export DBICTEST_ORA_DSN=dbi:Oracle://localhost:1521/XE
   export DBICTEST_ORA_USER=dbic_test
   export DBICTEST_ORA_PASS=abc123456
-  export DBICTEST_ORA_EXTRAUSER_DSN=dbi:Oracle://localhost:1521/XE
+  export DBICTEST_ORA_EXTRAUSER_DSN="$DBICTEST_ORA_DSN"
   export DBICTEST_ORA_EXTRAUSER_USER=dbic_test_extra
   export DBICTEST_ORA_EXTRAUSER_PASS=abc123456
 
