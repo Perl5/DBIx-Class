@@ -104,6 +104,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
     # DBD::SQLite reasonably wants DBI at config time
     HARD_DEPS="DBI $HARD_DEPS"
 
+    # this is a fucked CPAN - won't understand configure_requires of
+    # various pieces we may run into
+    # FIXME - need to get these off metacpan or something instead
+    HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
+
     # FIXME
     # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
     HARD_DEPS="parent $HARD_DEPS"
