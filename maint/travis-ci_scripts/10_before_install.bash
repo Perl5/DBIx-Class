@@ -3,6 +3,9 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
+# FIXME - temp nullroute the AAAA of api.metacpan.org until metacpan is fixed
+sudo ip6tables -I OUTPUT -d api.metacpan.org -j REJECT
+
 # Different boxes we run on may have different amount of hw threads
 # Hence why we need to query
 # Originally we used to read /sys/devices/system/cpu/online
