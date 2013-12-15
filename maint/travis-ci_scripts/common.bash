@@ -103,7 +103,7 @@ parallel_installdeps_notest() {
     "echo \\
 \"$MODLIST\" \\
       | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$($TIMEOUT_CMD cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'OUT=\$($TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
@@ -121,13 +121,13 @@ installdeps() {
 
   LASTEXIT=0
   START_TIME=$SECONDS
-  LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
+  LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" = "0" ]] ; then
     echo_err "done (took ${DELTA_TIME}s)"
   else
-    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")"
+    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
     echo_err -n "failed ($errlog) retrying with sequential testing ... "
     POSTMORTEM="$POSTMORTEM$(
       echo
@@ -140,7 +140,7 @@ installdeps() {
     HARNESS_OPTIONS=""
     LASTEXIT=0
     START_TIME=$SECONDS
-    LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
+    LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
     DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
     if [[ "$LASTEXIT" = "0" ]] ; then
@@ -156,23 +156,29 @@ installdeps() {
   INSTALLDEPS_OUT="${INSTALLDEPS_OUT}${LASTOUT}"
 }
 
-cpan_inst() {
-  $TIMEOUT_CMD cpan "$@" 2>&1
+_dep_inst_with_test() {
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    # --dev is already part of CPANM_OPT
+    $TIMEOUT_CMD cpanm "$@" 2>&1
+  else
+    $TIMEOUT_CMD cpan "$@" 2>&1
 
-  # older perls do not have a CPAN which can exit with error on failed install
-  for m in "$@"; do
-    if ! perl -e '
+    # older perls do not have a CPAN which can exit with error on failed install
+    for m in "$@"; do
+      if ! perl -e '
 
 eval ( q{require } . (
   $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
-) ) or ( print $@ and exit 1)' "$m" 2> /dev/null ; then
+) ) or ( print $@ and exit 1)
 
-      echo -e "$m installation seems to have failed"
-      return 1
-    fi
-  done
+      ' "$m" 2> /dev/null ; then
+        echo -e "$m installation seems to have failed"
+        return 1
+      fi
+    done
+  fi
 }
 
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }

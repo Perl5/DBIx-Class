@@ -17,11 +17,6 @@ export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CP
 # try CPAN's latest offering if requested
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-  if [[ "$CLEANTEST" == "true" ]] ; then
-    echo_err "DEVREL_DEPS combined with CLEANTEST makes no sense - it is only possible with cpanm"
-    exit 1
-  fi
-
   PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
 
   # FIXME inline-upgrade cpanm, work around https://github.com/travis-ci/travis-ci/issues/1477
