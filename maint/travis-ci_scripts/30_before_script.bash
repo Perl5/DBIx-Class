@@ -86,10 +86,7 @@ else
     # the official version is very much outdated and does not compile on 5.14+
     # use this rather updated source tree (needs to go to PAUSE):
     # https://github.com/pilcrow/perl-dbd-interbase
-    run_or_err "Fetching patched DBD::InterBase" \
-      "git clone https://github.com/dbsrgits/perl-dbd-interbase ~/dbd-interbase"
-
-    parallel_installdeps_notest ~/dbd-interbase/
+    parallel_installdeps_notest git://github.com/dbsrgits/perl-dbd-interbase.git
   fi
 
 fi
