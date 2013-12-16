@@ -156,14 +156,6 @@ matrix:
     ###
     # Start of the allow_failures block
 
-    # 5.10.0 threaded with blead CPAN
-    - perl: devcpan_5.10.0_thr_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.10.0
-        - DEVREL_DEPS=true
-
     # minimum threaded with blead CPAN
     - perl: devcpan_5.8.5_thr
       env:
@@ -172,7 +164,23 @@ matrix:
         - BREWVER=5.8.5
         - DEVREL_DEPS=true
 
-    # recentish stable with blead CPAN
+    # 5.10.0 threaded with blead CPAN
+    - perl: devcpan_5.10.0_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.10.0
+        - DEVREL_DEPS=true
+
+    # 5.12.2 with blead CPAN
+    - perl: devcpan_5.12.2_thr
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads"
+        - BREWVER=5.12.2
+        - DEVREL_DEPS=true
+
+    # recentish threaded stable with blead CPAN
     - perl: devcpan_5.18.1_thr_mb
       env:
         - CLEANTEST=false
@@ -199,8 +207,9 @@ matrix:
   # which ones of the above can fail
   allow_failures:
     # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.10.0_thr_mb
     - perl: devcpan_5.8.5_thr
+    - perl: devcpan_5.10.0_thr_mb
+    - perl: devcpan_5.12.2_thr
     - perl: devcpan_5.18.1_thr_mb
     - perl: bleadperl_thr_mb
     - perl: devcpan_bleadperl_thr_mb

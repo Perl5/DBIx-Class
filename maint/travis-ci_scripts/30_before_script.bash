@@ -39,15 +39,19 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
 
-  # no configure_requires - we will need the usual suspects anyway
-  # without pre-installign these in one pass things like extract_prereqs won't work
-  CPAN_is_sane || installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
-
-  # FIXME - need new TB1.5 devrel
-  # if we run under --dev install latest github of TB1.5 first
-  # (unreleased workaround for precedence warnings)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    installdeps git://github.com/nthykier/test-more.git@fix-return-precedence-issue
+    # Many dists still do not pass tests under tb1.5 properly (and it itself
+    # does not even install on things like 5.10). Install the *stable-dev*
+    # latest T::B here, so that it will not show up as a dependency, and
+    # hence it will not get installed a second time as an unsatisfied dep
+    # under cpanm --dev
+    installdeps 'Test::Builder~<1.005'
+
+  elif ! CPAN_is_sane ; then
+    # no configure_requires - we will need the usual suspects anyway
+    # without pre-installign these in one pass things like extract_prereqs won't work
+    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+
   fi
 
 else
