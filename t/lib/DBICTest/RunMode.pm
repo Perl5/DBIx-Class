@@ -106,7 +106,7 @@ to ensure you have all required dependencies present. Not doing
 so often results in a lot of wasted time for other contributors
 trying to assist you with spurious "its broken!" problems.
 
-By default DBICs Makefile.PL turns all optional dependenciess into
+By default DBICs Makefile.PL turns all optional dependencies into
 *HARD REQUIREMENTS*, in order to make sure that the entire test
 suite is executed, and no tests are skipped due to missing modules.
 If you for some reason need to disable this behavior - supply the
