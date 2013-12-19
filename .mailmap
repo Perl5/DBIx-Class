@@ -2,7 +2,7 @@
 # so if someone were to legally change their name, we could use it to fix that
 # while maintaining the integrity of the repository
 
-# https://www.kernel.org/pub/software/scm/git/docs/git-shortlog.html
+# https://www.kernel.org/pub/software/scm/git/docs/git-shortlog.html#_mapping_authors
 
 Alexander Hartmaier <abraxxa@cpan.org>      <alexander.hartmaier@t-systems.at>
 Amiri Barksdale <amiribarksdale@gmail.com>  <amiri@metalabel.com>
