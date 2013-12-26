@@ -136,12 +136,6 @@ warnings_exist { $row = $schema->resultset('Artist')->create ({ name => 'alpha r
 $row->discard_changes;
 is ($row->rank, 'abc', 'proper rank inserted into database');
 
-# temporary - can't get a win32 machine to investigate all possibilities
-if ($^O eq 'MSWin32' or $^O eq 'cygwin') {
-  done_testing;
-  exit;
-}
-
 # and make sure we do not lose actual bigints
 {
   package DBICTest::BigIntArtist;
