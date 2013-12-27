@@ -5,8 +5,6 @@ use Test::More;
 use Test::Exception;
 use Math::BigInt;
 
-local $TODO = 'Temporarily todo-ed for dq2eb';
-
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;

@@ -1,0 +1,18 @@
+# *unless* any of the following variables are set:
+# RELEASE_TESTING
+# AUTHOR_TESTING
+# Any non-commented-out filename in this list will be executed in
+# "todo mode"
+#
+# Names are matched via
+#
+#  $0 =~ m! (?: \A | / ) \Q$chomped_name_as_seen_in_this_file\E \z !x
+#
+
+# blocked on Carp::Skip
+t/sqlmaker/bind_transport.t
+t/sqlmaker/nest_deprec.t
+t/sqlmaker/core.t
+
+# waiting on riba - the leak detection mechanism has issues here and there
+t/52leaks.t

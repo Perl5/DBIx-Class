@@ -345,6 +345,8 @@ my $method_dispatch = {
     sql_quote_char
     sql_name_sep
 
+    perl_renderer
+
     _prefetch_autovalues
     _perform_autoinc_retrieval
     _autoinc_supplied_for_op

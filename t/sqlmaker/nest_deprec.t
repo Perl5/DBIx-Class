@@ -4,8 +4,6 @@ use warnings;
 use Test::More;
 use Test::Warn;
 
-local $TODO = 'Temporarily todo-ed for dq2eb';
-
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;

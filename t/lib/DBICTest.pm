@@ -21,6 +21,32 @@ BEGIN {
   }
 }
 
+# This is a pretty good candidate for a standalone extraction (Test::AutoSkip?)
+BEGIN {
+  if (
+    ! $ENV{RELEASE_TESTING}
+      and
+    ! $ENV{AUTHOR_TESTING}
+      and
+    $0 =~ /^ (.*) x?t [\/\\] .+ \.t $/x
+      and
+    -f ( my $fn = "$1.auto_todo")
+  ) {
+    # fuck you win32
+    require File::Spec;
+    my $canonical_dollarzero = File::Spec::Unix->catpath(File::Spec->splitpath($0));
+
+    for my $t ( map {
+      ( $_ =~ /^ \s* ( [^\#\n]+ ) /x ) ? $1 : ()
+    } do { local @ARGV = $fn; <> } ) {
+      if ( $canonical_dollarzero =~ m! (?: \A | / ) \Q$t\E \z !x ) {
+        require Test::Builder;
+        Test::Builder->new->todo_start("Global todoification of '$t' specified in $fn");
+      }
+    }
+  }
+}
+
 use Module::Runtime 'module_notional_filename';
 BEGIN {
   for my $mod (qw( DBIC::SqlMakerTest SQL::Abstract )) {

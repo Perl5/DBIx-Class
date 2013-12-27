@@ -21,8 +21,6 @@ use strict;
 use warnings;
 use Test::More;
 
-local $TODO = 'Temporarily todo-ed for dq2eb';
-
 my $TB = Test::More->builder;
 if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
   # without this explicit close older TBs warn in END after a ->reset
