@@ -3,19 +3,33 @@
 source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# poison the environment - basically look through lib, find all mentioned
-# ENVvars and set them to true and see if anything explodes
+# poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
+
+  # look through lib, find all mentioned ENVvars and set them
+  # to true and see if anything explodes
   for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
     if [[ -z "${!var}" ]] ; then
       export $var=1
     fi
   done
 
+  # bogus nonexisting DBI_*
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
   export DBI_DRIVER="ADO"
 
+  # make sure tests do not rely on implicid order of returned results
   export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
+
+  # emulate a local::lib-like env
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  run_or_err "Downloading latest stable DBIC from CPAN" \
+    "SHELL=/bin/true cpanm --look DBIx::Class"
+
+  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
+
+  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
@@ -26,7 +40,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # effects from travis preinstalls)
 
   # trick cpanm into executing true as shell - we just need the find+unpack
-  run_or_err "Downloading DBIC inc/ from CPAN" \
+  [[ -d ~/.cpanm/latest-build/DBIx-Class-*/inc ]] || run_or_err "Downloading latest stable DBIC inc/ from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
 
   mv ~/.cpanm/latest-build/DBIx-Class-*/inc .
@@ -49,7 +63,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
   elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
-    # without pre-installign these in one pass things like extract_prereqs won't work
+    # without pre-installing these in one pass things like extract_prereqs won't work
     installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
 
   fi
