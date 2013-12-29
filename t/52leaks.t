@@ -48,7 +48,6 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 use lib qw(t/lib);
 use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
-use Scalar::Util 'refaddr';
 use DBIx::Class;
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
@@ -355,29 +354,31 @@ unless (DBICTest::RunMode->is_plain) {
 
 # Naturally we have some exceptions
 my $cleared;
-for my $slot (keys %$weak_registry) {
-  if ($slot =~ /^Test::Builder/) {
+for my $addr (keys %$weak_registry) {
+  my $names = join "\n", keys %{$weak_registry->{$addr}{slot_names}};
+
+  if ($names =~ /^Test::Builder/m) {
     # T::B 2.0 has result objects and other fancyness
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$addr};
   }
-  elsif ($slot =~ /^Method::Generate::(?:Accessor|Constructor)/) {
+  elsif ($names =~ /^Method::Generate::(?:Accessor|Constructor)/m) {
     # Moo keeps globals around, this is normal
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$addr};
   }
-  elsif ($slot =~ /^SQL::Translator::Generator::DDL::SQLite/) {
+  elsif ($names =~ /^SQL::Translator::Generator::DDL::SQLite/m) {
     # SQLT::Producer::SQLite keeps global generators around for quoted
     # and non-quoted DDL, allow one for each quoting style
-    delete $weak_registry->{$slot}
-      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$slot}{weakref}->quote_chars}}++;
+    delete $weak_registry->{$addr}
+      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$addr}{weakref}->quote_chars}}++;
   }
-  elsif ($slot =~ /^Hash::Merge/) {
+  elsif ($names =~ /^Hash::Merge/m) {
     # only clear one object of a specific behavior - more would indicate trouble
-    delete $weak_registry->{$slot}
-      unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
+    delete $weak_registry->{$addr}
+      unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
-  elsif ($slot =~ /^DateTime::TimeZone/) {
+  elsif ($names =~ /^DateTime::TimeZone/m) {
     # DT is going through a refactor it seems - let it leak zones for now
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$addr};
   }
 }
 
@@ -392,7 +393,7 @@ for my $slot (keys %$weak_registry) {
 #
 {
   local $TODO = 'This fails intermittently - see RT#82942';
-  if ( my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref} ) {
+  if ( my $r = ($weak_registry->{'basic leaky_resultset_cond'}||{})->{weakref} ) {
     ok(! defined $r, 'Self-referential RS conditions no longer leak!')
       or $r->result_source(undef);
   }

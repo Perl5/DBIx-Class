@@ -4,77 +4,85 @@ use warnings;
 use strict;
 
 use Carp;
-use Scalar::Util qw/isweak weaken blessed reftype refaddr/;
+use Scalar::Util qw(isweak weaken blessed reftype);
 use DBIx::Class::_Util 'refcount';
+use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
 
 use base 'Exporter';
-our @EXPORT_OK = qw/populate_weakregistry assert_empty_weakregistry/;
+our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry hrefaddr);
 
 my $refs_traced = 0;
-my $leaks_found;
+my $leaks_found = 0;
 my %reg_of_regs;
 
+sub hrefaddr { sprintf '0x%x', &Scalar::Util::refaddr }
+
+# so we don't trigger stringification
+sub _describe_ref {
+  sprintf '%s%s(%s)',
+    (defined blessed $_[0]) ? blessed($_[0]) . '=' : '',
+    reftype $_[0],
+    hrefaddr $_[0],
+  ;
+}
+
 sub populate_weakregistry {
-  my ($weak_registry, $target, $slot) = @_;
+  my ($weak_registry, $target, $note) = @_;
 
   croak 'Expecting a registry hashref' unless ref $weak_registry eq 'HASH';
   croak 'Target is not a reference' unless length ref $target;
 
-  my $refaddr = refaddr $target;
+  my $refaddr = hrefaddr $target;
 
-  $slot ||= (sprintf '%s%s(0x%x)', # so we don't trigger stringification
-    (defined blessed $target) ? blessed($target) . '=' : '',
-    reftype $target,
-    $refaddr,
-  );
+  # a registry could be fed to itself or another registry via recursive sweeps
+  return $target if $reg_of_regs{$refaddr};
 
-  if (defined $weak_registry->{$slot}{weakref}) {
-    if ( $weak_registry->{$slot}{refaddr} != $refaddr ) {
-      print STDERR "Bail out! Weak Registry slot collision $slot: $weak_registry->{$slot}{weakref} / $target\n";
-      exit 255;
-    }
-  }
-  else {
-    $weak_registry->{$slot} = {
+  if (! defined $weak_registry->{$refaddr}{weakref}) {
+    $weak_registry->{$refaddr} = {
       stacktrace => stacktrace(1),
-      refaddr => $refaddr,
-      renumber => $_[2] ? 0 : 1,
+      weakref => $target,
     };
-    weaken( $weak_registry->{$slot}{weakref} = $target );
+    weaken( $weak_registry->{$refaddr}{weakref} );
     $refs_traced++;
   }
 
-  weaken( $reg_of_regs{ refaddr($weak_registry) } = $weak_registry )
-    unless( $reg_of_regs{ refaddr($weak_registry) } );
+  my $desc = _describe_ref($target);
+  $weak_registry->{$refaddr}{slot_names}{$desc} = 1;
+  if ($note) {
+    $note =~ s/\s*\Q$desc\E\s*//g;
+    $weak_registry->{$refaddr}{slot_names}{$note} = 1;
+  }
+
+  weaken( $reg_of_regs{ hrefaddr($weak_registry) } = $weak_registry )
+    unless( $reg_of_regs{ hrefaddr($weak_registry) } );
 
   $target;
 }
 
-# Renumber everything we auto-named on a thread spawn
+# Regenerate the slots names on a thread spawn
 sub CLONE {
   my @individual_regs = grep { scalar keys %{$_||{}} } values %reg_of_regs;
   %reg_of_regs = ();
 
   for my $reg (@individual_regs) {
-    my @live_slots = grep { defined $reg->{$_}{weakref} } keys %$reg
+    my @live_slots = grep { defined $_->{weakref} } values %$reg
       or next;
 
-    my @live_instances = @{$reg}{@live_slots};
-
     $reg = {};  # get a fresh hashref in the new thread ctx
-    weaken( $reg_of_regs{refaddr($reg)} = $reg );
+    weaken( $reg_of_regs{hrefaddr($reg)} = $reg );
 
-    while (@live_slots) {
-      my $slot = shift @live_slots;
-      my $inst = shift @live_instances;
+    for my $slot_info (@live_slots) {
+      my $new_addr = hrefaddr $slot_info->{weakref};
 
-      my $refaddr = $inst->{refaddr} = refaddr($inst);
+      # replace all slot names
+      $slot_info->{slot_names} = { map {
+        my $name = $_;
+        $name =~ s/\(0x[0-9A-F]+\)/sprintf ('(%s)', $new_addr)/ieg;
+        ($name => 1);
+      } keys %{$slot_info->{slot_names}} };
 
-      $slot =~ s/0x[0-9A-F]+/'0x' . sprintf ('0x%x', $refaddr)/ieg
-        if $inst->{renumber};
-
-      $reg->{$slot} = $inst;
+      $reg->{$new_addr} = $slot_info;
     }
   }
 }
@@ -89,12 +97,16 @@ sub assert_empty_weakregistry {
   my $tb = eval { Test::Builder->new }
     or croak 'Calling test_weakregistry without a loaded Test::Builder makes no sense';
 
-  for my $slot (sort keys %$weak_registry) {
-    next if ! defined $weak_registry->{$slot}{weakref};
-    $tb->BAILOUT("!!!! WEAK REGISTRY SLOT $slot IS NOT A WEAKREF !!!!")
-      unless isweak( $weak_registry->{$slot}{weakref} );
-  }
+  for my $addr (keys %$weak_registry) {
+    $weak_registry->{$addr}{display_name} = join ' | ', (
+      sort
+        { length $a <=> length $b or $a cmp $b }
+        keys %{$weak_registry->{$addr}{slot_names}}
+    );
 
+    $tb->BAILOUT("!!!! WEAK REGISTRY SLOT $weak_registry->{$addr}{display_name} IS NOT A WEAKREF !!!!")
+      if defined $weak_registry->{$addr}{weakref} and ! isweak( $weak_registry->{$addr}{weakref} );
+  }
 
   # compile a list of refs stored as CAG class data, so we can skip them
   # intelligently below
@@ -104,9 +116,9 @@ sub assert_empty_weakregistry {
     return unless length ref $_[0];
 
     my $seen = $_[1] || {};
-    return if $seen->{refaddr $_[0]}++;
+    return if $seen->{hrefaddr $_[0]}++;
 
-    $classdata_refcounts->{refaddr $_[0]}++;
+    $classdata_refcounts->{hrefaddr $_[0]}++;
 
     my $type = reftype $_[0];
     if ($type eq 'HASH') {
@@ -136,34 +148,48 @@ sub assert_empty_weakregistry {
 
     $symwalker->();
 
-    for my $slot (keys %$weak_registry) {
+    for my $refaddr (keys %$weak_registry) {
       if (
-        defined $weak_registry->{$slot}{weakref}
+        defined $weak_registry->{$refaddr}{weakref}
           and
-        my $expected_refcnt = $classdata_refcounts->{$weak_registry->{$slot}{refaddr}}
+        my $expected_refcnt = $classdata_refcounts->{$refaddr}
       ) {
-        delete $weak_registry->{$slot}
-          if refcount($weak_registry->{$slot}{weakref}) == $expected_refcnt;
+        delete $weak_registry->{$refaddr}
+          if refcount($weak_registry->{$refaddr}{weakref}) == $expected_refcnt;
       }
     }
   }
 
-  for my $slot (sort keys %$weak_registry) {
-    ! defined $weak_registry->{$slot}{weakref} and next if $quiet;
+  for my $addr (sort { $weak_registry->{$a}{display_name} cmp $weak_registry->{$b}{display_name} } keys %$weak_registry) {
 
-    $tb->ok (! defined $weak_registry->{$slot}{weakref}, "No leaks of $slot") or do {
-      $leaks_found = 1;
+    ! defined $weak_registry->{$addr}{weakref} and next if $quiet;
 
-      my $diag = '';
+    $tb->ok (! defined $weak_registry->{$addr}{weakref}, "No leaks of $weak_registry->{$addr}{display_name}") or do {
+      $leaks_found++;
 
-      $diag .= Devel::FindRef::track ($weak_registry->{$slot}{weakref}, 20) . "\n"
+      my $diag = do {
+        local $Data::Dumper::Maxdepth = 1;
+        sprintf "\n%s (refcnt %d) => %s\n",
+          $weak_registry->{$addr}{display_name},
+          refcount($weak_registry->{$addr}{weakref}),
+          (
+            ref($weak_registry->{$addr}{weakref}) eq 'CODE'
+              and
+            B::svref_2object($weak_registry->{$addr}{weakref})->XSUB
+          ) ? '__XSUB__' : Dumper( $weak_registry->{$addr}{weakref} )
+        ;
+      };
+
+      $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 20) . "\n"
         if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
 
-      if (my $stack = $weak_registry->{$slot}{stacktrace}) {
+      $diag =~ s/^/    /mg;
+
+      if (my $stack = $weak_registry->{$addr}{stacktrace}) {
         $diag .= "    Reference first seen$stack";
       }
 
-      $tb->diag($diag) if $diag;
+      $tb->diag($diag);
     };
   }
 }
