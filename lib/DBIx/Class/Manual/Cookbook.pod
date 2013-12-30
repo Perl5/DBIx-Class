@@ -1183,7 +1183,7 @@ of your application to support a change lifecycle (e.g. DEV, TEST, PROD) and
 the DB schemas are named based on the environment (e.g. database1_dev).
 
 However, one can dynamically "map" to the proper DB schema by overriding the
-L<connection|DBIx::Class::Schama/connection> method in your Schema class and
+L<connection|DBIx::Class::Schema/connection> method in your Schema class and
 building a renaming facility, like so:
 
   package MyApp::Schema;
@@ -1223,13 +1223,13 @@ building a renaming facility, like so:
 
   1;
 
-By overriding the L<connection|DBIx::Class::Schama/connection>
+By overriding the L<connection|DBIx::Class::Schema/connection>
 method and extracting a custom option from the provided \%attr hashref one can
 then simply iterate over all the Schema's ResultSources, renaming them as
 needed.
 
 To use this facility, simply add or modify the \%attr hashref that is passed to
-L<connection|DBIx::Class::Schama/connect>, as follows:
+L<connection|DBIx::Class::Schema/connect>, as follows:
 
   my $schema
     = MyApp::Schema->connect(
