@@ -1244,6 +1244,39 @@ L<connection|DBIx::Class::Schema/connect>, as follows:
 Obviously, one could accomplish even more advanced mapping via a hash map or a
 callback routine.
 
+=head2 Relationships with optional foreign key values
+
+Sometimes you want a relationship where the column holding the foreign key
+value is nullable. In the following example, when C<$human> is deleted the
+related C<$cat> continues to exists and its foreign key value is set to NULL.
+See L<belongs_to|DBIx::Class::Relationship/belongs_to> for details on the
+C<< join_type => 'left' >> attribute.
+
+    package My::Schema::Result::Human;
+    # ...
+    __PACKAGE__->has_many(
+        'cats',
+        'My::Schema::Result::Cat',
+        'human_id',
+        { cascade_delete => 0 },
+    );
+
+    package My::Schema::Result::Cat;
+    # ...
+        human_id => {
+        data_type      => 'int',
+        is_numeric     => 1,
+        is_foreign_key => 1,
+        is_nullable    => 1,
+    },
+    # ...
+    __PACKAGE__->belongs_to(
+        'human',
+        'My::Schema::Result::Human',
+        'human_id',
+        { join_type => 'left', on_delete => 'SET NULL' },
+    );
+
 =head1 TRANSACTIONS
 
 =head2 Transactions with txn_do
