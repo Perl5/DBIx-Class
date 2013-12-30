@@ -191,15 +191,11 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
   # To retrieve the plain id if you used the ugly version:
   $book->get_column('author_id');
 
-
-If the relationship is optional -- i.e. the column containing the
-foreign key can be NULL -- then the belongs_to relationship does the
-right thing. Thus, in the example above C<< $obj->author >> would
-return C<undef>.  However in this case you would probably want to set
+If the foreign key column is nullable you probably want to set
 the L<join_type|DBIx::Class::Relationship::Base/join_type> attribute so that
-a C<LEFT JOIN> is done, which makes complex resultsets involving
-C<join> or C<prefetch> operations work correctly.  The modified
-declaration is shown below:
+a C<LEFT JOIN> is done. This ensures that relationship traversal works
+consistently in all situations. (i.e. resultsets involving C<join> or
+C<prefetch> operations). The modified declaration is shown below:
 
   # in a Book class (where Author has_many Books)
   __PACKAGE__->belongs_to(
@@ -208,7 +204,6 @@ declaration is shown below:
     'author',
     { join_type => 'left' }
   );
-
 
 Cascading deletes are off by default on a C<belongs_to>
 relationship. To turn them on, pass C<< cascade_delete => 1 >>
