@@ -191,14 +191,13 @@ more info see L<DBIx::Class::Relationship::Base/condition>.
   # To retrieve the plain id if you used the ugly version:
   $book->get_column('author_id');
 
-
-If the the column containin the foreign key of a relationship
-can be NULL the belongs_to relationship still does the
-right thing. Thus, in the example above C<< $obj->author >> would
-return C<undef>. However you probably want to set the
+If the column containing the foreign key of a relationship
+is nullable, the belongs_to relationship still does the
+right thing. (i.e. C<< $obj->author >> would return C<undef>).
+However you probably want to set the
 L<join_type|DBIx::Class::Relationship::Base/join_type> attribute so that
-a C<LEFT JOIN> is done, which makes relationship traversal in complex
-resultsets work correctly. (i.e. resultsets involving C<join> or
+a C<LEFT JOIN> is done. This ensures that relationship traversal works
+consistently in all situations. (i.e. resultsets involving C<join> or
 C<prefetch> operations). The modified declaration is shown below:
 
   # in a Book class (where Author has_many Books)
