@@ -88,8 +88,8 @@ else
   parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
-  parallel_installdeps_notest Module::Build Module::Runtime
-  parallel_installdeps_notest File::Spec Data::Dumper
+  parallel_installdeps_notest Module::Build
+  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
