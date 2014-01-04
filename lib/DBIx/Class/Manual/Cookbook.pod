@@ -921,10 +921,8 @@ Components could be used via C<load_components>
 
     __PACKAGE__->table('house_rent');
 
-
     # NOTE components with add_columns/add_relationship hooks must be loaded
     # after ->table(...) calling
-
     __PACKAGE__->load_components('+DB::Component::Rent');
 
     1;
@@ -933,7 +931,7 @@ Components could be used via C<load_components>
     use base 'DB::Shared::Result::Realty::House';
 
     __PACKAGE__->table('house_sell');
-    __PACKAGE__->load_components('DB::Component::Sell');
+    __PACKAGE__->load_components('+DB::Component::Sell');
 
     1;
 
