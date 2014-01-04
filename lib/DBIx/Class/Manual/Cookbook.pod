@@ -833,6 +833,115 @@ B<Result-Subclass definition>
 
     1;
 
+But, what if some of your model has certain columns/relationships/etc, which
+another model does not?
+
+E.g. a DB with realty objects, where each object could be sold or rented. All of
+the objects have the same columns (like id, creation date, description, etc.).
+In addition selling objects have full price, but renting objects have minimum rent period
+and price per month. Lets say there are two types of objects: houses and
+apartments (which could have own columns). So, we have the next classes diagram:
+
+            +-------> Realty <-------+
+            |                        |
+     +--> House <--+         +--> Apartment <--+
+     |             |         |                 |
+    Rent          Sell      Rent              Sell
+
+Realty is the base class. House and Apartment are sub-classed from Realty. Lets
+subclass Rent::House, Sell::House, Rent::Apartment and Sell::Apartment.
+
+    package DB::Shared::Result::Realty;
+    use base 'DBIx::Class::Core';
+
+     __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
+
+    __PACKAGE__->table('__dummy');
+    __PACKAGE__->add_columns(qw/ id created description /);
+
+    __PACKAGE__->add_primary_key('id');
+
+    1;
+
+
+    package DB::Shared::Result::Realty::House;
+    use base 'DB::Shared::Result::Realty';
+
+    __PACKAGE__->table('__dummy');
+
+    __PACKAGE__->add_columns(
+        # Add columns specified for houses
+    );
+
+    1;
+
+
+    package DB::Shared::Result::Realty::Apartment;
+    use base 'DB::Shared::Result::Realty';
+
+    __PACKAGE__->table('__dummy');
+
+    __PACKAGE__->add_columns(
+        # Add columns specified for apartment
+    );
+
+    1;
+
+The good way to add renting/selling properties into needed class is using
+components.
+
+    package DB::Component::Rent;
+    use base 'DBIx::Class::Core';
+
+    use Class::C3::Componentised::ApplyHooks
+        -after_apply => sub {
+            my ($class,  $component) = @_;
+
+            $class->add_columns(qw/ min_rent_period price_per_month /);
+        };
+
+    1;
+
+    package DB::Component::Sell;
+    use base 'DBIx::Class::Core';
+
+    use Class::C3::Componentised::ApplyHooks
+        -after_apply => sub {
+            my ($class,  $component) = @_;
+
+            $class->add_columns(qw/ full_price /);
+        };
+
+    1;
+
+Components could be used via C<load_components>
+
+    package DB::Result::Realty::House::Rent;
+    use base 'DB::Shared::Result::Realty::House';
+
+    __PACKAGE__->table('house_rent');
+
+
+    # NOTE components with add_columns/add_relationship hooks must be loaded
+    # after ->table(...) calling
+
+    __PACKAGE__->load_components('+DB::Component::Rent');
+
+    1;
+
+    package DB::Result::Realty::House::Sell;
+    use base 'DB::Shared::Result::Realty::House';
+
+    __PACKAGE__->table('house_sell');
+    __PACKAGE__->load_components('DB::Component::Sell');
+
+    1;
+
+You should to use hooks, because without it on C<add_columns(...)> in
+C<DB::Component::Rent> columns will be added into C<DB::Component::Rent>,
+but NOT into C<DB::Result::Realty::House::Rent> class. Without hooks you
+have to copy all columns/relationships/etc into your C<__PACKAGE__> manually.
+
 =head2 Dynamic Sub-classing DBIx::Class proxy classes
 
 AKA multi-class object inflation from one table
