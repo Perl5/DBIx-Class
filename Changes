@@ -7,6 +7,11 @@ Revision history for DBIx::Class
         - More robust handling of circular relationship declarations by loading
           foreign classes less frequently (should resolve issues like
           http://lists.scsys.co.uk/pipermail/dbix-class/2013-June/011374.html)
+          Note that none of this is a manifestations of a DBIC bug, but rather
+          unexpected (but correct) behavior of load-order-dependent (hence
+          logically broken) Resultclass hierarchies. In order to deal with this
+          DBIC is scaling back a large number of sanity checks, which are to be
+          reintroduce pending a better framework for source registration
         - Fix multiple edge cases of complex prefetch combining incorrectly
           with correlated subquery selections
         - Fix multiple edge cases stemming from interaction of a non-selecting
