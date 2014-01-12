@@ -53,7 +53,7 @@ use Carp;
 use Scalar::Util qw(refaddr weaken);
 
 use base 'Exporter';
-our @EXPORT_OK = qw(sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray);
+our @EXPORT_OK = qw(sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray refcount);
 
 sub sigwarn_silencer {
   my $pattern = shift;
@@ -63,6 +63,15 @@ sub sigwarn_silencer {
   my $orig_sig_warn = $SIG{__WARN__} || sub { CORE::warn(@_) };
 
   return sub { &$orig_sig_warn unless $_[0] =~ $pattern };
+}
+
+sub refcount {
+  croak "Expecting a reference" if ! length ref $_[0];
+
+  require B;
+  # No tempvars - must operate on $_[0], otherwise the pad
+  # will count as an extra ref
+  B::svref_2object($_[0])->REFCNT;
 }
 
 sub modver_gt_or_eq {

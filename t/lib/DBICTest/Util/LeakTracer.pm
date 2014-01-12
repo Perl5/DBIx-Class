@@ -5,7 +5,7 @@ use strict;
 
 use Carp;
 use Scalar::Util qw/isweak weaken blessed reftype refaddr/;
-use B 'svref_2object';
+use DBIx::Class::_Util 'refcount';
 use DBICTest::Util 'stacktrace';
 
 use base 'Exporter';
@@ -142,10 +142,8 @@ sub assert_empty_weakregistry {
           and
         my $expected_refcnt = $classdata_refcounts->{$weak_registry->{$slot}{refaddr}}
       ) {
-        # need to store the SVref and examine it separately,
-        # to push the weakref instance off the pad
-        my $sv = svref_2object($weak_registry->{$slot}{weakref});
-        delete $weak_registry->{$slot} if $sv->REFCNT == $expected_refcnt;
+        delete $weak_registry->{$slot}
+          if refcount($weak_registry->{$slot}{weakref}) == $expected_refcnt;
       }
     }
   }

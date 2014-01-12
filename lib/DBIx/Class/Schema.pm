@@ -8,8 +8,8 @@ use base 'DBIx::Class';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
+use DBIx::Class::_Util 'refcount';
 use Sub::Name 'subname';
-use B 'svref_2object';
 use Devel::GlobalDestruction;
 use namespace::clean;
 
@@ -1405,7 +1405,7 @@ sub DESTROY {
     # which will serve as a signal to not try doing anything else
     # however beware - on older perls the exception seems randomly untrappable
     # due to some weird race condition during thread joining :(((
-    if (ref $srcs->{$source_name} and svref_2object($srcs->{$source_name})->REFCNT > 1) {
+    if (length ref $srcs->{$source_name} and refcount($srcs->{$source_name}) > 1) {
       local $@;
       eval {
         $srcs->{$source_name}->schema($self);
