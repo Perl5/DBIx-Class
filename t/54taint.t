@@ -12,7 +12,7 @@ use warnings;
 use Config;
 BEGIN {
   for (map { defined $ENV{$_} ? $ENV{$_} : () } (qw/PERLLIB PERL5LIB/) ) {  # we unshift, so reverse precedence
-    my ($envvar) = ($_ =~ /^(.+)$/);  # untaint
+    my ($envvar) = ($_ =~ /^(.*)$/s);  # untaint
     unshift @INC, map { length($_) ? $_ : () } (split /\Q$Config{path_sep}\E/, $envvar);
   }
 }

@@ -33,6 +33,7 @@ Revision history for DBIx::Class
           relationship.
         - Fix t/storage/replicated.t class loading problem
         - Stop using the deprecated Class::MOP::load_class()
+        - Fix warning in t/54taint.t with explicitly unset PERL5LIB (RT#91972)
 
     * Misc
         - Replace $row with $result in all docs to be consistent and to

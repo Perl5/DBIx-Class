@@ -540,6 +540,8 @@ yrlnry: Mark Jason Dominus <mjd@plover.com>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
+Zefram: Andrew Main <zefram@fysh.org>
+
 =head1 COPYRIGHT
 
 Copyright (c) 2005 - 2011 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
