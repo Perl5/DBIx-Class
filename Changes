@@ -36,6 +36,8 @@ Revision history for DBIx::Class
         - Fix warning in t/54taint.t with explicitly unset PERL5LIB (RT#91972)
 
     * Misc
+        - Adjust exceptions in tests to accommodate changes in the upcoming
+          DBD::SQLite based on libsqlite 3.8.2
         - Replace $row with $result in all docs to be consistent and to
           clarify various return values
 
