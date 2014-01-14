@@ -205,6 +205,12 @@ sub new {
   my %seek_and_destroy;
 
   sub _arm_global_destructor {
+
+    # quick "garbage collection" pass - prevents the registry
+    # from slowly growing with a bunch of undef-valued keys
+    defined $seek_and_destroy{$_} or delete $seek_and_destroy{$_}
+      for keys %seek_and_destroy;
+
     weaken (
       $seek_and_destroy{ refaddr($_[0]) } = $_[0]
     );

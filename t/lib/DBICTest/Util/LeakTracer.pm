@@ -38,6 +38,17 @@ sub populate_weakregistry {
   # a registry could be fed to itself or another registry via recursive sweeps
   return $target if $reg_of_regs{$refaddr};
 
+  weaken( $reg_of_regs{ hrefaddr($weak_registry) } = $weak_registry )
+    unless( $reg_of_regs{ hrefaddr($weak_registry) } );
+
+  # an explicit "garbage collection" pass every time we store a ref
+  # if we do not do this the registry will keep growing appearing
+  # as if the traced program is continuously slowly leaking memory
+  for my $reg (values %reg_of_regs) {
+    (defined $reg->{$_}{weakref}) or delete $reg->{$_}
+      for keys %$reg;
+  }
+
   if (! defined $weak_registry->{$refaddr}{weakref}) {
     $weak_registry->{$refaddr} = {
       stacktrace => stacktrace(1),
@@ -53,9 +64,6 @@ sub populate_weakregistry {
     $note =~ s/\s*\Q$desc\E\s*//g;
     $weak_registry->{$refaddr}{slot_names}{$note} = 1;
   }
-
-  weaken( $reg_of_regs{ hrefaddr($weak_registry) } = $weak_registry )
-    unless( $reg_of_regs{ hrefaddr($weak_registry) } );
 
   $target;
 }

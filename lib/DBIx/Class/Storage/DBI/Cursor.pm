@@ -59,8 +59,15 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
       attrs => $attrs,
     }, ref $class || $class;
 
-    weaken( $cursor_registry{ refaddr($self) } = $self )
-      if DBIx::Class::_ENV_::HAS_ITHREADS;
+    if (DBIx::Class::_ENV_::HAS_ITHREADS) {
+
+      # quick "garbage collection" pass - prevents the registry
+      # from slowly growing with a bunch of undef-valued keys
+      defined $cursor_registry{$_} or delete $cursor_registry{$_}
+        for keys %cursor_registry;
+
+      weaken( $cursor_registry{ refaddr($self) } = $self )
+    }
 
     return $self;
   }
