@@ -14,7 +14,7 @@ use constant {
 };
 
 use base 'Exporter';
-our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry hrefaddr);
+our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry hrefaddr visit_refs);
 
 my $refs_traced = 0;
 my $leaks_found = 0;

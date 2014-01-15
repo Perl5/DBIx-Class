@@ -47,7 +47,7 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 use DBIx::Class;
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
@@ -274,6 +274,24 @@ unless (DBICTest::RunMode->is_plain) {
     fresh_pager => $rs->page(5)->pager,
     pager => $pager,
   );
+
+  # FIXME - ideally this kind of collector ought to be global, but attempts
+  # with an invasive debugger-based tracer did not quite work out... yet
+  # Manually scan the innards of everything we have in the base collection
+  # we assembled so far (skip the DT madness below) *recursively*
+  #
+  # Only do this when we do have the bits to look inside CVs properly,
+  # without it we are liable to pick up object defaults that are locked
+  # in method closures
+  if (DBICTest::Util::LeakTracer::CV_TRACING) {
+    visit_refs(
+      refs => [ $base_collection ],
+      action => sub {
+        populate_weakregistry ($weak_registry, $_[0]);
+        1;  # true means "keep descending"
+      },
+    );
+  }
 
   if ($has_dt) {
     my $rs = $base_collection->{icdt_rs} = $schema->resultset('Event');
