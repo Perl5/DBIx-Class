@@ -216,10 +216,10 @@ my $reqs = {
     }
   },
 
-  test_leaks => {
+  test_leaks_heavy => {
     req => {
-      'Test::Memory::Cycle'       => '0',
-      'Devel::Cycle'              => '1.10',
+      'Class::MethodCache' => '0.02',
+      'PadWalker' => '1.06',
     },
   },
 

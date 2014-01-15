@@ -6,8 +6,12 @@ use strict;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
 use DBIx::Class::_Util 'refcount';
+use DBIx::Class::Optional::Dependencies;
 use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
+use constant {
+  CV_TRACING => DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
+};
 
 use base 'Exporter';
 our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry hrefaddr);
@@ -95,15 +99,61 @@ sub CLONE {
   }
 }
 
+sub visit_refs {
+  my $args = { (ref $_[0]) ? %{$_[0]} : @_ };
+
+  $args->{seen_refs} ||= {};
+
+  my $visited_cnt = '0E0';
+  for my $i (0 .. $#{$args->{refs}} ) {
+    next if isweak($args->{refs}[$i]);
+
+    my $r = $args->{refs}[$i];
+
+    next unless length ref $r;
+
+    next if $args->{seen_refs}{my $dec_addr = Scalar::Util::refaddr($r)}++;
+
+    $visited_cnt++;
+    $args->{action}->($r) or next;
+
+    my $type = reftype $r;
+    if ($type eq 'HASH') {
+      $visited_cnt += visit_refs({ %$args, refs => [ map {
+        ( !isweak($r->{$_}) ) ? $r->{$_} : ()
+      } keys %$r ] });
+    }
+    elsif ($type eq 'ARRAY') {
+      $visited_cnt += visit_refs({ %$args, refs => [ map {
+        ( !isweak($r->[$_]) ) ? $r->[$_] : ()
+      } 0..$#$r ] });
+    }
+    elsif ($type eq 'REF' and !isweak($$r)) {
+      $visited_cnt += visit_refs({ %$args, refs => [ $$r ] });
+    }
+    elsif (CV_TRACING and $type eq 'CODE') {
+      $visited_cnt += visit_refs({ %$args, refs => [ map {
+        ( !isweak($_) ) ? $_ : ()
+      } scalar PadWalker::closed_over($r) ] }); # scalar due to RT#92269
+    }
+  }
+  $visited_cnt;
+}
+
 sub assert_empty_weakregistry {
   my ($weak_registry, $quiet) = @_;
+
+  # in case we hooked bless any extra object creation will wreak
+  # havoc during the assert phase
+  local *CORE::GLOBAL::bless;
+  *CORE::GLOBAL::bless = sub { CORE::bless( $_[0], (@_ > 1) ? $_[1] : caller() ) };
 
   croak 'Expecting a registry hashref' unless ref $weak_registry eq 'HASH';
 
   return unless keys %$weak_registry;
 
   my $tb = eval { Test::Builder->new }
-    or croak 'Calling test_weakregistry without a loaded Test::Builder makes no sense';
+    or croak "Calling assert_empty_weakregistry in $0 without a loaded Test::Builder makes no sense";
 
   for my $addr (keys %$weak_registry) {
     $weak_registry->{$addr}{display_name} = join ' | ', (
@@ -116,57 +166,58 @@ sub assert_empty_weakregistry {
       if defined $weak_registry->{$addr}{weakref} and ! isweak( $weak_registry->{$addr}{weakref} );
   }
 
-  # compile a list of refs stored as CAG class data, so we can skip them
-  # intelligently below
-  my ($classdata_refcounts, $symwalker, $refwalker);
+  # compile a list of refs stored as globals (possibly even catching
+  # class data in the form of method closures), so we can skip them
+  # further on
+  my ($seen_refs, $classdata_refs) = ({}, undef);
 
-  $refwalker = sub {
-    return unless length ref $_[0];
+  # the walk is very expensive - if we are $quiet (running in an END block)
+  # we do not really need to be too thorough
+  unless ($quiet) {
+    my ($symwalker, $symcounts);
+    $symwalker = sub {
+      no strict 'refs';
+      my $pkg = shift || '::';
 
-    my $seen = $_[1] || {};
-    return if $seen->{hrefaddr $_[0]}++;
+      # any non-weak globals are "clasdata" in all possible sense
+      #
+      # the unless regex at the end skips some dangerous namespaces outright
+      # (but does not prevent descent)
+      $symcounts->{$pkg} += visit_refs (
+        seen_refs => $seen_refs,
+        action => sub { ++$classdata_refs->{hrefaddr $_[0]} },
+        refs => [ map { my $sym = $_;
+          # *{"$pkg$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there
+          ( CV_TRACING ? Class::MethodCache::get_cv("${pkg}$sym") : () ),
 
-    $classdata_refcounts->{hrefaddr $_[0]}++;
+          ( defined *{"$pkg$sym"}{SCALAR} and length ref ${"$pkg$sym"} and ! isweak( ${"$pkg$sym"} ) )
+            ? ${"$pkg$sym"} : ()
+          ,
+          ( map {
+            ( defined *{"$pkg$sym"}{$_} and ! isweak(defined *{"$pkg$sym"}{$_}) )
+              ? *{"$pkg$sym"}{$_}
+              : ()
+          } qw(HASH ARRAY IO GLOB) ),
+        } keys %$pkg ],
+      ) unless $pkg =~ /^ :: (?:
+        DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
+      ) :: $/x;
 
-    my $type = reftype $_[0];
-    if ($type eq 'HASH') {
-      $refwalker->($_, $seen) for values %{$_[0]};
-    }
-    elsif ($type eq 'ARRAY') {
-      $refwalker->($_, $seen) for @{$_[0]};
-    }
-    elsif ($type eq 'REF') {
-      $refwalker->($$_, $seen);
-    }
-  };
-
-  $symwalker = sub {
-    no strict 'refs';
-    my $pkg = shift || '::';
-
-    $refwalker->(${"${pkg}$_"}) for grep { $_ =~ /__cag_(?!pkg_gen__|supers__)/ } keys %$pkg;
-
-    $symwalker->("${pkg}$_") for grep { $_ =~ /(?<!^main)::$/ } keys %$pkg;
-  };
-
-  # run things twice, some cycles will be broken, introducing new
-  # candidates for pseudo-GC
-  for (1,2) {
-    undef $classdata_refcounts;
+      $symwalker->("${pkg}$_") for grep { $_ =~ /(?<!^main)::$/ } keys %$pkg;
+    };
 
     $symwalker->();
 
-    for my $refaddr (keys %$weak_registry) {
-      if (
-        defined $weak_registry->{$refaddr}{weakref}
-          and
-        my $expected_refcnt = $classdata_refcounts->{$refaddr}
-      ) {
-        delete $weak_registry->{$refaddr}
-          if refcount($weak_registry->{$refaddr}{weakref}) == $expected_refcnt;
-      }
-    }
+#    use Devel::Dwarn;
+#    Ddie [ map
+#      { { $_ => $symcounts->{$_} } }
+#      sort
+#        {$symcounts->{$a} <=> $symcounts->{$b} }
+#        keys %$symcounts
+#    ];
   }
+
+  delete $weak_registry->{$_} for keys %$classdata_refs;
 
   for my $addr (sort { $weak_registry->{$a}{display_name} cmp $weak_registry->{$b}{display_name} } keys %$weak_registry) {
 
@@ -188,7 +239,7 @@ sub assert_empty_weakregistry {
       ;
     };
 
-    $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 20) . "\n"
+    $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 50) . "\n"
       if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
 
     $diag =~ s/^/    /mg;

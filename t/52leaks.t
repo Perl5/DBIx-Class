@@ -295,23 +295,6 @@ unless (DBICTest::RunMode->is_plain) {
     $base_collection->{"DBI handle $_"} = $_;
   }
 
-  SKIP: {
-    if ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks') ) {
-      my @w;
-      local $SIG{__WARN__} = sub { $_[0] =~ /\QUnhandled type: REGEXP/ ? push @w, @_ : warn @_ };
-
-      Test::Memory::Cycle::memory_cycle_ok ($base_collection, 'No cycles in the object collection');
-
-      if ( $] > 5.011 ) {
-        local $TODO = 'Silence warning due to RT56681';
-        is (@w, 0, 'No Devel::Cycle emitted warnings');
-      }
-    }
-    else {
-      skip 'Circular ref test needs ' .  DBIx::Class::Optional::Dependencies->req_missing_for ('test_leaks'), 1;
-    }
-  }
-
   populate_weakregistry ($weak_registry, $base_collection->{$_}, "basic $_")
     for keys %$base_collection;
 }
@@ -361,24 +344,10 @@ for my $addr (keys %$weak_registry) {
     # T::B 2.0 has result objects and other fancyness
     delete $weak_registry->{$addr};
   }
-  elsif ($names =~ /^Method::Generate::(?:Accessor|Constructor)/m) {
-    # Moo keeps globals around, this is normal
-    delete $weak_registry->{$addr};
-  }
-  elsif ($names =~ /^SQL::Translator::Generator::DDL::SQLite/m) {
-    # SQLT::Producer::SQLite keeps global generators around for quoted
-    # and non-quoted DDL, allow one for each quoting style
-    delete $weak_registry->{$addr}
-      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$addr}{weakref}->quote_chars}}++;
-  }
   elsif ($names =~ /^Hash::Merge/m) {
     # only clear one object of a specific behavior - more would indicate trouble
     delete $weak_registry->{$addr}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
-  }
-  elsif ($names =~ /^DateTime::TimeZone/m) {
-    # DT is going through a refactor it seems - let it leak zones for now
-    delete $weak_registry->{$addr};
   }
 }
 
