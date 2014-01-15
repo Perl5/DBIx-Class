@@ -170,35 +170,38 @@ sub assert_empty_weakregistry {
 
   for my $addr (sort { $weak_registry->{$a}{display_name} cmp $weak_registry->{$b}{display_name} } keys %$weak_registry) {
 
-    ! defined $weak_registry->{$addr}{weakref} and next if $quiet;
+    next if ! defined $weak_registry->{$addr}{weakref};
 
-    $tb->ok (! defined $weak_registry->{$addr}{weakref}, "No leaks of $weak_registry->{$addr}{display_name}") or do {
-      $leaks_found++;
+    $leaks_found++;
+    $tb->ok (0, "Leaked $weak_registry->{$addr}{display_name}");
 
-      my $diag = do {
-        local $Data::Dumper::Maxdepth = 1;
-        sprintf "\n%s (refcnt %d) => %s\n",
-          $weak_registry->{$addr}{display_name},
-          refcount($weak_registry->{$addr}{weakref}),
-          (
-            ref($weak_registry->{$addr}{weakref}) eq 'CODE'
-              and
-            B::svref_2object($weak_registry->{$addr}{weakref})->XSUB
-          ) ? '__XSUB__' : Dumper( $weak_registry->{$addr}{weakref} )
-        ;
-      };
-
-      $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 20) . "\n"
-        if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
-
-      $diag =~ s/^/    /mg;
-
-      if (my $stack = $weak_registry->{$addr}{stacktrace}) {
-        $diag .= "    Reference first seen$stack";
-      }
-
-      $tb->diag($diag);
+    my $diag = do {
+      local $Data::Dumper::Maxdepth = 1;
+      sprintf "\n%s (refcnt %d) => %s\n",
+        $weak_registry->{$addr}{display_name},
+        refcount($weak_registry->{$addr}{weakref}),
+        (
+          ref($weak_registry->{$addr}{weakref}) eq 'CODE'
+            and
+          B::svref_2object($weak_registry->{$addr}{weakref})->XSUB
+        ) ? '__XSUB__' : Dumper( $weak_registry->{$addr}{weakref} )
+      ;
     };
+
+    $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 20) . "\n"
+      if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
+
+    $diag =~ s/^/    /mg;
+
+    if (my $stack = $weak_registry->{$addr}{stacktrace}) {
+      $diag .= "    Reference first seen$stack";
+    }
+
+    $tb->diag($diag);
+  }
+
+  if (! $quiet and ! $leaks_found) {
+    $tb->ok(1, sprintf "No leaks found at %s line %d", (caller())[1,2] );
   }
 }
 
