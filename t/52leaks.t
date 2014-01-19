@@ -47,7 +47,8 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
+use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs hrefaddr);
+use Scalar::Util qw(weaken);
 use DBIx::Class;
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
@@ -87,7 +88,7 @@ unless (DBICTest::RunMode->is_plain) {
     # re-populate the registry while checking it, ewwww!)
     return $obj if (ref $obj) =~ /^TB2::/;
 
-    # weaken immediately to avoid weird side effects
+    # populate immediately to avoid weird side effects
     return populate_weakregistry ($weak_registry, $obj );
   };
 
@@ -257,9 +258,7 @@ unless (DBICTest::RunMode->is_plain) {
 
   # this needs to fire, even if it can't find anything
   # see FIXME below
-  # we run this only on smokers - trying to establish a pattern
-  $rs_bind_circref->next
-    if ( ($ENV{TRAVIS}||'') ne 'true' and DBICTest::RunMode->is_smoker);
+  $rs_bind_circref->next;
 
   require Storable;
   %$base_collection = (
@@ -371,18 +370,42 @@ for my $addr (keys %$weak_registry) {
 
 # FIXME !!!
 # There is an actual strong circular reference taking place here, but because
-# half of it is in XS no leaktracer sees it, and Devel::FindRef is equally
-# stumped when trying to trace the origin. The problem is:
+# half of it is in XS, so it is a bit harder to track down (it stumps D::FR)
+# (our tracker does not yet do it, but it'd be nice)
+# The problem is:
 #
 # $cond_object --> result_source --> schema --> storage --> $dbh --> {CachedKids}
 #          ^                                                           /
 #           \-------- bound value on prepared/cached STH  <-----------/
 #
 {
-  local $TODO = 'This fails intermittently - see RT#82942';
-  if ( my $r = ($weak_registry->{'basic leaky_resultset_cond'}||{})->{weakref} ) {
+  my @circreffed;
+
+  for my $r (map
+    { $_->{weakref} }
+    grep
+      { $_->{slot_names}{'basic leaky_resultset_cond'} }
+      values %$weak_registry
+  ) {
+    local $TODO = 'Needs Data::Entangled or somesuch - see RT#82942';
     ok(! defined $r, 'Self-referential RS conditions no longer leak!')
-      or $r->result_source(undef);
+      or push @circreffed, $r;
+  }
+
+  if (@circreffed) {
+    is (scalar @circreffed, 1, 'One resultset expected to leak');
+
+    # this is useless on its own, it is to showcase the circref-diag
+    # and eventually test it when it is operational
+    local $TODO = 'Needs Data::Entangled or somesuch - see RT#82942';
+    while (@circreffed) {
+      weaken (my $r = shift @circreffed);
+
+      populate_weakregistry( (my $mini_registry = {}), $r );
+      assert_empty_weakregistry( $mini_registry );
+
+      $r->result_source(undef);
+    }
   }
 }
 

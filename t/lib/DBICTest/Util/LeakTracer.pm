@@ -223,7 +223,7 @@ sub assert_empty_weakregistry {
 
     next if ! defined $weak_registry->{$addr}{weakref};
 
-    $leaks_found++;
+    $leaks_found++ unless $tb->in_todo;
     $tb->ok (0, "Leaked $weak_registry->{$addr}{display_name}");
 
     my $diag = do {
@@ -239,6 +239,9 @@ sub assert_empty_weakregistry {
       ;
     };
 
+    # FIXME - need to add a circular reference seeker based on the visitor
+    # (will need a bunch of modifications, punting with just a stub for now)
+
     $diag .= Devel::FindRef::track ($weak_registry->{$addr}{weakref}, 50) . "\n"
       if ( $ENV{TEST_VERBOSE} && eval { require Devel::FindRef });
 
@@ -251,7 +254,7 @@ sub assert_empty_weakregistry {
     $tb->diag($diag);
   }
 
-  if (! $quiet and ! $leaks_found) {
+  if (! $quiet and !$leaks_found and ! $tb->in_todo) {
     $tb->ok(1, sprintf "No leaks found at %s line %d", (caller())[1,2] );
   }
 }
