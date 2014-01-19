@@ -512,7 +512,7 @@ sub _where_op_multicolumn_in {
 
   for ($lhs, $rhs) {
     $$_->[0] = "( $$_->[0] )"
-      unless $$_->[0] =~ /^ \s* \( .* \) \s* ^/xs;
+      unless $$_->[0] =~ /^ \s* \( .* \) \s* $/xs;
   }
 
   \[ join( ' IN ', shift @$$lhs, shift @$$rhs ), @$$lhs, @$$rhs ];
