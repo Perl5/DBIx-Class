@@ -60,8 +60,10 @@ if [[ "$CLEANTEST" = "true" ]]; then
     # hence it will not get installed a second time as an unsatisfied dep
     # under cpanm --dev
     #
+    # We are also not "quite ready" for SQLA 1.99, do not consider it
+    #
     # L::U is a workaround for RT#92226 (argh)
-    installdeps 'Test::Builder~<1.005' 'List::Util~!=1.36'
+    installdeps 'Test::Builder~<1.005' 'SQL::Abstract~<1.99' 'List::Util~!=1.36'
 
   elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
@@ -96,7 +98,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DBI DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest 'SQL::Abstract~<1.99' Moose Module::Install JSON SQL::Translator File::Which
 
   if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
     # the official version is very much outdated and does not compile on 5.14+
@@ -197,7 +199,9 @@ while (@chunks) {
 else
 
   # listalldeps is deliberate - will upgrade everything it can find
-  parallel_installdeps_notest $(make listalldeps | grep -v List::Util)
+  # we exclude SQLA specifically, since we do not want to pull
+  # in 1.99_xx on bleadcpan runs
+  parallel_installdeps_notest $(make listalldeps | grep -vP 'List::Util|SQL::Abstract')
 
 fi
 
