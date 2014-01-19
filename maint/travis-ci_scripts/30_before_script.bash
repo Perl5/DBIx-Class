@@ -59,12 +59,14 @@ if [[ "$CLEANTEST" = "true" ]]; then
     # latest T::B here, so that it will not show up as a dependency, and
     # hence it will not get installed a second time as an unsatisfied dep
     # under cpanm --dev
-    installdeps 'Test::Builder~<1.005'
+    #
+    # L::U is a workaround for RT#92226 (argh)
+    installdeps 'Test::Builder~<1.005' 'List::Util~!=1.36'
 
   elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
     # without pre-installing these in one pass things like extract_prereqs won't work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build P/PE/PEVANS/Scalar-List-Utils-1.35.tar.gz
 
   fi
 
@@ -89,7 +91,7 @@ else
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
+  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime 'List::Util~<1.36'
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
@@ -195,7 +197,7 @@ while (@chunks) {
 else
 
   # listalldeps is deliberate - will upgrade everything it can find
-  parallel_installdeps_notest $(make listalldeps)
+  parallel_installdeps_notest $(make listalldeps | grep -v List::Util)
 
 fi
 

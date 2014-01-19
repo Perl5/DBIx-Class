@@ -167,11 +167,15 @@ _dep_inst_with_test() {
     for m in "$@"; do
       if ! perl -e '
 
-eval ( q{require } . (
+my $mod = (
   $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
-) ) or ( print $@ and exit 1)
+);
+
+$mod = q{List::Util} if $mod eq q{Scalar::List::Utils};
+
+eval qq{require($mod)} or ( print $@ and exit 1)
 
       ' "$m" 2> /dev/null ; then
         echo -e "$m installation seems to have failed"
