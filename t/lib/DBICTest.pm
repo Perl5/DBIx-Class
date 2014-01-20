@@ -209,12 +209,24 @@ sub _database {
       );
     }
 
+    # MASSIVE FIXME - this seems necessary, but I do not yet know why
+    # without an external variable on the pad the on_connect_do cref
+    # (starting just below) is being considered a const of some sorts
+    # and persists indefinitely... wtf --ribasushi
+    my $such_var = 'very closure... much wtf... wow!!!';
+
     return ("dbi:SQLite:${db_file}", '', '', {
       AutoCommit => 1,
 
       # this is executed on every connect, and thus installs a disconnect/DESTROY
       # guard for every new $dbh
       on_connect_do => sub {
+        # MASSIVE FIXME - this seems necessary, but I do not yet know why
+        # without an external variable on the pad the on_connect_do cref
+        # (starting just above) is being considered a const of some sorts
+        # and persists indefinitely... wtf --ribasushi
+        $such_var if 0;
+
         my $storage = shift;
         my $dbh = $storage->_get_dbh;
 
@@ -233,7 +245,7 @@ sub _database {
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
         # an open database, which fails on Win32)
-        if (my $guard_cb = __mk_disconnect_guard($db_file)) {
+        if (my $guard_cb = __mk_disconnect_guard($dbh->sqlite_db_filename)) {
           $dbh->{Callbacks} = {
             connect => sub { $guard_cb->('connect') },
             disconnect => sub { $guard_cb->('disconnect') },
