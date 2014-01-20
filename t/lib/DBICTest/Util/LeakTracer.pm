@@ -11,6 +11,7 @@ use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
 use constant {
   CV_TRACING => DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
+  SKIP_SCALAR_REFS => ( $] > 5.017 ) ? 1 : 0,
 };
 
 use base 'Exporter';
@@ -52,6 +53,10 @@ sub populate_weakregistry {
     (defined $reg->{$_}{weakref}) or delete $reg->{$_}
       for keys %$reg;
   }
+
+  # FIXME/INVESTIGATE - something fishy is going on with refs to plain
+  # strings, perhaps something to do with the CoW work etc...
+  return $target if SKIP_SCALAR_REFS and reftype($target) eq 'SCALAR';
 
   if (! defined $weak_registry->{$refaddr}{weakref}) {
     $weak_registry->{$refaddr} = {
