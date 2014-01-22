@@ -324,7 +324,7 @@ unless (DBICTest::RunMode->is_plain) {
     # do a heavy-duty fire-and-compare loop on all resultsets
     # this is expensive - not running on install
     my $typecounts = {};
-    unless (DBICTest::RunMode->is_plain) {
+    unless (DBICTest::RunMode->is_plain or $ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
       # FIXME - ideally we should be able to just populate an alternative
       # registry, subtract everything from the main one, and arrive at
