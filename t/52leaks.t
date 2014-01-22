@@ -458,6 +458,17 @@ for my $addr (keys %$weak_registry) {
     delete $weak_registry->{$addr}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
+  elsif (
+    # if we can look at closed over pieces - we will register it as a global
+    !DBICTest::Util::LeakTracer::CV_TRACING
+      and
+    $names =~ /^SQL::Translator::Generator::DDL::SQLite/m
+  ) {
+    # SQLT::Producer::SQLite keeps global generators around for quoted
+    # and non-quoted DDL, allow one for each quoting style
+    delete $weak_registry->{$addr}
+      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$addr}{weakref}->quote_chars}}++;
+  }
 }
 
 # FIXME !!!
