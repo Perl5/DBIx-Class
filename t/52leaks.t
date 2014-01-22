@@ -360,13 +360,6 @@ unless (DBICTest::RunMode->is_plain) {
         ## anything we have seen so far is cool
         #delete @{$interim_wr}{keys %$weak_registry};
         #
-        ## I still don't get any of this...
-        #delete $interim_wr->{$_} for grep {
-        #  ref ($interim_wr->{$_}{weakref}) eq 'SCALAR'
-        #    and
-        #  ${$interim_wr->{$_}{weakref}} eq 'very closure... much wtf... wow!!!'
-        #} keys %$interim_wr;
-        #
         ## moment of truth - the rest ought to be gone
         #assert_empty_weakregistry($interim_wr);
       }
