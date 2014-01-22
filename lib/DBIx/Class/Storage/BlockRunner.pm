@@ -5,9 +5,10 @@ use Sub::Quote 'quote_sub';
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
 use Moo;
+use warnings NONFATAL => 'all';
 use namespace::clean;
 
 =head1 NAME
@@ -34,52 +35,35 @@ has wrap_txn => (
 has retry_handler => (
   is => 'ro',
   required => 1,
-  isa => quote_sub( q|
-    (ref $_[0]) eq 'CODE'
+  isa => quote_sub( q{
+    (Scalar::Util::reftype($_[0])||'') eq 'CODE'
       or DBIx::Class::Exception->throw('retry_handler must be a CODE reference')
-  |),
-);
-
-has run_code => (
-  is => 'ro',
-  required => 1,
-  isa => quote_sub( q|
-    (ref $_[0]) eq 'CODE'
-      or DBIx::Class::Exception->throw('run_code must be a CODE reference')
-  |),
-);
-
-has run_args => (
-  is => 'ro',
-  isa => quote_sub( q|
-    (ref $_[0]) eq 'ARRAY'
-      or DBIx::Class::Exception->throw('run_args must be an ARRAY reference')
-  |),
-  default => quote_sub( '[]' ),
+  }),
 );
 
 has retry_debug => (
   is => 'rw',
+  # use a sub - to be evaluated on the spot lazily
   default => quote_sub( '$ENV{DBIC_STORAGE_RETRY_DEBUG}' ),
+  lazy => 1,
 );
 
-has max_retried_count => (
+has max_attempts => (
   is => 'ro',
-  default => quote_sub( '20' ),
+  default => 20,
 );
 
-has retried_count => (
+has failed_attempt_count => (
   is => 'ro',
-  init_arg => undef,
-  writer => '_set_retried_count',
-  clearer => '_reset_retried_count',
-  default => quote_sub(q{ 0 }),
+  init_arg => undef,  # ensures one can't pass the value in
+  writer => '_set_failed_attempt_count',
+  default => 0,
   lazy => 1,
   trigger => quote_sub(q{
     $_[0]->throw_exception( sprintf (
-      'Exceeded max_retried_count amount of %d, latest exception: %s',
-      $_[0]->max_retried_count, $_[0]->last_exception
-    )) if $_[0]->max_retried_count < ($_[1]||0);
+      'Reached max_attempts amount of %d, latest exception: %s',
+      $_[0]->max_attempts, $_[0]->last_exception
+    )) if $_[0]->max_attempts <= ($_[1]||0);
   }),
 );
 
@@ -98,28 +82,35 @@ sub throw_exception { shift->storage->throw_exception (@_) }
 sub run {
   my $self = shift;
 
-  $self->throw_exception('run() takes no arguments') if @_;
-
   $self->_reset_exception_stack;
-  $self->_reset_retried_count;
+  $self->_set_failed_attempt_count(0);
+
+  my $cref = shift;
+
+  $self->throw_exception('run() requires a coderef to execute as its first argument')
+    if ( reftype($cref)||'' ) ne 'CODE';
+
   my $storage = $self->storage;
 
-  return $self->run_code->( @{$self->run_args} )
-    if (! $self->wrap_txn and $storage->{_in_do_block});
+  return $cref->( @_ ) if (
+    $storage->{_in_do_block}
+      and
+    ! $self->wrap_txn
+  );
 
   local $storage->{_in_do_block} = 1 unless $storage->{_in_do_block};
 
-  return $self->_run;
+  return $self->_run($cref, @_);
 }
 
 # this is the actual recursing worker
 sub _run {
-  # warnings here mean I did not anticipate some ueber-complex case
-  # fatal warnings are not warranted
-  no warnings;
-  use warnings;
+  # internal method - we know that both refs are strong-held by the
+  # calling scope of run(), hence safe to weaken everything
+  weaken( my $self = shift );
+  weaken( my $cref = shift );
 
-  my $self = shift;
+  my $args = @_ ? \@_ : [];
 
   # from this point on (defined $txn_init_depth) is an indicator for wrap_txn
   # save a bit on method calls
@@ -128,15 +119,13 @@ sub _run {
 
   my $run_err = '';
 
-  weaken (my $weakself = $self);
-
   return preserve_context {
     try {
       if (defined $txn_init_depth) {
-        $weakself->storage->txn_begin;
+        $self->storage->txn_begin;
         $txn_begin_ok = 1;
       }
-      $weakself->run_code->( @{$weakself->run_args} );
+      $cref->( @$args );
     } catch {
       $run_err = $_;
       (); # important, affects @_ below
@@ -144,7 +133,7 @@ sub _run {
   } replace => sub {
     my @res = @_;
 
-    my $storage = $weakself->storage;
+    my $storage = $self->storage;
     my $cur_depth = $storage->transaction_depth;
 
     if (defined $txn_init_depth and $run_err eq '') {
@@ -156,7 +145,7 @@ sub _run {
           'Unexpected reduction of transaction depth by %d after execution of '
         . '%s, skipping txn_commit()',
           $delta_txn,
-          $weakself->run_code,
+          $cref,
         ) unless $delta_txn == 1 and $cur_depth == 0;
       }
       else {
@@ -184,7 +173,10 @@ sub _run {
         }
       }
 
-      push @{ $weakself->exception_stack }, $run_err;
+      push @{ $self->exception_stack }, $run_err;
+
+      # this will throw if max_attempts is reached
+      $self->_set_failed_attempt_count($self->failed_attempt_count + 1);
 
       # init depth of > 0 ( > 1 with AC) implies nesting - no retry attempt queries
       $storage->throw_exception($run_err) if (
@@ -194,17 +186,15 @@ sub _run {
           # FIXME - we assume that $storage->{_dbh_autocommit} is there if
           # txn_init_depth is there, but this is a DBI-ism
           $txn_init_depth > ( $storage->{_dbh_autocommit} ? 0 : 1 )
-        ) or ! $weakself->retry_handler->($weakself)
+        ) or ! $self->retry_handler->($self)
       );
 
-      $weakself->_set_retried_count($weakself->retried_count + 1);
-
       # we got that far - let's retry
-      carp( sprintf 'Retrying %s (run %d) after caught exception: %s',
-        $weakself->run_code,
-        $weakself->retried_count + 1,
+      carp( sprintf 'Retrying %s (attempt %d) after caught exception: %s',
+        $cref,
+        $self->failed_attempt_count + 1,
         $run_err,
-      ) if $weakself->retry_debug;
+      ) if $self->retry_debug;
 
       $storage->ensure_connected;
       # if txn_depth is > 1 this means something was done to the
@@ -214,7 +204,7 @@ sub _run {
         $storage->transaction_depth,
       ) if (defined $txn_init_depth and $storage->transaction_depth);
 
-      return $weakself->_run;
+      return $self->_run($cref, @$args);
     }
 
     return wantarray ? @res : $res[0];

@@ -822,7 +822,7 @@ Example:
 
 sub dbh_do {
   my $self = shift;
-  my $run_target = shift;
+  my $run_target = shift; # either a coderef or a method name
 
   # short circuit when we know there is no need for a runner
   #
@@ -839,10 +839,15 @@ sub dbh_do {
 
   DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
-    run_code => sub { $self->$run_target ($self->_get_dbh, @$args ) },
     wrap_txn => 0,
-    retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
-  )->run;
+    retry_handler => sub {
+      $_[0]->failed_attempt_count == 1
+        and
+      ! $_[0]->storage->connected
+    },
+  )->run(sub {
+    $self->$run_target ($self->_get_dbh, @$args )
+  });
 }
 
 sub txn_do {

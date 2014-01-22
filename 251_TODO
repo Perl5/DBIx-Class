@@ -3,5 +3,3 @@ of importance:
 (Keep Getty happy)
 
 - Clarify/warn on the distinct over multiple columns get_column()
-- Incompatibly move around pieces of BlockRunner (critical - people are
-  starting to rely on it)

@@ -26,9 +26,10 @@ my $code = sub {
     (ref $schema)->txn_do(sub{});
   }, qr/storage/, "can't call txn_do without storage");
 
-  throws_ok ( sub {
+  throws_ok {
     $schema->txn_do('');
-  }, qr/must be a CODE reference/, '$coderef parameter check ok');
+  } qr/\Qrun() requires a coderef to execute as its first argument/,
+  '$coderef parameter check ok';
 }
 
 # Test successful txn_do() - scalar/list context

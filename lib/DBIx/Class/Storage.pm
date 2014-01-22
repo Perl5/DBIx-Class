@@ -175,18 +175,16 @@ transaction failure.
 
 sub txn_do {
   my $self = shift;
-  my $coderef = shift;
 
   DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
-    run_code => $coderef,
-    run_args => @_
-      ? \@_   # take a ref instead of a copy, to preserve @_ aliasing
-      : []    # semantics within the coderef, but only if needed
-    ,         # (pseudoforking doesn't like this trick much)
     wrap_txn => 1,
-    retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
-  )->run;
+    retry_handler => sub {
+      $_[0]->failed_attempt_count == 1
+        and
+      ! $_[0]->storage->connected
+    },
+  )->run(@_);
 }
 
 =head2 txn_begin
