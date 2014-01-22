@@ -48,8 +48,9 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 use lib qw(t/lib);
 use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs hrefaddr);
-use Scalar::Util qw(weaken blessed);
+use Scalar::Util qw(weaken blessed reftype);
 use DBIx::Class;
+use DBIx::Class::_Util 'sigwarn_silencer';
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
     if DBIx::Class::_ENV_::PEEPEENESS;
@@ -214,9 +215,6 @@ unless (DBICTest::RunMode->is_plain) {
   my $getcol_rs = $cds_rs->get_column('me.cdid');
   my $pref_getcol_rs = $cds_with_stuff->get_column('me.cdid');
 
-  # fire the column getters
-  my @throwaway = $pref_getcol_rs->all;
-
   my $base_collection = {
     resultset => $rs,
 
@@ -256,16 +254,34 @@ unless (DBICTest::RunMode->is_plain) {
     leaky_resultset_cond => $cond_rowobj,
   };
 
-  # fire all resultsets multiple times
-  # even if some of them can't find anything
-  # (notably leaky_resultset)
-  my @rsets = grep
-    { blessed $_ and $_->isa('DBIx::Class::ResultSet') }
-    values %$base_collection
-  ;
+  # fire all resultsets multiple times, once here, more below
+  # some of these can't find anything (notably leaky_resultset)
+  my @rsets = grep {
+    blessed $_
+      and
+    (
+      $_->isa('DBIx::Class::ResultSet')
+        or
+      $_->isa('DBIx::Class::ResultSetColumn')
+    )
+  } values %$base_collection;
 
-  push @{$base_collection->{random_results}}, map { $_->all } @rsets
-    for (1,2);
+
+  my $fire_resultsets = sub {
+    local $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS} = 1;
+    local $SIG{__WARN__} = sigwarn_silencer(
+      qr/Unable to deflate 'filter'-type relationship 'artist'.+related object primary key not retrieved/
+    );
+
+    map
+      { $_, (blessed($_) ? { $_->get_columns } : ()) }
+      map
+        { $_->all }
+        @rsets
+    ;
+  };
+
+  push @{$base_collection->{random_results}}, $fire_resultsets->();
 
   # FIXME - something throws a Storable for a spin if we keep
   # the results in-collection. The same problem is seen above,
@@ -304,6 +320,68 @@ unless (DBICTest::RunMode->is_plain) {
         1;  # true means "keep descending"
       },
     );
+
+    # do a heavy-duty fire-and-compare loop on all resultsets
+    # this is expensive - not running on install
+    my $typecounts = {};
+    unless (DBICTest::RunMode->is_plain) {
+
+      # FIXME - ideally we should be able to just populate an alternative
+      # registry, subtract everything from the main one, and arrive at
+      # an "empty" resulting hash
+      # However due to gross inefficiencies in the ::ResultSet code we
+      # end up recalculating a new set of aliasmaps which could have very
+      # well been cached if it wasn't for... anyhow
+      # What we do here for the time being is similar to the lazy approach
+      # of Devel::LeakTrace - we just make sure we do not end up with more
+      # reftypes than when we started. At least we are not blanket-counting
+      # SVs like D::LT does, but going by reftype... sigh...
+
+      for (values %$weak_registry) {
+        if ( my $r = reftype($_->{weakref}) ) {
+          $typecounts->{$r}--;
+        }
+      }
+
+      # For now we can only reuse the same registry, see FIXME above/below
+      #for my $interim_wr ({}, {}) {
+      for my $interim_wr ( ($weak_registry) x 4 ) {
+
+        visit_refs(
+          refs => [ $fire_resultsets->(), @rsets ],
+          action => sub {
+            populate_weakregistry ($interim_wr, $_[0]);
+            1;  # true means "keep descending"
+          },
+        );
+
+        # FIXME - this is what *should* be here
+        #
+        ## anything we have seen so far is cool
+        #delete @{$interim_wr}{keys %$weak_registry};
+        #
+        ## I still don't get any of this...
+        #delete $interim_wr->{$_} for grep {
+        #  ref ($interim_wr->{$_}{weakref}) eq 'SCALAR'
+        #    and
+        #  ${$interim_wr->{$_}{weakref}} eq 'very closure... much wtf... wow!!!'
+        #} keys %$interim_wr;
+        #
+        ## moment of truth - the rest ought to be gone
+        #assert_empty_weakregistry($interim_wr);
+      }
+
+      for (values %$weak_registry) {
+        if ( my $r = reftype($_->{weakref}) ) {
+          $typecounts->{$r}++;
+        }
+      }
+    }
+
+    for (keys %$typecounts) {
+      fail ("Amount of $_ refs changed by $typecounts->{$_} during resultset mass-execution")
+        if ( abs ($typecounts->{$_}) > 1 ); # there is a pad caught somewhere, the +1/-1 can be ignored
+    }
   }
 
   if ($has_dt) {

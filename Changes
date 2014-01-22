@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           with correlated subquery selections
         - Fix multiple edge cases stemming from interaction of a non-selecting
           order_by specification and distinct and/or complex prefetch
+        - Fix unbound growth of a resultset during repeated execute/exhaust
+          cycles (GHPR#29)
         - Clarify ambiguous behavior of distinct when used with ResultSetColumn
           i.e. $rs->search({}, { distinct => 1 })->get_column (...)
         - Setting quote_names propagates to SQL::Translator when producing

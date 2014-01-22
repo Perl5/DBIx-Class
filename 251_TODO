@@ -2,9 +2,6 @@ List of things riba needs to clear out before next official in order
 of importance:
 (Keep Getty happy)
 
-- Figure out what fundamental leak (or group of leaks) is present in the
-  DBICTest::LeakTrace implementation itself
-- Figure out why none of them show up as failures (ton of false negatives)
 - Clarify/warn on the distinct over multiple columns get_column()
 - Incompatibly move around pieces of BlockRunner (critical - people are
   starting to rely on it)

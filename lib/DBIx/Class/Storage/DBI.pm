@@ -2402,8 +2402,8 @@ sub _select_args {
   # soooooo much better now. But that is also another
   # battle...
   #return (
-  #  'select', @{$orig_attrs->{_sqlmaker_select_args}}
-  #) if $orig_attrs->{_sqlmaker_select_args};
+  #  'select', $orig_attrs->{!args_as_stored_at_the_end_of_this_method!}
+  #) if $orig_attrs->{!args_as_stored_at_the_end_of_this_method!};
 
   my $sql_maker = $self->sql_maker;
   my $alias2source = $self->_resolve_ident_sources ($ident);
@@ -2499,6 +2499,16 @@ sub _select_args {
     ($attrs->{from}, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($attrs);
   }
 
+  # FIXME this is a gross, inefficient, largely incorrect and fragile hack
+  # during the result inflation stage we *need* to know what was the aliastype
+  # map as sqla saw it when the final pieces of SQL were being assembled
+  # Originally we simply carried around the entirety of $attrs, but this
+  # resulted in resultsets that are being reused growing continuously, as
+  # the hash in question grew deeper and deeper.
+  # Instead hand-pick what to take with us here (we actually don't need much
+  # at this point just the map itself)
+  $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
+
 ###
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
@@ -2509,9 +2519,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
-    @{$attrs}{qw(from select where)}, $attrs, @limit_args
-  ]} );
+  return ( 'select', @{$attrs}{qw(from select where)}, $attrs, @limit_args );
 }
 
 # Returns a counting SELECT for a simple count

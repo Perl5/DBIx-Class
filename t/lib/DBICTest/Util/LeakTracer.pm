@@ -117,10 +117,19 @@ sub visit_refs {
 
     next unless length ref $r;
 
+    # no diving into weakregistries
+    next if $reg_of_regs{hrefaddr $r};
+
     next if $args->{seen_refs}{my $dec_addr = Scalar::Util::refaddr($r)}++;
 
     $visited_cnt++;
     $args->{action}->($r) or next;
+
+    # This may end up being necessarry some day, but do not slow things
+    # down for now
+    #if ( defined( my $t = tied($r) ) ) {
+    #  $visited_cnt += visit_refs({ %$args, refs => [ $t ] });
+    #}
 
     my $type = reftype $r;
     if ($type eq 'HASH') {
@@ -257,6 +266,19 @@ sub assert_empty_weakregistry {
     }
 
     $tb->diag($diag);
+
+#    if ($leaks_found == 1) {
+#      # using the fh dumper due to intermittent buffering issues
+#      # in case we decide to exit soon after (possibly via _exit)
+#      require Devel::MAT::Dumper;
+#      local $Devel::MAT::Dumper::MAX_STRING = -1;
+#      open( my $fh, '>:raw', "leaked_${addr}_pid$$.pmat" ) or die $!;
+#      Devel::MAT::Dumper::dumpfh( $fh );
+#      close ($fh) or die $!;
+#
+#      use POSIX;
+#      POSIX::_exit(1);
+#    }
   }
 
   if (! $quiet and !$leaks_found and ! $tb->in_todo) {
