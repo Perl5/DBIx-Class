@@ -45,6 +45,7 @@ use Carp;
 use Path::Class::File ();
 use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
+use Config;
 
 =head1 NAME
 
@@ -301,10 +302,16 @@ sub __mk_disconnect_guard {
       my $cur_inode = (stat($db_file))[1];
 
       if ($orig_inode != $cur_inode) {
-        # pack/unpack to match the unsigned longs returned by `stat`
-        $fail_reason = sprintf 'was recreated (initially inode %s, now %s)', (
-          map { unpack ('L', pack ('l', $_) ) } ($orig_inode, $cur_inode )
-        );
+        my @inodes = ($orig_inode, $cur_inode);
+        # unless this is a fixed perl (P5RT#84590) pack/unpack before display
+        # to match the unsigned longs returned by `stat`
+        @inodes = map { unpack ('L', pack ('l', $_) ) } @inodes
+          unless $Config{st_ino_size};
+
+        $fail_reason = sprintf
+          'was recreated (initially inode %s, now %s)',
+          @inodes
+        ;
       }
     }
 
