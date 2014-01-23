@@ -18,6 +18,8 @@ Revision history for DBIx::Class
           order_by specification and distinct and/or complex prefetch
         - Fix unbound growth of a resultset during repeated execute/exhaust
           cycles (GHPR#29)
+        - Work around (and be very vocal about the fact) when DBIC encounters
+          an exception object with broken string overloading
         - Clarify ambiguous behavior of distinct when used with ResultSetColumn
           i.e. $rs->search({}, { distinct => 1 })->get_column (...)
         - Setting quote_names propagates to SQL::Translator when producing

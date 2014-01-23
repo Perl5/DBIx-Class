@@ -5,6 +5,7 @@ use Sub::Quote 'quote_sub';
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
+use DBIx::Class::_Util 'is_exception';
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
 use Moo;
@@ -154,7 +155,7 @@ sub _run {
     }
 
     # something above threw an error (could be the begin, the code or the commit)
-    if ($run_err ne '') {
+    if ( is_exception $run_err ) {
 
       # attempt a rollback if we did begin in the first place
       if ($txn_begin_ok) {
