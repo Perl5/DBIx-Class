@@ -131,25 +131,29 @@ sub visit_refs {
     #  $visited_cnt += visit_refs({ %$args, refs => [ $t ] });
     #}
 
-    my $type = reftype $r;
-    if ($type eq 'HASH') {
-      $visited_cnt += visit_refs({ %$args, refs => [ map {
-        ( !isweak($r->{$_}) ) ? $r->{$_} : ()
-      } keys %$r ] });
-    }
-    elsif ($type eq 'ARRAY') {
-      $visited_cnt += visit_refs({ %$args, refs => [ map {
-        ( !isweak($r->[$_]) ) ? $r->[$_] : ()
-      } 0..$#$r ] });
-    }
-    elsif ($type eq 'REF' and !isweak($$r)) {
-      $visited_cnt += visit_refs({ %$args, refs => [ $$r ] });
-    }
-    elsif (CV_TRACING and $type eq 'CODE') {
-      $visited_cnt += visit_refs({ %$args, refs => [ map {
-        ( !isweak($_) ) ? $_ : ()
-      } scalar PadWalker::closed_over($r) ] }); # scalar due to RT#92269
-    }
+    local $@;
+    eval {
+      my $type = reftype $r;
+      if ($type eq 'HASH') {
+        $visited_cnt += visit_refs({ %$args, refs => [ map {
+          ( !isweak($r->{$_}) ) ? $r->{$_} : ()
+        } keys %$r ] });
+      }
+      elsif ($type eq 'ARRAY') {
+        $visited_cnt += visit_refs({ %$args, refs => [ map {
+          ( !isweak($r->[$_]) ) ? $r->[$_] : ()
+        } 0..$#$r ] });
+      }
+      elsif ($type eq 'REF' and !isweak($$r)) {
+        $visited_cnt += visit_refs({ %$args, refs => [ $$r ] });
+      }
+      elsif (CV_TRACING and $type eq 'CODE') {
+        $visited_cnt += visit_refs({ %$args, refs => [ map {
+          ( !isweak($_) ) ? $_ : ()
+        } scalar PadWalker::closed_over($r) ] }); # scalar due to RT#92269
+      }
+      1;
+    } or warn "Could not descend into @{[ _describe_ref($r) ]}: $@\n";
   }
   $visited_cnt;
 }
