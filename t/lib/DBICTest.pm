@@ -101,20 +101,8 @@ sub import {
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
-      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT) or do {
-        my $err = $!;
-
-        my @x_tests = map { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' } map {(-e, -d, -f, -r, -w, -x, -o)} ($tmpdir, $lockpath);
-
-        die sprintf <<"EOE", $lockpath, $err, scalar $>, scalar $), (stat($tmpdir))[4,5,2], @x_tests;
-Unable to open %s: %s
-Process EUID/EGID: %s / %s
-TmpDir UID/GID:    %s / %s
-TmpDir StatMode:   %o
-TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
-TmpFile X-tests:   -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
-EOE
-      };
+      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT)
+        or die "Unable to open $lockpath: $!";
     }
 
     for (@_) {
