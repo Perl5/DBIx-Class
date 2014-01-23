@@ -83,6 +83,12 @@ sub refcount ($) {
 sub is_exception ($) {
   my $e = $_[0];
 
+  # this is not strictly correct - an eval setting $@ to undef
+  # is *not* the same as an eval setting $@ to ''
+  # but for the sake of simplicity assume the following for
+  # the time being
+  return 0 unless defined $e;
+
   my ($not_blank, $suberror);
   {
     local $@;
