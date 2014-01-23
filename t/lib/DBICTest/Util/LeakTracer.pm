@@ -5,7 +5,7 @@ use strict;
 
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
-use DBIx::Class::_Util 'refcount';
+use DBIx::Class::_Util qw(refcount hrefaddr);
 use DBIx::Class::Optional::Dependencies;
 use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
@@ -15,13 +15,11 @@ use constant {
 };
 
 use base 'Exporter';
-our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry hrefaddr visit_refs);
+our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 
 my $refs_traced = 0;
 my $leaks_found = 0;
 my %reg_of_regs;
-
-sub hrefaddr { sprintf '0x%x', &Scalar::Util::refaddr }
 
 # so we don't trigger stringification
 sub _describe_ref {

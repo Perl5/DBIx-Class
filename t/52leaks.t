@@ -47,10 +47,10 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs hrefaddr);
+use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 use Scalar::Util qw(weaken blessed reftype);
 use DBIx::Class;
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer);
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
     if DBIx::Class::_ENV_::PEEPEENESS;
