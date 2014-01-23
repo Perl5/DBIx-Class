@@ -138,7 +138,7 @@ matrix:
         - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console
 
-    - perl: 5.18
+    - perl: 5.8
       env:
         - CLEANTEST=true
         - POISON_ENV=true
@@ -205,6 +205,9 @@ matrix:
 
   # which ones of the above can fail
   allow_failures:
+    # disable until RT#92413 is fixed
+    - perl: 5.8
+
     # these run with various dev snapshots - allowed to fail
     - perl: devcpan_5.8.7_thr
     - perl: devcpan_5.10.0_thr_mb

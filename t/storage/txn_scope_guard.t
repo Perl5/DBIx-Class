@@ -178,8 +178,8 @@ for my $post_poison (0,1) {
       # this always fails
       ! $pre_poison
         or
-      # I do not underdtand why but on <= 5.8.8 and $pre_poison && $post_poison passes...
-      $] > 5.008008
+      # I do not understand why but on <= 5.8.8 and on 5.10.0 "$pre_poison && $post_poison" passes...
+      ($] > 5.008008 and $] < 5.010000 ) or $] > 5.010000
     ));
 
   is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
