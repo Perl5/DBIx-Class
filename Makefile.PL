@@ -147,6 +147,52 @@ my $reqs = {
 
 # only do author-includes if not part of a `make` run
 if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
+  invoke_author_mode()
+}
+else {
+  # make sure this Makefile can not be used to make a dist
+  # (without the author includes there are no meta cleanup, no sanity checks, etc)
+  postamble <<EOP;
+create_distdir: nonauthor_stop_distdir_creation
+nonauthor_stop_distdir_creation:
+\t\$(NOECHO) \$(ECHO) Creation of dists in non-author mode is not allowed
+\t\$(NOECHO) \$(FALSE)
+EOP
+}
+
+# compose final req list, for alphabetical ordering
+my %final_req;
+for my $rtype (keys %$reqs) {
+  for my $mod (keys %{$reqs->{$rtype}} ) {
+
+    # sanity check req duplications
+    die "$mod specified as both a '$rtype' and a '$final_req{$mod}[0]'\n"
+      if $final_req{$mod};
+
+    $final_req{$mod} = [ $rtype, $reqs->{$rtype}{$mod}||0 ],
+  }
+}
+
+# actual require
+for my $mod (sort keys %final_req) {
+  my ($rtype, $ver) = @{$final_req{$mod}};
+  no strict 'refs';
+  $rtype->($mod, $ver);
+}
+
+# author-mode or not - this is where we show a list of missing deps
+# IFF we are running interactively
+auto_install();
+
+WriteAll();
+
+exit 0;
+
+# needs to be here to keep 5.8 string eval happy
+# (the include of Makefile.PL.inc loop)
+my $mm_proto;
+
+sub invoke_author_mode {
   # get options here, make $args available to all snippets
   require Getopt::Long;
   my $getopt = Getopt::Long::Parser->new(
@@ -169,7 +215,7 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
   # punt here until a new M::I is shipped (if at all)
   my $name = Meta->name || die 'The Module::Install metadata must be available at this point but is not - did you rearrange the Makefile.PL...?';
   $name =~ s/\-/::/g;
-  my $mm_proto = ExtUtils::MakeMaker->new({
+  $mm_proto = ExtUtils::MakeMaker->new({
     NORECURS => 1,
     NAME => $name,
   });
@@ -201,40 +247,3 @@ if ($Module::Install::AUTHOR  and ! $ENV{MAKELEVEL}) {
     ;
   }
 }
-else {
-  # make sure this Makefile can not be used to make a dist
-  # (without the author includes there are no meta cleanup, no sanity checks, etc)
-  postamble <<EOP;
-create_distdir: nonauthor_stop_distdir_creation
-nonauthor_stop_distdir_creation:
-\t\$(NOECHO) \$(ECHO) Creation of dists in non-author mode is not allowed
-\t\$(NOECHO) \$(FALSE)
-EOP
-}
-
-# compose final req list, for alphabetical ordering
-my %final_req;
-for my $rtype (keys %$reqs) {
-  for my $mod (keys %{$reqs->{$rtype}} ) {
-
-    # sanity check req duplications
-    if ($final_req{$mod}) {
-      die "$mod specified as both a '$rtype' and a '$final_req{$mod}[0]'\n";
-    }
-
-    $final_req{$mod} = [ $rtype, $reqs->{$rtype}{$mod}||0 ],
-  }
-}
-
-# actual require
-for my $mod (sort keys %final_req) {
-  my ($rtype, $ver) = @{$final_req{$mod}};
-  no strict 'refs';
-  $rtype->($mod, $ver);
-}
-
-# author-mode or not - this is where we show a list of missing deps
-# IFF we are running interactively
-auto_install();
-
-WriteAll();
