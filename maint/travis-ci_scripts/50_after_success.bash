@@ -9,6 +9,8 @@ if [[ "$CLEANTEST" != "true" ]] ; then
   run_or_err "Attempt to build a dist with all prereqs present" "make dist"
   echo "Contents of the resulting dist tarball:"
   echo "==========================================="
-  tar -ztf DBIx-Class-*.tar.gz
+  tar -vzxf DBIx-Class-*.tar.gz
   echo "==========================================="
+  run_or_err 'Attempt to configure from re-extracted distdir' \
+    'bash -c "cd \$(find DBIx-Class-* -maxdepth 0 -type d | head -n 1) && perl Makefile.PL"'
 fi
