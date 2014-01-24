@@ -27,6 +27,10 @@ perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
 
+# nothing determined at runtime, except for possibly SQLT dep, see
+# comment further down
+dynamic_config 0;
+
 tests_recursive (qw|
     t
 |);
@@ -115,10 +119,15 @@ my $test_requires = {
 };
 
 # if the user has this env var set and no SQLT installed, tests will fail
-# same rationale for direct test_requires as the strictures stuff above
-# (even though no dist will be created from this)
+# Note - this is added as test_requires *directly*, so it gets properly
+# excluded on META.yml cleansing (even though no dist can be created from this)
 # we force this req regarless of author_deps, worst case scenario it will
 # be specified twice
+#
+# also note that we *do* set dynamic_config => 0, as this is the only thing
+# that we determine dynamically, and in all fairness if someone sets the
+# envvar *and* is not running a full Makefile/make/maketest cycle - they get
+# to keep the pieces
 if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   local @INC = ('lib', @INC);
   require DBIx::Class::Optional::Dependencies;
