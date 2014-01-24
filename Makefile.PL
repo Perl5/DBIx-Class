@@ -90,6 +90,15 @@ my $runtime_requires = {
 };
 
 my $build_requires = {
+};
+
+my $test_requires = {
+  'File::Temp'               => '0.22',
+  'Test::Deep'               => '0.101',
+  'Test::Exception'          => '0.31',
+  'Test::Warn'               => '0.21',
+  'Test::More'               => '0.94',
+
   # needed for testing only, not for operation
   # we will move away from this dep eventually, perhaps to DBD::CSV or something
 ###
@@ -99,14 +108,6 @@ my $build_requires = {
 ### often *not* easy or even possible)
 ###
   'DBD::SQLite'              => '1.29',
-};
-
-my $test_requires = {
-  'File::Temp'               => '0.22',
-  'Test::Deep'               => '0.101',
-  'Test::Exception'          => '0.31',
-  'Test::Warn'               => '0.21',
-  'Test::More'               => '0.94',
 
   # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
   # remove and do a manual glob-collection if n::c is no longer a dep
