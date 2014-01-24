@@ -1,14 +1,21 @@
 package # hide from pause until we figure it all out
   DBIx::Class::Storage::BlockRunner;
 
-use Sub::Quote 'quote_sub';
+use strict;
+
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
 use DBIx::Class::_Util 'is_exception';
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
-use Moo;
+
+# DO NOT edit away without talking to riba first, he will just put it back
+BEGIN {
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  require Moo; Moo->import;
+  require Sub::Quote; Sub::Quote->import('quote_sub');
+}
 use warnings NONFATAL => 'all';
 use namespace::clean;
 
