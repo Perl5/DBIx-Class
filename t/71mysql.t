@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 
 use DBI::Const::GetInfoType;
 use Scalar::Util qw/weaken/;
@@ -347,16 +348,22 @@ ZEROINSEARCH: {
     select => [ \ 'YEAR(year)' ], as => ['y'], distinct => 1,
   });
 
-  is_deeply (
-    [ sort ($rs->get_column ('y')->all) ],
+  my $y_rs = $rs->get_column ('y');
+
+  warnings_exist { is_deeply (
+    [ sort ($y_rs->all) ],
     [ sort keys %$cds_per_year ],
     'Years group successfully',
-  );
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
+
 
   $rs->create ({ artist => 1, year => '0-1-1', title => 'Jesus Rap' });
 
   is_deeply (
-    [ sort $rs->get_column ('y')->all ],
+    [ sort $y_rs->all ],
     [ 0, sort keys %$cds_per_year ],
     'Zero-year groups successfully',
   );
@@ -367,11 +374,14 @@ ZEROINSEARCH: {
     year => { '!=', undef }
   ]});
 
-  is_deeply (
+  warnings_exist { is_deeply (
     [ $restrict_rs->get_column('y')->all ],
-    [ $rs->get_column ('y')->all ],
+    [ $y_rs->all ],
     'Zero year was correctly excluded from resultset',
-  );
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
 }
 
 # make sure find hooks determine driver
