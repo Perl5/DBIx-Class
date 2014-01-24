@@ -3,6 +3,7 @@ use warnings;
 
 use 5.008001;
 use inc::Module::Install 1.06;
+BEGIN { makemaker_args( NORECURS => 1 ) } # needs to happen early for old EUMM
 
 ##
 ## DO NOT USE THIS HACK IN YOUR DISTS!!! (it makes #toolchain sad)
@@ -12,7 +13,6 @@ use inc::Module::Install 1.06;
 # for that)
 BEGIN {
   $Module::Install::AUTHOR = 0 if (grep { $ENV{"PERL5_${_}_IS_RUNNING"} } (qw/CPANM CPANPLUS CPAN/) );
-  makemaker_args( NORECURS => 1 );
 }
 
 homepage 'http://www.dbix-class.org/';
