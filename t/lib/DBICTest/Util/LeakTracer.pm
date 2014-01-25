@@ -166,6 +166,9 @@ sub assert_empty_weakregistry {
 
   croak 'Expecting a registry hashref' unless ref $weak_registry eq 'HASH';
 
+  defined $weak_registry->{$_}{weakref} or delete $weak_registry->{$_}
+    for keys %$weak_registry;
+
   return unless keys %$weak_registry;
 
   my $tb = eval { Test::Builder->new }
