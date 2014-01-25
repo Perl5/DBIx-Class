@@ -96,8 +96,7 @@ our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
 
-    my $tmpdir = DBICTest::RunMode->tmpdir;
-    my $lockpath = $tmpdir->file('.dbictest_global.lock');
+    my $lockpath = DBICTest::RunMode->tmpdir->file('_dbictest_global.lock');
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock

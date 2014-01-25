@@ -49,6 +49,8 @@ Revision history for DBIx::Class
           the design for proper documentation and opening up)
         - Adjust exceptions in tests to accommodate changes in the upcoming
           DBD::SQLite based on libsqlite 3.8.2
+        - More robust lock file naming scheme - allow tests to work on exotic
+          MSWin32 filesystems (habitual offender being http://is.gd/iy5XVP)
         - Better diagnostics when File::Spec->tmpdir gives us crap in testing
         - Replace $row with $result in all docs to be consistent and to
           clarify various return values

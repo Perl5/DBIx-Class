@@ -19,6 +19,7 @@ use Path::Class qw/file dir/;
 use Fcntl ':DEFAULT';
 use File::Spec ();
 use File::Temp ();
+use DBICTest::Util 'local_umask';
 
 _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
 
@@ -43,6 +44,7 @@ sub tmpdir {
     else {
       # make sure we can actually create and sysopen a file in this dir
       local $@;
+      my $u = local_umask(0); # match the umask we use in DBICTest(::Schema)
       my $tempfile = '<NONCREATABLE>';
       eval {
         $tempfile = File::Temp->new(
@@ -59,10 +61,11 @@ sub tmpdir {
       } or do {
         chomp( my $err = $@ );
         my @x_tests = map { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' } map {(-e, -d, -f, -r, -w, -x, -o)} ("$dir", "$tempfile");
-        $reason_dir_unusable = sprintf <<"EOE", "$tempfile"||'', $err, scalar $>, scalar $), (stat($dir))[4,5,2], @x_tests;
+        $reason_dir_unusable = sprintf <<"EOE", "$tempfile"||'', $err, scalar $>, scalar $), umask(), (stat($dir))[4,5,2], @x_tests;
 File::Spec->tmpdir returned a directory which appears to be non-writeable:
 Error encountered while testing '%s': %s
 Process EUID/EGID: %s / %s
+Effective umask:   %o
 TmpDir UID/GID:    %s / %s
 TmpDir StatMode:   %o
 TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s

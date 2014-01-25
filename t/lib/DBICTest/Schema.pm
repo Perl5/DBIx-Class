@@ -165,7 +165,7 @@ sub connection {
       # which is fine since the type does not match as checked above
       undef $locker;
 
-      my $lockpath = DBICTest::RunMode->tmpdir->file(".dbictest_$locktype.lock");
+      my $lockpath = DBICTest::RunMode->tmpdir->file("_dbictest_$locktype.lock");
 
       #warn "$$ $0 $locktype GRABBING LOCK";
       my $lock_fh;
