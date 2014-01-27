@@ -109,18 +109,19 @@ sub visit_refs {
 
   my $visited_cnt = '0E0';
   for my $i (0 .. $#{$args->{refs}} ) {
-    next if isweak($args->{refs}[$i]);
+
+    next unless length ref $args->{refs}[$i]; # not-a-ref
+
+    my $addr = hrefaddr $args->{refs}[$i];
+
+    # no diving into weakregistries
+    next if $reg_of_regs{$addr};
+
+    next if $args->{seen_refs}{$addr}++;
+    $visited_cnt++;
 
     my $r = $args->{refs}[$i];
 
-    next unless length ref $r;
-
-    # no diving into weakregistries
-    next if $reg_of_regs{hrefaddr $r};
-
-    next if $args->{seen_refs}{my $dec_addr = Scalar::Util::refaddr($r)}++;
-
-    $visited_cnt++;
     $args->{action}->($r) or next;
 
     # This may end up being necessarry some day, but do not slow things
@@ -129,9 +130,10 @@ sub visit_refs {
     #  $visited_cnt += visit_refs({ %$args, refs => [ $t ] });
     #}
 
+    my $type = reftype $r;
+
     local $@;
     eval {
-      my $type = reftype $r;
       if ($type eq 'HASH') {
         $visited_cnt += visit_refs({ %$args, refs => [ map {
           ( !isweak($r->{$_}) ) ? $r->{$_} : ()
@@ -154,6 +156,94 @@ sub visit_refs {
     } or warn "Could not descend into @{[ _describe_ref($r) ]}: $@\n";
   }
   $visited_cnt;
+}
+
+sub visit_namespaces {
+  my $args = { (ref $_[0]) ? %{$_[0]} : @_ };
+
+  my $visited = 1;
+
+  $args->{package} ||= '::';
+  $args->{package} = '::' if $args->{package} eq 'main';
+
+  if ( $args->{action}->($args->{package}) ) {
+
+    my $base = $args->{package};
+    $base = '' if $base eq '::';
+
+
+    $visited += visit_namespaces({ %$args, package => $_ }) for map
+      { $_ =~ /(.+?)::$/ && "${base}::$1" }
+      grep
+        { $_ =~ /(?<!^main)::$/ }
+        do {  no strict 'refs'; keys %{ $base . '::'} }
+  }
+
+  return $visited;
+}
+
+# compiles a list of addresses stored as globals (possibly even catching
+# class data in the form of method closures), so we can skip them further on
+sub symtable_referenced_addresses {
+
+  my $refs_per_pkg;
+
+  my $dummy_addresslist;
+
+  my $seen_refs = {};
+  visit_namespaces(
+    action => sub {
+
+      no strict 'refs';
+
+      my $pkg = shift;
+      $pkg = '' if $pkg eq '::';
+      $pkg .= '::';
+
+      # the unless regex at the end skips some dangerous namespaces outright
+      # (but does not prevent descent)
+      $refs_per_pkg->{$pkg} += visit_refs (
+        seen_refs => $seen_refs,
+
+        # FIXME FIXME FIXME
+        # This is so damn odd - if we feed a constsub {1} (or in fact almost
+        # anything other than the actionsub below, any scalarref will show
+        # up as a leak, trapped by... something...
+        # Ideally we should be able to const this to sub{1} and just return
+        # $seen_refs (in fact it is identical to the dummy list at the end of
+        # a run here). Alas this doesn't seem to work, so punt for now...
+        action => sub { ++$dummy_addresslist->{ hrefaddr $_[0] } },
+
+        refs => [ map { my $sym = $_;
+          # *{"$pkg$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there
+          ( CV_TRACING ? Class::MethodCache::get_cv("${pkg}$sym") : () ),
+
+          ( defined *{"$pkg$sym"}{SCALAR} and length ref ${"$pkg$sym"} and ! isweak( ${"$pkg$sym"} ) )
+            ? ${"$pkg$sym"} : ()
+          ,
+
+          ( map {
+            ( defined *{"$pkg$sym"}{$_} and ! isweak(defined *{"$pkg$sym"}{$_}) )
+              ? *{"$pkg$sym"}{$_}
+              : ()
+          } qw(HASH ARRAY IO GLOB) ),
+
+        } keys %$pkg ],
+      ) unless $pkg =~ /^ :: (?:
+        DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
+      ) :: $/x;
+    }
+  );
+
+#  use Devel::Dwarn;
+#  Ddie [ map
+#    { { $_ => $refs_per_pkg->{$_} } }
+#    sort
+#      {$refs_per_pkg->{$a} <=> $refs_per_pkg->{$b} }
+#      keys %$refs_per_pkg
+#  ];
+
+  $seen_refs;
 }
 
 sub assert_empty_weakregistry {
@@ -185,58 +275,12 @@ sub assert_empty_weakregistry {
       if defined $weak_registry->{$addr}{weakref} and ! isweak( $weak_registry->{$addr}{weakref} );
   }
 
-  # compile a list of refs stored as globals (possibly even catching
-  # class data in the form of method closures), so we can skip them
-  # further on
-  my ($seen_refs, $classdata_refs) = ({}, undef);
-
   # the walk is very expensive - if we are $quiet (running in an END block)
   # we do not really need to be too thorough
   unless ($quiet) {
-    my ($symwalker, $symcounts);
-    $symwalker = sub {
-      no strict 'refs';
-      my $pkg = shift || '::';
-
-      # any non-weak globals are "clasdata" in all possible sense
-      #
-      # the unless regex at the end skips some dangerous namespaces outright
-      # (but does not prevent descent)
-      $symcounts->{$pkg} += visit_refs (
-        seen_refs => $seen_refs,
-        action => sub { ++$classdata_refs->{hrefaddr $_[0]} },
-        refs => [ map { my $sym = $_;
-          # *{"$pkg$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there
-          ( CV_TRACING ? Class::MethodCache::get_cv("${pkg}$sym") : () ),
-
-          ( defined *{"$pkg$sym"}{SCALAR} and length ref ${"$pkg$sym"} and ! isweak( ${"$pkg$sym"} ) )
-            ? ${"$pkg$sym"} : ()
-          ,
-          ( map {
-            ( defined *{"$pkg$sym"}{$_} and ! isweak(defined *{"$pkg$sym"}{$_}) )
-              ? *{"$pkg$sym"}{$_}
-              : ()
-          } qw(HASH ARRAY IO GLOB) ),
-        } keys %$pkg ],
-      ) unless $pkg =~ /^ :: (?:
-        DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
-      ) :: $/x;
-
-      $symwalker->("${pkg}$_") for grep { $_ =~ /(?<!^main)::$/ } keys %$pkg;
-    };
-
-    $symwalker->();
-
-#    use Devel::Dwarn;
-#    Ddie [ map
-#      { { $_ => $symcounts->{$_} } }
-#      sort
-#        {$symcounts->{$a} <=> $symcounts->{$b} }
-#        keys %$symcounts
-#    ];
+    delete $weak_registry->{$_} for keys %{ symtable_referenced_addresses() };
   }
 
-  delete $weak_registry->{$_} for keys %$classdata_refs;
 
   for my $addr (sort { $weak_registry->{$a}{display_name} cmp $weak_registry->{$b}{display_name} } keys %$weak_registry) {
 
