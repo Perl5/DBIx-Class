@@ -1,7 +1,12 @@
 Revision history for DBIx::Class
 
-    * New Features / Changes
+0.08260 2014-01-28 18:52 (UTC)
+    * New Features
         - A new zero-to-DBIC style manual: DBIx::Class::Manual::QuickStart
+
+    * Notable Changes and Deprecations
+        - Explicitly deprecate combination of distinct and selecting a
+          non-column via $rs->get_column()
 
     * Fixes
         - More robust handling of circular relationship declarations by loading
@@ -17,13 +22,11 @@ Revision history for DBIx::Class
         - Fix multiple edge cases stemming from interaction of a non-selecting
           order_by specification and distinct and/or complex prefetch
         - Fix unbound growth of a resultset during repeated execute/exhaust
-          cycles (GHPR#29)
+          cycles (GH#29)
         - Work around (and be very vocal about the fact) when DBIC encounters
           an exception object with broken string overloading
         - Clarify ambiguous behavior of distinct when used with ResultSetColumn
           i.e. $rs->search({}, { distinct => 1 })->get_column (...)
-        - Explicitly deprecate combination of distinct and selecting a
-          non-column via $rs->get_column()
         - Setting quote_names propagates to SQL::Translator when producing
           SQLite DDL (it is one of the few producers *NOT* quoting by default)
         - Fix incorrect binding of large integers on old versions of
