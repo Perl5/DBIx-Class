@@ -452,9 +452,9 @@ for my $addr (keys %$weak_registry) {
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
   elsif (
-    # if we can look at closed over pieces - we will register it as a global
-    !DBICTest::Util::LeakTracer::CV_TRACING
-      and
+#    # if we can look at closed over pieces - we will register it as a global
+#    !DBICTest::Util::LeakTracer::CV_TRACING
+#      and
     $names =~ /^SQL::Translator::Generator::DDL::SQLite/m
   ) {
     # SQLT::Producer::SQLite keeps global generators around for quoted
