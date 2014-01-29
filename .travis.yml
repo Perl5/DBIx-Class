@@ -205,8 +205,6 @@ matrix:
 
   # which ones of the above can fail
   allow_failures:
-    # disable until RT#92413 is fixed
-    - perl: 5.8
 
     # these run with various dev snapshots - allowed to fail
     - perl: devcpan_5.8.7_thr
