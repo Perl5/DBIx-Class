@@ -303,13 +303,9 @@ sub _dbi_attrs_for_bind {
 
   my $bindattrs = $self->next::method($ident, $bind);
 
-  # somewhere between 1.33 and 1.37 things went horribly wrong
   if (! defined $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values) {
-    $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values = (
-      modver_gt_or_eq('DBD::SQLite', '1.34')
-        and
-      ! modver_gt_or_eq('DBD::SQLite', '1.37')
-    ) ? 0 : 1;
+    $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values
+      = modver_gt_or_eq('DBD::SQLite', '1.37') ? 1 : 0;
   }
 
   # an attempt to detect former effects of RT#79576, bug itself present between
@@ -338,23 +334,26 @@ sub _dbi_attrs_for_bind {
       }
       elsif (
         ! $DBD::SQLite::__DBIC_CHECK_dbd_can_bind_bigint_values
-          and
+      ) {
         # unsigned 32 bit ints have a range of −2,147,483,648 to 2,147,483,647
         # alternatively expressed as the hexadecimal numbers below
         # the comparison math will come out right regardless of ivsize, since
         # we are operating within 31 bits
         # P.S. 31 because one bit is lost for the sign
-        ($bind->[$i][1] > 0x7fff_ffff or $bind->[$i][1] < -0x8000_0000)
-      ) {
-        carp_unique( sprintf (
-          "An integer value occupying more than 32 bits was supplied for column '%s' "
-        . 'which your version of DBD::SQLite (%s) can not bind properly so DBIC '
-        . 'will treat it as a string instead, consider upgrading to at least '
-        . 'DBD::SQLite version 1.37',
-          $bind->[$i][0]{dbic_colname} || "# $i",
-          DBD::SQLite->VERSION,
-        ) );
-        undef $bindattrs->[$i];
+        if ($bind->[$i][1] > 0x7fff_ffff or $bind->[$i][1] < -0x8000_0000) {
+          carp_unique( sprintf (
+            "An integer value occupying more than 32 bits was supplied for column '%s' "
+          . 'which your version of DBD::SQLite (%s) can not bind properly so DBIC '
+          . 'will treat it as a string instead, consider upgrading to at least '
+          . 'DBD::SQLite version 1.37',
+            $bind->[$i][0]{dbic_colname} || "# $i",
+            DBD::SQLite->VERSION,
+          ) );
+          undef $bindattrs->[$i];
+        }
+        else {
+          $bindattrs->[$i] = DBI::SQL_INTEGER()
+        }
       }
     }
   }
