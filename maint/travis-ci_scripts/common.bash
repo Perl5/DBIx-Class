@@ -85,10 +85,14 @@ parallel_installdeps_notest() {
   # one module spec per line
   MODLIST="$(printf '%s\n' "$@")"
 
-  # The reason we do things so "non-interactively" is that xargs -P will have the
-  # latest cpanm instance overwrite the buildlog. There seems to be no way to
-  # specify a custom buildlog, hence we just collect the verbose output
-  # and display it in case of "worker" failure
+  # We want to trap the output of each process and serially append them to
+  # each other as opposed to just dumping a jumbled up mass-log that would
+  # need careful unpicking by a human
+  #
+  # While cpanm does maintain individual buildlogs in more recent versions,
+  # we are not terribly interested in trying to figure out which log is which
+  # dist. The verbose-output + trap STDIO technique is vastly superior in this
+  # particular case
   #
   # Explanation of inline args:
   #
