@@ -168,13 +168,17 @@ for my $quote_names (0,1) {
       ]},
     });
 
+    # we are using cds_unordered explicitly above - do the sorting manually
+    my @results = sort { $a->{artistid} <=> $b->{artistid} } @{$final_query->all_hri};
+    @$_ = sort { $a->{cdid} <=> $b->{cdid} } @$_ for map { $_->{cds} } @results;
+
     is_deeply (
-      $final_query->all_hri,
+      \@results,
       [
         { artistid => 1, charfield => undef, max_competition_release => 1998, name => "Caterwauler McCrae", rank => 13, cds => [
-          { artist => 1, cdid => 3, genreid => undef, single_track => undef, title => "Caterwaulin' Blues", year => 1997 },
-          { artist => 1, cdid => 2, genreid => undef, single_track => undef, title => "Forkful of bees", year => 2001 },
           { artist => 1, cdid => 1, genreid => 1, single_track => undef, title => "Spoonful of bees", year => 1999 },
+          { artist => 1, cdid => 2, genreid => undef, single_track => undef, title => "Forkful of bees", year => 2001 },
+          { artist => 1, cdid => 3, genreid => undef, single_track => undef, title => "Caterwaulin' Blues", year => 1997 },
         ] },
         { artistid => 2, charfield => undef, max_competition_release => 1997, name => "Random Boy Band", rank => 13, cds => [
           { artist => 2, cdid => 4, genreid => undef, single_track => undef, title => "Generic Manufactured Singles", year => 2001 },
