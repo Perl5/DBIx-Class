@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - Fix 0.08260 regression in DBD::SQLite bound int handling. Inserted
           data was not affected, but any function <=> integer comparison would
           have failed (originally fixed way back in 0e773352)
+        - Fix failure to load DateTime formatter when connecting to Firebird
+          over ODBC
 
 0.08260 2014-01-28 18:52 (UTC)
     * New Features
