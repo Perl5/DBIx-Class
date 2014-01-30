@@ -119,7 +119,7 @@ else
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest 'SQL::Abstract~<1.99' Moose Module::Install JSON SQL::Translator File::Which
 
-  if [[ -n "DBICTEST_FIREBIRD_DSN" ]] ; then
+  if [[ -n "DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
     # the official version is very much outdated and does not compile on 5.14+
     # use this rather updated source tree (needs to go to PAUSE):
     # https://github.com/pilcrow/perl-dbd-interbase
