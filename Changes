@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08270 2014-01-30 21:54 (PST)
     * Fixes
         - Fix 0.08260 regression in DBD::SQLite bound int handling. Inserted
           data was not affected, but any function <=> integer comparison would
