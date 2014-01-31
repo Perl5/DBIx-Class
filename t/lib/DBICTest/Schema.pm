@@ -144,18 +144,6 @@ sub connection {
       ;
     };
 
-    # DBD::Firebird and DBD::InterBase could very well talk to the same RDBMS
-    # make an educated guesstimate based on the DSN
-    # (worst case scenario we are wrong and the scripts have to wait on each
-    # other even without actually being able to interfere among themselves)
-    if (
-      ($locktype||'') eq 'InterBase'
-        and
-      $_[0] =~ /firebird/i
-    ) {
-      $locktype = 'Firebird';
-    }
-
     # Never hold more than one lock. This solves the "lock in order" issues
     # unrelated tests may have
     # Also if there is no connection - there is no lock to be had

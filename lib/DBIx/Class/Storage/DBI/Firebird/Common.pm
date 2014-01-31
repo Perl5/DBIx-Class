@@ -28,6 +28,10 @@ __PACKAGE__->datetime_parser_type(
   'DBIx::Class::Storage::DBI::InterBase::DateTime::Format'
 );
 
+sub sqlt_type {
+  return 'Firebird';
+}
+
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
 

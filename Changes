@@ -7,6 +7,11 @@ Revision history for DBIx::Class
         - Fix failure to load DateTime formatter when connecting to Firebird
           over ODBC
 
+    * Misc
+        - All drivers based on ::Storage::DBI::Firebird::Common now return the
+          same sqlt_type value (affects ::DBI::Interbase, ::DBI::Firebird and
+          ::DBI::ODBC::Firebird)
+
 0.08260 2014-01-28 18:52 (UTC)
     * New Features
         - A new zero-to-DBIC style manual: DBIx::Class::Manual::QuickStart
