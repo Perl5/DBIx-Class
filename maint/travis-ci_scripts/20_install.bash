@@ -7,7 +7,7 @@ CPAN_MIRROR=$(echo "$PERL_CPANM_OPT" | grep -oP -- '--mirror\s+\S+' | head -n 1 
 if ! [[ "$CPAN_MIRROR" =~ "http://" ]] ; then
   echo_err "Unable to extract primary cpan mirror from PERL_CPANM_OPT - something is wrong"
   echo_err "PERL_CPANM_OPT: $PERL_CPANM_OPT"
-  CPAN_MIRROR="http://cpan.metacpan.org/"
+  CPAN_MIRROR="https://cpan.metacpan.org/"
   PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
   echo_err "Using $CPAN_MIRROR for the time being"
 fi
