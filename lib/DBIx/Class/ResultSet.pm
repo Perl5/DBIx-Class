@@ -2227,40 +2227,51 @@ case there are obviously no benefits to using this method over L</create>.
 sub populate {
   my $self = shift;
 
-  # cruft placed in standalone method
-  my $data = $self->_normalize_populate_args(@_);
 
-  return unless @$data;
+  if (defined wantarray) {
+    # cruft placed in standalone method
+    my $data = $self->_normalize_populate_to_hashref(@_);
 
-  if(defined wantarray) {
+    return unless @$data;
+
     my @created = map { $self->create($_) } @$data;
     return wantarray ? @created : \@created;
   }
   else {
-    my $first = $data->[0];
+    # cruft placed in standalone method
+    my $data = $self->_normalize_populate_to_arrayref(@_);
+
+    return unless @$data;
+
+    my $first = shift @$data;
 
     # if a column is a registered relationship, and is a non-blessed hash/array, consider
     # it relationship data
     my (@rels, @columns);
     my $rsrc = $self->result_source;
     my $rels = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
-    for (keys %$first) {
-      my $ref = ref $first->{$_};
-      $rels->{$_} && ($ref eq 'ARRAY' or $ref eq 'HASH')
-        ? push @rels, $_
-        : push @columns, $_
+    for my $index (0..$#$first) {
+      my $col = $first->[$index];
+      my $val = $data->[0][$index];
+      my $ref = ref $val;
+      $rels->{$col} && ($ref eq 'ARRAY' or $ref eq 'HASH')
+        ? push @rels, $col
+        : push @columns, $col
       ;
     }
 
     my @pks = $rsrc->primary_columns;
+    my %colmap = map { $first->[$_] => $_ } (0..$#$first);
 
     ## do the belongs_to relationships
     foreach my $index (0..$#$data) {
 
-      # delegate to create() for any dataset without primary keys with specified relationships
-      if (grep { !defined $data->[$index]->{$_} } @pks ) {
+      # delegate to list context populate()/create() for any dataset without
+      # primary keys with specified relationships
+
+      if (grep { defined $colmap{$_} && !defined $data->[$index][$colmap{$_}] } @pks) {
         for my $r (@rels) {
-          if (grep { ref $data->[$index]{$r} eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
+          if (grep { ref $data->[$index][$colmap{$_}] eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
             my @ret = $self->populate($data);
             return;
           }
@@ -2268,8 +2279,8 @@ sub populate {
       }
 
       foreach my $rel (@rels) {
-        next unless ref $data->[$index]->{$rel} eq "HASH";
-        my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
+        next unless ref $data->[$index][$colmap{$rel}] eq "HASH";
+        my $result = $self->related_resultset($rel)->create($data->[$index][$colmap{$rel}]);
         my ($reverse_relname, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(
           $reverse_relinfo->{cond},
@@ -2278,22 +2289,24 @@ sub populate {
           $rel,
         );
 
-        delete $data->[$index]->{$rel};
-        $data->[$index] = {%{$data->[$index]}, %$related};
-
-        push @columns, keys %$related if $index == 0;
+        $data->[$index][$colmap{$rel}] = $related->{$rel};
+        if ($index == 0) {
+          for my $col (keys %$related) {
+            $colmap{$col} = $colmap{$rel};
+            push @columns, $col;
+          }
+        }
       }
     }
 
     ## inherit the data locked in the conditions of the resultset
     my ($rs_data) = $self->_merge_with_rscond({});
-    delete @{$rs_data}{@columns};
 
     ## do bulk insert on current row
     $rsrc->storage->insert_bulk(
       $rsrc,
       [@columns, keys %$rs_data],
-      [ map { [ @$_{@columns}, values %$rs_data ] } @$data ],
+      [ map { [ @$_[@colmap{@columns}], values %$rs_data ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -2302,9 +2315,9 @@ sub populate {
       my $main_row;
 
       foreach my $rel (@rels) {
-        next unless ref $item->{$rel} eq "ARRAY" && @{ $item->{$rel} };
+        next unless ref $item->[$colmap{$rel}] eq "ARRAY" && @{ $item->[$colmap{$rel}] };
 
-        $main_row ||= $self->new_result({map { $_ => $item->{$_} } @pks});
+        $main_row ||= $self->new_result({map { $_ => $item->[$colmap{$_}] } @pks});
 
         my $child = $main_row->$rel;
 
@@ -2315,15 +2328,23 @@ sub populate {
           $rel,
         );
 
-        my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
+=begin
+        if ( ref $item->[$colmap{$rel}] eq 'ARRAY') {
+          for my $subitem (@{ $item->[$colmap{$rel}] }) {
+            $subitem->
+
+          }
+        }
+
+        my @rows_to_add = ref eq 'ARRAY' ? @{$item->[$colmap{$rel}]} : ($item->[$colmap{$rel}]);
         my @populate = map { {%$_, %$related} } @rows_to_add;
 
-        $child->populate( \@populate );
+=cut
+        $child->populate( $item->[$colmap{$rel}] );
       }
     }
   }
 }
-
 
 # populate() arguments went over several incarnations
 # can be any mixture of :
@@ -2331,19 +2352,81 @@ sub populate {
 # 2. AoH
 # 3. AoS(calar) followed buy Arrayrefref (\@cols, $rs->as_query)
 # 4. coderef (tuple generator)
-sub _normalize_populate_args {
+# What we ultimately support is AoH
+sub _normalize_populate_to_hashref {
+  my ($self, $arg) = @_;
+
+  if (ref $arg eq 'ARRAY') {
+    if (!@$arg) {
+      return [];
+    }
+    elsif (ref $arg->[0] eq 'HASH') {
+      return $arg;
+    }
+    elsif (ref $arg->[0] eq 'ARRAY') {
+      my @ret;
+      my @colnames = @{$arg->[0]};
+      foreach my $values (@{$arg}[1 .. $#$arg]) {
+        if (ref $values eq 'ARRAY') {
+          push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
+        }
+        elsif (ref $values eq 'CODE' || (ref $values eq 'REF' && ref $$values eq 'ARRAY')) {
+          push @ret, $values;
+        }
+        else {
+          $self->throw_exception('Populate expects an arrayref of either hashrefs, arrayrefs, coderefs or arrayrefrefs');
+        }
+      }
+      return \@ret;
+    }
+  }
+
+  $self->throw_exception('Populate expects an arrayref of either hashrefs, arrayrefs, coderefs or arrayrefrefs');
+}
+
+sub _normalize_populate_to_arrayref {
   my ($self, $args) = @_;
 
-  use DDP;
   my @normalized;
+  my @cols;
 
-ARG: for (my $idx = 0; $idx < $#$args; $idx++) {
+ARG: for (my $idx = 0; $idx <= $#$args; $idx++) {
     my $arg = $args->[$idx];
 
-    if (ref $arg eq 'ARRAY') {
+    if ($idx == 0) {
+      if (ref $arg eq 'ARRAY') {
+        @cols = @$arg;
+      }
+      elsif (ref $arg eq 'HASH') {
+        @cols = keys %$arg;
+        push @normalized, [@{$arg}{@cols}];
+      }
+      else {
+        $self->throw_exception('Populate expects first record to either be a hashref or arrayref of cols');
+      }
+      next ARG;
+    }
+
+    if (ref $arg eq 'ARRAY' || ref $arg eq 'CODE') {
+      push @normalized, $arg;
+    }
+    elsif (ref $arg eq 'HASH') {
+      push @normalized, [@{$arg}{@cols}];
+    }
+    else {
+        $self->throw_exception('Populate expects either arrayref, coderef, or hashref');
+    }
+  }
+
+  return [\@cols, @normalized];
+}
+
+=begin
+
       # AoH
       if (ref $arg eq 'ARRAY' && @$arg > 0 && ref $arg->[0] eq 'HASH') {
-        push @normalized, $arg;
+        @cols = sort keys %{$arg->[0]} if $idx == 1;
+        push @normalized, [ @{$args->[0]}{@cols} ];
         next ARG;
       }
       # AoA
@@ -2365,16 +2448,7 @@ ARG: for (my $idx = 0; $idx < $#$args; $idx++) {
       elsif (ref $arg eq 'CODE') {
         push @normalized, $arg;
       }
-    }
-  }
-
-  if (scalar @normalized == 0) {
-    $self->throw_exception('Populate expects some combination of arrayref of hashrefs, arrayref of arrayrefs, array of cols followed by arrayrefref or coderef');
-  }
-
-  p @normalized;
-  return \@normalized;
-}
+=cut
 
 =head2 pager
 
