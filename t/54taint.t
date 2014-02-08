@@ -72,4 +72,13 @@ throws_ok (
   }, 'Loading classes with Module::Find/load_namespaces worked in taint mode' );
 }
 
+# check that we can create a database and all
+{
+  my $s = DBICTest->init_schema( sqlite_use_file => 1 );
+  my $art = $s->resultset('Artist')->search({}, {
+    prefetch => 'cds', order_by => 'artistid',
+  })->next;
+  is ($art->artistid, 1, 'got artist');
+}
+
 done_testing;
