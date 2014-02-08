@@ -8,14 +8,16 @@ use warnings;
 
 # When in taint mode, PERL5LIB is ignored (but *not* unset)
 # Put it back in INC so that local-lib users can actually
-# run this test
+# run this test. Use lib.pm instead of an @INC unshift as
+# it will correctly add any arch subdirs encountered
 use Config;
-BEGIN {
-  for (map { defined $ENV{$_} ? $ENV{$_} : () } (qw/PERLLIB PERL5LIB/) ) {  # we unshift, so reverse precedence
-    my ($envvar) = ($_ =~ /^(.*)$/s);  # untaint
-    unshift @INC, map { length($_) ? $_ : () } (split /\Q$Config{path_sep}\E/, $envvar);
-  }
-}
+
+use lib (
+  grep { length }
+    map { split /\Q$Config{path_sep}\E/, (/^(.*)$/)[0] }  # untainting regex
+      grep { defined }
+        @ENV{qw(PERL5LIB PERLLIB)}  # precedence preserved by lib
+);
 
 # We need to specify 'lib' here as well because even if it was already in
 # @INC, the above will have put our local::lib in front of it, so now an
