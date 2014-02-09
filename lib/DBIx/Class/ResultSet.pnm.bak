@@ -2288,25 +2288,24 @@ sub populate {
           $result,
           $rel,
         );
-
         $data->[$index][$colmap{$rel}] = $related->{$rel};
-        if ($index == 0) {
-          for my $col (keys %$related) {
-            $colmap{$col} = $colmap{$rel};
-            push @columns, $col;
-          }
-        }
+        push @columns, keys %$related if $index == 0;
       }
     }
 
     ## inherit the data locked in the conditions of the resultset
     my ($rs_data) = $self->_merge_with_rscond({});
+    delete @{$rs_data}{@columns};
+
+    use DDP;
+    p @rels; p @columns; p %colmap;
+    my$a=[ map { [ @$_, values %$rs_data ] } @$data ]; p $a;
 
     ## do bulk insert on current row
     $rsrc->storage->insert_bulk(
       $rsrc,
       [@columns, keys %$rs_data],
-      [ map { [ @$_[@colmap{@columns}], values %$rs_data ] } @$data ],
+      [ map { [ @$_, values %$rs_data ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -2338,6 +2337,7 @@ sub populate {
 
         my @rows_to_add = ref eq 'ARRAY' ? @{$item->[$colmap{$rel}]} : ($item->[$colmap{$rel}]);
         my @populate = map { {%$_, %$related} } @rows_to_add;
+
 =cut
         $child->populate( $item->[$colmap{$rel}] );
       }

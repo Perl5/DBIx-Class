@@ -1971,6 +1971,7 @@ sub insert_bulk {
   #
   # forcibly stringify whatever is stringifiable
   # ResultSet::populate() hands us a copy - safe to mangle
+  # Check with Riba: is this still dangerous?
   for my $r (0 .. $#$data) {
     for my $c (0 .. $#{$data->[$r]}) {
       $data->[$r][$c] = "$data->[$r][$c]"
