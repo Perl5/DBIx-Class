@@ -1,13 +1,6 @@
 use strict;
 use warnings;
 
-# use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
-BEGIN {
-  if (my $lib_dirs = $ENV{DBICTEST_MSSQL_PERL5LIB}) {
-    unshift @INC, $_ for split /:/, $lib_dirs;
-  }
-}
-
 use Test::More;
 use Test::Exception;
 use Scalar::Util 'weaken';

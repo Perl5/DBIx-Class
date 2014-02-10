@@ -29,13 +29,6 @@ plan skip_all => 'Test needs ' .
     $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_ado'))
       or (not $dsn || $dsn2 || $dsn3);
 
-# use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
-BEGIN {
-  if (my $lib_dirs = $ENV{DBICTEST_MSSQL_PERL5LIB}) {
-    unshift @INC, $_ for split /:/, $lib_dirs;
-  }
-}
-
 if (not ($dsn || $dsn2 || $dsn3)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_MSSQL_ODBC_DSN} and/or $ENV{DBICTEST_MSSQL_DSN} and/or '
