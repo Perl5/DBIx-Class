@@ -1,16 +1,44 @@
-#!/usr/bin/env perl -T
-
-# the above line forces Test::Harness into taint-mode
-# DO NOT REMOVE
-
 use strict;
 use warnings;
+use Config;
+
+# there is talk of possible perl compilations where -T is fatal or just
+# doesn't work. We don't want to have the user deal with that.
+BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
+
+  # it is possible the test itself is initially invoked in taint mode
+  # and with relative paths *and* with a relative $^X and some other
+  # craziness... in short: just be proactive
+  require File::Spec;
+  $ENV{PATH} = join $Config{path_sep},
+    map { length($_) ? File::Spec->rel2abs($_) : () }
+      split /\Q$Config{path_sep}/, $ENV{PATH}
+  ;
+  my $perl = $^X;
+  ($_) = $_ =~ /\A(.+)\z/ for ( $ENV{PATH}, $perl );
+
+  {
+    local $ENV{PATH} = "/nosuchrootbindir";
+    system( $perl => -T => -e => '
+      use warnings;
+      use strict;
+      eval { my $x = $ENV{PATH} . (kill (0)); 1 } or exit 42;
+      exit 0;
+    ');
+  }
+
+  if ( ($? >> 8) != 42 ) {
+    print "1..0 # SKIP Your perl does not seem to like/support -T...\n";
+    exit 0;
+  }
+
+  exec( $perl, qw( -I. -Mt::lib::DBICTest::WithTaint -T ), __FILE__ );
+}}
 
 # When in taint mode, PERL5LIB is ignored (but *not* unset)
 # Put it back in INC so that local-lib users can actually
 # run this test. Use lib.pm instead of an @INC unshift as
 # it will correctly add any arch subdirs encountered
-use Config;
 
 use lib (
   grep { length }
