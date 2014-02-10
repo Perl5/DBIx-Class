@@ -58,7 +58,7 @@ extract_prereqs() {
     || LASTEXIT=$?
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
-  ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
+  ERR=${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}
 
   if [[ "$LASTEXIT" != "0" ]] ; then
     echo_err "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:"
@@ -67,8 +67,14 @@ extract_prereqs() {
     exit 1
   fi
 
-  # throw away warnings, ascii art, convert to modnames
-  PQ=$(perl -p -e 's/^\!.*//; s/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
+  # throw away warnings, up-to-date diag, ascii art, convert to modnames
+  PQ=$(perl -p -e '
+    s/^.*?is up to date.*$//;
+    s/^\!.*//;
+    s/^[^a-z]+//i;
+    s/\-[^\-]+$/ /; # strip version part
+    s/\-/::/g
+  ' <<< "$OUT")
 
   # throw away what was in $@
   for m in "$@" ; do
