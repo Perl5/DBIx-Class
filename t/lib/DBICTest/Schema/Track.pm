@@ -53,6 +53,29 @@ __PACKAGE__->grouping_column ('cd');
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD', undef, {
     proxy => { cd_title => 'title' },
 });
+# custom condition coderef
+__PACKAGE__->belongs_to( cd_cref_cond => 'DBICTest::Schema::CD',
+sub {
+  # This is for test purposes only. A regular user does not
+  # need to sanity check the passed-in arguments, this is what
+  # the tests are for :)
+  my $args = &check_customcond_args;
+
+  return (
+    {
+      "$args->{foreign_alias}.cdid" => { -ident => "$args->{self_alias}.cd" },
+    },
+
+    ( $args->{self_resultobj} ? {
+     "$args->{foreign_alias}.cdid" => $args->{self_resultobj}->cd
+    } : () ),
+
+    ( $args->{foreign_resultobj} ? {
+     "$args->{self_alias}.cd" => $args->{foreign_resultobj}->cdid
+    } : () ),
+  );
+}
+);
 __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd', {
     proxy => 'year'
 });

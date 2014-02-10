@@ -51,6 +51,23 @@ __PACKAGE__->has_many(
     { order_by => { -asc => 'year'} },
 );
 
+__PACKAGE__->has_many(
+  cds_cref_cond => 'DBICTest::Schema::CD',
+  sub {
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my $args = &check_customcond_args;
+
+    return (
+      { "$args->{foreign_alias}.artist" => { '=' => { -ident => "$args->{self_alias}.artistid"} },
+      },
+      $args->{self_rowobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+      }
+    );
+  },
+);
 
 __PACKAGE__->has_many(
   cds_80s => 'DBICTest::Schema::CD',
