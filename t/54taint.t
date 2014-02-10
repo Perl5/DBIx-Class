@@ -10,12 +10,15 @@ BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
   # and with relative paths *and* with a relative $^X and some other
   # craziness... in short: just be proactive
   require File::Spec;
-  $ENV{PATH} = join $Config{path_sep},
-    map { length($_) ? File::Spec->rel2abs($_) : () }
-      split /\Q$Config{path_sep}/, $ENV{PATH}
-  ;
-  my $perl = $^X;
-  ($_) = $_ =~ /\A(.+)\z/ for ( $ENV{PATH}, $perl );
+
+  if (length $ENV{PATH}) {
+    ( $ENV{PATH} ) = join ( $Config{path_sep},
+      map { length($_) ? File::Spec->rel2abs($_) : () }
+        split /\Q$Config{path_sep}/, $ENV{PATH}
+    ) =~ /\A(.+)\z/;
+  }
+
+  my ($perl) = $^X =~ /\A(.+)\z/;
 
   {
     local $ENV{PATH} = "/nosuchrootbindir";
@@ -63,7 +66,7 @@ throws_ok (
   sub { $ENV{PATH} . (kill (0)) },
   qr/Insecure dependency in kill/,
   'taint mode active'
-);
+) if length $ENV{PATH};
 
 {
   package DBICTest::Taint::Classes;
