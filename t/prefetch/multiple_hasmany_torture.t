@@ -6,6 +6,7 @@ use Test::Deep;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 my $schema = DBICTest->init_schema();
 
@@ -122,6 +123,33 @@ my $art_rs_prefetch = $art_rs->search({}, {
 });
 
 cmp_deeply( $art_rs_prefetch->next, $artist_with_extras );
+
+
+for my $order (
+  [ [qw( cds.cdid tracks.position )] ],
+
+  [ [qw( artistid tracks.cd tracks.position )],
+    'we need to proxy the knowledge from the collapser that tracks.cd is a stable sorter for CDs' ],
+) {
+
+  my $cds_rs_prefetch = $art_rs->related_resultset('cds')->search({}, {
+    order_by => [ $order->[0], qw(producer.name tracks_2.position) ],
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    prefetch => [
+      { tracks => { cd_single => 'tracks' } },
+      { cd_to_producer => 'producer' },
+    ],
+  });
+
+  local $SIG{__WARN__} = sigwarn_silencer(qr/Unable to properly collapse has_many results/) if $order->[1];
+
+  cmp_deeply( $cds_rs_prefetch->next, $artist_with_extras->{cds}[0], '1st cd structure matches' );
+  cmp_deeply( $cds_rs_prefetch->next, $artist_with_extras->{cds}[1], '2nd cd structure matches' );
+
+  # INTERNALS! (a.k.a boars, gore and whores) DO NOT CARGOCULT!!!
+  local $TODO = $order->[1] if $order->[1];
+  ok( $cds_rs_prefetch->_resolved_attrs->{_ordered_for_collapse}, 'ordered_for_collapse detected properly' );
+}
 
 
 done_testing;
