@@ -2227,7 +2227,6 @@ case there are obviously no benefits to using this method over L</create>.
 sub populate {
   my $self = shift;
 
-
   if (defined wantarray) {
     # cruft placed in standalone method
     my $data = $self->_normalize_populate_to_hashref(@_);
@@ -2269,10 +2268,13 @@ sub populate {
       # delegate to list context populate()/create() for any dataset without
       # primary keys with specified relationships
 
-      if (grep { defined $colmap{$_} && !defined $data->[$index][$colmap{$_}] } @pks) {
+      if (grep { !defined $colmap{$_} } @pks) {
         for my $r (@rels) {
-          if (grep { ref $data->[$index][$colmap{$_}] eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
-            my @ret = $self->populate($data);
+          if (grep { ref $data->[$index][$colmap{$r}] eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
+            # we pass in @_ here as it is the pre-normalized version of $data.
+            # in list/scalar context it is expecting this form so we save a step
+            # converting it back
+            my @ret = $self->populate(@_);
             return;
           }
         }
@@ -2328,29 +2330,25 @@ sub populate {
           $rel,
         );
 
-=begin
-        if ( ref $item->[$colmap{$rel}] eq 'ARRAY') {
-          for my $subitem (@{ $item->[$colmap{$rel}] }) {
-            $subitem->
-
+        my @rows_to_add = do {
+          if (ref $item->[ $colmap{$rel} ] eq 'ARRAY') {
+            @{$item->[$colmap{$rel}]};
           }
-        }
+          else {
+            ($item->[$colmap{$rel}]);
+          }
+        };
 
-        my @rows_to_add = ref eq 'ARRAY' ? @{$item->[$colmap{$rel}]} : ($item->[$colmap{$rel}]);
+        # only AoH supports multicreate per doc specs
         my @populate = map { {%$_, %$related} } @rows_to_add;
-=cut
-        $child->populate( $item->[$colmap{$rel}] );
+
+        $child->populate(\@populate);
       }
     }
   }
 }
 
 # populate() arguments went over several incarnations
-# can be any mixture of :
-# 1. AoA
-# 2. AoH
-# 3. AoS(calar) followed buy Arrayrefref (\@cols, $rs->as_query)
-# 4. coderef (tuple generator)
 # What we ultimately support is AoH
 sub _normalize_populate_to_hashref {
   my ($self, $arg) = @_;
@@ -2366,21 +2364,13 @@ sub _normalize_populate_to_hashref {
       my @ret;
       my @colnames = @{$arg->[0]};
       foreach my $values (@{$arg}[1 .. $#$arg]) {
-        if (ref $values eq 'ARRAY') {
-          push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
-        }
-        elsif (ref $values eq 'CODE' || (ref $values eq 'REF' && ref $$values eq 'ARRAY')) {
-          push @ret, $values;
-        }
-        else {
-          $self->throw_exception('Populate expects an arrayref of either hashrefs, arrayrefs, coderefs or arrayrefrefs');
-        }
+        push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
       }
       return \@ret;
     }
   }
 
-  $self->throw_exception('Populate expects an arrayref of either hashrefs, arrayrefs, coderefs or arrayrefrefs');
+  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
 }
 
 sub _normalize_populate_to_arrayref {
