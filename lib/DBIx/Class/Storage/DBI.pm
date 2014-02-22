@@ -1964,6 +1964,7 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
+  use DDP; p $data;
   my @col_range = (0..$#$cols);
 
   # FIXME SUBOPTIMAL - most likely this is not necessary at all
@@ -1971,7 +1972,6 @@ sub insert_bulk {
   #
   # forcibly stringify whatever is stringifiable
   # ResultSet::populate() hands us a copy - safe to mangle
-  # Check with Riba: is this still dangerous?
   for my $r (0 .. $#$data) {
     for my $c (0 .. $#{$data->[$r]}) {
       $data->[$r][$c] = "$data->[$r][$c]"

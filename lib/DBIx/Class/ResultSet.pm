@@ -2241,6 +2241,7 @@ sub populate {
     my $data = $self->_normalize_populate_to_arrayref(@_);
 
     return unless @$data;
+    use DDP; p $data;
 
     my $first = shift @$data;
 
@@ -2249,14 +2250,20 @@ sub populate {
     my (@rels, @columns);
     my $rsrc = $self->result_source;
     my $rels = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
-    for my $index (0..$#$first) {
-      my $col = $first->[$index];
-      my $val = $data->[0][$index];
-      my $ref = ref $val;
-      $rels->{$col} && ($ref eq 'ARRAY' or $ref eq 'HASH')
-        ? push @rels, $col
-        : push @columns, $col
-      ;
+
+    if (ref $data->[0] eq 'CODE') {
+      @columns = @$first;
+    }
+    else {
+      for my $index (0..$#$first) {
+        my $col = $first->[$index];
+        my $val = $data->[0][$index];
+        my $ref = ref $val;
+        $rels->{$col} && ($ref eq 'ARRAY' or $ref eq 'HASH')
+          ? push @rels, $col
+          : push @columns, $col
+        ;
+      }
     }
 
     my @pks = $rsrc->primary_columns;
@@ -2264,6 +2271,7 @@ sub populate {
 
     ## do the belongs_to relationships
     foreach my $index (0..$#$data) {
+      next if (ref $data->[$index] eq 'CODE');
 
       # delegate to list context populate()/create() for any dataset without
       # primary keys with specified relationships
@@ -2313,6 +2321,7 @@ sub populate {
 
     ## do the has_many relationships
     foreach my $item (@$data) {
+      next if (ref $item eq  'CODE');
 
       my $main_row;
 
