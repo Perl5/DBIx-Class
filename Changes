@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix on_connect_* not always firing in some cases - a race condition
+          existed between storage accessor setters and the determine_driver
+          routines, triggering a connection before the set-cycle is finished
+
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
         - Fix 0.08260 regression in DBD::SQLite bound int handling. Inserted

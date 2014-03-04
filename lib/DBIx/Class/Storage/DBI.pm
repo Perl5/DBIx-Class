@@ -79,20 +79,24 @@ __PACKAGE__->_use_join_optimizer (1);
 sub _determine_supports_join_optimizer { 1 };
 
 # Each of these methods need _determine_driver called before itself
-# in order to function reliably. This is a purely DRY optimization
+# in order to function reliably. We also need to separate accessors
+# from plain old method calls, since an accessor called as a setter
+# does *not* need the driver determination loop fired (and in fact
+# can produce hard to find bugs, like e.g. losing on_connect_*
+# semantics on fresh connections)
 #
-# get_(use)_dbms_capability need to be called on the correct Storage
-# class, as _use_X may be hardcoded class-wide, and _supports_X calls
-# _determine_supports_X which obv. needs a correct driver as well
-my @rdbms_specific_methods = qw/
+# The construct below is simply a parameterized around()
+my $storage_accessor_idx = { map { $_ => 1 } qw(
   sqlt_type
-  deployment_statements
+  datetime_parser_type
 
   sql_maker
   cursor_class
+)};
+for my $meth (keys %$storage_accessor_idx, qw(
+  deployment_statements
 
   build_datetime_parser
-  datetime_parser_type
 
   txn_begin
 
@@ -110,15 +114,13 @@ my @rdbms_specific_methods = qw/
 
   _server_info
   _get_server_version
-/;
-
-for my $meth (@rdbms_specific_methods) {
+)) {
 
   my $orig = __PACKAGE__->can ($meth)
     or die "$meth is not a ::Storage::DBI method!";
 
-  no strict qw/refs/;
-  no warnings qw/redefine/;
+  no strict 'refs';
+  no warnings 'redefine';
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     if (
       # only fire when invoked on an instance, a valid class-based invocation
@@ -128,6 +130,10 @@ for my $meth (@rdbms_specific_methods) {
       ! $_[0]->{_driver_determined}
         and
       ! $_[0]->{_in_determine_driver}
+        and
+      # if this is a known *setter* - just set it, no need to connect
+      # and determine the driver
+      ! ( $storage_accessor_idx->{$meth} and @_ > 1 )
         and
       # Only try to determine stuff if we have *something* that either is or can
       # provide a DSN. Allows for bare $schema's generated with a plain ->connect()
