@@ -21,7 +21,7 @@ Alternatively use the C<< storage->debug >> class method:-
 
 To send the output somewhere else set debugfh:-
 
-  $schema->storage->debugfh(IO::File->new('/tmp/trace.out', 'w');
+  $schema->storage->debugfh(IO::File->new('/tmp/trace.out', 'w'));
 
 Alternatively you can do this with the environment variable, too:-
 
