@@ -134,6 +134,27 @@ for my $t (
     sql => 'WHERE artistid IS NULL AND artistid != ? AND artistid IS NULL AND artistid = ? AND 0=1 AND charfield IS NULL AND 0=1 AND rank IS NULL',
     efcc_result => [qw( artistid )],
   },
+
+  # original test from RT#93244
+  {
+    where => {
+      -and => [
+        \[
+          "LOWER(me.title) LIKE ?",
+          '%spoon%',
+        ],
+        [ { 'me.title' => 'Spoonful of bees' } ],
+    ]},
+    cc_result => {
+      '' => \[
+        "LOWER(me.title) LIKE ?",
+        '%spoon%',
+      ],
+      'me.title' => 'Spoonful of bees',
+    },
+    sql => 'WHERE LOWER(me.title) LIKE ? AND me.title = ?',
+    efcc_result => [qw( me.title )],
+  }
 ) {
 
   for my $w (
