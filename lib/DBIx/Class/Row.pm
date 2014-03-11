@@ -1240,16 +1240,14 @@ sub inflate_result {
       $class->throw_exception("No accessor type declared for prefetched relationship '$relname'")
         unless $relinfo->{attrs}{accessor};
 
+      my $rel_rs = $new->related_resultset($relname);
+
       my @rel_objects;
       if (
-        $prefetch->{$relname}
-          and
-        @{$prefetch->{$relname}}
+        @{ $prefetch->{$relname} || [] }
           and
         ref($prefetch->{$relname}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
       ) {
-
-        my $rel_rs = $new->related_resultset($relname);
 
         if (ref $prefetch->{$relname}[0] eq 'ARRAY') {
           my $rel_rsrc = $rel_rs->result_source;
@@ -1274,7 +1272,7 @@ sub inflate_result {
         $new->{_inflated_column}{$relname} = $rel_objects[0];
       }
 
-      $new->related_resultset($relname)->set_cache(\@rel_objects);
+      $rel_rs->set_cache(\@rel_objects);
     }
   }
 
