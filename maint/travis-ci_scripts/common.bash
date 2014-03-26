@@ -20,7 +20,16 @@ run_or_err() {
   LASTCMD="$2"
   LASTEXIT=0
   START_TIME=$SECONDS
+
+  PRMETER_PIDFILE="$(tempfile)_$SECONDS"
+  # the double bash is to hide the job control messages
+  bash -c "bash -c 'echo \$\$ >> $PRMETER_PIDFILE; while true; do sleep 10; echo -n \"\${SECONDS}s ... \"; done' &"
+
   LASTOUT=$( eval "$2" 2>&1 ) || LASTEXIT=$?
+
+  # stop progress meter
+  for p in $(cat "$PRMETER_PIDFILE"); do kill $p ; done
+
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" != "0" ]] ; then
