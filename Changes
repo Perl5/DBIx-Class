@@ -19,6 +19,8 @@ Revision history for DBIx::Class
         - Fix on_connect_* not always firing in some cases - a race condition
           existed between storage accessor setters and the determine_driver
           routines, triggering a connection before the set-cycle is finished
+        - Prevent erroneous database hit when accessing prefetched related
+          resultsets with no rows
         - Fix incorrect handling of custom relationship conditions returning
           SQLA literal expressions
         - Fix multi-value literal populate not working with simplified bind
