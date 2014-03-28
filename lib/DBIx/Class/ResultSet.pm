@@ -3186,11 +3186,11 @@ sub related_resultset {
 
     if (my $cache = $self->get_cache) {
       my @related_cache = map
-        { @{$_->related_resultset($rel)->get_cache||[]} }
+        { $_->related_resultset($rel)->get_cache || () }
         @$cache
       ;
 
-      $new->set_cache(\@related_cache) if @related_cache;
+      $new->set_cache([ map @$_, @related_cache ]) if @related_cache == @$cache;
     }
 
     $new;
