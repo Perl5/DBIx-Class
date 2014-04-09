@@ -15,7 +15,8 @@ ok(
     $event->update(
         {
             starts_at => \[
-                'MAX(datetime(?), datetime(?))', '2006-04-25T22:24:33',
+                'MAX(starts_at, datetime(?), datetime(?))',
+                '2006-04-25T22:24:33',
                 '2007-04-25T22:24:33',
             ]
         }
