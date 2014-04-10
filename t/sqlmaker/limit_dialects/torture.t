@@ -392,7 +392,7 @@ my $tests = {
         '(
           SELECT me.id, owner__id, owner__name, bar, baz
             FROM (
-              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM rownum__index
+              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM AS rownum__index
                 FROM (
                   SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
                     FROM books me
@@ -428,7 +428,7 @@ my $tests = {
         '(
           SELECT me.id, owner__id, owner__name, bar, baz
             FROM (
-              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM rownum__index
+              SELECT me.id, owner__id, owner__name, bar, baz, ROWNUM AS rownum__index
                 FROM (
                   SELECT me.id, owner.id AS owner__id, owner.name AS owner__name, ? * ? AS bar, ? AS baz
                     FROM books me
@@ -459,7 +459,7 @@ my $tests = {
             FROM (
               SELECT me.name, me.id
                 FROM (
-                  SELECT me.name, me.id, ROWNUM rownum__index
+                  SELECT me.name, me.id, ROWNUM AS rownum__index
                     FROM (
                       SELECT me.name, me.id
                         FROM owners me
