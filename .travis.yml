@@ -75,6 +75,7 @@ env:
   - CLEANTEST=true
 
 matrix:
+  fast_finish: true
   include:
     # this particular perl is quite widespread
     - perl: 5.8.8_thr_mb
