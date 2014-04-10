@@ -7,7 +7,6 @@ use File::Find;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
 use lib 't/lib';
-use lib 't/dqlib';
 
 find({
   wanted => sub {
