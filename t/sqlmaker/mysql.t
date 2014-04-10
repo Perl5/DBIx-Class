@@ -12,6 +12,7 @@ use DBIC::DebugObj;
 my $schema = DBICTest::Schema->connect (DBICTest->_database, { quote_char => '`' });
 # cheat
 require DBIx::Class::Storage::DBI::mysql;
+*DBIx::Class::Storage::DBI::mysql::_get_server_version = sub { 5 };
 bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
 
 # check that double-subqueries are properly wrapped
@@ -102,7 +103,7 @@ bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
           FROM (
             SELECT `artist`.`artistid`
               FROM cd `me`
-              INNER JOIN `artist` `artist`
+              JOIN `artist` `artist`
                 ON `artist`.`artistid` = `me`.`artist`
             WHERE `artist`.`name` LIKE ?
           ) `_forced_double_subquery`
@@ -135,6 +136,34 @@ bless ( $schema->storage, 'DBIx::Class::Storage::DBI::mysql' );
     )',
     [],
     'straight joins correctly supported for mysql'
+  );
+}
+
+# Test support for inner joins on mysql v3
+for (
+  [ 3 => 'INNER JOIN' ],
+  [ 4 => 'JOIN' ],
+) {
+  my ($ver, $join_op) = @$_;
+
+  no warnings 'redefine';
+  local *DBIx::Class::Storage::DBI::mysql::_get_server_version = sub { $ver };
+
+  # we do not care at this point if data is available, just do a reconnect cycle
+  # to clear all caches
+  $schema->storage->disconnect;
+  $schema->storage->ensure_connected;
+
+  is_same_sql_bind (
+    $schema->resultset('CD')->search ({}, { prefetch => 'artist' })->as_query,
+    "(
+      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
+             `artist`.`artistid`, `artist`.`name`, `artist`.`rank`, `artist`.`charfield`
+        FROM cd `me`
+        $join_op `artist` `artist` ON `artist`.`artistid` = `me`.`artist`
+    )",
+    [],
+    "default join type works for version $ver",
   );
 }
 

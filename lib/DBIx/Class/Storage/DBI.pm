@@ -1061,6 +1061,7 @@ sub _populate_dbh {
 
   $self->_dbh(undef); # in case ->connected failed we might get sent here
   $self->_dbh_details({}); # reset everything we know
+  $self->_sql_maker(undef); # this may also end up being different
 
   $self->_dbh($self->_connect);
 
