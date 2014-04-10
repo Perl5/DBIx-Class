@@ -991,8 +991,13 @@ sub _get_dbh {
   return $self->_dbh;
 }
 
+# *DELIBERATELY* not a setter (for the time being)
+# Too intertwined with everything else for any kind of sanity
 sub sql_maker {
-  my ($self) = @_;
+  my $self = shift;
+
+  $self->throw_exception('sql_maker() is not a setter method') if @_;
+
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
 
