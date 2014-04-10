@@ -221,7 +221,7 @@ sub _FirstSkip {
 Depending on the resultset attributes one of:
 
  SELECT * FROM (
-  SELECT *, ROWNUM rownum__index FROM (
+  SELECT *, ROWNUM AS rownum__index FROM (
    SELECT ...
   ) WHERE ROWNUM <= ($limit+$offset)
  ) WHERE rownum__index >= ($offset+1)
@@ -229,7 +229,7 @@ Depending on the resultset attributes one of:
 or
 
  SELECT * FROM (
-  SELECT *, ROWNUM rownum__index FROM (
+  SELECT *, ROWNUM AS rownum__index FROM (
     SELECT ...
   )
  ) WHERE rownum__index BETWEEN ($offset+1) AND ($limit+$offset)
@@ -286,7 +286,7 @@ EOS
 
     return <<EOS;
 SELECT $sq_attrs->{selection_outer} FROM (
-  SELECT $sq_attrs->{selection_outer}, ROWNUM $idx_name FROM (
+  SELECT $sq_attrs->{selection_outer}, ROWNUM AS $idx_name FROM (
     SELECT $sq_attrs->{selection_inner} $sq_attrs->{query_leftover}${order_group_having}
   ) $qalias WHERE ROWNUM <= ?
 ) $qalias WHERE $idx_name >= ?
@@ -297,7 +297,7 @@ EOS
 
     return <<EOS;
 SELECT $sq_attrs->{selection_outer} FROM (
-  SELECT $sq_attrs->{selection_outer}, ROWNUM $idx_name FROM (
+  SELECT $sq_attrs->{selection_outer}, ROWNUM AS $idx_name FROM (
     SELECT $sq_attrs->{selection_inner} $sq_attrs->{query_leftover}${order_group_having}
   ) $qalias
 ) $qalias WHERE $idx_name BETWEEN ? AND ?
