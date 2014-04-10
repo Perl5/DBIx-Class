@@ -106,15 +106,17 @@ sub _run_connection_actions {
 sub sql_maker {
   my $self = shift;
 
-  unless ($self->_sql_maker) {
-    my $maker = $self->next::method (@_);
+  # it is critical to get the version *before* calling next::method
+  # otherwise the potential connect will obliterate the sql_maker
+  # next::method will populate in the _sql_maker accessor
+  my $mysql_ver = $self->_server_info->{normalized_dbms_version};
 
-    # mysql 3 does not understand a bare JOIN
-    my $mysql_ver = $self->_dbh_get_info('SQL_DBMS_VER');
-    $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
-  }
+  my $sm = $self->next::method(@_);
 
-  return $self->_sql_maker;
+  # mysql 3 does not understand a bare JOIN
+  $sm->{_default_jointype} = 'INNER' if $mysql_ver < 4;
+
+  $sm;
 }
 
 sub sqlt_type {

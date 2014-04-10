@@ -199,20 +199,6 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
     my $cd = $rs->next;
     is ($cd->artist->name, $artist->name, 'Prefetched artist');
   }, 'join does not throw (mysql 3 test)';
-
-  # induce a jointype override, make sure it works even if we don't have mysql3
-  local $schema->storage->sql_maker->{_default_jointype} = 'inner';
-  is_same_sql_bind (
-    $rs->as_query,
-    '(
-      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
-             `artist`.`artistid`, `artist`.`name`, `artist`.`rank`, `artist`.`charfield`
-        FROM cd `me`
-        INNER JOIN `artist` `artist` ON `artist`.`artistid` = `me`.`artist`
-    )',
-    [],
-    'overridden default join type works',
-  );
 }
 
 ## Can we properly deal with the null search problem?
