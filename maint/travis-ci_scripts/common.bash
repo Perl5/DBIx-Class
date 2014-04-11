@@ -17,19 +17,20 @@ tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
 
+  LASTCMD="$2"
   LASTEXIT=0
   START_TIME=$SECONDS
-  # the tee is a handy debugging tool when stumpage is exceedingly strong
-  #LASTOUT=$( bash -c "$2" 2>&1 | tee /dev/stderr) || LASTEXIT=$?
-  LASTOUT=$( bash -c "$2" 2>&1 ) || LASTEXIT=$?
+  LASTOUT=$( eval "$2" 2>&1 ) || LASTEXIT=$?
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" != "0" ]] ; then
-    echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-    echo_err "Command executed:"
-    echo_err "$2"
-    echo_err "STDOUT+STDERR:"
-    echo_err "$LASTOUT"
+    if [[ -z "$3" ]] ; then
+      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
+      echo_err "Command executed:"
+      echo_err "$LASTCMD"
+      echo_err "STDOUT+STDERR:"
+      echo_err "$LASTOUT"
+    fi
 
     return $LASTEXIT
   else
@@ -121,46 +122,23 @@ parallel_installdeps_notest() {
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
 
-  echo_err "$(tstamp) Processing dependencies: $@"
+  MODLIST=$(printf "%q " "$@" | perl -pe 's/^\s+|\s+$//g')
 
   local -x HARNESS_OPTIONS
 
   HARNESS_OPTIONS="j$NUMTHREADS"
 
-  echo_err -n "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ... "
+  if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
+    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
+    echo "$errlog"
 
-  LASTEXIT=0
-  START_TIME=$SECONDS
-  LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
-  DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-  if [[ "$LASTEXIT" = "0" ]] ; then
-    echo_err "done (took ${DELTA_TIME}s)"
-  else
-    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
-    echo_err -n "failed ($errlog) retrying with sequential testing ... "
     POSTMORTEM="$POSTMORTEM$(
       echo
-      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog"
-      echo "============================================================="
-      echo "Attempted installation of: $@"
-      echo "============================================================="
+      echo "Depinstall of $MODLIST under $HARNESS_OPTIONS parallel testing $errlog"
     )"
 
     HARNESS_OPTIONS=""
-    LASTEXIT=0
-    START_TIME=$SECONDS
-    LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
-    DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-    if [[ "$LASTEXIT" = "0" ]] ; then
-      echo_err "done (took ${DELTA_TIME}s)"
-    else
-      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-      echo_err "STDOUT+STDERR:"
-      echo_err "$LASTOUT"
-      exit 1
-    fi
+    run_or_err "Retrying same $# modules without parallel testing" "_dep_inst_with_test $MODLIST"
   fi
 
   INSTALLDEPS_OUT="${INSTALLDEPS_OUT}${LASTOUT}"
@@ -169,9 +147,11 @@ installdeps() {
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     # --dev is already part of CPANM_OPT
-    $TIMEOUT_CMD cpanm "$@" 2>&1
+    LASTCMD="$TIMEOUT_CMD cpanm $@"
+    $LASTCMD 2>&1
   else
-    $TIMEOUT_CMD cpan "$@" 2>&1
+    LASTCMD="$TIMEOUT_CMD cpan $@"
+    $LASTCMD 2>&1
 
     # older perls do not have a CPAN which can exit with error on failed install
     for m in "$@"; do
