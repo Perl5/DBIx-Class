@@ -143,6 +143,11 @@ sub new {
 
   $source->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
 
+  $source->add_columns(
+    'col1' => { data_type => 'integer', is_nullable => 1, ... },
+    'col2' => { data_type => 'text',    is_auto_increment => 1, ... },
+  );
+
 Adds columns to the result source. If supplied colname => hashref
 pairs, uses the hashref as the L</column_info> for that column. Repeated
 calls of this method will add more columns, not replace them.
