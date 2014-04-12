@@ -69,3 +69,5 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 # vim:sts=2 sw=2:
+
+1;
