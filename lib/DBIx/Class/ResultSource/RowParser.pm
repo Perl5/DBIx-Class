@@ -8,7 +8,6 @@ use base 'DBIx::Class';
 
 use Try::Tiny;
 use List::Util qw(first max);
-use B 'perlstring';
 use Scalar::Util qw(blessed);
 
 use DBIx::Class::ResultSource::RowParser::Util qw(

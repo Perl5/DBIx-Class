@@ -97,7 +97,13 @@ for my $s (qw/a2a artw cd artw_back/) {
   is ($fresh->count_rs({ cdid => 1})->next, 1 );
 
   ok (! exists $fresh->{cursor}, 'Still no cursor on fresh rs');
-  ok (! exists $fresh->{_attrs}{_sqlmaker_select_args}, 'select args did not leak through' );
+  ok (! exists $fresh->{_attrs}{_last_sqlmaker_alias_map}, 'aliasmap did not leak through' );
+
+  my $n = $fresh->next;
+
+  # check that we are not testing for deprecated slotnames
+  ok ($fresh->{cursor}, 'Cursor at expected slot after fire');
+  ok (exists $fresh->{_attrs}{_last_sqlmaker_alias_map}, 'aliasmap at expected slot after fire' );
 }
 
 done_testing;

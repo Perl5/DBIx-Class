@@ -47,9 +47,10 @@ if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
-use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
-use Scalar::Util 'refaddr';
+use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
+use Scalar::Util qw(weaken blessed reftype);
 use DBIx::Class;
+use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer);
 BEGIN {
   plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
     if DBIx::Class::_ENV_::PEEPEENESS;
@@ -88,7 +89,7 @@ unless (DBICTest::RunMode->is_plain) {
     # re-populate the registry while checking it, ewwww!)
     return $obj if (ref $obj) =~ /^TB2::/;
 
-    # weaken immediately to avoid weird side effects
+    # populate immediately to avoid weird side effects
     return populate_weakregistry ($weak_registry, $obj );
   };
 
@@ -214,9 +215,6 @@ unless (DBICTest::RunMode->is_plain) {
   my $getcol_rs = $cds_rs->get_column('me.cdid');
   my $pref_getcol_rs = $cds_with_stuff->get_column('me.cdid');
 
-  # fire the column getters
-  my @throwaway = $pref_getcol_rs->all;
-
   my $base_collection = {
     resultset => $rs,
 
@@ -239,8 +237,8 @@ unless (DBICTest::RunMode->is_plain) {
     get_column_rs_pref => $pref_getcol_rs,
 
     # twice so that we make sure only one H::M object spawned
-    chained_resultset => $rs->search_rs ({}, { '+columns' => [ 'foo' ] } ),
-    chained_resultset2 => $rs->search_rs ({}, { '+columns' => [ 'bar' ] } ),
+    chained_resultset => $rs->search_rs ({}, { '+columns' => { foo => 'artistid' } } ),
+    chained_resultset2 => $rs->search_rs ({}, { '+columns' => { bar => 'artistid' } } ),
 
     row_object => $row_obj,
 
@@ -256,11 +254,40 @@ unless (DBICTest::RunMode->is_plain) {
     leaky_resultset_cond => $cond_rowobj,
   };
 
-  # this needs to fire, even if it can't find anything
-  # see FIXME below
-  # we run this only on smokers - trying to establish a pattern
-  $rs_bind_circref->next
-    if ( ($ENV{TRAVIS}||'') ne 'true' and DBICTest::RunMode->is_smoker);
+  # fire all resultsets multiple times, once here, more below
+  # some of these can't find anything (notably leaky_resultset)
+  my @rsets = grep {
+    blessed $_
+      and
+    (
+      $_->isa('DBIx::Class::ResultSet')
+        or
+      $_->isa('DBIx::Class::ResultSetColumn')
+    )
+  } values %$base_collection;
+
+
+  my $fire_resultsets = sub {
+    local $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS} = 1;
+    local $SIG{__WARN__} = sigwarn_silencer(
+      qr/Unable to deflate 'filter'-type relationship 'artist'.+related object primary key not retrieved/
+    );
+
+    map
+      { $_, (blessed($_) ? { $_->get_columns } : ()) }
+      map
+        { $_->all }
+        @rsets
+    ;
+  };
+
+  push @{$base_collection->{random_results}}, $fire_resultsets->();
+
+  # FIXME - something throws a Storable for a spin if we keep
+  # the results in-collection. The same problem is seen above,
+  # swept under the rug back in 0a03206a, damned lazy ribantainer
+{
+  local $base_collection->{random_results};
 
   require Storable;
   %$base_collection = (
@@ -275,6 +302,87 @@ unless (DBICTest::RunMode->is_plain) {
     fresh_pager => $rs->page(5)->pager,
     pager => $pager,
   );
+}
+
+  # FIXME - ideally this kind of collector ought to be global, but attempts
+  # with an invasive debugger-based tracer did not quite work out... yet
+  # Manually scan the innards of everything we have in the base collection
+  # we assembled so far (skip the DT madness below) *recursively*
+  #
+  # Only do this when we do have the bits to look inside CVs properly,
+  # without it we are liable to pick up object defaults that are locked
+  # in method closures
+  if (DBICTest::Util::LeakTracer::CV_TRACING) {
+    visit_refs(
+      refs => [ $base_collection ],
+      action => sub {
+        populate_weakregistry ($weak_registry, $_[0]);
+        1;  # true means "keep descending"
+      },
+    );
+
+    # do a heavy-duty fire-and-compare loop on all resultsets
+    # this is expensive - not running on install
+    my $typecounts = {};
+    if (
+      ! DBICTest::RunMode->is_plain
+        and
+      ! $ENV{DBICTEST_IN_PERSISTENT_ENV}
+        and
+      # FIXME - investigate wtf is going on with 5.18
+      ! ( $] > 5.017 and $ENV{DBIC_TRACE_PROFILE} )
+    ) {
+
+      # FIXME - ideally we should be able to just populate an alternative
+      # registry, subtract everything from the main one, and arrive at
+      # an "empty" resulting hash
+      # However due to gross inefficiencies in the ::ResultSet code we
+      # end up recalculating a new set of aliasmaps which could have very
+      # well been cached if it wasn't for... anyhow
+      # What we do here for the time being is similar to the lazy approach
+      # of Devel::LeakTrace - we just make sure we do not end up with more
+      # reftypes than when we started. At least we are not blanket-counting
+      # SVs like D::LT does, but going by reftype... sigh...
+
+      for (values %$weak_registry) {
+        if ( my $r = reftype($_->{weakref}) ) {
+          $typecounts->{$r}--;
+        }
+      }
+
+      # For now we can only reuse the same registry, see FIXME above/below
+      #for my $interim_wr ({}, {}) {
+      for my $interim_wr ( ($weak_registry) x 4 ) {
+
+        visit_refs(
+          refs => [ $fire_resultsets->(), @rsets ],
+          action => sub {
+            populate_weakregistry ($interim_wr, $_[0]);
+            1;  # true means "keep descending"
+          },
+        );
+
+        # FIXME - this is what *should* be here
+        #
+        ## anything we have seen so far is cool
+        #delete @{$interim_wr}{keys %$weak_registry};
+        #
+        ## moment of truth - the rest ought to be gone
+        #assert_empty_weakregistry($interim_wr);
+      }
+
+      for (values %$weak_registry) {
+        if ( my $r = reftype($_->{weakref}) ) {
+          $typecounts->{$r}++;
+        }
+      }
+    }
+
+    for (keys %$typecounts) {
+      fail ("Amount of $_ refs changed by $typecounts->{$_} during resultset mass-execution")
+        if ( abs ($typecounts->{$_}) > 1 ); # there is a pad caught somewhere, the +1/-1 can be ignored
+    }
+  }
 
   if ($has_dt) {
     my $rs = $base_collection->{icdt_rs} = $schema->resultset('Event');
@@ -294,23 +402,6 @@ unless (DBICTest::RunMode->is_plain) {
   # dbh's are created in XS space, so pull them separately
   for ( grep { defined } map { @{$_->{ChildHandles}} } values %{ {DBI->installed_drivers()} } ) {
     $base_collection->{"DBI handle $_"} = $_;
-  }
-
-  SKIP: {
-    if ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks') ) {
-      my @w;
-      local $SIG{__WARN__} = sub { $_[0] =~ /\QUnhandled type: REGEXP/ ? push @w, @_ : warn @_ };
-
-      Test::Memory::Cycle::memory_cycle_ok ($base_collection, 'No cycles in the object collection');
-
-      if ( $] > 5.011 ) {
-        local $TODO = 'Silence warning due to RT56681';
-        is (@w, 0, 'No Devel::Cycle emitted warnings');
-      }
-    }
-    else {
-      skip 'Circular ref test needs ' .  DBIx::Class::Optional::Dependencies->req_missing_for ('test_leaks'), 1;
-    }
   }
 
   populate_weakregistry ($weak_registry, $base_collection->{$_}, "basic $_")
@@ -355,46 +446,69 @@ unless (DBICTest::RunMode->is_plain) {
 
 # Naturally we have some exceptions
 my $cleared;
-for my $slot (keys %$weak_registry) {
-  if ($slot =~ /^Test::Builder/) {
+for my $addr (keys %$weak_registry) {
+  my $names = join "\n", keys %{$weak_registry->{$addr}{slot_names}};
+
+  if ($names =~ /^Test::Builder/m) {
     # T::B 2.0 has result objects and other fancyness
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$addr};
   }
-  elsif ($slot =~ /^Method::Generate::(?:Accessor|Constructor)/) {
-    # Moo keeps globals around, this is normal
-    delete $weak_registry->{$slot};
+  elsif ($names =~ /^Hash::Merge/m) {
+    # only clear one object of a specific behavior - more would indicate trouble
+    delete $weak_registry->{$addr}
+      unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
-  elsif ($slot =~ /^SQL::Translator::Generator::DDL::SQLite/) {
+  elsif (
+#    # if we can look at closed over pieces - we will register it as a global
+#    !DBICTest::Util::LeakTracer::CV_TRACING
+#      and
+    $names =~ /^SQL::Translator::Generator::DDL::SQLite/m
+  ) {
     # SQLT::Producer::SQLite keeps global generators around for quoted
     # and non-quoted DDL, allow one for each quoting style
-    delete $weak_registry->{$slot}
-      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$slot}{weakref}->quote_chars}}++;
-  }
-  elsif ($slot =~ /^Hash::Merge/) {
-    # only clear one object of a specific behavior - more would indicate trouble
-    delete $weak_registry->{$slot}
-      unless $cleared->{hash_merge_singleton}{$weak_registry->{$slot}{weakref}{behavior}}++;
-  }
-  elsif ($slot =~ /^DateTime::TimeZone/) {
-    # DT is going through a refactor it seems - let it leak zones for now
-    delete $weak_registry->{$slot};
+    delete $weak_registry->{$addr}
+      unless $cleared->{sqlt_ddl_sqlite}->{@{$weak_registry->{$addr}{weakref}->quote_chars}}++;
   }
 }
 
 # FIXME !!!
 # There is an actual strong circular reference taking place here, but because
-# half of it is in XS no leaktracer sees it, and Devel::FindRef is equally
-# stumped when trying to trace the origin. The problem is:
+# half of it is in XS, so it is a bit harder to track down (it stumps D::FR)
+# (our tracker does not yet do it, but it'd be nice)
+# The problem is:
 #
 # $cond_object --> result_source --> schema --> storage --> $dbh --> {CachedKids}
 #          ^                                                           /
 #           \-------- bound value on prepared/cached STH  <-----------/
 #
 {
-  local $TODO = 'This fails intermittently - see RT#82942';
-  if ( my $r = $weak_registry->{'basic leaky_resultset_cond'}{weakref} ) {
+  my @circreffed;
+
+  for my $r (map
+    { $_->{weakref} }
+    grep
+      { $_->{slot_names}{'basic leaky_resultset_cond'} }
+      values %$weak_registry
+  ) {
+    local $TODO = 'Needs Data::Entangled or somesuch - see RT#82942';
     ok(! defined $r, 'Self-referential RS conditions no longer leak!')
-      or $r->result_source(undef);
+      or push @circreffed, $r;
+  }
+
+  if (@circreffed) {
+    is (scalar @circreffed, 1, 'One resultset expected to leak');
+
+    # this is useless on its own, it is to showcase the circref-diag
+    # and eventually test it when it is operational
+    local $TODO = 'Needs Data::Entangled or somesuch - see RT#82942';
+    while (@circreffed) {
+      weaken (my $r = shift @circreffed);
+
+      populate_weakregistry( (my $mini_registry = {}), $r );
+      assert_empty_weakregistry( $mini_registry );
+
+      $r->result_source(undef);
+    }
   }
 }
 

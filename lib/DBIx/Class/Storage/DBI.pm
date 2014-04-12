@@ -32,7 +32,7 @@ __PACKAGE__->datetime_parser_type('DateTime::Format::MySQL'); # historic default
 __PACKAGE__->sql_name_sep('.');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
-  _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
+  _connect_info _dbic_connect_attributes _driver_determined
   _dbh _dbh_details _conn_pid _sql_maker _sql_maker_opts _dbh_autocommit
   _perform_autoinc_retrieval _autoinc_supplied_for_op
 /);
@@ -79,20 +79,24 @@ __PACKAGE__->_use_join_optimizer (1);
 sub _determine_supports_join_optimizer { 1 };
 
 # Each of these methods need _determine_driver called before itself
-# in order to function reliably. This is a purely DRY optimization
+# in order to function reliably. We also need to separate accessors
+# from plain old method calls, since an accessor called as a setter
+# does *not* need the driver determination loop fired (and in fact
+# can produce hard to find bugs, like e.g. losing on_connect_*
+# semantics on fresh connections)
 #
-# get_(use)_dbms_capability need to be called on the correct Storage
-# class, as _use_X may be hardcoded class-wide, and _supports_X calls
-# _determine_supports_X which obv. needs a correct driver as well
-my @rdbms_specific_methods = qw/
+# The construct below is simply a parameterized around()
+my $storage_accessor_idx = { map { $_ => 1 } qw(
   sqlt_type
-  deployment_statements
+  datetime_parser_type
 
   sql_maker
   cursor_class
+)};
+for my $meth (keys %$storage_accessor_idx, qw(
+  deployment_statements
 
   build_datetime_parser
-  datetime_parser_type
 
   txn_begin
 
@@ -110,15 +114,13 @@ my @rdbms_specific_methods = qw/
 
   _server_info
   _get_server_version
-/;
-
-for my $meth (@rdbms_specific_methods) {
+)) {
 
   my $orig = __PACKAGE__->can ($meth)
     or die "$meth is not a ::Storage::DBI method!";
 
-  no strict qw/refs/;
-  no warnings qw/redefine/;
+  no strict 'refs';
+  no warnings 'redefine';
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     if (
       # only fire when invoked on an instance, a valid class-based invocation
@@ -129,7 +131,14 @@ for my $meth (@rdbms_specific_methods) {
         and
       ! $_[0]->{_in_determine_driver}
         and
-      ($_[0]->_dbi_connect_info||[])->[0]
+      # if this is a known *setter* - just set it, no need to connect
+      # and determine the driver
+      ! ( $storage_accessor_idx->{$meth} and @_ > 1 )
+        and
+      # Only try to determine stuff if we have *something* that either is or can
+      # provide a DSN. Allows for bare $schema's generated with a plain ->connect()
+      # to still be marginally useful
+      $_[0]->_dbi_connect_info->[0]
     ) {
       $_[0]->_determine_driver;
 
@@ -210,6 +219,12 @@ sub new {
   my %seek_and_destroy;
 
   sub _arm_global_destructor {
+
+    # quick "garbage collection" pass - prevents the registry
+    # from slowly growing with a bunch of undef-valued keys
+    defined $seek_and_destroy{$_} or delete $seek_and_destroy{$_}
+      for keys %seek_and_destroy;
+
     weaken (
       $seek_and_destroy{ refaddr($_[0]) } = $_[0]
     );
@@ -616,23 +631,6 @@ sub connect_info {
   $info = $self->_normalize_connect_info($info)
     if ref $info eq 'ARRAY';
 
-  for my $storage_opt (keys %{ $info->{storage_options} }) {
-    my $value = $info->{storage_options}{$storage_opt};
-
-    $self->$storage_opt($value);
-  }
-
-  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-  #  the new set of options
-  $self->_sql_maker(undef);
-  $self->_sql_maker_opts({});
-
-  for my $sql_maker_opt (keys %{ $info->{sql_maker_options} }) {
-    my $value = $info->{sql_maker_options}{$sql_maker_opt};
-
-    $self->_sql_maker_opts->{$sql_maker_opt} = $value;
-  }
-
   my %attrs = (
     %{ $self->_default_dbi_connect_attributes || {} },
     %{ $info->{attributes} || {} },
@@ -651,15 +649,57 @@ sub connect_info {
 
     push @args, \%attrs if keys %attrs;
   }
+
+  # this is the authoritative "always an arrayref" thing fed to DBI->connect
+  # OR a single-element coderef-based $dbh factory
   $self->_dbi_connect_info(\@args);
 
+  # extract the individual storage options
+  for my $storage_opt (keys %{ $info->{storage_options} }) {
+    my $value = $info->{storage_options}{$storage_opt};
+
+    $self->$storage_opt($value);
+  }
+
+  # Extract the individual sqlmaker options
+  #
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
+
+  for my $sql_maker_opt (keys %{ $info->{sql_maker_options} }) {
+    my $value = $info->{sql_maker_options}{$sql_maker_opt};
+
+    $self->_sql_maker_opts->{$sql_maker_opt} = $value;
+  }
+
   # FIXME - dirty:
-  # save attributes them in a separate accessor so they are always
+  # save attributes in a separate accessor so they are always
   # introspectable, even in case of a CODE $dbhmaker
   $self->_dbic_connect_attributes (\%attrs);
 
   return $self->_connect_info;
 }
+
+sub _dbi_connect_info {
+  my $self = shift;
+
+  return $self->{_dbi_connect_info} = $_[0]
+    if @_;
+
+  my $conninfo = $self->{_dbi_connect_info} || [];
+
+  # last ditch effort to grab a DSN
+  if ( ! defined $conninfo->[0] and $ENV{DBI_DSN} ) {
+    my @new_conninfo = @$conninfo;
+    $new_conninfo[0] = $ENV{DBI_DSN};
+    $conninfo = \@new_conninfo;
+  }
+
+  return $conninfo;
+}
+
 
 sub _normalize_connect_info {
   my ($self, $info_arg) = @_;
@@ -796,7 +836,7 @@ Example:
 
 sub dbh_do {
   my $self = shift;
-  my $run_target = shift;
+  my $run_target = shift; # either a coderef or a method name
 
   # short circuit when we know there is no need for a runner
   #
@@ -813,10 +853,15 @@ sub dbh_do {
 
   DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
-    run_code => sub { $self->$run_target ($self->_get_dbh, @$args ) },
     wrap_txn => 0,
-    retry_handler => sub { ! ( $_[0]->retried_count or $_[0]->storage->connected ) },
-  )->run;
+    retry_handler => sub {
+      $_[0]->failed_attempt_count == 1
+        and
+      ! $_[0]->storage->connected
+    },
+  )->run(sub {
+    $self->$run_target ($self->_get_dbh, @$args )
+  });
 }
 
 sub txn_do {
@@ -954,8 +999,13 @@ sub _get_dbh {
   return $self->_dbh;
 }
 
+# *DELIBERATELY* not a setter (for the time being)
+# Too intertwined with everything else for any kind of sanity
 sub sql_maker {
-  my ($self) = @_;
+  my $self = shift;
+
+  $self->throw_exception('sql_maker() is not a setter method') if @_;
+
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
 
@@ -1017,11 +1067,11 @@ sub _init {}
 sub _populate_dbh {
   my ($self) = @_;
 
-  my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh(undef); # in case ->connected failed we might get sent here
   $self->_dbh_details({}); # reset everything we know
+  $self->_sql_maker(undef); # this may also end up being different
 
-  $self->_dbh($self->_connect(@info));
+  $self->_dbh($self->_connect);
 
   $self->_conn_pid($$) unless DBIx::Class::_ENV_::BROKEN_FORK; # on win32 these are in fact threads
 
@@ -1152,15 +1202,28 @@ sub _describe_connection {
   require DBI::Const::GetInfoReturn;
 
   my $self = shift;
-  $self->ensure_connected;
+
+  my $drv;
+  try {
+    $drv = $self->_extract_driver_from_connect_info;
+    $self->ensure_connected;
+  };
+
+  $drv = "DBD::$drv" if $drv;
 
   my $res = {
     DBIC_DSN => $self->_dbi_connect_info->[0],
     DBI_VER => DBI->VERSION,
     DBIC_VER => DBIx::Class->VERSION,
     DBIC_DRIVER => ref $self,
+    $drv ? (
+      DBD => $drv,
+      DBD_VER => try { $drv->VERSION },
+    ) : (),
   };
 
+  # try to grab data even if we never managed to connect
+  # will cover us in cases of an oddly broken half-connect
   for my $inf (
     #keys %DBI::Const::GetInfoType::GetInfoType,
     qw/
@@ -1221,20 +1284,7 @@ sub _determine_driver {
         $started_connected = 1;
       }
       else {
-        # if connect_info is a CODEREF, we have no choice but to connect
-        if (ref $self->_dbi_connect_info->[0] &&
-            reftype $self->_dbi_connect_info->[0] eq 'CODE') {
-          $self->_populate_dbh;
-          $driver = $self->_dbh->{Driver}{Name};
-        }
-        else {
-          # try to use dsn to not require being connected, the driver may still
-          # force a connection in _rebless to determine version
-          # (dsn may not be supplied at all if all we do is make a mock-schema)
-          my $dsn = $self->_dbi_connect_info->[0] || $ENV{DBI_DSN} || '';
-          ($driver) = $dsn =~ /dbi:([^:]+):/i;
-          $driver ||= $ENV{DBI_DRIVER};
-        }
+        $driver = $self->_extract_driver_from_connect_info;
       }
 
       if ($driver) {
@@ -1277,6 +1327,31 @@ sub _determine_driver {
     $self->_run_connection_actions
         if !$started_connected && defined $self->_dbh;
   }
+}
+
+sub _extract_driver_from_connect_info {
+  my $self = shift;
+
+  my $drv;
+
+  # if connect_info is a CODEREF, we have no choice but to connect
+  if (
+    ref $self->_dbi_connect_info->[0]
+      and
+    reftype $self->_dbi_connect_info->[0] eq 'CODE'
+  ) {
+    $self->_populate_dbh;
+    $drv = $self->_dbh->{Driver}{Name};
+  }
+  else {
+    # try to use dsn to not require being connected, the driver may still
+    # force a connection later in _rebless to determine version
+    # (dsn may not be supplied at all if all we do is make a mock-schema)
+    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:]+):/i;
+    $drv ||= $ENV{DBI_DRIVER};
+  }
+
+  return $drv;
 }
 
 sub _determine_connector_driver {
@@ -1385,10 +1460,12 @@ sub _do_query {
 }
 
 sub _connect {
-  my ($self, @info) = @_;
+  my $self = shift;
+
+  my $info = $self->_dbi_connect_info;
 
   $self->throw_exception("You did not provide any connection_info")
-    if ( ! defined $info[0] and ! $ENV{DBI_DSN} and ! $ENV{DBI_DRIVER} );
+    unless defined $info->[0];
 
   my ($old_connect_via, $dbh);
 
@@ -1418,12 +1495,12 @@ sub _connect {
   };
 
   try {
-    if(ref $info[0] eq 'CODE') {
-      $dbh = $info[0]->();
+    if(ref $info->[0] eq 'CODE') {
+      $dbh = $info->[0]->();
     }
     else {
       require DBI;
-      $dbh = DBI->connect(@info);
+      $dbh = DBI->connect(@$info);
     }
 
     die $DBI::errstr unless $dbh;
@@ -1431,8 +1508,8 @@ sub _connect {
     die sprintf ("%s fresh DBI handle with a *false* 'Active' attribute. "
       . 'This handle is disconnected as far as DBIC is concerned, and we can '
       . 'not continue',
-      ref $info[0] eq 'CODE'
-        ? "Connection coderef $info[0] returned a"
+      ref $info->[0] eq 'CODE'
+        ? "Connection coderef $info->[0] returned a"
         : 'DBI->connect($schema->storage->connect_info) resulted in a'
     ) unless $dbh->FETCH('Active');
 
@@ -1447,7 +1524,7 @@ sub _connect {
       # Default via _default_dbi_connect_attributes is 1, hence it was an explicit
       # request, or an external handle. Complain and set anyway
       unless ($dbh->{RaiseError}) {
-        carp( ref $info[0] eq 'CODE'
+        carp( ref $info->[0] eq 'CODE'
 
           ? "The 'RaiseError' of the externally supplied DBI handle is set to false. "
            ."DBIx::Class will toggle it back to true, unless the 'unsafe' connect "
@@ -1468,7 +1545,7 @@ sub _connect {
   };
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
-  $dbh;
+  return $dbh;
 }
 
 sub txn_begin {
@@ -2350,8 +2427,8 @@ sub _select_args {
   # soooooo much better now. But that is also another
   # battle...
   #return (
-  #  'select', @{$orig_attrs->{_sqlmaker_select_args}}
-  #) if $orig_attrs->{_sqlmaker_select_args};
+  #  'select', $orig_attrs->{!args_as_stored_at_the_end_of_this_method!}
+  #) if $orig_attrs->{!args_as_stored_at_the_end_of_this_method!};
 
   my $sql_maker = $self->sql_maker;
   my $alias2source = $self->_resolve_ident_sources ($ident);
@@ -2447,6 +2524,16 @@ sub _select_args {
     ($attrs->{from}, $attrs->{_aliastypes}) = $self->_prune_unused_joins ($attrs);
   }
 
+  # FIXME this is a gross, inefficient, largely incorrect and fragile hack
+  # during the result inflation stage we *need* to know what was the aliastype
+  # map as sqla saw it when the final pieces of SQL were being assembled
+  # Originally we simply carried around the entirety of $attrs, but this
+  # resulted in resultsets that are being reused growing continuously, as
+  # the hash in question grew deeper and deeper.
+  # Instead hand-pick what to take with us here (we actually don't need much
+  # at this point just the map itself)
+  $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
+
 ###
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
@@ -2457,9 +2544,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  return ( 'select', @{ $orig_attrs->{_sqlmaker_select_args} = [
-    @{$attrs}{qw(from select where)}, $attrs, @limit_args
-  ]} );
+  return ( 'select', @{$attrs}{qw(from select where)}, $attrs, @limit_args );
 }
 
 # Returns a counting SELECT for a simple count

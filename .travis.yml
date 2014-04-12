@@ -58,6 +58,13 @@ notifications:
     on_success: change
     on_failure: always
 
+# FIXME - This stuff is not yet available for free OSS accounts, sadpanda
+# First paragrah on http://about.travis-ci.org/docs/user/caching/
+#cache:
+#  apt: true
+#  directories:
+#    - /var/cache/apt/archives
+
 language: perl
 
 perl:
@@ -68,6 +75,7 @@ env:
   - CLEANTEST=true
 
 matrix:
+  fast_finish: true
   include:
     # this particular perl is quite widespread
     - perl: 5.8.8_thr_mb
@@ -116,14 +124,14 @@ matrix:
     ###
     # some permutations of tracing and envvar poisoning
 
-    - perl: 5.18.1_thr_mb
+    - perl: 5.16.2_thr_mb
       env:
         - CLEANTEST=false
         - POISON_ENV=true
         - DBIC_TRACE=1
         - DBIC_MULTICREATE_DEBUG=0
         - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.18.1
+        - BREWVER=5.16.2
 
     - perl: 5.18
       env:
@@ -131,7 +139,7 @@ matrix:
         - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console
 
-    - perl: 5.18
+    - perl: 5.8
       env:
         - CLEANTEST=true
         - POISON_ENV=true
@@ -148,19 +156,42 @@ matrix:
     ###
     # Start of the allow_failures block
 
-    # recentish stable with blead CPAN
-    - perl: devcpan_5.18.1_thr_mb
+    # old threaded with blead CPAN
+    - perl: devcpan_5.8.7_thr
       env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.18.1
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads"
+        - BREWVER=5.8.7
         - DEVREL_DEPS=true
 
-    # bleadperl with stock CPAN
-    - perl: bleadperl_thr_mb
+    # 5.10.0 threaded with blead CPAN
+    - perl: devcpan_5.10.0_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.10.0
+        - DEVREL_DEPS=true
+
+    # 5.12.2 with blead CPAN
+    - perl: devcpan_5.12.2_thr
+      env:
+        - CLEANTEST=true
+        - BREWOPTS="-Duseithreads"
+        - BREWVER=5.12.2
+        - DEVREL_DEPS=true
+
+    # recentish threaded stable with blead CPAN
+    - perl: devcpan_5.18.2_thr_mb
       env:
         - CLEANTEST=false
         - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWVER=5.18.2
+        - DEVREL_DEPS=true
+
+    # bleadperl with stock CPAN, full depchain test
+    - perl: bleadperl
+      env:
+        - CLEANTEST=true
         - BREWVER=blead
 
     # bleadperl with blead CPAN
@@ -175,13 +206,12 @@ matrix:
   # which ones of the above can fail
   allow_failures:
 
-    # Fails tests because of https://github.com/Perl-Toolchain-Gang/CPAN-Meta/issues/25
-    # Can't be simply masked due to https://rt.cpan.org/Ticket/Display.html?id=88903
-    - perl: 5.10.0_thr_dbg
-
     # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.18.1_thr_mb
-    - perl: bleadperl_thr_mb
+    - perl: devcpan_5.8.7_thr
+    - perl: devcpan_5.10.0_thr_mb
+    - perl: devcpan_5.12.2_thr
+    - perl: devcpan_5.18.2_thr_mb
+    - perl: bleadperl
     - perl: devcpan_bleadperl_thr_mb
 
 

@@ -178,8 +178,8 @@ for my $post_poison (0,1) {
       # this always fails
       ! $pre_poison
         or
-      # I do not underdtand why but on <= 5.8.8 and $pre_poison && $post_poison passes...
-      $] > 5.008008
+      # I do not understand why but on <= 5.8.8 and on 5.10.0 "$pre_poison && $post_poison" passes...
+      ($] > 5.008008 and $] < 5.010000 ) or $] > 5.010000
     ));
 
   is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
@@ -197,51 +197,24 @@ for my $post_poison (0,1) {
 
   require Text::Balanced;
 
-  my $great_success;
-  {
-    local $TODO = 'RT#74994 *STILL* not fixed';
+  my @w;
+  local $SIG{__WARN__} = sub {
+    $_[0] =~ /External exception object .+? \Qimplements partial (broken) overloading/
+      ? push @w, @_
+      : warn @_
+  };
 
-    lives_ok {
-      # this is what poisons $@
-      Text::Balanced::extract_bracketed( '(foo', '()' );
+  lives_ok {
+    # this is what poisons $@
+    Text::Balanced::extract_bracketed( '(foo', '()' );
 
-      my $s = DBICTest->init_schema( deploy => 0 );
-      my $g = $s->txn_scope_guard;
-      $g->commit;
-      $great_success++;
-    } 'Text::Balanced is no longer screwing up $@';
-  }
+    my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
+    my $g = $s->txn_scope_guard;
+    $g->commit;
+  } 'Broken Text::Balanced is not screwing up txn_guard';
 
-  # delete all of this when T::B dep is bumped
-  unless ($great_success) {
-
-# hacky workaround for desperate folk
-# intended to be copypasted into your app
-    {
-      require Text::Balanced;
-      require overload;
-
-      local $@;
-
-      # this is what poisons $@
-      Text::Balanced::extract_bracketed( '(foo', '()' );
-
-      if ($@ and overload::Overloaded($@) and ! overload::Method($@,'fallback') ) {
-        my $class = ref $@;
-        eval "package $class; overload->import(fallback => 1);"
-      }
-    }
-# end of hacky workaround
-
-    lives_ok {
-      # this is what poisons $@
-      Text::Balanced::extract_bracketed( '(foo', '()' );
-
-      my $s = DBICTest->init_schema( deploy => 0 );
-      my $g = $s->txn_scope_guard;
-      $g->commit;
-    } 'Monkeypatched Text::Balanced is no longer screwing up $@';
-  }
+  local $TODO = 'RT#74994 *STILL* not fixed';
+  is(scalar @w, 0, 'no warnings \o/');
 }
 
 done_testing;

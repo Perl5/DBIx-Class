@@ -24,6 +24,14 @@ __PACKAGE__->_use_insert_returning (1);
 __PACKAGE__->sql_limit_dialect ('FirstSkip');
 __PACKAGE__->sql_quote_char ('"');
 
+__PACKAGE__->datetime_parser_type(
+  'DBIx::Class::Storage::DBI::InterBase::DateTime::Format'
+);
+
+sub sqlt_type {
+  return 'Firebird';
+}
+
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
 
@@ -106,6 +114,54 @@ sub _get_server_version {
   return $self->_get_dbh->selectrow_array(q{
 SELECT rdb$get_context('SYSTEM', 'ENGINE_VERSION') FROM rdb$database
   });
+}
+
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::InterBase::DateTime::Format;
+
+my $timestamp_format = '%Y-%m-%d %H:%M:%S.%4N'; # %F %T
+my $date_format      = '%Y-%m-%d';
+
+my ($timestamp_parser, $date_parser);
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
+    on_error => 'croak',
+  );
+  return $timestamp_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
+    on_error => 'croak',
+  );
+  return $timestamp_parser->format_datetime(shift);
+}
+
+sub parse_date {
+  shift;
+  require DateTime::Format::Strptime;
+  $date_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $date_format,
+    on_error => 'croak',
+  );
+  return $date_parser->parse_datetime(shift);
+}
+
+sub format_date {
+  shift;
+  require DateTime::Format::Strptime;
+  $date_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $date_format,
+    on_error => 'croak',
+  );
+  return $date_parser->format_datetime(shift);
 }
 
 1;

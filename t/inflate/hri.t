@@ -2,6 +2,14 @@ use strict;
 use warnings;
 
 use Test::More;
+
+use DBIx::Class::_Util 'modver_gt_or_eq';
+use base();
+BEGIN {
+  plan skip_all => 'base.pm 2.20 (only present in perl 5.19.7) is known to break this test'
+    if modver_gt_or_eq(base => '2.19_01') and ! modver_gt_or_eq(base => '2.21');
+}
+
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;

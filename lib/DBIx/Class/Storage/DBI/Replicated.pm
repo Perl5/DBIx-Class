@@ -37,7 +37,7 @@ also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
   my $schema = Schema::Class->clone;
-  $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  $schema->storage_type(['::DBI::Replicated', { balancer_type => '::Random' }]);
   $schema->connection(...);
 
 Next, you need to add in the Replicants.  Basically this is an array of
@@ -338,6 +338,7 @@ my $method_dispatch = {
     _dbh_get_info
 
     _determine_connector_driver
+    _extract_driver_from_connect_info
     _describe_connection
     _warn_undetermined_driver
 
@@ -1095,7 +1096,7 @@ attribute:
 
   my $result = $resultset->search(undef, {force_pool=>'master'})->find($pk);
 
-This attribute will safely be ignore by non replicated storages, so you can use
+This attribute will safely be ignored by non replicated storages, so you can use
 the same code for both types of systems.
 
 Lastly, you can use the L</execute_reliably> method, which works very much like

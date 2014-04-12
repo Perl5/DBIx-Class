@@ -16,7 +16,10 @@ BEGIN {
 }
 
 use Path::Class qw/file dir/;
-use File::Spec;
+use Fcntl ':DEFAULT';
+use File::Spec ();
+use File::Temp ();
+use DBICTest::Util 'local_umask';
 
 _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
 
@@ -28,16 +31,58 @@ my $tmpdir;
 sub tmpdir {
   dir ($tmpdir ||= do {
 
+    # works but not always
     my $dir = dir(File::Spec->tmpdir);
+    my $reason_dir_unusable;
 
     my @parts = File::Spec->splitdir($dir);
-    if (@parts == 2 and $parts[1] eq '') {
-      # This means we were give the root dir (C:\ or something equally unacceptable)
+    if (@parts == 2 and $parts[1] =~ /^ [ \\ \/ ]? $/x ) {
+      $reason_dir_unusable =
+        'File::Spec->tmpdir returned a root directory instead of a designated '
+      . 'tempdir (possibly https://rt.cpan.org/Ticket/Display.html?id=76663)';
+    }
+    else {
+      # make sure we can actually create and sysopen a file in this dir
+      local $@;
+      my $u = local_umask(0); # match the umask we use in DBICTest(::Schema)
+      my $tempfile = '<NONCREATABLE>';
+      eval {
+        $tempfile = File::Temp->new(
+          TEMPLATE => '_dbictest_writability_test_XXXXXX',
+          DIR => "$dir",
+          UNLINK => 1,
+        );
+        close $tempfile or die "closing $tempfile failed: $!\n";
+
+        sysopen (my $tempfh2, "$tempfile", O_RDWR) or die "reopening $tempfile failed: $!\n";
+        print $tempfh2 'deadbeef' x 1024 or die "printing to $tempfile failed: $!\n";
+        close $tempfh2 or die "closing $tempfile failed: $!\n";
+        1;
+      } or do {
+        chomp( my $err = $@ );
+        my @x_tests = map { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' } map {(-e, -d, -f, -r, -w, -x, -o)} ("$dir", "$tempfile");
+        $reason_dir_unusable = sprintf <<"EOE", "$tempfile"||'', $err, scalar $>, scalar $), umask(), (stat($dir))[4,5,2], @x_tests;
+File::Spec->tmpdir returned a directory which appears to be non-writeable:
+Error encountered while testing '%s': %s
+Process EUID/EGID: %s / %s
+Effective umask:   %o
+TmpDir UID/GID:    %s / %s
+TmpDir StatMode:   %o
+TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+TmpFile X-tests:   -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+EOE
+      };
+    }
+
+    if ($reason_dir_unusable) {
       # Replace with our local project tmpdir. This will make multiple runs
       # from different runs conflict with each other, but is much better than
-      # polluting the root dir with random crap
-      $dir = _find_co_root()->subdir('t')->subdir('var');
-      $dir->mkpath;
+      # polluting the root dir with random crap or failing outright
+      my $local_dir = _find_co_root()->subdir('t')->subdir('var');
+      $local_dir->mkpath;
+
+      warn "\n\nUsing '$local_dir' as test scratch-dir instead of '$dir': $reason_dir_unusable\n";
+      $dir = $local_dir;
     }
 
     $dir->stringify;
@@ -106,7 +151,7 @@ to ensure you have all required dependencies present. Not doing
 so often results in a lot of wasted time for other contributors
 trying to assist you with spurious "its broken!" problems.
 
-By default DBICs Makefile.PL turns all optional dependenciess into
+By default DBICs Makefile.PL turns all optional dependencies into
 *HARD REQUIREMENTS*, in order to make sure that the entire test
 suite is executed, and no tests are skipped due to missing modules.
 If you for some reason need to disable this behavior - supply the

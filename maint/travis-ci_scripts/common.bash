@@ -3,6 +3,7 @@
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
 
 echo_err() { echo "$@" 1>&2 ; }
 
@@ -16,22 +17,44 @@ tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
 
+  LASTCMD="$2"
   LASTEXIT=0
   START_TIME=$SECONDS
-  LASTOUT=$( bash -c "$2" 2>&1 ) || LASTEXIT=$?
+
+  PRMETER_PIDFILE="$(tempfile)_$SECONDS"
+  # the double bash is to hide the job control messages
+  bash -c "bash -c 'echo \$\$ >> $PRMETER_PIDFILE; while true; do sleep 10; echo -n \"\${SECONDS}s ... \"; done' &"
+
+  LASTOUT=$( eval "$2" 2>&1 ) || LASTEXIT=$?
+
+  # stop progress meter
+  for p in $(cat "$PRMETER_PIDFILE"); do kill $p ; done
+
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" != "0" ]] ; then
-    echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-    echo_err "Command executed:"
-    echo_err "$2"
-    echo_err "STDOUT+STDERR:"
-    echo_err "$LASTOUT"
+    if [[ -z "$3" ]] ; then
+      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
+      echo_err "Command executed:"
+      echo_err "$LASTCMD"
+      echo_err "STDOUT+STDERR:"
+      echo_err "$LASTOUT"
+    fi
 
     return $LASTEXIT
   else
     echo_err "done (took ${DELTA_TIME}s)"
   fi
+}
+
+apt_install() {
+  # flatten
+  pkgs="$@"
+
+  # Need to do this at every step, the sources list may very well have changed
+  run_or_err "Updating APT available package list" "sudo apt-get update"
+
+  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {
@@ -45,7 +68,7 @@ extract_prereqs() {
     || LASTEXIT=$?
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
-  ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
+  ERR=${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}
 
   if [[ "$LASTEXIT" != "0" ]] ; then
     echo_err "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:"
@@ -54,8 +77,14 @@ extract_prereqs() {
     exit 1
   fi
 
-  # throw away ascii art, convert to modnames
-  PQ=$(perl -p -e 's/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
+  # throw away warnings, up-to-date diag, ascii art, convert to modnames
+  PQ=$(perl -p -e '
+    s/^.*?is up to date.*$//;
+    s/^\!.*//;
+    s/^[^a-z]+//i;
+    s/\-[^\-]+$/ /; # strip version part
+    s/\-/::/g
+  ' <<< "$OUT")
 
   # throw away what was in $@
   for m in "$@" ; do
@@ -72,10 +101,14 @@ parallel_installdeps_notest() {
   # one module spec per line
   MODLIST="$(printf '%s\n' "$@")"
 
-  # The reason we do things so "non-interactively" is that xargs -P will have the
-  # latest cpanm instance overwrite the buildlog. There seems to be no way to
-  # specify a custom buildlog, hence we just collect the verbose output
-  # and display it in case of "worker" failure
+  # We want to trap the output of each process and serially append them to
+  # each other as opposed to just dumping a jumbled up mass-log that would
+  # need careful unpicking by a human
+  #
+  # While cpanm does maintain individual buildlogs in more recent versions,
+  # we are not terribly interested in trying to figure out which log is which
+  # dist. The verbose-output + trap STDIO technique is vastly superior in this
+  # particular case
   #
   # Explanation of inline args:
   #
@@ -90,7 +123,7 @@ parallel_installdeps_notest() {
     "echo \\
 \"$MODLIST\" \\
       | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$(cpanm --notest --no-man-pages \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'OUT=\$($TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
@@ -98,68 +131,57 @@ parallel_installdeps_notest() {
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
 
-  echo_err "$(tstamp) Processing dependencies: $@"
+  MODLIST=$(printf "%q " "$@" | perl -pe 's/^\s+|\s+$//g')
 
   local -x HARNESS_OPTIONS
 
   HARNESS_OPTIONS="j$NUMTHREADS"
 
-  echo_err -n "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ... "
+  if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
+    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
+    echo "$errlog"
 
-  LASTEXIT=0
-  START_TIME=$SECONDS
-  LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
-  DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-  if [[ "$LASTEXIT" = "0" ]] ; then
-    echo_err "done (took ${DELTA_TIME}s)"
-  else
-    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel installfail" <<< "$LASTOUT")"
-    echo_err -n "failed ($errlog) retrying with sequential testing ... "
     POSTMORTEM="$POSTMORTEM$(
       echo
-      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog"
-      echo "============================================================="
-      echo "Attempted installation of: $@"
-      echo "============================================================="
+      echo "Depinstall of $MODLIST under $HARNESS_OPTIONS parallel testing $errlog"
     )"
 
     HARNESS_OPTIONS=""
-    LASTEXIT=0
-    START_TIME=$SECONDS
-    LASTOUT=$( cpan_inst "$@" ) || LASTEXIT=$?
-    DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-    if [[ "$LASTEXIT" = "0" ]] ; then
-      echo_err "done (took ${DELTA_TIME}s)"
-    else
-      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-      echo_err "STDOUT+STDERR:"
-      echo_err "$LASTOUT"
-      exit 1
-    fi
+    run_or_err "Retrying same $# modules without parallel testing" "_dep_inst_with_test $MODLIST"
   fi
 
   INSTALLDEPS_OUT="${INSTALLDEPS_OUT}${LASTOUT}"
 }
 
-cpan_inst() {
-  /usr/bin/timeout --kill-after=9.5m --signal=TERM 9m cpan "$@" 2>&1
+_dep_inst_with_test() {
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    # --dev is already part of CPANM_OPT
+    LASTCMD="$TIMEOUT_CMD cpanm $@"
+    $LASTCMD 2>&1
+  else
+    LASTCMD="$TIMEOUT_CMD cpan $@"
+    $LASTCMD 2>&1
 
-  # older perls do not have a CPAN which can exit with error on failed install
-  for m in "$@"; do
-    if ! perl -e '
+    # older perls do not have a CPAN which can exit with error on failed install
+    for m in "$@"; do
+      if ! perl -e '
 
-eval ( q{require } . (
+my $mod = (
   $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
-) ) or ( print $@ and exit 1)' "$m" 2> /dev/null ; then
+);
 
-      echo -e "$m installation seems to have failed"
-      return 1
-    fi
-  done
+$mod = q{List::Util} if $mod eq q{Scalar::List::Utils};
+
+eval qq{require($mod)} or ( print $@ and exit 1)
+
+      ' "$m" 2> /dev/null ; then
+        echo -e "$m installation seems to have failed"
+        return 1
+      fi
+    done
+  fi
 }
 
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }

@@ -110,14 +110,11 @@ sub new {
     }
   }
 
-  # collapse the selector to a literal so that it survives a possible distinct parse
-  # if it turns out to be an aggregate - at least the user will get a proper exception
-  # instead of silent drop of the group_by altogether
-  my $new = bless {
-    _select => \ ($rsrc->storage->sql_maker->_render_sqla(select_select => $select) =~ /^\s*SELECT\s*(.+)/i)[0],
+  return bless {
+    _select => $select,
     _as => $column,
-    _parent_resultset => $new_parent_rs }, $class;
-  return $new;
+    _parent_resultset => $new_parent_rs
+  }, $class;
 }
 
 =head2 as_query
@@ -478,12 +475,33 @@ sub throw_exception {
 sub _resultset {
   my $self = shift;
 
-  return $self->{_resultset} ||= $self->{_parent_resultset}->search(undef,
-    {
-      select => [$self->{_select}],
-      as => [$self->{_as}]
+  return $self->{_resultset} ||= do {
+
+    my $select = $self->{_select};
+
+    if ($self->{_parent_resultset}{attrs}{distinct}) {
+      my $alias = $self->{_parent_resultset}->current_source_alias;
+      my $rsrc = $self->{_parent_resultset}->result_source;
+      my %cols = map { $_ => 1, "$alias.$_" => 1 } $rsrc->columns;
+
+      unless( $cols{$select} ) {
+        carp_unique(
+          'Use of distinct => 1 while selecting anything other than a column '
+        . 'declared on the primary ResultSource is deprecated - please supply '
+        . 'an explicit group_by instead'
+        );
+
+        # collapse the selector to a literal so that it survives the distinct parse
+        # if it turns out to be an aggregate - at least the user will get a proper exception
+        # instead of silent drop of the group_by altogether
+        $select = \ ($rsrc->storage->sql_maker->_render_sqla(select_select => $select) =~ /^\s*SELECT\s*(.+)/i)[0],
+      }
     }
-  );
+
+    $self->{_parent_resultset}->search(undef, {
+      columns => { $self->{_as} => $select }
+    });
+  };
 }
 
 1;

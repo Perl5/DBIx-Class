@@ -7,6 +7,11 @@ BEGIN {
     print "1..0 # SKIP your perl does not support ithreads\n";
     exit 0;
   }
+
+  if ($INC{'Devel/Cover.pm'}) {
+    print "1..0 # SKIP Devel::Cover does not work with threads yet\n";
+    exit 0;
+  }
 }
 use threads;
 

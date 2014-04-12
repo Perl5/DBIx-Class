@@ -114,6 +114,15 @@ for my $ord_set (
     exselect_outer => 'ORDER__BY__001, ORDER__BY__002, ORDER__BY__003',
     exselect_inner => 'title AS ORDER__BY__001, bar AS ORDER__BY__002, sensors AS ORDER__BY__003',
   },
+
+  {
+    order_by => [
+      'name',
+    ],
+    order_inner => 'name',
+    order_outer => 'name DESC',
+    order_req => 'name',
+  },
 ) {
   my $o_sel = $ord_set->{exselect_outer}
     ? ', ' . $ord_set->{exselect_outer}
@@ -124,8 +133,13 @@ for my $ord_set (
     : ''
   ;
 
+  my $rs = $books_45_and_owners->search ({}, {order_by => $ord_set->{order_by}});
+
+  # query actually works
+  ok( defined $rs->count, 'Query actually works' );
+
   is_same_sql_bind(
-    $books_45_and_owners->search ({}, {order_by => $ord_set->{order_by}})->as_query,
+    $rs->as_query,
     "(SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name
         FROM (
           SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name$o_sel
@@ -145,6 +159,7 @@ for my $ord_set (
     [ [ { sqlt_datatype => 'varchar', sqlt_size => 100, dbic_colname => 'source' }
         => 'Library' ] ],
   );
+
 }
 
 # with groupby

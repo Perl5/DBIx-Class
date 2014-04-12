@@ -74,6 +74,7 @@ use Carp;
 use Path::Class::File ();
 use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
+use Config;
 
 =head1 NAME
 
@@ -124,25 +125,12 @@ our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
 
-    my $tmpdir = DBICTest::RunMode->tmpdir;
-    my $lockpath = $tmpdir->file('.dbictest_global.lock');
+    my $lockpath = DBICTest::RunMode->tmpdir->file('_dbictest_global.lock');
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
-      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT) or do {
-        my $err = $!;
-
-        my @x_tests = map { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' } map {(-e, -d, -f, -r, -w, -x, -o)} ($tmpdir, $lockpath);
-
-        die sprintf <<"EOE", $lockpath, $err, scalar $>, scalar $), (stat($tmpdir))[4,5,2], @x_tests;
-Unable to open %s: %s
-Process EUID/EGID: %s / %s
-TmpDir UID/GID:    %s / %s
-TmpDir StatMode:   %o
-TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
-TmpFile X-tests:   -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
-EOE
-      };
+      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT)
+        or die "Unable to open $lockpath: $!";
     }
 
     for (@_) {
@@ -244,18 +232,19 @@ sub _database {
       # this is executed on every connect, and thus installs a disconnect/DESTROY
       # guard for every new $dbh
       on_connect_do => sub {
+
         my $storage = shift;
         my $dbh = $storage->_get_dbh;
 
         # no fsync on commit
         $dbh->do ('PRAGMA synchronous = OFF');
 
-        if ($ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER}) {
-
-          $storage->throw_exception(
-            'PRAGMA reverse_unordered_selects does not work correctly before libsqlite 3.7.9'
-          ) if $storage->_server_info->{normalized_dbms_version} < 3.007009;
-
+        if (
+          $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER}
+            and
+          # the pragma does not work correctly before libsqlite 3.7.9
+          $storage->_server_info->{normalized_dbms_version} >= 3.007009
+        ) {
           $dbh->do ('PRAGMA reverse_unordered_selects = ON');
         }
 
@@ -318,10 +307,16 @@ sub __mk_disconnect_guard {
       my $cur_inode = (stat($db_file))[1];
 
       if ($orig_inode != $cur_inode) {
-        # pack/unpack to match the unsigned longs returned by `stat`
-        $fail_reason = sprintf 'was recreated (initially inode %s, now %s)', (
-          map { unpack ('L', pack ('l', $_) ) } ($orig_inode, $cur_inode )
-        );
+        my @inodes = ($orig_inode, $cur_inode);
+        # unless this is a fixed perl (P5RT#84590) pack/unpack before display
+        # to match the unsigned longs returned by `stat`
+        @inodes = map { unpack ('L', pack ('l', $_) ) } @inodes
+          unless $Config{st_ino_size};
+
+        $fail_reason = sprintf
+          'was recreated (initially inode %s, now %s)',
+          @inodes
+        ;
       }
     }
 

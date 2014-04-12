@@ -15,6 +15,8 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
+local $ENV{DBI_DSN};
+
 # this is how maint/gen_schema did it (connect() to force a storage
 # instance, but no conninfo)
 # there ought to be more code like this in the wild

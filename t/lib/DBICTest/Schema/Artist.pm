@@ -149,6 +149,21 @@ __PACKAGE__->has_many(
 );
 __PACKAGE__->many_to_many('artworks', 'artwork_to_artist', 'artwork');
 
+__PACKAGE__->has_many(
+    cds_without_genre => 'DBICTest::Schema::CD',
+    sub {
+        my $args = shift;
+        return (
+          {
+            "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
+            "$args->{foreign_alias}.genreid" => undef,
+          }, $args->{self_rowobj} && {
+            "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+            "$args->{foreign_alias}.genreid" => undef,
+          }
+        ),
+    },
+);
 
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;

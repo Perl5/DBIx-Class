@@ -46,7 +46,7 @@ my @tests = (
       ],
     },
     sqlbind => \[
-      "( SELECT (SELECT id FROM cd me LIMIT ?) FROM artist me )",
+      "( SELECT (SELECT me.id FROM cd me LIMIT ?) FROM artist me )",
       [ $ROWS => 1 ],
     ],
   },
@@ -59,7 +59,7 @@ my @tests = (
       ],
     },
     sqlbind => \[
-      "( SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cd me LIMIT ?) FROM artist me )",
+      "( SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT me.id FROM cd me LIMIT ?) FROM artist me )",
       [ $ROWS => 1 ],
     ],
   },

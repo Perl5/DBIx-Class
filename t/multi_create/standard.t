@@ -444,7 +444,11 @@ throws_ok ( sub {
     #$t->cd($t->new_related('cd', { artist => undef } ) );
     #$t->{_rel_in_storage} = 0;
     $t->insert;
-}, qr/cd.artist may not be NULL/, "Exception propogated properly");
+}, qr/DBI Exception.+(?x:
+    \QNOT NULL constraint failed: cd.artist\E
+      |
+    \Qcd.artist may not be NULL\E
+)/s, "Exception propogated properly");
 
 lives_ok ( sub {
   $schema->resultset('CD')->create ({

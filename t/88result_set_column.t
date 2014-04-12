@@ -277,7 +277,7 @@ is_same_sql_bind (
   # would silently drop the group_by entirely, likely ending up with nonsensival results
   # With the current behavior the user will at least get a nice fat exception from the
   # RDBMS (or maybe the RDBMS will even decide to handle the situation sensibly...)
-  is_same_sql_bind(
+  warnings_exist { is_same_sql_bind(
     $rstypes->{'implicitly grouped'}->get_column('cnt')->as_query,
     '(
       SELECT COUNT( me.cdid )
@@ -294,7 +294,10 @@ is_same_sql_bind (
         => 'evancarrol'
     ] ],
     'Expected (though nonsensical) SQL generated on rscol-with-distinct-over-function',
-  );
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
 
   {
     local $TODO = 'multiplying join leaks through to the count aggregate... this may never actually work';

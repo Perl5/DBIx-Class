@@ -67,7 +67,8 @@ if ($ENV{DBICTEST_MEMCACHED}) {
     my $key = 'tmp_dbic_84serialize_memcached_test';
 
     $stores{memcached} = sub {
-      $memcached->set( $key, $_[0], 60 );
+      $memcached->set( $key, $_[0], 60 )
+        or die "Unable to insert into $ENV{DBICTEST_MEMCACHED} - is server running?";
       local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
       return $memcached->get($key);
     };

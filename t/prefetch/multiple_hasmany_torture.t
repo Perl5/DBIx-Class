@@ -9,25 +9,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $mo_rs = $schema->resultset('Artist')->search(
-  { 'me.artistid' => 4 },
-  {
-    prefetch   => [
-      {
-        cds => [
-          { tracks     => { cd_single => 'tracks' } },
-          { cd_to_producer => 'producer' }
-        ]
-      },
-      { artwork_to_artist => 'artwork' }
-    ],
-
-    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-
-    order_by => [qw/tracks.position tracks.trackid producer.producerid tracks_2.trackid artwork.cd_id/],
-  }
-);
-
 $schema->resultset('Artist')->create(
   {
     name => 'mo',
@@ -78,11 +59,7 @@ $schema->resultset('Artist')->create(
   }
 );
 
-my $mo = $mo_rs->next;
-
-is( @{$mo->{cds}}, 2, 'two CDs' );
-
-cmp_deeply( $mo, {
+my $artist_with_extras = {
   artistid => 4, charfield => undef, name => 'mo', rank => 1337,
   artwork_to_artist => [
     { artist_id => 4, artwork_cd_id => 1, artwork => { cd_id => 1 } },
@@ -125,6 +102,26 @@ cmp_deeply( $mo, {
       ],
     }
   ],
+};
+
+my $art_rs = $schema->resultset('Artist')->search({ 'me.artistid' => 4 });
+
+
+my $art_rs_prefetch = $art_rs->search({}, {
+  order_by => [qw/tracks.position tracks.trackid producer.producerid tracks_2.trackid artwork.cd_id/],
+  result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+  prefetch => [
+    {
+      cds => [
+        { tracks => { cd_single => 'tracks' } },
+        { cd_to_producer => 'producer' }
+      ]
+    },
+    { artwork_to_artist => 'artwork' }
+  ],
 });
+
+cmp_deeply( $art_rs_prefetch->next, $artist_with_extras );
+
 
 done_testing;

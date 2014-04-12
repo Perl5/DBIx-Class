@@ -69,7 +69,12 @@ throws_ok {
     year => 2020,
     title => 'the best thing since sliced bread',
   })
-} qr/\Qcd.artist may not be NULL/, 'ambiguous find + create failed';
+} qr/DBI Exception.+(?x:
+    \QNOT NULL constraint failed: cd.artist\E
+      |
+    \Qcd.artist may not be NULL\E
+)/s, 'ambiguous find + create failed'
+;
 
 # expect a create, after a failed search using *only* the
 # *current* relationship and the unique column constraints

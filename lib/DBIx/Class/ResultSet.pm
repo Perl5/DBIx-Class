@@ -248,7 +248,7 @@ sub new {
     if $source->isa('DBIx::Class::ResultSourceHandle');
 
   $attrs = { %{$attrs||{}} };
-  delete @{$attrs}{qw(_sqlmaker_select_args _related_results_construction)};
+  delete @{$attrs}{qw(_last_sqlmaker_alias_map _related_results_construction)};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -1412,7 +1412,7 @@ sub _construct_results {
   return undef unless @{$rows||[]};
 
   # sanity check - people are too clever for their own good
-  if ($attrs->{collapse} and my $aliastypes = $attrs->{_sqlmaker_select_args}[3]{_aliastypes} ) {
+  if ($attrs->{collapse} and my $aliastypes = $attrs->{_last_sqlmaker_alias_map} ) {
 
     my $multiplied_selectors;
     for my $sel_alias ( grep { $_ ne $attrs->{alias} } keys %{ $aliastypes->{selecting} } ) {
@@ -2750,8 +2750,6 @@ sub as_query {
   my $aq = $self->result_source->storage->_select_args_to_query (
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
   );
-
-  $self->{_attrs}{_sqlmaker_select_args} = $attrs->{_sqlmaker_select_args};
 
   $aq;
 }

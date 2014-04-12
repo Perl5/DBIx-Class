@@ -16,7 +16,7 @@ lives_ok (sub {
           resultset_namespace => '+DBICNSTest::RSet',
       );
     },
-    qr/load_namespaces found ResultSet class C with no corresponding Result class/,
+    qr/load_namespaces found ResultSet class 'DBICNSTest::RSet::C' with no corresponding Result class/,
   );
 });
 

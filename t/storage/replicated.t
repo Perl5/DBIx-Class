@@ -204,10 +204,11 @@ TESTSCHEMACLASSES: {
         }
     }
 
-    ## Cleanup after ourselves.  Unlink all gthe slave paths.
+    ## Cleanup after ourselves. Unlink all the slave paths.
 
     sub cleanup {
         my $self = shift @_;
+        $_->disconnect for values %{ $self->schema->storage->replicants };
         foreach my $slave (@{$self->slave_paths}) {
             if(-e $slave) {
                 unlink $slave;
@@ -912,6 +913,7 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 
     is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
 }
+
 ## Delete the old database files
 $replicated->cleanup;
 

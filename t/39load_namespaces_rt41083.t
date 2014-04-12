@@ -32,7 +32,7 @@ sub _verify_sources {
     package DBICNSTest::RtBug41083;
     use base 'DBIx::Class::Schema';
     __PACKAGE__->load_namespaces(
-      result_namespace => 'Schema_A',
+      result_namespace => 'Result_A',
       resultset_namespace => 'ResultSet_A',
       default_resultset_class => 'ResultSet'
     );
@@ -52,8 +52,6 @@ sub _verify_sources {
     package DBICNSTest::RtBug41083;
     use base 'DBIx::Class::Schema';
     __PACKAGE__->load_namespaces(
-      result_namespace => 'Schema',
-      resultset_namespace => 'ResultSet',
       default_resultset_class => 'ResultSet'
     );
   };

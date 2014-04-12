@@ -5,6 +5,7 @@ use warnings;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed refaddr/;
 use DBIx::Class;
+use DBIx::Class::_Util 'is_exception';
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -23,9 +24,9 @@ sub new {
   # FIXME FRAGILE - any eval that fails but *does not* rethrow between here
   # and the unwind will trample over $@ and invalidate the entire mechanism
   # There got to be a saner way of doing this...
-  if (defined $@ and "$@" ne '') {
+  if (is_exception $@) {
     weaken(
-      $guard->{existing_exception_ref} = (ref $@ eq '') ? \$@ : $@
+      $guard->{existing_exception_ref} = (ref($@) eq '') ? \$@ : $@
     );
   }
 
@@ -58,14 +59,12 @@ sub DESTROY {
   return unless $self->{dbh};
 
   my $exception = $@ if (
-    defined $@
-      and
-    "$@" ne ''
+    is_exception $@
       and
     (
       ! defined $self->{existing_exception_ref}
         or
-      refaddr( ref $@ eq '' ? \$@ : $@ ) != refaddr($self->{existing_exception_ref})
+      refaddr( ref($@) eq '' ? \$@ : $@ ) != refaddr($self->{existing_exception_ref})
     )
   );
 

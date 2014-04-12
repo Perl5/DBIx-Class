@@ -147,33 +147,41 @@ for my $type (keys %$invocations) {
 }
 
 # make sure connection-less storages do not throw on _determine_driver
-{
-  local $ENV{DBI_DSN};
-  local $ENV{DBI_DRIVER};
+# but work with ENV at the same time
+SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
+  skip 'Subtest relies on being connected to SQLite', 1
+    if $env_dsn and $env_dsn !~ /\:SQLite\:/;
 
-  my $s = DBICTest::Schema->connect;
+  local $ENV{DBI_DSN} = $env_dsn || '';
+
+  my $s = DBICTest::Schema->connect();
   is_deeply (
     $s->storage->connect_info,
     [],
-    'Starting with no connection info',
+    'Starting with no explicitly passed in connect info'
+  . ($env_dsn ? ' (with DBI_DSN)' : ''),
   );
 
-  isa_ok(
-    $s->storage->sql_maker,
-    'DBIx::Class::SQLMaker',
-    'Getting back an SQLMaker succesfully',
-  );
+  my $sm = $s->storage->sql_maker;
 
-  ok (! $s->storage->_driver_determined, 'Driver undetermined');
+  ok (! $s->storage->connected, 'Storage does not appear connected after SQLMaker instance is taken');
 
-  ok (! $s->storage->connected, 'Storage does not appear connected');
+  if ($env_dsn) {
+    isa_ok($sm, 'DBIx::Class::SQLMaker');
 
-  throws_ok {
-    $s->storage->ensure_connected
-  } qr/You did not provide any connection_info/,
-  'sensible exception on empty conninfo connect'
+    ok ( $s->storage->_driver_determined, 'Driver determined (with DBI_DSN)');
+    isa_ok ( $s->storage, 'DBIx::Class::Storage::DBI::SQLite' );
+  }
+  else {
+    isa_ok($sm, 'DBIx::Class::SQLMaker');
+
+    ok (! $s->storage->_driver_determined, 'Driver undetermined');
+
+    throws_ok {
+      $s->storage->ensure_connected
+    } qr/You did not provide any connection_info/,
+    'sensible exception on empty conninfo connect';
+  }
 }
 
 done_testing;
-
-1;

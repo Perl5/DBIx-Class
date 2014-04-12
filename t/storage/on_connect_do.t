@@ -36,6 +36,11 @@ $schema->storage->disconnect;
 ok $schema->connection(
     sub { DBI->connect(DBICTest->_database, undef, undef, { AutoCommit => 0 }) },
     {
+        # DO NOT REMOVE - this seems like an unrelated piece of info,
+        # but is in fact a test for a bug where setting an accessor-via-option
+        # would trigger an early connect *bypassing* the on_connect_* pieces
+        cursor_class => 'DBIx::Class::Storage::Cursor',
+
         on_connect_do       => [
             'CREATE TABLE TEST_empty (id INTEGER)',
             [ 'INSERT INTO TEST_empty VALUES (?)', {}, 2 ],

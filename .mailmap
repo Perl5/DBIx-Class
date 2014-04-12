@@ -2,6 +2,8 @@
 # so if someone were to legally change their name, we could use it to fix that
 # while maintaining the integrity of the repository
 
+# https://www.kernel.org/pub/software/scm/git/docs/git-shortlog.html#_mapping_authors
+
 Alexander Hartmaier <abraxxa@cpan.org>      <alexander.hartmaier@t-systems.at>
 Amiri Barksdale <amiribarksdale@gmail.com>  <amiri@metalabel.com>
 Andrew Rodland <andrew@cleverdomain.org>    <arodland@cpan.org>
@@ -10,9 +12,11 @@ Brendan Byrd <Perl@ResonatorSoft.org>       <byrd.b@insightcom.com>
 Brendan Byrd <Perl@ResonatorSoft.org>       <GitHub@ResonatorSoft.org>
 Brendan Byrd <Perl@ResonatorSoft.org>       <perl@resonatorsoft.org>
 Brian Phillips <bphillips@cpan.org>         <bphillips@digitalriver.com>
+Dagfinn Ilmari Mannsåker <ilmari@ilmari.org><ilmari.mannsaker@net-a-porter.com>
 David Kamholz <dkamholz@cpan.org>           <davekam@pobox.com>
-David Schmidt <davewood@gmx.at>             <d.schmidt@tripwolf.com>
-David Schmidt <davewood@gmx.at>             <dt@univie.ac.at>
+David Schmidt <mail@davidschmidt.at>        <d.schmidt@tripwolf.com>
+David Schmidt <mail@davidschmidt.at>        <dt@univie.ac.at>
+David Schmidt <mail@davidschmidt.at>        <davewood@gmx.at>
 Devin Austin <dhoss@cpan.org>               <devin.austin@gmail.com>
 Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>  <ostmann@sadraksaemp.intern4.websuche.de>
 Gerda Shank <gshank@cpan.org>               <gerda.shank@gmail.com>
