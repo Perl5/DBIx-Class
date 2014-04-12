@@ -300,6 +300,8 @@ amiri: Amiri Barksdale <amiri@metalabel.com>
 
 amoore: Andrew Moore <amoore@cpan.org>
 
+Andrew Mehta <Andrew@unitedgames.co.uk>
+
 andrewalker: Andre Walker <andre@andrewalker.net>
 
 andyg: Andy Grundman <andy@hybridized.org>
@@ -313,6 +315,8 @@ arcanez: Justin Hunter <justin.d.hunter@gmail.com>
 ash: Ash Berlin <ash@cpan.org>
 
 bert: Norbert Csongrádi <bert@cpan.org>
+
+bfwg: Colin Newell <colin.newell@gmail.com>
 
 blblack: Brandon L. Black <blblack@gmail.com>
 
@@ -338,6 +342,8 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
+Ctrl-o L<http://ctrlo.com/>
+
 da5id: David Jack Olrik <djo@cpan.org>
 
 dariusj: Darius Jokilehto <dariusjokilehto@yahoo.co.uk>
@@ -356,11 +362,15 @@ dnm: Justin Wheeler <jwheeler@datademons.com>
 
 dpetrov: Dimitar Petrov <mitakaa@gmail.com>
 
+duncan_dmg: Duncan Garland <Duncan.Garland@motortrak.com>
+
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 edenc: Eden Cardim <edencardim@gmail.com>
+
+Eligo L<http://eligo.co.uk/>
 
 ether: Karen Etheridge <ether@cpan.org>
 
@@ -381,6 +391,8 @@ groditi: Guillermo Roditi <groditi@cpan.org>
 Haarg: Graham Knop <haarg@haarg.org>
 
 hobbs: Andrew Rodland <arodland@cpan.org>
+
+idn: Ian Norton <i.norton@shadowcat.co.uk>
 
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
@@ -422,9 +434,13 @@ mattlaw: Matt Lawrence
 
 mattp: Matt Phillips <mattp@cpan.org>
 
+mdk: Mark Keating <m.keating@shadowcat.co.uk>
+
 michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 milki: Jonathan Chu <milki@rescomp.berkeley.edu>
+
+minty: Murray Walker <perl@minty.org>
 
 mithaldu: Christian Walde <walde.christian@gmail.com>
 
@@ -465,6 +481,8 @@ Peter Valdemar ME<oslash>rch <peter@morch.com>
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 plu: Johannes Plunien <plu@cpan.org>
+
+pplu: Jose Luis Martinez <jlmartinez@capside.com>
 
 Possum: Daniel LeWarne <possum@cpan.org>
 
@@ -508,11 +526,17 @@ Squeeks <squeek@cpan.org>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
+Stephen Peters <steve@stephenpeters.me>
+
 talexb: Alex Beamish <talexb@gmail.com>
 
 tamias: Ronald J Kimball <rjk@tamias.net>
 
+TBSliver: Tom Bloor <t.bloor@shadowcat.co.uk>
+
 teejay : Aaron Trevena <teejay@cpan.org>
+
+theorbtwo: James Mastros <james@mastros.biz>
 
 Todd Lipcon
 
@@ -535,6 +559,8 @@ willert: Sebastian Willert <willert@cpan.org>
 wreis: Wallace Reis <wreis@cpan.org>
 
 xenoterracide: Caleb Cushing <xenoterracide@gmail.com>
+
+uree: Oriol Soriano <oriol.soriano@capside.com>
 
 yrlnry: Mark Jason Dominus <mjd@plover.com>
 
