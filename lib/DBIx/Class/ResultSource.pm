@@ -201,7 +201,7 @@ schema, see L<DBIx::Class::Schema/deploy>.
 
    { is_nullable => 1 }
 
-Set this to a true value for a columns that is allowed to contain NULL
+Set this to a true value for a column that is allowed to contain NULL
 values, default is false. This is currently only used to create tables
 from your schema, see L<DBIx::Class::Schema/deploy>.
 
