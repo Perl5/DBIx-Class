@@ -494,7 +494,7 @@ sub _resultset {
         # collapse the selector to a literal so that it survives the distinct parse
         # if it turns out to be an aggregate - at least the user will get a proper exception
         # instead of silent drop of the group_by altogether
-        $select = \ $rsrc->storage->sql_maker->_recurse_fields($select);
+        $select = \[ $rsrc->storage->sql_maker->_recurse_fields($select) ];
       }
     }
 

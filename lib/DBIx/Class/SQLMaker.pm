@@ -110,7 +110,7 @@ sub select {
   my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
 
-  $fields = $self->_recurse_fields($fields);
+  ($fields, @{$self->{select_bind}}) = $self->_recurse_fields($fields);
 
   if (defined $offset) {
     $self->throw_exception('A supplied offset must be a non-negative integer')
@@ -231,42 +231,48 @@ sub _recurse_fields {
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+    my (@select, @bind);
+    for my $field (@$fields) {
+      my ($select, @new_bind) = $self->_recurse_fields($field);
+      push @select, $select;
+      push @bind, @new_bind;
+    }
+    return (join(', ', @select), @bind);
   }
   elsif ($ref eq 'HASH') {
     my %hash = %$fields;  # shallow copy
 
     my $as = delete $hash{-as};   # if supplied
 
-    my ($func, $args, @toomany) = %hash;
+    my ($func, $rhs, @toomany) = %hash;
 
     # there should be only one pair
     if (@toomany) {
       $self->throw_exception( "Malformed select argument - too many keys in hash: " . join (',', keys %$fields ) );
     }
 
-    if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
+    if (lc ($func) eq 'distinct' && ref $rhs eq 'ARRAY' && @$rhs > 1) {
       $self->throw_exception (
         'The select => { distinct => ... } syntax is not supported for multiple columns.'
-       .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
-       .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
+       .' Instead please use { group_by => [ qw/' . (join ' ', @$rhs) . '/ ] }'
+       .' or { select => [ qw/' . (join ' ', @$rhs) . '/ ], distinct => 1 }'
       );
     }
 
+    my ($rhs_sql, @rhs_bind) = $self->_recurse_fields($rhs);
     my $select = sprintf ('%s( %s )%s',
       $self->_sqlcase($func),
-      $self->_recurse_fields($args),
+      $rhs_sql,
       $as
         ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
         : ''
     );
 
-    return $select;
+    return ($select, @rhs_bind);
   }
   # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    push @{$self->{select_bind}}, @{$$fields}[1..$#$$fields];
-    return $$fields->[0];
+    return @{$$fields};
   }
   else {
     $self->throw_exception( $ref . qq{ unexpected in _recurse_fields()} );
@@ -288,11 +294,9 @@ sub _parse_rs_attrs {
   my $sql = '';
 
   if ($arg->{group_by}) {
-    # horrible horrible, waiting for refactor
-    local $self->{select_bind};
-    if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
-      $sql .= $self->_sqlcase(' group by ') . $g;
-      push @{$self->{group_bind} ||= []}, @{$self->{select_bind}||[]};
+    if ( my ($group_sql, @group_bind) = $self->_recurse_fields($arg->{group_by}) ) {
+      $sql .= $self->_sqlcase(' group by ') . $group_sql;
+      push @{$self->{group_bind}}, @group_bind;
     }
   }
 

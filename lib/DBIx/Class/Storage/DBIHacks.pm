@@ -389,7 +389,6 @@ sub _resolve_aliastypes_from_select_args {
   my $sql_maker = $self->sql_maker;
 
   # these are throw away results, do not pollute the bind stack
-  local $sql_maker->{select_bind};
   local $sql_maker->{where_bind};
   local $sql_maker->{group_bind};
   local $sql_maker->{having_bind};
@@ -429,7 +428,7 @@ sub _resolve_aliastypes_from_select_args {
       ),
     ],
     selecting => [
-      map { $sql_maker->_recurse_fields($_) } @{$attrs->{select}},
+      map { ($sql_maker->_recurse_fields($_))[0] } @{$attrs->{select}},
     ],
     ordering => [
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
