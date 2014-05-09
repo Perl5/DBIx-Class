@@ -1492,11 +1492,11 @@ $attrs, if supplied, is expected to be a hashref of attributes suitable for pass
 second argument to C<< $resultset->search($cond, $attrs) >>;
 
 Note: If you are using L<DBIx::Class::Storage::DBI::Replicated> as your
-storage, please kept in mind that if you L</discard_changes> on a row that you
-just updated or created, you should wrap the entire bit inside a transaction.
-Otherwise you run the risk that you insert or update to the master database
-but read from a replicant database that has not yet been updated from the
-master.  This will result in unexpected results.
+storage, discard_changes by default will behave as if you provided
+C<{ force_pool => 'master' }> in order to guarantee that fresh results are
+read from the master database.
+The documentaion previously suggested to wrap calls to discard_changes with a
+transaction in order to get this behavior, but that is no longer necessary.
 
 =cut
 
