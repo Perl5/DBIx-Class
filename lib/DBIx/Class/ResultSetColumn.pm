@@ -487,8 +487,8 @@ sub _resultset {
       unless( $cols{$select} ) {
         carp_unique(
           'Use of distinct => 1 while selecting anything other than a column '
-        . 'declared on the primary ResultSource is deprecated - please supply '
-        . 'an explicit group_by instead'
+        . 'declared on the primary ResultSource is deprecated (you selected '
+        . "'$self->{_as}') - please supply an explicit group_by instead"
         );
 
         # collapse the selector to a literal so that it survives the distinct parse
