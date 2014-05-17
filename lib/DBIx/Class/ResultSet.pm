@@ -585,60 +585,32 @@ sub _normalize_selection {
 sub _stack_cond {
   my ($self, $left, $right) = @_;
 
-  # collapse single element top-level conditions
-  # (single pass only, unlikely to need recursion)
-  for ($left, $right) {
-    if (ref $_ eq 'ARRAY') {
-      if (@$_ == 0) {
-        $_ = undef;
-      }
-      elsif (@$_ == 1) {
-        $_ = $_->[0];
-      }
-    }
-    elsif (ref $_ eq 'HASH') {
-      my ($first, $more) = keys %$_;
+  (
+    (ref $_ eq 'ARRAY' and !@$_)
+      or
+    (ref $_ eq 'HASH' and ! keys %$_)
+  ) and $_ = undef for ($left, $right);
 
-      # empty hash
-      if (! defined $first) {
-        $_ = undef;
-      }
-      # one element hash
-      elsif (! defined $more) {
-        if ($first eq '-and' and ref $_->{'-and'} eq 'HASH') {
-          $_ = $_->{'-and'};
-        }
-        elsif ($first eq '-or' and ref $_->{'-or'} eq 'ARRAY') {
-          $_ = $_->{'-or'};
-        }
-      }
-    }
-  }
-
-  # merge hashes with weeding out of duplicates (simple cases only)
-  if (ref $left eq 'HASH' and ref $right eq 'HASH') {
-
-    # shallow copy to destroy
-    $right = { %$right };
-    for (grep { exists $right->{$_} } keys %$left) {
-      # the use of eq_deeply here is justified - the rhs of an
-      # expression can contain a lot of twisted weird stuff
-      delete $right->{$_} if Data::Compare::Compare( $left->{$_}, $right->{$_} );
-    }
-
-    $right = undef unless keys %$right;
-  }
-
-
-  if (defined $left xor defined $right) {
+  # either on of the two undef or both undef
+  if ( ( (defined $left) xor (defined $right) ) or ! defined $left ) {
     return defined $left ? $left : $right;
   }
-  elsif (! defined $left) {
-    return undef;
+
+  my $cond = $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
+
+  for my $c (grep { ref $cond->{$_} eq 'ARRAY' and ($cond->{$_}[0]||'') eq '-and' } keys %$cond) {
+
+    my @vals = sort @{$cond->{$c}}[ 1..$#{$cond->{$c}} ];
+    my @fin = shift @vals;
+
+    for my $v (@vals) {
+      push @fin, $v unless Data::Compare::Compare( $fin[-1], $v );
+    }
+
+    $cond->{$c} = (@fin == 1) ? $fin[0] : [-and => @fin ];
   }
-  else {
-    return { -and => [ $left, $right ] };
-  }
+
+  $cond;
 }
 
 =head2 search_literal
@@ -2466,28 +2438,36 @@ sub _merge_with_rscond {
     );
   }
   else {
-    # precedence must be given to passed values over values inherited from
-    # the cond, so the order here is important.
-    my $collapsed_cond = $self->_collapse_cond($self->{cond});
-    my %implied = %{$self->_remove_alias($collapsed_cond, $alias)};
+    if ($self->{cond}) {
+      my $implied = $self->_remove_alias(
+        $self->result_source->schema->storage->_collapse_cond($self->{cond}),
+        $alias,
+      );
 
-    while ( my($col, $value) = each %implied ) {
-      my $vref = ref $value;
-      if (
-        $vref eq 'HASH'
-          and
-        keys(%$value) == 1
-          and
-        (keys %$value)[0] eq '='
-      ) {
-        $new_data{$col} = $value->{'='};
-      }
-      elsif( !$vref or $vref eq 'SCALAR' or blessed($value) ) {
-        $new_data{$col} = $value;
+      for my $c (keys %$implied) {
+        my $v = $implied->{$c};
+        if (
+          ! ref $v
+            or
+          overload::Method($v, '""')
+        ) {
+          $new_data{$c} = $v;
+        }
+        elsif (
+          ref $v eq 'HASH' and keys %$v == 1 and exists $v->{'='} and (
+            ref $v->{'='} eq 'SCALAR'
+              or
+            ( ref $v->{'='} eq 'REF' and ref ${$v->{'='}} eq 'ARRAY' )
+          )
+        ) {
+          $new_data{$c} = $v->{'='};
+        }
       }
     }
   }
 
+  # precedence must be given to passed values over values inherited from
+  # the cond, so the order here is important.
   %new_data = (
     %new_data,
     %{ $self->_remove_alias($data, $alias) },
@@ -2547,38 +2527,6 @@ sub _has_resolved_attr {
   );
 
   return 0;
-}
-
-# _collapse_cond
-#
-# Recursively collapse the condition.
-
-sub _collapse_cond {
-  my ($self, $cond, $collapsed) = @_;
-
-  $collapsed ||= {};
-
-  if (ref $cond eq 'ARRAY') {
-    foreach my $subcond (@$cond) {
-      next unless ref $subcond;  # -or
-      $collapsed = $self->_collapse_cond($subcond, $collapsed);
-    }
-  }
-  elsif (ref $cond eq 'HASH') {
-    if (keys %$cond and (keys %$cond)[0] eq '-and') {
-      foreach my $subcond (@{$cond->{-and}}) {
-        $collapsed = $self->_collapse_cond($subcond, $collapsed);
-      }
-    }
-    else {
-      foreach my $col (keys %$cond) {
-        my $value = $cond->{$col};
-        $collapsed->{$col} = $value;
-      }
-    }
-  }
-
-  return $collapsed;
 }
 
 # _remove_alias

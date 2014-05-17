@@ -133,13 +133,14 @@ is_same_sql_bind (
             AND fourkeys_to_twokeys.f_foo = me.foo
             AND fourkeys_to_twokeys.f_goodbye = me.goodbye
             AND fourkeys_to_twokeys.f_hello = me.hello
-        WHERE fourkeys_to_twokeys.pilot_sequence != ? AND ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
+        WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
       )
     )
   ',
   [
+    ("'1'", "'2'") x 2,
     "'666'",
-    ("'1'", "'2'") x 4,
+    ("'1'", "'2'") x 2,
     "'c'",
   ],
   'Correct update-SQL with multicolumn in support',

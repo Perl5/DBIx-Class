@@ -36,10 +36,10 @@ is_same_sql_bind(
     SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
            (SELECT COUNT( * )
               FROM cd siblings
-            WHERE siblings.artist = me.artist
+            WHERE me.artist != ?
+              AND siblings.artist = me.artist
               AND siblings.cdid != me.cdid
               AND siblings.cdid != ?
-              AND me.artist != ?
            ),
            tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
       FROM cd me
@@ -50,11 +50,11 @@ is_same_sql_bind(
   [
 
     # subselect
-    [ { sqlt_datatype => 'integer', dbic_colname => 'siblings.cdid' }
-      => 23414 ],
-
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
       => 2 ],
+
+    [ { sqlt_datatype => 'integer', dbic_colname => 'siblings.cdid' }
+      => 23414 ],
 
     # outher WHERE
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
@@ -102,15 +102,15 @@ is_same_sql_bind(
     SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
            (SELECT COUNT( * )
               FROM cd siblings
-            WHERE siblings.artist = me.artist
+            WHERE me.artist != ?
+              AND siblings.artist = me.artist
               AND siblings.cdid != me.cdid
               AND siblings.cdid != ?
-              AND me.artist != ?
            ),
            (SELECT MIN( year ), MAX( year )
               FROM cd siblings
-            WHERE siblings.artist = me.artist
-              AND me.artist != ?
+            WHERE me.artist != ?
+              AND siblings.artist = me.artist
            ),
            tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at
       FROM cd me
@@ -121,11 +121,11 @@ is_same_sql_bind(
   [
 
     # first subselect
-    [ { sqlt_datatype => 'integer', dbic_colname => 'siblings.cdid' }
-      => 23414 ],
-
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
       => 2 ],
+
+    [ { sqlt_datatype => 'integer', dbic_colname => 'siblings.cdid' }
+      => 23414 ],
 
     # second subselect
     [ { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }

@@ -97,7 +97,7 @@ is_same_sql (
   $search_sql,
   'SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
     FROM cd me
-    WHERE ( me.artist = ? AND me.title = ? AND me.genreid = ? )
+    WHERE ( me.artist = ? AND me.genreid = ? AND me.title = ? )
   ',
   'expected select issued',
 );

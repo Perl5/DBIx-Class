@@ -24,7 +24,7 @@ my $schema  = DBICTest->init_schema();
 my $art_rs  = $schema->resultset('Artist');
 my $cd_rs  = $schema->resultset('CD');
 
-my $restricted_art_rs  = $art_rs->search({rank => 42});
+my $restricted_art_rs  = $art_rs->search({ -and => [ rank => 42, charfield => { '=', \['(SELECT MAX(artistid) FROM artist) + ?', 6] } ] });
 
 ok( $schema, 'Got a Schema object');
 ok( $art_rs, 'Got Good Artist Resultset');
@@ -343,7 +343,9 @@ ARRAY_CONTEXT: {
     ]);
 
     ## Did it use the condition in the resultset?
+    $more_crap->discard_changes;
     cmp_ok( $more_crap->rank, '==', 42, "Got Correct rank for result object");
+    cmp_ok( $more_crap->charfield, '==', $more_crap->id + 5, "Got Correct charfield for result object");
   }
 }
 
@@ -626,7 +628,9 @@ VOID_CONTEXT: {
     })->first;
 
     ## Did it use the condition in the resultset?
+    $more_crap->discard_changes;
     cmp_ok( $more_crap->rank, '==', 42, "Got Correct rank for result object");
+    cmp_ok( $more_crap->charfield, '==', $more_crap->id + 5, "Got Correct charfield for result object");
   }
 }
 
@@ -655,7 +659,11 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   is $cooler->name, 'Cooler', 'Correct Name';
   is $lamer->name, 'Lamer', 'Correct Name';
 
-  cmp_ok $cooler->rank, '==', 42, 'Correct Rank';
+  for ($cooler, $lamer) {
+    $_->discard_changes;
+    cmp_ok( $_->rank, '==', 42, "Got Correct rank for result object");
+    cmp_ok( $_->charfield, '==', $_->id + 5, "Got Correct charfield for result object");
+  }
 
   ARRAY_CONTEXT_WITH_COND_FROM_RS: {
 
@@ -666,7 +674,9 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
     ]);
 
     ## Did it use the condition in the resultset?
+    $mega_lamer->discard_changes;
     cmp_ok( $mega_lamer->rank, '==', 42, "Got Correct rank for result object");
+    cmp_ok( $mega_lamer->charfield, '==', $mega_lamer->id + 5, "Got Correct charfield for result object");
   }
 
   VOID_CONTEXT_WITH_COND_FROM_RS: {
@@ -683,6 +693,7 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
 
     ## Did it use the condition in the resultset?
     cmp_ok( $mega_lamer->rank, '==', 42, "Got Correct rank for result object");
+    cmp_ok( $mega_lamer->charfield, '==', $mega_lamer->id + 5, "Got Correct charfield for result object");
   }
 }
 
