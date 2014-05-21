@@ -288,7 +288,7 @@ Then, assuming MyApp::Schema::LinerNotes has an accessor named notes, you can do
 
 For a 'belongs_to relationship, note the 'cascade_update':
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd,
+  MyApp::Schema::Track->belongs_to( cd => 'MyApp::Schema::CD', 'cd,
       { proxy => ['title'], cascade_update => 1 }
   );
   $track->title('New Title');
@@ -299,7 +299,7 @@ For a 'belongs_to relationship, note the 'cascade_update':
 A hashref where each key is the accessor you want installed in the main class,
 and its value is the name of the original in the foreign class.
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+  MyApp::Schema::Track->belongs_to( cd => 'MyApp::Schema::CD', 'cd', {
       proxy => { cd_title => 'title' },
   });
 
@@ -309,7 +309,7 @@ This will create an accessor named C<cd_title> on the C<$track> result object.
 
 NOTE: you can pass a nested struct too, for example:
 
-  MyApp::Schema::Track->belongs_to( cd => 'DBICTest::Schema::CD', 'cd', {
+  MyApp::Schema::Track->belongs_to( cd => 'MyApp::Schema::CD', 'cd', {
     proxy => [ 'year', { cd_title => 'title' } ],
   });
 
