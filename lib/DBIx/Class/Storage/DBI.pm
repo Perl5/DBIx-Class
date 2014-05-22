@@ -1695,13 +1695,10 @@ sub _gen_sql_bind {
 sub _resolve_bindattrs {
   my ($self, $ident, $bind, $colinfos) = @_;
 
-  $colinfos ||= {};
-
   my $resolve_bindinfo = sub {
     #my $infohash = shift;
 
-    %$colinfos = %{ $self->_resolve_column_info($ident) }
-      unless keys %$colinfos;
+    $colinfos ||= { %{ $self->_resolve_column_info($ident) } };
 
     my $ret;
     if (my $col = $_[0]->{dbic_colname}) {
@@ -1721,10 +1718,16 @@ sub _resolve_bindattrs {
     my $resolved =
       ( ref $_ ne 'ARRAY' or @$_ != 2 ) ? [ {}, $_ ]
     : ( ! defined $_->[0] )             ? [ {}, $_->[1] ]
-    : (ref $_->[0] eq 'HASH')           ? [ (exists $_->[0]{dbd_attrs} or $_->[0]{sqlt_datatype})
-                                              ? $_->[0]
-                                              : $resolve_bindinfo->($_->[0])
-                                            , $_->[1] ]
+    : (ref $_->[0] eq 'HASH')           ? [(
+                                            ! keys %{$_->[0]}
+                                              or
+                                            exists $_->[0]{dbd_attrs}
+                                              or
+                                            $_->[0]{sqlt_datatype}
+                                           ) ? $_->[0]
+                                             : $resolve_bindinfo->($_->[0])
+                                           , $_->[1]
+                                          ]
     : (ref $_->[0] eq 'SCALAR')         ? [ { sqlt_datatype => ${$_->[0]} }, $_->[1] ]
     :                                     [ $resolve_bindinfo->(
                                               { dbic_colname => $_->[0] }
@@ -2291,12 +2294,21 @@ sub _dbh_execute_for_fetch {
   my $fetch_tuple = sub {
     return undef if ++$fetch_row_idx > $#$data;
 
-    return [ map { defined $_->{_literal_bind_subindex}
-      ? ${ $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]}
-         ->[ $_->{_literal_bind_subindex} ]
-          ->[1]
-      : $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]
-    } map { $_->[0] } @$proto_bind];
+    return [ map {
+      ! defined $_->{_literal_bind_subindex}
+
+        ? $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]
+
+        # There are no attributes to resolve here - we already did everything
+        # when we constructed proto_bind. However we still want to sanity-check
+        # what the user supplied, so pass stuff through to the resolver *anyway*
+        : $self->_resolve_bindattrs (
+            undef,  # a fake rsrc
+            [ ${ $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]}->[ $_->{_literal_bind_subindex} ] ],
+            {},     # a fake column_info bag
+          )->[0][1]
+
+    } map { $_->[0] } @$proto_bind ];
   };
 
   my $tuple_status = [];

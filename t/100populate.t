@@ -196,7 +196,7 @@ is($link7->title, 'gtitle', 'Link 7 title');
   # test mixed binds with literal sql/bind
 
   $rs->populate([ map { +{
-    url => \[ '? || ?', [ {} => 'cpan.org_' ], [ undef, $_ ] ],
+    url => \[ '? || ?', [ {} => 'cpan.org_' ], $_ ],
     title => "The 'best of' cpan",
   } } (1 .. 5) ]);
 
