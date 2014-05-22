@@ -1090,39 +1090,6 @@ sub single {
   $self->_construct_results->[0];
 }
 
-
-# _collapse_query
-#
-# Recursively collapse the query, accumulating values for each column.
-
-sub _collapse_query {
-  my ($self, $query, $collapsed) = @_;
-
-  $collapsed ||= {};
-
-  if (ref $query eq 'ARRAY') {
-    foreach my $subquery (@$query) {
-      next unless ref $subquery;  # -or
-      $collapsed = $self->_collapse_query($subquery, $collapsed);
-    }
-  }
-  elsif (ref $query eq 'HASH') {
-    if (keys %$query and (keys %$query)[0] eq '-and') {
-      foreach my $subquery (@{$query->{-and}}) {
-        $collapsed = $self->_collapse_query($subquery, $collapsed);
-      }
-    }
-    else {
-      foreach my $col (keys %$query) {
-        my $value = $query->{$col};
-        $collapsed->{$col}{$value}++;
-      }
-    }
-  }
-
-  return $collapsed;
-}
-
 =head2 get_column
 
 =over 4
