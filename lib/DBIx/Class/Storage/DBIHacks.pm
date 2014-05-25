@@ -653,9 +653,10 @@ sub _group_over_selection {
   }
 
   $self->throw_exception ( sprintf
-    'A required group_by clause could not be constructed automatically due to a complex '
-  . 'order_by criteria (%s). Either order_by columns only (no functions) or construct a suitable '
-  . 'group_by by hand',
+    'Unable to programatically derive a required group_by from the supplied '
+  . 'order_by criteria. To proceed either add an explicit group_by, or '
+  . 'simplify your order_by to only include plain columns '
+  . '(supplied order_by: %s)',
     join ', ', map { "'$_'" } @$leftovers,
   ) if $leftovers;
 

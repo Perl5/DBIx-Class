@@ -152,8 +152,8 @@ throws_ok (
       {'tracks.title' => { '!=' => 'foo' }},
       { order_by => \ 'some oddball literal sql', join => { cds => 'tracks' } }
     )->next
-  }, qr/A required group_by clause could not be constructed automatically/,
-) || exit;
+  }, qr/Unable to programatically derive a required group_by from the supplied order_by criteria/,
+);
 
 my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->next;
 is($artist->cds->count, 1, "count on search limiting prefetched has_many");
