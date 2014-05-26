@@ -5,8 +5,7 @@ use Test::More;
 use Test::Exception;
 use Data::Dumper::Concise;
 use lib qw(t/lib);
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 sub test_order {
     my $rs = shift;

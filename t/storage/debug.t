@@ -6,7 +6,6 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
 BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }

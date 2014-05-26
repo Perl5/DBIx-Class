@@ -23,9 +23,7 @@ BEGIN {
   );
 }
 
-use DBICTest;
-use DBICTest::Schema;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 use DBIx::Class::SQLMaker::LimitDialects;
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;

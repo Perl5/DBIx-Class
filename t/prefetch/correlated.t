@@ -4,8 +4,7 @@ use warnings;
 use Test::More;
 use Test::Deep;
 use lib qw(t/lib);
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema();
 

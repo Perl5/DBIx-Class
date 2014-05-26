@@ -11,8 +11,7 @@ BEGIN {
 use Test::Exception;
 use Data::Dumper::Concise;
 use lib qw(t/lib);
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::Oracle;
 
 #

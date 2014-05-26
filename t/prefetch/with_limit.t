@@ -6,8 +6,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;

@@ -4,9 +4,7 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Schema;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 my $schema = DBICTest::Schema->connect (DBICTest->_database, { quote_char => '`' });
 # cheat

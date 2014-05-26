@@ -10,9 +10,8 @@ BEGIN {
 }
 
 use lib qw(t/lib);
-use DBICTest;
+use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::OracleJoins;
-use DBIC::SqlMakerTest;
 
 my $sa = DBIx::Class::SQLMaker::OracleJoins->new;
 

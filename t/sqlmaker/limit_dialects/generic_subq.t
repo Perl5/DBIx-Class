@@ -4,8 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use List::Util 'min';
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 my ($ROWS, $TOTAL, $OFFSET) = (
    DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,

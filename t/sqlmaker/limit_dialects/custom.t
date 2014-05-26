@@ -5,9 +5,7 @@ use Test::More;
 use Test::Warn;
 
 use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Schema;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 # This is legacy stuff from SQL::Absract::Limit
 # Keep it around just in case someone is using it

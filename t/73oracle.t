@@ -9,7 +9,6 @@ use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
 
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 

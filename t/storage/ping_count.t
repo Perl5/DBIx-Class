@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
 
 my $ping_count = 0;
 

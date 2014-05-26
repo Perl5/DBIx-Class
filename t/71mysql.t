@@ -11,7 +11,6 @@ use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');

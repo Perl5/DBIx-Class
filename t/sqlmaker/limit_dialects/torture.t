@@ -5,8 +5,7 @@ use Test::More;
 use Test::Exception;
 use Storable 'dclone';
 use lib qw(t/lib);
-use DBICTest;
-use DBIC::SqlMakerTest;
+use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema;
 my $native_limit_dialect = $schema->storage->sql_maker->{limit_dialect};

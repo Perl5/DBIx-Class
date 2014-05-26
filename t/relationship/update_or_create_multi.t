@@ -6,7 +6,6 @@ use Test::Exception;
 use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 

@@ -20,7 +20,7 @@ BEGIN {
 
 use Module::Runtime 'module_notional_filename';
 BEGIN {
-  for my $mod (qw( DBIC::SqlMakerTest SQL::Abstract )) {
+  for my $mod (qw( SQL::Abstract::Test SQL::Abstract )) {
     if ( $INC{ module_notional_filename($mod) } ) {
       # FIXME this does not seem to work in BEGIN - why?!
       #require Carp;
@@ -48,7 +48,7 @@ use Config;
 
 =head1 NAME
 
-DBICTest - Library to be used by DBIx::Class test scripts.
+DBICTest - Library to be used by DBIx::Class test scripts
 
 =head1 SYNOPSIS
 
@@ -62,6 +62,26 @@ DBICTest - Library to be used by DBIx::Class test scripts.
 
 This module provides the basic utilities to write tests against
 DBIx::Class.
+
+=head1 EXPORTS
+
+The module does not export anything by default, nor provides individual
+function exports in the conventional sense. Instead the following tags are
+recognized:
+
+=head2 :DiffSQL
+
+Same as C<use SQL::Abstract::Test
+qw(L<is_same_sql_bind|SQL::Abstract::Test/is_same_sql_bind>
+L<is_same_sql|SQL::Abstract::Test/is_same_sql>
+L<is_same_bind|SQL::Abstract::Test/is_same_bind>)>
+
+=head2 :GlobalLock
+
+Some tests are very time sensitive and need to run on their own, without
+being disturbed by anything else grabbing CPU or disk IO. Hence why everything
+using C<DBICTest> grabs a shared lock, and the few tests that request a
+C<:GlobalLock> will ask for an exclusive one and block until they can get it.
 
 =head1 METHODS
 
@@ -79,18 +99,15 @@ DBIx::Class.
 This method removes the test SQLite database in t/var/DBIxClass.db
 and then creates a new, empty database.
 
-This method will call deploy_schema() by default, unless the
-no_deploy flag is set.
+This method will call L<deploy_schema()|/deploy_schema> by default, unless the
+C<no_deploy> flag is set.
 
-Also, by default, this method will call populate_schema() by
-default, unless the no_deploy or no_populate flags are set.
+Also, by default, this method will call L<populate_schema()|/populate_schema>
+by default, unless the C<no_deploy> or C<no_populate> flags are set.
 
 =cut
 
-# some tests are very time sensitive and need to run on their own, without
-# being disturbed by anything else grabbing CPU or disk IO. Hence why everything
-# using DBICTest grabs a shared lock, and the few tests that request a :GlobalLock
-# will ask for an exclusive one and block until they can get it
+# see L</:GlobalLock>
 our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
@@ -103,13 +120,21 @@ sub import {
         or die "Unable to open $lockpath: $!";
     }
 
-    for (@_) {
-        if ($_ eq ':GlobalLock') {
+    for my $exp (@_) {
+        if ($exp eq ':GlobalLock') {
             flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
             $global_exclusive_lock = 1;
         }
+        elsif ($exp eq ':DiffSQL') {
+            require SQL::Abstract::Test;
+            my $into = caller(0);
+            for (qw(is_same_sql_bind is_same_sql is_same_bind)) {
+              no strict 'refs';
+              *{"${into}::$_"} = \&{"SQL::Abstract::Test::$_"};
+            }
+        }
         else {
-            croak "Unknown export $_ requested from $self";
+            croak "Unknown export $exp requested from $self";
         }
     }
 
