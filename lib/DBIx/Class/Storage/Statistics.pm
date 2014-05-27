@@ -3,7 +3,6 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class/;
-use IO::File;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh silence/);
@@ -61,11 +60,11 @@ sub debugfh {
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
     if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-      $fh = IO::File->new($1, 'a')
-        or die("Cannot open trace file $1");
+      open ($fh, '>>', $1)
+        or die("Cannot open trace file $1: $!");
     } else {
-      $fh = IO::File->new('>&STDERR')
-        or die('Duplication of STDERR for debug output failed (perhaps your STDERR is closed?)');
+      open ($fh, '>&STDERR')
+        or die("Duplication of STDERR for debug output failed (perhaps your STDERR is closed?): $!");
     }
 
     $fh->autoflush();
