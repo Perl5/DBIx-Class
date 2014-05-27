@@ -5,7 +5,6 @@ use Test::Exception;
 use Test::More;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
-use DBICTest::RunMode;
 
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";

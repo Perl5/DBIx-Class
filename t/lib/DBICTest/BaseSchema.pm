@@ -4,9 +4,7 @@ package #hide from pause
 use strict;
 use warnings;
 
-# must load before any DBIx::Class* namespaces
-use DBICTest::RunMode;
+use base qw(DBICTest::Base DBIx::Class::Schema);
 
-use base 'DBIx::Class::Schema';
 
 1;

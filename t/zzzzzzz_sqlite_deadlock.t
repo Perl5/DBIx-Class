@@ -4,10 +4,10 @@ use warnings;
 use Test::More;
 
 use lib 't/lib';
-use DBICTest::RunMode;
-
-if ( DBICTest::RunMode->is_plain ) {
-  plan( skip_all => "Skipping test on plain module install" );
+BEGIN {
+  require DBICTest::RunMode;
+  plan( skip_all => "Skipping test on plain module install" )
+    if DBICTest::RunMode->is_plain;
 }
 
 use Test::Exception;

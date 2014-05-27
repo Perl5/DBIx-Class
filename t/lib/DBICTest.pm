@@ -37,7 +37,6 @@ BEGIN {
   }
 }
 
-use DBICTest::RunMode;
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBICTest::Util 'local_umask';
