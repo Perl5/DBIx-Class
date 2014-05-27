@@ -53,6 +53,7 @@ use DBIx::Class::_Util qw(sigwarn_silencer modver_gt_or_eq);
 # However DBD::SQLite 1.38_02 seems to fix this, with an accompanying test:
 # https://metacpan.org/source/ADAMK/DBD-SQLite-1.38_02/t/54_literal_txn.t
 
+require DBD::SQLite;
 my $lit_txn_todo = modver_gt_or_eq('DBD::SQLite', '1.38_02')
   ? undef
   : "DBD::SQLite before 1.38_02 is retarded wrt detecting literal BEGIN/COMMIT statements"

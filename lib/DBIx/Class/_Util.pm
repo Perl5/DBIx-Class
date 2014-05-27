@@ -146,6 +146,9 @@ sub modver_gt_or_eq ($$) {
   local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
     if SPURIOUS_VERSION_CHECK_WARNINGS;
 
+  croak "$mod does not seem to provide a version (perhaps it never loaded)"
+    unless $mod->VERSION;
+
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
 }
