@@ -6,7 +6,6 @@ use lib qw(t/lib);
 use Test::More;
 use DBICTest;
 use DBIC::SqlMakerTest;
-use DBIC::DebugObj;
 use DBIx::Class::SQLMaker::LimitDialects;
 
 my ($ROWS, $OFFSET) = (
@@ -23,27 +22,25 @@ my $schema = DBICTest->init_schema();
                 { position => [1,2] },
                 { prefetch => [qw/disc lyrics/], rows => 3, offset => 8 },
             );
+  my @wherebind = (
+    [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+      => 1 ],
+    [ { sqlt_datatype => 'int', dbic_colname => 'position' }
+      => 2 ],
+  );
+
   is ($rs->all, 2, 'Correct number of objects');
 
-
-  my ($sql, @bind);
-  $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
-  $schema->storage->debug(1);
-
-  is ($rs->count, 2, 'Correct count via count()');
-
-  is_same_sql_bind (
-    $sql,
-    \@bind,
+  $schema->is_executed_sql_bind( sub {
+    is ($rs->count, 2, 'Correct count via count()');
+  }, [[
     'SELECT COUNT( * )
       FROM cd me
       JOIN track tracks ON tracks.cd = me.cdid
       JOIN cd disc ON disc.cdid = tracks.cd
      WHERE ( ( position = ? OR position = ? ) )
-    ',
-    [ qw/'1' '2'/ ],
-    'count softlimit applied',
-  );
+    ', @wherebind
+  ]], 'count softlimit applied');
 
   my $crs = $rs->count_rs;
   is ($crs->next, 2, 'Correct count via count_rs()');
@@ -60,14 +57,7 @@ my $schema = DBICTest->init_schema();
         LIMIT ? OFFSET ?
        ) tracks
     )',
-    [
-      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
-        => 1 ],
-      [ { sqlt_datatype => 'int', dbic_colname => 'position' }
-        => 2 ],
-      [$ROWS => 3],
-      [$OFFSET => 8],
-    ],
+    [ @wherebind, [$ROWS => 3], [$OFFSET => 8] ],
     'count_rs db-side limit applied',
   );
 }
@@ -79,17 +69,18 @@ my $schema = DBICTest->init_schema();
                 { 'tracks.position' => [1,2] },
                 { prefetch => [qw/tracks artist/], rows => 3, offset => 4 },
             );
+  my @wherebind = (
+    [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+      => 1 ],
+    [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
+      => 2 ],
+  );
+
   is ($rs->all, 1, 'Correct number of objects');
 
-  my ($sql, @bind);
-  $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
-  $schema->storage->debug(1);
-
-  is ($rs->count, 1, 'Correct count via count()');
-
-  is_same_sql_bind (
-    $sql,
-    \@bind,
+  $schema->is_executed_sql_bind( sub {
+    is ($rs->count, 1, 'Correct count via count()');
+  }, [ [
     'SELECT COUNT( * )
       FROM (
         SELECT cds.cdid
@@ -100,10 +91,8 @@ my $schema = DBICTest->init_schema();
         WHERE tracks.position = ? OR tracks.position = ?
         GROUP BY cds.cdid
       ) cds
-    ',
-    [ qw/'1' '2'/ ],
-    'count softlimit applied',
-  );
+    ', @wherebind
+  ]], 'count softlimit applied' );
 
   my $crs = $rs->count_rs;
   is ($crs->next, 1, 'Correct count via count_rs()');
@@ -122,14 +111,7 @@ my $schema = DBICTest->init_schema();
         LIMIT ? OFFSET ?
       ) cds
     )',
-    [
-      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
-        => 1 ],
-      [ { sqlt_datatype => 'int', dbic_colname => 'tracks.position' }
-        => 2 ],
-      [ $ROWS => 3],
-      [$OFFSET => 4],
-    ],
+    [ @wherebind, [$ROWS => 3], [$OFFSET => 4], ],
     'count_rs db-side limit applied',
   );
 }

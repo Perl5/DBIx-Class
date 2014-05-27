@@ -5,7 +5,6 @@ use Test::More;
 use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::DebugObj;
 
 {
   package A::Comp;
@@ -97,24 +96,22 @@ my $bytestream_title = my $utf8_title = "weird \x{466} stuff";
 utf8::encode($bytestream_title);
 cmp_ok ($bytestream_title, 'ne', $utf8_title, 'unicode/raw differ (sanity check)');
 
-my $storage = $schema->storage;
-my ($sql, @bind);
-my $debugobj = DBIC::DebugObj->new (\$sql, \@bind);
-my ($orig_debug, $orig_debugobj) = ($storage->debug, $storage->debugobj);
-$storage->debugobj ($debugobj);
-$storage->debug (1);
-
-my $cd = $schema->resultset('CD')->create( { artist => 1, title => $utf8_title, year => '2048' } );
-
-$storage->debugobj ($orig_debugobj);
-$storage->debug ($orig_debug);
-
-# bind values are always alphabetically ordered by column, thus [1]
-# the single quotes are an artefact of the debug-system
+my $cd;
 {
   local $TODO = "This has been broken since rev 1191, Mar 2006";
-  is ($bind[1], "'$bytestream_title'", 'INSERT: raw bytes sent to the database');
-}
+
+  $schema->is_executed_sql_bind( sub {
+    $cd = $schema->resultset('CD')->create( { artist => 1, title => $utf8_title, year => '2048' } )
+  }, [[
+    'INSERT INTO cd ( artist, title, year) VALUES ( ?, ?, ? )',
+     [ { dbic_colname => "artist", sqlt_datatype => "integer" }
+        => 1 ],
+     [ { dbic_colname => "title", sqlt_datatype => "varchar", sqlt_size => 100 }
+        => $bytestream_title ],
+     [ { dbic_colname => "year", sqlt_datatype => "varchar", sqlt_size => 100 }
+        => 2048 ],
+  ]], 'INSERT: raw bytes sent to the database' );
+};
 
 # this should be using the cursor directly, no inflation/processing of any sort
 my ($raw_db_title) = $schema->resultset('CD')
@@ -149,16 +146,20 @@ ok(! utf8::is_utf8( $cd->{_column_data}{title} ), 'reloaded utf8-less title' );
 $bytestream_title = $utf8_title = "something \x{219} else";
 utf8::encode($bytestream_title);
 
+$schema->is_executed_sql_bind( sub {
+  $cd->update ({ title => $utf8_title });
+}, [
+  [ 'BEGIN' ],
+  [
+    'UPDATE cd SET title = ? WHERE cdid = ?',
+    [ { dbic_colname => "title", sqlt_datatype => "varchar", sqlt_size => 100 }
+      => $bytestream_title ],
+    [ { dbic_colname => "cdid", sqlt_datatype => "integer" }
+      => 6 ],
+  ],
+  [ 'COMMIT' ],
+], 'UPDATE: raw bytes sent to the database');
 
-$storage->debugobj ($debugobj);
-$storage->debug (1);
-
-$cd->update ({ title => $utf8_title });
-
-$storage->debugobj ($orig_debugobj);
-$storage->debug ($orig_debug);
-
-is ($bind[0], "'$bytestream_title'", 'UPDATE: raw bytes sent to the database');
 ($raw_db_title) = $schema->resultset('CD')
                              ->search ($cd->ident_condition)
                                ->get_column('title')

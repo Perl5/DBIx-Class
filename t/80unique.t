@@ -6,8 +6,6 @@ use Test::Exception;
 use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::SqlMakerTest;
-use DBIC::DebugObj;
 
 my $schema = DBICTest->init_schema();
 
@@ -228,23 +226,12 @@ is($row->baz, 3, 'baz is correct');
 {
   my $artist = $schema->resultset('Artist')->find(1);
 
-  my ($sql, @bind);
-  my $old_debugobj = $schema->storage->debugobj;
-  my $old_debug = $schema->storage->debug;
-  $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
-  $schema->storage->debug(1);
-
-  $artist->discard_changes;
-
-  is_same_sql_bind (
-    $sql,
-    \@bind,
-    'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE me.artistid = ?',
-    [qw/'1'/],
-  );
-
-  $schema->storage->debug($old_debug);
-  $schema->storage->debugobj($old_debugobj);
+  $schema->is_executed_sql_bind( sub { $artist->discard_changes }, [
+    [
+      'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE me.artistid = ?',
+      [ { dbic_colname => "me.artistid", sqlt_datatype => "integer" } => 1 ],
+    ]
+  ], 'Expected query on discard_changes');
 }
 
 {

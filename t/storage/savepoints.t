@@ -3,16 +3,29 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::Optional::Dependencies ();
+
+use lib qw(t/lib);
+use DBICTest;
+
+{
+  package # moar hide
+    DBICTest::SVPTracerObj;
+
+  use base 'DBIx::Class::Storage::Statistics';
+
+  sub query_start { 'do notning'}
+  sub callback { 'dummy '}
+
+  for my $svpcall (map { "svp_$_" } qw(begin rollback release)) {
+    no strict 'refs';
+    *$svpcall = sub { $_[0]{uc $svpcall}++ };
+  }
+}
 
 my $env2optdep = {
   DBICTEST_PG => 'test_rdbms_pg',
   DBICTEST_MYSQL => 'test_rdbms_mysql',
 };
-
-use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Stats;
 
 my $schema;
 
@@ -56,9 +69,8 @@ for ('', keys %$env2optdep) { SKIP: {
 
   note "Testing $prefix";
 
-  my $stats = DBICTest::Stats->new;
-  $schema->storage->debugobj($stats);
-  $schema->storage->debug(1);
+  local $schema->storage->{debugobj} = my $stats = DBICTest::SVPTracerObj->new;
+  local $schema->storage->{debug} = 1;
 
   $schema->resultset('Artist')->create({ name => 'foo' });
 

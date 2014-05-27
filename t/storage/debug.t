@@ -6,7 +6,6 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
@@ -19,6 +18,7 @@ unlink $lfn or die $!
   if -e $lfn;
 
 # make sure we are testing the vanilla debugger and not ::PrettyPrint
+require DBIx::Class::Storage::Statistics;
 $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
@@ -61,25 +61,45 @@ dies_ok {
 
 open(STDERR, '>&STDERRCOPY');
 
-# test trace output correctness for bind params
+# test debugcb and debugobj protocol
 {
-    my ($sql, @bind);
-    $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
+  my $rs = $schema->resultset('CD')->search( {
+    artist => 1,
+    cdid => { -between => [ 1, 3 ] },
+    title => { '!=' => \[ '?', undef ] }
+  });
 
-    my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
-    is_same_sql_bind(
-        $sql, \@bind,
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND (cdid BETWEEN ? AND ?) )",
-        [qw/'1' '1' '3'/],
-        'got correct SQL with all bind parameters (debugcb)'
-    );
+  my $sql_trace = 'SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( ( artist = ? AND ( cdid BETWEEN ? AND ? ) AND title != ? ) )';
+  my @bind_trace = qw( '1' '1' '3' NULL );  # quotes are in fact part of the trace </facepalm>
 
-    @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
-    is_same_sql_bind(
-        $sql, \@bind,
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND (cdid BETWEEN ? AND ?) )", ["'1'", "'1'", "'3'"],
-        'got correct SQL with all bind parameters (debugobj)'
-    );
+
+  my @args;
+  $schema->storage->debugcb(sub { push @args, @_ } );
+
+  $rs->all;
+
+  is_deeply( \@args, [
+    "SELECT",
+    sprintf( "%s: %s\n", $sql_trace, join ', ', @bind_trace ),
+  ]);
+
+  {
+    package DBICTest::DebugObj;
+    our @ISA = 'DBIx::Class::Storage::Statistics';
+
+    sub query_start {
+      my $self = shift;
+      ( $self->{_traced_sql}, @{$self->{_traced_bind}} ) = @_;
+    }
+  }
+
+  my $do = $schema->storage->debugobj(DBICTest::DebugObj->new);
+
+  $rs->all;
+
+  is( $do->{_traced_sql}, $sql_trace );
+
+  is_deeply ( $do->{_traced_bind}, \@bind_trace );
 }
 
 done_testing;

@@ -3,7 +3,6 @@ package #hide from pause
 
 use strict;
 use warnings;
-
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
@@ -11,6 +10,92 @@ use Time::HiRes 'sleep';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util 'local_umask';
 use namespace::clean;
+
+{
+  package # moar hide
+    DBICTest::SQLTracerObj;
+  use base 'DBIx::Class::Storage::Statistics';
+
+  sub query_start { push @{$_[0]{sqlbinds}}, [ ($_[1] =~ /^\s*(\S+)/)[0], [ $_[1], @{ $_[2]||[] } ] ] }
+
+  # who the hell came up with this API >:(
+  for my $txn (qw(begin rollback commit)) {
+    no strict 'refs';
+    *{"txn_$txn"} = sub { push @{$_[0]{sqlbinds}}, [ uc $txn => [ uc $txn ] ] };
+  }
+
+  sub svp_begin { push @{$_[0]{sqlbinds}}, [ SAVEPOINT => [ "SAVEPOINT $_[1]" ] ] }
+  sub svp_release { push @{$_[0]{sqlbinds}}, [ RELEASE_SAVEPOINT => [ "RELEASE $_[1]" ] ] }
+  sub svp_rollback { push @{$_[0]{sqlbinds}}, [ ROLLBACK_TO_SAVEPOINT => [ "ROLLBACK TO $_[1]" ] ] }
+
+}
+
+sub capture_executed_sql_bind {
+  my ($self, $cref) = @_;
+
+  $self->throw_exception("Expecting a coderef to run") unless ref $cref eq 'CODE';
+
+  # hack around stupid, stupid API
+  no warnings 'redefine';
+  local *DBIx::Class::Storage::DBI::_format_for_trace = sub { $_[1] };
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
+
+  local $self->storage->{debugcb};
+  local $self->storage->{debugobj} = my $tracer_obj = DBICTest::SQLTracerObj->new;
+  local $self->storage->{debug} = 1;
+
+
+  $cref->();
+
+  return $tracer_obj->{sqlbinds} || [];
+}
+
+sub is_executed_sql_bind {
+  my ($self, $cref, $sqlbinds, $msg) = @_;
+
+  local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+  $self->throw_exception("Expecting an arrayref of SQL/Bind pairs") unless ref $sqlbinds eq 'ARRAY';
+
+  my @expected = @$sqlbinds;
+
+  my @got = map { $_->[1] } @{ $self->capture_executed_sql_bind($cref) };
+
+
+  return Test::Builder->new->ok(1, $msg || "No queries executed while running $cref")
+    if !@got and !@expected;
+
+  require SQL::Abstract::Test;
+  my $ret = 1;
+  while (@expected or @got) {
+    my $left = shift @got;
+    my $right = shift @expected;
+
+    # allow the right side to "simplify" the entire shebang
+    if ($left and $right) {
+      $left = [ @$left ];
+      for my $i (1..$#$right) {
+        if (
+          ! ref $right->[$i]
+            and
+          ref $left->[$i] eq 'ARRAY'
+            and
+          @{$left->[$i]} == 2
+        ) {
+          $left->[$i] = $left->[$i][1]
+        }
+      }
+    }
+
+    $ret &= SQL::Abstract::Test::is_same_sql_bind(
+      \( $left || [] ),
+      \( $right || [] ),
+      $msg,
+    );
+  }
+
+  return $ret;
+}
 
 our $locker;
 END {
