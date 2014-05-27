@@ -125,6 +125,46 @@ DDL
   }
 }
 
+# test blank begin/svp/commit/begin cycle
+warnings_are {
+  my $schema = DBICTest->init_schema( no_populate => 1 );
+  my $rs = $schema->resultset('Artist');
+  is ($rs->count, 0, 'Start with empty table');
+
+  for my $do_commit (1, 0) {
+    $schema->txn_begin;
+    $schema->svp_begin;
+    $schema->svp_rollback;
+
+    $schema->svp_begin;
+    $schema->svp_rollback;
+
+    $schema->svp_release;
+
+    $schema->svp_begin;
+
+    $schema->txn_rollback;
+
+    $schema->txn_begin;
+    $schema->svp_begin;
+    $schema->svp_rollback;
+
+    $schema->svp_begin;
+    $schema->svp_rollback;
+
+    $schema->svp_release;
+
+    $schema->svp_begin;
+
+    $do_commit ? $schema->txn_commit : $schema->txn_rollback;
+
+    is_deeply $schema->storage->savepoints, [], 'Savepoint names cleared away'
+  }
+
+  $schema->txn_do(sub {
+    ok (1, 'all seems fine');
+  });
+} [], 'No warnings emitted';
 
 my $schema = DBICTest->init_schema();
 

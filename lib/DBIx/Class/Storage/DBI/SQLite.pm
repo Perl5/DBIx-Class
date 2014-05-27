@@ -126,11 +126,23 @@ sub _exec_svp_release {
 sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
-  # For some reason this statement changes the value of $dbh->{AutoCommit}, so
-  # we localize it here to preserve the original value.
-  local $self->_dbh->{AutoCommit} = $self->_dbh->{AutoCommit};
+  $self->_dbh->do("ROLLBACK TO SAVEPOINT $name");
+}
 
-  $self->_dbh->do("ROLLBACK TRANSACTION TO SAVEPOINT $name");
+# older SQLite has issues here too - both of these are in fact
+# completely benign warnings (or at least so say the tests)
+sub _exec_txn_rollback {
+  local $SIG{__WARN__} = sigwarn_silencer( qr/rollback ineffective/ )
+    unless $DBD::SQLite::__DBIC_TXN_SYNC_SANE__;
+
+  shift->next::method(@_);
+}
+
+sub _exec_txn_commit {
+  local $SIG{__WARN__} = sigwarn_silencer( qr/commit ineffective/ )
+    unless $DBD::SQLite::__DBIC_TXN_SYNC_SANE__;
+
+  shift->next::method(@_);
 }
 
 sub _ping {

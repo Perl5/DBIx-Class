@@ -227,6 +227,7 @@ sub txn_commit {
     $self->debugobj->txn_commit() if $self->debug;
     $self->_exec_txn_commit;
     $self->{transaction_depth}--;
+    $self->savepoints([]);
   }
   elsif($self->transaction_depth > 1) {
     $self->{transaction_depth}--;
@@ -252,6 +253,7 @@ sub txn_rollback {
     $self->debugobj->txn_rollback() if $self->debug;
     $self->_exec_txn_rollback;
     $self->{transaction_depth}--;
+    $self->savepoints([]);
   }
   elsif ($self->transaction_depth > 1) {
     $self->{transaction_depth}--;

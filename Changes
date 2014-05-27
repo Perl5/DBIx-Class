@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           up by create() and populate()
         - Ensure definitive condition extractor handles bizarre corner cases
           without bombing out (RT#93244)
+        - Fix inability to handle multiple consecutive transactions with
+          savepoints on DBD::SQLite < 1.39
 
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
