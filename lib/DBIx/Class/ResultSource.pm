@@ -639,7 +639,7 @@ sub _pri_cols_or_die {
 }
 
 # same as above but mandating single-column PK (used by relationship condition
-# inferrence)
+# inference)
 sub _single_pri_col_or_die {
   my $self = shift;
   my ($pri, @too_many) = $self->_pri_cols_or_die;
