@@ -56,6 +56,7 @@ EOP
   my $great_success;
   {
     local @ARGV = ('--documentation-as-pod', $pod_fn);
+    local $0 = 'dbicadmin';
     local *CORE::GLOBAL::exit = sub { $great_success++; die; };
     do 'script/dbicadmin';
   }
