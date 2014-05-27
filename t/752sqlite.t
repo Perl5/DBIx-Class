@@ -215,7 +215,20 @@ for my $bi ( qw(
   my $v_desc = sprintf '%s (%d bit signed int)', $bi, $v_bits;
 
   my @w;
-  local $SIG{__WARN__} = sub { $_[0] =~ /datatype mismatch/ ? push @w, @_ : warn @_ };
+  local $SIG{__WARN__} = sub {
+    if ($_[0] =~ /datatype mismatch/) {
+      push @w, @_;
+    }
+    elsif ($_[0] =~ /An integer value occupying more than 32 bits was supplied .+ can not bind properly so DBIC will treat it as a string instead/ ) {
+      # do nothing, this warning will pop up here and there depending on
+      # DBD/bitness combination
+      # we don't want to test for it explicitly, we are just interested
+      # in the results matching at the end
+    }
+    else {
+      warn @_;
+    }
+  };
 
   # some combinations of SQLite 1.35 and older 5.8 faimly is wonky
   # instead of a warning we get a full exception. Sod it
