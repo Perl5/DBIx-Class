@@ -108,13 +108,15 @@ my $admin = DBIx::Class::Admin->new(
 );
 
 $admin->version("3.0");
-lives_ok { $admin->install(); } 'install schema version 3.0';
+$admin->install;
 is($admin->schema->get_db_version, "3.0", 'db thinks its version 3.0');
-dies_ok { $admin->install("4.0"); } 'cannot install to allready existing version';
+throws_ok {
+  $admin->install("4.0")
+} qr/Schema already has a version. Try upgrade instead/, 'cannot install to allready existing version';
 
 $admin->force(1);
 warnings_exist ( sub {
-  lives_ok { $admin->install("4.0") } 'can force install to allready existing version'
+  $admin->install("4.0")
 }, qr/Forcing install may not be a good idea/, 'Force warning emitted' );
 is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 }
