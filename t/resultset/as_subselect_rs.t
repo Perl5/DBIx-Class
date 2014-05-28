@@ -40,8 +40,6 @@ is_same_sql_bind (
   'Resultset-class attributes do not seep outside of the subselect',
 );
 
-$schema->storage->debug(1);
-
 is_same_sql_bind(
   $schema->resultset('CD')->search ({}, {
     rows => 2,
@@ -69,6 +67,5 @@ is_same_sql_bind(
   )',
   [ [{ sqlt_datatype => 'integer' } => 2 ] ],
 );
-
 
 done_testing;

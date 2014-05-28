@@ -223,9 +223,7 @@ is $row->artistid, $current_artistid+1,
 my $rs = $schema->resultset('VaryingMAX');
 
 foreach my $size (qw/small large/) {
-  my $orig_debug = $schema->storage->debug;
-
-  $schema->storage->debug(0) if $size eq 'large';
+  local $schema->storage->{debug} = 0 if $size eq 'large';
 
   my $str = $binstr{$size};
   my $row;
@@ -242,8 +240,6 @@ foreach my $size (qw/small large/) {
   cmp_ok try { $row->varchar_max },   'eq', $str, 'VARCHAR(MAX) matches';
   cmp_ok try { $row->nvarchar_max },  'eq', $str, 'NVARCHAR(MAX) matches';
   cmp_ok try { $row->varbinary_max }, 'eq', $str, 'VARBINARY(MAX) matches';
-
-  $schema->storage->debug($orig_debug);
 }
 
 # test regular blobs

@@ -331,20 +331,13 @@ SQL
           is ($limited_rs->count, 6, "$test_type: Correct count of limited right-sorted joined resultset");
           is ($limited_rs->count_rs->next, 6, "$test_type: Correct count_rs of limited right-sorted joined resultset");
 
-          my $queries;
-          my $orig_debug = $schema->storage->debug;
-          $schema->storage->debugcb(sub { $queries++; });
-          $schema->storage->debug(1);
-
-          is_deeply (
-            [map { $_->owner->name } ($limited_rs->all) ],
-            [@owner_names[2 .. 7]],
-            "$test_type: Prefetch-limited rows were properly ordered"
-          );
-          is ($queries, 1, "$test_type: Only one query with prefetch");
-
-          $schema->storage->debugcb(undef);
-          $schema->storage->debug($orig_debug);
+          $schema->is_executed_querycount( sub {
+            is_deeply (
+              [map { $_->owner->name } ($limited_rs->all) ],
+              [@owner_names[2 .. 7]],
+              "$test_type: Prefetch-limited rows were properly ordered"
+            );
+          }, 1, "$test_type: Only one query with prefetch" );
 
           is_deeply (
             [map { $_->name } ($limited_rs->search_related ('owner')->all) ],

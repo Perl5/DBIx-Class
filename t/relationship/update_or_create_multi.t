@@ -9,7 +9,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
-my $sdebug = $schema->storage->debug;
 
 my $artist = $schema->resultset ('Artist')->find(1);
 
@@ -79,28 +78,30 @@ throws_ok {
 # expect a create, after a failed search using *only* the
 # *current* relationship and the unique column constraints
 # (so no year)
-my @sql;
-$schema->storage->debugcb(sub { push @sql, $_[1] });
-$schema->storage->debug (1);
-
-$genre->update_or_create_related ('cds', {
-  title => 'the best thing since vertical toasters',
-  artist => $artist,
-  year => 2012,
-});
-
-$schema->storage->debugcb(undef);
-$schema->storage->debug ($sdebug);
-
-my ($search_sql) = $sql[0] =~ /^(SELECT .+?)\:/;
-is_same_sql (
-  $search_sql,
-  'SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-    FROM cd me
-    WHERE ( me.artist = ? AND me.genreid = ? AND me.title = ? )
-  ',
-  'expected select issued',
-);
+$schema->is_executed_sql_bind( sub {
+  $genre->update_or_create_related ('cds', {
+    title => 'the best thing since vertical toasters',
+    artist => $artist,
+    year => 2012,
+  });
+}, [
+  [
+    'SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+        FROM cd me
+      WHERE ( me.artist = ? AND me.genreid = ? AND me.title = ? )
+    ',
+    1,
+    2,
+    "the best thing since vertical toasters",
+  ],
+  [
+    'INSERT INTO cd ( artist, genreid, title, year) VALUES ( ?, ?, ?, ? )',
+    1,
+    2,
+    "the best thing since vertical toasters",
+    2012,
+  ],
+], 'expected select issued' );
 
 # a has_many search without a unique constraint makes no sense
 # but I am not sure what to test for - leaving open

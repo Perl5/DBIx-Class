@@ -9,10 +9,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $queries;
-my $debugcb = sub { $queries++; };
-my $orig_debug = $schema->storage->debug;
-
 lives_ok ( sub {
   my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
     {
@@ -73,16 +69,12 @@ lives_ok ( sub {
 {
   my $cd = $schema->resultset('CD')->search({}, { prefetch => 'cd_to_producer' })->find(1);
 
-  $queries = 0;
-  $schema->storage->debugcb ($debugcb);
-  $schema->storage->debug (1);
-
-  is( $cd->cd_to_producer->count, 3 ,'Count of prefetched m2m links via accessor' );
-  is( scalar $cd->cd_to_producer->all, 3, 'Amount of prefetched m2m link objects via accessor' );
-  is( $cd->search_related('cd_to_producer')->count, 3, 'Count of prefetched m2m links via search_related' );
-  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Amount of prefetched m2m links via search_related' );
-
-  is($queries, 0, 'No queries ran so far');
+  $schema->is_executed_querycount( sub {
+      is( $cd->cd_to_producer->count, 3 ,'Count of prefetched m2m links via accessor' );
+    is( scalar $cd->cd_to_producer->all, 3, 'Amount of prefetched m2m link objects via accessor' );
+    is( $cd->search_related('cd_to_producer')->count, 3, 'Count of prefetched m2m links via search_related' );
+    is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Amount of prefetched m2m links via search_related' );
+  }, 0, 'No queries ran so far');
 
   is( scalar $cd->cd_to_producer->search_related('producer')->all, 3,
       'Amount of objects via search_related off prefetched linker' );
@@ -97,16 +89,12 @@ lives_ok ( sub {
   is( $cd->producers->count, 3,
       'Count via m2m accessor' );
 
-  $queries = 0;
-
-  is( $cd->cd_to_producer->count, 3 ,'Review count of prefetched m2m links via accessor' );
-  is( scalar $cd->cd_to_producer->all, 3, 'Review amount of prefetched m2m link objects via accessor' );
-  is( $cd->search_related('cd_to_producer')->count, 3, 'Review count of prefetched m2m links via search_related' );
-  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Rreview amount of prefetched m2m links via search_related' );
-
-  is($queries, 0, 'Still no queries on prefetched linker');
-  $schema->storage->debugcb (undef);
-  $schema->storage->debug ($orig_debug);
+  $schema->is_executed_querycount( sub {
+    is( $cd->cd_to_producer->count, 3 ,'Review count of prefetched m2m links via accessor' );
+    is( scalar $cd->cd_to_producer->all, 3, 'Review amount of prefetched m2m link objects via accessor' );
+    is( $cd->search_related('cd_to_producer')->count, 3, 'Review count of prefetched m2m links via search_related' );
+    is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Rreview amount of prefetched m2m links via search_related' );
+  }, 0, 'Still no queries on prefetched linker');
 }
 
 # tests with distinct => 1
@@ -169,21 +157,18 @@ lives_ok (sub {
     is($rs->all, 1, 'distinct with prefetch (objects)');
     is($rs->count, 1, 'distinct with prefetch (count)');
 
-    $queries = 0;
-    $schema->storage->debugcb ($debugcb);
-    $schema->storage->debug (1);
+    local $TODO = "This makes another 2 trips to the database, it can't be right";
+    $schema->is_executed_querycount( sub {
 
-    # artist -> 2 cds -> 2 genres -> 2 cds for each genre + distinct = 2
-    is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
-    is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
+      # the is() calls are not todoified
+      local $TODO;
 
-    {
-      local $TODO = "This makes another 2 trips to the database, it can't be right";
-      is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
-    }
+      # artist -> 2 cds -> 2 genres -> 2 cds for each genre + distinct = 2
+      is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
+      is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
 
-    $schema->storage->debugcb (undef);
-    $schema->storage->debug ($orig_debug);
+    }, 0, 'No extra queries fired (prefetch survives search_related)');
+
 }, 'distinct generally works with prefetch on deep search_related chains');
 
 # pathological "user knows what they're doing" case

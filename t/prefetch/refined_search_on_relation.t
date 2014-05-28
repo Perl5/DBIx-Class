@@ -25,11 +25,7 @@ is (
 );
 
 # this still should emit no queries:
-{
-  my $queries = 0;
-  my $orig_debug = $schema->storage->debug;
-  $schema->storage->debugcb(sub { $queries++; });
-  $schema->storage->debug(1);
+$schema->is_executed_querycount( sub {
 
   my $cds = $art->cds;
   is (
@@ -47,10 +43,6 @@ is (
     );
   }
 
-  $schema->storage->debug($orig_debug);
-  $schema->storage->debugcb(undef);
-
-  is ($queries, 0, 'No queries on prefetched operations');
-}
+}, 0, 'No queries on prefetched operations');
 
 done_testing;

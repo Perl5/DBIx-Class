@@ -257,24 +257,20 @@ if ($ENV{TEST_VERBOSE}) {
     for @lines;
 }
 
-{
-  my $queries = 0;
-  $schema->storage->debugcb(sub { $queries++ });
-  my $orig_debug = $schema->storage->debug;
-  $schema->storage->debug (1);
-
+$schema->is_executed_querycount( sub {
   for my $use_next (0, 1) {
     my @random_cds;
+    my $rs_r = $rs_random;
     if ($use_next) {
       warnings_exist {
-        while (my $o = $rs_random->next) {
+        while (my $o = $rs_r->next) {
           push @random_cds, $o;
         }
       } qr/performed an eager cursor slurp underneath/,
       'Warned on auto-eager cursor';
     }
     else {
-      @random_cds = $rs_random->all;
+      @random_cds = $rs_r->all;
     }
 
     is (@random_cds, 6, 'object count matches');
@@ -306,11 +302,7 @@ if ($ENV{TEST_VERBOSE}) {
       }
     }
   }
-
-  $schema->storage->debugcb(undef);
-  $schema->storage->debug($orig_debug);
-  is ($queries, 2, "Only two queries for two prefetch calls total");
-}
+}, 2, "Only two queries for two prefetch calls total");
 
 # can't cmp_deeply a random set - need *some* order
 my $ord_rs = $rs->search({}, {

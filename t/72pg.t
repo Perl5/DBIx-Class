@@ -248,7 +248,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     lives_ok {
       is_deeply (
         $arr_rs->search({ arrayfield => { '=' => { -value => [3,4] }} })->first->arrayfield,
-        [3,4],,
+        [3,4],
         'Array value matches explicit equal'
       );
     } 'searching by arrayref (explicit equal sign)';

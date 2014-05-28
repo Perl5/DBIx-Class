@@ -7,33 +7,26 @@ use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
-my $orig_debug = $schema->storage->debug;
 
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++; });
-$schema->storage->debug(1);
-
-my $search = { 'artist.name' => 'Caterwauler McCrae' };
-my $attr = { prefetch => [ qw/artist liner_notes/ ],
+my $rs;
+$schema->is_executed_querycount( sub {
+  my $search = { 'artist.name' => 'Caterwauler McCrae' };
+  my $attr = { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' };
 
-my $rs = $schema->resultset("CD")->search($search, $attr);
-my @cd = $rs->all;
+  $rs = $schema->resultset("CD")->search($search, $attr);
+  my @cd = $rs->all;
 
-is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
+  is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
 
-ok(!defined $cd[0]->liner_notes, 'No prefetch for NULL LEFT join');
+  ok(!defined $cd[0]->liner_notes, 'No prefetch for NULL LEFT join');
 
-is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
+  is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
 
-is(ref $cd[1]->liner_notes, 'DBICTest::LinerNotes', 'Prefetch returns correct class');
+  is(ref $cd[1]->liner_notes, 'DBICTest::LinerNotes', 'Prefetch returns correct class');
 
-is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
-
-is($queries, 1, 'prefetch ran only 1 select statement');
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
+  is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
+}, 1, 'prefetch ran only 1 select statement');
 
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
@@ -42,66 +35,50 @@ my $cd = $schema->resultset('CD')->find(1,
       join => { 'artist' => {} }
     }
 );
-ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column prefetched');
+is( $cd->artist->name, 'Caterwauler McCrae', 'single related column prefetched');
 
 # start test for nested prefetch SELECT count
-$queries = 0;
-$schema->storage->debugcb(sub { $queries++ });
-$schema->storage->debug(1);
+my $tag;
+$schema->is_executed_querycount( sub {
+  $rs = $schema->resultset('Tag')->search(
+    { 'me.tagid' => 1 },
+    {
+      prefetch => { cd => 'artist' }
+    }
+  );
 
-$rs = $schema->resultset('Tag')->search(
-  { 'me.tagid' => 1 },
-  {
-    prefetch => { cd => 'artist' }
-  }
-);
+  $tag = $rs->first;
 
-my $tag = $rs->first;
+  is( $tag->cd->title, 'Spoonful of bees', 'step 1 ok for nested prefetch' );
 
-is( $tag->cd->title, 'Spoonful of bees', 'step 1 ok for nested prefetch' );
+  is( $tag->cd->artist->name, 'Caterwauler McCrae', 'step 2 ok for nested prefetch');
+}, 1, 'nested prefetch ran exactly 1 select statement');
 
-is( $tag->cd->artist->name, 'Caterwauler McCrae', 'step 2 ok for nested prefetch');
 
-# count the SELECTs
-#$selects++ if /SELECT(?!.*WHERE 1=0.*)/;
-is($queries, 1, 'nested prefetch ran exactly 1 select statement (excluding column_info)');
-
-$queries = 0;
-
-is($tag->search_related('cd')->search_related('artist')->first->name,
+$schema->is_executed_querycount( sub {
+  is($tag->search_related('cd')->search_related('artist')->first->name,
    'Caterwauler McCrae',
    'chained belongs_to->belongs_to search_related ok');
+}, 0, 'chained search_related after belongs_to->belongs_to prefetch ran no queries');
 
-is($queries, 0, 'chained search_related after belontgs_to->belongs_to prefetch ran no queries');
 
-$queries = 0;
+$schema->is_executed_querycount( sub {
+  $cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
 
-$cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
+  is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
+}, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
 
-is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
+$schema->is_executed_querycount( sub {
+  $cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' }, order_by => 'producer.producerid' });
 
-is($queries, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
+  is($cd->producers->first->name, 'Matt S Trout', 'many_to_many accessor ok');
+}, 1, 'many_to_many accessor with nested prefetch ran exactly 1 query');
 
-$queries = 0;
+$schema->is_executed_querycount( sub {
+  my $producers = $cd->search_related('cd_to_producer')->search_related('producer');
 
-$schema->storage->debugcb(sub { $queries++; });
-
-$cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' }, order_by => 'producer.producerid' });
-
-is($cd->producers->first->name, 'Matt S Trout', 'many_to_many accessor ok');
-
-is($queries, 1, 'many_to_many accessor with nested prefetch ran exactly 1 query');
-
-$queries = 0;
-
-my $producers = $cd->search_related('cd_to_producer')->search_related('producer');
-
-is($producers->first->name, 'Matt S Trout', 'chained many_to_many search_related ok');
-
-is($queries, 0, 'chained search_related after many_to_many prefetch ran no queries');
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
+  is($producers->first->name, 'Matt S Trout', 'chained many_to_many search_related ok');
+}, 0, 'chained search_related after many_to_many prefetch ran no queries');
 
 $rs = $schema->resultset('Tag')->search(
   {},
@@ -180,27 +157,22 @@ my $left_join = $schema->resultset('CD')->search(
 
 cmp_ok($left_join, '==', 1, 'prefetch with no join record present');
 
-$queries = 0;
-$schema->storage->debugcb(sub { $queries++ });
-$schema->storage->debug(1);
-
-my $tree_like =
-     $schema->resultset('TreeLike')->find(5,
-       { join     => { parent => { parent => 'parent' } },
+my $tree_like;
+$schema->is_executed_querycount( sub {
+  $tree_like =
+    $schema->resultset('TreeLike')->find(5,
+      { join     => { parent => { parent => 'parent' } },
          prefetch => { parent => { parent => 'parent' } } });
 
-is($tree_like->name, 'quux', 'Bottom of tree ok');
-$tree_like = $tree_like->parent;
-is($tree_like->name, 'baz', 'First level up ok');
-$tree_like = $tree_like->parent;
-is($tree_like->name, 'bar', 'Second level up ok');
-$tree_like = $tree_like->parent;
-is($tree_like->name, 'foo', 'Third level up ok');
+  is($tree_like->name, 'quux', 'Bottom of tree ok');
+  $tree_like = $tree_like->parent;
+  is($tree_like->name, 'baz', 'First level up ok');
+  $tree_like = $tree_like->parent;
+  is($tree_like->name, 'bar', 'Second level up ok');
+  $tree_like = $tree_like->parent;
+  is($tree_like->name, 'foo', 'Third level up ok');
 
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
-
-cmp_ok($queries, '==', 1, 'Only one query run');
+}, 1, 'Only one query run');
 
 $tree_like = $schema->resultset('TreeLike')->search({'me.id' => 2});
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
@@ -210,15 +182,15 @@ $tree_like = $schema->resultset('TreeLike')->search_related('children',
     { 'children.id' => 3, 'children_2.id' => 4 },
     { prefetch => { children => 'children' } }
   )->first;
-is(eval { $tree_like->children->first->children->first->name }, 'quux',
+is( $tree_like->children->first->children->first->name, 'quux',
    'Tree search_related with prefetch ok');
 
-$tree_like = eval { $schema->resultset('TreeLike')->search(
+$tree_like = $schema->resultset('TreeLike')->search(
     { 'children.id' => 3, 'children_2.id' => 6 },
     { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
-  )->first->children->first; };
-is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
+  )->first->children->first;
+is( $tree_like->name, 'fong', 'Tree with multiple has_many joins ok');
 
 $rs = $schema->resultset('Artist');
 $rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
@@ -274,32 +246,24 @@ sub make_hash_struc {
     return $struc;
 }
 
-$queries = 0;
-$schema->storage->debugcb(sub { $queries++ });
-$schema->storage->debug(1);
 
-my $prefetch_result = make_hash_struc($art_rs_pr);
+my $prefetch_result;
+$schema->is_executed_querycount( sub {
+  $prefetch_result = make_hash_struc($art_rs_pr);
+}, 1, 'nested prefetch across has_many->has_many ran exactly 1 query');
 
-is($queries, 1, 'nested prefetch across has_many->has_many ran exactly 1 query');
-
-my $nonpre_result   = make_hash_struc($art_rs);
-
+my $nonpre_result = make_hash_struc($art_rs);
 is_deeply( $prefetch_result, $nonpre_result,
     'Compare 2 level prefetch result to non-prefetch result' );
 
-$queries = 0;
-
-is_deeply(
-  [ sort map { $_->title } $art_rs_pr->search_related('cds')->search_related('tracks')->all ],
-  [ 'Apiary', 'Beehind You', 'Boring Name', 'Boring Song', 'Fowlin', 'Howlin',
-    'No More Ideas', 'Sad', 'Sticky Honey', 'Stripy', 'Stung with Success',
-    'Suicidal', 'The Bees Knees', 'Under The Weather', 'Yowlin' ],
-  'chained has_many->has_many search_related ok'
-);
-
-is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
+$schema->is_executed_querycount( sub {
+  is_deeply(
+    [ sort map { $_->title } $art_rs_pr->search_related('cds')->search_related('tracks')->all ],
+    [ 'Apiary', 'Beehind You', 'Boring Name', 'Boring Song', 'Fowlin', 'Howlin',
+      'No More Ideas', 'Sad', 'Sticky Honey', 'Stripy', 'Stung with Success',
+      'Suicidal', 'The Bees Knees', 'Under The Weather', 'Yowlin' ],
+    'chained has_many->has_many search_related ok'
+  );
+}, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
 done_testing;

@@ -15,29 +15,20 @@ $schema->resultset('CD')->create({
   },
 });
 
-my $orig_debug = $schema->storage->debug;
+$schema->is_executed_querycount( sub {
+  my $cd = $schema->resultset('CD')->search( {}, { prefetch => 'artist' })->next;
 
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++; });
-$schema->storage->debug(1);
+  cmp_deeply
+    { $cd->get_columns },
+    { artist => 0, cdid => 0, genreid => 0, single_track => 0, title => '', year => 0 },
+    'Expected CD columns present',
+  ;
 
-my $cd = $schema->resultset('CD')->search( {}, { prefetch => 'artist' })->next;
-
-cmp_deeply
-  { $cd->get_columns },
-  { artist => 0, cdid => 0, genreid => 0, single_track => 0, title => '', year => 0 },
-  'Expected CD columns present',
-;
-
-cmp_deeply
-  { $cd->artist->get_columns },
-  { artistid => 0, charfield => 0, name => "", rank => 0 },
-  'Expected Artist columns present',
-;
-
-is $queries, 1, 'Only one query fired - prefetch worked';
-
-$schema->storage->debugcb(undef);
-$schema->storage->debug($orig_debug);
+  cmp_deeply
+    { $cd->artist->get_columns },
+    { artistid => 0, charfield => 0, name => "", rank => 0 },
+    'Expected Artist columns present',
+  ;
+}, 1, 'Only one query fired - prefetch worked' );
 
 done_testing;

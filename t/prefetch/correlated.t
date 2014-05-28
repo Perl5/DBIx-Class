@@ -8,7 +8,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
-my $orig_debug = $schema->storage->debug;
 
 my $cdrs = $schema->resultset('CD')->search({ 'me.artist' => { '!=', 2 }});
 
@@ -63,26 +62,19 @@ is_same_sql_bind(
   'Expected SQL on correlated realiased subquery'
 );
 
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++; });
-$schema->storage->debug(1);
-
-cmp_deeply (
-  { map
-    { $_->cdid => {
-      track_titles => [ map { $_->title } ($_->tracks->all) ],
-      siblings => $_->get_column ('sibling_count'),
-    } }
-    $c_rs->all
-  },
-  $cd_data,
-  'Proper information retrieved from correlated subquery'
-);
-
-is ($queries, 1, 'Only 1 query fired to retrieve everything');
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugcb(undef);
+$schema->is_executed_querycount( sub {
+  cmp_deeply (
+    { map
+      { $_->cdid => {
+        track_titles => [ map { $_->title } ($_->tracks->all) ],
+        siblings => $_->get_column ('sibling_count'),
+      } }
+      $c_rs->all
+    },
+    $cd_data,
+    'Proper information retrieved from correlated subquery'
+  );
+}, 1, 'Only 1 query fired to retrieve everything');
 
 # now add an unbalanced select/as pair
 $c_rs = $c_rs->search ({}, {

@@ -44,10 +44,33 @@ sub capture_executed_sql_bind {
   local $self->storage->{debugobj} = my $tracer_obj = DBICTest::SQLTracerObj->new;
   local $self->storage->{debug} = 1;
 
-
+  local $Test::Builder::Level = $Test::Builder::Level + 2;
   $cref->();
 
   return $tracer_obj->{sqlbinds} || [];
+}
+
+sub is_executed_querycount {
+  my ($self, $cref, $exp_counts, $msg) = @_;
+
+  local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+  $self->throw_exception("Expecting an hashref of counts or an integer representing total query count")
+    unless ref $exp_counts eq 'HASH' or (defined $exp_counts and ! ref $exp_counts);
+
+  my @got = map { $_->[0] } @{ $self->capture_executed_sql_bind($cref) };
+
+  return Test::More::is( @got, $exp_counts, $msg )
+    unless ref $exp_counts;
+
+  my $got_counts = { map { $_ => 0 } keys %$exp_counts };
+  $got_counts->{$_}++ for @got;
+
+  return Test::More::is_deeply(
+    $got_counts,
+    $exp_counts,
+    $msg,
+  );
 }
 
 sub is_executed_sql_bind {

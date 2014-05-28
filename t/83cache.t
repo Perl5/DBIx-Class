@@ -7,12 +7,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $queries;
-my $debugcb = sub{ $queries++ };
-my $sdebug = $schema->storage->debug;
-
-plan tests => 23;
-
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
 );
@@ -43,18 +37,12 @@ my $cd = $schema->resultset('CD')->find(1);
 
 $rs->clear_cache;
 
-$queries = 0;
-$schema->storage->debug(1);
-$schema->storage->debugcb ($debugcb);
+$schema->is_executed_querycount( sub {
 
-$rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
-while( $artist = $rs->next ) {}
-$artist = $rs->first();
-
-is( $queries, 1, 'revisiting a row does not issue a query when cache => 1' );
-
-$schema->storage->debug($sdebug);
-$schema->storage->debugcb (undef);
+  $rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
+  while( $artist = $rs->next ) {}
+  $artist = $rs->first();
+}, 1, 'revisiting a row does not issue a query when cache => 1' );
 
 my @a = $schema->resultset("Artist")->search(
   { },
@@ -74,33 +62,28 @@ $rs = $schema->resultset("Artist")->search(
   }
 );
 
-# start test for prefetch SELECT count
-$queries = 0;
-$schema->storage->debug(1);
-$schema->storage->debugcb ($debugcb);
+# prefetch SELECT count
+$schema->is_executed_querycount( sub {
+  $artist = $rs->first;
+  $rs->reset();
 
-$artist = $rs->first;
-$rs->reset();
+  # make sure artist contains a related resultset for cds
+  isa_ok( $artist->{related_resultsets}{cds}, 'DBIx::Class::ResultSet', 'artist has a related_resultset for cds' );
 
-# make sure artist contains a related resultset for cds
-isa_ok( $artist->{related_resultsets}{cds}, 'DBIx::Class::ResultSet', 'artist has a related_resultset for cds' );
+  # check if $artist->cds->get_cache is populated
+  is( scalar @{$artist->cds->get_cache}, 3, 'cache for artist->cds contains correct number of records');
 
-# check if $artist->cds->get_cache is populated
-is( scalar @{$artist->cds->get_cache}, 3, 'cache for artist->cds contains correct number of records');
+  # ensure that $artist->cds returns correct number of objects
+  is( scalar ($artist->cds), 3, 'artist->cds returns correct number of objects' );
 
-# ensure that $artist->cds returns correct number of objects
-is( scalar ($artist->cds), 3, 'artist->cds returns correct number of objects' );
+  # ensure that $artist->cds->count returns correct value
+  is( $artist->cds->count, 3, 'artist->cds->count returns correct value' );
 
-# ensure that $artist->cds->count returns correct value
-is( $artist->cds->count, 3, 'artist->cds->count returns correct value' );
+  # ensure that $artist->count_related('cds') returns correct value
+  is( $artist->count_related('cds'), 3, 'artist->count_related returns correct value' );
 
-# ensure that $artist->count_related('cds') returns correct value
-is( $artist->count_related('cds'), 3, 'artist->count_related returns correct value' );
+}, 1, 'only one SQL statement executed');
 
-is($queries, 1, 'only one SQL statement executed');
-
-$schema->storage->debug($sdebug);
-$schema->storage->debugcb (undef);
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -131,57 +114,44 @@ is($artist->cds, 0, 'No cds for this artist');
 }
 
 # SELECT count for nested has_many prefetch
-$queries = 0;
-$schema->storage->debug(1);
-$schema->storage->debugcb ($debugcb);
+$schema->is_executed_querycount( sub {
+  $artist = ($rs->all)[0];
+}, 1, 'only one SQL statement executed');
 
-$artist = ($rs->all)[0];
+$schema->is_executed_querycount( sub {
+  my @objs;
+  my $cds = $artist->cds;
+  my $tags = $cds->next->tags;
+  while( my $tag = $tags->next ) {
+    push @objs, $tag->tagid; #warn "tag:", $tag->ID, " => ", $tag->tag;
+  }
 
-is($queries, 1, 'only one SQL statement executed');
+  is_deeply( \@objs, [ 3 ], 'first cd has correct tags' );
 
-$queries = 0;
+  $tags = $cds->next->tags;
+  @objs = ();
+  while( my $tag = $tags->next ) {
+    push @objs, $tag->id; #warn "tag: ", $tag->ID;
+  }
 
-my @objs;
-my $cds = $artist->cds;
-my $tags = $cds->next->tags;
-while( my $tag = $tags->next ) {
-  push @objs, $tag->tagid; #warn "tag:", $tag->ID, " => ", $tag->tag;
-}
+  is_deeply( [ sort @objs] , [ 2, 5, 8 ], 'third cd has correct tags' );
 
-is_deeply( \@objs, [ 3 ], 'first cd has correct tags' );
+  $tags = $cds->next->tags;
+  @objs = ();
+  while( my $tag = $tags->next ) {
+    push @objs, $tag->id; #warn "tag: ", $tag->ID;
+  }
 
-$tags = $cds->next->tags;
-@objs = ();
-while( my $tag = $tags->next ) {
-  push @objs, $tag->id; #warn "tag: ", $tag->ID;
-}
+  is_deeply( \@objs, [ 1 ], 'second cd has correct tags' );
+}, 0, 'no additional SQL statements while checking nested data' );
 
-is_deeply( [ sort @objs] , [ 2, 5, 8 ], 'third cd has correct tags' );
+$schema->is_executed_querycount( sub {
+  $artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
+}, 1, 'only one select statement on find with inline has_many prefetch' );
 
-$tags = $cds->next->tags;
-@objs = ();
-while( my $tag = $tags->next ) {
-  push @objs, $tag->id; #warn "tag: ", $tag->ID;
-}
+$schema->is_executed_querycount( sub {
+  $rs = $schema->resultset('Artist')->search(undef, { prefetch => [qw/cds/] });
+  $artist = $rs->find(1);
+}, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
-is_deeply( \@objs, [ 1 ], 'second cd has correct tags' );
-
-is( $queries, 0, 'no additional SQL statements while checking nested data' );
-
-# start test for prefetch SELECT count
-$queries = 0;
-
-$artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
-
-is( $queries, 1, 'only one select statement on find with inline has_many prefetch' );
-
-# start test for prefetch SELECT count
-$queries = 0;
-
-$rs = $schema->resultset('Artist')->search(undef, { prefetch => [qw/cds/] });
-$artist = $rs->find(1);
-
-is( $queries, 1, 'only one select statement on find with has_many prefetch on resultset' );
-
-$schema->storage->debug($sdebug);
-$schema->storage->debugcb (undef);
+done_testing;

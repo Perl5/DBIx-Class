@@ -78,17 +78,12 @@ SKIP: {
               . ': https://rt.cpan.org/Ticket/Display.html?id=64206'
     if $q;
 
-  # so we can disable BLOB mega-output
-  my $orig_debug = $schema->storage->debug;
-
   my $id;
   foreach my $size (qw( small large )) {
     $id++;
 
-    local $schema->storage->{debug} = $size eq 'large'
-      ? 0
-      : $orig_debug
-    ;
+    local $schema->storage->{debug} = 0
+      if $size eq 'large';
 
     my $str = $binstr{$size};
     lives_ok {
@@ -154,8 +149,6 @@ SKIP: {
     @objs = $rs->search({ blob => "re-updated blob", clob => 're-updated clob' })->all;
     is @objs, 0, 'row deleted successfully';
   }
-
-  $schema->storage->debug ($orig_debug);
 }
 
   do_clean ($dbh);

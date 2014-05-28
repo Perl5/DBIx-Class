@@ -6,15 +6,12 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-plan tests => 23;
-
 my $schema = DBICTest->init_schema();
 
 my $cd_rs = $schema->resultset('CD')->search (
   { 'tracks.cd' => { '!=', undef } },
   { prefetch => ['tracks', 'artist'] },
 );
-
 
 is($cd_rs->count, 5, 'CDs with tracks count');
 is($cd_rs->search_related('tracks')->count, 15, 'Tracks associated with CDs count (before SELECT()ing)');
@@ -77,26 +74,23 @@ is_same_sql_bind (
       => 4 ] ],
 );
 
-
 {
   local $TODO = "Chaining with prefetch is fundamentally broken";
+  $schema->is_executed_querycount( sub {
 
-  my $queries;
-  $schema->storage->debugcb ( sub { $queries++ } );
-  $schema->storage->debug (1);
-
-  my $cds = $cd2->search_related ('artist', {}, { prefetch => { cds => 'tracks' }, join => 'twokeys' })
+    my $cds = $cd2->search_related ('artist', {}, { prefetch => { cds => 'tracks' }, join => 'twokeys' })
                   ->search_related ('cds');
 
-  my $tracks = $cds->search_related ('tracks');
+    my $tracks = $cds->search_related ('tracks');
 
-  is($tracks->count, 2, "2 Tracks counted on cd via artist via one of the cds");
-  is(scalar($tracks->all), 2, "2 Tracks prefetched on cd via artist via one of the cds");
-  is($tracks->count, 2, "Cached 2 Tracks counted on cd via artist via one of the cds");
+    is($tracks->count, 2, "2 Tracks counted on cd via artist via one of the cds");
+    is(scalar($tracks->all), 2, "2 Tracks prefetched on cd via artist via one of the cds");
+    is($tracks->count, 2, "Cached 2 Tracks counted on cd via artist via one of the cds");
 
-  is($cds->count, 2, "2 CDs counted on artist via one of the cds");
-  is(scalar($cds->all), 2, "2 CDs prefetched on artist via one of the cds");
-  is($cds->count, 2, "Cached 2 CDs counted on artist via one of the cds");
-
-  is ($queries, 3, '2 counts + 1 prefetch?');
+    is($cds->count, 2, "2 CDs counted on artist via one of the cds");
+    is(scalar($cds->all), 2, "2 CDs prefetched on artist via one of the cds");
+    is($cds->count, 2, "Cached 2 CDs counted on artist via one of the cds");
+  }, 3, '2 counts + 1 prefetch?' );
 }
+
+done_testing;

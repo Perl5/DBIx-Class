@@ -138,17 +138,12 @@ for my $name (keys %stores) {
 
 
     # Test resultsource with cached rows
-    my $query_count;
-    $cd_rs = $cd_rs->search ({}, { cache => 1 });
+    $schema->is_executed_querycount( sub {
+      $cd_rs = $cd_rs->search ({}, { cache => 1 });
 
-    my $orig_debug = $schema->storage->debug;
-    $schema->storage->debug(1);
-    $schema->storage->debugcb(sub { $query_count++ } );
+      # this will hit the database once and prime the cache
+      my @cds = $cd_rs->all;
 
-    # this will hit the database once and prime the cache
-    my @cds = $cd_rs->all;
-
-    lives_ok {
       $copy = $store->($cd_rs);
       ref_ne($copy, $cd_rs, 'Cached resultset cloned');
       is_deeply (
@@ -158,12 +153,7 @@ for my $name (keys %stores) {
       );
 
       is ($copy->count, $cd_rs->count, 'Cached count identical');
-    } "serialize cached resultset lives: $name";
-
-    is ($query_count, 1, 'Only one db query fired');
-
-    $schema->storage->debug($orig_debug);
-    $schema->storage->debugcb(undef);
+    }, 1, 'Only one db query fired');
 }
 
 # test schema-less detached thaw

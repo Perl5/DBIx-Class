@@ -8,7 +8,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
-my $sdebug = $schema->storage->debug;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -33,17 +32,14 @@ $artist->create_related( 'cds', {
 my $big_flop_cd = ($artist->search_related('cds'))[3];
 is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
 
-{ # make sure we are not making pointless select queries when a FK IS NULL
-  my $queries = 0;
-  $schema->storage->debugcb(sub { $queries++; });
-  $schema->storage->debug(1);
+# make sure we are not making pointless select queries when a FK IS NULL
+$schema->is_executed_querycount( sub {
   $big_flop_cd->genre; #should not trigger a select query
-  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+},  0, 'No SELECT made for belongs_to if key IS NULL');
+
+$schema->is_executed_querycount( sub {
   $big_flop_cd->genre_inefficient; #should trigger a select query
-  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
-  $schema->storage->debug($sdebug);
-  $schema->storage->debugcb(undef);
-}
+}, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
 
 my( $rs_from_list ) = $artist->search_related_rs('cds');
 isa_ok( $rs_from_list, 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
