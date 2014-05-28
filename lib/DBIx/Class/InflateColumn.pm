@@ -116,7 +116,15 @@ sub _deflated_column {
   my ($self, $col, $value) = @_;
 #  return $value unless ref $value && blessed($value); # If it's not an object, don't touch it
   ## Leave scalar refs (ala SQL::Abstract literal SQL), untouched, deflate all other refs
-  return $value unless (ref $value && ref($value) ne 'SCALAR');
+  ## Also leave ref refs if it is ARRAY
+  return $value
+    unless (
+      ref $value
+      && !(    ref($value) eq 'SCALAR'
+          || ( ref($value) eq 'REF' && ref($$value) eq 'ARRAY' )
+      )
+  );
+
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
   return $value unless exists $info->{_inflate_info};
