@@ -87,7 +87,7 @@ warnings_like (
 my $schema = DBICTest->init_schema();
 DBICTest::Schema::CD->load_components('UTF8Columns');
 DBICTest::Schema::CD->utf8_columns('title');
-Class::C3->reinitialize();
+Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
 # as per http://search.cpan.org/dist/Test-Simple/lib/Test/More.pm#utf8
 binmode (Test::More->builder->$_, ':utf8') for qw/output failure_output todo_output/;

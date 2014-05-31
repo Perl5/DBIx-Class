@@ -18,7 +18,7 @@ DBICTest::Schema::CD->has_a( 'year', 'DateTime',
       inflate => sub { DateTime->new( year => shift ) },
       deflate => sub { shift->year }
 );
-Class::C3->reinitialize;
+Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
 # inflation test
 my $cd = $schema->resultset("CD")->find(3);
