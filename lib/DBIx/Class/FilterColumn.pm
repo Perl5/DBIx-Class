@@ -66,13 +66,17 @@ sub get_filtered_column {
 
   my $val = $self->get_column($col);
 
-  return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
+  return $self->{_filtered_column}{$col} = $self->_column_from_storage(
+    $col, $val
+  );
 }
 
 sub get_column {
   my ($self, $col) = @_;
   if (exists $self->{_filtered_column}{$col}) {
-    return $self->{_column_data}{$col} ||= $self->_column_to_storage ($col, $self->{_filtered_column}{$col});
+    return $self->{_column_data}{$col} ||= $self->_column_to_storage (
+      $col, $self->{_filtered_column}{$col}
+    );
   }
 
   return $self->next::method ($col);
@@ -83,8 +87,9 @@ sub get_columns {
   my $self = shift;
 
   foreach my $col (keys %{$self->{_filtered_column}||{}}) {
-    $self->{_column_data}{$col} ||= $self->_column_to_storage ($col, $self->{_filtered_column}{$col})
-      if exists $self->{_filtered_column}{$col};
+    $self->{_column_data}{$col} ||= $self->_column_to_storage (
+      $col, $self->{_filtered_column}{$col}
+    ) if exists $self->{_filtered_column}{$col};
   }
 
   $self->next::method (@_);
@@ -117,36 +122,37 @@ sub set_filtered_column {
 }
 
 sub update {
-  my ($self, $attrs, @rest) = @_;
+  my ($self, $data, @rest) = @_;
 
-  foreach my $key (keys %{$attrs||{}}) {
+  foreach my $col (keys %{$data||{}}) {
     if (
-      $self->has_column($key)
+      $self->has_column($col)
         &&
-      exists $self->column_info($key)->{_filter_info}
+      exists $self->column_info($col)->{_filter_info}
     ) {
-      $self->set_filtered_column($key, delete $attrs->{$key});
+      $self->set_filtered_column($col, delete $data->{$col});
 
       # FIXME update() reaches directly into the object-hash
       # and we may *not* have a filtered value there - thus
       # the void-ctx filter-trigger
-      $self->get_column($key) unless exists $self->{_column_data}{$key};
+      $self->get_column($col) unless exists $self->{_column_data}{$col};
     }
   }
 
-  return $self->next::method($attrs, @rest);
+  return $self->next::method($data, @rest);
 }
 
 sub new {
-  my ($class, $attrs, @rest) = @_;
-  my $source = $attrs->{-result_source}
+  my ($class, $data, @rest) = @_;
+  my $source = $data->{-result_source}
     or $class->throw_exception('Sourceless rows are not supported with DBIx::Class::FilterColumn');
 
-  my $obj = $class->next::method($attrs, @rest);
-  foreach my $key (keys %{$attrs||{}}) {
-    if ($obj->has_column($key) &&
-          exists $obj->column_info($key)->{_filter_info} ) {
-      $obj->set_filtered_column($key, $attrs->{$key});
+  my $obj = $class->next::method($data, @rest);
+
+  foreach my $col (keys %{$data||{}}) {
+    if ($obj->has_column($col) &&
+          exists $obj->column_info($col)->{_filter_info} ) {
+      $obj->set_filtered_column($col, $data->{$col});
     }
   }
 

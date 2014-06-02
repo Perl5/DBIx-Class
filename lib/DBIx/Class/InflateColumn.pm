@@ -111,10 +111,11 @@ sub _inflated_column {
 
   return $value unless exists $info->{_inflate_info};
 
-  my $inflate = $info->{_inflate_info}{inflate};
-  $self->throw_exception("No inflator for $col") unless defined $inflate;
-
-  return $inflate->($value, $self);
+  return (
+    $info->{_inflate_info}{inflate}
+      ||
+    $self->throw_exception("No inflator found for '$col'")
+  )->($value, $self);
 }
 
 sub _deflated_column {
@@ -132,10 +133,11 @@ sub _deflated_column {
 
   return $value unless exists $info->{_inflate_info};
 
-  my $deflate = $info->{_inflate_info}{deflate};
-  $self->throw_exception("No deflator for $col") unless defined $deflate;
-
-  return $deflate->($value, $self);
+  return (
+    $info->{_inflate_info}{deflate}
+      ||
+    $self->throw_exception("No deflator found for '$col'")
+  )->($value, $self);
 }
 
 =head2 get_inflated_column
@@ -151,8 +153,11 @@ Throws an exception if the column requested is not an inflated column.
 
 sub get_inflated_column {
   my ($self, $col) = @_;
+
   $self->throw_exception("$col is not an inflated column")
     unless exists $self->column_info($col)->{_inflate_info};
+
+  # we take care of keeping things in sync
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
 
@@ -173,15 +178,16 @@ analogous to L<DBIx::Class::Row/set_column>.
 =cut
 
 sub set_inflated_column {
-  my ($self, $col, $inflated) = @_;
-  $self->set_column($col, $self->_deflated_column($col, $inflated));
+  my ($self, $col, $value) = @_;
 
-  if (length ref $inflated and ! is_literal_value($inflated) ) {
-    $self->{_inflated_column}{$col} = $inflated;
+  $self->set_column($col, $self->_deflated_column($col, $value));
+
+  if (length ref $value and ! is_literal_value($value) ) {
+    $self->{_inflated_column}{$col} = $value;
   } else {
     delete $self->{_inflated_column}{$col};
   }
-  return $inflated;
+  return $value;
 }
 
 =head2 store_inflated_column
@@ -194,18 +200,18 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 =cut
 
 sub store_inflated_column {
-  my ($self, $col, $inflated) = @_;
+  my ($self, $col, $value) = @_;
 
-  if (is_literal_value($inflated)) {
+  if (is_literal_value($value)) {
     delete $self->{_inflated_column}{$col};
-    $self->store_column($col => $inflated);
+    $self->store_column($col => $value);
   }
   else {
     delete $self->{_column_data}{$col};
-    $self->{_inflated_column}{$col} = $inflated;
+    $self->{_inflated_column}{$col} = $value;
   }
 
-  return $inflated;
+  return $value;
 }
 
 =head1 SEE ALSO

@@ -662,12 +662,20 @@ To retrieve all loaded column values as a hash, use L</get_columns>.
 sub get_column {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
-  return $self->{_column_data}{$column} if exists $self->{_column_data}{$column};
+
+  return $self->{_column_data}{$column}
+    if exists $self->{_column_data}{$column};
+
   if (exists $self->{_inflated_column}{$column}) {
-    return $self->store_column($column,
-      $self->_deflated_column($column, $self->{_inflated_column}{$column}));
+    # deflate+return cycle
+    return $self->store_column($column, $self->_deflated_column(
+      $column, $self->{_inflated_column}{$column}
+    ));
   }
-  $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
+
+  $self->throw_exception( "No such column '${column}'" )
+    unless $self->has_column($column);
+
   return undef;
 }
 
@@ -693,8 +701,12 @@ database (or set locally).
 sub has_column_loaded {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
-  return 1 if exists $self->{_inflated_column}{$column};
-  return exists $self->{_column_data}{$column};
+
+  return (
+    exists $self->{_inflated_column}{$column}
+      or
+    exists $self->{_column_data}{$column}
+  ) ? 1 : 0;
 }
 
 =head2 get_columns
@@ -719,6 +731,7 @@ See L</get_inflated_columns> to get the inflated values.
 sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
+    # deflate cycle for each inflation, including filter rels
     foreach my $col (keys %{$self->{_inflated_column}}) {
       unless (exists $self->{_column_data}{$col}) {
 
@@ -920,15 +933,14 @@ sub set_column {
   my ($self, $column, $new_value) = @_;
 
   my $had_value = $self->has_column_loaded($column);
-  my ($old_value, $in_storage) = ($self->get_column($column), $self->in_storage)
-    if $had_value;
+  my $old_value = $self->get_column($column);
 
   $new_value = $self->store_column($column, $new_value);
 
   my $dirty =
     $self->{_dirty_columns}{$column}
       ||
-    $in_storage # no point tracking dirtyness on uninserted data
+    $self->in_storage # no point tracking dirtyness on uninserted data
       ? ! $self->_eq_column_values ($column, $old_value, $new_value)
       : 1
   ;
@@ -963,7 +975,7 @@ sub set_column {
       $had_value
         and
       # no storage - no storage-value
-      $in_storage
+      $self->in_storage
         and
       # no value already stored (multiple changes before commit to storage)
       ! exists $self->{_column_data_in_storage}{$column}
@@ -1074,6 +1086,7 @@ sub set_inflated_columns {
     if (ref $upd->{$key}) {
       my $info = $self->relationship_info($key);
       my $acc_type = $info->{attrs}{accessor} || '';
+
       if ($acc_type eq 'single') {
         my $rel_obj = delete $upd->{$key};
         $self->set_from_related($key => $rel_obj);
