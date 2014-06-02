@@ -121,22 +121,22 @@ CACHE_TEST: {
 }
 
 IC_DIE: {
-  dies_ok {
+  throws_ok {
      DBICTest::Schema::Artist->inflate_column(rank =>
         { inflate => sub {}, deflate => sub {} }
      );
-  } q(Can't inflate column after filter column);
+  } qr/InflateColumn can not be used on a column with a declared FilterColumn filter/, q(Can't inflate column after filter column);
 
   DBICTest::Schema::Artist->inflate_column(name =>
      { inflate => sub {}, deflate => sub {} }
   );
 
-  dies_ok {
+  throws_ok {
      DBICTest::Schema::Artist->filter_column(name => {
         filter_to_storage => sub {},
         filter_from_storage => sub {}
      });
-  } q(Can't filter column after inflate column);
+  } qr/FilterColumn can not be used on a column with a declared InflateColumn inflator/, q(Can't filter column after inflate column);
 }
 
 # test when we do not set both filter_from_storage/filter_to_storage

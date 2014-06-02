@@ -9,9 +9,8 @@ sub filter_column {
 
   my $colinfo = $self->column_info($col);
 
-  $self->throw_exception('FilterColumn does not work with InflateColumn')
-    if $self->isa('DBIx::Class::InflateColumn') &&
-      defined $colinfo->{_inflate_info};
+  $self->throw_exception("FilterColumn can not be used on a column with a declared InflateColumn inflator")
+    if defined $colinfo->{_inflate_info} and $self->isa('DBIx::Class::InflateColumn');
 
   $self->throw_exception("No such column $col to filter")
     unless $self->has_column($col);
