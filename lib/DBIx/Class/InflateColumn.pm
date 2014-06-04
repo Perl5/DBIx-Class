@@ -104,7 +104,12 @@ sub inflate_column {
 
 sub _inflated_column {
   my ($self, $col, $value) = @_;
-  return $value unless defined $value; # NULL is NULL is NULL
+
+  return $value if (
+    ! defined $value # NULL is NULL is NULL
+      or
+    is_literal_value($value) #that would be a not-yet-reloaded literal update
+  );
 
   my $info = $self->column_info($col)
     or $self->throw_exception("No column info for $col");
@@ -163,8 +168,6 @@ sub get_inflated_column {
 
   my $val = $self->get_column($col);
 
-  return $val if is_literal_value($val);  #that would be a not-yet-reloaded literal update
-
   return $self->{_inflated_column}{$col} = $self->_inflated_column($col, $val);
 }
 
@@ -180,13 +183,19 @@ analogous to L<DBIx::Class::Row/set_column>.
 sub set_inflated_column {
   my ($self, $col, $value) = @_;
 
-  $self->set_column($col, $self->_deflated_column($col, $value));
-
-  if (length ref $value and ! is_literal_value($value) ) {
-    $self->{_inflated_column}{$col} = $value;
-  } else {
+  # pass through deflated stuff
+  if (! length ref $value or is_literal_value($value)) {
+    $self->set_column($col, $value);
     delete $self->{_inflated_column}{$col};
   }
+  # need to call set_column with the deflate cycle so that
+  # relationship caches are nuked if any
+  # also does the compare-for-dirtyness and change tracking dance
+  else {
+    $self->set_column($col, $self->_deflated_column($col, $value));
+    $self->{_inflated_column}{$col} = $value;
+  }
+
   return $value;
 }
 
@@ -202,7 +211,7 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 sub store_inflated_column {
   my ($self, $col, $value) = @_;
 
-  if (is_literal_value($value)) {
+  if (! length ref $value or is_literal_value($value)) {
     delete $self->{_inflated_column}{$col};
     $self->store_column($col => $value);
   }
