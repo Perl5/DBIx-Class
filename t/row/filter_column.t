@@ -8,65 +8,65 @@ use DBICTest;
 
 my $from_storage_ran = 0;
 my $to_storage_ran = 0;
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema( no_populate => 1 );
 DBICTest::Schema::Artist->load_components(qw(FilterColumn InflateColumn));
-DBICTest::Schema::Artist->filter_column(rank => {
+DBICTest::Schema::Artist->filter_column(charfield => {
   filter_from_storage => sub { $from_storage_ran++; $_[1] * 2 },
   filter_to_storage   => sub { $to_storage_ran++; $_[1] / 2 },
 });
 Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
-my $artist = $schema->resultset('Artist')->create( { rank => 20 } );
+my $artist = $schema->resultset('Artist')->create( { charfield => 20 } );
 
 # this should be using the cursor directly, no inflation/processing of any sort
-my ($raw_db_rank) = $schema->resultset('Artist')
+my ($raw_db_charfield) = $schema->resultset('Artist')
                              ->search ($artist->ident_condition)
-                               ->get_column('rank')
+                               ->get_column('charfield')
                                 ->_resultset
                                  ->cursor
                                   ->next;
 
-is ($raw_db_rank, 10, 'INSERT: correctly unfiltered on insertion');
+is ($raw_db_charfield, 10, 'INSERT: correctly unfiltered on insertion');
 
 for my $reloaded (0, 1) {
   my $test = $reloaded ? 'reloaded' : 'stored';
   $artist->discard_changes if $reloaded;
 
-  is( $artist->rank , 20, "got $test filtered rank" );
+  is( $artist->charfield , 20, "got $test filtered charfield" );
 }
 
 $artist->update;
 $artist->discard_changes;
-is( $artist->rank , 20, "got filtered rank" );
+is( $artist->charfield , 20, "got filtered charfield" );
 
-$artist->update ({ rank => 40 });
-($raw_db_rank) = $schema->resultset('Artist')
+$artist->update ({ charfield => 40 });
+($raw_db_charfield) = $schema->resultset('Artist')
                              ->search ($artist->ident_condition)
-                               ->get_column('rank')
+                               ->get_column('charfield')
                                 ->_resultset
                                  ->cursor
                                   ->next;
-is ($raw_db_rank, 20, 'UPDATE: correctly unflitered on update');
+is ($raw_db_charfield, 20, 'UPDATE: correctly unflitered on update');
 
 $artist->discard_changes;
-$artist->rank(40);
-ok( !$artist->is_column_changed('rank'), 'column is not dirty after setting the same value' );
+$artist->charfield(40);
+ok( !$artist->is_column_changed('charfield'), 'column is not dirty after setting the same value' );
 
 MC: {
    my $cd = $schema->resultset('CD')->create({
-      artist => { rank => 20 },
+      artist => { charfield => 20 },
       title => 'fun time city!',
       year => 'forevertime',
    });
-   ($raw_db_rank) = $schema->resultset('Artist')
+   ($raw_db_charfield) = $schema->resultset('Artist')
                                 ->search ($cd->artist->ident_condition)
-                                  ->get_column('rank')
+                                  ->get_column('charfield')
                                    ->_resultset
                                     ->cursor
                                      ->next;
 
-   is $raw_db_rank, 10, 'artist rank gets correctly unfiltered w/ MC';
-   is $cd->artist->rank, 20, 'artist rank gets correctly filtered w/ MC';
+   is $raw_db_charfield, 10, 'artist charfield gets correctly unfiltered w/ MC';
+   is $cd->artist->charfield, 20, 'artist charfield gets correctly filtered w/ MC';
 }
 
 CACHE_TEST: {
@@ -79,51 +79,51 @@ CACHE_TEST: {
   is $from_storage_ran, $expected_from, 'from has not run yet';
   is $to_storage_ran, $expected_to, 'to has not run yet';
 
-  $artist->rank;
+  $artist->charfield;
   cmp_ok (
-    $artist->get_filtered_column('rank'),
+    $artist->get_filtered_column('charfield'),
       '!=',
-    $artist->get_column('rank'),
+    $artist->get_column('charfield'),
     'filter/unfilter differ'
   );
   is $from_storage_ran, ++$expected_from, 'from ran once, therefor caches';
   is $to_storage_ran, $expected_to,  'to did not run';
 
-  $artist->rank(6);
+  $artist->charfield(6);
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, ++$expected_to,  'to ran once';
 
-  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty');
+  ok ($artist->is_column_changed ('charfield'), 'Column marked as dirty');
 
-  $artist->rank;
+  $artist->charfield;
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 
   $artist->update;
 
-  $artist->set_column(rank => 3);
-  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same set_column value');
-  is ($artist->rank, '6', 'Column set properly (cache blown)');
+  $artist->set_column(charfield => 3);
+  ok (! $artist->is_column_changed ('charfield'), 'Column not marked as dirty on same set_column value');
+  is ($artist->charfield, '6', 'Column set properly (cache blown)');
   is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
   is $to_storage_ran, $expected_to,  'to did not run';
 
-  $artist->rank(6);
-  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same accessor-set value');
-  is ($artist->rank, '6', 'Column set properly');
+  $artist->charfield(6);
+  ok (! $artist->is_column_changed ('charfield'), 'Column not marked as dirty on same accessor-set value');
+  is ($artist->charfield, '6', 'Column set properly');
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, ++$expected_to,  'to did run once (call in to set_column)';
 
-  $artist->store_column(rank => 4);
-  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
-  is ($artist->rank, '8', 'Cache properly blown');
+  $artist->store_column(charfield => 4);
+  ok (! $artist->is_column_changed ('charfield'), 'Column not marked as dirty on differing store_column value');
+  is ($artist->charfield, '8', 'Cache properly blown');
   is $from_storage_ran, ++$expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 }
 
 # test in-memory operations
 for my $artist_maker (
-  sub { $schema->resultset('Artist')->new({ rank => 42 }) },
-  sub { my $art = $schema->resultset('Artist')->new({}); $art->rank(42); $art },
+  sub { $schema->resultset('Artist')->new({ charfield => 42 }) },
+  sub { my $art = $schema->resultset('Artist')->new({}); $art->charfield(42); $art },
 ) {
 
   my $expected_from = $from_storage_ran;
@@ -135,41 +135,44 @@ for my $artist_maker (
   is $to_storage_ran, $expected_to, 'to has not run yet';
 
   ok( ! $artist->has_column_loaded('artistid'), 'pk not loaded' );
-  ok( $artist->has_column_loaded('rank'), 'Filtered column marked as loaded under new' );
-  is( $artist->rank, 42, 'Proper unfiltered value' );
-  is( $artist->get_column('rank'), 21, 'Proper filtered value' );
+  ok( $artist->has_column_loaded('charfield'), 'Filtered column marked as loaded under new' );
+  is( $artist->charfield, 42, 'Proper unfiltered value' );
+  is( $artist->get_column('charfield'), 21, 'Proper filtered value' );
 }
 
 # test literals
 for my $v ( \ '16', \[ '?', '16' ] ) {
-  my $art = $schema->resultset('Artist')->new({ rank => 10 });
-  $art->rank($v);
+  my $rs = $schema->resultset('Artist');
+  $rs->delete;
 
-  is_deeply( $art->rank, $v);
-  is_deeply( $art->get_filtered_column("rank"), $v);
-  is_deeply( $art->get_column("rank"), $v);
+  my $art = $rs->new({ charfield => 10 });
+  $art->charfield($v);
+
+  is_deeply( $art->charfield, $v);
+  is_deeply( $art->get_filtered_column("charfield"), $v);
+  is_deeply( $art->get_column("charfield"), $v);
 
   $art->insert;
   $art->discard_changes;
 
-  is ($art->get_column("rank"), 16, "Literal inserted into database properly");
-  is ($art->rank, 32, "filtering still works");
+  is ($art->get_column("charfield"), 16, "Literal inserted into database properly");
+  is ($art->charfield, 32, "filtering still works");
 
-  $art->update({ rank => $v });
+  $art->update({ charfield => $v });
 
-  is_deeply( $art->rank, $v);
-  is_deeply( $art->get_filtered_column("rank"), $v);
-  is_deeply( $art->get_column("rank"), $v);
+  is_deeply( $art->charfield, $v);
+  is_deeply( $art->get_filtered_column("charfield"), $v);
+  is_deeply( $art->get_column("charfield"), $v);
 
   $art->discard_changes;
 
-  is ($art->get_column("rank"), 16, "Literal inserted into database properly");
-  is ($art->rank, 32, "filtering still works");
+  is ($art->get_column("charfield"), 16, "Literal inserted into database properly");
+  is ($art->charfield, 32, "filtering still works");
 }
 
 IC_DIE: {
   throws_ok {
-     DBICTest::Schema::Artist->inflate_column(rank =>
+     DBICTest::Schema::Artist->inflate_column(charfield =>
         { inflate => sub {}, deflate => sub {} }
      );
   } qr/InflateColumn can not be used on a column with a declared FilterColumn filter/, q(Can't inflate column after filter column);
@@ -187,59 +190,59 @@ IC_DIE: {
 }
 
 # test when we do not set both filter_from_storage/filter_to_storage
-DBICTest::Schema::Artist->filter_column(rank => {
+DBICTest::Schema::Artist->filter_column(charfield => {
   filter_to_storage => sub { $to_storage_ran++; $_[1] },
 });
 Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
 ASYMMETRIC_TO_TEST: {
   # initialise value
-  $artist->rank(20);
+  $artist->charfield(20);
   $artist->update;
 
   my $expected_from = $from_storage_ran;
   my $expected_to   = $to_storage_ran;
 
-  $artist->rank(10);
-  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on accessor-set value');
-  is ($artist->rank, '10', 'Column set properly');
+  $artist->charfield(10);
+  ok ($artist->is_column_changed ('charfield'), 'Column marked as dirty on accessor-set value');
+  is ($artist->charfield, '10', 'Column set properly');
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, ++$expected_to,  'to did run';
 
   $artist->discard_changes;
 
-  is ($artist->rank, '20', 'Column set properly');
+  is ($artist->charfield, '20', 'Column set properly');
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 }
 
-DBICTest::Schema::Artist->filter_column(rank => {
+DBICTest::Schema::Artist->filter_column(charfield => {
   filter_from_storage => sub { $from_storage_ran++; $_[1] },
 });
 Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
 ASYMMETRIC_FROM_TEST: {
   # initialise value
-  $artist->rank(23);
+  $artist->charfield(23);
   $artist->update;
 
   my $expected_from = $from_storage_ran;
   my $expected_to   = $to_storage_ran;
 
-  $artist->rank(13);
-  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on accessor-set value');
-  is ($artist->rank, '13', 'Column set properly');
+  $artist->charfield(13);
+  ok ($artist->is_column_changed ('charfield'), 'Column marked as dirty on accessor-set value');
+  is ($artist->charfield, '13', 'Column set properly');
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 
   $artist->discard_changes;
 
-  is ($artist->rank, '23', 'Column set properly');
+  is ($artist->charfield, '23', 'Column set properly');
   is $from_storage_ran, ++$expected_from, 'from did run';
   is $to_storage_ran, $expected_to,  'to did not run';
 }
 
-throws_ok { DBICTest::Schema::Artist->filter_column( rank => {} ) }
+throws_ok { DBICTest::Schema::Artist->filter_column( charfield => {} ) }
   qr/\QAn invocation of filter_column() must specify either a filter_from_storage or filter_to_storage/,
   'Correctly throws exception for empty attributes'
 ;
