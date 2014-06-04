@@ -105,6 +105,29 @@ is ($fa->discard_changes->read_count, 12, 'Update ran only once on joined result
 is ($fb->discard_changes->read_count, 22, 'Update ran only once on joined resultset');
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
+$schema->is_executed_sql_bind( sub {
+  my $res = $fks_multi->search (\' "blah" = "bleh" ')->delete;
+  ok ($res, 'operation is true');
+  cmp_ok ($res, '==', 0, 'zero rows affected');
+}, [
+  [ 'BEGIN' ],
+  [
+    'SELECT me.foo, me.bar, me.hello, me.goodbye
+      FROM fourkeys me
+      LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
+        ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
+      WHERE "blah" = "bleh" AND ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
+      GROUP BY me.foo, me.bar, me.hello, me.goodbye
+    ',
+    (1, 2) x 2,
+    666,
+    (1, 2) x 2,
+    'c',
+  ],
+  [ 'COMMIT' ],
+], 'Correct null-delete-SQL with multijoin without pruning' );
+
+
 # try the same sql with forced multicolumn in
 $schema->is_executed_sql_bind( sub {
   local $schema->storage->{_use_multicolumn_in} = 1;

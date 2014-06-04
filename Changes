@@ -7,6 +7,8 @@ Revision history for DBIx::Class
           returned from storage
 
     * Fixes
+        - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases
+          of empty (due to conditions) resultsets with multi-column keys
         - Fix on_connect_* not always firing in some cases - a race condition
           existed between storage accessor setters and the determine_driver
           routines, triggering a connection before the set-cycle is finished

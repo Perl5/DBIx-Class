@@ -1944,7 +1944,6 @@ sub _rs_update_delete {
 
       $guard = $storage->txn_scope_guard;
 
-      $cond = [];
       for my $row ($subrs->cursor->all) {
         push @$cond, { map
           { $idcols->[$_] => $row->[$_] }
@@ -1954,11 +1953,11 @@ sub _rs_update_delete {
     }
   }
 
-  my $res = $storage->$op (
+  my $res = $cond ? $storage->$op (
     $rsrc,
     $op eq 'update' ? $values : (),
     $cond,
-  );
+  ) : '0E0';
 
   $guard->commit if $guard;
 
