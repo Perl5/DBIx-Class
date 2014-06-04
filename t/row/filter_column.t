@@ -111,13 +111,33 @@ CACHE_TEST: {
   ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same accessor-set value');
   is ($artist->rank, '6', 'Column set properly');
   is $from_storage_ran, $expected_from, 'from did not run';
-  is $to_storage_ran, $expected_to,  'to did not run';
+  is $to_storage_ran, ++$expected_to,  'to did run once (call in to set_column)';
 
   $artist->store_column(rank => 4);
   ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
   is ($artist->rank, '8', 'Cache properly blown');
   is $from_storage_ran, ++$expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
+}
+
+# test in-memory operations
+for my $artist_maker (
+  sub { $schema->resultset('Artist')->new({ rank => 42 }) },
+  sub { my $art = $schema->resultset('Artist')->new({}); $art->rank(42); $art },
+) {
+
+  my $expected_from = $from_storage_ran;
+  my $expected_to   = $to_storage_ran;
+
+  my $artist = $artist_maker->();
+
+  is $from_storage_ran, $expected_from, 'from has not run yet';
+  is $to_storage_ran, $expected_to, 'to has not run yet';
+
+  ok( ! $artist->has_column_loaded('artistid'), 'pk not loaded' );
+  ok( $artist->has_column_loaded('rank'), 'Filtered column marked as loaded under new' );
+  is( $artist->rank, 42, 'Proper unfiltered value' );
+  is( $artist->get_column('rank'), 21, 'Proper filtered value' );
 }
 
 IC_DIE: {

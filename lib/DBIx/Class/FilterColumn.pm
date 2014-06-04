@@ -73,6 +73,7 @@ sub get_filtered_column {
 
 sub get_column {
   my ($self, $col) = @_;
+
   if (exists $self->{_filtered_column}{$col}) {
     return $self->{_column_data}{$col} ||= $self->_column_to_storage (
       $col, $self->{_filtered_column}{$col}
@@ -86,11 +87,12 @@ sub get_column {
 sub get_columns {
   my $self = shift;
 
-  foreach my $col (keys %{$self->{_filtered_column}||{}}) {
-    $self->{_column_data}{$col} ||= $self->_column_to_storage (
-      $col, $self->{_filtered_column}{$col}
-    ) if exists $self->{_filtered_column}{$col};
-  }
+  $self->{_column_data}{$_} = $self->_column_to_storage (
+    $_, $self->{_filtered_column}{$_}
+  ) for grep
+    { ! exists $self->{_column_data}{$_} }
+    keys %{$self->{_filtered_column}||{}}
+  ;
 
   $self->next::method (@_);
 }
@@ -104,19 +106,29 @@ sub store_column {
   $self->next::method(@_);
 }
 
+sub has_column_loaded {
+  my ($self, $col) = @_;
+  return 1 if exists $self->{_filtered_column}{$col};
+  return $self->next::method($col);
+}
+
 sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
-  # do not blow up the cache via set_column unless necessary
-  # (filtering may be expensive!)
-  if (exists $self->{_filtered_column}{$col}) {
-    return $filtered
-      if ($self->_eq_column_values ($col, $filtered, $self->{_filtered_column}{$col} ) );
-
-    $self->make_column_dirty ($col); # so the comparison won't run again
+  # unlike IC, FC does not need to deal with the 'filter' abomination
+  # thus we can short-curcuit filtering entirely and never call set_column
+  # in case this is already a dirty change OR the row never touched storage
+  if (
+    ! $self->in_storage
+      or
+    $self->is_column_changed($col)
+  ) {
+    $self->make_column_dirty($col);
+    delete $self->{_column_data}{$col};
   }
-
-  $self->set_column($col, $self->_column_to_storage($col, $filtered));
+  else {
+    $self->set_column($col, $self->_column_to_storage($col, $filtered));
+  };
 
   return $self->{_filtered_column}{$col} = $filtered;
 }
