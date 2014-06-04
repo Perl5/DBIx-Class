@@ -11,8 +11,14 @@ Revision history for DBIx::Class
           up by create() and populate()
         - Ensure definitive condition extractor handles bizarre corner cases
           without bombing out (RT#93244)
+        - Fix set_inflated_column incorrectly handling \[] literals (GH#44)
+        - Ensure that setting a column to a literal invariably marks it dirty
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
+
+    * Misc
+        - Stop explicitly stringifying objects before passing them to DBI,
+          instead assume that the DBI/DBD combo will take care of things
 
 0.08270 2014-01-30 21:54 (PST)
     * Fixes

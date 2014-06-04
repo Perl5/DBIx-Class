@@ -9,6 +9,7 @@ use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'is_literal_value';
 
 ###
 ### Internal method
@@ -984,6 +985,13 @@ sub _eq_column_values {
   }
   elsif (not defined $old) {  # both undef
     return 1;
+  }
+  elsif (
+    is_literal_value $old
+      or
+    is_literal_value $new
+  ) {
+    return 0;
   }
   elsif ($old eq $new) {
     return 1;

@@ -270,7 +270,6 @@ sub _recurse_fields {
 
     return ($select, @rhs_bind);
   }
-  # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
     return @{$$fields};
   }

@@ -13,8 +13,8 @@ use List::Util qw/first/;
 use Sub::Name 'subname';
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use overload ();
 use Data::Compare (); # no imports!!! guard against insane architecture
+use DBIx::Class::_Util qw(is_plain_value is_literal_value);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -1741,7 +1741,7 @@ sub _resolve_bindattrs {
         and
       length ref $resolved->[1]
         and
-      ! overload::Method($resolved->[1], '""')
+      ! is_plain_value $resolved->[1]
     ) {
       require Data::Dumper;
       local $Data::Dumper::Maxdepth = 1;
@@ -1895,15 +1895,9 @@ sub _bind_sth_params {
       );
     }
     else {
-      # FIXME SUBOPTIMAL - most likely this is not necessary at all
-      # confirm with dbi-dev whether explicit stringification is needed
-      my $v = ( length ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""') )
-        ? "$bind->[$i][1]"
-        : $bind->[$i][1]
-      ;
       $sth->bind_param(
         $i + 1,
-        $v,
+        $bind->[$i][1],
         $bind_attrs->[$i],
       );
     }
@@ -1923,9 +1917,7 @@ sub _prefetch_autovalues {
       (
         ! exists $to_insert->{$col}
           or
-        ref $to_insert->{$col} eq 'SCALAR'
-          or
-        (ref $to_insert->{$col} eq 'REF' and ref ${$to_insert->{$col}} eq 'ARRAY')
+        is_literal_value($to_insert->{$col})
       )
     ) {
       $values{$col} = $self->_sequence_fetch(
@@ -1962,11 +1954,9 @@ sub insert {
     }
 
     # nothing to retrieve when explicit values are supplied
-    next if (defined $to_insert->{$col} and ! (
-      ref $to_insert->{$col} eq 'SCALAR'
-        or
-      (ref $to_insert->{$col} eq 'REF' and ref ${$to_insert->{$col}} eq 'ARRAY')
-    ));
+    next if (
+      defined $to_insert->{$col} and ! is_literal_value($to_insert->{$col})
+    );
 
     # the 'scalar keys' is a trick to preserve the ->columns declaration order
     $retrieve_cols{$col} = scalar keys %retrieve_cols if (
@@ -2045,18 +2035,6 @@ sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
   my @col_range = (0..$#$cols);
-
-  # FIXME SUBOPTIMAL - most likely this is not necessary at all
-  # confirm with dbi-dev whether explicit stringification is needed
-  #
-  # forcibly stringify whatever is stringifiable
-  # ResultSet::populate() hands us a copy - safe to mangle
-  for my $r (0 .. $#$data) {
-    for my $c (0 .. $#{$data->[$r]}) {
-      $data->[$r][$c] = "$data->[$r][$c]"
-        if ( length ref $data->[$r][$c] and overload::Method($data->[$r][$c], '""') );
-    }
-  }
 
   my $colinfos = $source->columns_info($cols);
 
@@ -2184,7 +2162,7 @@ sub insert_bulk {
         }
       }
       elsif (! defined $value_type_by_col_idx->{$col_idx} ) {  # regular non-literal value
-        if (ref $val eq 'SCALAR' or (ref $val eq 'REF' and ref $$val eq 'ARRAY') ) {
+        if (is_literal_value($val)) {
           $bad_slice_report_cref->("Literal SQL found where a plain bind value is expected", $row_idx, $col_idx);
         }
       }

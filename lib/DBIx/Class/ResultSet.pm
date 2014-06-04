@@ -6,7 +6,9 @@ use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
-use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use DBIx::Class::_Util qw(
+  fail_on_internal_wantarray is_plain_value is_literal_value
+);
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
 
@@ -2446,19 +2448,11 @@ sub _merge_with_rscond {
 
       for my $c (keys %$implied) {
         my $v = $implied->{$c};
-        if (
-          ! ref $v
-            or
-          overload::Method($v, '""')
-        ) {
+        if ( ! length ref $v or is_plain_value($v) ) {
           $new_data{$c} = $v;
         }
         elsif (
-          ref $v eq 'HASH' and keys %$v == 1 and exists $v->{'='} and (
-            ref $v->{'='} eq 'SCALAR'
-              or
-            ( ref $v->{'='} eq 'REF' and ref ${$v->{'='}} eq 'ARRAY' )
-          )
+          ref $v eq 'HASH' and keys %$v == 1 and exists $v->{'='} and is_literal_value($v->{'='})
         ) {
           $new_data{$c} = $v->{'='};
         }

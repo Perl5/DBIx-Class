@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
+use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer is_plain_value);
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -326,7 +326,7 @@ sub _dbi_attrs_for_bind {
 
   for my $i (0.. $#$bindattrs) {
 
-    $stringifiable++ if ( length ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""') );
+    $stringifiable++ if ( length ref $bind->[$i][1] and is_plain_value($bind->[$i][1]) );
 
     if (
       defined $bindattrs->[$i]

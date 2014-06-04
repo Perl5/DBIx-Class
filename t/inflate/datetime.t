@@ -98,4 +98,52 @@ is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
 my $skip_inflation = $event->skip_inflation;
 is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
 
+# create and update with literals
+{
+  my $d = {
+    created_on => \ '2001-09-11',
+    starts_at => \[ '?' => '2001-10-26' ],
+  };
+
+  my $ev = $schema->resultset('Event')->create($d);
+
+  for my $col (qw(created_on starts_at)) {
+    ok (ref $ev->$col, "literal untouched in $col");
+    is_deeply( $ev->$col, $d->{$col});
+    is_deeply( $ev->get_inflated_column($col), $d->{$col});
+    is_deeply( $ev->get_column($col), $d->{$col});
+  }
+
+  $ev->discard_changes;
+
+  is_deeply(
+    { $ev->get_dirty_columns },
+    {}
+  );
+
+  for my $col (qw(created_on starts_at)) {
+    isa_ok ($ev->$col, "DateTime", "$col properly inflated on retrieve");
+  }
+
+  for my $meth (qw(set_inflated_columns set_columns)) {
+
+    $ev->$meth({%$d});
+
+    is_deeply(
+      { $ev->get_dirty_columns },
+      $d,
+      "Expected dirty cols after setting literals via $meth",
+    );
+
+    $ev->update;
+
+    for my $col (qw(created_on starts_at)) {
+      ok (ref $ev->$col, "literal untouched in $col updated via $meth");
+      is_deeply( $ev->$col, $d->{$col});
+      is_deeply( $ev->get_inflated_column($col), $d->{$col});
+      is_deeply( $ev->get_column($col), $d->{$col});
+    }
+  }
+}
+
 done_testing;

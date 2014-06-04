@@ -3,7 +3,9 @@ package DBIx::Class::InflateColumn;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Row/;
+use base 'DBIx::Class::Row';
+use DBIx::Class::_Util 'is_literal_value';
+use namespace::clean;
 
 =head1 NAME
 
@@ -104,24 +106,36 @@ sub inflate_column {
 sub _inflated_column {
   my ($self, $col, $value) = @_;
   return $value unless defined $value; # NULL is NULL is NULL
+
   my $info = $self->column_info($col)
     or $self->throw_exception("No column info for $col");
+
   return $value unless exists $info->{_inflate_info};
+
   my $inflate = $info->{_inflate_info}{inflate};
   $self->throw_exception("No inflator for $col") unless defined $inflate;
+
   return $inflate->($value, $self);
 }
 
 sub _deflated_column {
   my ($self, $col, $value) = @_;
-#  return $value unless ref $value && blessed($value); # If it's not an object, don't touch it
-  ## Leave scalar refs (ala SQL::Abstract literal SQL), untouched, deflate all other refs
-  return $value unless (ref $value && ref($value) ne 'SCALAR');
+
+  ## Deflate any refs except for literals, pass through plain values
+  return $value if (
+    ! length ref $value
+      or
+    is_literal_value($value)
+  );
+
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
+
   return $value unless exists $info->{_inflate_info};
+
   my $deflate = $info->{_inflate_info}{deflate};
   $self->throw_exception("No deflator for $col") unless defined $deflate;
+
   return $deflate->($value, $self);
 }
 
@@ -144,7 +158,8 @@ sub get_inflated_column {
     if exists $self->{_inflated_column}{$col};
 
   my $val = $self->get_column($col);
-  return $val if ref $val eq 'SCALAR';  #that would be a not-yet-reloaded sclarref update
+
+  return $val if is_literal_value($val);  #that would be a not-yet-reloaded literal update
 
   return $self->{_inflated_column}{$col} = $self->_inflated_column($col, $val);
 }
@@ -161,8 +176,8 @@ analogous to L<DBIx::Class::Row/set_column>.
 sub set_inflated_column {
   my ($self, $col, $inflated) = @_;
   $self->set_column($col, $self->_deflated_column($col, $inflated));
-#  if (blessed $inflated) {
-  if (ref $inflated && ref($inflated) ne 'SCALAR') {
+
+  if (length ref $inflated and ! is_literal_value($inflated) ) {
     $self->{_inflated_column}{$col} = $inflated;
   } else {
     delete $self->{_inflated_column}{$col};
@@ -181,14 +196,17 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 sub store_inflated_column {
   my ($self, $col, $inflated) = @_;
-#  unless (blessed $inflated) {
-  unless (ref $inflated && ref($inflated) ne 'SCALAR') {
-      delete $self->{_inflated_column}{$col};
-      $self->store_column($col => $inflated);
-      return $inflated;
+
+  if (is_literal_value($inflated)) {
+    delete $self->{_inflated_column}{$col};
+    $self->store_column($col => $inflated);
   }
-  delete $self->{_column_data}{$col};
-  return $self->{_inflated_column}{$col} = $inflated;
+  else {
+    delete $self->{_column_data}{$col};
+    $self->{_inflated_column}{$col} = $inflated;
+  }
+
+  return $inflated;
 }
 
 =head1 SEE ALSO

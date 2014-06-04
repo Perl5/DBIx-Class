@@ -9,6 +9,7 @@ use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'is_literal_value';
 use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
@@ -1741,9 +1742,7 @@ sub _resolve_condition {
         if (
           ref $joinfree_cond->{$c}
             and
-          ref $joinfree_cond->{$c} ne 'SCALAR'
-            and
-          ref $joinfree_cond->{$c} ne 'REF'
+          ! is_literal_value( $joinfree_cond->{$c} )
         ) {
           push @$cond_cols, $colname;
           next;

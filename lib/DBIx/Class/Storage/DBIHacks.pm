@@ -16,6 +16,7 @@ use mro 'c3';
 use List::Util 'first';
 use Scalar::Util 'blessed';
 use Sub::Name 'subname';
+use DBIx::Class::_Util qw(is_plain_value is_literal_value);
 use namespace::clean;
 
 #
@@ -1142,7 +1143,7 @@ sub _collapse_cond_unroll_pairs {
 
           my ($l, $r) = %$p;
 
-          push @conds, ( ! ref $r or overload::Method($r, '""' ) )
+          push @conds, ( ! length ref $r or is_plain_value($r) )
             ? { $l => $r }
             : { $l => { '=' => $r } }
           ;
@@ -1204,16 +1205,10 @@ sub _extract_fixed_condition_columns {
   for my $c (keys %$where_hash) {
     if (defined (my $v = $where_hash->{$c}) ) {
       if (
-        ! ref $v
+        ! length ref $v
           or
         (ref $v eq 'HASH' and keys %$v == 1 and defined $v->{'='} and (
-          ! ref $v->{'='}
-            or
-          ref $v->{'='} eq 'SCALAR'
-            or
-          ( ref $v->{'='} eq 'REF' and ref ${$v->{'='}} eq 'ARRAY' )
-            or
-          overload::Method($v->{'='}, '""')
+          is_literal_value($v->{'='}) or is_plain_value( $v->{'='})
         ))
       ) {
         $res->{$c} = 1;
