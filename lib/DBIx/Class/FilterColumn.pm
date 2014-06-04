@@ -32,11 +32,7 @@ sub filter_column {
 sub _column_from_storage {
   my ($self, $col, $value) = @_;
 
-  return $value if (
-    ! defined $value
-      or
-    is_literal_value($value)
-  );
+  return $value if is_literal_value($value);
 
   my $info = $self->column_info($col)
     or $self->throw_exception("No column info for $col");

@@ -3,6 +3,8 @@ Revision history for DBIx::Class
     * Notable Changes and Deprecations
         - DBIC::FilterColumn now properly bypasses \'' and \[] literals, just
           like the rest of DBIC
+        - DBIC::FilterColumn "from_storage" handler is now invoked on NULLs
+          returned from storage
 
     * Fixes
         - Fix on_connect_* not always firing in some cases - a race condition

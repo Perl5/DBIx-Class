@@ -11,8 +11,8 @@ my $to_storage_ran = 0;
 my $schema = DBICTest->init_schema( no_populate => 1 );
 DBICTest::Schema::Artist->load_components(qw(FilterColumn InflateColumn));
 DBICTest::Schema::Artist->filter_column(charfield => {
-  filter_from_storage => sub { $from_storage_ran++; $_[1] * 2 },
-  filter_to_storage   => sub { $to_storage_ran++; $_[1] / 2 },
+  filter_from_storage => sub { $from_storage_ran++; defined $_[1] ? $_[1] * 2 : undef },
+  filter_to_storage   => sub { $to_storage_ran++; defined $_[1] ? $_[1] / 2 : undef },
 });
 Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
@@ -118,6 +118,18 @@ CACHE_TEST: {
   is ($artist->charfield, '8', 'Cache properly blown');
   is $from_storage_ran, ++$expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
+
+  $artist->update({ charfield => undef });
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, ++$expected_to,  'to did run';
+
+  $artist->discard_changes;
+  is ( $artist->get_column('charfield'), undef, 'Got back null' );
+  is ( $artist->charfield, undef, 'Got back null through filter' );
+
+  is $from_storage_ran, ++$expected_from, 'from did run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+
 }
 
 # test in-memory operations
