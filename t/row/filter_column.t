@@ -140,6 +140,33 @@ for my $artist_maker (
   is( $artist->get_column('rank'), 21, 'Proper filtered value' );
 }
 
+# test literals
+for my $v ( \ '16', \[ '?', '16' ] ) {
+  my $art = $schema->resultset('Artist')->new({ rank => 10 });
+  $art->rank($v);
+
+  is_deeply( $art->rank, $v);
+  is_deeply( $art->get_filtered_column("rank"), $v);
+  is_deeply( $art->get_column("rank"), $v);
+
+  $art->insert;
+  $art->discard_changes;
+
+  is ($art->get_column("rank"), 16, "Literal inserted into database properly");
+  is ($art->rank, 32, "filtering still works");
+
+  $art->update({ rank => $v });
+
+  is_deeply( $art->rank, $v);
+  is_deeply( $art->get_filtered_column("rank"), $v);
+  is_deeply( $art->get_column("rank"), $v);
+
+  $art->discard_changes;
+
+  is ($art->get_column("rank"), 16, "Literal inserted into database properly");
+  is ($art->rank, 32, "filtering still works");
+}
+
 IC_DIE: {
   throws_ok {
      DBICTest::Schema::Artist->inflate_column(rank =>

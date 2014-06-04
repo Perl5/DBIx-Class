@@ -2,7 +2,9 @@ package DBIx::Class::FilterColumn;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Row/;
+use base 'DBIx::Class::Row';
+use DBIx::Class::_Util 'is_literal_value';
+use namespace::clean;
 
 sub filter_column {
   my ($self, $col, $attrs) = @_;
@@ -30,7 +32,11 @@ sub filter_column {
 sub _column_from_storage {
   my ($self, $col, $value) = @_;
 
-  return $value unless defined $value;
+  return $value if (
+    ! defined $value
+      or
+    is_literal_value($value)
+  );
 
   my $info = $self->column_info($col)
     or $self->throw_exception("No column info for $col");
@@ -44,6 +50,8 @@ sub _column_from_storage {
 
 sub _column_to_storage {
   my ($self, $col, $value) = @_;
+
+  return $value if is_literal_value($value);
 
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
