@@ -1207,9 +1207,17 @@ sub _extract_fixed_condition_columns {
       if (
         ! length ref $v
           or
-        (ref $v eq 'HASH' and keys %$v == 1 and defined $v->{'='} and (
-          is_literal_value($v->{'='}) or is_plain_value( $v->{'='})
-        ))
+        is_plain_value ($v)
+          or
+        (
+          ref $v eq 'HASH'
+            and
+          keys %$v == 1
+            and
+          ref $v->{'='}
+            and
+          is_literal_value($v->{'='})
+        )
       ) {
         $res->{$c} = 1;
       }

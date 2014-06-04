@@ -11,6 +11,20 @@ use Data::Dumper;
 my $schema = DBICTest->init_schema( no_deploy => 1);
 my $sm = $schema->storage->sql_maker;
 
+{
+  package # hideee
+    DBICTest::SillyInt;
+
+  use overload
+    fallback => 1,
+    '0+' => sub { ${$_[0]} },
+  ;
+}
+my $num = bless( \do { my $foo = 69 }, 'DBICTest::SillyInt' );
+
+is($num, 69, 'test overloaded object is "sane"');
+is("$num", 69, 'test overloaded object is "sane"');
+
 for my $t (
   {
     where => { artistid => 1, charfield => undef },
@@ -49,14 +63,14 @@ for my $t (
     efcc_result => [],
   },
   {
-    where => { -and => [ \'foo=bar',  [ { artistid => { '=', 3 } } ], { name => 'Caterwauler McCrae'} ] },
-    cc_result => { '' => \'foo=bar', name => 'Caterwauler McCrae', artistid => 3 },
+    where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'} ] },
+    cc_result => { '' => \'foo=bar', name => 'Caterwauler McCrae', artistid => $num },
     sql => 'WHERE foo=bar AND artistid = ? AND name = ?',
     efcc_result => [qw( artistid name )],
   },
   {
-    where => { artistid => [ 1 ], rank => [ 13, 2, 3 ], charfield => [ undef ] },
-    cc_result => { artistid => 1, charfield => undef, rank => [13, 2, 3] },
+    where => { artistid => [ $num ], rank => [ 13, 2, 3 ], charfield => [ undef ] },
+    cc_result => { artistid => $num, charfield => undef, rank => [13, 2, 3] },
     sql => 'WHERE artistid = ? AND charfield IS NULL AND ( rank = ? OR rank = ? OR rank = ? )',
     efcc_result => [qw( artistid )],
   },
@@ -67,8 +81,8 @@ for my $t (
     efcc_result => [qw( artistid )],
   },
   {
-    where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [-and => \'1', \['?',2] ] }, rank => { '=' => [ 1, 2 ] } },
-    cc_result => { artistid => 1, charfield => [-and => { '=' => \'1' }, { '=' => \['?',2] } ], rank => { '=' => [1, 2] } },
+    where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [-and => \'1', \['?',2] ] }, rank => { '=' => [ $num, $num ] } },
+    cc_result => { artistid => 1, charfield => [-and => { '=' => \'1' }, { '=' => \['?',2] } ], rank => { '=' => [$num, $num] } },
     sql => 'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
     efcc_result => [qw( artistid charfield )],
   },
