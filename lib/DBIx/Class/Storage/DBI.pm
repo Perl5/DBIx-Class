@@ -1310,7 +1310,7 @@ sub _determine_driver {
         "Your storage subclass @{[ ref $self ]} provides (or inherits) the method "
       . 'source_bind_attributes() for which support has been removed as of Jan 2013. '
       . 'If you are not sure how to proceed please contact the development team via '
-      . 'http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT'
+      . DBIx::Class::_ENV_::HELP_URL
       );
     }
 

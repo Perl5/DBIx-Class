@@ -68,7 +68,7 @@ sub resolve {
     # vague error message as this is never supposed to happen
     "Unable to resolve moniker '%s' - please contact the dev team at %s",
     $_[0]->source_moniker,
-    'http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT',
+    DBIx::Class::_ENV_::HELP_URL,
   ), 'full_stacktrace');
 }
 

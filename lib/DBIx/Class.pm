@@ -59,8 +59,6 @@ sub _attr_cache {
 
 1;
 
-__END__
-
 =encoding UTF-8
 
 =head1 NAME
@@ -74,13 +72,21 @@ To get the most out of DBIx::Class with the least confusion it is strongly
 recommended to read (at the very least) the
 L<Manuals|DBIx::Class::Manual::DocMap/Manuals> in the order presented there.
 
-=head1 HOW TO GET HELP
+=cut
 
-Due to the complexity of its problem domain, DBIx::Class is a relatively
+# *DO NOT* change this heading - it is linked throughout the ecosystem
+
+sub DBIx::Class::_ENV_::HELP_URL () {
+  'http://p3rl.org/DBIx::Class#GETTING_HELP/SUPPORT'
+}
+
+=head1 GETTING HELP/SUPPORT
+
+Due to the sheer size of its problem domain, DBIx::Class is a relatively
 complex framework. After you start using DBIx::Class questions will inevitably
 arise. If you are stuck with a problem or have doubts about a particular
-approach do not hesitate to contact the community with your questions. The
-list below is sorted by "fastest response time":
+approach do not hesitate to contact us via any of the following options (the
+list is sorted by "fastest response time"):
 
 =over
 
