@@ -483,11 +483,8 @@ sub related_resultset {
       $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
     }
     catch {
-      if ($self->in_storage) {
-        $self->throw_exception ($_);
-      }
-
-      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV
+      $self->throw_exception ($_) if $self->in_storage;
+      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV, no return()
     };
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
@@ -642,14 +639,18 @@ sub new_related {
     my $rsrc = $self->result_source;
     my $rel_info = $rsrc->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
-    my (undef, $crosstable, $cond_targets) = $rsrc->_resolve_condition (
+    my (undef, $crosstable, $nonequality_foreign_columns) = $rsrc->_resolve_condition (
       $rel_info->{cond}, $rel, $self, $rel
     );
 
     $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
       if $crosstable;
 
-    if (my @unspecified_rel_condition_chunks = grep { ! exists $values->{$_} } @{$cond_targets||[]} ) {
+    if (
+      $nonequality_foreign_columns
+        and
+      my @unspecified_rel_condition_chunks = grep { ! exists $values->{$_} } @$nonequality_foreign_columns
+    ) {
       $self->throw_exception(sprintf (
         "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
         $rel,
@@ -818,16 +819,17 @@ sub set_from_related {
   #
   # sanity check - currently throw when a complex coderef rel is encountered
   # FIXME - should THROW MOAR!
-  my ($cond, $crosstable, $cond_targets) = $rsrc->_resolve_condition (
+  my ($cond, $crosstable, $nonequality_foreign_columns) = $rsrc->_resolve_condition (
     $rel_info->{cond}, $f_obj, $rel, $rel
   );
   $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
     if $crosstable;
+
   $self->throw_exception(sprintf (
     "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
     $rel,
-    map { "'$_'" } @$cond_targets
-  )) if $cond_targets;
+    map { "'$_'" } @$nonequality_foreign_columns
+  )) if $nonequality_foreign_columns;
 
   $self->set_columns($cond);
 

@@ -66,11 +66,11 @@ __PACKAGE__->has_many(
       if @missing_args;
 
     return (
-      { "$args->{foreign_alias}.artist" => { '=' => { -ident => "$args->{self_alias}.artistid"} },
+      { "$args->{foreign_alias}.artist" => { '=' => \ "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
       },
       $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+        "$args->{foreign_alias}.artist" => { '=' => \[ '?',  $args->{self_rowobj}->artistid ] },
         "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
       }
     );

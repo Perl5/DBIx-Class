@@ -43,7 +43,7 @@ is_same_sql_bind(
   )',
   [
     [
-      { sqlt_datatype => 'integer', dbic_colname => 'me.artist' }
+      {}
         => 21
     ],
     [

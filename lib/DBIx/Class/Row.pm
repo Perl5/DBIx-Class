@@ -200,7 +200,7 @@ sub new {
     my ($related,$inflated);
 
     foreach my $key (keys %$attrs) {
-      if (ref $attrs->{$key}) {
+      if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
         ## Can we extract this lot to use with update(_or .. ) ?
         $new->throw_exception("Can't do multi-create without result source")
           unless $rsrc;

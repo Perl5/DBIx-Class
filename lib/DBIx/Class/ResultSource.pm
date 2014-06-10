@@ -1697,7 +1697,7 @@ sub _resolve_condition {
       self_rowobj => $obj_rel ? $for : undef
     });
 
-    my $cond_cols;
+    my @nonvalue_cols;
     if ($joinfree_cond) {
 
       # FIXME sanity check until things stabilize, remove at some point
@@ -1705,51 +1705,34 @@ sub _resolve_condition {
         "A join-free condition returned for relationship '$rel_name' without a row-object to chain from"
       ) unless $obj_rel;
 
+      my $foreign_src_col_list = { map { ( "$relalias.$_" => 1 ) } $self->related_source($rel_name)->columns };
       # FIXME another sanity check
       if (
         ref $joinfree_cond ne 'HASH'
           or
-        first { $_ !~ /^\Q$relalias.\E.+/ } keys %$joinfree_cond
+        grep { ! $foreign_src_col_list } keys %$joinfree_cond
       ) {
         $self->throw_exception (
           "The join-free condition returned for relationship '$rel_name' must be a hash "
-         .'reference with all keys being valid columns on the related result source'
+         .'reference with all keys being fully qualified column names of the foreign source'
         );
       }
 
-      # normalize
-      for (values %$joinfree_cond) {
-        $_ = $_->{'='} if (
-          ref $_ eq 'HASH'
-            and
-          keys %$_ == 1
-            and
-          exists $_->{'='}
-        );
-      }
+      # see which parts of the joinfree cond are *NOT* foreign-source-column equalities
+      my $joinfree_cond_equality_columns = { map
+        {( $_ => 1 )}
+        @{ $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond) }
+      };
+      @nonvalue_cols = map
+        { $_ =~ /^\Q$relalias.\E(.+)/ }
+        grep
+          { ! $joinfree_cond_equality_columns->{$_} }
+          keys %$joinfree_cond;
 
-      # see which parts of the joinfree cond are conditionals
-      my $relcol_list = { map { $_ => 1 } $self->related_source($rel_name)->columns };
-
-      for my $c (keys %$joinfree_cond) {
-        my ($colname) = $c =~ /^ (?: \Q$relalias.\E )? (.+)/x;
-
-        unless ($relcol_list->{$colname}) {
-          push @$cond_cols, $colname;
-          next;
-        }
-
-        if (
-          ref $joinfree_cond->{$c}
-            and
-          ! is_literal_value( $joinfree_cond->{$c} )
-        ) {
-          push @$cond_cols, $colname;
-          next;
-        }
-      }
-
-      return wantarray ? ($joinfree_cond, 0, $cond_cols) : $joinfree_cond;
+      return wantarray
+        ? ($joinfree_cond, 0, (@nonvalue_cols ? \@nonvalue_cols : undef))
+        : $joinfree_cond
+      ;
     }
     else {
       return wantarray ? ($crosstable_cond, 1) : $crosstable_cond;
