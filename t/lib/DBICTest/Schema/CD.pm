@@ -4,7 +4,8 @@ package # hide from PAUSE
 use warnings;
 use strict;
 
-use base qw/DBICTest::BaseResult/;
+use base 'DBICTest::BaseResult';
+use DBICTest::Util 'check_customcond_args';
 
 # this tests table name as scalar ref
 # DO NOT REMOVE THE \
@@ -118,7 +119,11 @@ __PACKAGE__->might_have(
     'last_track',
     'DBICTest::Schema::Track',
     sub {
-        my $args = shift;
+        # This is for test purposes only. A regular user does not
+        # need to sanity check the passed-in arguments, this is what
+        # the tests are for :)
+        my $args = &check_customcond_args;
+
         return (
             {
                 "$args->{foreign_alias}.trackid" => { '=' =>

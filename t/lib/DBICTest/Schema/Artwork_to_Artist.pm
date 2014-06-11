@@ -4,8 +4,8 @@ package # hide from PAUSE
 use warnings;
 use strict;
 
-use base qw/DBICTest::BaseResult/;
-use Carp qw/confess/;
+use base 'DBICTest::BaseResult';
+use DBICTest::Util 'check_customcond_args';
 
 __PACKAGE__->table('artwork_to_artist');
 __PACKAGE__->add_columns(
@@ -24,15 +24,10 @@ __PACKAGE__->belongs_to('artist', 'DBICTest::Schema::Artist', 'artist_id');
 
 __PACKAGE__->belongs_to('artist_test_m2m', 'DBICTest::Schema::Artist',
   sub {
-    my $args = shift;
-
     # This is for test purposes only. A regular user does not
     # need to sanity check the passed-in arguments, this is what
     # the tests are for :)
-    my @missing_args = grep { ! defined $args->{$_} }
-      qw/self_alias foreign_alias self_resultsource foreign_relname/;
-    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
-      if @missing_args;
+    my $args = &check_customcond_args;
 
     return (
       { "$args->{foreign_alias}.artistid" => { -ident => "$args->{self_alias}.artist_id" },
@@ -48,15 +43,10 @@ __PACKAGE__->belongs_to('artist_test_m2m', 'DBICTest::Schema::Artist',
 
 __PACKAGE__->belongs_to('artist_test_m2m_noopt', 'DBICTest::Schema::Artist',
   sub {
-    my $args = shift;
-
     # This is for test purposes only. A regular user does not
     # need to sanity check the passed-in arguments, this is what
     # the tests are for :)
-    my @missing_args = grep { ! defined $args->{$_} }
-      qw/self_alias foreign_alias self_resultsource foreign_relname/;
-    confess "Required arguments not supplied to custom rel coderef: @missing_args\n"
-      if @missing_args;
+    my $args = &check_customcond_args;
 
     return (
       { "$args->{foreign_alias}.artistid" => { -ident => "$args->{self_alias}.artist_id" },
