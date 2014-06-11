@@ -183,7 +183,7 @@ While every coderef-based condition must return a valid C<ON> clause, it may
 elect to additionally return a simplified join-free condition hashref when
 invoked as C<< $result->relationship >>, as opposed to
 C<< $rs->related_resultset('relationship') >>. In this case C<$result> is
-passed to the coderef as C<< $args->{self_rowobj} >>, so a user can do the
+passed to the coderef as C<< $args->{self_resultobj} >>, so a user can do the
 following:
 
   sub {
@@ -194,8 +194,8 @@ following:
         "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
-      $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+      $args->{self_resultobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_resultobj}->artistid,
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
     );

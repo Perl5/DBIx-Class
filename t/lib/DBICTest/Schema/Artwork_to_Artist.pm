@@ -33,8 +33,8 @@ __PACKAGE__->belongs_to('artist_test_m2m', 'DBICTest::Schema::Artist',
       { "$args->{foreign_alias}.artistid" => { -ident => "$args->{self_alias}.artist_id" },
         "$args->{foreign_alias}.rank"     => { '<' => 10 },
       },
-      $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artistid" => $args->{self_rowobj}->artist_id,
+      $args->{self_resultobj} && {
+        "$args->{foreign_alias}.artistid" => $args->{self_resultobj}->artist_id,
         "$args->{foreign_alias}.rank"   => { '<' => 10 },
       }
     );

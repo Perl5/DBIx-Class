@@ -62,8 +62,8 @@ __PACKAGE__->has_many(
     return (
       { "$args->{foreign_alias}.artist" => { '=' => { -ident => "$args->{self_alias}.artistid"} },
       },
-      $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+      $args->{self_resultobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_resultobj}->artistid,
       }
     );
   },
@@ -81,8 +81,8 @@ __PACKAGE__->has_many(
       { "$args->{foreign_alias}.artist" => { '=' => \ "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
       },
-      $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artist" => { '=' => \[ '?',  $args->{self_rowobj}->artistid ] },
+      $args->{self_resultobj} && {
+        "$args->{foreign_alias}.artist" => { '=' => \[ '?',  $args->{self_resultobj}->artistid ] },
         "$args->{foreign_alias}.year"   => { '>' => 1979, '<' => 1990 },
       }
     );
@@ -102,8 +102,8 @@ __PACKAGE__->has_many(
       { "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => 1984,
       },
-      $args->{self_rowobj} && {
-        "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+      $args->{self_resultobj} && {
+        "$args->{foreign_alias}.artist" => $args->{self_resultobj}->artistid,
         "$args->{foreign_alias}.year"   => 1984,
       }
     );
@@ -161,8 +161,8 @@ __PACKAGE__->has_many(
           {
             "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
             "$args->{foreign_alias}.genreid" => undef,
-          }, $args->{self_rowobj} && {
-            "$args->{foreign_alias}.artist" => $args->{self_rowobj}->artistid,
+          }, $args->{self_resultobj} && {
+            "$args->{foreign_alias}.artist" => $args->{self_resultobj}->artistid,
             "$args->{foreign_alias}.genreid" => undef,
           }
         ),
