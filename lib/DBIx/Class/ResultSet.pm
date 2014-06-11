@@ -773,11 +773,15 @@ sub find {
 
       next if $keyref eq 'ARRAY'; # has_many for multi_create
 
-      my $rel_q = $rsrc->_resolve_condition(
+      my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
         $relinfo->{cond}, $val, $key, $key
       );
-      die "Can't handle complex relationship conditions in find" if ref($rel_q) ne 'HASH';
-      @related{keys %$rel_q} = values %$rel_q;
+
+      $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
+         if $crosstable or ref($rel_cond) ne 'HASH';
+
+      # supplement
+      @related{keys %$rel_cond} = values %$rel_cond;
     }
   }
 

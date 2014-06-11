@@ -138,7 +138,7 @@ EOW
       );
 
       $self->throw_exception(
-        "Custom relationship '$rel' does not resolve to a join-free condition, "
+        "Relationship '$rel' does not resolve to a join-free condition, "
        ."unable to use with the ManyToMany helper '$f_rel'"
       ) if $crosstable;
 

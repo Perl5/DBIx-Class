@@ -177,7 +177,7 @@ is(
 # try a specific everything via a non-simplified rel
 throws_ok {
   $artist->create_related('cds_90s', { title => 'related_creation 4', year => '2038' });
-} qr/\QCustom relationship 'cds_90s' does not resolve to a join-free condition fragment/,
+} qr/\QRelationship 'cds_90s' does not resolve to a join-free condition fragment/,
 'Create failed - non-simplified rel';
 
 # Do a self-join last-entry search

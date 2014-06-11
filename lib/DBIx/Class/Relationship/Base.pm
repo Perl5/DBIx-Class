@@ -640,7 +640,7 @@ sub new_related {
       $rel_info->{cond}, $rel, $self, $rel
     );
 
-    $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
+    $self->throw_exception("Relationship '$rel' does not resolve to a join-free condition fragment")
       if $crosstable;
 
     if (
@@ -819,7 +819,7 @@ sub set_from_related {
   my ($cond, $crosstable, $nonequality_foreign_columns) = $rsrc->_resolve_condition (
     $rel_info->{cond}, $f_obj, $rel, $rel
   );
-  $self->throw_exception("Custom relationship '$rel' does not resolve to a join-free condition fragment")
+  $self->throw_exception("Relationship '$rel' does not resolve to a join-free condition fragment")
     if $crosstable;
 
   $self->throw_exception(sprintf (
