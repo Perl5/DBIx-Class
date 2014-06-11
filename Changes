@@ -7,6 +7,9 @@ Revision history for DBIx::Class
           returned from storage
         - Custom condition relationships are now invoked with a slightly
           different signature (existing coderefs will continue to work)
+        - Add extra custom condition coderef attribute 'foreign_resultobj'
+          to allow for proper reverse-relationship emulation
+          (i.e. $result->set_from_related($custom_cond, $foreign_resultobj)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases

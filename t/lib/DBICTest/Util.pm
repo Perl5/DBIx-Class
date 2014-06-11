@@ -66,7 +66,10 @@ sub check_customcond_args ($) {
   confess "Passed resultsource has no record of the supplied rel_name - likely wrong \$rsrc"
     unless ref $args->{self_resultsource}->relationship_info($args->{rel_name});
 
+  my $rowobj_cnt = 0;
+
   if (defined $args->{self_resultobj} or defined $args->{self_rowobj} ) {
+    $rowobj_cnt++;
     for (qw(self_resultobj self_rowobj)) {
       confess "Custom condition argument '$_' must be a result instance"
         unless defined blessed $args->{$_} and $args->{$_}->isa('DBIx::Class::Row');
@@ -75,6 +78,16 @@ sub check_customcond_args ($) {
     confess "Current and legacy self_resultobj arguments do not match"
       if refaddr($args->{self_resultobj}) != refaddr($args->{self_rowobj});
   }
+
+  if (defined $args->{foreign_resultobj}) {
+    $rowobj_cnt++;
+
+    confess "Custom condition argument 'foreign_resultobj' must be a result instance"
+      unless defined blessed $args->{foreign_resultobj} and $args->{foreign_resultobj}->isa('DBIx::Class::Row');
+  }
+
+  confess "Result objects supplied on both ends of a relationship"
+    if $rowobj_cnt == 2;
 
   $args;
 }

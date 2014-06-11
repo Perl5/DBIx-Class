@@ -238,7 +238,10 @@ metadata. Currently the supplied coderef is executed as:
     self_alias        => The alias of the invoking resultset
     foreign_alias     => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
 
+    # only one of these (or none at all) will ever be supplied to aid in the
+    # construction of a join-free condition
     self_resultobj    => The invocant object itself in case of a $resultobj->$rel_name() call
+    foreign_resultobj => The related object in case of $resultobj->set_from_related($rel_name, $foreign_resultobj)
 
     # deprecated inconsistent names, will be forever available for legacy code
     self_rowobj       => Old deprecated slot for self_resultobj

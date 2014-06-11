@@ -1776,34 +1776,49 @@ sub _resolve_relationship_condition {
       self_resultsource => $self,
       self_alias => $args->{self_alias},
       foreign_alias => $args->{foreign_alias},
-      self_resultobj => defined $args->{self_resultobj} ? $args->{self_resultobj} : undef,
+      self_resultobj => (defined $args->{self_resultobj} ? $args->{self_resultobj} : undef),
+      foreign_resultobj => (defined $args->{foreign_resultobj} ? $args->{foreign_resultobj} : undef),
     };
 
     # legacy - never remove these!!!
     $cref_args->{foreign_relname} = $cref_args->{rel_name};
     $cref_args->{self_rowobj} = $cref_args->{self_resultobj};
 
-    my ($crosstable_cond, $joinfree_cond) = $args->{condition}->($cref_args);
+    my ($crosstable_cond, $joinfree_cond, @extra) = $args->{condition}->($cref_args);
+
+    # FIXME sanity check
+    carp_unique('A custom condition coderef can return at most 2 conditions: extra return values discarded')
+      if @extra;
 
     my @nonvalue_cols;
     if ($joinfree_cond) {
 
+      my ($joinfree_alias, $joinfree_source);
+      if (defined $args->{self_resultobj}) {
+        $joinfree_alias = $args->{foreign_alias};
+        $joinfree_source = $self->related_source($args->{rel_name});
+      }
+      elsif (defined $args->{foreign_resultobj}) {
+        $joinfree_alias = $args->{self_alias};
+        $joinfree_source = $self;
+      }
+
       # FIXME sanity check until things stabilize, remove at some point
       $self->throw_exception (
         "A join-free condition returned for relationship '$args->{rel_name}' without a result object to chain from"
-      ) unless defined $args->{self_resultobj};
+      ) unless $joinfree_alias;
 
-      my $foreign_src_fq_col_list = { map { ( "$args->{foreign_alias}.$_" => 1 ) } $self->related_source($args->{rel_name})->columns };
+      my $fq_col_list = { map { ( "$joinfree_alias.$_" => 1 ) } $joinfree_source->columns };
 
       # FIXME another sanity check
       if (
         ref $joinfree_cond ne 'HASH'
           or
-        grep { ! $foreign_src_fq_col_list->{$_} } keys %$joinfree_cond
+        grep { ! $fq_col_list->{$_} } keys %$joinfree_cond
       ) {
         $self->throw_exception (
           "The join-free condition returned for relationship '$args->{rel_name}' must be a hash "
-         .'reference with all keys being fully qualified column names of the foreign source'
+         .'reference with all keys being fully qualified column names of the corresponding source'
         );
       }
 
@@ -1813,7 +1828,7 @@ sub _resolve_relationship_condition {
         @{ $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond) }
       };
       @nonvalue_cols = map
-        { $_ =~ /^\Q$args->{foreign_alias}.\E(.+)/ }
+        { $_ =~ /^\Q$joinfree_alias.\E(.+)/ }
         grep
           { ! $joinfree_cond_equality_columns->{$_} }
           keys %$joinfree_cond;
