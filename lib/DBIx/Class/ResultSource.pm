@@ -1771,20 +1771,26 @@ sub _resolve_relationship_condition {
 
   if (ref $args->{condition} eq 'CODE') {
 
-    my ($crosstable_cond, $joinfree_cond) = $args->{condition}->({
+    my $cref_args = {
+      rel_name => $args->{rel_name},
+      self_resultsource => $self,
       self_alias => $args->{self_alias},
       foreign_alias => $args->{foreign_alias},
-      self_resultsource => $self,
-      foreign_relname => $args->{rel_name},
-      self_rowobj => defined $args->{self_resultobj} ? $args->{self_resultobj} : undef,
-    });
+      self_resultobj => defined $args->{self_resultobj} ? $args->{self_resultobj} : undef,
+    };
+
+    # legacy - never remove these!!!
+    $cref_args->{foreign_relname} = $cref_args->{rel_name};
+    $cref_args->{self_rowobj} = $cref_args->{self_resultobj};
+
+    my ($crosstable_cond, $joinfree_cond) = $args->{condition}->($cref_args);
 
     my @nonvalue_cols;
     if ($joinfree_cond) {
 
       # FIXME sanity check until things stabilize, remove at some point
       $self->throw_exception (
-        "A join-free condition returned for relationship '$args->{rel_name}' without a row-object to chain from"
+        "A join-free condition returned for relationship '$args->{rel_name}' without a result object to chain from"
       ) unless defined $args->{self_resultobj};
 
       my $foreign_src_fq_col_list = { map { ( "$args->{foreign_alias}.$_" => 1 ) } $self->related_source($args->{rel_name})->columns };

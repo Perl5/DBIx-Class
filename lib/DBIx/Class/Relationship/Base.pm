@@ -232,11 +232,17 @@ clause, the C<$args> hashref passed to the subroutine contains some extra
 metadata. Currently the supplied coderef is executed as:
 
   $relationship_info->{cond}->({
-    self_alias        => The alias of the invoking resultset ('me' in case of a result object),
-    foreign_alias     => The alias of the to-be-joined resultset (often matches relname),
-    self_resultsource => The invocant's resultsource,
-    foreign_relname   => The relationship name (does *not* always match foreign_alias),
-    self_rowobj       => The invocant itself in case of a $result_object->$relationship call
+    self_resultsource => The resultsource instance on which rel_name is registered
+    rel_name          => The relationship name (does *NOT* always match foreign_alias)
+
+    self_alias        => The alias of the invoking resultset
+    foreign_alias     => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
+
+    self_resultobj    => The invocant object itself in case of a $resultobj->$rel_name() call
+
+    # deprecated inconsistent names, will be forever available for legacy code
+    self_rowobj       => Old deprecated slot for self_resultobj
+    foreign_relname   => Old deprecated slot for rel_name
   });
 
 =head3 attributes

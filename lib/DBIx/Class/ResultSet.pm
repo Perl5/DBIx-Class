@@ -2214,7 +2214,7 @@ sub populate {
       foreach my $rel (@rels) {
         next unless ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
-        my ($reverse_relname, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
+        my (undef, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(
           $reverse_relinfo->{cond},
           $self,

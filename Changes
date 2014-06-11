@@ -5,6 +5,8 @@ Revision history for DBIx::Class
           like the rest of DBIC
         - DBIC::FilterColumn "from_storage" handler is now invoked on NULLs
           returned from storage
+        - Custom condition relationships are now invoked with a slightly
+          different signature (existing coderefs will continue to work)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases
