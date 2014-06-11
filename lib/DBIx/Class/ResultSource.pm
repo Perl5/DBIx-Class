@@ -1669,10 +1669,76 @@ sub _pk_depends_on {
   return 1;
 }
 
-sub resolve_condition {
-  carp 'resolve_condition is a private method, stop calling it';
-  my $self = shift;
-  $self->_resolve_condition (@_);
+sub _resolve_condition {
+#  carp_unique sprintf
+#    '_resolve_condition is a private method, and moreover is about to go '
+#  . 'away. Please contact the development team at %s if you believe you '
+#  . 'have a genuine use for this method, in order to discuss alternatives.',
+#    DBIx::Class::_ENV_::HELP_URL,
+#  ;
+
+#######################
+### API Design? What's that...? (a backwards compatible shim, kill me now)
+
+  my ($self, $cond, @res_args, $rel_name);
+
+  # we *SIMPLY DON'T KNOW YET* which arg is which, yay
+  ($self, $cond, $res_args[0], $res_args[1], $rel_name) = @_;
+
+  # assume that an undef is an object-like unset (set_from_related(undef))
+  my @is_objlike = map { ! defined $_ or length ref $_ } (@res_args);
+
+  # turn objlike into proper objects for saner code further down
+  for (0,1) {
+    next unless $is_objlike[$_];
+
+    if ( defined blessed $res_args[$_] ) {
+
+      # but wait - there is more!!! WHAT THE FUCK?!?!?!?!
+      if ($res_args[$_]->isa('DBIx::Class::ResultSet')) {
+        carp('Passing a resultset for relationship resolution makes no sense - invoking __gremlins__');
+        $is_objlike[$_] = 0;
+        $res_args[$_] = '__gremlins__';
+      }
+    }
+    else {
+      $res_args[$_] ||= {};
+
+      $self->throw_exception("Unsupported object-like structure encountered: $res_args[$_]")
+        unless ref $res_args[$_] eq 'HASH';
+
+      # hate everywhere
+      $res_args[$_] = $self->relationship_info($rel_name)->{source}->result_class->new($res_args[$_]);
+    }
+  }
+
+  $self->throw_exception('No practical way to resolve a relationship between two structures')
+    if $is_objlike[0] and $is_objlike[1];
+
+  my $args = {
+    condition => $cond,
+    rel_name => $rel_name,
+    $is_objlike[1] ? ( self_alias => $res_args[0], foreign_alias => 'me',         self_resultobj    => $res_args[1] )
+  : $is_objlike[0] ? ( self_alias => 'me',         foreign_alias => $res_args[1], foreign_resultobj => $res_args[0] )
+  :                  ( self_alias => $res_args[1], foreign_alias => $res_args[0] )
+  };
+#######################
+
+  # now it's fucking easy isn't it?!
+  my @res = $self->_resolve_relationship_condition( $args );
+
+  # FIXME - this is also insane, but just be consistent for now
+  # _resolve_relationship_condition always returns qualified cols
+  # even in the case of objects, but nothing downstream expects this
+  if (ref $res[0] eq 'HASH' and ($is_objlike[0] or $is_objlike[1]) ) {
+    $res[0] = { map
+      { ($_ =~ /\.(.+)/) => $res[0]{$_} }
+      keys %{$res[0]}
+    };
+  }
+
+  # more legacy
+  return wantarray ? @res : $res[0];
 }
 
 our $UNRESOLVABLE_CONDITION = \ '1 = 0';
@@ -1681,20 +1747,36 @@ our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 # indicating whether this is a cross-table condition. Also an optional
 # list of non-trivial values (normally conditions) returned as a part
 # of a joinfree condition hash
-sub _resolve_condition {
-  my ($self, $cond, $as, $for, $rel_name) = @_;
+sub _resolve_relationship_condition {
+  my $self = shift;
 
-  my $obj_rel = defined blessed $for;
+  # self-explanatory API, modeled on the custom cond coderef:
+  # condition
+  # rel_name
+  # foreign_alias
+  # foreign_resultobj
+  # self_alias
+  # self_resultobj
+  my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
-  if (ref $cond eq 'CODE') {
-    my $relalias = $obj_rel ? 'me' : $as;
+  for ( qw( rel_name self_alias foreign_alias ) ) {
+    $self->throw_exception("Mandatory attribute '$_' is not a plain string")
+      if !defined $args->{$_} or length ref $args->{$_};
+  }
 
-    my ($crosstable_cond, $joinfree_cond) = $cond->({
-      self_alias => $obj_rel ? $as : $for,
-      foreign_alias => $relalias,
+  $self->throw_exception('No practical way to resolve a relationship between two objects')
+    if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
+
+  $args->{condition} ||= $self->relationship_info($args->{rel_name})->{cond};
+
+  if (ref $args->{condition} eq 'CODE') {
+
+    my ($crosstable_cond, $joinfree_cond) = $args->{condition}->({
+      self_alias => $args->{self_alias},
+      foreign_alias => $args->{foreign_alias},
       self_resultsource => $self,
-      foreign_relname => $rel_name || ($obj_rel ? $as : $for),
-      self_rowobj => $obj_rel ? $for : undef
+      foreign_relname => $args->{rel_name},
+      self_rowobj => defined $args->{self_resultobj} ? $args->{self_resultobj} : undef,
     });
 
     my @nonvalue_cols;
@@ -1702,18 +1784,19 @@ sub _resolve_condition {
 
       # FIXME sanity check until things stabilize, remove at some point
       $self->throw_exception (
-        "A join-free condition returned for relationship '$rel_name' without a row-object to chain from"
-      ) unless $obj_rel;
+        "A join-free condition returned for relationship '$args->{rel_name}' without a row-object to chain from"
+      ) unless defined $args->{self_resultobj};
 
-      my $foreign_src_col_list = { map { ( "$relalias.$_" => 1 ) } $self->related_source($rel_name)->columns };
+      my $foreign_src_fq_col_list = { map { ( "$args->{foreign_alias}.$_" => 1 ) } $self->related_source($args->{rel_name})->columns };
+
       # FIXME another sanity check
       if (
         ref $joinfree_cond ne 'HASH'
           or
-        grep { ! $foreign_src_col_list } keys %$joinfree_cond
+        grep { ! $foreign_src_fq_col_list->{$_} } keys %$joinfree_cond
       ) {
         $self->throw_exception (
-          "The join-free condition returned for relationship '$rel_name' must be a hash "
+          "The join-free condition returned for relationship '$args->{rel_name}' must be a hash "
          .'reference with all keys being fully qualified column names of the foreign source'
         );
       }
@@ -1724,78 +1807,108 @@ sub _resolve_condition {
         @{ $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond) }
       };
       @nonvalue_cols = map
-        { $_ =~ /^\Q$relalias.\E(.+)/ }
+        { $_ =~ /^\Q$args->{foreign_alias}.\E(.+)/ }
         grep
           { ! $joinfree_cond_equality_columns->{$_} }
           keys %$joinfree_cond;
 
-      return wantarray
-        ? ($joinfree_cond, 0, (@nonvalue_cols ? \@nonvalue_cols : undef))
-        : $joinfree_cond
-      ;
+      return ($joinfree_cond, 0, (@nonvalue_cols ? \@nonvalue_cols : undef));
     }
     else {
-      return wantarray ? ($crosstable_cond, 1) : $crosstable_cond;
+      return ($crosstable_cond, 1);
     }
   }
-  elsif (ref $cond eq 'HASH') {
-    my %ret;
-    foreach my $k (keys %{$cond}) {
-      my $v = $cond->{$k};
-      # XXX should probably check these are valid columns
-      $k =~ s/^foreign\.// ||
-        $self->throw_exception("Invalid rel cond key ${k}");
-      $v =~ s/^self\.// ||
-        $self->throw_exception("Invalid rel cond val ${v}");
-      if (ref $for) { # Object
-        #warn "$self $k $for $v";
-        unless ($for->has_column_loaded($v)) {
-          if ($for->in_storage) {
-            $self->throw_exception(sprintf
-              "Unable to resolve relationship '%s' from object %s: column '%s' not "
-            . 'loaded from storage (or not passed to new() prior to insert()). You '
-            . 'probably need to call ->discard_changes to get the server-side defaults '
-            . 'from the database.',
-              $as,
-              $for,
-              $v,
-            );
-          }
-          return $UNRESOLVABLE_CONDITION;
-        }
-        $ret{$k} = $for->get_column($v);
-        #$ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);
-        #warn %ret;
-      } elsif (!defined $for) { # undef, i.e. "no object"
-        $ret{$k} = undef;
-      } elsif (ref $as eq 'HASH') { # reverse hashref
-        $ret{$v} = $as->{$k};
-      } elsif (ref $as) { # reverse object
-        $ret{$v} = $as->get_column($k);
-      } elsif (!defined $as) { # undef, i.e. "no reverse object"
-        $ret{$v} = undef;
-      } else {
-        $ret{"${as}.${k}"} = { -ident => "${for}.${v}" };
-      }
+  elsif (ref $args->{condition} eq 'HASH') {
+
+    # the condition is static - use parallel arrays
+    # for a "pivot" depending on which side of the
+    # rel did we get as an object
+    my (@f_cols, @l_cols);
+    for my $fc (keys %{$args->{condition}}) {
+      my $lc = $args->{condition}{$fc};
+
+      # FIXME STRICTMODE should probably check these are valid columns
+      $fc =~ s/^foreign\.// ||
+        $self->throw_exception("Invalid rel cond key '$fc'");
+
+      $lc =~ s/^self\.// ||
+        $self->throw_exception("Invalid rel cond val '$lc'");
+
+      push @f_cols, $fc;
+      push @l_cols, $lc;
     }
 
-    return wantarray
-      ? ( \%ret, ($obj_rel || !defined $as || ref $as) ? 0 : 1 )
-      : \%ret
-    ;
-  }
-  elsif (ref $cond eq 'ARRAY') {
-    my (@ret, $crosstable);
-    for (@$cond) {
-      my ($cond, $crosstab) = $self->_resolve_condition($_, $as, $for, $rel_name);
-      push @ret, $cond;
-      $crosstable ||= $crosstab;
+    # plain values
+    if (! defined $args->{self_resultobj} and ! defined $args->{foreign_resultobj}) {
+      return ( { map
+        {( "$args->{foreign_alias}.$f_cols[$_]" => { -ident => "$args->{self_alias}.$l_cols[$_]" } )}
+        (0..$#f_cols)
+      }, 1 ); # is crosstable
     }
-    return wantarray ? (\@ret, $crosstable) : \@ret;
+    else {
+
+      my $cond;
+
+      my ($obj, $obj_alias, $plain_alias, $obj_cols, $plain_cols) = defined $args->{self_resultobj}
+        ? ( @{$args}{qw( self_resultobj self_alias foreign_alias )}, \@l_cols, \@f_cols )
+        : ( @{$args}{qw( foreign_resultobj foreign_alias self_alias )}, \@f_cols, \@l_cols )
+      ;
+
+      for my $i (0..$#$obj_cols) {
+        if (defined $args->{self_resultobj} and ! $obj->has_column_loaded($obj_cols->[$i])) {
+
+          $self->throw_exception(sprintf
+            "Unable to resolve relationship '%s' from object '%s': column '%s' not "
+          . 'loaded from storage (or not passed to new() prior to insert()). You '
+          . 'probably need to call ->discard_changes to get the server-side defaults '
+          . 'from the database.',
+            $args->{rel_name},
+            $obj,
+            $obj_cols->[$i],
+          ) if $obj->in_storage;
+
+          return $UNRESOLVABLE_CONDITION;
+        }
+        else {
+          $cond->{"$plain_alias.$plain_cols->[$i]"} = $obj->get_column($obj_cols->[$i]);
+        }
+      }
+
+      return ($cond, 0); # joinfree
+    }
+  }
+  elsif (ref $args->{condition} eq 'ARRAY') {
+    if (@{$args->{condition}} == 0) {
+      return $UNRESOLVABLE_CONDITION;
+    }
+    elsif (@{$args->{condition}} == 1) {
+      return $self->_resolve_relationship_condition({
+        %$args,
+        condition => $args->{condition}[0],
+      });
+    }
+    else {
+      # FIXME - we are discarding nonvalues here... likely incorrect...
+      # then again - the entire thing is an OR, so we *can't* use
+      # the values anyway
+      # Return a hard crosstable => 1 to ensure nothing tries to use
+      # the result in such manner
+      my @ret;
+      for (@{$args->{condition}}) {
+        my ($cond) = $self->_resolve_relationship_condition({
+          %$args,
+          condition => $_,
+        });
+        push @ret, $cond;
+      }
+      return (\@ret, 1); # forced cross-tab
+    }
   }
   else {
-    $self->throw_exception ("Can't handle condition $cond for relationship '$rel_name' yet :(");
+    $self->throw_exception ("Can't handle condition $args->{condition} for relationship '$args->{rel_name}' yet :(");
   }
+
+  die "not supposed to get here - missing return()";
 }
 
 =head2 related_source

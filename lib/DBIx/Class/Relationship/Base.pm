@@ -488,10 +488,7 @@ sub related_resultset {
     };
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
-    if ($is_crosstable) {
-      $self->throw_exception (
-        "A cross-table relationship condition returned for statically declared '$rel'"
-      ) unless ref $rel_info->{cond} eq 'CODE';
+    if ($is_crosstable and ref $rel_info->{cond} eq 'CODE') {
 
       # A WHOREIFFIC hack to reinvoke the entire condition resolution
       # with the correct alias. Another way of doing this involves a

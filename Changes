@@ -29,6 +29,8 @@ Revision history for DBIx::Class
     * Misc
         - Stop explicitly stringifying objects before passing them to DBI,
           instead assume that the DBI/DBD combo will take care of things
+        - Remove ::ResultSource::resolve_condition - the underlying machinery
+          is in flux, and the method has had a deprecation warning for 5 years
 
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
