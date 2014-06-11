@@ -451,8 +451,8 @@ what create_related() from L<DBIx::Class::Relationship::Base> does, you could
 add this to Book.pm:
 
   sub foo {
-    my ($self, $relname, $col_data) = @_;
-    return $self->related_resultset($relname)->create($col_data);
+    my ($self, $rel_name, $col_data) = @_;
+    return $self->related_resultset($rel_name)->create($col_data);
   }
 
 Invoked like this:

@@ -1363,7 +1363,7 @@ sub add_relationship {
 
 =back
 
-  my @relnames = $source->relationships();
+  my @rel_names = $source->relationships();
 
 Returns all relationship names for this source.
 

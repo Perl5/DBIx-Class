@@ -126,26 +126,26 @@ with NULL as the default, and save yourself a SELECT.
 ## tests!
 
 sub __new_related_find_or_new_helper {
-  my ($self, $relname, $values) = @_;
+  my ($self, $rel_name, $values) = @_;
 
   my $rsrc = $self->result_source;
 
   # create a mock-object so all new/set_column component overrides will run:
-  my $rel_rs = $rsrc->related_source($relname)->resultset;
+  my $rel_rs = $rsrc->related_source($rel_name)->resultset;
   my $new_rel_obj = $rel_rs->new_result($values);
   my $proc_data = { $new_rel_obj->get_columns };
 
-  if ($self->__their_pk_needs_us($relname)) {
-    MULTICREATE_DEBUG and print STDERR "MC $self constructing $relname via new_result\n";
+  if ($self->__their_pk_needs_us($rel_name)) {
+    MULTICREATE_DEBUG and print STDERR "MC $self constructing $rel_name via new_result\n";
     return $new_rel_obj;
   }
-  elsif ($rsrc->_pk_depends_on($relname, $proc_data )) {
+  elsif ($rsrc->_pk_depends_on($rel_name, $proc_data )) {
     if (! keys %$proc_data) {
       # there is nothing to search for - blind create
-      MULTICREATE_DEBUG and print STDERR "MC $self constructing default-insert $relname\n";
+      MULTICREATE_DEBUG and print STDERR "MC $self constructing default-insert $rel_name\n";
     }
     else {
-      MULTICREATE_DEBUG and print STDERR "MC $self constructing $relname via find_or_new\n";
+      MULTICREATE_DEBUG and print STDERR "MC $self constructing $rel_name via find_or_new\n";
       # this is not *really* find or new, as we don't want to double-new the
       # data (thus potentially double encoding or whatever)
       my $exists = $rel_rs->find ($proc_data);
@@ -156,17 +156,17 @@ sub __new_related_find_or_new_helper {
   else {
     my $us = $rsrc->source_name;
     $self->throw_exception (
-      "Unable to determine relationship '$relname' direction from '$us', "
-    . "possibly due to a missing reverse-relationship on '$relname' to '$us'."
+      "Unable to determine relationship '$rel_name' direction from '$us', "
+    . "possibly due to a missing reverse-relationship on '$rel_name' to '$us'."
     );
   }
 }
 
 sub __their_pk_needs_us { # this should maybe be in resultsource.
-  my ($self, $relname) = @_;
+  my ($self, $rel_name) = @_;
   my $rsrc = $self->result_source;
-  my $reverse = $rsrc->reverse_relationship_info($relname);
-  my $rel_source = $rsrc->related_source($relname);
+  my $reverse = $rsrc->reverse_relationship_info($rel_name);
+  my $rel_source = $rsrc->related_source($rel_name);
   my $us = { $self->get_columns };
   foreach my $key (keys %$reverse) {
     # if their primary key depends on us, then we have to
@@ -352,27 +352,27 @@ sub insert {
 
   # insert what needs to be inserted before us
   my %pre_insert;
-  for my $relname (keys %related_stuff) {
-    my $rel_obj = $related_stuff{$relname};
+  for my $rel_name (keys %related_stuff) {
+    my $rel_obj = $related_stuff{$rel_name};
 
-    if (! $self->{_rel_in_storage}{$relname}) {
+    if (! $self->{_rel_in_storage}{$rel_name}) {
       next unless (blessed $rel_obj && $rel_obj->isa('DBIx::Class::Row'));
 
       next unless $rsrc->_pk_depends_on(
-                    $relname, { $rel_obj->get_columns }
+                    $rel_name, { $rel_obj->get_columns }
                   );
 
       # The guard will save us if we blow out of this scope via die
       $rollback_guard ||= $storage->txn_scope_guard;
 
-      MULTICREATE_DEBUG and print STDERR "MC $self pre-reconstructing $relname $rel_obj\n";
+      MULTICREATE_DEBUG and print STDERR "MC $self pre-reconstructing $rel_name $rel_obj\n";
 
       my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_columns };
       my $existing;
 
       # if there are no keys - nothing to search for
       if (keys %$them and $existing = $self->result_source
-                                           ->related_source($relname)
+                                           ->related_source($rel_name)
                                            ->resultset
                                            ->find($them)
       ) {
@@ -382,11 +382,11 @@ sub insert {
         $rel_obj->insert;
       }
 
-      $self->{_rel_in_storage}{$relname} = 1;
+      $self->{_rel_in_storage}{$rel_name} = 1;
     }
 
-    $self->set_from_related($relname, $rel_obj);
-    delete $related_stuff{$relname};
+    $self->set_from_related($rel_name, $rel_obj);
+    delete $related_stuff{$rel_name};
   }
 
   # start a transaction here if not started yet and there is more stuff
@@ -427,25 +427,25 @@ sub insert {
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
 
-  foreach my $relname (keys %related_stuff) {
-    next unless $rsrc->has_relationship ($relname);
+  foreach my $rel_name (keys %related_stuff) {
+    next unless $rsrc->has_relationship ($rel_name);
 
-    my @cands = ref $related_stuff{$relname} eq 'ARRAY'
-      ? @{$related_stuff{$relname}}
-      : $related_stuff{$relname}
+    my @cands = ref $related_stuff{$rel_name} eq 'ARRAY'
+      ? @{$related_stuff{$rel_name}}
+      : $related_stuff{$rel_name}
     ;
 
     if (@cands && blessed $cands[0] && $cands[0]->isa('DBIx::Class::Row')
     ) {
-      my $reverse = $rsrc->reverse_relationship_info($relname);
+      my $reverse = $rsrc->reverse_relationship_info($rel_name);
       foreach my $obj (@cands) {
         $obj->set_from_related($_, $self) for keys %$reverse;
-        if ($self->__their_pk_needs_us($relname)) {
-          if (exists $self->{_ignore_at_insert}{$relname}) {
-            MULTICREATE_DEBUG and print STDERR "MC $self skipping post-insert on $relname\n";
+        if ($self->__their_pk_needs_us($rel_name)) {
+          if (exists $self->{_ignore_at_insert}{$rel_name}) {
+            MULTICREATE_DEBUG and print STDERR "MC $self skipping post-insert on $rel_name\n";
           }
           else {
-            MULTICREATE_DEBUG and print STDERR "MC $self inserting $relname $obj\n";
+            MULTICREATE_DEBUG and print STDERR "MC $self inserting $rel_name $obj\n";
             $obj->insert;
           }
         } else {
@@ -953,20 +953,20 @@ sub set_column {
     #
     # FIXME - this is a quick *largely incorrect* hack, pending a more
     # serious rework during the merge of single and filter rels
-    my $relnames = $self->result_source->{_relationships};
-    for my $relname (keys %$relnames) {
+    my $rel_names = $self->result_source->{_relationships};
+    for my $rel_name (keys %$rel_names) {
 
-      my $acc = $relnames->{$relname}{attrs}{accessor} || '';
+      my $acc = $rel_names->{$rel_name}{attrs}{accessor} || '';
 
-      if ( $acc eq 'single' and $relnames->{$relname}{attrs}{fk_columns}{$column} ) {
-        delete $self->{related_resultsets}{$relname};
-        delete $self->{_relationship_data}{$relname};
-        #delete $self->{_inflated_column}{$relname};
+      if ( $acc eq 'single' and $rel_names->{$rel_name}{attrs}{fk_columns}{$column} ) {
+        delete $self->{related_resultsets}{$rel_name};
+        delete $self->{_relationship_data}{$rel_name};
+        #delete $self->{_inflated_column}{$rel_name};
       }
-      elsif ( $acc eq 'filter' and $relname eq $column) {
-        delete $self->{related_resultsets}{$relname};
-        #delete $self->{_relationship_data}{$relname};
-        delete $self->{_inflated_column}{$relname};
+      elsif ( $acc eq 'filter' and $rel_name eq $column) {
+        delete $self->{related_resultsets}{$rel_name};
+        #delete $self->{_relationship_data}{$rel_name};
+        delete $self->{_inflated_column}{$rel_name};
       }
     }
 
@@ -1049,7 +1049,7 @@ sub set_columns {
 
 =head2 set_inflated_columns
 
-  $result->set_inflated_columns({ $col => $val, $relname => $obj, ... });
+  $result->set_inflated_columns({ $col => $val, $rel_name => $obj, ... });
 
 =over
 
@@ -1153,19 +1153,19 @@ sub copy {
   # Its possible we'll have 2 relations to the same Source. We need to make
   # sure we don't try to insert the same row twice else we'll violate unique
   # constraints
-  my $relnames_copied = {};
+  my $rel_names_copied = {};
 
-  foreach my $relname ($self->result_source->relationships) {
-    my $rel_info = $self->result_source->relationship_info($relname);
+  foreach my $rel_name ($self->result_source->relationships) {
+    my $rel_info = $self->result_source->relationship_info($rel_name);
 
     next unless $rel_info->{attrs}{cascade_copy};
 
     my $resolved = $self->result_source->_resolve_condition(
-      $rel_info->{cond}, $relname, $new, $relname
+      $rel_info->{cond}, $rel_name, $new, $rel_name
     );
 
-    my $copied = $relnames_copied->{ $rel_info->{source} } ||= {};
-    foreach my $related ($self->search_related($relname)->all) {
+    my $copied = $rel_names_copied->{ $rel_info->{source} } ||= {};
+    foreach my $related ($self->search_related($rel_name)->all) {
       my $id_str = join("\0", $related->id);
       next if $copied->{$id_str};
       $copied->{$id_str} = 1;
@@ -1241,56 +1241,56 @@ sub inflate_result {
   ;
 
   if ($prefetch) {
-    for my $relname ( keys %$prefetch ) {
+    for my $rel_name ( keys %$prefetch ) {
 
-      my $relinfo = $rsrc->relationship_info($relname) or do {
+      my $relinfo = $rsrc->relationship_info($rel_name) or do {
         my $err = sprintf
           "Inflation into non-existent relationship '%s' of '%s' requested",
-          $relname,
+          $rel_name,
           $rsrc->source_name,
         ;
-        if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$relname}[0] || {}} ) {
+        if (my ($colname) = sort { length($a) <=> length ($b) } keys %{$prefetch->{$rel_name}[0] || {}} ) {
           $err .= sprintf ", check the inflation specification (columns/as) ending in '...%s.%s'",
-          $relname,
+          $rel_name,
           $colname,
         }
 
         $rsrc->throw_exception($err);
       };
 
-      $class->throw_exception("No accessor type declared for prefetched relationship '$relname'")
+      $class->throw_exception("No accessor type declared for prefetched relationship '$rel_name'")
         unless $relinfo->{attrs}{accessor};
 
-      my $rel_rs = $new->related_resultset($relname);
+      my $rel_rs = $new->related_resultset($rel_name);
 
       my @rel_objects;
       if (
-        @{ $prefetch->{$relname} || [] }
+        @{ $prefetch->{$rel_name} || [] }
           and
-        ref($prefetch->{$relname}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
+        ref($prefetch->{$rel_name}) ne $DBIx::Class::ResultSource::RowParser::Util::null_branch_class
       ) {
 
-        if (ref $prefetch->{$relname}[0] eq 'ARRAY') {
+        if (ref $prefetch->{$rel_name}[0] eq 'ARRAY') {
           my $rel_rsrc = $rel_rs->result_source;
           my $rel_class = $rel_rs->result_class;
           my $rel_inflator = $rel_class->can('inflate_result');
           @rel_objects = map
             { $rel_class->$rel_inflator ( $rel_rsrc, @$_ ) }
-            @{$prefetch->{$relname}}
+            @{$prefetch->{$rel_name}}
           ;
         }
         else {
           @rel_objects = $rel_rs->result_class->inflate_result(
-            $rel_rs->result_source, @{$prefetch->{$relname}}
+            $rel_rs->result_source, @{$prefetch->{$rel_name}}
           );
         }
       }
 
       if ($relinfo->{attrs}{accessor} eq 'single') {
-        $new->{_relationship_data}{$relname} = $rel_objects[0];
+        $new->{_relationship_data}{$rel_name} = $rel_objects[0];
       }
       elsif ($relinfo->{attrs}{accessor} eq 'filter') {
-        $new->{_inflated_column}{$relname} = $rel_objects[0];
+        $new->{_inflated_column}{$rel_name} = $rel_objects[0];
       }
 
       $rel_rs->set_cache(\@rel_objects);

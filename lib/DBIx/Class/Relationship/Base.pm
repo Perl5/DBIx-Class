@@ -38,11 +38,11 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =over 4
 
-=item Arguments: 'relname', 'Foreign::Class', $condition, $attrs
+=item Arguments: $rel_name, $foreign_class, $condition, $attrs
 
 =back
 
-  __PACKAGE__->add_relationship('relname',
+  __PACKAGE__->add_relationship('rel_name',
                                 'Foreign::Class',
                                 $condition, $attrs);
 

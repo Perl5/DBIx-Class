@@ -267,7 +267,7 @@ sub __visit_infmap_collapse {
     my $parent_attach_slot = sprintf( '$collapse_idx[%d]%s%s{%s}',
       @{$args}{qw/-parent_node_idx -parent_node_key/},
       $args->{hri_style} ? '' : '[1]',
-      perlstring($args->{-node_relname}),
+      perlstring($args->{-node_rel_name}),
     );
 
     if ($args->{collapse_map}->{-is_single}) {
@@ -300,7 +300,7 @@ sub __visit_infmap_collapse {
       collapse_map => $relinfo,
       -parent_node_idx => $cur_node_idx,
       -parent_node_key => $node_key,
-      -node_relname => $rel,
+      -node_rel_name => $rel,
     });
 
     my $rel_src_pos = $#src + 1;

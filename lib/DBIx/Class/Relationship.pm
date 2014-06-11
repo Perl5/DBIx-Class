@@ -105,7 +105,7 @@ L<DBIx::Class::Relationship::Base>.
 
 All helper methods are called similar to the following template:
 
-  __PACKAGE__->$method_name('relname', 'Foreign::Class', \%cond|\@cond|\&cond?, \%attrs?);
+  __PACKAGE__->$method_name('rel_name', 'Foreign::Class', \%cond|\@cond|\&cond?, \%attrs?);
 
 Both C<cond> and C<attrs> are optional. Pass C<undef> for C<cond> if
 you want to use the default value for it, but still want to set C<attrs>.
@@ -327,7 +327,7 @@ The second is almost exactly the same as the accessor method but "_rs"
 is added to the end of the method name, eg C<$accessor_name_rs()>.
 This method works just like the normal accessor, except that it always
 returns a resultset, even in list context. The third method, named C<<
-add_to_$relname >>, will also be added to your Row items; this allows
+add_to_$rel_name >>, will also be added to your Row items; this allows
 you to insert new related items, using the same mechanism as in
 L<DBIx::Class::Relationship::Base/"create_related">.
 
