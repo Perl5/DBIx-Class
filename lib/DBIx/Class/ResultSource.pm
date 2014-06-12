@@ -1717,10 +1717,15 @@ sub _resolve_condition {
 
   my $args = {
     condition => $cond,
-    rel_name => $rel_name,
-    $is_objlike[1] ? ( self_alias => $res_args[0], foreign_alias => 'me',         self_resultobj    => $res_args[1] )
-  : $is_objlike[0] ? ( self_alias => 'me',         foreign_alias => $res_args[1], foreign_resultobj => $res_args[0] )
-  :                  ( self_alias => $res_args[1], foreign_alias => $res_args[0] )
+
+    # where-is-waldo block guesses relname, then further down we override it if available
+    (
+      $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_resultobj    => $res_args[1] )
+    : $is_objlike[0] ? ( rel_name => $res_args[1], self_alias => 'me',         foreign_alias => $res_args[1], foreign_resultobj => $res_args[0] )
+    :                  ( rel_name => $res_args[0], self_alias => $res_args[1], foreign_alias => $res_args[0]                                    )
+    ),
+
+    ( $rel_name ? ( rel_name => $rel_name ) : () ),
   };
 #######################
 
@@ -1776,8 +1781,8 @@ sub _resolve_relationship_condition {
       self_resultsource => $self,
       self_alias => $args->{self_alias},
       foreign_alias => $args->{foreign_alias},
-      self_resultobj => (defined $args->{self_resultobj} ? $args->{self_resultobj} : undef),
-      foreign_resultobj => (defined $args->{foreign_resultobj} ? $args->{foreign_resultobj} : undef),
+      self_resultobj => $args->{self_resultobj},
+      foreign_resultobj => $args->{foreign_resultobj},
     };
 
     # legacy - never remove these!!!
