@@ -1704,11 +1704,10 @@ sub _resolve_condition {
     else {
       $res_args[$_] ||= {};
 
+      # hate everywhere - have to pass in as a plain hash
+      # pretending to be an object at least for now
       $self->throw_exception("Unsupported object-like structure encountered: $res_args[$_]")
         unless ref $res_args[$_] eq 'HASH';
-
-      # hate everywhere
-      $res_args[$_] = $self->relationship_info($rel_name)->{source}->result_class->new($res_args[$_]);
     }
   }
 
@@ -1881,7 +1880,16 @@ sub _resolve_relationship_condition {
       ;
 
       for my $i (0..$#$obj_cols) {
-        if (defined $args->{self_resultobj} and ! $obj->has_column_loaded($obj_cols->[$i])) {
+
+        # FIXME - temp shim
+        if (! blessed $obj) {
+          $cond->{"$plain_alias.$plain_cols->[$i]"} = $obj->{$obj_cols->[$i]};
+        }
+        elsif (
+          defined $args->{self_resultobj}
+            and
+          ! $obj->has_column_loaded($obj_cols->[$i])
+        ) {
 
           $self->throw_exception(sprintf
             "Unable to resolve relationship '%s' from object '%s': column '%s' not "
