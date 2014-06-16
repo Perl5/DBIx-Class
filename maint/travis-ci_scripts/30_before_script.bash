@@ -6,11 +6,16 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
 
-  # look through lib, find all mentioned ENVvars and set them
-  # to true and see if anything explodes
-  for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
+  # in addition to making sure tests do not rely on implicid order of
+  # returned results, look through lib, find all mentioned ENVvars and
+  # set them to true and see if anything explodes
+  for var in \
+    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
+    $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -v DBIC_TRACE)
+  do
     if [[ -z "${!var}" ]] ; then
       export $var=1
+      echo "POISON_ENV: setting $var to 1"
     fi
   done
 
@@ -18,8 +23,6 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
   export DBI_DRIVER="ADO"
 
-  # make sure tests do not rely on implicid order of returned results
-  export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
 
   # emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack
