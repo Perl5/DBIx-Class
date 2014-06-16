@@ -1,12 +1,10 @@
 use strict;
+use warnings;
 
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@" if $@;
-}
-
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
 {
     package Thing;

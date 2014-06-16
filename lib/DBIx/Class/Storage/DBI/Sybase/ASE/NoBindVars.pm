@@ -1,5 +1,8 @@
 package DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars;
 
+use warnings;
+use strict;
+
 use base qw/
   DBIx::Class::Storage::DBI::NoBindVars
   DBIx::Class::Storage::DBI::Sybase::ASE

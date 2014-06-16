@@ -3,14 +3,15 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/
-  DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI
-/;
-use mro 'c3';
+use base qw/DBIx::Class::Storage::DBI/;
+
+use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
+__PACKAGE__->sql_quote_char ('`');
+
+__PACKAGE__->_use_multicolumn_in (1);
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -33,6 +34,74 @@ sub _dbh_last_insert_id {
   $dbh->{mysql_insertid};
 }
 
+sub _prep_for_execute {
+  my $self = shift;
+  #(my $op, $ident, $args) = @_;
+
+  # Only update and delete need special double-subquery treatment
+  # Insert referencing the same table (i.e. SELECT MAX(id) + 1) seems
+  # to work just fine on MySQL
+  return $self->next::method(@_) if ( $_[0] eq 'select' or $_[0] eq 'insert' );
+
+
+  # FIXME FIXME FIXME - this is a terrible, gross, incomplete hack
+  # it should be trivial for mst to port this to DQ (and a good
+  # exercise as well, since we do not yet have such wide tree walking
+  # in place). For the time being this will work in limited cases,
+  # mainly complex update/delete, which is really all we want it for
+  # currently (allows us to fix some bugs without breaking MySQL in
+  # the process, and is also crucial for Shadow to be usable)
+
+  # extract the source name, construct modification indicator re
+  my $sm = $self->sql_maker;
+
+  my $target_name = $_[1]->from;
+
+  if (ref $target_name) {
+    if (
+      ref $target_name eq 'SCALAR'
+        and
+      $$target_name =~ /^ (?:
+          \` ( [^`]+ ) \` #`
+        | ( [\w\-]+ )
+      ) $/x
+    ) {
+      # this is just a plain-ish name, which has been literal-ed for
+      # whatever reason
+      $target_name = (defined $1) ? $1 : $2;
+    }
+    else {
+      # this is something very complex, perhaps a custom result source or whatnot
+      # can't deal with it
+      undef $target_name;
+    }
+  }
+
+  local $sm->{_modification_target_referenced_re} =
+      qr/ (?<!DELETE) [\s\)] (?: FROM | JOIN ) \s (?: \` \Q$target_name\E \` | \Q$target_name\E ) [\s\(] /xi
+    if $target_name;
+
+  $self->next::method(@_);
+}
+
+# here may seem like an odd place to override, but this is the first
+# method called after we are connected *and* the driver is determined
+# ($self is reblessed). See code flow in ::Storage::DBI::_populate_dbh
+sub _run_connection_actions {
+  my $self = shift;
+
+  # default mysql_auto_reconnect to off unless explicitly set
+  if (
+    $self->_dbh->{mysql_auto_reconnect}
+      and
+    ! exists $self->_dbic_connect_attributes->{mysql_auto_reconnect}
+  ) {
+    $self->_dbh->{mysql_auto_reconnect} = 0;
+  }
+
+  $self->next::method(@_);
+}
+
 # we need to figure out what mysql version we're running
 sub sql_maker {
   my $self = shift;
@@ -41,7 +110,7 @@ sub sql_maker {
     my $maker = $self->next::method (@_);
 
     # mysql 3 does not understand a bare JOIN
-    my $mysql_ver = $self->_get_dbh->get_info(18);
+    my $mysql_ver = $self->_dbh_get_info('SQL_DBMS_VER');
     $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
   }
 
@@ -60,7 +129,7 @@ sub deployment_statements {
 
   if (
     ! exists $sqltargs->{producer_args}{mysql_version}
-      and 
+      and
     my $dver = $self->_server_info->{normalized_dbms_version}
   ) {
     $sqltargs->{producer_args}{mysql_version} = $dver;
@@ -69,22 +138,22 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
-sub _svp_begin {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("SAVEPOINT $name");
+    $self->_dbh->do("SAVEPOINT $name");
 }
 
-sub _svp_release {
+sub _exec_svp_release {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("RELEASE SAVEPOINT $name");
+    $self->_dbh->do("RELEASE SAVEPOINT $name");
 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub is_replicating {
@@ -94,12 +163,6 @@ sub is_replicating {
 
 sub lag_behind_master {
     return shift->_get_dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
-}
-
-# MySql can not do subquery update/deletes, only way is slow per-row operations.
-# This assumes you have set proper transaction isolation and use innodb.
-sub _subq_update_delete {
-  return shift->_per_row_update_delete (@_);
 }
 
 1;
@@ -113,7 +176,7 @@ DBIx::Class::Storage::DBI::mysql - Storage::DBI class implementing MySQL specifi
 Storage::DBI autodetects the underlying MySQL database, and re-blesses the
 C<$storage> object into this class.
 
-  my $schema = MyDb::Schema->connect( $dsn, $user, $pass, { on_connect_call => 'set_strict_mode' } );
+  my $schema = MyApp::Schema->connect( $dsn, $user, $pass, { on_connect_call => 'set_strict_mode' } );
 
 =head1 DESCRIPTION
 

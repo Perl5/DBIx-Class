@@ -36,18 +36,21 @@ sub id {
 }
 
 sub _ident_values {
-  my ($self) = @_;
+  my ($self, $use_storage_state) = @_;
 
   my (@ids, @missing);
 
-  for ($self->_pri_cols) {
-    push @ids, $self->get_column($_);
+  for ($self->result_source->_pri_cols_or_die) {
+    push @ids, ($use_storage_state and exists $self->{_column_data_in_storage}{$_})
+      ? $self->{_column_data_in_storage}{$_}
+      : $self->get_column($_)
+    ;
     push @missing, $_ if (! defined $ids[-1] and ! $self->has_column_loaded ($_) );
   }
 
   if (@missing && $self->in_storage) {
     $self->throw_exception (
-      'Unable to uniquely identify row object with missing PK columns: '
+      'Unable to uniquely identify result object with missing PK columns: '
       . join (', ', @missing )
     );
   }
@@ -57,7 +60,7 @@ sub _ident_values {
 
 =head2 ID
 
-Returns a unique id string identifying a row object by primary key.
+Returns a unique id string identifying a result object by primary key.
 Used by L<DBIx::Class::CDBICompat::LiveObjectIndex> and
 L<DBIx::Class::ObjectCache>.
 
@@ -100,10 +103,18 @@ Produces a condition hash to locate a row based on the primary key(s).
 =cut
 
 sub ident_condition {
-  my ($self, $alias) = @_;
+  shift->_mk_ident_cond(@_);
+}
 
-  my @pks = $self->_pri_cols;
-  my @vals = $self->_ident_values;
+sub _storage_ident_condition {
+  shift->_mk_ident_cond(shift, 1);
+}
+
+sub _mk_ident_cond {
+  my ($self, $alias, $use_storage_state) = @_;
+
+  my @pks = $self->result_source->_pri_cols_or_die;
+  my @vals = $self->_ident_values($use_storage_state);
 
   my (%cond, @undef);
   my $prefix = defined $alias ? $alias.'.' : '';
@@ -115,7 +126,7 @@ sub ident_condition {
 
   if (@undef && $self->in_storage) {
     $self->throw_exception (
-      'Unable to construct row object identity condition due to NULL PK columns: '
+      'Unable to construct result object identity condition due to NULL PK columns: '
       . join (', ', @undef)
     );
   }
@@ -125,9 +136,9 @@ sub ident_condition {
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

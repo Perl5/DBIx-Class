@@ -109,7 +109,7 @@ Downgrades in addition to upgrades
 
 =item *
 
-Multiple sql files files per upgrade/downgrade/install
+Multiple sql files per upgrade/downgrade/install
 
 =item *
 
@@ -201,7 +201,7 @@ use strict;
 use warnings;
 use base 'DBIx::Class::Schema';
 
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Time::HiRes qw/gettimeofday/;
 use Try::Tiny;
 use namespace::clean;
@@ -298,7 +298,7 @@ sub create_upgrade_path {
 
 =over 4
 
-=item Returns: a list of version numbers, ordered from lowest to highest
+=item Return Value: a list of version numbers, ordered from lowest to highest
 
 =back
 
@@ -346,7 +346,7 @@ sub upgrade {
 
     # db and schema at same version. do nothing
     if ( $db_version eq $self->schema_version ) {
-        carp "Upgrade not necessary\n";
+        carp 'Upgrade not necessary';
         return;
     }
 
@@ -417,7 +417,7 @@ sub upgrade_single_step
 
   # db and schema at same version. do nothing
   if ($db_version eq $target_version) {
-    carp "Upgrade not necessary\n";
+    carp 'Upgrade not necessary';
     return;
   }
 
@@ -437,7 +437,7 @@ sub upgrade_single_step
   $self->create_upgrade_path({ upgrade_file => $upgrade_file });
 
   unless (-f $upgrade_file) {
-    carp "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
+    carp "Upgrade not possible, no upgrade file found ($upgrade_file), please create one";
     return;
   }
 
@@ -612,18 +612,18 @@ sub _on_connect
 
   if($pversion eq $self->schema_version)
     {
-#         carp "This version is already installed\n";
+        #carp "This version is already installed";
         return 1;
     }
 
   if(!$pversion)
     {
-        carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
+        carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.";
         return 1;
     }
 
   carp "Versions out of sync. This is " . $self->schema_version .
-    ", your database contains version $pversion, please call upgrade on your Schema.\n";
+    ", your database contains version $pversion, please call upgrade on your Schema.";
 }
 
 # is this just a waste of time? if not then merge with DBI.pm
@@ -684,7 +684,7 @@ sub _create_db_to_schema_diff {
   print $file $diff;
   close($file);
 
-  carp "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
+  carp "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.";
 }
 
 
@@ -719,7 +719,7 @@ sub _set_db_version {
       $dt[2],
       $dt[1],
       $dt[0],
-      $tm[1] / 1000, # convert to millisecs, format as up/down rounded int above
+      int($tm[1] / 1000), # convert to millisecs
     ),
   });
 }
@@ -757,10 +757,9 @@ sub _source_exists
 1;
 
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Jess Robinson <castaway@desert-island.me.uk>
-Luke Saunders <luke@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

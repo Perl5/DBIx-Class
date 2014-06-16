@@ -9,8 +9,6 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;
 
-plan tests => 44;
-
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
 $schema->storage->debug(1);
@@ -40,7 +38,7 @@ $schema->storage->debugobj->callback(undef);
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
     {
-      columns => [qw/title artist artist.name/], 
+      columns => [qw/title artist artist.name/],
       join => { 'artist' => {} }
     }
 );
@@ -52,7 +50,7 @@ $schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 $rs = $schema->resultset('Tag')->search(
-  {},
+  { 'me.tagid' => 1 },
   {
     prefetch => { cd => 'artist' }
   }
@@ -88,7 +86,7 @@ $queries = 0;
 
 $schema->storage->debugcb(sub { $queries++; });
 
-$cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' } });
+$cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' }, order_by => 'producer.producerid' });
 
 is($cd->producers->first->name, 'Matt S Trout', 'many_to_many accessor ok');
 
@@ -148,10 +146,11 @@ $rs = $schema->resultset("CD")->search(
 
 cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
-$rs = $schema->resultset("Artist")->search(
-  {},
-      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=> \'< 5' } }
-);
+$rs = $schema->resultset("Artist")->search({}, {
+  join => [qw/ cds /],
+  group_by => [qw/ me.name /],
+  having => \[ 'MAX(cds.cdid) < ?', [ \'int' => 5 ] ],
+});
 
 cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
 
@@ -215,7 +214,7 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
    'Tree search_related with prefetch ok');
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
-    { 'children.id' => 3, 'children_2.id' => 6 }, 
+    { 'children.id' => 3, 'children_2.id' => 6 },
     { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };
@@ -226,6 +225,13 @@ $rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
 $rs->create({ artistid => 5, name => 'Emo 4ever' });
 @artists = $rs->search(undef, { prefetch => 'cds', order_by => 'artistid' });
 is(scalar @artists, 5, 'has_many prefetch with adjacent empty rows ok');
+
+lives_ok { @artists = $rs->search(undef, {
+        join => ['cds'],
+        prefetch => [],
+        rows => 20,
+    });
+} 'join and empty prefetch ok';
 
 # -------------
 #
@@ -253,6 +259,11 @@ sub make_hash_struc {
     my $rs = shift;
 
     my $struc = {};
+    # all of these ought to work, but do not for some reason
+    # a noop cloning search() pollution?
+    #foreach my $art ( $rs->search({}, { order_by => 'me.artistid' })->all ) {
+    #foreach my $art ( $rs->search({}, {})->all ) {
+    #foreach my $art ( $rs->search()->all ) {
     foreach my $art ( $rs->all ) {
         foreach my $cd ( $art->cds ) {
             foreach my $track ( $cd->tracks ) {
@@ -278,12 +289,17 @@ is_deeply( $prefetch_result, $nonpre_result,
 
 $queries = 0;
 
-is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
-   'Fowlin',
-   'chained has_many->has_many search_related ok'
-  );
+is_deeply(
+  [ sort map { $_->title } $art_rs_pr->search_related('cds')->search_related('tracks')->all ],
+  [ 'Apiary', 'Beehind You', 'Boring Name', 'Boring Song', 'Fowlin', 'Howlin',
+    'No More Ideas', 'Sad', 'Sticky Honey', 'Stripy', 'Stung with Success',
+    'Suicidal', 'The Bees Knees', 'Under The Weather', 'Yowlin' ],
+  'chained has_many->has_many search_related ok'
+);
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
+
+done_testing;

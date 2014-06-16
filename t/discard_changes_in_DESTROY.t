@@ -15,7 +15,7 @@ my $schema = DBICTest->init_schema();
         local *DBICTest::Artist::DESTROY;
         local *DBICTest::Artist::DESTROY = sub { $_[0]->discard_changes };
 
-        my $artist = $schema->resultset("Artist")->create( { 
+        my $artist = $schema->resultset("Artist")->create( {
             artistid    => 10,
             name        => "artist number 10",
         });

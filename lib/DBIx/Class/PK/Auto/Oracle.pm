@@ -18,9 +18,9 @@ DBIx::Class::PK::Auto::Oracle - (DEPRECATED) Automatic primary key class for Ora
 
 Just load PK::Auto instead; auto-inc is now handled by Storage.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

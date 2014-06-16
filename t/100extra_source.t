@@ -55,7 +55,7 @@ warnings_like (
     isa_ok ($schema->resultset('Artist'), 'DBIx::Class::ResultSet');
   },
   [
-    qr/DBICTest::Artist already has a source, use register_extra_source for additional sources/
+    qr/DBICTest::Artist already had a registered source which was replaced by this call/
   ],
   'registering source to an existing result warns'
 );

@@ -1,131 +1,157 @@
 package DBIx::Class::Storage::DBI::ODBC::ACCESS;
+
 use strict;
 use warnings;
-
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC
+  DBIx::Class::Storage::DBI::ACCESS
+/;
 use mro 'c3';
 
-use DBI;
+__PACKAGE__->mk_group_accessors(inherited =>
+  'disable_sth_caching_for_image_insert_or_update'
+);
 
-my $ERR_MSG_START = __PACKAGE__ . ' failed: ';
-
-__PACKAGE__->sql_limit_dialect ('Top');
-
-sub insert {
-    my $self = shift;
-    my ( $source, $to_insert ) = @_;
-
-    my $bind_attributes = $self->source_bind_attributes( $source );
-    my ( undef, $sth ) = $self->_execute( 'insert' => [], $source, $bind_attributes, $to_insert );
-
-    #store the identity here since @@IDENTITY is connection global and this prevents
-    #possibility that another insert to a different table overwrites it for this resultsource
-    my $identity = 'SELECT @@IDENTITY';
-    my $max_sth  = $self->{ _dbh }->prepare( $identity )
-        or $self->throw_exception( $ERR_MSG_START . $self->{ _dbh }->errstr() );
-    $max_sth->execute() or $self->throw_exception( $ERR_MSG_START . $max_sth->errstr );
-
-    my $row = $max_sth->fetchrow_arrayref()
-        or $self->throw_exception( $ERR_MSG_START . "$identity did not return any result." );
-
-    $self->{ last_pk }->{ $source->name() } = $row;
-
-    return $to_insert;
-}
-
-sub last_insert_id {
-    my $self = shift;
-    my ( $result_source ) = @_;
-
-    return @{ $self->{ last_pk }->{ $result_source->name() } };
-}
-
-sub bind_attribute_by_data_type {
-    my $self = shift;
-
-    my ( $data_type ) = @_;
-
-    return { TYPE => $data_type } if $data_type == DBI::SQL_LONGVARCHAR;
-
-    return;
-}
-
-sub sqlt_type { 'ACCESS' }
-
-1;
+__PACKAGE__->disable_sth_caching_for_image_insert_or_update(1);
 
 =head1 NAME
 
 DBIx::Class::Storage::DBI::ODBC::ACCESS - Support specific to MS Access over ODBC
 
-=head1 WARNING
-
-I am not a DBI, DBIx::Class or MS Access guru. Use this module with that in
-mind.
-
-This module is currently considered alpha software and can change without notice.
-
 =head1 DESCRIPTION
 
 This class implements support specific to Microsoft Access over ODBC.
 
-It is loaded automatically by by DBIx::Class::Storage::DBI::ODBC when it
+It is a subclass of L<DBIx::Class::Storage::DBI::ODBC> and
+L<DBIx::Class::Storage::DBI::ACCESS>, see those classes for more
+information.
+
+It is loaded automatically by L<DBIx::Class::Storage::DBI::ODBC> when it
 detects a MS Access back-end.
 
-=head1 SUPPORTED VERSIONS
+This driver implements workarounds for C<IMAGE> and C<MEMO> columns, and
+L<DBIx::Class::InflateColumn::DateTime> support for C<DATETIME> columns.
 
-This module have currently only been tested on MS Access 2003 using the Jet 4.0 engine.
+=head1 EXAMPLE DSN
 
-As far as my knowledge it should work on MS Access 2000 or later, but that have not been tested.
-Information about support for different version of MS Access is welcome.
+  dbi:ODBC:driver={Microsoft Access Driver (*.mdb, *.accdb)};dbq=C:\Users\rkitover\Documents\access_sample.accdb
 
-=head1 IMPLEMENTATION NOTES
+=head1 TEXT/IMAGE/MEMO COLUMNS
 
-MS Access supports the @@IDENTITY function for retrieving the id of the latest inserted row.
-@@IDENTITY is global to the connection, so to support the possibility of getting the last inserted
-id for different tables, the insert() function stores the inserted id on a per table basis.
-last_insert_id() then just returns the stored value.
+Avoid using C<TEXT> columns as they will be truncated to 255 bytes. Some other
+drivers (like L<ADO|DBIx::Class::Storage::DBI::ADO::MS_Jet>) will automatically
+convert C<TEXT> columns to C<MEMO>, but the ODBC driver does not.
 
-=head1 KNOWN ACCESS PROBLEMS
+C<IMAGE> columns work correctly, but the statements for inserting or updating an
+C<IMAGE> column will not be L<cached|DBI/prepare_cached>, due to a bug in the
+Access ODBC driver.
 
-=over
-
-=item Invalid precision value
-
-This error message is received when trying to store more than 255 characters in a MEMO field.
-The problem is (to my knowledge) an error in the MS Access ODBC driver. The problem is fixed
-by setting the C<data_type> of the column to C<SQL_LONGVARCHAR> in C<add_columns>. 
-C<SQL_LONGVARCHAR> is a constant in the C<DBI> module.
-
-=back
-
-=head1 IMPLEMENTED FUNCTIONS
-
-=head2 bind_attribute_by_data_type
-
-This function currently supports the SQL_LONGVARCHAR column type.
-
-=head2 insert
-
-=head2 last_insert_id
-
-=head2 sqlt_type
-
-=head1 BUGS
-
-Most likely. Bug reports are welcome.
-
-=head1 AUTHORS
-
-Øystein Torget C<< <oystein.torget@dnv.com> >>
-
-=head1 COPYRIGHT
-
-You may distribute this code under the same terms as Perl itself.
-
-Det Norske Veritas AS (DNV)
-
-http://www.dnv.com
+C<MEMO> columns work correctly as well, but you must take care to set
+L<LongReadLen|DBI/LongReadLen> to C<$max_memo_size * 2 + 1>. This is done for
+you automatically if you pass L<LongReadLen|DBI/LongReadLen> in your
+L<connect_info|DBIx::Class::Storage::DBI/connect_info>; but if you set this
+attribute directly on the C<$dbh>, keep this limitation in mind.
 
 =cut
 
+# set LongReadLen = LongReadLen * 2 + 1 (see docs on MEMO)
+sub _run_connection_actions {
+  my $self = shift;
+
+  my $long_read_len = $self->_dbh->{LongReadLen};
+
+  # 80 is another default (just like 0) on some drivers
+  if ($long_read_len != 0 && $long_read_len != 80) {
+    $self->_dbh->{LongReadLen} = $long_read_len * 2 + 1;
+  }
+
+  # batch operations do not work
+  $self->_disable_odbc_array_ops;
+
+  return $self->next::method(@_);
+}
+
+sub insert {
+  my $self = shift;
+  my ($source, $to_insert) = @_;
+
+  my $columns_info = $source->columns_info;
+
+  my $is_image_insert = 0;
+
+  for my $col (keys %$to_insert) {
+    if ($self->_is_binary_lob_type($columns_info->{$col}{data_type})) {
+      $is_image_insert = 1;
+      last;
+    }
+  }
+
+  local $self->{disable_sth_caching} = 1 if $is_image_insert
+    && $self->disable_sth_caching_for_image_insert_or_update;
+
+  return $self->next::method(@_);
+}
+
+sub update {
+  my $self = shift;
+  my ($source, $fields) = @_;
+
+  my $columns_info = $source->columns_info;
+
+  my $is_image_insert = 0;
+
+  for my $col (keys %$fields) {
+    if ($self->_is_binary_lob_type($columns_info->{$col}{data_type})) {
+      $is_image_insert = 1;
+      last;
+    }
+  }
+
+  local $self->{disable_sth_caching} = 1 if $is_image_insert
+    && $self->disable_sth_caching_for_image_insert_or_update;
+
+  return $self->next::method(@_);
+}
+
+sub datetime_parser_type {
+  'DBIx::Class::Storage::DBI::ODBC::ACCESS::DateTime::Format'
+}
+
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::ODBC::ACCESS::DateTime::Format;
+
+my $datetime_format = '%Y-%m-%d %H:%M:%S'; # %F %T, no fractional part
+my $datetime_parser;
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_format,
+    on_error => 'croak',
+  );
+  return $datetime_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_format,
+    on_error => 'croak',
+  );
+  return $datetime_parser->format_datetime(shift);
+}
+
+1;
+
+=head1 AUTHOR
+
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+# vim:sts=2 sw=2:

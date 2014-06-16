@@ -6,34 +6,25 @@ use warnings;
 use base qw/DBIx::Class/;
 use mro 'c3';
 
-use DBIx::Class::Exception;
-use Scalar::Util 'weaken';
-use IO::File;
+{
+  package # Hide from PAUSE
+    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
+  use base 'DBIx::Class::Exception';
+}
+
+use DBIx::Class::Carp;
+use DBIx::Class::Storage::BlockRunner;
+use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/debug schema/);
-__PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
+__PACKAGE__->mk_group_accessors(simple => qw/debug schema transaction_depth auto_savepoint savepoints/);
+__PACKAGE__->mk_group_accessors(component_class => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 
 sub cursor { shift->cursor_class(@_); }
-
-package # Hide from PAUSE
-    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
-
-use overload '"' => sub {
-  'DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION'
-};
-
-sub new {
-  my $class = shift;
-  my $self = {};
-  return bless $self, $class;
-}
-
-package DBIx::Class::Storage;
 
 =head1 NAME
 
@@ -59,8 +50,10 @@ sub new {
 
   $self = ref $self if ref $self;
 
-  my $new = {};
-  bless $new, $self;
+  my $new = bless( {
+    transaction_depth => 0,
+    savepoints => [],
+  }, $self);
 
   $new->set_schema($schema);
   $new->debug(1)
@@ -159,7 +152,7 @@ For example,
   } catch {
     my $error = shift;
     # Transaction failed
-    die "something terrible has happened!"   #
+    die "something terrible has happened!"
       if ($error =~ /Rollback failed/);          # Rollback failed
 
     deal_with_failed_transaction();
@@ -182,54 +175,16 @@ transaction failure.
 
 sub txn_do {
   my $self = shift;
-  my $coderef = shift;
 
-  ref $coderef eq 'CODE' or $self->throw_exception
-    ('$coderef must be a CODE reference');
-
-  my (@return_values, $return_value);
-
-  $self->txn_begin; # If this throws an exception, no rollback is needed
-
-  my $wantarray = wantarray; # Need to save this since the context
-                             # inside the try{} block is independent
-                             # of the context that called txn_do()
-  my $args = \@_;
-
-  try {
-
-    # Need to differentiate between scalar/list context to allow for
-    # returning a list in scalar context to get the size of the list
-    if ($wantarray) {
-      # list context
-      @return_values = $coderef->(@$args);
-    } elsif (defined $wantarray) {
-      # scalar context
-      $return_value = $coderef->(@$args);
-    } else {
-      # void context
-      $coderef->(@$args);
-    }
-    $self->txn_commit;
-  }
-  catch {
-    my $error = shift;
-
-    try {
-      $self->txn_rollback;
-    } catch {
-      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-      $self->throw_exception($error)  # propagate nested rollback
-        if $_ =~ /$exception_class/;
-
-      $self->throw_exception(
-        "Transaction aborted: $error. Rollback failed: $_"
-      );
-    }
-    $self->throw_exception($error); # txn failed but rollback succeeded
-  };
-
-  return wantarray ? @return_values : $return_value;
+  DBIx::Class::Storage::BlockRunner->new(
+    storage => $self,
+    wrap_txn => 1,
+    retry_handler => sub {
+      $_[0]->failed_attempt_count == 1
+        and
+      ! $_[0]->storage->connected
+    },
+  )->run(@_);
 }
 
 =head2 txn_begin
@@ -241,7 +196,20 @@ an entire code block to be executed transactionally.
 
 =cut
 
-sub txn_begin { die "Virtual method!" }
+sub txn_begin {
+  my $self = shift;
+
+  if($self->transaction_depth == 0) {
+    $self->debugobj->txn_begin()
+      if $self->debug;
+    $self->_exec_txn_begin;
+  }
+  elsif ($self->auto_savepoint) {
+    $self->svp_begin;
+  }
+  $self->{transaction_depth}++;
+
+}
 
 =head2 txn_commit
 
@@ -252,7 +220,22 @@ transaction currently in effect (i.e. you called L</txn_begin>).
 
 =cut
 
-sub txn_commit { die "Virtual method!" }
+sub txn_commit {
+  my $self = shift;
+
+  if ($self->transaction_depth == 1) {
+    $self->debugobj->txn_commit() if $self->debug;
+    $self->_exec_txn_commit;
+    $self->{transaction_depth}--;
+  }
+  elsif($self->transaction_depth > 1) {
+    $self->{transaction_depth}--;
+    $self->svp_release if $self->auto_savepoint;
+  }
+  else {
+    $self->throw_exception( 'Refusing to commit without a started transaction' );
+  }
+}
 
 =head2 txn_rollback
 
@@ -262,7 +245,31 @@ which allows the rollback to propagate to the outermost transaction.
 
 =cut
 
-sub txn_rollback { die "Virtual method!" }
+sub txn_rollback {
+  my $self = shift;
+
+  if ($self->transaction_depth == 1) {
+    $self->debugobj->txn_rollback() if $self->debug;
+    $self->_exec_txn_rollback;
+    $self->{transaction_depth}--;
+  }
+  elsif ($self->transaction_depth > 1) {
+    $self->{transaction_depth}--;
+
+    if ($self->auto_savepoint) {
+      $self->svp_rollback;
+      $self->svp_release;
+    }
+    else {
+      DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->throw(
+        "A txn_rollback in nested transaction is ineffective! (depth $self->{transaction_depth})"
+      );
+    }
+  }
+  else {
+    $self->throw_exception( 'Refusing to roll back without a started transaction' );
+  }
+}
 
 =head2 svp_begin
 
@@ -273,7 +280,30 @@ is provided, a random name will be used.
 
 =cut
 
-sub svp_begin { die "Virtual method!" }
+sub svp_begin {
+  my ($self, $name) = @_;
+
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_begin')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  $name = $self->_svp_generate_name
+    unless defined $name;
+
+  push @{ $self->{savepoints} }, $name;
+
+  $self->debugobj->svp_begin($name) if $self->debug;
+
+  $exec->($self, $name);
+}
+
+sub _svp_generate_name {
+  my ($self) = @_;
+  return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
+}
+
 
 =head2 svp_release
 
@@ -285,7 +315,35 @@ release all savepoints created after the one explicitly released as well.
 
 =cut
 
-sub svp_release { die "Virtual method!" }
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_release')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  if (defined $name) {
+    my @stack = @{ $self->savepoints };
+    my $svp;
+
+    do { $svp = pop @stack } until $svp eq $name;
+
+    $self->throw_exception ("Savepoint '$name' does not exist")
+      unless $svp;
+
+    $self->savepoints(\@stack); # put back what's left
+  }
+  else {
+    $name = pop @{ $self->savepoints }
+      or $self->throw_exception('No savepoints to release');;
+  }
+
+  $self->debugobj->svp_release($name) if $self->debug;
+
+  $exec->($self, $name);
+}
 
 =head2 svp_rollback
 
@@ -297,9 +355,39 @@ release all savepoints created after the savepoint we rollback to.
 
 =cut
 
-sub svp_rollback { die "Virtual method!" }
+sub svp_rollback {
+  my ($self, $name) = @_;
 
-=for comment
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    unless $self->transaction_depth;
+
+  my $exec = $self->can('_exec_svp_rollback')
+    or $self->throw_exception ("Your Storage implementation doesn't support savepoints");
+
+  if (defined $name) {
+    my @stack = @{ $self->savepoints };
+    my $svp;
+
+    # a rollback doesn't remove the named savepoint,
+    # only everything after it
+    while (@stack and $stack[-1] ne $name) {
+      pop @stack
+    };
+
+    $self->throw_exception ("Savepoint '$name' does not exist")
+      unless @stack;
+
+    $self->savepoints(\@stack); # put back what's left
+  }
+  else {
+    $name = $self->savepoints->[-1]
+      or $self->throw_exception('No savepoints to rollback');;
+  }
+
+  $self->debugobj->svp_rollback($name) if $self->debug;
+
+  $exec->($self, $name);
+}
 
 =head2 txn_scope_guard
 
@@ -308,8 +396,8 @@ L<DBIx::Class::Storage::TxnScopeGuard>:
 
  my $txn_guard = $storage->txn_scope_guard;
 
- $row->col1("val1");
- $row->update;
+ $result->col1("val1");
+ $result->update;
 
  $txn_guard->commit;
 
@@ -338,8 +426,8 @@ sub sql_maker { die "Virtual method!" }
 
 =head2 debug
 
-Causes trace information to be emitted on the C<debugobj> object.
-(or C<STDERR> if C<debugobj> has not specifically been set).
+Causes trace information to be emitted on the L</debugobj> object.
+(or C<STDERR> if L</debugobj> has not specifically been set).
 
 This is the equivalent to setting L</DBIC_TRACE> in your
 shell environment.
@@ -347,7 +435,7 @@ shell environment.
 =head2 debugfh
 
 Set or retrieve the filehandle used for trace/debug output.  This should be
-an IO::Handle compatible object (only the C<print> method is used.  Initially
+an IO::Handle compatible object (only the C<print> method is used).  Initially
 set to be STDERR - although see information on the
 L<DBIC_TRACE> environment variable.
 
@@ -380,6 +468,8 @@ sub debugobj {
   $self->{debugobj} ||= do {
     if (my $profile = $ENV{DBIC_TRACE_PROFILE}) {
       require DBIx::Class::Storage::Debug::PrettyPrint;
+      my @pp_args;
+
       if ($profile =~ /^\.?\//) {
         require Config::Any;
 
@@ -391,10 +481,28 @@ sub debugobj {
           $self->throw_exception("Failure processing \$ENV{DBIC_TRACE_PROFILE}: $_");
         };
 
-        DBIx::Class::Storage::Debug::PrettyPrint->new(values %{$cfg->[0]});
+        @pp_args = values %{$cfg->[0]};
       }
       else {
-        DBIx::Class::Storage::Debug::PrettyPrint->new({ profile => $profile });
+        @pp_args = { profile => $profile };
+      }
+
+      # FIXME - FRAGILE
+      # Hash::Merge is a sorry piece of shit and tramples all over $@
+      # *without* throwing an exception
+      # This is a rather serious problem in the debug codepath
+      # Insulate the condition here with a try{} until a review of
+      # DBIx::Class::Storage::Debug::PrettyPrint takes place
+      # we do rethrow the error unconditionally, the only reason
+      # to try{} is to preserve the precise state of $@ (down
+      # to the scalar (if there is one) address level)
+      #
+      # Yes I am aware this is fragile and TxnScopeGuard needs
+      # a better fix. This is another yak to shave... :(
+      try {
+        DBIx::Class::Storage::Debug::PrettyPrint->new(@pp_args);
+      } catch {
+        $self->throw_exception($_);
       }
     }
     else {
@@ -410,7 +518,7 @@ Sets a callback to be executed each time a statement is run; takes a sub
 reference.  Callback is executed as $sub->($op, $info) where $op is
 SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
 
-See L<debugobj> for a better way.
+See L</debugobj> for a better way.
 
 =cut
 
@@ -507,7 +615,7 @@ sub columns_info_for { die "Virtual method!" }
 =head2 DBIC_TRACE
 
 If C<DBIC_TRACE> is set then trace information
-is produced (as when the L<debug> method is set).
+is produced (as when the L</debug> method is set).
 
 If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
@@ -519,7 +627,7 @@ re-connect on your schema.
 
 =head2 DBIC_TRACE_PROFILE
 
-If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::PrettyPrint>
+If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::Debug::PrettyPrint>
 will be used to format the output from C<DBIC_TRACE>.  The value it
 is set to is the C<profile> that it will be used.  If the value is a
 filename the file is read with L<Config::Any> and the results are
@@ -536,11 +644,9 @@ Old name for DBIC_TRACE
 L<DBIx::Class::Storage::DBI> - reference storage implementation using
 SQL::Abstract and DBI.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-Andy Grundman <andy@hybridized.org>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

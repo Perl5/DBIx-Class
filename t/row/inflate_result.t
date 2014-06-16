@@ -1,3 +1,11 @@
+use warnings;
+use strict;
+
+use Test::More;
+
+use lib qw(t/lib);
+use DBICTest;
+
 package My::Schema::Result::User;
 
 use strict;
@@ -58,12 +66,6 @@ My::Schema->register_class( User  => 'My::Schema::Result::User' );
 1;
 
 package main;
-
-use lib qw(t/lib);
-use DBICTest;
-
-use Test::More;
-
 my $user_data = {
     email    => 'someguy@place.com',
     password => 'pass1',
@@ -76,7 +78,7 @@ my $admin_data = {
     admin    => 1
 };
 
-ok( my $schema = My::Schema->connection(DBICTest->_database) );
+ok( my $schema = My::Schema->connect(DBICTest->_database) );
 
 ok(
     $schema->storage->dbh->do(
@@ -84,13 +86,14 @@ ok(
     )
 );
 
-TODO: {
-    local $TODO = 'New objects should also be inflated';
-    my $user  = $schema->resultset('User')->create($user_data);
-    my $admin = $schema->resultset('User')->create($admin_data);
+{
+  my $user  = $schema->resultset('User')->create($user_data);
+  my $admin = $schema->resultset('User')->create($admin_data);
 
-    is( ref $user,  'My::Schema::Result::User' );
-    is( ref $admin, 'My::Schema::Result::User::Admin' );
+  is( ref $user,  'My::Schema::Result::User' );
+
+  local $TODO = 'New objects should also be inflated';
+  is( ref $admin, 'My::Schema::Result::User::Admin' );
 }
 
 my $user  = $schema->resultset('User')->single($user_data);

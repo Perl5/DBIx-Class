@@ -12,7 +12,7 @@ support.
 
 =head2 Active Community
 
-Currently (June 9, 2010) 6 active branches (commited to
+Currently (June 9, 2010) 6 active branches (committed to
 in the last two weeks) in git.  Last release (0.08122)
 had 14 new features, and 16 bug fixes.  Of course that
 L<ebbs and flows|http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=blob;f=Changes>.)
@@ -171,7 +171,7 @@ See L<DBIx::Class::Row/delete>
 
 =back
 
-=head2 OO Overidability
+=head2 OO Overridability
 
 =over 1
 
@@ -254,11 +254,11 @@ Create a DBIx::Class schema from your database.
 
  my $schema = Frew::Schema->connect( $dsn, $user, $pass );
 
-See L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base/CONSTRUCTOR_OPTIONS>.
+See L<DBIx::Class::Schema::Loader> and L<DBIx::Class::Schema::Loader::Base/CONSTRUCTOR OPTIONS>.
 
 =head2 Populate
 
-Made for inserting lots of rows very quicky into database
+Made for inserting lots of rows very quickly into database
 
  $schema->populate([ Users =>
     [qw( username password )],
@@ -274,7 +274,7 @@ I use populate L<here|http://blog.afoolishmanifesto.com/archives/1255> to export
 
 =head2 Multicreate
 
-Create an object and it's related objects all at once
+Create an object and its related objects all at once
 
  $schema->resultset('Author')->create({
     name => 'Stephen King',
@@ -495,7 +495,7 @@ See: L<DBIx::Class::ResultSet/related_resultset>, L<DBIx::ClassResultSet/search_
 
 See L<DBIx::Class::Relationship::Base/create_related> and L<DBIx::Class::Relationship::Base/add_to_$rel>
 
-Note that it automaticaly fills in foreign key for you
+Note that it automatically fills in foreign key for you
 
 =head2 Excellent Transaction Support
 
@@ -597,7 +597,7 @@ See L<DBIx::Class::ResultSetColumn>
  for (@res) {
     say $_->price . ' ' . $_->genre;
     say $_->get_column('max_price');
-    say $_->get_column('min_price');
+    say $_->get_column('avg_price');
  }
 
 See L<DBIx::Class::ResultSet/select>, L<DBIx::Class::ResultSet/as>, and
@@ -605,7 +605,7 @@ L<DBIx::Class::ResultSet/group_by>
 
 =over 1
 
-=item Careful, get_column can basicaly mean B<three> things
+=item Careful, get_column can basically mean B<three> things
 
 =item private in which case you should use an accessor
 
@@ -646,7 +646,7 @@ See L<DBIx::Class::ResultSet/result_class> and L<DBIx::Class::ResultClass::HashR
      artist_id => { -in => $inner_query },
  });
 
-See L<DBIx::Class::Manual::Cookbook#Subqueries>
+See L<DBIx::Class::Manual::Cookbook/Subqueries>
 
 =head2 Bare SQL w/ Placeholders
 
@@ -661,5 +661,5 @@ Better:
     price => \['price + ?', [inc => $inc]],
  });
 
-See L<SQL::Abstract#Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
+See L<SQL::Abstract/Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
 

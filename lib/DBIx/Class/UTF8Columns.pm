@@ -32,7 +32,7 @@ stored and de-serialised to unicode strings on retrieval.
   STRONGLY DISCOURAGED, PLEASE READ THE WARNINGS BELOW FOR AN EXPLANATION.
 
 If you want to continue using this module and do not want to receive
-further warnings set the environmane variable C<DBIC_UTF8COLUMNS_OK>
+further warnings set the environment variable C<DBIC_UTF8COLUMNS_OK>
 to a true value.
 
 =head2 Warning - Module does not function properly on create/insert
@@ -44,7 +44,7 @@ L<get_columns|DBIx::Class::Row/get_columns>. As a result of this problem
 L<create|DBIx::Class::ResultSet/create> sends the original column values
 to the database, while L<update|DBIx::Class::ResultSet/update> sends the
 encoded values. L<DBIx::Class::UTF8Columns> and L<DBIx::Class::ForceUTF8>
-are both affected by ths bug.
+are both affected by this bug.
 
 It is unclear how this bug went undetected for so long (it was
 introduced in March 2006), No attempts to fix it will be made while the
@@ -54,7 +54,7 @@ this module anyway as Unicode is properly supported by all major
 database engines, as explained below.
 
 If you have specific questions about the integrity of your data in light
-of this development - please 
+of this development - please
 L<join us on IRC or the mailing list|DBIx::Class/GETTING HELP/SUPPORT>
 to further discuss your concerns with the team.
 
@@ -143,7 +143,7 @@ sub get_columns {
 sub store_column {
     my ( $self, $column, $value ) = @_;
 
-    # the dirtyness comparison must happen on the non-encoded value
+    # the dirtiness comparison must happen on the non-encoded value
     my $copy;
 
     if ( defined $value and $self->_is_utf8_column($column) and utf8::is_utf8($value) ) {

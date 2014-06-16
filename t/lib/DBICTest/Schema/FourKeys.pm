@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::FourKeys;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -10,7 +13,7 @@ __PACKAGE__->add_columns(
   'hello' => { data_type => 'integer' },
   'goodbye' => { data_type => 'integer' },
   'sensors' => { data_type => 'character', size => 10 },
-  'read_count' => { data_type => 'integer', is_nullable => 1 },
+  'read_count' => { data_type => 'int', is_nullable => 1 },
 );
 __PACKAGE__->set_primary_key(qw/foo bar hello goodbye/);
 

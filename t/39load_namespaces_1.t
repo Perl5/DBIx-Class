@@ -13,9 +13,9 @@ eval {
     __PACKAGE__->load_namespaces;
 };
 ok(!$@, 'load_namespaces doesnt die') or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding Result class/, 'Found warning about extra ResultSet classes');
+like($warnings, qr/load_namespaces found ResultSet class 'DBICNSTest::ResultSet::C' with no corresponding Result class/, 'Found warning about extra ResultSet classes');
 
-like($warnings, qr/load_namespaces found ResultSet class DBICNSTest::ResultSet::D that does not subclass DBIx::Class::ResultSet/, 'Found warning about ResultSets with incorrect subclass');
+like($warnings, qr/load_namespaces found ResultSet class 'DBICNSTest::ResultSet::D' that does not subclass DBIx::Class::ResultSet/, 'Found warning about ResultSets with incorrect subclass');
 
 my $source_a = DBICNSTest->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');

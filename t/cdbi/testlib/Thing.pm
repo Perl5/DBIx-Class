@@ -1,4 +1,8 @@
 package Thing;
+
+use warnings;
+use strict;
+
 use base 'DBIC::Test::SQLite';
 
 Thing->set_table("thing");

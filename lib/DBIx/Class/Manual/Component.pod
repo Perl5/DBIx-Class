@@ -27,7 +27,7 @@ by prepending the component name with a +.
 
   __PACKAGE__->load_components(qw/ +My::Component /);
 
-Once a component is loaded all of it's methods, or otherwise,
+Once a component is loaded all of its methods, or otherwise,
 that it provides will be available in your class.
 
 The order in which is you load the components may be very
@@ -69,11 +69,9 @@ that are loaded first are the first ones in the inheritance stack.  So, if
 you override insert() but the DBIx::Class::Row component is loaded first
 then your insert() will never be called, since the DBIx::Class::Row insert()
 will be called first.  If you are unsure as to why a given method is not
-being called try printing out the Class::C3 inheritance stack.
+being called try printing out the current linearized MRO.
 
-  print join ', ' => Class::C3::calculateMRO('YourClass::Name');
-
-Check out the L<Class::C3> docs for more information about inheritance.
+  print join ', ' => mro::get_linear_isa('YourClass::Name');
 
 =head1 EXISTING COMPONENTS
 

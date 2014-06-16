@@ -18,16 +18,11 @@ Using inflated objects/references as values in searches
 
 SQL/API feature complete?
  - UNION
- - proper join conditions!
  - function calls on the LHS of conditions..
 
 Moosification - ouch
 
 Metamodel stuff - introspection
-
-Prefetch improvements
- - slow on mysql, speedup?
- - multi has_many prefetch
 
 Magically "discover" needed joins/prefetches and add them
  - eg $books->search({ 'author.name' => 'Fred'}), autoadds: join => 'author'
@@ -40,9 +35,6 @@ Storage API/restructure
 
 Relationships
  - single vs filter, discrepancies.. remove one of them and make behave the same?
-
-Joining/searching weird attribute tables?
- - Support legacy/badly designed junk better..
 
 Documentation - improvements
  - better indexing for finding of stuff in general

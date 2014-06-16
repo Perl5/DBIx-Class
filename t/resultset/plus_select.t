@@ -20,7 +20,7 @@ my %basecols = $cd_rs->first->get_columns;
 # ramifications of changing this. Thus the value override  and the
 # TODO to go with it. Delete all of this if ever resolved.
 my %todo_rel_inflation_override = ( artist => $basecols{artist} );
-TODO: {
+{
   local $TODO = 'Treating relationships as inflatable data is wrong - see comment in ' . __FILE__;
   ok (! keys %todo_rel_inflation_override);
 }

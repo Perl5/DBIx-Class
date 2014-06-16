@@ -26,9 +26,10 @@ my $code = sub {
     (ref $schema)->txn_do(sub{});
   }, qr/storage/, "can't call txn_do without storage");
 
-  throws_ok ( sub {
+  throws_ok {
     $schema->txn_do('');
-  }, qr/must be a CODE reference/, '$coderef parameter check ok');
+  } qr/\Qrun() requires a coderef to execute as its first argument/,
+  '$coderef parameter check ok';
 }
 
 # Test successful txn_do() - scalar/list context
@@ -112,7 +113,7 @@ for my $want (0,1) {
       die "$$ starts in txn!" if $s->storage->transaction_depth != 0;
       $s->txn_do ( sub {
         die "$$ not in txn!" if $s->storage->transaction_depth == 0;
-        $s->storage->dbh->do('SELECT 1') } 
+        $s->storage->dbh->do('SELECT 1') }
       );
       die "$$ did not finish txn!" if $s->storage->transaction_depth != 0;
     },
@@ -160,13 +161,13 @@ for my $want (0,1) {
         my $guard = $schema->txn_scope_guard;
         $schema->txn_do( sub { die } );
       };
+      is( $schema->storage->transaction_depth, 0, 'Transaction successfully aborted' );
       $schema->txn_do( sub {
         ok ($schema->storage->_dbh->do ('SELECT 1'), "Query after exceptions ok ($_)");
       });
     }
 
     $schema->txn_do ( sub { _test_forking_action ($schema, $pass) } );
-
   }
 }
 
@@ -182,6 +183,7 @@ for my $want (0,1) {
         my $guard = $schema->txn_scope_guard;
         $schema->txn_do( sub { die } );
       };
+      is( $schema->storage->transaction_depth, 0, 'Transaction successfully aborted' );
       $schema->txn_do( sub {
         ok ($schema->storage->_dbh->do ('SELECT 1'), "Query after exceptions ok ($_)");
       });
@@ -283,14 +285,14 @@ my $fail_code = sub {
     my $artist = $schema->resultset('Artist')->find(3);
 
     # Force txn_rollback() to throw an exception
-    no warnings 'redefine';
-    no strict 'refs';
+    no warnings qw/once redefine/;
 
-    # die in rollback
-    local *{"DBIx::Class::Storage::DBI::SQLite::txn_rollback"} = sub{
-      my $storage = shift;
-      die 'FAILED';
-    };
+    # this should logically work just fine - but it does not,
+    # only direct override of the existing method dtrt
+    #local *DBIx::Class::Storage::DBI::SQLite::txn_rollback = sub { die 'FAILED' };
+
+    local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'FAILED' };
+    Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
     throws_ok (
       sub {
@@ -348,7 +350,9 @@ my $fail_code = sub {
   ok(!defined($cd), q{failed txn_do didn't add failed txn's cd});
 }
 
+
 # Grab a new schema to test txn before connect
+# also test nested txn exception
 {
   my $schema = DBICTest->init_schema(no_deploy => 1);
   lives_ok (sub {
@@ -356,16 +360,15 @@ my $fail_code = sub {
     $schema->txn_begin();
   }, 'Pre-connection nested transactions.');
 
-  # although not connected DBI would still warn about rolling back at disconnect
-  $schema->txn_rollback;
-  $schema->txn_rollback;
+  throws_ok( sub { $schema->txn_rollback }, 'DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION', 'got proper nested rollback exception' );
 }
 
 # make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
 warnings_are {
-  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  my $factory = DBICTest->init_schema;
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
+  $dbh->{AutoCommit} = 0;
 
   ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
   my $schema = DBICTest::Schema->connect (sub { $dbh });
@@ -385,13 +388,13 @@ warnings_are {
 
 # make sure AutoCommit => 0 on external handles behaves correctly with txn_do
 warnings_are {
-  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  my $factory = DBICTest->init_schema;
   cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
   my $dbh = $factory->storage->dbh;
+  $dbh->{AutoCommit} = 0;
 
   ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
   my $schema = DBICTest::Schema->connect (sub { $dbh });
-
 
   lives_ok ( sub {
     $schema->txn_do (sub { $schema->resultset ('CD')->delete });

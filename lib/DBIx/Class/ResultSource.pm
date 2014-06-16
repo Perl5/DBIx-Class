@@ -3,24 +3,32 @@ package DBIx::Class::ResultSource;
 use strict;
 use warnings;
 
+use base qw/DBIx::Class::ResultSource::RowParser DBIx::Class/;
+
 use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
-use DBIx::Class::Exception;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
+use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
+use Scalar::Util qw/blessed weaken isweak/;
+
 use namespace::clean;
 
-use base qw/DBIx::Class/;
+__PACKAGE__->mk_group_accessors(simple => qw/
+  source_name name source_info
+  _ordered_columns _columns _primaries _unique_constraints
+  _relationships resultset_attributes
+  column_info_from_storage
+/);
 
-__PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
-  _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_info
-  source_name sqlt_deploy_callback/);
+__PACKAGE__->mk_group_accessors(component_class => qw/
+  resultset_class
+  result_class
+/);
 
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
-  result_class/);
+__PACKAGE__->mk_classdata( sqlt_deploy_callback => 'default_sqlt_deploy_hook' );
 
 =head1 NAME
 
@@ -30,18 +38,18 @@ DBIx::Class::ResultSource - Result source object
 
   # Create a table based result source, in a result class.
 
-  package MyDB::Schema::Result::Artist;
+  package MyApp::Schema::Result::Artist;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::Result::CD');
 
   1;
 
   # Create a query (view) based result source, in a result class
-  package MyDB::Schema::Result::Year2000CDs;
+  package MyApp::Schema::Result::Year2000CDs;
   use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->load_components('InflateColumn::DateTime');
@@ -76,7 +84,7 @@ created, see L<DBIx::Class::ResultSource::View> for full details.
 =head2 Finding result source objects
 
 As mentioned above, a result source instance is created and stored for
-you when you define a L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
+you when you define a L<result class|DBIx::Class::Manual::Glossary/Result class>.
 
 You can retrieve the result source at runtime in the following ways:
 
@@ -86,9 +94,9 @@ You can retrieve the result source at runtime in the following ways:
 
    $schema->source($source_name);
 
-=item From a Row object:
+=item From a Result object:
 
-   $row->result_source;
+   $result->result_source;
 
 =item From a ResultSet object:
 
@@ -114,7 +122,6 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
-  $new->{sqlt_deploy_callback} ||= "default_sqlt_deploy_hook";
   return $new;
 }
 
@@ -126,7 +133,7 @@ sub new {
 
 =item Arguments: @columns
 
-=item Return value: The ResultSource object
+=item Return Value: L<$result_source|/new>
 
 =back
 
@@ -139,7 +146,7 @@ pairs, uses the hashref as the L</column_info> for that column. Repeated
 calls of this method will add more columns, not replace them.
 
 The column names given will be created as accessor methods on your
-L<DBIx::Class::Row> objects. You can change the name of the accessor
+L<Result|DBIx::Class::Manual::ResultClass> objects. You can change the name of the accessor
 by supplying an L</accessor> in the column_info hash.
 
 If a column name beginning with a plus sign ('+col1') is provided, the
@@ -252,7 +259,19 @@ generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
 
+=item retrieve_on_insert
+
+  { retrieve_on_insert => 1 }
+
+For every column where this is set to true, DBIC will retrieve the RDBMS-side
+value upon a new row insertion (normally only the autoincrement PK is
+retrieved on insert). C<INSERT ... RETURNING> is used automatically if
+supported by the underlying storage, otherwise an extra SELECT statement is
+executed to retrieve the missing data.
+
 =item auto_nextval
+
+   { auto_nextval => 1 }
 
 Set this to a true value for a column whose value is retrieved automatically
 from a sequence or function (if supported by your Storage driver.) For a
@@ -280,7 +299,7 @@ L<SQL::Translator::Producer::MySQL>.
 
 =item Arguments: $colname, \%columninfo?
 
-=item Return value: 1/0 (true/false)
+=item Return Value: 1/0 (true/false)
 
 =back
 
@@ -324,7 +343,7 @@ sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =item Arguments: $colname
 
-=item Return value: 1/0 (true/false)
+=item Return Value: 1/0 (true/false)
 
 =back
 
@@ -345,7 +364,7 @@ sub has_column {
 
 =item Arguments: $colname
 
-=item Return value: Hashref of info
+=item Return Value: Hashref of info
 
 =back
 
@@ -365,7 +384,7 @@ sub column_info {
   if ( ! $self->_columns->{$column}{data_type}
        and ! $self->{_columns_info_loaded}
        and $self->column_info_from_storage
-       and $self->schema and my $stor = $self->storage )
+       and my $stor = try { $self->storage } )
   {
     $self->{_columns_info_loaded}++;
 
@@ -393,9 +412,9 @@ sub column_info {
 
 =over
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: Ordered list of column names
+=item Return Value: Ordered list of column names
 
 =back
 
@@ -419,14 +438,14 @@ sub columns {
 
 =item Arguments: \@colnames ?
 
-=item Return value: Hashref of column name/info pairs
+=item Return Value: Hashref of column name/info pairs
 
 =back
 
   my $columns_info = $source->columns_info;
 
 Like L</column_info> but returns information for the requested columns. If
-the optional column-list arrayref is ommitted it returns info on all columns
+the optional column-list arrayref is omitted it returns info on all columns
 currently defined on the ResultSource via L</add_columns>.
 
 =cut
@@ -443,9 +462,7 @@ sub columns_info {
       and
     $self->column_info_from_storage
       and
-    $self->schema
-      and
-    my $stor = $self->storage
+    my $stor = try { $self->storage }
   ) {
     $self->{_columns_info_loaded}++;
 
@@ -475,9 +492,9 @@ sub columns_info {
       }
       else {
         $self->throw_exception( sprintf (
-          "No such column '%s' on source %s",
+          "No such column '%s' on source '%s'",
           $_,
-          $self->source_name,
+          $self->source_name || $self->name || 'Unknown source...?',
         ));
       }
     }
@@ -495,7 +512,7 @@ sub columns_info {
 
 =item Arguments: @colnames
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -513,7 +530,7 @@ broken result source.
 
 =item Arguments: $colname
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -551,7 +568,7 @@ sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =item Arguments: @cols
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -571,11 +588,18 @@ for more info.
 
 sub set_primary_key {
   my ($self, @cols) = @_;
-  # check if primary key columns are valid columns
-  foreach my $col (@cols) {
-    $self->throw_exception("No such column $col on table " . $self->name)
-      unless $self->has_column($col);
+
+  my $colinfo = $self->columns_info(\@cols);
+  for my $col (@cols) {
+    carp_unique(sprintf (
+      "Primary key of source '%s' includes the column '%s' which has its "
+    . "'is_nullable' attribute set to true. This is a mistake and will cause "
+    . 'various Result-object operations to fail',
+      $self->source_name || $self->name || 'Unknown source...?',
+      $col,
+    )) if $colinfo->{$col}{is_nullable};
   }
+
   $self->_primaries(\@cols);
 
   $self->add_unique_constraint(primary => \@cols);
@@ -585,9 +609,9 @@ sub set_primary_key {
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: Ordered list of primary column names
+=item Return Value: Ordered list of primary column names
 
 =back
 
@@ -603,7 +627,7 @@ sub primary_columns {
 # a helper method that will automatically die with a descriptive message if
 # no pk is defined on the source in question. For internal use to save
 # on if @pks... boilerplate
-sub _pri_cols {
+sub _pri_cols_or_die {
   my $self = shift;
   my @pcols = $self->primary_columns
     or $self->throw_exception (sprintf(
@@ -613,6 +637,20 @@ sub _pri_cols {
     ));
   return @pcols;
 }
+
+# same as above but mandating single-column PK (used by relationship condition
+# inference)
+sub _single_pri_col_or_die {
+  my $self = shift;
+  my ($pri, @too_many) = $self->_pri_cols_or_die;
+
+  $self->throw_exception( sprintf(
+    "Operation requires a single-column primary key declared on '%s'",
+    $self->source_name || $self->result_class || $self->name || 'Unknown source...?',
+  )) if @too_many;
+  return $pri;
+}
+
 
 =head2 sequence
 
@@ -624,7 +662,7 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 
 =item Arguments: $sequence_name
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -633,12 +671,11 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 sub sequence {
   my ($self,$seq) = @_;
 
-  my $rsrc = $self->result_source;
-  my @pks = $rsrc->primary_columns
-    or next;
+  my @pks = $self->primary_columns
+    or return;
 
   $_->{sequence} = $seq
-    for values %{ $rsrc->columns_info (\@pks) };
+    for values %{ $self->columns_info (\@pks) };
 }
 
 
@@ -648,7 +685,7 @@ sub sequence {
 
 =item Arguments: $name?, \@colnames
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -714,7 +751,7 @@ sub add_unique_constraint {
 
 =item Arguments: @constraints
 
-=item Return value: undefined
+=item Return Value: not defined
 
 =back
 
@@ -766,7 +803,7 @@ sub add_unique_constraints {
 
 =item Arguments: \@colnames
 
-=item Return value: Constraint name
+=item Return Value: Constraint name
 
 =back
 
@@ -800,9 +837,9 @@ sub name_unique_constraint {
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: Hash of unique constraint data
+=item Return Value: Hash of unique constraint data
 
 =back
 
@@ -824,9 +861,9 @@ sub unique_constraints {
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: Unique constraint names
+=item Return Value: Unique constraint names
 
 =back
 
@@ -850,7 +887,7 @@ sub unique_constraint_names {
 
 =item Arguments: $constraintname
 
-=item Return value: List of constraint columns
+=item Return Value: List of constraint columns
 
 =back
 
@@ -876,11 +913,20 @@ sub unique_constraint_columns {
 
 =over
 
-=item Arguments: $callback
+=item Arguments: $callback_name | \&callback_code
+
+=item Return Value: $callback_name | \&callback_code
 
 =back
 
   __PACKAGE__->sqlt_deploy_callback('mycallbackmethod');
+
+   or
+
+  __PACKAGE__->sqlt_deploy_callback(sub {
+    my ($source_instance, $sqlt_table) = @_;
+    ...
+  } );
 
 An accessor to set a callback to be called during deployment of
 the schema via L<DBIx::Class::Schema/create_ddl_dir> or
@@ -889,7 +935,7 @@ L<DBIx::Class::Schema/deploy>.
 The callback can be set as either a code reference or the name of a
 method in the current result class.
 
-If not set, the L</default_sqlt_deploy_hook> is called.
+Defaults to L</default_sqlt_deploy_hook>.
 
 Your callback will be passed the $source object representing the
 ResultSource instance being deployed, and the
@@ -909,19 +955,13 @@ and call L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
 
 =head2 default_sqlt_deploy_hook
 
-=over
-
-=item Arguments: $source, $sqlt_table
-
-=item Return value: undefined
-
-=back
-
-This is the sensible default for L</sqlt_deploy_callback>.
-
-If a method named C<sqlt_deploy_hook> exists in your Result class, it
-will be called and passed the current C<$source> and the
-C<$sqlt_table> being deployed.
+This is the default deploy hook implementation which checks if your
+current Result class has a C<sqlt_deploy_hook> method, and if present
+invokes it B<on the Result class directly>. This is to preserve the
+semantics of C<sqlt_deploy_hook> which was originally designed to expect
+the Result class name and the
+L<$sqlt_table instance|SQL::Translator::Schema::Table> of the table being
+deployed.
 
 =cut
 
@@ -942,13 +982,39 @@ sub _invoke_sqlt_deploy_hook {
   }
 }
 
+=head2 result_class
+
+=over 4
+
+=item Arguments: $classname
+
+=item Return Value: $classname
+
+=back
+
+ use My::Schema::ResultClass::Inflator;
+ ...
+
+ use My::Schema::Artist;
+ ...
+ __PACKAGE__->result_class('My::Schema::ResultClass::Inflator');
+
+Set the default result class for this source. You can use this to create
+and use your own result inflator. See L<DBIx::Class::ResultSet/result_class>
+for more details.
+
+Please note that setting this to something like
+L<DBIx::Class::ResultClass::HashRefInflator> will make every result unblessed
+and make life more difficult.  Inflators like those are better suited to
+temporary usage via L<DBIx::Class::ResultSet/result_class>.
+
 =head2 resultset
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -965,7 +1031,7 @@ but is cached from then on unless resultset_class changes.
 
 =item Arguments: $classname
 
-=item Return value: $classname
+=item Return Value: $classname
 
 =back
 
@@ -989,9 +1055,9 @@ exists.
 
 =over 4
 
-=item Arguments: \%attrs
+=item Arguments: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
 
-=item Return value: \%attrs
+=item Return Value: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
 
 =back
 
@@ -1002,8 +1068,35 @@ exists.
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
 Store a collection of resultset attributes, that will be set on every
-L<DBIx::Class::ResultSet> produced from this result source. For a full
-list see L<DBIx::Class::ResultSet/ATTRIBUTES>.
+L<DBIx::Class::ResultSet> produced from this result source.
+
+B<CAVEAT>: C<resultset_attributes> comes with its own set of issues and
+bugs! While C<resultset_attributes> isn't deprecated per se, its usage is
+not recommended!
+
+Since relationships use attributes to link tables together, the "default"
+attributes you set may cause unpredictable and undesired behavior.  Furthermore,
+the defaults cannot be turned off, so you are stuck with them.
+
+In most cases, what you should actually be using are project-specific methods:
+
+  package My::Schema::ResultSet::Artist;
+  use base 'DBIx::Class::ResultSet';
+  ...
+
+  # BAD IDEA!
+  #__PACKAGE__->resultset_attributes({ prefetch => 'tracks' });
+
+  # GOOD IDEA!
+  sub with_tracks { shift->search({}, { prefetch => 'tracks' }) }
+
+  # in your code
+  $schema->resultset('Artist')->with_tracks->...
+
+This gives you the flexibility of not using it when you don't need it.
+
+For more complex situations, another solution would be to use a virtual view
+via L<DBIx::Class::ResultSource::View>.
 
 =cut
 
@@ -1014,14 +1107,28 @@ sub resultset {
     'call it on the schema instead.'
   ) if scalar @_;
 
-  return $self->resultset_class->new(
+  $self->resultset_class->new(
     $self,
     {
+      try { %{$self->schema->default_resultset_attributes} },
       %{$self->{resultset_attributes}},
-      %{$self->schema->default_resultset_attributes}
     },
   );
 }
+
+=head2 name
+
+=over 4
+
+=item Arguments: none
+
+=item Result value: $name
+
+=back
+
+Returns the name of the result source, which will typically be the table
+name. This may be a scalar reference if the result source has a non-standard
+name.
 
 =head2 source_name
 
@@ -1049,9 +1156,9 @@ its class name.
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: FROM clause
+=item Return Value: FROM clause
 
 =back
 
@@ -1061,36 +1168,59 @@ Returns an expression of the source to be supplied to storage to specify
 retrieval from this source. In the case of a database, the required FROM
 clause contents.
 
+=cut
+
+sub from { die 'Virtual method!' }
+
 =head2 schema
 
 =over 4
 
-=item Arguments: None
+=item Arguments: L<$schema?|DBIx::Class::Schema>
 
-=item Return value: A schema object
+=item Return Value: L<$schema|DBIx::Class::Schema>
 
 =back
 
   my $schema = $source->schema();
 
-Returns the L<DBIx::Class::Schema> object that this result source
-belongs to.
+Sets and/or returns the L<DBIx::Class::Schema> object to which this
+result source instance has been attached to.
+
+=cut
+
+sub schema {
+  if (@_ > 1) {
+    $_[0]->{schema} = $_[1];
+  }
+  else {
+    $_[0]->{schema} || do {
+      my $name = $_[0]->{source_name} || '_unnamed_';
+      my $err = 'Unable to perform storage-dependent operations with a detached result source '
+              . "(source '$name' is not associated with a schema).";
+
+      $err .= ' You need to use $schema->thaw() or manually set'
+            . ' $DBIx::Class::ResultSourceHandle::thaw_schema while thawing.'
+        if $_[0]->{_detached_thaw};
+
+      DBIx::Class::Exception->throw($err);
+    };
+  }
+}
 
 =head2 storage
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: A Storage object
+=item Return Value: L<$storage|DBIx::Class::Storage>
 
 =back
 
   $source->storage->debug(1);
 
-Returns the storage handle for the current schema.
-
-See also: L<DBIx::Class::Storage>
+Returns the L<storage handle|DBIx::Class::Storage> for the current schema.
 
 =cut
 
@@ -1100,13 +1230,13 @@ sub storage { shift->schema->storage; }
 
 =over 4
 
-=item Arguments: $relname, $related_source_name, \%cond, [ \%attrs ]
+=item Arguments: $rel_name, $related_source_name, \%cond, \%attrs?
 
-=item Return value: 1/true if it succeeded
+=item Return Value: 1/true if it succeeded
 
 =back
 
-  $source->add_relationship('relname', 'related_source', $cond, $attrs);
+  $source->add_relationship('rel_name', 'related_source', $cond, $attrs);
 
 L<DBIx::Class::Relationship> describes a series of methods which
 create pre-defined useful types of relationships. Look there first
@@ -1226,9 +1356,9 @@ sub add_relationship {
 
 =over 4
 
-=item Arguments: None
+=item Arguments: none
 
-=item Return value: List of relationship names
+=item Return Value: L<@rel_names|DBIx::Class::Relationship>
 
 =back
 
@@ -1246,29 +1376,29 @@ sub relationships {
 
 =over 4
 
-=item Arguments: $relname
+=item Arguments: L<$rel_name|DBIx::Class::Relationship>
 
-=item Return value: Hashref of relation data,
+=item Return Value: L<\%rel_data|DBIx::Class::Relationship::Base/add_relationship>
 
 =back
 
 Returns a hash of relationship information for the specified relationship
-name. The keys/values are as specified for L</add_relationship>.
+name. The keys/values are as specified for L<DBIx::Class::Relationship::Base/add_relationship>.
 
 =cut
 
 sub relationship_info {
-  my ($self, $rel) = @_;
-  return $self->_relationships->{$rel};
+  #my ($self, $rel) = @_;
+  return shift->_relationships->{+shift};
 }
 
 =head2 has_relationship
 
 =over 4
 
-=item Arguments: $rel
+=item Arguments: L<$rel_name|DBIx::Class::Relationship>
 
-=item Return value: 1/0 (true/false)
+=item Return Value: 1/0 (true/false)
 
 =back
 
@@ -1277,17 +1407,17 @@ Returns true if the source has a relationship of this name, false otherwise.
 =cut
 
 sub has_relationship {
-  my ($self, $rel) = @_;
-  return exists $self->_relationships->{$rel};
+  #my ($self, $rel) = @_;
+  return exists shift->_relationships->{+shift};
 }
 
 =head2 reverse_relationship_info
 
 =over 4
 
-=item Arguments: $relname
+=item Arguments: L<$rel_name|DBIx::Class::Relationship>
 
-=item Return value: Hashref of relationship data
+=item Return Value: L<\%rel_data|DBIx::Class::Relationship::Base/add_relationship>
 
 =back
 
@@ -1307,51 +1437,70 @@ L</relationship_info>.
 
 sub reverse_relationship_info {
   my ($self, $rel) = @_;
-  my $rel_info = $self->relationship_info($rel);
+
+  my $rel_info = $self->relationship_info($rel)
+    or $self->throw_exception("No such relationship '$rel'");
+
   my $ret = {};
 
   return $ret unless ((ref $rel_info->{cond}) eq 'HASH');
 
-  my @cond = keys(%{$rel_info->{cond}});
-  my @refkeys = map {/^\w+\.(\w+)$/} @cond;
-  my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
+  my $stripped_cond = $self->__strip_relcond ($rel_info->{cond});
 
-  # Get the related result source for this relationship
-  my $othertable = $self->related_source($rel);
+  my $registered_source_name = $self->source_name;
+
+  # this may be a partial schema or something else equally esoteric
+  my $other_rsrc = $self->related_source($rel);
 
   # Get all the relationships for that source that related to this source
   # whose foreign column set are our self columns on $rel and whose self
-  # columns are our foreign columns on $rel.
-  my @otherrels = $othertable->relationships();
-  my $otherrelationship;
-  foreach my $otherrel (@otherrels) {
-    my $otherrel_info = $othertable->relationship_info($otherrel);
+  # columns are our foreign columns on $rel
+  foreach my $other_rel ($other_rsrc->relationships) {
 
-    my $back = $othertable->related_source($otherrel);
-    next unless $back->source_name eq $self->source_name;
+    # only consider stuff that points back to us
+    # "us" here is tricky - if we are in a schema registration, we want
+    # to use the source_names, otherwise we will use the actual classes
 
-    my @othertestconds;
+    # the schema may be partial
+    my $roundtrip_rsrc = try { $other_rsrc->related_source($other_rel) }
+      or next;
 
-    if (ref $otherrel_info->{cond} eq 'HASH') {
-      @othertestconds = ($otherrel_info->{cond});
-    }
-    elsif (ref $otherrel_info->{cond} eq 'ARRAY') {
-      @othertestconds = @{$otherrel_info->{cond}};
+    if ($registered_source_name) {
+      next if $registered_source_name ne ($roundtrip_rsrc->source_name || '')
     }
     else {
-      next;
+      next if $self->result_class ne $roundtrip_rsrc->result_class;
     }
 
-    foreach my $othercond (@othertestconds) {
-      my @other_cond = keys(%$othercond);
-      my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
-      my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
-      next if (!$self->_compare_relationship_keys(\@refkeys, \@other_keys) ||
-               !$self->_compare_relationship_keys(\@other_refkeys, \@keys));
-      $ret->{$otherrel} =  $otherrel_info;
-    }
+    my $other_rel_info = $other_rsrc->relationship_info($other_rel);
+
+    # this can happen when we have a self-referential class
+    next if $other_rel_info eq $rel_info;
+
+    next unless ref $other_rel_info->{cond} eq 'HASH';
+    my $other_stripped_cond = $self->__strip_relcond($other_rel_info->{cond});
+
+    $ret->{$other_rel} = $other_rel_info if (
+      $self->_compare_relationship_keys (
+        [ keys %$stripped_cond ], [ values %$other_stripped_cond ]
+      )
+        and
+      $self->_compare_relationship_keys (
+        [ values %$stripped_cond ], [ keys %$other_stripped_cond ]
+      )
+    );
   }
+
   return $ret;
+}
+
+# all this does is removes the foreign/self prefix from a condition
+sub __strip_relcond {
+  +{
+    map
+      { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
+      keys %{$_[1]}
+  }
 }
 
 sub compare_relationship_keys {
@@ -1362,36 +1511,38 @@ sub compare_relationship_keys {
 
 # Returns true if both sets of keynames are the same, false otherwise.
 sub _compare_relationship_keys {
-  my ($self, $keys1, $keys2) = @_;
+#  my ($self, $keys1, $keys2) = @_;
+  return
+    join ("\x00", sort @{$_[1]})
+      eq
+    join ("\x00", sort @{$_[2]})
+  ;
+}
 
-  # Make sure every keys1 is in keys2
-  my $found;
-  foreach my $key (@$keys1) {
-    $found = 0;
-    foreach my $prim (@$keys2) {
-      if ($prim eq $key) {
-        $found = 1;
-        last;
-      }
+# optionally takes either an arrayref of column names, or a hashref of already
+# retrieved colinfos
+# returns an arrayref of column names of the shortest unique constraint
+# (matching some of the input if any), giving preference to the PK
+sub _identifying_column_set {
+  my ($self, $cols) = @_;
+
+  my %unique = $self->unique_constraints;
+  my $colinfos = ref $cols eq 'HASH' ? $cols : $self->columns_info($cols||());
+
+  # always prefer the PK first, and then shortest constraints first
+  USET:
+  for my $set (delete $unique{primary}, sort { @$a <=> @$b } (values %unique) ) {
+    next unless $set && @$set;
+
+    for (@$set) {
+      next USET unless ($colinfos->{$_} && !$colinfos->{$_}{is_nullable} );
     }
-    last unless $found;
+
+    # copy so we can mangle it at will
+    return [ @$set ];
   }
 
-  # Make sure every key2 is in key1
-  if ($found) {
-    foreach my $prim (@$keys2) {
-      $found = 0;
-      foreach my $key (@$keys1) {
-        if ($prim eq $key) {
-          $found = 1;
-          last;
-        }
-      }
-      last unless $found;
-    }
-  }
-
-  return $found;
+  return undef;
 }
 
 # Returns the {from} structure used to express JOIN conditions
@@ -1407,7 +1558,7 @@ sub _resolve_join {
 
   $jpath = [@$jpath]; # copy
 
-  if (not defined $join) {
+  if (not defined $join or not length $join) {
     return ();
   }
   elsif (ref $join eq 'ARRAY') {
@@ -1456,21 +1607,22 @@ sub _resolve_join {
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
-               -source_handle => $rel_src->handle,
+               -rsrc => $rel_src,
                -join_type => $parent_force_left
                   ? 'left'
                   : $rel_info->{attrs}{join_type}
                 ,
                -join_path => [@$jpath, { $join => $as } ],
                -is_single => (
-                  $rel_info->{attrs}{accessor}
-                    &&
+                  (! $rel_info->{attrs}{accessor})
+                    or
                   first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
                 ),
                -alias => $as,
-               -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
+               -relation_chain_depth => ( $seen->{-relation_chain_depth} || 0 ) + 1,
              },
-             $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
+             scalar $self->_resolve_condition($rel_info->{cond}, $as, $alias, $join)
+          ];
   }
 }
 
@@ -1484,9 +1636,9 @@ sub pk_depends_on {
 # having already been inserted. Takes the name of the relationship and a
 # hashref of columns of the related object.
 sub _pk_depends_on {
-  my ($self, $relname, $rel_data) = @_;
+  my ($self, $rel_name, $rel_data) = @_;
 
-  my $relinfo = $self->relationship_info($relname);
+  my $relinfo = $self->relationship_info($rel_name);
 
   # don't assume things if the relationship direction is specified
   return $relinfo->{attrs}{is_foreign_key_constraint}
@@ -1501,7 +1653,7 @@ sub _pk_depends_on {
   # assume anything that references our PK probably is dependent on us
   # rather than vice versa, unless the far side is (a) defined or (b)
   # auto-increment
-  my $rel_source = $self->related_source($relname);
+  my $rel_source = $self->related_source($rel_name);
 
   foreach my $p ($self->primary_columns) {
     if (exists $keyhash->{$p}) {
@@ -1522,14 +1674,89 @@ sub resolve_condition {
   $self->_resolve_condition (@_);
 }
 
-# Resolves the passed condition to a concrete query fragment. If given an alias,
-# returns a join condition; if given an object, inverts that object to produce
-# a related conditional from that object.
-our $UNRESOLVABLE_CONDITION = \'1 = 0';
+our $UNRESOLVABLE_CONDITION = \ '1 = 0';
 
+# Resolves the passed condition to a concrete query fragment and a flag
+# indicating whether this is a cross-table condition. Also an optional
+# list of non-trivial values (normally conditions) returned as a part
+# of a joinfree condition hash
 sub _resolve_condition {
-  my ($self, $cond, $as, $for) = @_;
-  if (ref $cond eq 'HASH') {
+  my ($self, $cond, $as, $for, $rel_name) = @_;
+
+  my $obj_rel = defined blessed $for;
+
+  if (ref $cond eq 'CODE') {
+    my $relalias = $obj_rel ? 'me' : $as;
+
+    my ($crosstable_cond, $joinfree_cond) = $cond->({
+      self_alias => $obj_rel ? $as : $for,
+      foreign_alias => $relalias,
+      self_resultsource => $self,
+      foreign_relname => $rel_name || ($obj_rel ? $as : $for),
+      self_rowobj => $obj_rel ? $for : undef
+    });
+
+    my $cond_cols;
+    if ($joinfree_cond) {
+
+      # FIXME sanity check until things stabilize, remove at some point
+      $self->throw_exception (
+        "A join-free condition returned for relationship '$rel_name' without a row-object to chain from"
+      ) unless $obj_rel;
+
+      # FIXME another sanity check
+      if (
+        ref $joinfree_cond ne 'HASH'
+          or
+        first { $_ !~ /^\Q$relalias.\E.+/ } keys %$joinfree_cond
+      ) {
+        $self->throw_exception (
+          "The join-free condition returned for relationship '$rel_name' must be a hash "
+         .'reference with all keys being valid columns on the related result source'
+        );
+      }
+
+      # normalize
+      for (values %$joinfree_cond) {
+        $_ = $_->{'='} if (
+          ref $_ eq 'HASH'
+            and
+          keys %$_ == 1
+            and
+          exists $_->{'='}
+        );
+      }
+
+      # see which parts of the joinfree cond are conditionals
+      my $relcol_list = { map { $_ => 1 } $self->related_source($rel_name)->columns };
+
+      for my $c (keys %$joinfree_cond) {
+        my ($colname) = $c =~ /^ (?: \Q$relalias.\E )? (.+)/x;
+
+        unless ($relcol_list->{$colname}) {
+          push @$cond_cols, $colname;
+          next;
+        }
+
+        if (
+          ref $joinfree_cond->{$c}
+            and
+          ref $joinfree_cond->{$c} ne 'SCALAR'
+            and
+          ref $joinfree_cond->{$c} ne 'REF'
+        ) {
+          push @$cond_cols, $colname;
+          next;
+        }
+      }
+
+      return wantarray ? ($joinfree_cond, 0, $cond_cols) : $joinfree_cond;
+    }
+    else {
+      return wantarray ? ($crosstable_cond, 1) : $crosstable_cond;
+    }
+  }
+  elsif (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
       my $v = $cond->{$k};
@@ -1566,121 +1793,26 @@ sub _resolve_condition {
       } elsif (!defined $as) { # undef, i.e. "no reverse object"
         $ret{$v} = undef;
       } else {
-        $ret{"${as}.${k}"} = "${for}.${v}";
+        $ret{"${as}.${k}"} = { -ident => "${for}.${v}" };
       }
     }
-    return \%ret;
-  } elsif (ref $cond eq 'ARRAY') {
-    return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
-  } else {
-   die("Can't handle condition $cond yet :(");
-  }
-}
 
-
-# Accepts one or more relationships for the current source and returns an
-# array of column names for each of those relationships. Column names are
-# prefixed relative to the current source, in accordance with where they appear
-# in the supplied relationships.
-
-sub _resolve_prefetch {
-  my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
-  $pref_path ||= [];
-
-  if (not defined $pre) {
-    return ();
+    return wantarray
+      ? ( \%ret, ($obj_rel || !defined $as || ref $as) ? 0 : 1 )
+      : \%ret
+    ;
   }
-  elsif( ref $pre eq 'ARRAY' ) {
-    return
-      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
-        @$pre;
-  }
-  elsif( ref $pre eq 'HASH' ) {
-    my @ret =
-    map {
-      $self->_resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
-      $self->related_source($_)->_resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $alias_map, $order, $collapse, [ @$pref_path, $_] )
-    } keys %$pre;
-    return @ret;
-  }
-  elsif( ref $pre ) {
-    $self->throw_exception(
-      "don't know how to resolve prefetch reftype ".ref($pre));
+  elsif (ref $cond eq 'ARRAY') {
+    my (@ret, $crosstable);
+    for (@$cond) {
+      my ($cond, $crosstab) = $self->_resolve_condition($_, $as, $for, $rel_name);
+      push @ret, $cond;
+      $crosstable ||= $crosstab;
+    }
+    return wantarray ? (\@ret, $crosstable) : \@ret;
   }
   else {
-    my $p = $alias_map;
-    $p = $p->{$_} for (@$pref_path, $pre);
-
-    $self->throw_exception (
-      "Unable to resolve prefetch '$pre' - join alias map does not contain an entry for path: "
-      . join (' -> ', @$pref_path, $pre)
-    ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
-
-    my $as = shift @{$p->{-join_aliases}};
-
-    my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->source_name . " has no such relationship '$pre'" )
-      unless $rel_info;
-    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
-    my $rel_source = $self->related_source($pre);
-
-    if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
-      $self->throw_exception(
-        "Can't prefetch has_many ${pre} (join cond too complex)")
-        unless ref($rel_info->{cond}) eq 'HASH';
-      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
-      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
-                         keys %{$collapse}) {
-        my ($last) = ($fail =~ /([^\.]+)$/);
-        carp (
-          "Prefetching multiple has_many rels ${last} and ${pre} "
-          .(length($as_prefix)
-            ? "at the same level (${as_prefix}) "
-            : "at top level "
-          )
-          . 'will explode the number of row objects retrievable via ->next or ->all. '
-          . 'Use at your own risk.'
-        );
-      }
-      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
-      #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->_pri_cols ];
-        # action at a distance. prepending the '.' allows simpler code
-        # in ResultSet->_collapse_result
-      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
-                    keys %{$rel_info->{cond}};
-      push @$order, map { "${as}.$_" } @key;
-
-      if (my $rel_order = $rel_info->{attrs}{order_by}) {
-        # this is kludgy and incomplete, I am well aware
-        # but the parent method is going away entirely anyway
-        # so sod it
-        my $sql_maker = $self->storage->sql_maker;
-        my ($orig_ql, $orig_qr) = $sql_maker->_quote_chars;
-        my $sep = $sql_maker->name_sep;
-
-        # install our own quoter, so we can catch unqualified stuff
-        local $sql_maker->{quote_char} = ["\x00", "\xFF"];
-
-        my $quoted_prefix = "\x00${as}\xFF";
-
-        for my $chunk ( $sql_maker->_order_by_chunks ($rel_order) ) {
-          my @bind;
-          ($chunk, @bind) = @$chunk if ref $chunk;
-
-          $chunk = "${quoted_prefix}${sep}${chunk}"
-            unless $chunk =~ /\Q$sep/;
-
-          $chunk =~ s/\x00/$orig_ql/g;
-          $chunk =~ s/\xFF/$orig_qr/g;
-          push @$order, \[$chunk, @bind];
-        }
-      }
-    }
-
-    return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $rel_source->columns;
+    $self->throw_exception ("Can't handle condition $cond for relationship '$rel_name' yet :(");
   }
 }
 
@@ -1688,9 +1820,9 @@ sub _resolve_prefetch {
 
 =over 4
 
-=item Arguments: $relname
+=item Arguments: $rel_name
 
-=item Return value: $source
+=item Return Value: $source
 
 =back
 
@@ -1703,16 +1835,27 @@ sub related_source {
   if( !$self->has_relationship( $rel ) ) {
     $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
-  return $self->schema->source($self->relationship_info($rel)->{source});
+
+  # if we are not registered with a schema - just use the prototype
+  # however if we do have a schema - ask for the source by name (and
+  # throw in the process if all fails)
+  if (my $schema = try { $self->schema }) {
+    $schema->source($self->relationship_info($rel)->{source});
+  }
+  else {
+    my $class = $self->relationship_info($rel)->{class};
+    $self->ensure_class_loaded($class);
+    $class->result_source_instance;
+  }
 }
 
 =head2 related_class
 
 =over 4
 
-=item Arguments: $relname
+=item Arguments: $rel_name
 
-=item Return value: $classname
+=item Return Value: $classname
 
 =back
 
@@ -1730,16 +1873,85 @@ sub related_class {
 
 =head2 handle
 
-Obtain a new handle to this source. Returns an instance of a
-L<DBIx::Class::ResultSourceHandle>.
+=over 4
+
+=item Arguments: none
+
+=item Return Value: L<$source_handle|DBIx::Class::ResultSourceHandle>
+
+=back
+
+Obtain a new L<result source handle instance|DBIx::Class::ResultSourceHandle>
+for this source. Used as a serializable pointer to this resultsource, as it is not
+easy (nor advisable) to serialize CODErefs which may very well be present in e.g.
+relationship definitions.
 
 =cut
 
 sub handle {
-    return DBIx::Class::ResultSourceHandle->new({
-        schema         => $_[0]->schema,
-        source_moniker => $_[0]->source_name
-    });
+  return DBIx::Class::ResultSourceHandle->new({
+    source_moniker => $_[0]->source_name,
+
+    # so that a detached thaw can be re-frozen
+    $_[0]->{_detached_thaw}
+      ? ( _detached_source  => $_[0]          )
+      : ( schema            => $_[0]->schema  )
+    ,
+  });
+}
+
+my $global_phase_destroy;
+sub DESTROY {
+  return if $global_phase_destroy ||= in_global_destruction;
+
+######
+# !!! ACHTUNG !!!!
+######
+#
+# Under no circumstances shall $_[0] be stored anywhere else (like copied to
+# a lexical variable, or shifted, or anything else). Doing so will mess up
+# the refcount of this particular result source, and will allow the $schema
+# we are trying to save to reattach back to the source we are destroying.
+# The relevant code checking refcounts is in ::Schema::DESTROY()
+
+  # if we are not a schema instance holder - we don't matter
+  return if(
+    ! ref $_[0]->{schema}
+      or
+    isweak $_[0]->{schema}
+  );
+
+  # weaken our schema hold forcing the schema to find somewhere else to live
+  # during global destruction (if we have not yet bailed out) this will throw
+  # which will serve as a signal to not try doing anything else
+  # however beware - on older perls the exception seems randomly untrappable
+  # due to some weird race condition during thread joining :(((
+  local $@;
+  eval {
+    weaken $_[0]->{schema};
+
+    # if schema is still there reintroduce ourselves with strong refs back to us
+    if ($_[0]->{schema}) {
+      my $srcregs = $_[0]->{schema}->source_registrations;
+      for (keys %$srcregs) {
+        next unless $srcregs->{$_};
+        $srcregs->{$_} = $_[0] if $srcregs->{$_} == $_[0];
+      }
+    }
+
+    1;
+  } or do {
+    $global_phase_destroy = 1;
+  };
+
+  return;
+}
+
+sub STORABLE_freeze { Storable::nfreeze($_[0]->handle) }
+
+sub STORABLE_thaw {
+  my ($self, $cloning, $ice) = @_;
+  %$self = %{ (Storable::thaw($ice))->resolve };
 }
 
 =head2 throw_exception
@@ -1751,12 +1963,10 @@ See L<DBIx::Class::Schema/"throw_exception">.
 sub throw_exception {
   my $self = shift;
 
-  if (defined $self->schema) {
-    $self->schema->throw_exception(@_);
-  }
-  else {
-    DBIx::Class::Exception->throw(@_);
-  }
+  $self->{schema}
+    ? $self->{schema}->throw_exception(@_)
+    : DBIx::Class::Exception->throw(@_)
+  ;
 }
 
 =head2 source_info
@@ -1784,7 +1994,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 
 =item Arguments: 1/0 (default: 0)
 
-=item Return value: 1/0
+=item Return Value: 1/0
 
 =back
 
@@ -1795,9 +2005,9 @@ metadata from storage as necessary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

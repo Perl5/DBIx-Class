@@ -3,8 +3,10 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBIx::Class::Carp;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::CascadeActions' => 'DBIx::Class::Relationship' }
   );
@@ -26,7 +28,12 @@ sub delete {
     my $ret = $self->next::method(@rest);
 
     foreach my $rel (@cascade) {
-      $self->search_related($rel)->delete_all;
+      if( my $rel_rs = eval{ $self->search_related($rel) } ) {
+        $rel_rs->delete_all;
+      } else {
+        carp "Skipping cascade delete on relationship '$rel' - related resultsource '$rels{$rel}{class}' is not registered with this schema";
+        next;
+      }
     }
 
     $guard->commit;

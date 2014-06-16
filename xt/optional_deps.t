@@ -20,7 +20,7 @@ ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related is ye
 # to build the optional requirements
 BEGIN {
   $ENV{DBICTEST_PG_DSN} = '1';
-  $ENV{DBICTEST_ORA_DSN} = undef;
+  delete $ENV{DBICTEST_ORA_DSN};
 }
 
 use_ok 'DBIx::Class::Optional::Dependencies';
@@ -119,7 +119,7 @@ is_deeply(
 is_deeply(
   DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_pg'),
   {
-    'Sys::SigAction' => '0',
+    $^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : (),
     'DBD::Pg'        => '2.009002',
   }, 'optional dependencies for testing Postgres with ENV var ok');
 

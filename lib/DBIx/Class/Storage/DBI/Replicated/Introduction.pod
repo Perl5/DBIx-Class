@@ -12,11 +12,11 @@ This document is not an overview of what replication is or why you should be
 using it.  It is not a document explaining how to setup MySQL native replication
 either.  Copious external resources are available for both.  This document
 presumes you have the basics down.
-  
+
 =head1 DESCRIPTION
 
 L<DBIx::Class> supports a framework for using database replication.  This system
-is integrated completely, which means once it's setup you should be able to 
+is integrated completely, which means once it's setup you should be able to
 automatically just start using a replication cluster without additional work or
 changes to your code.  Some caveats apply, primarily related to the proper use
 of transactions (you are wrapping all your database modifying statements inside
@@ -34,7 +34,7 @@ For an easy way to start playing with MySQL native replication, see:
 L<MySQL::Sandbox>.
 
 If you are using this with a L<Catalyst> based application, you may also want
-to see more recent updates to L<Catalyst::Model::DBIC::Schema>, which has 
+to see more recent updates to L<Catalyst::Model::DBIC::Schema>, which has
 support for replication configuration options as well.
 
 =head1 REPLICATED STORAGE
@@ -43,16 +43,16 @@ By default, when you start L<DBIx::Class>, your Schema (L<DBIx::Class::Schema>)
 is assigned a storage_type, which when fully connected will reflect your
 underlying storage engine as defined by your chosen database driver.  For
 example, if you connect to a MySQL database, your storage_type will be
-L<DBIx::Class::Storage::DBI::mysql>  Your storage type class will contain 
+L<DBIx::Class::Storage::DBI::mysql>  Your storage type class will contain
 database specific code to help smooth over the differences between databases
 and let L<DBIx::Class> do its thing.
 
 If you want to use replication, you will override this setting so that the
-replicated storage engine will 'wrap' your underlying storages and present 
+replicated storage engine will 'wrap' your underlying storages and present
 a unified interface to the end programmer.  This wrapper storage class will
 delegate method calls to either a master database or one or more replicated
 databases based on if they are read only (by default sent to the replicants)
-or write (reserved for the master).  Additionally, the Replicated storage 
+or write (reserved for the master).  Additionally, the Replicated storage
 will monitor the health of your replicants and automatically drop them should
 one exceed configurable parameters.  Later, it can automatically restore a
 replicant when its health is restored.
@@ -64,15 +64,15 @@ Additionally, if you need high data integrity, such as when you are executing
 a transaction, replicated storage will automatically delegate all database
 traffic to the master storage.  There are several ways to enable this high
 integrity mode, but wrapping your statements inside a transaction is the easy
-and canonical option. 
+and canonical option.
 
 =head1 PARTS OF REPLICATED STORAGE
 
 A replicated storage contains several parts.  First, there is the replicated
 storage itself (L<DBIx::Class::Storage::DBI::Replicated>).  A replicated storage
 takes a pool of replicants (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
-and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Pool>).  The
-balancer does the job of splitting up all the read traffic amongst the
+and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Balancer>).
+The balancer does the job of splitting up all the read traffic amongst the
 replicants in the Pool. Currently there are two types of balancers, a Random one
 which chooses a Replicant in the Pool using a naive randomizer algorithm, and a
 First replicant, which just uses the first one in the Pool (and obviously is
@@ -131,7 +131,7 @@ one that makes sense.
 'balancer_args' get passed to the balancer when it's instantiated.  All
 balancers have the 'auto_validate_every' option.  This is the number of seconds
 we allow to pass between validation checks on a load balanced replicant. So
-the higher the number, the more possibility that your reads to the replicant 
+the higher the number, the more possibility that your reads to the replicant
 may be inconsistent with what's on the master.  Setting this number too low
 will result in increased database loads, so choose a number with care.  Our
 experience is that setting the number around 5 seconds results in a good

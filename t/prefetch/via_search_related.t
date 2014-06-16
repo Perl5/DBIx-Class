@@ -69,6 +69,47 @@ lives_ok ( sub {
 
 }, 'search_related prefetch with condition referencing unqualified column of a joined table works');
 
+# make sure chains off prefetched results still work
+{
+  my $cd = $schema->resultset('CD')->search({}, { prefetch => 'cd_to_producer' })->find(1);
+
+  $queries = 0;
+  $schema->storage->debugcb ($debugcb);
+  $schema->storage->debug (1);
+
+  is( $cd->cd_to_producer->count, 3 ,'Count of prefetched m2m links via accessor' );
+  is( scalar $cd->cd_to_producer->all, 3, 'Amount of prefetched m2m link objects via accessor' );
+  is( $cd->search_related('cd_to_producer')->count, 3, 'Count of prefetched m2m links via search_related' );
+  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Amount of prefetched m2m links via search_related' );
+
+  is($queries, 0, 'No queries ran so far');
+
+  is( scalar $cd->cd_to_producer->search_related('producer')->all, 3,
+      'Amount of objects via search_related off prefetched linker' );
+  is( $cd->cd_to_producer->search_related('producer')->count, 3,
+      'Count via search_related off prefetched linker' );
+  is( scalar $cd->search_related('cd_to_producer')->search_related('producer')->all, 3,
+      'Amount of objects via chained search_related off prefetched linker' );
+  is( $cd->search_related('cd_to_producer')->search_related('producer')->count, 3,
+      'Count via chained search_related off prefetched linker' );
+  is( scalar $cd->producers->all, 3,
+      'Amount of objects via m2m accessor' );
+  is( $cd->producers->count, 3,
+      'Count via m2m accessor' );
+
+  $queries = 0;
+
+  is( $cd->cd_to_producer->count, 3 ,'Review count of prefetched m2m links via accessor' );
+  is( scalar $cd->cd_to_producer->all, 3, 'Review amount of prefetched m2m link objects via accessor' );
+  is( $cd->search_related('cd_to_producer')->count, 3, 'Review count of prefetched m2m links via search_related' );
+  is( scalar $cd->search_related('cd_to_producer')->all, 3, 'Rreview amount of prefetched m2m links via search_related' );
+
+  is($queries, 0, 'Still no queries on prefetched linker');
+  $schema->storage->debugcb (undef);
+  $schema->storage->debug ($orig_debug);
+}
+
+# tests with distinct => 1
 lives_ok (sub {
     my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
               ->search_related('artwork_to_artist')->search_related('artist',
@@ -128,9 +169,6 @@ lives_ok (sub {
     is($rs->all, 1, 'distinct with prefetch (objects)');
     is($rs->count, 1, 'distinct with prefetch (count)');
 
-  TODO: {
-    local $TODO = "This makes another 2 trips to the database, it can't be right";
-
     $queries = 0;
     $schema->storage->debugcb ($debugcb);
     $schema->storage->debug (1);
@@ -139,12 +177,39 @@ lives_ok (sub {
     is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
     is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
 
-    is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
+    {
+      local $TODO = "This makes another 2 trips to the database, it can't be right";
+      is ($queries, 0, 'No extra queries fired (prefetch survives search_related)');
+    }
 
     $schema->storage->debugcb (undef);
     $schema->storage->debug ($orig_debug);
-  }
-
 }, 'distinct generally works with prefetch on deep search_related chains');
+
+# pathological "user knows what they're doing" case
+# lifted from production somewhere
+{
+  $schema->resultset('CD')
+   ->search({ cdid => [1,2] })
+    ->search_related('tracks', { position => [3,1] })
+     ->delete_all;
+
+  my $rs = $schema->resultset('CD')->search_related('tracks', {}, {
+    group_by => 'me.title',
+    columns => { title => 'me.title', max_trk => \ 'MAX(tracks.position)' },
+  });
+
+  is_deeply(
+    $rs->all_hri,
+    [
+      { title => "Caterwaulin' Blues", max_trk => 3 },
+      { title => "Come Be Depressed With Us", max_trk => 3 },
+      { title => "Forkful of bees", max_trk => 1 },
+      { title => "Generic Manufactured Singles", max_trk => 3 },
+      { title => "Spoonful of bees", max_trk => 1 },
+    ],
+    'Expected nonsense',
+  );
+}
 
 done_testing;

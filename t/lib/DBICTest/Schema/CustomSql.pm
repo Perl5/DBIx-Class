@@ -1,12 +1,15 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::CustomSql;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::Schema::Artist/;
 
 __PACKAGE__->table('dummy');
 
 __PACKAGE__->result_source_instance->name(\<<SQL);
-  ( SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year 
+  ( SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year
   FROM artist a
   JOIN cd ON cd.artist = a.artistid
   WHERE cd.year = ?)

@@ -41,9 +41,9 @@ The code that was handled here is now in Row for efficiency.
 The code that was handled here is now in ResultSource, and is being proxied to
 Row as well.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

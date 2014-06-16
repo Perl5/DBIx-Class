@@ -3,14 +3,16 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use DBICTest;
 
-plan tests => 4;
 my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 
 {
-  my @w; 
+  my @w;
   local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
   my $code = gen_code ( suffix => 1 );
+
+  local $ENV{DBIC_OVERWRITE_HELPER_METHODS_OK};
   eval "$code";
   ok (! $@, 'Eval code without warnings suppression')
     || diag $@;
@@ -19,7 +21,7 @@ my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 }
 
 {
-  my @w; 
+  my @w;
   local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
 
   my $code = gen_code ( suffix => 2 );
@@ -100,3 +102,5 @@ use warnings;
 EOF
 
 }
+
+done_testing;

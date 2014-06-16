@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -27,10 +28,11 @@ my $s = DBICTest::Schema->connect (DBICTest->_database);
 $s->storage->sql_maker_class ('DBICTest::SQLMaker::CustomDialect');
 
 my $rs = $s->resultset ('CD');
-is_same_sql_bind (
+
+warnings_exist { is_same_sql_bind (
   $rs->search ({}, { rows => 1, offset => 3,columns => [
       { id => 'foo.id' },
-      { 'bar.id' => 'bar.id' },
+      { 'artist.id' => 'bar.id' },
       { bleh => \ 'TO_CHAR (foo.womble, "blah")' },
     ]})->as_query,
   '(
@@ -45,6 +47,9 @@ is_same_sql_bind (
   )',
   [],
   'Rownum subsel aliasing works correctly'
-);
+ )}
+  qr/\Qthe legacy emulate_limit() mechanism inherited from SQL::Abstract::Limit has been deprecated/,
+  'deprecation warning'
+;
 
 done_testing;

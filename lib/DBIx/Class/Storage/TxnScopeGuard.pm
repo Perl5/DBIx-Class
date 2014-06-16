@@ -2,126 +2,89 @@ package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
-use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::Exception;
+use Scalar::Util qw/weaken blessed refaddr/;
+use DBIx::Class;
+use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::Carp;
 use namespace::clean;
-
-# temporary until we fix the $@ issue in core
-# we also need a real appendable, stackable exception object
-# (coming soon)
-BEGIN {
-  if ($] >= 5.013001 and $] <= 5.013007) {
-    *IS_BROKEN_PERL = sub () { 1 };
-  }
-  else {
-    *IS_BROKEN_PERL = sub () { 0 };
-  }
-}
-
-my ($guards_count, $compat_handler, $foreign_handler);
 
 sub new {
   my ($class, $storage) = @_;
 
-  $storage->txn_begin;
-  my $guard = bless [ 0, $storage, $storage->_dbh ], ref $class || $class;
+  my $guard = {
+    inactivated => 0,
+    storage => $storage,
+  };
 
-
-  # install a callback carefully
-  if (IS_BROKEN_PERL and !$guards_count) {
-
-    # if the thrown exception is a plain string, wrap it in our
-    # own exception class
-    # this is actually a pretty cool idea, may very well keep it
-    # after perl is fixed
-    $compat_handler ||= bless(
-      sub {
-        $@ = (blessed($_[0]) or ref($_[0]))
-          ? $_[0]
-          : bless ( { msg => $_[0] }, 'DBIx::Class::Exception')
-        ;
-        die;
-      },
-      '__TxnScopeGuard__FIXUP__',
+  # we are starting with an already set $@ - in order for things to work we need to
+  # be able to recognize it upon destruction - store its weakref
+  # recording it before doing the txn_begin stuff
+  #
+  # FIXME FRAGILE - any eval that fails but *does not* rethrow between here
+  # and the unwind will trample over $@ and invalidate the entire mechanism
+  # There got to be a saner way of doing this...
+  if (is_exception $@) {
+    weaken(
+      $guard->{existing_exception_ref} = (ref($@) eq '') ? \$@ : $@
     );
-
-    if ($foreign_handler = $SIG{__DIE__}) {
-      $SIG{__DIE__} = bless (
-        sub {
-          # we trust the foreign handler to do whatever it wants, all we do is set $@
-          eval { $compat_handler->(@_) };
-          $foreign_handler->(@_);
-        },
-        '__TxnScopeGuard__FIXUP__',
-      );
-    }
-    else {
-      $SIG{__DIE__} = $compat_handler;
-    }
   }
 
-  $guards_count++;
+  $storage->txn_begin;
 
-  weaken ($guard->[2]);
+  weaken( $guard->{dbh} = $storage->_dbh );
+
+  bless $guard, ref $class || $class;
+
   $guard;
 }
 
 sub commit {
   my $self = shift;
 
-  $self->[1]->txn_commit;
-  $self->[0] = 1;
+  $self->{storage}->throw_exception("Refusing to execute multiple commits on scope guard $self")
+    if $self->{inactivated};
+
+  $self->{storage}->txn_commit;
+  $self->{inactivated} = 1;
 }
 
 sub DESTROY {
-  my ($dismiss, $storage) = @{$_[0]};
+  my $self = shift;
 
-  $guards_count--;
+  return if $self->{inactivated};
 
-  # don't touch unless it's ours, and there are no more of us left
-  if (
-    IS_BROKEN_PERL
+  # if our dbh is not ours anymore, the $dbh weakref will go undef
+  $self->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+  return unless $self->{dbh};
+
+  my $exception = $@ if (
+    is_exception $@
       and
-    !$guards_count
-  ) {
-
-    if (ref $SIG{__DIE__} eq '__TxnScopeGuard__FIXUP__') {
-      # restore what we saved
-      if ($foreign_handler) {
-        $SIG{__DIE__} = $foreign_handler;
-      }
-      else {
-        delete $SIG{__DIE__};
-      }
-    }
-
-    # make sure we do not leak the foreign one in case it exists
-    undef $foreign_handler;
-  }
-
-  return if $dismiss;
-
-  # if our dbh is not ours anymore, the weakref will go undef
-  $storage->_verify_pid;
-  return unless $_[0]->[2];
-
-  my $exception = $@;
+    (
+      ! defined $self->{existing_exception_ref}
+        or
+      refaddr( ref($@) eq '' ? \$@ : $@ ) != refaddr($self->{existing_exception_ref})
+    )
+  );
 
   {
     local $@;
 
     carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
-      unless $exception;
+      unless defined $exception;
 
     my $rollback_exception;
     # do minimal connectivity check due to weird shit like
     # https://rt.cpan.org/Public/Bug/Display.html?id=62370
-    try { $storage->_seems_connected && $storage->txn_rollback }
+    try { $self->{storage}->_seems_connected && $self->{storage}->txn_rollback }
     catch { $rollback_exception = shift };
 
-    if (defined $rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
+    if ( $rollback_exception and (
+      ! defined blessed $rollback_exception
+          or
+      ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
+    ) ) {
       # append our text - THIS IS A TEMPORARY FIXUP!
       # a real stackable exception object is in the works
       if (ref $exception eq 'DBIx::Class::Exception') {
@@ -143,7 +106,7 @@ sub DESTROY {
     }
   }
 
-  $@ = $exception unless IS_BROKEN_PERL;
+  $@ = $exception;
 }
 
 1;

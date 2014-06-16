@@ -4,14 +4,14 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
+use lib qw(t/lib);
+use DBICTest;
+
 BEGIN {
   require DBIx::Class;
   plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 }
-
-use lib qw(t/lib);
-use DBICTest;
 
 my $schema = DBICTest->init_schema();
 my $artist_rs = $schema->resultset('Artist');
@@ -58,7 +58,7 @@ my $cd_rs = $schema->resultset('CD');
 {
   my $artist;
   lives_ok {
-    $artist = $artist_rs->search({ name => [ q/ some stupid names here/]})
+    $artist = $artist_rs->search({ name => [ qw(some stupid names here) ]})
       ->create({artistid => undef});
   };
   is($artist->name, undef);

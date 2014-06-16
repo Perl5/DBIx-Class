@@ -1,0 +1,11 @@
+{
+  "Model" : {
+    "Gort" : {
+      "connect_info" : [
+        "klaatu",
+        "barada",
+        "nikto"
+      ]
+    }
+  }
+}

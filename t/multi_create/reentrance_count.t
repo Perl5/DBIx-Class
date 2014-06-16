@@ -2,6 +2,10 @@ use strict;
 use warnings;
 
 use Test::More;
+BEGIN {
+  plan skip_all => 'Disable test entirely until multicreate is rewritten in terms of subqueries';
+}
+
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -11,9 +15,6 @@ my $schema = DBICTest->init_schema();
 my $query_stats;
 $schema->storage->debugcb (sub { push @{$query_stats->{$_[0]}}, $_[1] });
 $schema->storage->debug (1);
-
-TODO: {
-  local $TODO = 'This is an optimization task, will wait... a while';
 
 lives_ok (sub {
   undef $query_stats;
@@ -172,7 +173,5 @@ lives_ok (sub {
   is ( @{$query_stats->{SELECT} || []}, 0, 'number of selects during creation of artist_object->cd->producer_object' )
     || $ENV{DBIC_MULTICREATE_DEBUG} && diag join "\n", @{$query_stats->{SELECT} || []};
 });
-
-}
 
 done_testing;

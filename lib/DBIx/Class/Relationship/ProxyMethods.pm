@@ -6,7 +6,7 @@ use warnings;
 use Sub::Name ();
 use base qw/DBIx::Class/;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::ProxyMethods' => 'DBIx::Class::Relationship' }
   );
@@ -25,18 +25,17 @@ sub proxy_to_related {
   no strict 'refs';
   no warnings 'redefine';
   foreach my $meth_name ( keys %proxy_map ) {
-    my $proxy_to = $proxy_map{$meth_name};
+    my $proxy_to_col = $proxy_map{$meth_name};
     my $name = join '::', $class, $meth_name;
-    *$name = Sub::Name::subname $name,
-      sub {
-        my $self = shift;
-        my $val = $self->$rel;
-        if (@_ && !defined $val) {
-          $val = $self->create_related($rel, { $proxy_to => $_[0] });
-          @_ = ();
-        }
-        return ($val ? $val->$proxy_to(@_) : undef);
-     }
+    *$name = Sub::Name::subname $name => sub {
+      my $self = shift;
+      my $relobj = $self->$rel;
+      if (@_ && !defined $relobj) {
+        $relobj = $self->create_related($rel, { $proxy_to_col => $_[0] });
+        @_ = ();
+      }
+      return ($relobj ? $relobj->$proxy_to_col(@_) : undef);
+   }
   }
 }
 

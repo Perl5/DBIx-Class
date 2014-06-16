@@ -4,15 +4,28 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Scope::Guard ();
+use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
+
+plan skip_all => 'Test needs ' .
+  (join ' or ', map { $_ ? $_ : () }
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere'),
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_sqlanywhere_odbc'))
+  unless
+    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere')
+    or
+    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_sqlanywhere_odbc')
+    or
+    (not $dsn || $dsn2);
 
 DBICTest::Schema->load_classes('ArtistGUID');
 
 # tests stolen from 748informix.t
-
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SQLANYWHERE_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SQLANYWHERE_ODBC_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_SQLANYWHERE_DSN} and/or $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN},
@@ -35,7 +48,7 @@ foreach my $info (@info) {
     auto_savepoint => 1
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub{ cleanup($schema) });
 
   my $dbh = $schema->storage->dbh;
 
@@ -134,10 +147,11 @@ EOF
   $dbh->do(qq[
   CREATE TABLE bindtype_test
   (
-    id    INT          NOT NULL PRIMARY KEY,
-    bytea INT          NULL,
-    blob  LONG BINARY  NULL,
-    clob  LONG VARCHAR NULL
+    id     INT          NOT NULL PRIMARY KEY,
+    bytea  INT          NULL,
+    blob   LONG BINARY  NULL,
+    clob   LONG VARCHAR NULL,
+    a_memo INT          NULL
   )
   ],{ RaiseError => 1, PrintError => 1 });
 
@@ -163,10 +177,11 @@ EOF
       ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
- 
+
   my @uuid_types = qw/uniqueidentifier uniqueidentifierstr/;
 
-# test uniqueidentifiers
+# test uniqueidentifiers (and the cursor_class).
+
   for my $uuid_type (@uuid_types) {
     local $schema->source('ArtistGUID')->column_info('artistid')->{data_type}
       = $uuid_type;
@@ -176,9 +191,9 @@ EOF
 
     $schema->storage->dbh_do (sub {
       my ($storage, $dbh) = @_;
-      eval { $dbh->do("DROP TABLE artist") };
+      eval { $dbh->do("DROP TABLE artist_guid") };
       $dbh->do(<<"SQL");
-CREATE TABLE artist (
+CREATE TABLE artist_guid (
    artistid $uuid_type NOT NULL,
    name VARCHAR(100),
    rank INT NOT NULL DEFAULT '13',
@@ -188,6 +203,9 @@ CREATE TABLE artist (
 )
 SQL
     });
+
+    local $TODO = 'something wrong with uniqueidentifierstr over ODBC'
+      if $dsn =~ /:ODBC:/ && $uuid_type eq 'uniqueidentifierstr';
 
     my $row;
     lives_ok {
@@ -206,19 +224,42 @@ SQL
     );
     diag $@ if $@;
 
-    my $row_from_db = $schema->resultset('ArtistGUID')
-      ->search({ name => 'mtfnpy' })->first;
+    my $row_from_db = try { $schema->resultset('ArtistGUID')
+      ->search({ name => 'mtfnpy' })->first }
+      catch { diag $_ };
 
-    is $row_from_db->artistid, $row->artistid,
-      'PK GUID round trip';
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->search->next)';
 
-    is $row_from_db->a_guid, $row->a_guid,
-      'NON-PK GUID round trip';
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->search->next)';
+
+    $row_from_db = try { $schema->resultset('ArtistGUID')
+      ->find($row->artistid) }
+      catch { diag $_ };
+
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->find)';
+
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->find)';
+
+    ($row_from_db) = try { $schema->resultset('ArtistGUID')
+      ->search({ name => 'mtfnpy' })->all }
+      catch { diag $_ };
+
+    is try { $row_from_db->artistid }, $row->artistid,
+      'PK GUID round trip (via ->search->all)';
+
+    is try { $row_from_db->a_guid }, $row->a_guid,
+      'NON-PK GUID round trip (via ->search->all)';
   }
 }
 
 done_testing;
 
 sub cleanup {
-  eval { $schema->storage->dbh->do("DROP TABLE $_") } for qw/artist bindtype_test/;
+  my $schema = shift;
+  eval { $schema->storage->dbh->do("DROP TABLE $_") }
+    for qw/artist artist_guid bindtype_test/;
 }

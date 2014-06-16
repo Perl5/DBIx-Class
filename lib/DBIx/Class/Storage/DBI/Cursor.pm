@@ -6,10 +6,11 @@ use warnings;
 use base qw/DBIx::Class::Cursor/;
 
 use Try::Tiny;
+use Scalar::Util qw/refaddr weaken/;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/sth/
+    qw/storage args attrs/
 );
 
 =head1 NAME
@@ -20,7 +21,12 @@ resultset.
 =head1 SYNOPSIS
 
   my $cursor = $schema->resultset('CD')->cursor();
-  my $first_cd = $cursor->next;
+
+  # raw values off the database handle in resultset columns/select order
+  my @next_cd_column_values = $cursor->next;
+
+  # list of all raw values as arrayrefs
+  my @all_cds_column_values = $cursor->all;
 
 =head1 DESCRIPTION
 
@@ -41,19 +47,42 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
 
 =cut
 
-sub new {
-  my ($class, $storage, $args, $attrs) = @_;
-  $class = ref $class if ref $class;
+{
+  my %cursor_registry;
 
-  my $new = {
-    storage => $storage,
-    args => $args,
-    pos => 0,
-    attrs => $attrs,
-    _dbh_gen => $storage->{_dbh_gen},
-  };
+  sub new {
+    my ($class, $storage, $args, $attrs) = @_;
 
-  return bless ($new, $class);
+    my $self = bless {
+      storage => $storage,
+      args => $args,
+      attrs => $attrs,
+    }, ref $class || $class;
+
+    if (DBIx::Class::_ENV_::HAS_ITHREADS) {
+
+      # quick "garbage collection" pass - prevents the registry
+      # from slowly growing with a bunch of undef-valued keys
+      defined $cursor_registry{$_} or delete $cursor_registry{$_}
+        for keys %cursor_registry;
+
+      weaken( $cursor_registry{ refaddr($self) } = $self )
+    }
+
+    return $self;
+  }
+
+  sub CLONE {
+    for (keys %cursor_registry) {
+      # once marked we no longer care about them, hence no
+      # need to keep in the registry, left alone renumber the
+      # keys (all addresses are now different)
+      my $self = delete $cursor_registry{$_}
+        or next;
+
+      $self->{_intra_thread} = 1;
+    }
+  }
 }
 
 =head2 next
@@ -71,42 +100,48 @@ values (the result of L<DBI/fetchrow_array> method).
 
 =cut
 
-sub _dbh_next {
-  my ($storage, $dbh, $self) = @_;
+sub next {
+  my $self = shift;
 
-  $self->_check_dbh_gen;
+  return if $self->{_done};
+
+  my $sth;
+
   if (
     $self->{attrs}{software_limit}
       && $self->{attrs}{rows}
-        && $self->{pos} >= $self->{attrs}{rows}
+        && ($self->{_pos}||0) >= $self->{attrs}{rows}
   ) {
-    $self->sth->finish if $self->sth->{Active};
-    $self->sth(undef);
-    $self->{done} = 1;
-  }
-  return if $self->{done};
-  unless ($self->sth) {
-    $self->sth(($storage->_select(@{$self->{args}}))[1]);
-    if ($self->{attrs}{software_limit}) {
-      if (my $offset = $self->{attrs}{offset}) {
-        $self->sth->fetch for 1 .. $offset;
-      }
+    if ($sth = $self->sth) {
+      # explicit finish will issue warnings, unlike the DESTROY below
+      $sth->finish if $sth->FETCH('Active');
     }
+    $self->{_done} = 1;
+    return;
   }
-  my @row = $self->sth->fetchrow_array;
-  if (@row) {
-    $self->{pos}++;
+
+  unless ($sth = $self->sth) {
+    (undef, $sth, undef) = $self->storage->_select( @{$self->{args}} );
+
+    $self->{_results} = [ (undef) x $sth->FETCH('NUM_OF_FIELDS') ];
+    $sth->bind_columns( \( @{$self->{_results}} ) );
+
+    if ( $self->{attrs}{software_limit} and $self->{attrs}{offset} ) {
+      $sth->fetch for 1 .. $self->{attrs}{offset};
+    }
+
+    $self->sth($sth);
+  }
+
+  if ($sth->fetch) {
+    $self->{_pos}++;
+    return @{$self->{_results}};
   } else {
-    $self->sth(undef);
-    $self->{done} = 1;
+    $self->{_done} = 1;
+    return ();
   }
-  return @row;
 }
 
-sub next {
-  my ($self) = @_;
-  $self->{storage}->dbh_do($self->can('_dbh_next'), $self);
-}
 
 =head2 all
 
@@ -123,24 +158,58 @@ L<DBIx::Class::ResultSet>.
 
 =cut
 
-sub _dbh_all {
-  my ($storage, $dbh, $self) = @_;
+sub all {
+  my $self = shift;
 
-  $self->_check_dbh_gen;
-  $self->sth->finish if $self->sth && $self->sth->{Active};
-  $self->sth(undef);
-  my ($rv, $sth) = $storage->_select(@{$self->{args}});
+  # delegate to DBIC::Cursor which will delegate back to next()
+  if ($self->{attrs}{software_limit}
+        && ($self->{attrs}{offset} || $self->{attrs}{rows})) {
+    return $self->next::method(@_);
+  }
+
+  my $sth;
+
+  if ($sth = $self->sth) {
+    # explicit finish will issue warnings, unlike the DESTROY below
+    $sth->finish if ( ! $self->{_done} and $sth->FETCH('Active') );
+    $self->sth(undef);
+  }
+
+  (undef, $sth) = $self->storage->_select( @{$self->{args}} );
+
   return @{$sth->fetchall_arrayref};
 }
 
-sub all {
-  my ($self) = @_;
-  if ($self->{attrs}{software_limit}
-        && ($self->{attrs}{offset} || $self->{attrs}{rows})) {
-    return $self->next::method;
+sub sth {
+  my $self = shift;
+
+  if (@_) {
+    delete @{$self}{qw/_pos _done _pid _intra_thread/};
+
+    $self->{sth} = $_[0];
+    $self->{_pid} = $$ if ! DBIx::Class::_ENV_::BROKEN_FORK and $_[0];
+  }
+  elsif ($self->{sth} and ! $self->{_done}) {
+
+    my $invalidate_handle_reason;
+
+    if (DBIx::Class::_ENV_::HAS_ITHREADS and $self->{_intra_thread} ) {
+      $invalidate_handle_reason = 'Multi-thread';
+    }
+    elsif (!DBIx::Class::_ENV_::BROKEN_FORK and $self->{_pid} != $$ ) {
+      $invalidate_handle_reason = 'Multi-process';
+    }
+
+    if ($invalidate_handle_reason) {
+      $self->storage->throw_exception("$invalidate_handle_reason access attempted while cursor in progress (position $self->{_pos})")
+        if $self->{_pos};
+
+      # reinvokes the reset logic above
+      $self->sth(undef);
+    }
   }
 
-  $self->{storage}->dbh_do($self->can('_dbh_all'), $self);
+  return $self->{sth};
 }
 
 =head2 reset
@@ -150,37 +219,30 @@ Resets the cursor to the beginning of the L<DBIx::Class::ResultSet>.
 =cut
 
 sub reset {
-  my ($self) = @_;
-
-  # No need to care about failures here
-  try { $self->sth->finish }
-    if $self->sth && $self->sth->{Active};
-  $self->_soft_reset;
-  return undef;
+  $_[0]->__finish_sth if $_[0]->{sth};
+  $_[0]->sth(undef);
 }
 
-sub _soft_reset {
-  my ($self) = @_;
-
-  $self->sth(undef);
-  delete $self->{done};
-  $self->{pos} = 0;
-}
-
-sub _check_dbh_gen {
-  my ($self) = @_;
-
-  if($self->{_dbh_gen} != $self->{storage}->{_dbh_gen}) {
-    $self->{_dbh_gen} = $self->{storage}->{_dbh_gen};
-    $self->_soft_reset;
-  }
-}
 
 sub DESTROY {
-  # None of the reasons this would die matter if we're in DESTROY anyways
-  if (my $sth = $_[0]->sth) {
-    try { $sth->finish } if $sth->FETCH('Active');
-  }
+  $_[0]->__finish_sth if $_[0]->{sth};
+}
+
+sub __finish_sth {
+  # It is (sadly) extremely important to finish() handles we are about
+  # to lose (due to reset() or a DESTROY() ). $rs->reset is the closest
+  # thing the user has to getting to the underlying finish() API and some
+  # DBDs mandate this (e.g. DBD::InterBase will segfault, DBD::Sybase
+  # won't start a transaction sanely, etc)
+  # We also can't use the accessor here, as it will trigger a fork/thread
+  # check, and resetting a cursor in a child is perfectly valid
+
+  my $self = shift;
+
+  # No need to care about failures here
+  try { local $SIG{__WARN__} = sub {}; $self->{sth}->finish } if (
+    $self->{sth} and ! try { ! $self->{sth}->FETCH('Active') }
+  );
 }
 
 1;

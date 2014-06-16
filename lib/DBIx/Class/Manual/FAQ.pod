@@ -20,7 +20,7 @@ How Do I:
 
 =item .. create a database to use?
 
-First, choose a database. For testing/experimenting, we reccommend
+First, choose a database. For testing/experimenting, we recommend
 L<DBD::SQLite>, which is a self-contained small database (i.e. all you
 need to do is to install L<DBD::SQLite> from CPAN, and it works).
 
@@ -75,7 +75,7 @@ lot later.
 
 =item .. use DBIx::Class across multiple databases?
 
-If your database server allows you to run querys across multiple
+If your database server allows you to run queries across multiple
 databases at once, then so can DBIx::Class. All you need to do is make
 sure you write the database name as part of the
 L<DBIx::Class::ResultSource/table> call. Eg:
@@ -132,9 +132,10 @@ allow you to supply a hashref containing the condition across which
 the tables are to be joined. The condition may contain as many fields
 as you like. See L<DBIx::Class::Relationship::Base>.
 
-=item .. define a relationship across an intermediate table? (many-to-many)
+=item .. define a relationship bridge across an intermediate table? (many-to-many)
 
-Read the documentation on L<DBIx::Class::Relationship/many_to_many>.
+The term 'relationship' is used loosely with many_to_many as it is not considered a
+relationship in the fullest sense.  For more info, read the documentation on L<DBIx::Class::Relationship/many_to_many>.
 
 =item .. stop DBIx::Class from attempting to cascade deletes on my has_many and might_have relationships?
 
@@ -241,15 +242,7 @@ documentation for details.
 To use an SQL function on the left hand side of a comparison you currently need
 to resort to literal SQL:
 
- ->search( \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ] );
-
-Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
-should be either the same as the name of the column (do this if the type of the
-return value of the function is the same as the type of the column) or in the
-case of a function it's currently treated as a dummy string (it is a good idea
-to use C<plain_value> or something similar to convey intent). The value is
-currently only significant when handling special column types (BLOBs, arrays,
-etc.), but this may change in the future.
+ ->search( \[ 'YEAR(date_of_birth) = ?', 1979 ] );
 
 =item .. find more help on constructing searches?
 
@@ -303,7 +296,7 @@ Use the L<DBIx::Class::ResultSet/rows> and
 L<DBIx::Class::ResultSet/order_by> attributes to order your data and
 pick off a single row.
 
-See also L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
+See also L<DBIx::Class::Manual::Cookbook/Retrieve one and only one row from a resultset>.
 
 A less readable way is to ask a regular search to return 1 row, using
 L<DBIx::Class::ResultSet/slice>:
@@ -319,9 +312,9 @@ in the cookbook can do the same if you pass a C<rows> attribute to the search.
 
 Use L<DBIx::Class::Row/discard_changes>.
 
-  $row->discard_changes
+  $result->discard_changes
 
-Discarding changes and refreshing from storage are two sides fo the same coin.  When you
+Discarding changes and refreshing from storage are two sides of the same coin.  When you
 want to discard your local changes, just re-fetch the row from storage.  When you want
 to get a new, fresh copy of the row, just re-fetch the row from storage.
 L<DBIx::Class::Row/discard_changes> does just that by re-fetching the row from storage
@@ -350,7 +343,7 @@ C<count> on the resultset will only return the total number in the page.
 =item .. insert a row with an auto incrementing primary key?
 
 This happens automatically. After
-L<creating|DBIx::Class::ResultSet/create> a row object, the primary
+L<creating|DBIx::Class::ResultSet/create> a result object, the primary
 key value created by your database can be fetched by calling C<id> (or
 the access of your primary key column) on the object.
 
@@ -391,17 +384,17 @@ object. To fetch the new value, use the C<discard_changes> method on
 the Row.
 
   # will return the scalar reference:
-  $row->somecolumn()
+  $result->somecolumn()
 
   # issue a select using the PK to re-fetch the row data:
-  $row->discard_changes();
+  $result->discard_changes();
 
   # Now returns the correct new value:
-  $row->somecolumn()
+  $result->somecolumn()
 
 To update and refresh at once, chain your calls:
 
-  $row->update({ 'somecolumn' => { -ident => 'othercolumn' } })->discard_changes;
+  $result->update({ 'somecolumn' => { -ident => 'othercolumn' } })->discard_changes;
 
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
@@ -436,8 +429,8 @@ data out.
 
 =head2 Custom methods in Result classes
 
-You can add custom methods that do arbitrary things, even to unrelated tables. 
-For example, to provide a C<< $book->foo() >> method which searches the 
+You can add custom methods that do arbitrary things, even to unrelated tables.
+For example, to provide a C<< $book->foo() >> method which searches the
 cd table, you'd could add this to Book.pm:
 
   sub foo {
@@ -454,7 +447,7 @@ methods to find or create data in related tables for you. But if you want to
 write your own methods, you can.
 
 For example, to provide a C<< $book->foo() >> method to manually implement
-what create_related() from L<DBIx::Class::Relationship::Base> does, you could 
+what create_related() from L<DBIx::Class::Relationship::Base> does, you could
 add this to Book.pm:
 
   sub foo {
@@ -472,41 +465,41 @@ Invoked like this:
 
 =item How do I store my own (non-db) data in my DBIx::Class objects?
 
-You can add your own data accessors to your classes.
+You can add your own data accessors to your Result classes.
 
 One method is to use the built in mk_group_accessors (via L<Class::Accessor::Grouped>)
 
-	package MyTable;
+	package App::Schema::Result::MyTable;
 
-	use parent 'DBIx::Class';
+	use parent 'DBIx::Class::Core';
 
 	__PACKAGE__->table('foo'); #etc
 	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
 
 An another method is to use L<Moose> with your L<DBIx::Class> package.
 
-	package MyTable;
+	package App::Schema::Result::MyTable;
 
 	use Moose; # import Moose
 	use Moose::Util::TypeConstraint; # import Moose accessor type constraints
 
-	extends 'DBIx::Class'; # Moose changes the way we define our parent (base) package
+	extends 'DBIx::Class::Core'; # Moose changes the way we define our parent (base) package
 
 	has 'non_column_data' => ( is => 'rw', isa => 'Str' ); # define a simple attribute
 
 	__PACKAGE__->table('foo'); # etc
 
-With either of these methods the resulting use of the accesssor would be
+With either of these methods the resulting use of the accessor would be
 
-	my $row;
+	my $result;
 
-	# assume that somewhere in here $row will get assigned to a MyTable row
+	# assume that somewhere in here $result will get assigned to a MyTable row
 
-	$row->non_column_data('some string'); # would set the non_column_data accessor
+	$result->non_column_data('some string'); # would set the non_column_data accessor
 
 	# some other stuff happens here
 
-	$row->update(); # would not inline the non_column_data accessor into the update
+	$result->update(); # would not inline the non_column_data accessor into the update
 
 
 =item How do I use DBIx::Class objects in my TT templates?
@@ -535,7 +528,7 @@ L<DBIx::Class> runs the actual SQL statement as late as possible, thus
 if you create a resultset using C<search> in scalar context, no query
 is executed. You can create further resultset refinements by calling
 search again or relationship accessors. The SQL query is only run when
-you ask the resultset for an actual row object.
+you ask the resultset for an actual result object.
 
 =item How do I deal with tables that lack a primary key?
 
@@ -555,7 +548,7 @@ Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
 =item How do I reduce the overhead of database queries?
 
 You can reduce the overhead of object creation within L<DBIx::Class>
-using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results">
+using the tips in L<DBIx::Class::Manual::Cookbook/"Skip result object creation for faster results">
 and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 
 =item How do I override a run time method (e.g. a relationship accessor)?
@@ -566,12 +559,12 @@ The code example works for both modules:
 
     package Your::Schema::Group;
     use Class::Method::Modifiers;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     # if the server group is a "super group", then return all servers
     # otherwise return only servers that belongs to the given group
     around 'servers' => sub {
@@ -591,12 +584,12 @@ L<Method::Signatures::Simple> way:
 
     package Your::Schema::Group;
     use Method::Signatures::Simple;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     # The method keyword automatically injects the annoying my $self = shift; for you.
     method servers {
         return $self->result_source->schema->resultset('Server')->search({ ... });
@@ -606,17 +599,17 @@ The dirty way:
 
     package Your::Schema::Group;
     use Sub::Name;
-    
+
     # ... declare columns ...
-    
+
     __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
     __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
-    
+
     *servers = subname servers => sub {
         my $self = shift;
         return $self->result_source->schema->resultset('Server')->search({ ... });
     };
-    
+
 =back
 
 =head2 Notes for CDBI users

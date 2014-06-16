@@ -1,6 +1,9 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Year1999CDs;
 ## Used in 104view.t
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -33,7 +36,6 @@ __PACKAGE__->set_primary_key('cdid');
 __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
 __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist' );
-__PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track',
-    { "foreign.cd" => "self.cdid" });
+__PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track', 'cd' );
 
 1;

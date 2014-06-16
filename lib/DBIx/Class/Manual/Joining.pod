@@ -1,4 +1,4 @@
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Manual::Joining - Manual on joining tables with DBIx::Class
 
@@ -17,12 +17,12 @@ instead. Skip this part if you know what joins are..
 But I'll explain anyway. Assuming you have created your database in a
 more or less sensible way, you will end up with several tables that
 contain C<related> information. For example, you may have a table
-containing information about C<CD>s, containing the CD title and it's
+containing information about C<CD>s, containing the CD title and its
 year of publication, and another table containing all the C<Track>s
 for the CDs, one track per row.
 
 When you wish to extract information about a particular CD and all
-it's tracks, You can either fetch the CD row, then make another query
+its tracks, You can either fetch the CD row, then make another query
 to fetch the tracks, or you can use a join. Compare:
 
   SELECT ID, Title, Year FROM CD WHERE Title = 'Funky CD';
@@ -154,17 +154,17 @@ Which will produce the query:
 Note that the '+as' does not produce an SQL 'AS' keyword in the
 output, see the L<DBIx::Class::Manual::FAQ> for an explanation.
 
-This type of column restriction has a downside, the resulting $row
+This type of column restriction has a downside, the returned $result
 object will have no 'track_name' accessor:
 
-  while(my $row = $search_rs->next) {
-     print $row->track_name; ## ERROR
+  while(my $result = $search_rs->next) {
+     print $result->track_name; ## ERROR
   }
 
 Instead C<get_column> must be used:
 
-  while(my $row = $search_rs->next) {
-     print $row->get_colum('track_name'); ## WORKS
+  while(my $result = $search_rs->next) {
+     print $result->get_column('track_name'); ## WORKS
   }
 
 =head2 Incomplete related objects
@@ -175,14 +175,14 @@ has a very large field you don't need for the current data
 output. This is better solved by storing that field in a separate
 table which you only join to when needed.
 
-To fetch an incomplete related object, supply the dotted notation to the '+as' attribute: 
+To fetch an incomplete related object, supply the dotted notation to the '+as' attribute:
 
   $schema->resultset('CD')->search(
     { 'Title' => 'Funky CD',
     },
     { join      => 'tracks',
       '+select' => ['tracks.Name'],
-      '+as'     => ['tracks.Name'], 
+      '+as'     => ['tracks.Name'],
       order_by  => ['tracks.id'],
     }
   );
@@ -193,8 +193,8 @@ Which will produce same query as above;
 
 Now you can access the result using the relationship accessor:
 
-  while(my $row = $search_rs->next) {
-     print $row->tracks->name; ## WORKS
+  while(my $result = $search_rs->next) {
+     print $result->tracks->name; ## WORKS
   }
 
 However, this will produce broken objects. If the tracks id column is
@@ -232,13 +232,13 @@ Which is:
 
 To perform joins using relations of the tables you are joining to, use
 a hashref to indicate the join depth. This can theoretically go as
-deep as you like (warning: contrived examples!): 
+deep as you like (warning: contrived examples!):
 
   join => { room => { table => 'leg' } }
 
 To join two relations at the same level, use an arrayref instead:
 
-  join => { room => [ 'chair', 'table' ] } 
+  join => { room => [ 'chair', 'table' ] }
 
 Or combine the two:
 

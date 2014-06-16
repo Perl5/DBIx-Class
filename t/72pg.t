@@ -4,9 +4,12 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Sub::Name;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
@@ -88,14 +91,12 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
 # check if we indeed do support stuff
 my $test_server_supports_insert_returning = do {
-  my $v = DBICTest::Schema->connect($dsn, $user, $pass)
-                   ->storage
-                    ->_get_dbh
-                     ->get_info(18);
-  $v =~ /^(\d+)\.(\d+)/
-    or die "Unparseable Pg server version: $v\n";
 
-  ( sprintf ('%d.%d', $1, $2) >= 8.2 ) ? 1 : 0;
+  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  die "Unparseable Pg server version: $si->{dbms_version}\n"
+    unless $si->{normalized_dbms_version};
+
+  $si->{normalized_dbms_version} < 8.002 ? 0 : 1;
 };
 is (
   DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
@@ -109,9 +110,10 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   : (0)
 ) {
 
-  no warnings qw/once/;
+  no warnings qw/once redefine/;
+  my $old_connection = DBICTest::Schema->can('connection');
   local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
-    my $s = shift->next::method (@_);
+    my $s = shift->$old_connection(@_);
     $s->storage->_use_insert_returning ($use_insert_returning);
     $s;
   };
@@ -227,6 +229,13 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       arrayfield => [5, 6],
     });
 
+    lives_ok {
+      $schema->populate('ArrayTest', [
+        [ qw/arrayfield/ ],
+        [ [0,0]          ],
+      ]);
+    } 'inserting arrayref using void ctx populate';
+
     # Search using arrays
     lives_ok {
       is_deeply (
@@ -278,7 +287,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     } 'find by arrayref (equal)';
 
     # test inferred condition for creation
-    TODO: for my $cond (
+    for my $cond (
       { -value => [3,4] },
       \[ '= ?' => [arrayfield => [3, 4]] ],
     ) {
@@ -425,7 +434,7 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
   } 'with_deferred_fk_checks code survived';
 
   is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
-     'code in with_deferred_fk_checks worked'; 
+     'code in with_deferred_fk_checks worked';
 
   throws_ok {
     $schema->resultset('Track')->create({
@@ -439,7 +448,8 @@ done_testing;
 END {
     return unless $schema;
     drop_test_schema($schema);
-    eapk_drop_all( $schema)
+    eapk_drop_all($schema);
+    undef $schema;
 };
 
 
@@ -562,12 +572,12 @@ sub drop_test_schema {
 
         for my $stat (
                       'DROP SCHEMA dbic_t_schema_5 CASCADE',
-                      'DROP SEQUENCE public.artist_artistid_seq',
+                      'DROP SEQUENCE public.artist_artistid_seq CASCADE',
                       'DROP SCHEMA dbic_t_schema_4 CASCADE',
                       'DROP SCHEMA dbic_t_schema CASCADE',
-                      'DROP SEQUENCE pkid1_seq',
-                      'DROP SEQUENCE pkid2_seq',
-                      'DROP SEQUENCE nonpkid_seq',
+                      'DROP SEQUENCE pkid1_seq CASCADE',
+                      'DROP SEQUENCE pkid2_seq CASCADE',
+                      'DROP SEQUENCE nonpkid_seq CASCADE',
                       'DROP SCHEMA dbic_t_schema_2 CASCADE',
                       'DROP SCHEMA dbic_t_schema_3 CASCADE',
                      ) {

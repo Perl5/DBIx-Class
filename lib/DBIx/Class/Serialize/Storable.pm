@@ -1,9 +1,10 @@
 package DBIx::Class::Serialize::Storable;
 use strict;
 use warnings;
-use Storable;
 
-use Carp::Clan qw/^DBIx::Class/;
+use Storable();
+use DBIx::Class::Carp;
+use namespace::clean;
 
 carp 'The Serialize::Storable component is now *DEPRECATED*. It has not '
     .'been providing any useful functionality for quite a while, and in fact '
@@ -13,10 +14,6 @@ carp 'The Serialize::Storable component is now *DEPRECATED*. It has not '
 sub STORABLE_freeze {
     my ($self, $cloning) = @_;
     my $to_serialize = { %$self };
-
-    # The source is either derived from _source_handle or is
-    # reattached in the thaw handler below
-    delete $to_serialize->{result_source};
 
     # Dynamic values, easy to recalculate
     delete $to_serialize->{$_} for qw/related_resultsets _inflated_column/;
@@ -28,10 +25,6 @@ sub STORABLE_thaw {
     my ($self, $cloning, $serialized) = @_;
 
     %$self = %{ Storable::thaw($serialized) };
-
-    # if the handle went missing somehow, reattach
-    $self->result_source($self->result_source_instance)
-      if !$self->_source_handle && $self->can('result_source_instance');
 }
 
 1;
@@ -60,8 +53,8 @@ in its current implementation. Do not use!
 
 =head1 DESCRIPTION
 
-This component adds hooks for Storable so that row objects can be
-serialized. It assumes that your row object class (C<result_class>) is
+This component adds hooks for Storable so that result objects can be
+serialized. It assumes that your result object class (C<result_class>) is
 the same as your table class, which is the normal situation.
 
 =head1 HOOKS
@@ -80,9 +73,9 @@ method.
 
 The deserializing hook called on the object during deserialization.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-David Kamholz <dkamholz@cpan.org>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

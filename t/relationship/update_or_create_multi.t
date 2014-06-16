@@ -11,7 +11,7 @@ use DBIC::SqlMakerTest;
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
 
-my $artist = $schema->resultset ('Artist')->first;
+my $artist = $schema->resultset ('Artist')->find(1);
 
 my $genre = $schema->resultset ('Genre')
             ->create ({ name => 'par excellence' });
@@ -69,7 +69,12 @@ throws_ok {
     year => 2020,
     title => 'the best thing since sliced bread',
   })
-} qr/\Qcd.artist may not be NULL/, 'ambiguous find + create failed';
+} qr/DBI Exception.+(?x:
+    \QNOT NULL constraint failed: cd.artist\E
+      |
+    \Qcd.artist may not be NULL\E
+)/s, 'ambiguous find + create failed'
+;
 
 # expect a create, after a failed search using *only* the
 # *current* relationship and the unique column constraints
@@ -91,7 +96,7 @@ my ($search_sql) = $sql[0] =~ /^(SELECT .+?)\:/;
 is_same_sql (
   $search_sql,
   'SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
-    FROM cd me 
+    FROM cd me
     WHERE ( me.artist = ? AND me.title = ? AND me.genreid = ? )
   ',
   'expected select issued',

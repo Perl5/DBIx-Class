@@ -4,9 +4,8 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-use DBIC::SqlMakerTest;
 use DBICTest;
-
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -22,7 +21,7 @@ my @chain = (
     '+columns'  => [ { max_year => { max => 'me.year', -as => 'last_y' }}, ],
     '+select'   => [ { count => 'me.cdid' }, ],
     '+as'       => [ 'cnt' ],
-  } => 'SELECT me.cdid, LOWER( title ) AS lctitle, me.genreid, MAX( me.year ) AS last_y, COUNT( me.cdid ) FROM cd me',
+  } => 'SELECT me.cdid, LOWER( title ) AS lctitle, MAX( me.year ) AS last_y, me.genreid, COUNT( me.cdid ) FROM cd me',
 
   {
     select      => [ { min => 'me.cdid' }, ],
@@ -31,7 +30,7 @@ my @chain = (
 
   {
     '+columns' => [ { cnt => { count => 'cdid', -as => 'cnt' } } ],
-  } => 'SELECT MIN( me.cdid ), COUNT ( cdid ) AS cnt FROM cd me',
+  } => 'SELECT COUNT ( cdid ) AS cnt, MIN( me.cdid ) FROM cd me',
 
   {
     columns => [ { foo => { coalesce => [qw/a b c/], -as => 'firstfound' } }  ],
@@ -52,15 +51,24 @@ my @chain = (
   {
     '+select'   => [ 'me.year' ],
     '+as'       => [ 'year' ],
-  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt FROM cd me',
+  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt, me.year FROM cd me',
 
   {
     '+columns'   => [ 'me.year' ],
-  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt FROM cd me',
+  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt, me.year FROM cd me',
 
   {
     '+columns'   => 'me.year',
-  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt FROM cd me',
+  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt, me.year FROM cd me',
+
+  # naked selector at the end should just work
+  {
+    '+select'   => 'me.moar_stuff',
+  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt, me.year, me.moar_stuff FROM cd me',
+
+  {
+    '+select'   => [ { MOAR => 'f', -as => 'func' } ],
+  } => 'SELECT COALESCE( a, b, c ) AS firstfound, me.year, MAX( me.year ) AS last_y, COUNT( me.cdid ) AS cnt, me.year, me.moar_stuff, MOAR(f) AS func FROM cd me',
 
 );
 
@@ -84,23 +92,38 @@ while (@chain) {
 }
 
 # Make sure we don't lose bits even with weird selector specs
-$rs = $schema->resultset('CD')->search ({}, {
-  'columns'   => [ 'me.title' ],
-})->search ({}, {
-  '+select'   => \'me.year AS foo',
-})->search ({}, {
-  '+select'   => [ \'me.artistid AS bar' ],
-})->search ({}, {
-  '+select'   => { count => 'artistid', -as => 'baz' },
-});
+# also check that the default selector list is lazy
+# and make sure that unaliased +select does not go crazy
+$rs = $schema->resultset('CD');
+for my $attr (
+  { '+columns'  => [ 'me.title' ] },    # this one should be de-duplicated but not the select's
+
+  { '+select'   => \'me.year AS foo' },   # duplication of identical select expected (FIXME ?)
+  { '+select'   => \['me.year AS foo'] },
+
+  { '+select'   => [ \'me.artistid AS bar' ] },
+  { '+select'   => { count => 'artistid', -as => 'baz' } },
+) {
+  for (qw/columns select as/) {
+    ok (! exists $rs->{attrs}{$_}, "No eager '$_' attr on fresh resultset" );
+  }
+
+  $rs = $rs->search({}, $attr);
+}
 
 is_same_sql_bind (
   $rs->as_query,
   '( SELECT
+      me.cdid,
+      me.artist,
       me.title,
-      COUNT( artistid ) AS baz,
+      me.year,
+      me.genreid,
+      me.single_track,
       me.year AS foo,
-      me.artistid AS bar
+      me.year AS foo,
+      me.artistid AS bar,
+      COUNT( artistid ) AS baz
         FROM cd me
   )',
   [],
@@ -109,16 +132,40 @@ is_same_sql_bind (
 
 # Test the order of columns
 $rs = $schema->resultset('CD')->search ({}, {
-  'select'   => [ 'me.cdid', \'SUBSTR(me.title FROM 2)', 'me.title' ],
+  'select'   => [ 'me.cdid', 'me.title' ],
 });
 
 is_same_sql_bind (
   $rs->as_query,
   '( SELECT
       me.cdid,
-      SUBSTR(me.title FROM 2),
       me.title
       FROM cd me
+  )',
+  [],
+  'Correct order of selected columns'
+);
+
+# Test bare +select with as from root of resultset
+$rs = $schema->resultset('CD')->search ({}, {
+  '+select'   => [
+    \ 'foo',
+    { MOAR => 'f', -as => 'func' },
+   ],
+});
+
+is_same_sql_bind (
+  $rs->as_query,
+  '( SELECT
+      me.cdid,
+      me.artist,
+      me.title,
+      me.year,
+      me.genreid,
+      me.single_track,
+      foo,
+      MOAR( f ) AS func
+       FROM cd me
   )',
   [],
   'Correct order of selected columns'

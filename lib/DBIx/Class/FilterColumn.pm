@@ -201,7 +201,7 @@ exactly two arguments; the first being the column name the second being a hash
 reference with C<filter_from_storage> and C<filter_to_storage> set to either
 a method name or a code reference. In either case the filter is invoked as:
 
-  $row_obj->$filter_specification ($value_to_filter)
+  $result->$filter_specification ($value_to_filter)
 
 with C<$filter_specification> being chosen depending on whether the
 C<$value_to_filter> is being retrieved from or written to permanent

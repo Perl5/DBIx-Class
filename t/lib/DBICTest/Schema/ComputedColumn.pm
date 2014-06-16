@@ -1,7 +1,10 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::ComputedColumn;
 
 # for sybase and mssql computed column tests
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 

@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Lyrics;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -17,5 +20,9 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('lyric_id');
 __PACKAGE__->belongs_to('track', 'DBICTest::Schema::Track', 'track_id');
 __PACKAGE__->has_many('lyric_versions', 'DBICTest::Schema::LyricVersion', 'lyric_id');
+
+__PACKAGE__->has_many('existing_lyric_versions', 'DBICTest::Schema::LyricVersion', 'lyric_id', {
+  join_type => 'inner',
+});
 
 1;

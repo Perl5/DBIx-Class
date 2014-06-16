@@ -1,12 +1,12 @@
 package     # hide from PAUSE
     DBIx::Class::Admin::Usage;
 
+use warnings;
+use strict;
 
 use base 'Getopt::Long::Descriptive::Usage';
 
 use base 'Class::Accessor::Grouped';
-
-use Class::C3;
 
 __PACKAGE__->mk_group_accessors('simple', 'synopsis', 'short_description');
 
@@ -23,7 +23,7 @@ sub set_simple {
 
 
 
-# This returns the usage formated as a pod document
+# This returns the usage formatted as a pod document
 sub pod {
   my ($self) = @_;
   return join qq{\n}, $self->pod_leader_text, $self->pod_option_text, $self->pod_authorlic_text;
@@ -68,7 +68,7 @@ sub pod_option_text {
 
     $spec = Getopt::Long::Descriptive->_strip_assignment($spec);
     $string .= "=item " . join " or ", map { length > 1 ? "B<--$_>" : "B<-$_>" }
-                             split /\|/, $spec; 
+                             split /\|/, $spec;
     $string .= "\n\n$desc\n\n=cut\n\n";
 
   }

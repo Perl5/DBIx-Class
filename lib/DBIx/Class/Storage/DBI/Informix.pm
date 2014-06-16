@@ -10,6 +10,11 @@ use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('SkipFirst');
+__PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->datetime_parser_type (
+  'DBIx::Class::Storage::DBI::Informix::DateTime::Format'
+);
+
 
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 
@@ -27,11 +32,11 @@ This class implements storage-specific support for the Informix RDBMS
 
 sub _execute {
   my $self = shift;
-  my ($op) = @_;
   my ($rv, $sth, @rest) = $self->next::method(@_);
-  if ($op eq 'insert') {
-    $self->__last_insert_id($sth->{ix_sqlerrd}[1]);
-  }
+
+  $self->__last_insert_id($sth->{ix_sqlerrd}[1])
+    if $self->_perform_autoinc_retrieval;
+
   return (wantarray ? ($rv, $sth, @rest) : $rv);
 }
 
@@ -39,19 +44,19 @@ sub last_insert_id {
   shift->__last_insert_id;
 }
 
-sub _svp_begin {
+sub _exec_svp_begin {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("SAVEPOINT $name");
+    $self->_dbh->do("SAVEPOINT $name");
 }
 
 # can't release savepoints
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub with_deferred_fk_checks {
@@ -114,10 +119,6 @@ sub connect_call_datetime_setup {
 
   $ENV{GL_DATE}     = "%m/%d/%Y";
   $ENV{GL_DATETIME} = "%Y-%m-%d %H:%M:%S%F5";
-}
-
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::Informix::DateTime::Format'
 }
 
 package # hide from PAUSE

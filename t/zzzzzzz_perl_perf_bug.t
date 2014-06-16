@@ -1,9 +1,22 @@
 use strict;
 use warnings;
 use Test::More;
-use Benchmark;
 use lib qw(t/lib);
-use DBICTest; # do not remove even though it is not used
+
+BEGIN {
+  plan skip_all =>
+    'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
+    if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
+
+  require DBICTest::RunMode;
+  plan skip_all => 'Skipping as system appears to be a smoker'
+    if DBICTest::RunMode->is_smoker;
+}
+
+# globalllock so that the test runs alone
+use DBICTest ':GlobalLock';
+
+use Benchmark;
 
 # This is a rather unusual test.
 # It does not test any aspect of DBIx::Class, but instead tests the
@@ -19,25 +32,18 @@ use DBICTest; # do not remove even though it is not used
 # Perl Performance Issues on Red Hat Systems in
 # L<DBIx::Class::Manual::Troubleshooting>
 
-plan skip_all =>
-  'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
-  if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
-
-plan skip_all => 'Skipping as system appears to be a smoker'
-  if DBICTest::RunMode->is_smoker;
-
-plan tests => 3;
-
-ok( 1, 'Dummy - prevents next test timing out' );
-
 # we do a benchmark test filling an array with blessed/overloaded references,
 # against an array filled with array refs.
 # On a sane system the ratio between these operation sets is 1 - 1.5,
 # whereas a bugged system gives a ratio of around 8
-# we therefore consider there to be a problem if the ratio is >= 2
+# we therefore consider there to be a problem if the ratio is >= $fail_ratio
+my $fail_ratio = 3;
+
+ok( $fail_ratio, "Testing for a blessed overload slowdown >= ${fail_ratio}x" );
+
 
 my $results = timethese(
-    -1,    # run for 1 CPU second each
+    -1,    # run for 1 WALL second each
     {
         no_bless => sub {
             my %h;
@@ -57,7 +63,7 @@ my $results = timethese(
 
 my $ratio = $results->{no_bless}->iters / $results->{bless_overload}->iters;
 
-ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' )
+cmp_ok( $ratio, '<', $fail_ratio, 'Overload/bless performance acceptable' )
   || diag(
     "\n",
     "This perl has a substantial slow down when handling large numbers\n",
@@ -76,7 +82,7 @@ ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' )
 
 SKIP: {
     skip "Not checking for bless handling as performance is OK", 1
-      if ( $ratio < 2 );
+      if Test::Builder->new->is_passing;
 
     {
         package    # don't want this in PAUSE
@@ -117,3 +123,5 @@ SKIP: {
         "file " . __FILE__ . "\n",
       );
 }
+
+done_testing;

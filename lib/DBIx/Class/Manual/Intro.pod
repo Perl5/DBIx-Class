@@ -67,14 +67,15 @@ The important thing to understand:
 =head2 Search results are returned as Rows
 
 Rows of the search from the database are blessed into
-L<DBIx::Class::Row> objects.
+L<Result|DBIx::Class::Manual::ResultClass> objects.
 
 =head1 SETTING UP DBIx::Class
 
 Let's look at how you can set and use your first native L<DBIx::Class> tree.
 
 First we'll see how you can set up your classes yourself.  If you want them to
-be auto-discovered, just skip to the next section, which shows you how to use
+be auto-discovered, just skip to the L<next section|/Using
+DBIx::Class::Schema::Loader>, which shows you how to use
 L<DBIx::Class::Schema::Loader>.
 
 =head2 Setting it up manually
@@ -115,7 +116,7 @@ automatic row ordering:
   __PACKAGE__->position_column('rank');
 
 Ordered will refer to a field called 'position' unless otherwise directed.  Here you are defining
-the ordering field to be named 'rank'.  (NOTE: Insert errors may occur if you use the Ordered 
+the ordering field to be named 'rank'.  (NOTE: Insert errors may occur if you use the Ordered
 component, but have not defined a position column or have a 'position' field in your row.)
 
 Set the table for your class:
@@ -135,34 +136,29 @@ of information that it may be useful to have -- just pass C<add_columns> a hash:
                               size      => 16,
                               is_nullable => 0,
                               is_auto_increment => 1,
-                              default_value => '',
                             },
                           artist =>
                             { data_type => 'integer',
                               size      => 16,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
                             },
                           title  =>
                             { data_type => 'varchar',
                               size      => 256,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
                             },
                           rank =>
                             { data_type => 'integer',
                               size      => 16,
                               is_nullable => 0,
-                              is_auto_increment => 0,
-                              default_value => '',
+                              default_value => 0,
                             }
                          );
 
 DBIx::Class doesn't directly use most of this data yet, but various related
-modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you to
-create your database tables from your Schema, instead of the other way around.
+modules such as L<HTML::FormHandler::Model::DBIC> make use of it.
+Also it allows you to create your database tables from your Schema,
+instead of the other way around.
 See L<DBIx::Class::Schema/deploy> for details.
 
 See L<DBIx::Class::ResultSource> for more details of the possible column
@@ -191,26 +187,29 @@ foreign key:
 See L<DBIx::Class::Relationship> for more information about the various types of
 available relationships and how you can design your own.
 
-=head2 Using L<DBIx::Class::Schema::Loader>
+=head2 Using DBIx::Class::Schema::Loader
 
-This is an external module, and not part of the L<DBIx::Class> distribution.
-It inspects your database, and automatically creates classes for all the tables
-in your database.
+This module (L<DBIx::Class::Schema::Loader>) is an external module, and not part
+of the L<DBIx::Class> distribution. It inspects your database, and automatically
+creates classes for all the tables in your schema.
 
 The simplest way to use it is via the L<dbicdump> script from the
 L<DBIx::Class::Schema::Loader> distribution. For example:
 
-    $ dbicdump -o dump_directory=./lib MyApp::Schema dbi:mysql:mydb user pass
+    $ dbicdump -o dump_directory=./lib \
+        -o components='["InflateColumn::DateTime"]' \
+        MyApp::Schema dbi:mysql:mydb user pass
 
 If you have a mixed-case database, use the C<preserve_case> option, e.g.:
 
-    $ dbicdump -o dump_directory=./lib -o preserve_case=1 MyApp::Schema \
-        dbi:mysql:mydb user pass
+    $ dbicdump -o dump_directory=./lib -o preserve_case=1 \
+        -o components='["InflateColumn::DateTime"]' \
+        MyApp::Schema dbi:mysql:mydb user pass
 
 If you are using L<Catalyst>, then you can use the helper that comes with
 L<Catalyst::Model::DBIC::Schema>:
 
-    $ script/myapp_create.pl model MyDB DBIC::Schema MyDB::Schema \
+    $ script/myapp_create.pl model MyModel DBIC::Schema MyApp::Schema \
         create=static moniker_map='{ foo => "FOO" }' dbi:SQLite:./myapp.db \
         on_connect_do='PRAGMA foreign_keys=ON' quote_char='"'
 
@@ -398,7 +397,7 @@ attributes:
 
   my @albums = My::Schema->resultset('Album')->search(
     { artist => 'Bob Marley' },
-    { rows => 2, order_by => 'year DESC' }
+    { rows => 2, order_by => { -desc => 'year' } }
   );
 
 C<@albums> then holds the two most recent Bob Marley albums.
@@ -421,14 +420,14 @@ similarity ends. Any time you call a CRUD operation on a row (e.g.
 L<delete|DBIx::Class::Row/delete>,
 L<update|DBIx::Class::Row/update>,
 L<discard_changes|DBIx::Class::Row/discard_changes>,
-etc.) DBIx::Class will use the values of of the
+etc.) DBIx::Class will use the values of the
 L<primary key|DBIx::Class::ResultSource/set_primary_key> columns to populate
 the C<WHERE> clause necessary to accomplish the operation. This is why it is
 important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
 on all your result sources B<even if the underlying RDBMS does not have one>.
 In a pinch one can always declare each row identifiable by all its columns:
 
- __PACKAGE__->set_primary_keys (__PACKAGE__->columns);
+ __PACKAGE__->set_primary_key(__PACKAGE__->columns);
 
 Note that DBIx::Class is smart enough to store a copy of the PK values before
 any row-object changes take place, so even if you change the values of PK
@@ -446,10 +445,10 @@ L<delete|DBIx::Class::ResultSet/delete>
 For example, the following would not work (assuming C<People> does not have
 a declared PK):
 
- my $row = $schema->resultset('People')
+ my $result = $schema->resultset('People')
                    ->search({ last_name => 'Dantes' })
                     ->next;
- $row->update({ children => 2 }); # <-- exception thrown because $row isn't
+ $result->update({ children => 2 }); # <-- exception thrown because $result isn't
                                   # necessarily unique
 
 So instead the following should be done:

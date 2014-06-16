@@ -3,8 +3,12 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_informix')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_informix');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS/};
 
@@ -129,7 +133,7 @@ lives_ok {
 } 'with_deferred_fk_checks code survived';
 
 is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
- 'code in with_deferred_fk_checks worked'; 
+ 'code in with_deferred_fk_checks worked';
 
 throws_ok {
   $schema->resultset('Track')->create({
@@ -141,6 +145,7 @@ done_testing;
 
 # clean up our mess
 END {
-    my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do("DROP TABLE artist") if $dbh;
+  my $dbh = eval { $schema->storage->_dbh };
+  $dbh->do("DROP TABLE artist") if $dbh;
+  undef $schema;
 }

@@ -5,21 +5,26 @@ use Test::More;
 use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-DBICTest::Schema->load_classes('EventSmallDT');
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+. ' and ' .
+DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt')
+    && DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
 if (not ($dsn && $user)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
-    "\nWarning: This test drops and creates a table called 'track'";
+    "\nWarning: This test drops and creates a table called 'track' and " .
+    "'event_small_dt'";
 }
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
+DBICTest::Schema->load_classes('EventSmallDT');
 
 my @storage_types = (
   'DBI::Sybase::ASE',
@@ -37,7 +42,7 @@ for my $storage_type (@storage_types) {
     on_connect_call => 'datetime_setup',
   });
 
-  my $guard = Scope::Guard->new(\&cleanup);
+  my $guard = Scope::Guard->new(sub { cleanup($schema) } );
 
   $schema->storage->ensure_connected;
 
@@ -138,6 +143,7 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
+  my $schema = shift;
   if (my $dbh = eval { $schema->storage->dbh }) {
     $dbh->do('DROP TABLE track');
     $dbh->do('DROP TABLE event_small_dt');

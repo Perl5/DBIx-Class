@@ -12,7 +12,7 @@ sub _rebless {
   my ($self) = @_;
 
   # Default driver
-  my $class = $self->_server_info->{normalized_dbms_version} <= 8
+  my $class = $self->_server_info->{normalized_dbms_version} < 9
     ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
     : 'DBIx::Class::Storage::DBI::Oracle::Generic';
 
@@ -31,7 +31,7 @@ DBIx::Class::Storage::DBI::Oracle - Base class for Oracle driver
 This class simply provides a mechanism for discovering and loading a sub-class
 for a specific version Oracle backend. It should be transparent to the user.
 
-For Oracle major versions <= 8 it loads the ::Oracle::WhereJoins subclass,
+For Oracle major versions < 9 it loads the ::Oracle::WhereJoins subclass,
 which unrolls the ANSI join style DBIC normally generates into entries in
 the WHERE clause for compatibility purposes. To force usage of this version
 no matter the database version, add
@@ -40,9 +40,9 @@ no matter the database version, add
 
 to your Schema class.
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-David Jack Olrik C<< <djo@cpan.org> >>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

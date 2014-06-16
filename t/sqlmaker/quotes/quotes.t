@@ -4,14 +4,11 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 
-
-use_ok('DBICTest');
-use_ok('DBIC::DebugObj');
 my $schema = DBICTest->init_schema();
-
-#diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');

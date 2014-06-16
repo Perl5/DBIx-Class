@@ -1,17 +1,10 @@
 use strict;
+use warnings;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-  }
-  plan tests => 5;
-}
-
 use lib 't/cdbi/testlib';
-require Film;
-require Order;
+use Film;
+use Order;
 
 Film->has_many(orders => 'Order');
 Order->has_a(film => 'Film');
@@ -32,3 +25,5 @@ my $infilm = $bto->film;
 isa_ok $infilm, "Film";
 
 is $infilm->id, $film->id, "Orders hasa Film";
+
+done_testing;

@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::CD_to_Producer;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -11,9 +14,10 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key(qw/cd producer/);
 
+# the undef condition in this rel is *deliberate*
+# tests oddball legacy syntax
 __PACKAGE__->belongs_to(
-  'cd', 'DBICTest::Schema::CD',
-  { 'foreign.cdid' => 'self.cd' }
+  'cd', 'DBICTest::Schema::CD'
 );
 
 __PACKAGE__->belongs_to(

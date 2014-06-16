@@ -64,10 +64,10 @@ DBIC::SqlMakerTest - Helper package for testing sql_maker component of DBIC
 
   use Test::More;
   use DBIC::SqlMakerTest;
-  
+
   my ($sql, @bind) = $schema->storage->sql_maker->select(%args);
   is_same_sql_bind(
-    $sql, \@bind, 
+    $sql, \@bind,
     $expected_sql, \@expected_bind,
     'foo bar works'
   );
@@ -118,7 +118,7 @@ result, with C<$test_msg> as message.
 =head2 is_same_bind
 
   is_same_bind(
-    \@given_bind, 
+    \@given_bind,
     \@expected_bind,
     $test_msg
   );

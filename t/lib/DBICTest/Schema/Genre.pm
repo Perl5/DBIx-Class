@@ -1,5 +1,6 @@
 package DBICTest::Schema::Genre;
 
+use warnings;
 use strict;
 
 use base qw/DBICTest::BaseResult/;

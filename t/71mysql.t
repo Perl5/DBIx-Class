@@ -3,19 +3,25 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
+
+use DBI::Const::GetInfoType;
+use Scalar::Util qw/weaken/;
+use DBIx::Class::Optional::Dependencies ();
+
 use lib qw(t/lib);
 use DBICTest;
-use DBI::Const::GetInfoType;
 use DBIC::SqlMakerTest;
 
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');
 
-#warn "$dsn $user $pass";
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { quote_names => 1 });
 
 my $dbh = $schema->storage->dbh;
 
@@ -45,7 +51,7 @@ $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, so
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
-# make sure sqlt_type overrides work (::Storage::DBI::mysql does this) 
+# make sure sqlt_type overrides work (::Storage::DBI::mysql does this)
 {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -84,6 +90,16 @@ lives_ok {
     );
   });
 } 'Limited FOR UPDATE select works';
+
+# shared-lock
+lives_ok {
+  $schema->txn_do (sub {
+    isa_ok (
+      $schema->resultset('Artist')->find({artistid => 1}, {for => 'shared'}),
+      'DBICTest::Schema::Artist',
+    );
+  });
+} 'LOCK IN SHARE MODE select works';
 
 my $test_type_info = {
     'artistid' => {
@@ -127,7 +143,7 @@ $schema->populate ('BooksInLibrary', [
 ]);
 
 #
-# try a distinct + prefetch on tables with identically named columns 
+# try a distinct + prefetch on tables with identically named columns
 # (mysql doesn't seem to like subqueries with equally named columns)
 #
 
@@ -156,15 +172,10 @@ $schema->populate ('BooksInLibrary', [
 }
 
 SKIP: {
-    my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );
-    skip "Cannot determine MySQL server version", 1 if !$mysql_version;
+    my $norm_version = $schema->storage->_server_info->{normalized_dbms_version}
+      or skip "Cannot determine MySQL server version", 1;
 
-    my ($v1, $v2, $v3) = $mysql_version =~ /^(\d+)\.(\d+)(?:\.(\d+))?/;
-    skip "Cannot determine MySQL server version", 1 if !$v1 || !defined($v2);
-
-    $v3 ||= 0;
-
-    if( ($v1 < 5) || ($v1 == 5 && $v2 == 0 && $v3 <= 3) ) {
+    if ($norm_version < 5.000003_01) {
         $test_type_info->{charfield}->{data_type} = 'VARCHAR';
     }
 
@@ -194,36 +205,13 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   is_same_sql_bind (
     $rs->as_query,
     '(
-      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             artist.artistid, artist.name, artist.rank, artist.charfield
-        FROM cd me
-        INNER JOIN artist artist ON artist.artistid = me.artist
+      SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year`, `me`.`genreid`, `me`.`single_track`,
+             `artist`.`artistid`, `artist`.`name`, `artist`.`rank`, `artist`.`charfield`
+        FROM cd `me`
+        INNER JOIN `artist` `artist` ON `artist`.`artistid` = `me`.`artist`
     )',
     [],
-    'overriden default join type works',
-  );
-}
-
-{
-  # Test support for straight joins
-  my $cdsrc = $schema->source('CD');
-  my $artrel_info = $cdsrc->relationship_info ('artist');
-  $cdsrc->add_relationship(
-    'straight_artist',
-    $artrel_info->{class},
-    $artrel_info->{cond},
-    { %{$artrel_info->{attrs}}, join_type => 'straight' },
-  );
-  is_same_sql_bind (
-    $cdsrc->resultset->search({}, { prefetch => 'straight_artist' })->as_query,
-    '(
-      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             straight_artist.artistid, straight_artist.name, straight_artist.rank, straight_artist.charfield
-        FROM cd me
-        STRAIGHT_JOIN artist straight_artist ON straight_artist.artistid = me.artist
-    )',
-    [],
-    'straight joins correctly supported for mysql'
+    'overridden default join type works',
   );
 }
 
@@ -254,7 +242,7 @@ NULLINSEARCH: {
 
     my $artist = $artist2_rs->single;
 
-    is $artist => undef
+    is $artist => undef,
       => 'Nothing Found!';
 }
 
@@ -282,8 +270,61 @@ NULLINSEARCH: {
       join => 'books', group_by => [ 'me.id', 'books.id' ]
     })->count();
   }, 'count on grouped columns with the same name does not throw');
+}
 
+# a more contrived^Wcomplicated self-referential double-subquery test
+{
+  my $rs = $schema->resultset('Artist')->search({ name => { -like => 'baby_%' } });
 
+  $rs->populate([map { [$_] } ('name', map { "baby_$_" } (1..10) ) ]);
+
+  my ($count_sql, @count_bind) = @${$rs->count_rs->as_query};
+
+  my $complex_rs = $schema->resultset('Artist')->search(
+    { artistid => {
+      -in => $rs->get_column('artistid')
+                  ->as_query
+    } },
+  );
+
+  $complex_rs->update({ name => \[ "CONCAT( `name`, '_bell_out_of_', $count_sql )", @count_bind ] });
+
+  for (1..10) {
+    is (
+      $schema->resultset('Artist')->search({ name => "baby_${_}_bell_out_of_10" })->count,
+      1,
+      "Correctly updated babybell $_",
+    );
+  }
+
+  is ($rs->count, 10, '10 artists present');
+
+  my $orig_debug = $schema->storage->debug;
+  $schema->storage->debug(1);
+  my $query_count;
+  $schema->storage->debugcb(sub { $query_count++ });
+
+  $query_count = 0;
+  $complex_rs->delete;
+
+  is ($query_count, 1, 'One delete query fired');
+  is ($rs->count, 0, '10 Artists correctly deleted');
+
+  $rs->create({
+    name => 'baby_with_cd',
+    cds => [ { title => 'babeeeeee', year => 2013 } ],
+  });
+  is ($rs->count, 1, 'Artist with cd created');
+
+  $query_count = 0;
+  $schema->resultset('CD')->search_related('artist',
+    { 'artist.name' => { -like => 'baby_with_%' } }
+  )->delete;
+  is ($query_count, 1, 'And one more delete query fired');
+  is ($rs->count, 0, 'Artist with cd deleted');
+
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug($orig_debug);
 }
 
 ZEROINSEARCH: {
@@ -307,40 +348,126 @@ ZEROINSEARCH: {
     select => [ \ 'YEAR(year)' ], as => ['y'], distinct => 1,
   });
 
-  is_deeply (
-    [ sort ($rs->get_column ('y')->all) ],
+  my $y_rs = $rs->get_column ('y');
+
+  warnings_exist { is_deeply (
+    [ sort ($y_rs->all) ],
     [ sort keys %$cds_per_year ],
     'Years group successfully',
-  );
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
+
 
   $rs->create ({ artist => 1, year => '0-1-1', title => 'Jesus Rap' });
 
   is_deeply (
-    [ sort $rs->get_column ('y')->all ],
+    [ sort $y_rs->all ],
     [ 0, sort keys %$cds_per_year ],
     'Zero-year groups successfully',
   );
 
-  # convoluted search taken verbatim from list 
+  # convoluted search taken verbatim from list
   my $restrict_rs = $rs->search({ -and => [
     year => { '!=', 0 },
     year => { '!=', undef }
   ]});
 
-  is_deeply (
+  warnings_exist { is_deeply (
     [ $restrict_rs->get_column('y')->all ],
-    [ $rs->get_column ('y')->all ],
+    [ $y_rs->all ],
     'Zero year was correctly excluded from resultset',
-  );
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
 }
 
-## If find() is the first query after connect()
-## DBI::Storage::sql_maker() will be called before
-## _determine_driver() and so the ::SQLHacks class for MySQL
-## will not be used
+# make sure find hooks determine driver
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema->resultset("Artist")->find(4);
+  isa_ok($schema->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
+}
 
-my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-$schema2->resultset("Artist")->find(4);
-isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
+# make sure the mysql_auto_reconnect buggery is avoided
+{
+  local $ENV{MOD_PERL} = 'boogiewoogie';
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  ok (! $schema->storage->_get_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect unset regardless of ENV' );
+
+  # Make sure hardcore forking action still works even if mysql_auto_reconnect
+  # is true (test inspired by ether)
+
+  my $schema_autorecon = DBICTest::Schema->connect($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
+  my $orig_dbh = $schema_autorecon->storage->_get_dbh;
+  weaken $orig_dbh;
+
+  ok ($orig_dbh, 'Got weak $dbh ref');
+  ok ($orig_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect is properly set if explicitly requested' );
+
+  my $rs = $schema_autorecon->resultset('Artist');
+
+  my ($parent_in, $child_out);
+  pipe( $parent_in, $child_out ) or die "Pipe open failed: $!";
+  my $pid = fork();
+  if (! defined $pid ) {
+    die "fork() failed: $!"
+  }
+  elsif ($pid) {
+    close $child_out;
+
+    # sanity check
+    $schema_autorecon->storage->dbh_do(sub {
+      is ($_[1], $orig_dbh, 'Storage holds correct $dbh in parent');
+    });
+
+    # kill our $dbh
+    $schema_autorecon->storage->_dbh(undef);
+
+    {
+      local $TODO = "Perl $] is known to leak like a sieve"
+        if DBIx::Class::_ENV_::PEEPEENESS;
+
+      ok (! defined $orig_dbh, 'Parent $dbh handle is gone');
+    }
+  }
+  else {
+    close $parent_in;
+
+    #simulate a  subtest to not confuse the parent TAP emission
+    my $tb = Test::More->builder;
+    $tb->reset;
+    for (qw/output failure_output todo_output/) {
+      close $tb->$_;
+      open ($tb->$_, '>&', $child_out);
+    }
+
+    # wait for parent to kill its $dbh
+    sleep 1;
+
+    # try to do something dbic-esque
+    $rs->create({ name => "Hardcore Forker $$" });
+
+    {
+      local $TODO = "Perl $] is known to leak like a sieve"
+        if DBIx::Class::_ENV_::PEEPEENESS;
+
+      ok (! defined $orig_dbh, 'DBIC operation triggered reconnect - old $dbh is gone');
+    }
+
+    done_testing;
+    exit 0;
+  }
+
+  while (my $ln = <$parent_in>) {
+    print "   $ln";
+  }
+  wait;
+  ok(!$?, 'Child subtests passed');
+
+  ok ($rs->find({ name => "Hardcore Forker $pid" }), 'Expected row created');
+}
 
 done_testing;

@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::SelfRef;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 

@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::BindType;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -20,6 +23,10 @@ __PACKAGE__->add_columns(
   },
   'clob' => {
     data_type => 'clob',
+    is_nullable => 1,
+  },
+  'a_memo' => {
+    data_type => 'memo',
     is_nullable => 1,
   },
 );

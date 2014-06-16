@@ -2,10 +2,16 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+. ' and ' .
+DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_informix')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt')
+    && DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_informix');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS/};
 
@@ -16,9 +22,6 @@ Warning: This test drops and creates a table called 'event'";
 EOF
 }
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
-
 my $schema;
 
 {
@@ -26,7 +29,7 @@ my $schema;
     on_connect_call => [ 'datetime_setup' ],
   });
 
-  my $sg = Scope::Guard->new(\&cleanup);
+  my $sg = Scope::Guard->new(sub { cleanup($schema) } );
 
   eval { $schema->storage->dbh->do('DROP TABLE event') };
   $schema->storage->dbh->do(<<'SQL');
@@ -48,7 +51,7 @@ SQL
   my $row;
   ok( $row = $rs->create({
     id => 1,
-    starts_at => $date_only, 
+    starts_at => $date_only,
     created_on => $dt,
   }));
   ok( $row = $rs->search({ id => 1 }, { select => [qw/starts_at created_on/] })
@@ -66,7 +69,8 @@ done_testing;
 
 # clean up our mess
 sub cleanup {
-  my $dbh; 
+  my $schema = shift;
+  my $dbh;
   eval {
     $dbh = $schema->storage->dbh;
   };

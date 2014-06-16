@@ -2,44 +2,48 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
+my $env2optdep = {
+  DBICTEST_FIREBIRD => 'test_rdbms_firebird',
+  DBICTEST_FIREBIRD_INTERBASE => 'test_rdbms_firebird_interbase',
+  DBICTEST_FIREBIRD_ODBC => 'test_rdbms_firebird_odbc',
+};
 
-if (not ($dsn || $dsn2)) {
-  plan skip_all => <<'EOF';
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
-_USER and _PASS to run this test'.
-Warning: This test drops and creates a table called 'event'";
-EOF
-}
+plan skip_all => join (' ',
+  'Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}',
+  'and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},',
+  '_USER and _PASS to run these tests.',
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+  "WARNING: This test drops and creates a table called 'event'",
+) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
+
+plan skip_all => ( 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('test_dt') )
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
-
-my @info = (
-  [ $dsn,  $user,  $pass  ],
-  [ $dsn2, $user2, $pass2 ],
-);
 
 my $schema;
 
-foreach my $conn_idx (0..$#info) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
+for my $prefix (keys %$env2optdep) { SKIP: {
+
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   next unless $dsn;
 
+  note "Testing with ${prefix}_DSN";
+
+  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
+    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     quote_char => '"',
-    name_sep   => '.', 
+    name_sep   => '.',
     on_connect_call => [ 'datetime_setup' ],
   });
 
-  my $sg = Scope::Guard->new(\&cleanup);
+  my $sg = Scope::Guard->new(sub { cleanup($schema) } );
 
   eval { $schema->storage->dbh->do('DROP TABLE "event"') };
   $schema->storage->dbh->do(<<'SQL');
@@ -49,10 +53,10 @@ foreach my $conn_idx (0..$#info) {
     "created_on" TIMESTAMP
   )
 SQL
-  my $rs   = $schema->resultset('Event');
+  my $rs = $schema->resultset('Event');
 
   my $dt = DateTime->now;
-  $dt->set_nanosecond($dsn =~ /odbc/i ? 0 : 555600000);
+  $dt->set_nanosecond(555600000);
 
   my $date_only = DateTime->new(
     year => $dt->year, month => $dt->month, day => $dt->day
@@ -61,7 +65,7 @@ SQL
   my $row;
   ok( $row = $rs->create({
     id => 1,
-    starts_at => $date_only, 
+    starts_at => $date_only,
     created_on => $dt,
   }));
   ok( $row = $rs->search({ id => 1 }, { select => [qw/starts_at created_on/] })
@@ -70,16 +74,17 @@ SQL
   is $row->created_on, $dt, 'TIMESTAMP as DateTime roundtrip';
 
   cmp_ok $row->created_on->nanosecond, '==', $dt->nanosecond,
-    'fractional part of a second survived' if 0+$dt->nanosecond;
+    'fractional part of a second survived';
 
   is $row->starts_at, $date_only, 'DATE as DateTime roundtrip';
-}
+} }
 
 done_testing;
 
 # clean up our mess
 sub cleanup {
-  my $dbh; 
+  my $schema = shift;
+  my $dbh;
   eval {
     $schema->storage->disconnect; # to avoid object FOO is in use errors
     $dbh = $schema->storage->dbh;

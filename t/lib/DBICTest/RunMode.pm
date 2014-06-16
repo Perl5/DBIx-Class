@@ -1,12 +1,94 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::RunMode;
 
 use strict;
 use warnings;
 
+BEGIN {
+  if ($INC{'DBIx/Class.pm'}) {
+    my ($fr, @frame) = 1;
+    while (@frame = caller($fr++)) {
+      last if $frame[1] !~ m|^t/lib/DBICTest|;
+    }
+
+    die __PACKAGE__ . " must be loaded before DBIx::Class (or modules using DBIx::Class) at $frame[1] line $frame[2]\n";
+  }
+}
+
 use Path::Class qw/file dir/;
+use Fcntl ':DEFAULT';
+use File::Spec ();
+use File::Temp ();
+use DBICTest::Util 'local_umask';
 
 _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
+
+# PathTools has a bug where on MSWin32 it will often return / as a tmpdir.
+# This is *really* stupid and the result of having our lockfiles all over
+# the place is also rather obnoxious. So we use our own heuristics instead
+# https://rt.cpan.org/Ticket/Display.html?id=76663
+my $tmpdir;
+sub tmpdir {
+  dir ($tmpdir ||= do {
+
+    # works but not always
+    my $dir = dir(File::Spec->tmpdir);
+    my $reason_dir_unusable;
+
+    my @parts = File::Spec->splitdir($dir);
+    if (@parts == 2 and $parts[1] =~ /^ [ \\ \/ ]? $/x ) {
+      $reason_dir_unusable =
+        'File::Spec->tmpdir returned a root directory instead of a designated '
+      . 'tempdir (possibly https://rt.cpan.org/Ticket/Display.html?id=76663)';
+    }
+    else {
+      # make sure we can actually create and sysopen a file in this dir
+      local $@;
+      my $u = local_umask(0); # match the umask we use in DBICTest(::Schema)
+      my $tempfile = '<NONCREATABLE>';
+      eval {
+        $tempfile = File::Temp->new(
+          TEMPLATE => '_dbictest_writability_test_XXXXXX',
+          DIR => "$dir",
+          UNLINK => 1,
+        );
+        close $tempfile or die "closing $tempfile failed: $!\n";
+
+        sysopen (my $tempfh2, "$tempfile", O_RDWR) or die "reopening $tempfile failed: $!\n";
+        print $tempfh2 'deadbeef' x 1024 or die "printing to $tempfile failed: $!\n";
+        close $tempfh2 or die "closing $tempfile failed: $!\n";
+        1;
+      } or do {
+        chomp( my $err = $@ );
+        my @x_tests = map { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' } map {(-e, -d, -f, -r, -w, -x, -o)} ("$dir", "$tempfile");
+        $reason_dir_unusable = sprintf <<"EOE", "$tempfile"||'', $err, scalar $>, scalar $), umask(), (stat($dir))[4,5,2], @x_tests;
+File::Spec->tmpdir returned a directory which appears to be non-writeable:
+Error encountered while testing '%s': %s
+Process EUID/EGID: %s / %s
+Effective umask:   %o
+TmpDir UID/GID:    %s / %s
+TmpDir StatMode:   %o
+TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+TmpFile X-tests:   -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+EOE
+      };
+    }
+
+    if ($reason_dir_unusable) {
+      # Replace with our local project tmpdir. This will make multiple runs
+      # from different runs conflict with each other, but is much better than
+      # polluting the root dir with random crap or failing outright
+      my $local_dir = _find_co_root()->subdir('t')->subdir('var');
+      $local_dir->mkpath;
+
+      warn "\n\nUsing '$local_dir' as test scratch-dir instead of '$dir': $reason_dir_unusable\n";
+      $dir = $local_dir;
+    }
+
+    $dir->stringify;
+  });
+}
+
 
 # Die if the author did not update his makefile
 #
@@ -58,7 +140,6 @@ sub _check_author_makefile {
   if (@fail_reasons) {
     print STDERR <<'EOE';
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ======================== FATAL ERROR ===========================
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -68,9 +149,9 @@ checkout and that you, the user, did not run `perl Makefile.PL`
 before using this code. You absolutely _must_ perform this step,
 to ensure you have all required dependencies present. Not doing
 so often results in a lot of wasted time for other contributors
-trying to assit you with spurious "its broken!" problems.
+trying to assist you with spurious "its broken!" problems.
 
-By default DBICs Makefile.PL turns all optional dependenciess into
+By default DBICs Makefile.PL turns all optional dependencies into
 *HARD REQUIREMENTS*, in order to make sure that the entire test
 suite is executed, and no tests are skipped due to missing modules.
 If you for some reason need to disable this behavior - supply the
@@ -95,26 +176,11 @@ EOE
     }
     print STDERR "\n\n\n";
 
+    require Time::HiRes;
+    Time::HiRes::sleep(0.005);
+    print STDOUT "\nBail out!\n";
     exit 1;
   }
-}
-
-sub peepeeness {
-  return ! $ENV{DBICTEST_ALL_LEAKS} if defined $ENV{DBICTEST_ALL_LEAKS};
-
-  # don't smoke perls with known issues:
-  if (__PACKAGE__->is_smoker) {
-    if ($] == '5.013006') {
-      # leaky 5.13.6 (fixed in blead/cefd5c7c)
-      return 1;
-    }
-    elsif ($] == '5.013005') {
-      # not sure why this one leaks, but disable anyway - ANDK seems to make it weep
-      return 1;
-    }
-  }
-
-  return 0;
 }
 
 # Mimic $Module::Install::AUTHOR
@@ -131,7 +197,11 @@ sub is_author {
 }
 
 sub is_smoker {
-  return ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
+  return
+    ( ($ENV{TRAVIS}||'') eq 'true' )
+      ||
+    ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
+  ;
 }
 
 sub is_plain {

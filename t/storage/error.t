@@ -6,8 +6,7 @@ use Test::Warn;
 use Test::Exception;
 
 use lib qw(t/lib);
-use_ok( 'DBICTest' );
-use_ok( 'DBICTest::Schema' );
+use DBICTest;
 
 my $schema = DBICTest->init_schema;
 
@@ -16,7 +15,11 @@ warnings_are ( sub {
     sub {
       $schema->resultset('CD')->create({ title => 'vacation in antarctica' })
     },
-    qr/DBI Exception.+constraint failed.+cd\.artist.+NULL/s
+    qr/DBI Exception.+(?x:
+      \QNOT NULL constraint failed: cd.artist\E
+        |
+      \Qcd.artist may not be NULL\E
+    )/s
   );  # as opposed to some other error
 }, [], 'No warnings besides exception' );
 
@@ -35,7 +38,7 @@ throws_ok (
 # exception fallback:
 
 SKIP: {
-  if (DBICTest::RunMode->peepeeness) {
+  if (DBIx::Class::_ENV_::PEEPEENESS) {
     skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
   }
 

@@ -1,10 +1,6 @@
 use strict;
+use warnings;
 use Test::More;
-
-BEGIN {
-    eval "use DBIx::Class::CDBICompat;";
-    plan skip_all => 'Class::Trigger and DBIx::ContextualFetch required' if $@;
-}
 
 INIT {
     use lib 't/cdbi/testlib';

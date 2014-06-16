@@ -19,7 +19,7 @@ Creates a DBIx::Class::Schema for use with DBIx::Class
 =cut
 
 use strict;
-use vars qw[ $VERSION $DEBUG $WARN ];
+our ($VERSION, $DEBUG, $WARN);
 $VERSION = '0.1';
 $DEBUG   = 0 unless defined $DEBUG;
 

@@ -2,6 +2,7 @@ package DBICTest::Schema::Event;
 
 use strict;
 use warnings;
+
 use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
@@ -11,8 +12,8 @@ __PACKAGE__->table('event');
 __PACKAGE__->add_columns(
   id => { data_type => 'integer', is_auto_increment => 1 },
 
-# this MUST be 'date' for the Firebird tests
-  starts_at => { data_type => 'date' },
+# this MUST be 'date' for the Firebird and SQLAnywhere tests
+  starts_at => { data_type => 'date', datetime_undef_if_invalid => 1 },
 
   created_on => { data_type => 'timestamp' },
   varchar_date => { data_type => 'varchar', size => 20, is_nullable => 1 },

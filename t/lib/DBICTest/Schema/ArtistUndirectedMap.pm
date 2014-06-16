@@ -1,5 +1,8 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::ArtistUndirectedMap;
+
+use warnings;
+use strict;
 
 use base qw/DBICTest::BaseResult/;
 
@@ -15,6 +18,7 @@ __PACKAGE__->belongs_to( 'artist2', 'DBICTest::Schema::Artist', 'id2', { on_dele
 __PACKAGE__->has_many(
   'mapped_artists', 'DBICTest::Schema::Artist',
   [ {'foreign.artistid' => 'self.id1'}, {'foreign.artistid' => 'self.id2'} ],
+  { cascade_delete => 0 },
 );
 
 1;

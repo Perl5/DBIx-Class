@@ -24,7 +24,7 @@ use DBICTest;
     });
 
    $guard->commit;
-  } qr/No such column made_up_column .*? at .*?\Q$fn\E line \d+/s, "Error propogated okay";
+  } qr/No such column 'made_up_column' .*? at .*?\Q$fn\E line \d+/s, "Error propogated okay";
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
@@ -92,7 +92,9 @@ use DBICTest;
 
   no strict 'refs';
   no warnings 'redefine';
+
   local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
   throws_ok (sub {
     my $guard = $schema->txn_scope_guard;
@@ -114,12 +116,16 @@ use DBICTest;
 }
 
 # make sure it warns *big* on failed rollbacks
-{
-  my $schema = DBICTest->init_schema();
+# test with and without a poisoned $@
+for my $pre_poison (0,1) {
+for my $post_poison (0,1) {
+
+  my $schema = DBICTest->init_schema(no_populate => 1);
 
   no strict 'refs';
   no warnings 'redefine';
   local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
 #The warn from within a DESTROY callback freaks out Test::Warn, do it old-school
 =begin
@@ -156,15 +162,59 @@ use DBICTest;
       warn $_[0];
     }
   };
+
   {
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+    eval { die 'pre-GIFT!' if $pre_poison };
+    my $guard = $schema->txn_scope_guard;
+    eval { die 'post-GIFT!' if $post_poison };
+    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
   }
 
-  is (@w, 2, 'Both expected warnings found');
+  local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
+    if ( $post_poison and (
+      # take no chances on installation
+      ( DBICTest::RunMode->is_plain and ($ENV{TRAVIS}||'') ne 'true' )
+        or
+      # this always fails
+      ! $pre_poison
+        or
+      # I do not understand why but on <= 5.8.8 and on 5.10.0 "$pre_poison && $post_poison" passes...
+      ($] > 5.008008 and $] < 5.010000 ) or $] > 5.010000
+    ));
+
+  is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
 
   # just to mask off warning since we could not disconnect above
   $schema->storage->_dbh->disconnect;
+}}
+
+# add a TODO to catch when Text::Balanced is finally fixed
+# https://rt.cpan.org/Public/Bug/Display.html?id=74994
+#
+# while it doesn't matter much for DBIC itself, this particular bug
+# is a *BANE*, and DBIC is to bump its dep as soon as possible
+{
+
+  require Text::Balanced;
+
+  my @w;
+  local $SIG{__WARN__} = sub {
+    $_[0] =~ /External exception object .+? \Qimplements partial (broken) overloading/
+      ? push @w, @_
+      : warn @_
+  };
+
+  lives_ok {
+    # this is what poisons $@
+    Text::Balanced::extract_bracketed( '(foo', '()' );
+
+    my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
+    my $g = $s->txn_scope_guard;
+    $g->commit;
+  } 'Broken Text::Balanced is not screwing up txn_guard';
+
+  local $TODO = 'RT#74994 *STILL* not fixed';
+  is(scalar @w, 0, 'no warnings \o/');
 }
 
 done_testing;

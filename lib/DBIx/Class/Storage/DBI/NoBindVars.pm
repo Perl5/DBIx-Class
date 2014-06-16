@@ -6,7 +6,12 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-=head1 NAME 
+use DBIx::Class::SQLMaker::LimitDialects;
+use List::Util qw/first/;
+
+use namespace::clean;
+
+=head1 NAME
 
 DBIx::Class::Storage::DBI::NoBindVars - Sometime DBDs have poor to no support for bind variables
 
@@ -43,31 +48,26 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method(@_);
 
   # stringify bind args, quote via $dbh, and manually insert
-  #my ($op, $extra_bind, $ident, $args) = @_;
-  my $ident = $_[2];
+  #my ($op, $ident, $args) = @_;
+  my $ident = $_[1];
 
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
-  my $col_info = $self->_resolve_column_info($ident, [ map $_->[0], @$bind ]);
+  for (@$bind) {
+    my $data = (ref $_->[1]) ? "$_->[1]" : $_->[1]; # always stringify, array types are currently not supported
 
-  foreach my $bound (@$bind) {
-    my $col = shift @$bound;
+    my $datatype = $_->[0]{sqlt_datatype};
 
-    my $datatype = $col_info->{$col}{data_type};
+    $data = $self->_prep_interpolated_value($datatype, $data)
+      if $datatype;
 
-    foreach my $data (@$bound) {
-      $data = ''.$data if ref $data;
+    $data = $self->_get_dbh->quote($data)
+      unless ($datatype and $self->interpolate_unquoted($datatype, $data) );
 
-      $data = $self->_prep_interpolated_value($datatype, $data)
-        if $datatype;
-
-      $data = $self->_dbh->quote($data)
-        unless $self->interpolate_unquoted($datatype, $data);
-
-      $new_sql .= shift(@sql_part) . $data;
-    }
+    $new_sql .= shift(@sql_part) . $data;
   }
+
   $new_sql .= join '', @sql_part;
 
   return ($new_sql, []);
@@ -81,7 +81,8 @@ are the current column data type and the actual bind value. The return
 value is interpreted as: true - do not quote, false - do quote. You should
 override this in you Storage::DBI::<database> subclass, if your RDBMS
 does not like quotes around certain datatypes (e.g. Sybase and integer
-columns). The default method always returns false (do quote).
+columns). The default method returns false, except for integer datatypes
+paired with values containing nothing but digits.
 
  WARNING!!!
 
@@ -92,6 +93,17 @@ columns). The default method always returns false (do quote).
 
 sub interpolate_unquoted {
   #my ($self, $datatype, $value) = @_;
+
+  return 1 if (
+    defined $_[2]
+      and
+    $_[1]
+      and
+    $_[2] !~ /\D/
+      and
+    $_[1] =~ /int(?:eger)? | (?:tiny|small|medium|big)int/ix
+  );
+
   return 0;
 }
 

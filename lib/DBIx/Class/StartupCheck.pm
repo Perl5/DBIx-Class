@@ -1,5 +1,8 @@
 package DBIx::Class::StartupCheck;
 
+use strict;
+use warnings;
+
 =head1 NAME
 
 DBIx::Class::StartupCheck - Run environment checks on startup

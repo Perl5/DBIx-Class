@@ -4,21 +4,21 @@ no warnings 'uninitialized';
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
-
-my $TESTS = 66 + 2;
-
 if (not ($dsn && $user)) {
-  plan skip_all =>
-    'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
-    "\nWarning: This test drops and creates the tables " .
-    "'artist', 'money_test' and 'bindtype_test'";
-} else {
-  plan tests => $TESTS*2 + 1;
-}
+  plan skip_all => join ' ',
+    'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test.',
+    'Warning: This test drops and creates the tables:',
+    "'artist', 'money_test' and 'bindtype_test'",
+  ;
+};
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
 my @storage_types = (
   'DBI::Sybase::ASE',
@@ -59,9 +59,8 @@ for my $storage_type (@storage_types) {
 
   if ($storage_idx == 0 &&
       $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars')) {
-# no placeholders in this version of Sybase or DBD::Sybase (or using FreeTDS)
-      my $tb = Test::More->builder;
-      $tb->skip('no placeholders') for 1..$TESTS;
+      # no placeholders in this version of Sybase or DBD::Sybase (or using FreeTDS)
+      skip "Skipping entire test for $storage_type - no placeholder support", 1;
       next;
   }
 
@@ -90,6 +89,7 @@ SQL
 
 # test primary key handling
   my $new = $schema->resultset('Artist')->create({ name => 'foo' });
+  like $new->artistid, qr/^\d+\z/, 'Auto-PK returned a number';
   ok($new->artistid > 0, "Auto-PK worked");
 
   $seen_id{$new->artistid}++;
@@ -336,7 +336,7 @@ SQL
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
     skip 'TEXT/IMAGE support does not work with FreeTDS', 22
-      if $schema->storage->using_freetds;
+      if $schema->storage->_using_freetds;
 
     my $dbh = $schema->storage->_dbh;
     {
@@ -344,12 +344,13 @@ SQL
       eval { $dbh->do('DROP TABLE bindtype_test') };
 
       $dbh->do(qq[
-        CREATE TABLE bindtype_test 
+        CREATE TABLE bindtype_test
         (
-          id    INT   IDENTITY PRIMARY KEY,
-          bytea IMAGE NULL,
-          blob  IMAGE NULL,
-          clob  TEXT  NULL
+          id     INT   IDENTITY PRIMARY KEY,
+          bytea  IMAGE NULL,
+          blob   IMAGE NULL,
+          clob   TEXT  NULL,
+          a_memo IMAGE NULL
         )
       ],{ RaiseError => 1, PrintError => 0 });
     }
@@ -358,8 +359,8 @@ SQL
     $binstr{'large'} = $binstr{'small'} x 1024;
 
     my $maxloblen = length $binstr{'large'};
-    
-    if (not $schema->storage->using_freetds) {
+
+    if (not $schema->storage->_using_freetds) {
       $dbh->{'LongReadLen'} = $maxloblen * 2;
     } else {
       $dbh->do("set textsize ".($maxloblen * 2));
@@ -438,12 +439,10 @@ SQL
     lives_ok {
       $rs->populate([
         {
-          bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
         },
         {
-          bytea => 1,
           blob => $binstr{large},
           clob => $new_str,
         },
@@ -471,12 +470,14 @@ SQL
             bytea => 1,
             blob => $binstr{large},
             clob => $new_str,
+            a_memo => 2,
           },
           {
             id => 2,
             bytea => 1,
             blob => $binstr{large},
             clob => $new_str,
+            a_memo => 2,
           },
         ]);
       } 'insert_bulk with blobs and explicit identity does NOT die';
@@ -532,7 +533,7 @@ SQL
   }
 
 # test insert in an outer transaction when there's an active cursor
-  TODO: {
+  {
     local $TODO = 'this should work once we have eager cursors';
 
 # clear state, or we get a deadlock on $row->delete
@@ -584,7 +585,7 @@ CREATE TABLE computed_column_test (
    id INT IDENTITY PRIMARY KEY,
    a_computed_column AS getdate(),
    a_timestamp timestamp,
-   charfield VARCHAR(20) DEFAULT 'foo' 
+   charfield VARCHAR(20) DEFAULT 'foo'
 )
 SQL
   });
@@ -607,10 +608,36 @@ SQL
 
 is $ping_count, 0, 'no pings';
 
+# if tests passed and did so under a non-C lang - let's rerun the test
+if (Test::Builder->new->is_passing and $ENV{LANG} and $ENV{LANG} ne 'C') {
+  my $oldlang = $ENV{LANG};
+  local $ENV{LANG} = 'C';
+
+  pass ("Your lang is set to $oldlang - retesting with C");
+
+  local $ENV{PATH};
+  my @cmd = map { $_ =~ /(.+)/ } ($^X, __FILE__);
+
+  # this is cheating, and may even hang here and there (testing on windows passed fine)
+  # will be replaced with Test::SubExec::Noninteractive in due course
+  require IPC::Open2;
+  IPC::Open2::open2(my $out, undef, @cmd);
+  while (my $ln = <$out>) {
+    print "   $ln";
+  }
+
+  wait;
+  ok (! $?, "Wstat $? from: @cmd");
+}
+
+done_testing;
+
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist bindtype_test money_test computed_column_test/;
   }
+
+  undef $schema;
 }

@@ -1,11 +1,9 @@
 use strict;
+use warnings;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
-          : (tests=> 3);
-}
+use lib 't/cdbi/testlib';
+use DBIC::Test::SQLite;
 
 package A;
 @A::ISA = qw(DBIx::Class::CDBICompat);
@@ -23,3 +21,5 @@ package main;
 is join (' ', sort A->columns),    'id',          "A columns";
 is join (' ', sort A::B->columns), 'b1 id',       "A::B columns";
 is join (' ', sort A::C->columns), 'c1 c2 c3 id', "A::C columns";
+
+done_testing;

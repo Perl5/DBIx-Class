@@ -1,11 +1,51 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest;
 
 use strict;
 use warnings;
+
+# this noop trick initializes the STDOUT, so that the TAP::Harness
+# issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
+# keep spinning and scheduling jobs
+# This results in an overall much smoother job-queue drainage, since
+# the Harness blocks less
+# (ideally this needs to be addressed in T::H, but a quick patchjob
+# broke everything so tabling it for now)
+BEGIN {
+  if ($INC{'Test/Builder.pm'}) {
+    local $| = 1;
+    print "#\n";
+  }
+}
+
+use Module::Runtime 'module_notional_filename';
+BEGIN {
+  for my $mod (qw( DBIC::SqlMakerTest SQL::Abstract )) {
+    if ( $INC{ module_notional_filename($mod) } ) {
+      # FIXME this does not seem to work in BEGIN - why?!
+      #require Carp;
+      #$Carp::Internal{ (__PACKAGE__) }++;
+      #Carp::croak( __PACKAGE__ . " must be loaded before $mod" );
+
+      my ($fr, @frame) = 1;
+      while (@frame = caller($fr++)) {
+        last if $frame[1] !~ m|^t/lib/DBICTest|;
+      }
+
+      die __PACKAGE__ . " must be loaded before $mod (or modules using $mod) at $frame[1] line $frame[2]\n";
+    }
+  }
+}
+
 use DBICTest::RunMode;
 use DBICTest::Schema;
+use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Util 'local_umask';
 use Carp;
+use Path::Class::File ();
+use File::Spec;
+use Fcntl qw/:DEFAULT :flock/;
+use Config;
 
 =head1 NAME
 
@@ -16,12 +56,12 @@ DBICTest - Library to be used by DBIx::Class test scripts.
   use lib qw(t/lib);
   use DBICTest;
   use Test::More;
-  
+
   my $schema = DBICTest->init_schema();
 
 =head1 DESCRIPTION
 
-This module provides the basic utilities to write tests against 
+This module provides the basic utilities to write tests against
 DBIx::Class.
 
 =head1 METHODS
@@ -37,29 +77,104 @@ DBIx::Class.
     },
   );
 
-This method removes the test SQLite database in t/var/DBIxClass.db 
+This method removes the test SQLite database in t/var/DBIxClass.db
 and then creates a new, empty database.
 
-This method will call deploy_schema() by default, unless the 
+This method will call deploy_schema() by default, unless the
 no_deploy flag is set.
 
-Also, by default, this method will call populate_schema() by 
+Also, by default, this method will call populate_schema() by
 default, unless the no_deploy or no_populate flags are set.
 
 =cut
+
+# some tests are very time sensitive and need to run on their own, without
+# being disturbed by anything else grabbing CPU or disk IO. Hence why everything
+# using DBICTest grabs a shared lock, and the few tests that request a :GlobalLock
+# will ask for an exclusive one and block until they can get it
+our ($global_lock_fh, $global_exclusive_lock);
+sub import {
+    my $self = shift;
+
+    my $lockpath = DBICTest::RunMode->tmpdir->file('_dbictest_global.lock');
+
+    {
+      my $u = local_umask(0); # so that the file opens as 666, and any user can lock
+      sysopen ($global_lock_fh, $lockpath, O_RDWR|O_CREAT)
+        or die "Unable to open $lockpath: $!";
+    }
+
+    for (@_) {
+        if ($_ eq ':GlobalLock') {
+            flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
+            $global_exclusive_lock = 1;
+        }
+        else {
+            croak "Unknown export $_ requested from $self";
+        }
+    }
+
+    unless ($global_exclusive_lock) {
+        flock ($global_lock_fh, LOCK_SH) or die "Unable to lock $lockpath: $!";
+    }
+}
+
+END {
+    if ($global_lock_fh) {
+        # delay destruction even more
+    }
+}
+
+{
+    my $dir = Path::Class::File->new(__FILE__)->dir->parent->subdir('var');
+    $dir->mkpath unless -d "$dir";
+    $dir = "$dir";
+
+    sub _sqlite_dbfilename {
+        my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
+        $holder = $$ if $holder == -1;
+
+        # useful for missing cleanup debugging
+        #if ( $holder == $$) {
+        #  my $x = $0;
+        #  $x =~ s/\//#/g;
+        #  $holder .= "-$x";
+        #}
+
+        return "$dir/DBIxClass-$holder.db";
+    }
+
+    END {
+        _cleanup_dbfile();
+    }
+}
+
+$SIG{INT} = sub { _cleanup_dbfile(); exit 1 };
+
+sub _cleanup_dbfile {
+    # cleanup if this is us
+    if (
+      ! $ENV{DBICTEST_LOCK_HOLDER}
+        or
+      $ENV{DBICTEST_LOCK_HOLDER} == -1
+        or
+      $ENV{DBICTEST_LOCK_HOLDER} == $$
+    ) {
+        my $db_file = _sqlite_dbfilename();
+        unlink $_ for ($db_file, "${db_file}-journal");
+    }
+}
 
 sub has_custom_dsn {
     return $ENV{"DBICTEST_DSN"} ? 1:0;
 }
 
-sub _sqlite_dbfilename {
-    return "t/var/DBIxClass.db";
-}
-
 sub _sqlite_dbname {
     my $self = shift;
     my %args = @_;
-    return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
+    return $self->_sqlite_dbfilename if (
+      defined $args{sqlite_use_file} ? $args{sqlite_use_file} : $ENV{'DBICTEST_SQLITE_USE_FILE'}
+    );
     return ":memory:";
 }
 
@@ -78,11 +193,9 @@ sub _database {
     for ($db_file, "${db_file}-journal") {
       next unless -e $_;
       unlink ($_) or carp (
-        "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!\n"
+        "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!"
       );
     }
-
-    mkdir("t/var") unless -d "t/var";
 
     return ("dbi:SQLite:${db_file}", '', '', {
       AutoCommit => 1,
@@ -90,11 +203,21 @@ sub _database {
       # this is executed on every connect, and thus installs a disconnect/DESTROY
       # guard for every new $dbh
       on_connect_do => sub {
+
         my $storage = shift;
         my $dbh = $storage->_get_dbh;
 
         # no fsync on commit
         $dbh->do ('PRAGMA synchronous = OFF');
+
+        if (
+          $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER}
+            and
+          # the pragma does not work correctly before libsqlite 3.7.9
+          $storage->_server_info->{normalized_dbms_version} >= 3.007009
+        ) {
+          $dbh->do ('PRAGMA reverse_unordered_selects = ON');
+        }
 
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
@@ -112,7 +235,7 @@ sub _database {
 }
 
 sub __mk_disconnect_guard {
-  return if DBICTest::RunMode->peepeeness; # leaks handles, delaying DESTROY, can't work right
+  return if DBIx::Class::_ENV_::PEEPEENESS; # leaks handles, delaying DESTROY, can't work right
 
   my $db_file = shift;
   return unless -f $db_file;
@@ -155,10 +278,16 @@ sub __mk_disconnect_guard {
       my $cur_inode = (stat($db_file))[1];
 
       if ($orig_inode != $cur_inode) {
-        # pack/unpack to match the unsigned longs returned by `stat`
-        $fail_reason = sprintf 'was recreated (initially inode %s, now %s)', (
-          map { unpack ('L', pack ('l', $_) ) } ($orig_inode, $cur_inode )
-        );
+        my @inodes = ($orig_inode, $cur_inode);
+        # unless this is a fixed perl (P5RT#84590) pack/unpack before display
+        # to match the unsigned longs returned by `stat`
+        @inodes = map { unpack ('L', pack ('l', $_) ) } @inodes
+          unless $Config{st_ino_size};
+
+        $fail_reason = sprintf
+          'was recreated (initially inode %s, now %s)',
+          @inodes
+        ;
       }
     }
 
@@ -179,6 +308,8 @@ sub __mk_disconnect_guard {
     return; # this empty return is a DBI requirement
   };
 }
+
+my $weak_registry = {};
 
 sub init_schema {
     my $self = shift;
@@ -207,17 +338,25 @@ sub init_schema {
         __PACKAGE__->populate_schema( $schema )
          if( !$args{no_populate} );
     }
+
+    populate_weakregistry ( $weak_registry, $schema->storage )
+      if $INC{'Test/Builder.pm'} and $schema->storage;
+
     return $schema;
+}
+
+END {
+    assert_empty_weakregistry($weak_registry, 'quiet');
 }
 
 =head2 deploy_schema
 
   DBICTest->deploy_schema( $schema );
 
-This method does one of two things to the schema.  It can either call 
-the experimental $schema->deploy() if the DBICTEST_SQLT_DEPLOY environment 
-variable is set, otherwise the default is to read in the t/lib/sqlite.sql 
-file and execute the SQL within. Either way you end up with a fresh set 
+This method does one of two things to the schema.  It can either call
+the experimental $schema->deploy() if the DBICTEST_SQLT_DEPLOY environment
+variable is set, otherwise the default is to read in the t/lib/sqlite.sql
+file and execute the SQL within. Either way you end up with a fresh set
 of tables for testing.
 
 =cut
@@ -227,13 +366,15 @@ sub deploy_schema {
     my $schema = shift;
     my $args = shift || {};
 
-    if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
+    local $schema->storage->{debug}
+      if ($ENV{TRAVIS}||'') eq 'true';
+
+    if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
         $schema->deploy($args);
     } else {
-        open IN, "t/lib/sqlite.sql";
-        my $sql;
-        { local $/ = undef; $sql = <IN>; }
-        close IN;
+        my $filename = Path::Class::File->new(__FILE__)->dir
+          ->file('sqlite.sql')->stringify;
+        my $sql = do { local (@ARGV, $/) = $filename ; <> };
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
             $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";
@@ -247,7 +388,7 @@ sub deploy_schema {
 
   DBICTest->populate_schema( $schema );
 
-After you deploy your schema you can use this method to populate 
+After you deploy your schema you can use this method to populate
 the tables with test data.
 
 =cut
@@ -255,6 +396,9 @@ the tables with test data.
 sub populate_schema {
     my $self = shift;
     my $schema = shift;
+
+    local $schema->storage->{debug}
+      if ($ENV{TRAVIS}||'') eq 'true';
 
     $schema->populate('Genre', [
       [qw/genreid name/],
@@ -346,7 +490,7 @@ sub populate_schema {
         [ 1, 2 ],
         [ 1, 3 ],
     ]);
-    
+
     $schema->populate('TreeLike', [
         [ qw/id parent name/ ],
         [ 1, undef, 'root' ],
@@ -397,7 +541,7 @@ sub populate_schema {
         [ 1, "Tools" ],
         [ 2, "Body Parts" ],
     ]);
-    
+
     $schema->populate('TypedObject', [
         [ qw/objectid type value/ ],
         [ 1, "pointy", "Awl" ],

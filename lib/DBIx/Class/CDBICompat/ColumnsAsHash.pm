@@ -15,9 +15,9 @@ See DBIx::Class::CDBICompat for usage directions.
 
 =head1 DESCRIPTION
 
-Emulates the I<undocumnted> behavior of Class::DBI where the object can be accessed as a hash of columns.  This is often used as a performance hack.
+Emulates the I<undocumented> behavior of Class::DBI where the object can be accessed as a hash of columns.  This is often used as a performance hack.
 
-    my $column = $row->{column};
+    my $column = $result->{column};
 
 =head2 Differences from Class::DBI
 

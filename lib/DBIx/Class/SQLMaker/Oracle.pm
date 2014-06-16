@@ -5,12 +5,10 @@ use warnings;
 use strict;
 
 use base qw( DBIx::Class::SQLMaker );
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 BEGIN {
-  use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class::Optional::Dependencies;
-  croak('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') )
+  die('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') . "\n" )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
 }
 
@@ -22,12 +20,12 @@ sub new {
     handler => '_where_field_PRIOR',
   };
 
-  $self->SUPER::new (\%opts);
+  $self->next::method(\%opts);
 }
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where oracle_connect_by having order/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/pre_select select from where oracle_connect_by group having order limit/);
 }
 
 
@@ -38,7 +36,7 @@ sub _parse_rs_attrs {
     my ($cb_sql, @cb_bind) = $self->_connect_by($rs_attrs);
     push @{$self->{oracle_connect_by_bind}}, @cb_bind;
 
-    my $sql = $self->SUPER::_parse_rs_attrs(@_);
+    my $sql = $self->next::method(@_);
 
     return "$cb_sql $sql";
 }
@@ -77,13 +75,13 @@ sub _order_siblings_by {
 
     my ( @sql, @bind );
     for my $c ( $self->_order_by_chunks($arg) ) {
-        $self->_SWITCH_refkind(
-            $c,
-            {
-                SCALAR   => sub { push @sql, $c },
-                ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
-            }
-        );
+        if (ref $c) {
+            push @sql, shift @$c;
+            push @bind, @$c;
+        }
+        else {
+            push @sql, $c;
+        }
     }
 
     my $sql =
@@ -94,7 +92,7 @@ sub _order_siblings_by {
     return wantarray ? ( $sql, @bind ) : $sql;
 }
 
-# we need to add a '=' only when PRIOR is used against a column diretly
+# we need to add a '=' only when PRIOR is used against a column directly
 # i.e. when it is invoked by a special_op callback
 sub _where_field_PRIOR {
   my ($self, $lhs, $op, $rhs) = @_;
@@ -107,6 +105,19 @@ sub _where_field_PRIOR {
   );
 
   return ($sql, @bind);
+}
+
+# use this codepath to hook all identifiers and mangle them if necessary
+# this is invoked regardless of quoting being on or off
+sub _quote {
+  my ($self, $label) = @_;
+
+  return '' unless defined $label;
+  return ${$label} if ref($label) eq 'SCALAR';
+
+  $label =~ s/ ( [^\.]{31,} ) /$self->_shorten_identifier($1)/gxe;
+
+  $self->next::method($label);
 }
 
 # this takes an identifier and shortens it if necessary
@@ -125,7 +136,7 @@ sub _shorten_identifier {
   return $to_shorten
     if length($to_shorten) <= $max_len;
 
-  croak 'keywords needs to be an arrayref'
+  $self->throw_exception("'keywords' needs to be an arrayref")
     if defined $keywords && ref $keywords ne 'ARRAY';
 
   # if no keywords are passed use the identifier as one
@@ -166,7 +177,7 @@ sub _shorten_identifier {
     }
   }
 
-  # still too long - just start cuting proportionally
+  # still too long - just start cutting proportionally
   if ($concat_len > $max_trunc) {
     my $trim_ratio = $max_trunc / $concat_len;
 
@@ -199,23 +210,32 @@ sub _insert_returning {
 
   my $f = $options->{returning};
 
-  my ($f_list, @f_names) = $self->_SWITCH_refkind($f, {
-    ARRAYREF => sub {
-      (join ', ', map { $self->_quote($_) } @$f),
-      @$f
-    },
-    SCALAR => sub {
-      $self->_quote($f),
-      $f,
-    },
-    SCALARREF => sub {
-      $$f,
-      $$f,
-    },
-  });
+  my ($f_list, @f_names) = do {
+    if (! ref $f) {
+      (
+        $self->_quote($f),
+        $f,
+      )
+    }
+    elsif (ref $f eq 'ARRAY') {
+      (
+        (join ', ', map { $self->_quote($_) } @$f),
+        @$f,
+      )
+    }
+    elsif (ref $f eq 'SCALAR') {
+      (
+        $$f,
+        $$f,
+      )
+    }
+    else {
+      $self->throw_exception("Unsupported INSERT RETURNING option $f");
+    }
+  };
 
   my $rc_ref = $options->{returning_container}
-    or croak ('No returning container supplied for IR values');
+    or $self->throw_exception('No returning container supplied for IR values');
 
   @$rc_ref = (undef) x @f_names;
 

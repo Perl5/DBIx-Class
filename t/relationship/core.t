@@ -12,39 +12,23 @@ my $sdebug = $schema->storage->debug;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
-my ($artist) = ($INC{'DBICTest/HelperRels'}
-                  ? $cd->artist
-                  : $cd->search_related('artist'));
+my ($artist) = $cd->search_related('artist');
 is($artist->name, 'Random Boy Band', 'has_a search_related ok');
 
 # has_many test with an order_by clause defined
 $artist = $schema->resultset("Artist")->find(1);
-my @cds = ($INC{'DBICTest/HelperRels'}
-             ? $artist->cds
-             : $artist->search_related('cds'));
+my @cds = $artist->search_related('cds');
 is( $cds[1]->title, 'Spoonful of bees', 'has_many search_related with order_by ok' );
 
 # search_related with additional abstract query
-@cds = ($INC{'DBICTest/HelperRels'}
-          ? $artist->cds({ title => { like => '%of%' } })
-          : $artist->search_related('cds', { title => { like => '%of%' } } )
-       );
+@cds = $artist->search_related('cds', { title => { like => '%of%' } } );
 is( $cds[1]->title, 'Forkful of bees', 'search_related with abstract query ok' );
 
 # creating a related object
-if ($INC{'DBICTest/HelperRels.pm'}) {
-  $artist->add_to_cds({ title => 'Big Flop', year => 2005 });
-} else {
-  my $big_flop = $artist->create_related( 'cds', {
-      title => 'Big Flop',
-      year => 2005,
-  } );
-
- TODO: {
-    local $TODO = "Can't fix right now" if $DBIx::Class::VERSION < 0.09;
-    lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
-  };
-}
+$artist->create_related( 'cds', {
+  title => 'Big Flop',
+  year => 2005,
+} );
 
 my $big_flop_cd = ($artist->search_related('cds'))[3];
 is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
@@ -91,7 +75,7 @@ ok( !defined($track->cd), 'set_from_related with undef ok');
 
 $track = $schema->resultset("Track")->new( {} );
 $track->cd;
-$track->set_from_related( cd => $cd ); 
+$track->set_from_related( cd => $cd );
 ok ($track->cd, 'set_from_related ok after using the accessor' );
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
@@ -144,16 +128,20 @@ my $newartist = $cd->find_or_new_related( 'artist', {
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-lives_ok( 
-    sub { 
+lives_ok(
+    sub {
         my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
         my $new_related_link = $new_bookmark->new_related( 'link', {} );
     },
     'No back rel'
 );
 
+throws_ok {
+    my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
+    $new_bookmark->new_related( no_such_rel => {} );
+} qr/No such relationship 'no_such_rel'/, 'creating in uknown rel throws';
 
-TODO: {
+{
   local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
   throws_ok {
@@ -171,7 +159,7 @@ throws_ok {
 
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
-my @producers = $cd->producers();
+my @producers = $cd->producers(undef, { order_by => 'producerid'} );
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 is( $cd->producers_sorted->next->name, 'Bob The Builder',
     'sorted many_to_many ok' );
@@ -208,12 +196,12 @@ is( $prod_rs->first->name, 'Testy McProducer',
 $cd->add_to_producers({ name => 'Jack Black' });
 is( $prod_rs->count(), 2, 'many_to_many add_to_$rel($hash) count ok' );
 $cd->set_producers($schema->resultset('Producer')->all);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(@objs) count ok' );
 $cd->set_producers($schema->resultset('Producer')->find(1));
 is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->all]);
-is( $cd->producers->count(), $prod_before_count+2, 
+is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);
 is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
@@ -271,7 +259,8 @@ is_same_sql_bind (
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',
-  [[artistid => 1]],
+  [[ { sqlt_datatype => 'integer', dbic_colname => 'artistid' }
+      => 1 ]],
   'expected join sql produced',
 );
 
@@ -312,7 +301,7 @@ my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
 
-# check that relationships below left join relationships are forced to left joins 
+# check that relationships below left join relationships are forced to left joins
 # when traversing multiple belongs_to
 my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
 is($cds->count, 1, "subjoins under left joins force_left (string)");

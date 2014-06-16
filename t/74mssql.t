@@ -1,15 +1,10 @@
 use strict;
 use warnings;
 
-# use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
-BEGIN {
-  if (my $lib_dirs = $ENV{DBICTEST_MSSQL_PERL5LIB}) {
-    unshift @INC, $_ for split /:/, $lib_dirs;
-  }
-}
-
 use Test::More;
 use Test::Exception;
+use Scalar::Util 'weaken';
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
@@ -18,10 +13,16 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mssql_sybase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mssql_sybase');
+
 {
   my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};
   ok ($srv_ver, 'Got a test server version on fresh schema: ' . ($srv_ver||'???') );
 }
+
+my $schema;
 
 my $testdb_supports_placeholders = DBICTest::Schema->connect($dsn, $user, $pass)
                                                     ->storage
@@ -31,7 +32,6 @@ my @test_storages = (
   'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
 );
 
-my $schema;
 for my $storage_type (@test_storages) {
   $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -41,7 +41,15 @@ for my $storage_type (@test_storages) {
     $schema->storage->_use_typeless_placeholders (0);
   }
 
+  local $ENV{DBIC_MSSQL_FREETDS_LOWVER_NOWARN} = 1; # disable nobindvars warning
+
   $schema->storage->ensure_connected;
+
+  if ($storage_type =~ /NoBindVars\z/) {
+    is $schema->storage->disable_sth_caching, 1,
+      'prepare_cached disabled for NoBindVars';
+  }
+
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
   SKIP: {
@@ -107,10 +115,10 @@ for my $storage_type (@test_storages) {
      amount MONEY NULL
   )
 SQL
-
-  });
+   });
 
   my $rs = $schema->resultset('Money');
+  weaken(my $rs_cp = $rs);  # nested closure refcounting is an utter mess in perl
 
   my $row;
   lives_ok {
@@ -133,41 +141,117 @@ SQL
   is $rs->find($row->id)->amount,
     undef, 'updated money value to NULL round-trip';
 
-  $rs->create({ amount => 300 }) for (1..3);
-
-  # test multiple active statements
-  lives_ok {
-    my $artist_rs = $schema->resultset('Artist');
-    while (my $row = $rs->next) {
-      my $artist = $artist_rs->next;
-    }
-    $rs->reset;
-  } 'multiple active statements';
-
   $rs->delete;
 
   # test simple transaction with commit
   lives_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs_cp->create({ amount => 300 });
     });
   } 'simple transaction';
 
-  cmp_ok $rs->first->amount, '==', 400, 'committed';
-  $rs->reset;
+  cmp_ok $rs->first->amount, '==', 300, 'committed';
 
+  $rs->reset;
   $rs->delete;
 
   # test rollback
   throws_ok {
     $schema->txn_do(sub {
-      $rs->create({ amount => 400 });
+      $rs_cp->create({ amount => 700 });
       die 'mtfnpy';
     });
   } qr/mtfnpy/, 'simple failed txn';
 
   is $rs->first, undef, 'rolled back';
+
   $rs->reset;
+  $rs->delete;
+
+  # test multiple active statements
+  {
+    $rs->create({ amount => 800 + $_ }) for 1..3;
+
+    my @map = (
+      [ 'Artist 1', '801.00' ],
+      [ 'Artist 2', '802.00' ],
+      [ 'Artist 3', '803.00' ]
+    );
+
+    my $artist_rs = $schema->resultset('Artist')->search({
+      name => { -like => 'Artist %' }
+    });;
+
+    my $i = 0;
+
+    while (my $money_row = $rs->next) {
+      my $artist_row = $artist_rs->next;
+
+      is_deeply [ $artist_row->name, $money_row->amount ], $map[$i++],
+        'multiple active statements';
+    }
+    $rs->reset;
+    $rs->delete;
+  }
+
+  my $wrappers = {
+    no_transaction => sub { shift->() },
+    txn_do => sub { my $code = shift; $schema->txn_do(sub { $code->() } ) },
+    txn_begin => sub { $schema->txn_begin; shift->(); $schema->txn_commit },
+    txn_guard => sub { my $g = $schema->txn_scope_guard; shift->(); $g->commit },
+  };
+
+  # test transaction handling on a disconnected handle
+  for my $wrapper (keys %$wrappers) {
+    $rs->delete;
+
+    # a reconnect should trigger on next action
+    $schema->storage->_get_dbh->disconnect;
+
+
+    lives_and {
+      $wrappers->{$wrapper}->( sub {
+        $rs_cp->create({ amount => 900 + $_ }) for 1..3;
+      });
+      is $rs->count, 3;
+    } "transaction on disconnected handle with $wrapper wrapper";
+  }
+
+  # test transaction handling on a disconnected handle with multiple active
+  # statements
+  for my $wrapper (keys %$wrappers) {
+    $schema->storage->disconnect;
+    $rs->delete;
+    $rs->reset;
+    $rs->create({ amount => 1000 + $_ }) for (1..3);
+
+    my $artist_rs = $schema->resultset('Artist')->search({
+      name => { -like => 'Artist %' }
+    });;
+
+    $rs->next;
+
+    my $map = [ ['Artist 1', '1002.00'], ['Artist 2', '1003.00'] ];
+
+    weaken(my $a_rs_cp = $artist_rs);
+
+    local $TODO = 'Transaction handling with multiple active statements will '
+                 .'need eager cursor support.'
+      unless $wrapper eq 'no_transaction';
+
+    lives_and {
+      my @results;
+
+      $wrappers->{$wrapper}->( sub {
+        while (my $money = $rs_cp->next) {
+          my $artist = $a_rs_cp->next;
+          push @results, [ $artist->name, $money->amount ];
+        };
+      });
+
+      is_deeply \@results, $map;
+    } "transactions with multiple active statement with $wrapper wrapper";
+  }
 
   # test RNO detection when version detection fails
   SKIP: {
@@ -207,6 +291,31 @@ lives_ok (sub {
   is ($artist->id, 1, 'Artist retrieved successfully');
 }, 'Query-induced autoconnect works');
 
+# test AutoCommit=0
+{
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+  my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
+
+  my $rs = $schema2->resultset('Money');
+
+  $rs->delete;
+  $schema2->txn_commit;
+
+  is $rs->count, 0, 'initially empty'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 3000 });
+  $schema2->txn_rollback;
+
+  is $rs->count, 0, 'rolled back in AutoCommit=0'
+    || diag ('Found row with amount ' . $_->amount) for $rs->all;
+
+  $rs->create({ amount => 4000 });
+  $schema2->txn_commit;
+
+  cmp_ok $rs->first->amount, '==', 4000, 'committed in AutoCommit=0';
+}
+
 done_testing;
 
 # clean up our mess
@@ -216,4 +325,6 @@ END {
     $dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL DROP TABLE cd");
     $dbh->do("IF OBJECT_ID('money_test', 'U') IS NOT NULL DROP TABLE money_test");
   }
+
+  undef $schema;
 }

@@ -14,7 +14,7 @@ my $rs = $schema->resultset("CD");
 
 cmp_ok (
   $rs->count,
-    '!=',
+    '>',
   $rs->search ({}, {columns => ['year'], distinct => 1})->count,
   'At least one year is the same in rs'
 );
@@ -23,33 +23,84 @@ my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
 my $max_year = $rs->get_column(\'MAX (year)');
 
-is($rs_title->next, 'Spoonful of bees', "next okay");
+my @all_titles = $rs_title->all;
+cmp_ok(scalar @all_titles, '==', 5, "five titles returned");
+
+my @nexted_titles;
+while (my $r = $rs_title->next) {
+  push @nexted_titles, $r;
+}
+
+is_deeply (\@all_titles, \@nexted_titles, 'next works');
+
 is_deeply( [ sort $rs_year->func('DISTINCT') ], [ 1997, 1998, 1999, 2001 ],  "wantarray context okay");
 ok ($max_year->next == $rs_year->max, q/get_column (\'FUNC') ok/);
-
-my @all = $rs_title->all;
-cmp_ok(scalar @all, '==', 5, "five titles returned");
 
 cmp_ok($rs_year->max, '==', 2001, "max okay for year");
 is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
 
-$rs_year->reset;
-is($rs_year->next, 1999, "reset okay");
+my $rso_year = $rs->search({}, { order_by => 'cdid' })->get_column('year');
+is($rso_year->next, 1999, "reset okay");
 
-is($rs_year->first, 1999, "first okay");
+is($rso_year->first, 1999, "first okay");
 
 warnings_exist (sub {
-  is($rs_year->single, 1999, "single okay");
+  is($rso_year->single, 1999, "single okay");
 }, qr/Query returned more than one row/, 'single warned');
 
 
 # test distinct propagation
 is_deeply (
-  [$rs->search ({}, { distinct => 1 })->get_column ('year')->all],
-  [$rs_year->func('distinct')],
+  [sort $rs->search ({}, { distinct => 1 })->get_column ('year')->all],
+  [sort $rs_year->func('distinct')],
   'distinct => 1 is passed through properly',
+);
+
+# test illogical distinct
+my $dist_rs = $rs->search ({}, {
+  columns => ['year'],
+  distinct => 1,
+  order_by => { -desc => [qw( cdid year )] },
+});
+
+is_same_sql_bind(
+  $dist_rs->as_query,
+  '(
+    SELECT me.year
+      FROM cd me
+    GROUP BY me.year
+    ORDER BY MAX(cdid) DESC, year DESC
+  )',
+  [],
+  'Correct SQL on external-ordered distinct',
+);
+
+is_same_sql_bind(
+  $dist_rs->count_rs->as_query,
+  '(
+    SELECT COUNT( * )
+      FROM (
+        SELECT me.year
+          FROM cd me
+        GROUP BY me.year
+      ) me
+  )',
+  [],
+  'Correct SQL on count of external-orderdd distinct',
+);
+
+is (
+  $dist_rs->count_rs->next,
+  4,
+  'Correct rs-count',
+);
+
+is (
+  $dist_rs->count,
+  4,
+  'Correct direct count',
 );
 
 # test +select/+as for single column
@@ -136,21 +187,126 @@ is ($owner->search_related ('books')->get_column ('price')->sum, 60, 'Correctly 
 
 
 # make sure joined/prefetched get_column of a PK dtrt
-
 $rs->reset;
 my $j_rs = $rs->search ({}, { join => 'tracks' })->get_column ('cdid');
 is_deeply (
-  [ $j_rs->all ],
-  [ map { my $c = $rs->next; ( ($c->id) x $c->tracks->count ) } (1 .. $rs->count) ],
+  [ sort $j_rs->all ],
+  [ sort map { my $c = $rs->next; ( ($c->id) x $c->tracks->count ) } (1 .. $rs->count) ],
   'join properly explodes amount of rows from get_column',
 );
 
 $rs->reset;
 my $p_rs = $rs->search ({}, { prefetch => 'tracks' })->get_column ('cdid');
 is_deeply (
-  [ $p_rs->all ],
-  [ $rs->get_column ('cdid')->all ],
+  [ sort $p_rs->all ],
+  [ sort $rs->get_column ('cdid')->all ],
   'prefetch properly collapses amount of rows from get_column',
 );
+
+$rs->reset;
+my $pob_rs = $rs->search({}, {
+  select   => ['me.title', 'tracks.title'],
+  prefetch => 'tracks',
+  order_by => [{-asc => ['position']}],
+  group_by => ['me.title', 'tracks.title'],
+});
+is_same_sql_bind (
+  $pob_rs->get_column("me.title")->as_query,
+  '(SELECT me.title FROM (SELECT me.title, tracks.title FROM cd me LEFT JOIN track tracks ON tracks.cd = me.cdid GROUP BY me.title, tracks.title ORDER BY position ASC) me)',
+  [],
+  'Correct SQL for prefetch/order_by/group_by'
+);
+
+# test aggregate on a function (create an extra track on one cd)
+{
+  my $tr_rs = $schema->resultset("Track");
+  $tr_rs->create({ cd => 2, title => 'dealbreaker' });
+
+  is(
+    $tr_rs->get_column('cd')->max,
+    5,
+    "Correct: Max cd in Track is 5"
+  );
+
+  my $track_counts_per_cd_via_group_by = $tr_rs->search({}, {
+    columns => [ 'cd', { cnt => { count => 'trackid', -as => 'cnt' } } ],
+    group_by => 'cd',
+  })->get_column('cnt');
+
+  is ($track_counts_per_cd_via_group_by->max, 4, 'Correct max tracks per cd');
+  is ($track_counts_per_cd_via_group_by->min, 3, 'Correct min tracks per cd');
+  is (
+    sprintf('%0.1f', $track_counts_per_cd_via_group_by->func('avg') ),
+    '3.2',
+    'Correct avg tracks per cd'
+  );
+}
+
+# test exotic scenarious (create a track-less cd)
+# "How many CDs (not tracks) have been released per year where a given CD has at least one track and the artist isn't evancarroll?"
+{
+
+  $schema->resultset('CD')->create({ artist => 1, title => 'dealbroker no tracks', year => 2001 });
+
+  my $rs = $schema->resultset ('CD')->search (
+    { 'artist.name' => { '!=', 'evancarrol' }, 'tracks.trackid' => { '!=', undef } },
+    {
+      order_by => 'me.year',
+      join => [qw(artist tracks)],
+      columns => [ 'year', { cnt => { count => 'me.cdid' }} ],
+    },
+  );
+
+  my $rstypes = {
+    'explicitly grouped' => $rs->search_rs({}, { group_by => 'year' }),
+    'implicitly grouped' => $rs->search_rs({}, { distinct => 1 }),
+  };
+
+  for my $type (keys %$rstypes) {
+    is ($rstypes->{$type}->count, 4, "correct cd count with $type column");
+
+    is_deeply (
+      [ $rstypes->{$type}->get_column ('year')->all ],
+      [qw(1997 1998 1999 2001)],
+      "Getting $type column works",
+    );
+  }
+
+  # Why do we test this - we want to make sure that the selector *will* actually make
+  # it to the group_by as per the distinct => 1 contract. Before 0.08251 this situation
+  # would silently drop the group_by entirely, likely ending up with nonsensival results
+  # With the current behavior the user will at least get a nice fat exception from the
+  # RDBMS (or maybe the RDBMS will even decide to handle the situation sensibly...)
+  warnings_exist { is_same_sql_bind(
+    $rstypes->{'implicitly grouped'}->get_column('cnt')->as_query,
+    '(
+      SELECT COUNT( me.cdid )
+        FROM cd me
+        JOIN artist artist
+          ON artist.artistid = me.artist
+        LEFT JOIN track tracks
+          ON tracks.cd = me.cdid
+      WHERE artist.name != ? AND tracks.trackid IS NOT NULL
+      GROUP BY COUNT( me.cdid )
+      ORDER BY MIN(me.year)
+    )',
+    [ [ { dbic_colname => 'artist.name', sqlt_datatype => 'varchar', sqlt_size => 100 }
+        => 'evancarrol'
+    ] ],
+    'Expected (though nonsensical) SQL generated on rscol-with-distinct-over-function',
+  ) } qr/
+    \QUse of distinct => 1 while selecting anything other than a column \E
+    \Qdeclared on the primary ResultSource is deprecated\E
+  /x, 'deprecation warning';
+
+  {
+    local $TODO = 'multiplying join leaks through to the count aggregate... this may never actually work';
+    is_deeply (
+      [ $rstypes->{'explicitly grouped'}->get_column ('cnt')->all ],
+      [qw(1 1 1 2)],
+      "Get aggregate over group works",
+    );
+  }
+}
 
 done_testing;

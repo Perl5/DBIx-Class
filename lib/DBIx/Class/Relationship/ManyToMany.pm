@@ -4,10 +4,10 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class/;
-use Sub::Name qw/subname/;
-use Scalar::Util qw/blessed/;
-
+use DBIx::Class::Carp;
+use Sub::Name 'subname';
+use Scalar::Util 'blessed';
+use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -63,7 +63,6 @@ EOW
     *$rs_meth_name = subname $rs_meth_name, sub {
       my $self = shift;
       my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
-      my @args = ($f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs });
       my $rs = $self->search_related($rel)->search_related(
         $f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs }
       );
@@ -72,6 +71,7 @@ EOW
 
     my $meth_name = join '::', $class, $meth;
     *$meth_name = subname $meth_name, sub {
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and wantarray and my $sog = fail_on_internal_wantarray($_[0]);
       my $self = shift;
       my $rs = $self->$rs_meth( @_ );
       return (wantarray ? $rs->all : $rs);
@@ -133,9 +133,15 @@ EOW
         unless blessed ($obj);
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->_resolve_condition(
-        $cond, $obj, $f_rel
+      my ($link_cond, $crosstable) = $rel_source->_resolve_condition(
+        $cond, $obj, $f_rel, $f_rel
       );
+
+      $self->throw_exception(
+        "Custom relationship '$rel' does not resolve to a join-free condition, "
+       ."unable to use with the ManyToMany helper '$f_rel'"
+      ) if $crosstable;
+
       $self->search_related($rel, $link_cond)->delete;
     };
 

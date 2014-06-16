@@ -2,9 +2,9 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use Storable qw/dclone/;
 
 my $schema = DBICTest->init_schema();
 
@@ -111,7 +111,7 @@ $it = $rs->search({}, {
 });
 
 my $row = $rs->search({}, {
-    order_by => 'cdid', 
+    order_by => 'cdid',
     offset => 3,
     rows => 1
 })->single;
@@ -152,18 +152,30 @@ is ($qcnt, 0, 'No queries with explicitly sey total count');
 # test cached resultsets
 my $init_cnt = $rs->count;
 
-$it = $rs->search({}, { rows => 3, cache => 1 })->page(3);
+$it = $rs->search({}, { rows => 3, cache => 1 })->page(2);
+is ($it->count, 3, '3 rows');
+is (scalar $it->all, 3, '3 objects');
+
+isa_ok($it->pager,'Data::Page','Get a pager back ok');
+is($it->pager->total_entries,7);
+is($it->pager->current_page,2);
+is($it->pager->entries_on_this_page,3);
+
+$it = $it->page(3);
 is ($it->count, 1, 'One row');
 is (scalar $it->all, 1, 'One object');
+
+isa_ok($it->pager,'Data::Page','Get a pager back ok');
+is($it->pager->total_entries,7);
+is($it->pager->current_page,3);
+is($it->pager->entries_on_this_page,1);
+
 
 $it->delete;
 is ($rs->count, $init_cnt - 1, 'One row deleted as expected');
 
 is ($it->count, 1, 'One row (cached)');
 is (scalar $it->all, 1, 'One object (cached)');
-
-throws_ok { $it->pager }
-  qr/Pagers on cached resultsets are not supported/, 'No pagers on cached resultsets';
 
 # test fresh rs creation with modified defaults
 my $p = sub { $schema->resultset('CD')->page(1)->pager->entries_per_page; };
@@ -174,5 +186,32 @@ $schema->default_resultset_attributes({ rows => 5 });
 
 is($p->(), 5, 'default rows is 5');
 
+# does serialization work (preserve laziness, while preserving state if exits)
+$qcnt = 0;
+$it = $rs->search(
+    {},
+    { order_by => 'title',
+      rows => 5,
+      page => 2 }
+);
+$pager = $it->pager;
+is ($qcnt, 0, 'No queries on rs/pager creation');
+
+$it = do { local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema; dclone ($it) };
+is ($qcnt, 0, 'No queries on rs/pager freeze/thaw');
+
+is( $it->pager->entries_on_this_page, 1, "entries_on_this_page ok for page 2" );
+
+is ($qcnt, 1, 'Count fired to get pager page entries');
+
+$rs->create({ title => 'bah', artist => 1, year => 2011 });
+
+$qcnt = 0;
+$it = do { local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema; dclone ($it) };
+is ($qcnt, 0, 'No queries on rs/pager freeze/thaw');
+
+is( $it->pager->entries_on_this_page, 1, "entries_on_this_page ok for page 2, even though underlying count changed" );
+
+is ($qcnt, 0, 'No count fired on pre-existing total count');
 
 done_testing;

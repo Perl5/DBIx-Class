@@ -1,14 +1,6 @@
 use strict;
+use warnings;
 use Test::More;
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-  plan tests => 50;
-}
 
 use lib 't/cdbi/testlib';
 use Actor;
@@ -149,7 +141,7 @@ test_normal_iterator;
 
 package Class::DBI::My::Iterator;
 
-use vars qw/@ISA/;
+our @ISA;
 
 @ISA = ($it_class);
 
@@ -172,3 +164,5 @@ delete $film->{related_resultsets};
   eval { $film->actors->delete_all };
   is $@, '', "Deleting again does no harm";
 }
+
+done_testing;

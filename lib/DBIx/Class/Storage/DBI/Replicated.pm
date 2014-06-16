@@ -1,9 +1,8 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
 BEGIN {
-  use Carp::Clan qw/^DBIx::Class/;
   use DBIx::Class;
-  croak('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') )
+  die('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') . "\n" )
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
 }
 
@@ -16,10 +15,12 @@ use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
 use List::Util qw/min max reduce/;
+use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use namespace::clean;
 
 use namespace::clean -except => 'meta';
+
+=encoding utf8
 
 =head1 NAME
 
@@ -36,7 +37,7 @@ also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
   my $schema = Schema::Class->clone;
-  $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  $schema->storage_type(['::DBI::Replicated', { balancer_type => '::Random' }]);
   $schema->connection(...);
 
 Next, you need to add in the Replicants.  Basically this is an array of
@@ -57,9 +58,9 @@ be delegated to the replicants, while writes to the master.
 You can force a given query to use a particular storage using the search
 attribute 'force_pool'.  For example:
 
-  my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
+  my $rs = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
 
-Now $RS will force everything (both reads and writes) to use whatever was setup
+Now $rs will force everything (both reads and writes) to use whatever was setup
 as the master storage.  'master' is hardcoded to always point to the Master,
 but you can also use any Replicant name.  Please see:
 L<DBIx::Class::Storage::DBI::Replicated::Pool> and the replicants attribute for more.
@@ -69,8 +70,12 @@ force read traffic to the master.  In general, you should wrap your statements
 in a transaction when you are reading and writing to the same tables at the
 same time, since your replicants will often lag a bit behind the master.
 
-See L<DBIx::Class::Storage::DBI::Replicated::Instructions> for more help and
-walkthroughs.
+If you have a multi-statement read only transaction you can force it to select
+a random server in the pool by:
+
+  my $rs = $schema->resultset('Source')->search( undef,
+    { force_pool => $db->storage->read_handler->next_storage }
+  );
 
 =head1 DESCRIPTION
 
@@ -240,39 +245,10 @@ has 'master' => (
 The following methods are delegated all the methods required for the
 L<DBIx::Class::Storage::DBI> interface.
 
-=head2 read_handler
-
-Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
-
 =cut
 
-has 'read_handler' => (
-  is=>'rw',
-  isa=>Object,
-  lazy_build=>1,
-  handles=>[qw/
-    select
-    select_single
-    columns_info_for
-    _dbh_columns_info_for
-    _select
-  /],
-);
-
-=head2 write_handler
-
-Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
-as well as methods that don't write or read that can be called on only one
-storage, methods that return a C<$dbh>, and any methods that don't make sense to
-run on a replicant.
-
-=cut
-
-has 'write_handler' => (
-  is=>'ro',
-  isa=>Object,
-  lazy_build=>1,
-  handles=>[qw/
+my $method_dispatch = {
+  writer => [qw/
     on_connect_do
     on_disconnect_do
     on_connect_call
@@ -298,103 +274,164 @@ has 'write_handler' => (
     txn_commit
     txn_rollback
     txn_scope_guard
-    sth
+    _exec_txn_rollback
+    _exec_txn_begin
+    _exec_txn_commit
     deploy
     with_deferred_fk_checks
     dbh_do
-    reload_row
-    with_deferred_fk_checks
     _prep_for_execute
-
-    backup
     is_datatype_numeric
     _count_select
-    _subq_update_delete
     svp_rollback
     svp_begin
     svp_release
     relname_to_table_alias
     _dbh_last_insert_id
-    _fix_bind_params
     _default_dbi_connect_attributes
     _dbi_connect_info
     _dbic_connect_attributes
     auto_savepoint
-    _sqlt_version_ok
+    _query_start
     _query_end
+    _format_for_trace
+    _dbi_attrs_for_bind
     bind_attribute_by_data_type
     transaction_depth
     _dbh
     _select_args
-    _dbh_execute_array
+    _dbh_execute_for_fetch
     _sql_maker
-    _query_start
-    _sqlt_version_error
-    _per_row_update_delete
-    _dbh_begin_work
     _dbh_execute_inserts_with_no_binds
     _select_args_to_query
+    _gen_sql_bind
     _svp_generate_name
-    _multipk_update_delete
-    source_bind_attributes
     _normalize_connect_info
     _parse_connect_do
-    _dbh_commit
-    _execute_array
     savepoints
-    _sqlt_minimum_version
     _sql_maker_opts
     _conn_pid
     _dbh_autocommit
     _native_data_type
     _get_dbh
     sql_maker_class
-    _dbh_rollback
-    _adjust_select_args_for_complex_prefetch
-    _resolve_ident_sources
-    _resolve_column_info
-    _prune_unused_joins
-    _strip_cond_qualifiers
-    _resolve_aliastypes_from_select_args
     _execute
     _do_query
-    _dbh_sth
     _dbh_execute
+  /, Class::MOP::Class->initialize('DBIx::Class::Storage::DBIHacks')->get_method_list ],
+  reader => [qw/
+    select
+    select_single
+    columns_info_for
+    _dbh_columns_info_for
+    _select
   /],
-);
+  unimplemented => [qw/
+    _arm_global_destructor
+    _verify_pid
 
-my @unimplemented = qw(
-  _arm_global_destructor
-  _verify_pid
+    get_use_dbms_capability
+    set_use_dbms_capability
+    get_dbms_capability
+    set_dbms_capability
+    _dbh_details
+    _dbh_get_info
 
-  get_use_dbms_capability
-  set_use_dbms_capability
-  get_dbms_capability
-  set_dbms_capability
-  _dbh_details
+    _determine_connector_driver
+    _extract_driver_from_connect_info
+    _describe_connection
+    _warn_undetermined_driver
 
-  sql_limit_dialect
+    sql_limit_dialect
+    sql_quote_char
+    sql_name_sep
 
-  _inner_join_to_node
-  _group_over_selection
-  _prefetch_autovalues
-  _extract_order_criteria
-  _max_column_bytesize
-  _is_lob_type
-);
+    _prefetch_autovalues
+    _perform_autoinc_retrieval
+    _autoinc_supplied_for_op
 
-# the capability framework
-# not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
-push @unimplemented, ( grep
-  { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
-  ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
-);
+    _resolve_bindattrs
 
-for my $method (@unimplemented) {
+    _max_column_bytesize
+    _is_lob_type
+    _is_binary_lob_type
+    _is_binary_type
+    _is_text_lob_type
+
+    _prepare_sth
+    _bind_sth_params
+  /,(
+    # the capability framework
+    # not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
+    grep
+      { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
+      ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
+  )],
+};
+
+if (DBIx::Class::_ENV_::DBICTEST) {
+
+  my $seen;
+  for my $type (keys %$method_dispatch) {
+    for (@{$method_dispatch->{$type}}) {
+      push @{$seen->{$_}}, $type;
+    }
+  }
+
+  if (my @dupes = grep { @{$seen->{$_}} > 1 } keys %$seen) {
+    die(join "\n", '',
+      'The following methods show up multiple times in ::Storage::DBI::Replicated handlers:',
+      (map { "$_: " . (join ', ', @{$seen->{$_}}) } sort @dupes),
+      '',
+    );
+  }
+
+  if (my @cant = grep { ! DBIx::Class::Storage::DBI->can($_) } keys %$seen) {
+    die(join "\n", '',
+      '::Storage::DBI::Replicated specifies handling of the following *NON EXISTING* ::Storage::DBI methods:',
+      @cant,
+      '',
+    );
+  }
+}
+
+for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
-    croak "$method must not be called on ".(blessed shift).' objects';
+    my $self = shift;
+    $self->throw_exception("$method() must not be called on ".(blessed $self).' objects');
   });
 }
+
+=head2 read_handler
+
+Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
+
+=cut
+
+has 'read_handler' => (
+  is=>'rw',
+  isa=>Object,
+  lazy_build=>1,
+  handles=>$method_dispatch->{reader},
+);
+
+=head2 write_handler
+
+Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
+as well as methods that don't write or read that can be called on only one
+storage, methods that return a C<$dbh>, and any methods that don't make sense to
+run on a replicant.
+
+=cut
+
+has 'write_handler' => (
+  is=>'ro',
+  isa=>Object,
+  lazy_build=>1,
+  handles=>$method_dispatch->{writer},
+);
+
+
 
 has _master_connect_info_opts =>
   (is => 'rw', isa => HashRef, default => sub { {} });
@@ -409,6 +446,11 @@ C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 
 around connect_info => sub {
   my ($next, $self, $info, @extra) = @_;
+
+  $self->throw_exception(
+    'connect_info can not be retrieved from a replicated storage - '
+  . 'accessor must be called on a specific pool instance'
+  ) unless defined $info;
 
   my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 
@@ -446,24 +488,19 @@ around connect_info => sub {
 
   $self->_master_connect_info_opts(\%opts);
 
-  my @res;
-  if (wantarray) {
-    @res = $self->$next($info, @extra);
-  } else {
-    $res[0] = $self->$next($info, @extra);
-  }
+  return preserve_context {
+    $self->$next($info, @extra);
+  } after => sub {
+    # Make sure master is blessed into the correct class and apply role to it.
+    my $master = $self->master;
+    $master->_determine_driver;
+    Moose::Meta::Class->initialize(ref $master);
 
-  # Make sure master is blessed into the correct class and apply role to it.
-  my $master = $self->master;
-  $master->_determine_driver;
-  Moose::Meta::Class->initialize(ref $master);
+    DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
 
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
-
-  # link pool back to master
-  $self->pool->master($master);
-
-  wantarray ? @res : $res[0];
+    # link pool back to master
+    $self->pool->master($master);
+  };
 };
 
 =head1 METHODS
@@ -607,8 +644,8 @@ around connect_replicants => sub {
 
 =head2 all_storages
 
-Returns an array of of all the connected storage backends.  The first element
-in the returned array is the master, and the remainings are each of the
+Returns an array of all the connected storage backends.  The first element
+in the returned array is the master, and the rest are each of the
 replicants.
 
 =cut
@@ -644,41 +681,22 @@ inserted something and need to get a resultset including it, etc.
 =cut
 
 sub execute_reliably {
-  my ($self, $coderef, @args) = @_;
+  my $self = shift;
+  my $coderef = shift;
 
   unless( ref $coderef eq 'CODE') {
     $self->throw_exception('Second argument must be a coderef');
   }
 
-  ##Get copy of master storage
-  my $master = $self->master;
+  ## replace the current read handler for the remainder of the scope
+  local $self->{read_handler} = $self->master;
 
-  ##Get whatever the current read hander is
-  my $current = $self->read_handler;
-
-  ##Set the read handler to master
-  $self->read_handler($master);
-
-  ## do whatever the caller needs
-  my @result;
-  my $want_array = wantarray;
-
-  try {
-    if($want_array) {
-      @result = $coderef->(@args);
-    } elsif(defined $want_array) {
-      ($result[0]) = ($coderef->(@args));
-    } else {
-      $coderef->(@args);
-    }
+  my $args = \@_;
+  return try {
+    $coderef->(@$args);
   } catch {
     $self->throw_exception("coderef returned an error: $_");
-  } finally {
-    ##Reset to the original state
-    $self->read_handler($current);
   };
-
-  return wantarray ? @result : $result[0];
 }
 
 =head2 set_reliable_storage
@@ -1062,7 +1080,7 @@ sub _get_server_version {
 Due to the fact that replicants can lag behind a master, you must take care to
 make sure you use one of the methods to force read queries to a master should
 you need realtime data integrity.  For example, if you insert a row, and then
-immediately re-read it from the database (say, by doing $row->discard_changes)
+immediately re-read it from the database (say, by doing $result->discard_changes)
 or you insert a row and then immediately build a query that expects that row
 to be an item, you should force the master to handle reads.  Otherwise, due to
 the lag, there is no certainty your data will be in the expected state.
@@ -1074,9 +1092,9 @@ method to force the master to handle all read queries.
 Otherwise, you can force a single query to use the master with the 'force_pool'
 attribute:
 
-  my $row = $resultset->search(undef, {force_pool=>'master'})->find($pk);
+  my $result = $resultset->search(undef, {force_pool=>'master'})->find($pk);
 
-This attribute will safely be ignore by non replicated storages, so you can use
+This attribute will safely be ignored by non replicated storages, so you can use
 the same code for both types of systems.
 
 Lastly, you can use the L</execute_reliably> method, which works very much like
@@ -1100,8 +1118,8 @@ using the Schema clone method.
 
 Based on code originated by:
 
-  Norbert Csongr·di <bert@cpan.org>
-  Peter SiklÛsi <einon@einon.hu>
+  Norbert Csongr√°di <bert@cpan.org>
+  Peter Sikl√≥si <einon@einon.hu>
 
 =head1 LICENSE
 

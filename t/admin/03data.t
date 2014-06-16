@@ -4,14 +4,14 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
+use lib 't/lib';
+use DBICTest;
+
 BEGIN {
     require DBIx::Class;
     plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin')
       unless DBIx::Class::Optional::Dependencies->req_ok_for('admin');
 }
-
-use lib 't/lib';
-use DBICTest;
 
 use_ok 'DBIx::Class::Admin';
 
@@ -45,13 +45,13 @@ use_ok 'DBIx::Class::Admin';
 
   $admin->insert('Employee', {name =>'Aran'});
 
-  my $expected_data = [ 
+  my $expected_data = [
     [$employee->result_source->columns() ],
     [1,1,undef,undef,undef,'Trout',undef],
     [2,2,undef,undef,undef,'Aran',undef]
   ];
   my $data;
-  lives_ok { $data = $admin->select('Employee')} 'can retrive data from database';
+  lives_ok { $data = $admin->select('Employee', undef, { order_by => 'employee_id' })} 'can retrive data from database';
   is_deeply($data, $expected_data, 'DB matches whats expected');
 
   $admin->delete('Employee', {name=>'Trout'});

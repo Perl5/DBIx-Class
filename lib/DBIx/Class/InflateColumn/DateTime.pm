@@ -3,7 +3,7 @@ package DBIx::Class::InflateColumn::DateTime;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
 
@@ -169,13 +169,10 @@ sub register_column {
         inflate => sub {
           my ($value, $obj) = @_;
 
-          my $dt = try
-            { $obj->_inflate_to_datetime( $value, $infcopy ) }
-            catch {
-              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_")
-                unless $infcopy->{datetime_undef_if_invalid};
-              undef;  # rv
-            };
+          # propagate for error reporting
+          $infcopy->{__dbic_colname} = $column;
+
+          my $dt = $obj->_inflate_to_datetime( $value, $infcopy );
 
           return (defined $dt)
             ? $obj->_post_inflate_datetime( $dt, $infcopy )
@@ -198,8 +195,16 @@ sub _flate_or_fallback
 
   my $parser = $self->_datetime_parser;
   my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
-  my $method = $parser->can($preferred_method) ? $preferred_method : sprintf($method_fmt, 'datetime');
-  return $parser->$method($value);
+  my $method = $parser->can($preferred_method) || sprintf($method_fmt, 'datetime');
+
+  return try {
+    $parser->$method($value);
+  }
+  catch {
+    $self->throw_exception ("Error while inflating '$value' for $info->{__dbic_colname} on ${self}: $_")
+      unless $info->{datetime_undef_if_invalid};
+    undef;  # rv
+  };
 }
 
 sub _inflate_to_datetime {
@@ -300,7 +305,7 @@ use the old way you'll see a warning - please fix your code then!
       can be found in the documentation for L<DBIx::Class::ResultSource>.
 
 =item Further discussion of problems inherent to the Floating timezone:
-      L<Floating DateTimes|DateTime/Floating_DateTimes>
+      L<Floating DateTimes|DateTime/Floating DateTimes>
       and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
 =back

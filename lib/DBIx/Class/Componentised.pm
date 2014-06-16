@@ -5,10 +5,10 @@ use strict;
 use warnings;
 
 use base 'Class::C3::Componentised';
-use Carp::Clan qw/^DBIx::Class|^Class::C3::Componentised/;
 use mro 'c3';
 
-my $warned;
+use DBIx::Class::Carp '^DBIx::Class|^Class::C3::Componentised';
+use namespace::clean;
 
 # this warns of subtle bugs introduced by UTF8Columns hacky handling of store_column
 # if and only if it is placed before something overriding store_column
@@ -37,8 +37,8 @@ sub inject_base {
     for (qw/DBIx::Class::UTF8Columns DBIx::Class::ForceUTF8/) {
       if ($comp->isa ($_) ) {
         $keep_checking = 0; # no use to check from this point on
-        carp "Use of $_ is strongly discouraged. See documentation of DBIx::Class::UTF8Columns for more info\n"
-          unless ($warned->{UTF8Columns}++ || $ENV{DBIC_UTF8COLUMNS_OK});
+        carp_once "Use of $_ is strongly discouraged. See documentation of DBIx::Class::UTF8Columns for more info\n"
+          unless $ENV{DBIC_UTF8COLUMNS_OK};
         last;
       }
     }

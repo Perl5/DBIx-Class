@@ -3,11 +3,14 @@
 use warnings;
 use strict;
 
-use MyDatabase::Main;
+use MyApp::Schema;
 
-my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
+use Path::Class 'file';
+my $db_fn = file($INC{'MyApp/Schema.pm'})->dir->parent->file('db/example.db');
+
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
 # driver, e.g perldoc L<DBD::mysql>.
+my $schema = MyApp::Schema->connect("dbi:SQLite:$db_fn");
 
 get_tracks_by_cd('Bad');
 get_tracks_by_artist('Michael Jackson');
@@ -55,7 +58,6 @@ sub get_tracks_by_artist {
     print "\n";
 }
 
-
 sub get_cd_by_track {
     my $tracktitle = shift;
     print "get_cd_by_track($tracktitle):\n";
@@ -88,8 +90,6 @@ sub get_cds_by_artist {
     print "\n";
 }
 
-
-
 sub get_artist_by_track {
     my $tracktitle = shift;
     print "get_artist_by_track($tracktitle):\n";
@@ -107,7 +107,6 @@ sub get_artist_by_track {
     print $artist->name . "\n\n";
 }
 
-         
 sub get_artist_by_cd {
     my $cdtitle = shift;
     print "get_artist_by_cd($cdtitle):\n";

@@ -38,7 +38,7 @@ is( ref($cd->year), 'DateTime', 'year is still a DateTime, ok' );
 
 is( $cd->year->year, 1998, 'updated year, bypassing inflation' );
 
-is( $cd->year->month, 1, 'month is still 1' );  
+is( $cd->year->month, 1, 'month is still 1' );
 
 # get_inflated_column test
 

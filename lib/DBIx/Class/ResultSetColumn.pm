@@ -4,9 +4,9 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-
-use Carp::Clan qw/^DBIx::Class/;
-use DBIx::Class::Exception;
+use DBIx::Class::Carp;
+use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use namespace::clean;
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -48,6 +48,7 @@ sub new {
 
   my $orig_attrs = $rs->_resolved_attrs;
   my $alias = $rs->current_source_alias;
+  my $rsrc = $rs->result_source;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -58,21 +59,28 @@ sub new {
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
+  my $colmap;
+  for ($rsrc->columns, $column) {
+    if ($_ =~ /^ \Q$alias\E \. ([^\.]+) $ /x) {
+      $colmap->{$_} = $1;
+    }
+    elsif ($_ !~ /\./) {
+      $colmap->{"$alias.$_"} = $_;
+      $colmap->{$_} = $_;
+    }
+  }
+
   my $new_parent_rs;
   # analyze the order_by, and see if it is done over a function/nonexistentcolumn
   # if this is the case we will need to wrap a subquery since the result of RSC
   # *must* be a single column select
-  my %collist = map 
-    { $_ => 1, ($_ =~ /\./) ? () : ( "$alias.$_" => 1 ) }
-    ($rs->result_source->columns, $column)
-  ;
   if (
     scalar grep
-      { ! $collist{$_->[0]} }
-      ( $rs->result_source->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) ) 
+      { ! exists $colmap->{$_->[0]} }
+      ( $rsrc->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) )
   ) {
     # nuke the prefetch before collapsing to sql
-    my $subq_rs = $rs->search;
+    my $subq_rs = $rs->search_rs;
     $subq_rs->{attrs}{join} = $subq_rs->_merge_joinpref_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
     $new_parent_rs = $subq_rs->as_subselect_rs;
   }
@@ -88,26 +96,13 @@ sub new {
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+  if (!$orig_attrs->{group_by} && $orig_attrs->{collapse}) {
 
-    # scan for a constraint that would contain our column only - that'd be proof
-    # enough it is unique
-    my $constraints = { $rs->result_source->unique_constraints };
-    for my $constraint_columns ( values %$constraints ) {
-
-      next unless @$constraint_columns == 1;
-
-      my $col = $constraint_columns->[0];
-      my $fqcol = join ('.', $new_attrs->{alias}, $col);
-
-      if ($col eq $select or $fqcol eq $select) {
-        $new_attrs->{group_by} = [ $select ];
-        delete $new_attrs->{distinct}; # it is ignored when group_by is present
-        last;
-      }
+    if ($colmap->{$select} and $rsrc->_identifying_column_set([$colmap->{$select}])) {
+      $new_attrs->{group_by} = [ $select ];
+      delete @{$new_attrs}{qw(distinct _grouped_by_distinct)}; # it is ignored when group_by is present
     }
-
-    if (!$new_attrs->{group_by}) {
+    else {
       carp (
           "Attempting to retrieve non-unique column '$column' on a resultset containing "
         . 'one-to-many joins will return duplicate results.'
@@ -115,8 +110,11 @@ sub new {
     }
   }
 
-  my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
-  return $new;
+  return bless {
+    _select => $select,
+    _as => $column,
+    _parent_resultset => $new_parent_rs
+  }, $class;
 }
 
 =head2 as_query
@@ -125,7 +123,7 @@ sub new {
 
 =item Arguments: none
 
-=item Return Value: \[ $sql, @bind ]
+=item Return Value: \[ $sql, L<@bind_values|DBIx::Class::ResultSet/DBIC BIND VALUES> ]
 
 =back
 
@@ -150,7 +148,7 @@ sub as_query { return shift->_resultset->as_query(@_) }
 Returns the next value of the column in the resultset (or C<undef> if
 there is none).
 
-Much like L<DBIx::Class::ResultSet/next> but just returning the 
+Much like L<DBIx::Class::ResultSet/next> but just returning the
 one value.
 
 =cut
@@ -178,7 +176,7 @@ Returns all values of the column in the resultset (or C<undef> if
 there are none).
 
 Much like L<DBIx::Class::ResultSet/all> but returns values rather
-than row objects.
+than result objects.
 
 =cut
 
@@ -293,7 +291,7 @@ sub min {
 
 =item Arguments: none
 
-=item Return Value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -332,7 +330,7 @@ sub max {
 
 =item Arguments: none
 
-=item Return Value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -371,7 +369,7 @@ sub sum {
 
 =item Arguments: none
 
-=item Return Value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -408,6 +406,7 @@ sub func {
   my $cursor = $self->func_rs($function)->cursor;
 
   if( wantarray ) {
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray($self);
     return map { $_->[ 0 ] } $cursor->all;
   }
 
@@ -420,7 +419,7 @@ sub func {
 
 =item Arguments: $function
 
-=item Return Value: $resultset
+=item Return Value: L<$resultset|DBIx::Class::ResultSet>
 
 =back
 
@@ -430,22 +429,29 @@ Creates the resultset that C<func()> uses to run its query.
 
 sub func_rs {
   my ($self,$function) = @_;
-  return $self->{_parent_resultset}->search(
-    undef, {
-      select => {$function => $self->{_select}},
-      as => [$self->{_as}],
-    },
-  );
+
+  my $rs = $self->{_parent_resultset};
+  my $select = $self->{_select};
+
+  # wrap a grouped rs
+  if ($rs->_resolved_attrs->{group_by}) {
+    $select = $self->{_as};
+    $rs = $rs->as_subselect_rs;
+  }
+
+  $rs->search( undef, {
+    columns => { $self->{_as} => { $function => $select } }
+  } );
 }
 
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/throw_exception> for details.
 
-=cut 
+=cut
 
 sub throw_exception {
-  my $self=shift;
+  my $self = shift;
 
   if (ref $self && $self->{_parent_resultset}) {
     $self->{_parent_resultset}->throw_exception(@_);
@@ -469,21 +475,40 @@ sub throw_exception {
 sub _resultset {
   my $self = shift;
 
-  return $self->{_resultset} ||= $self->{_parent_resultset}->search(undef,
-    {
-      select => [$self->{_select}],
-      as => [$self->{_as}]
+  return $self->{_resultset} ||= do {
+
+    my $select = $self->{_select};
+
+    if ($self->{_parent_resultset}{attrs}{distinct}) {
+      my $alias = $self->{_parent_resultset}->current_source_alias;
+      my $rsrc = $self->{_parent_resultset}->result_source;
+      my %cols = map { $_ => 1, "$alias.$_" => 1 } $rsrc->columns;
+
+      unless( $cols{$select} ) {
+        carp_unique(
+          'Use of distinct => 1 while selecting anything other than a column '
+        . 'declared on the primary ResultSource is deprecated - please supply '
+        . 'an explicit group_by instead'
+        );
+
+        # collapse the selector to a literal so that it survives the distinct parse
+        # if it turns out to be an aggregate - at least the user will get a proper exception
+        # instead of silent drop of the group_by altogether
+        $select = \ $rsrc->storage->sql_maker->_recurse_fields($select);
+      }
     }
-  );
+
+    $self->{_parent_resultset}->search(undef, {
+      columns => { $self->{_as} => $select }
+    });
+  };
 }
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Luke Saunders <luke.saunders@gmail.com>
-
-Jess Robinson
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

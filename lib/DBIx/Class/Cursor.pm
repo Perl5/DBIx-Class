@@ -13,7 +13,12 @@ resultset.
 =head1 SYNOPSIS
 
   my $cursor = $schema->resultset('CD')->cursor();
-  my $first_cd = $cursor->next;
+
+  # raw values off the database handle in resultset columns/select order
+  my @next_cd_column_values = $cursor->next;
+
+  # list of all raw values as arrayrefs
+  my @all_cds_column_values = $cursor->all;
 
 =head1 DESCRIPTION
 

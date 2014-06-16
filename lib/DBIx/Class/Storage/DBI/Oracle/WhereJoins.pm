@@ -21,9 +21,8 @@ support (instead of ANSI).
 
 =head1 PURPOSE
 
-This module was originally written to support Oracle < 9i where ANSI joins
-weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.
+This module is used with Oracle < 9.0 due to lack of support for standard
+ANSI join syntax.
 
 =head1 SYNOPSIS
 

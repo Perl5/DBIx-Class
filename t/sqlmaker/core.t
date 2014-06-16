@@ -5,9 +5,8 @@ use Test::More;
 use Test::Exception;
 
 use lib qw(t/lib);
+use DBICTest;
 use DBIC::SqlMakerTest;
-
-use_ok('DBICTest');
 
 my $schema = DBICTest->init_schema(no_deploy => 1);
 
@@ -68,6 +67,36 @@ my $sql_maker = $schema->storage->sql_maker;
     [],
   );
 }
+
+# Tests base class for => \'FOO' actually generates proper query. for =>
+# 'READ'|'SHARE' is tested in db-specific subclasses
+# we have to instantiate base because SQLMaker::SQLite disables _lock_select
+{
+  require DBIx::Class::SQLMaker;
+  my $sa = DBIx::Class::SQLMaker->new;
+  {
+    my ($sql, @bind) = $sa->select('foo', '*', {}, { for => 'update' } );
+    is_same_sql_bind(
+      $sql,
+      \@bind,
+      'SELECT * FROM foo FOR UPDATE',
+      [],
+    );
+  }
+
+  {
+    my ($sql, @bind) = $sa->select('bar', '*', {}, { for => \'baz' } );
+    is_same_sql_bind(
+      $sql,
+      \@bind,
+      'SELECT * FROM bar FOR baz',
+      [],
+    );
+  }
+
+}
+
+
 
 # Make sure the carp/croak override in SQLA works (via SQLMaker)
 my $file = quotemeta (__FILE__);

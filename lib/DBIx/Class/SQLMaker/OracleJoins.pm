@@ -1,17 +1,19 @@
-package # Hide from PAUSE
-  DBIx::Class::SQLMaker::OracleJoins;
+package DBIx::Class::SQLMaker::OracleJoins;
+
+use warnings;
+use strict;
 
 use base qw( DBIx::Class::SQLMaker::Oracle );
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
+  # pull out all join conds as regular WHEREs from all extra tables
   if (ref($table) eq 'ARRAY') {
-    $where = $self->_oracle_joins($where, @{ $table });
+    $where = $self->_oracle_joins($where, @{ $table }[ 1 .. $#$table ]);
   }
 
-  return $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
+  return $self->next::method($table, $fields, $where, $rs_attrs, @rest);
 }
 
 sub _recurse_from {
@@ -34,9 +36,9 @@ sub _recurse_from {
 }
 
 sub _oracle_joins {
-  my ($self, $where, $from, @join) = @_;
-  my $join_where = {};
-  $self->_recurse_oracle_joins($join_where, $from, @join);
+  my ($self, $where, @join) = @_;
+  my $join_where = $self->_recurse_oracle_joins(@join);
+
   if (keys %$join_where) {
     if (!defined($where)) {
       $where = $join_where;
@@ -51,37 +53,43 @@ sub _oracle_joins {
 }
 
 sub _recurse_oracle_joins {
-  my ($self, $where, $from, @join) = @_;
+  my $self = shift;
 
-  foreach my $j (@join) {
+  my @where;
+  for my $j (@_) {
     my ($to, $on) = @{ $j };
 
-    if (ref $to eq 'ARRAY') {
-      $self->_recurse_oracle_joins($where, @{ $to });
-    }
+    push @where, $self->_recurse_oracle_joins(@{ $to })
+      if (ref $to eq 'ARRAY');
 
-    my $to_jt      = ref $to eq 'ARRAY' ? $to->[0] : $to;
+    my $join_opts  = ref $to eq 'ARRAY' ? $to->[0] : $to;
     my $left_join  = q{};
     my $right_join = q{};
 
-    if (ref $to_jt eq 'HASH' and exists $to_jt->{-join_type}) {
+    if (ref $join_opts eq 'HASH' and my $jt = $join_opts->{-join_type}) {
       #TODO: Support full outer joins -- this would happen much earlier in
       #the sequence since oracle 8's full outer join syntax is best
       #described as INSANE.
-      croak "Can't handle full outer joins in Oracle 8 yet!\n"
-        if $to_jt->{-join_type} =~ /full/i;
+      $self->throw_exception("Can't handle full outer joins in Oracle 8 yet!\n")
+        if $jt =~ /full/i;
 
-      $left_join  = q{(+)} if $to_jt->{-join_type} =~ /left/i
-        && $to_jt->{-join_type} !~ /inner/i;
+      $left_join  = q{(+)} if $jt =~ /left/i
+        && $jt !~ /inner/i;
 
-      $right_join = q{(+)} if $to_jt->{-join_type} =~ /right/i
-        && $to_jt->{-join_type} !~ /inner/i;
+      $right_join = q{(+)} if $jt =~ /right/i
+        && $jt !~ /inner/i;
     }
 
-    foreach my $lhs (keys %{ $on }) {
-      $where->{$lhs . $left_join} = \"= $on->{ $lhs }$right_join";
-    }
+    # sadly SQLA treats where($scalar) as literal, so we need to jump some hoops
+    push @where, map { \sprintf ('%s%s = %s%s',
+      ref $_ ? $self->_recurse_where($_) : $self->_quote($_),
+      $left_join,
+      ref $on->{$_} ? $self->_recurse_where($on->{$_}) : $self->_quote($on->{$_}),
+      $right_join,
+    )} keys %$on;
   }
+
+  return { -and => \@where };
 }
 
 1;
@@ -94,9 +102,8 @@ DBIx::Class::SQLMaker::OracleJoins - Pre-ANSI Joins-via-Where-Clause Syntax
 
 =head1 PURPOSE
 
-This module was originally written to support Oracle < 9i where ANSI joins
-weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.
+This module is used with Oracle < 9.0 due to lack of support for standard
+ANSI join syntax.
 
 =head1 SYNOPSIS
 
@@ -122,25 +129,16 @@ it's already too late.
 
 =over
 
-=item select ($\@$;$$@)
+=item select
 
-Replaces DBIx::Class::SQLMaker's select() method, which calls _oracle_joins()
-to modify the column and table list before calling SUPER::select().
-
-=item _recurse_from ($$\@)
-
-Recursive subroutine that builds the table list.
-
-=item _oracle_joins ($$$@)
-
-Creates the left/right relationship in the where query.
+Overrides DBIx::Class::SQLMaker's select() method, which calls _oracle_joins()
+to modify the column and table list before calling next::method().
 
 =back
 
 =head1 BUGS
 
-Does not support full outer joins.
-Probably lots more.
+Does not support full outer joins (however neither really does DBIC itself)
 
 =head1 SEE ALSO
 

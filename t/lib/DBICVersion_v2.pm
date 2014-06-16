@@ -36,7 +36,7 @@ __PACKAGE__->add_columns
 __PACKAGE__->set_primary_key('Version');
 
 package DBICVersion::Schema;
-use base 'DBIx::Class::Schema';
+use base 'DBICTest::BaseSchema';
 use strict;
 use warnings;
 
@@ -44,7 +44,7 @@ our $VERSION = '2.0';
 
 __PACKAGE__->register_class('Table', 'DBICVersion::Table');
 __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
-__PACKAGE__->upgrade_directory('t/var/');
-__PACKAGE__->backup_directory('t/var/backup/');
+__PACKAGE__->upgrade_directory("t/var/versioning_ddl-$$");
+__PACKAGE__->backup_directory("t/var/versioning_backup-$$");
 
 1;

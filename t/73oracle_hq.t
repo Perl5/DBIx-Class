@@ -3,21 +3,21 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-
+use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
-use DBIC::SqlMakerTest;
+use DBICTest::RunMode;
 
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_oracle')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_oracle');
-
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
  unless ($dsn && $user && $pass);
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_oracle')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_oracle');
 
 use DBICTest::Schema::Artist;
 BEGIN {
@@ -34,6 +34,7 @@ BEGIN {
   );
 }
 
+use DBICTest;
 use DBICTest::Schema;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -108,31 +109,10 @@ do_creates($dbh);
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
     });
 
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
-      )',
-      [ [ name => 'root'] ],
-    );
     is_deeply (
       [ $rs->get_column ('name')->all ],
       [ qw/root child1 grandchild greatgrandchild child2/ ],
       'got artist tree',
-    );
-
-    is_same_sql_bind (
-      $rs->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
-      )',
-      [ [ name => 'root'] ],
     );
 
     is( $rs->count, 5, 'Connect By count ok' );
@@ -150,18 +130,6 @@ do_creates($dbh);
       order_siblings_by => { -desc => 'name' },
     });
 
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
-        ORDER SIBLINGS BY name DESC
-      )',
-      [ [ name => 'root'] ],
-    );
-
     is_deeply (
       [ $rs->get_column ('name')->all ],
       [ qw/root child2 child1 grandchild greatgrandchild/ ],
@@ -175,18 +143,6 @@ do_creates($dbh);
       start_with => { name => 'root' },
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
     });
-
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-        WHERE ( parentid IS NULL )
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
-      )',
-      [ [ name => 'root'] ],
-    );
 
     is_deeply(
       [ $rs->get_column('name')->all ],
@@ -210,36 +166,10 @@ do_creates($dbh);
       }
     );
 
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-          LEFT JOIN cd cds ON cds.artist = me.artistid
-        WHERE ( cds.title LIKE ? )
-        START WITH me.name = ?
-        CONNECT BY parentid = PRIOR artistid 
-      )',
-      [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
-    );
-
     is_deeply(
       [ $rs->get_column('name')->all ],
       [ 'grandchild' ],
       'Connect By with a join result name ok'
-    );
-
-    is_same_sql_bind (
-      $rs->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM artist me
-          LEFT JOIN cd cds ON cds.artist = me.artistid
-        WHERE ( cds.title LIKE ? )
-        START WITH me.name = ?
-        CONNECT BY parentid = PRIOR artistid 
-      )',
-      [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
     );
 
     is( $rs->count, 1, 'Connect By with a join; count ok' );
@@ -252,19 +182,6 @@ do_creates($dbh);
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
       order_by => { -asc => [ 'LEVEL', 'name' ] },
     });
-
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid 
-        ORDER BY LEVEL ASC, name ASC
-      )',
-      [ [ name => 'root' ] ],
-    );
-
 
     # Don't use "$rs->get_column ('name')->all" they build a query arround the $rs.
     #   If $rs has a order by, the order by is in the subquery and this doesn't work with Oracle 8i.
@@ -295,25 +212,9 @@ do_creates($dbh);
     my $rs = $schema->resultset('Artist')->search({}, {
       start_with => { name => 'root' },
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      order_by => { -asc => 'name' },
+      order_by => [ { -asc => 'name' }, {  -desc => 'artistid' } ],
       rows => 2,
     });
-
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT artistid, name, rank, charfield, parentid
-          FROM (
-            SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
-              FROM artist me
-            START WITH name = ?
-            CONNECT BY parentid = PRIOR artistid
-            ORDER BY name ASC
-          ) me
-        WHERE ROWNUM <= 2
-      )',
-      [ [ name => 'root' ] ],
-    );
 
     is_deeply (
       [ $rs->get_column ('name')->all ],
@@ -321,52 +222,24 @@ do_creates($dbh);
       'LIMIT a Connect By query - correct names'
     );
 
-    is_same_sql_bind (
-      $rs->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM (
-            SELECT artistid
-              FROM (
-                SELECT me.artistid
-                  FROM artist me
-                START WITH name = ?
-                CONNECT BY parentid = PRIOR artistid
-              ) me
-            WHERE ROWNUM <= 2
-          ) me
-      )',
-      [ [ name => 'root' ] ],
-    );
-
     is( $rs->count, 2, 'Connect By; LIMIT count ok' );
   }
 
   # combine a connect_by with group_by and having
+  # add some bindvals to make sure things still work
   {
     my $rs = $schema->resultset('Artist')->search({}, {
-      select => { count => 'rank', -as => 'cnt' },
+      select => \[ 'COUNT(rank) + ?', [ __cbind => 3 ] ],
+      as => 'cnt',
       start_with => { name => 'root' },
       connect_by => { parentid => { -prior => { -ident => 'artistid' } } },
-      group_by => ['rank'],
+      group_by => \[ 'rank + ? ', [ __gbind =>  1] ],
       having => \[ 'count(rank) < ?', [ cnt => 2 ] ],
     });
 
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT COUNT(rank) AS cnt
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY parentid = PRIOR artistid
-        GROUP BY rank HAVING count(rank) < ?
-      )',
-      [ [ name => 'root' ], [ cnt => 2 ] ],
-    );
-
     is_deeply (
       [ $rs->get_column ('cnt')->all ],
-      [1, 1],
+      [4, 4],
       'Group By a Connect By query - correct values'
     );
   }
@@ -396,16 +269,6 @@ do_creates($dbh);
       connect_by_nocycle => { parentid => { -prior => { -ident => 'artistid' } } },
     });
 
-    is_same_sql_bind (
-      $rs->as_query,
-      '(
-        SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid, CONNECT_BY_ISCYCLE
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY NOCYCLE parentid = PRIOR artistid 
-      )',
-      [ [ name => 'cycle-root'] ],
-    );
     is_deeply (
       [ $rs->get_column ('name')->all ],
       [ qw/cycle-root cycle-child1 cycle-grandchild cycle-child2/ ],
@@ -415,17 +278,6 @@ do_creates($dbh);
       [ $rs->get_column ('connector')->all ],
       [ qw/1 0 0 0/ ],
       'got artist tree with nocycle (CONNECT_BY_ISCYCLE)',
-    );
-
-    is_same_sql_bind (
-      $rs->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM artist me
-        START WITH name = ?
-        CONNECT BY NOCYCLE parentid = PRIOR artistid 
-      )',
-      [ [ name => 'cycle-root'] ],
     );
 
     is( $rs->count, 4, 'Connect By Nocycle count ok' );
@@ -508,13 +360,15 @@ sub do_creates {
 
 # clean up our mess
 END {
-  eval {
-    my $dbh = $schema->storage->dbh;
-    $dbh->do("DROP SEQUENCE artist_pk_seq");
-    $dbh->do("DROP SEQUENCE cd_seq");
-    $dbh->do("DROP SEQUENCE track_seq");
-    $dbh->do("DROP TABLE artist");
-    $dbh->do("DROP TABLE track");
-    $dbh->do("DROP TABLE cd");
+  if ($schema and my $dbh = $schema->storage->dbh) {
+    eval { $dbh->do($_) } for (
+      'DROP SEQUENCE artist_pk_seq',
+      'DROP SEQUENCE cd_seq',
+      'DROP SEQUENCE track_seq',
+      'DROP TABLE artist',
+      'DROP TABLE track',
+      'DROP TABLE cd',
+    );
   };
+  undef $schema;
 }

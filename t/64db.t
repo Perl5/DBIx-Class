@@ -13,7 +13,7 @@ plan tests => 4;
 # XXX: Is storage->dbh the only way to get a dbh?
 $schema->storage->txn_begin;
 for (10..15) {
-    $schema->resultset("Artist")->create( { 
+    $schema->resultset("Artist")->create( {
         artistid => $_,
         name => "artist number $_",
     } );

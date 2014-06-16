@@ -4,6 +4,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use IO::File;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh silence/);
 
@@ -60,7 +61,7 @@ sub debugfh {
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
     if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-      $fh = IO::File->new($1, 'w')
+      $fh = IO::File->new($1, 'a')
         or die("Cannot open trace file $1");
     } else {
       $fh = IO::File->new('>&STDERR')
@@ -201,12 +202,12 @@ sub query_end {
 
 1;
 
-=head1 AUTHORS
+=head1 AUTHOR AND CONTRIBUTORS
 
-Cory G. Watson <gphat@cpan.org>
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 
-You may distribute this code under the same license as Perl itself.
+You may distribute this code under the same terms as Perl itself.
 
 =cut

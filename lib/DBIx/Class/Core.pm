@@ -36,7 +36,7 @@ The core modules currently are:
 
 =item L<DBIx::Class::InflateColumn>
 
-=item L<DBIx::Class::Relationship>
+=item L<DBIx::Class::Relationship> (See also L<DBIx::Class::Relationship::Base>)
 
 =item L<DBIx::Class::PK::Auto>
 
@@ -44,13 +44,16 @@ The core modules currently are:
 
 =item L<DBIx::Class::Row>
 
-=item L<DBIx::Class::ResultSourceProxy::Table>
+=item L<DBIx::Class::ResultSourceProxy::Table> (See also L<DBIx::Class::ResultSource>)
 
 =back
 
-=head1 AUTHORS
+A better overview of the methods found in a Result class can be found
+in L<DBIx::Class::Manual::ResultClass>.
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+=head1 AUTHOR AND CONTRIBUTORS
+
+See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
 
 =head1 LICENSE
 

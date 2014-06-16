@@ -3,45 +3,58 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies ();
+use Scope::Guard ();
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
-use Scope::Guard ();
+
+my $env2optdep = {
+  DBICTEST_FIREBIRD => 'test_rdbms_firebird',
+  DBICTEST_FIREBIRD_INTERBASE => 'test_rdbms_firebird_interbase',
+  DBICTEST_FIREBIRD_ODBC => 'test_rdbms_firebird_odbc',
+};
+
+plan skip_all => join (' ',
+  'Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}',
+  'and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},',
+  '_USER and _PASS to run these tests.',
+
+  'WARNING: this test creates and drops the tables "artist", "bindtype_test" and',
+  '"sequence_test"; the generators "gen_artist_artistid", "pkid1_seq", "pkid2_seq"',
+  'and "nonpkid_seq" and the trigger "artist_bi".',
+) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
 
 # tests stolen from 749sybase_asa.t
 
-my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_FIREBIRD_${_}" }      qw/DSN USER PASS/};
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN USER PASS/};
+# Example DSNs:
+# dbi:Firebird:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
+# dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
 
-plan skip_all => <<'EOF' unless $dsn || $dsn2;
-Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
-_USER and _PASS to run these tests.
-
-WARNING: this test creates and drops the tables "artist", "bindtype_test" and
-"sequence_test"; the generators "gen_artist_artistid", "pkid1_seq", "pkid2_seq"
-and "nonpkid_seq" and the trigger "artist_bi".
-EOF
-
-my @info = (
-  [ $dsn,  $user,  $pass  ],
-  [ $dsn2, $user2, $pass2 ],
-);
+# Example ODBC DSN:
+# dbi:ODBC:Driver=Firebird;Dbname=/var/lib/firebird/2.5/data/hlaghdb.fdb
 
 my $schema;
 
-foreach my $conn_idx (0..$#info) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
+for my $prefix (keys %$env2optdep) { SKIP: {
+
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   next unless $dsn;
 
+  note "Testing with ${prefix}_DSN";
+
+  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
+    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     auto_savepoint  => 1,
-    quote_char      => q["],
-    name_sep        => q[.],
-    on_connect_call => 'use_softcommit',
+    quote_names     => 1,
+    ($dsn !~ /ODBC/ ? (on_connect_call => 'use_softcommit') : ()),
   });
   my $dbh = $schema->storage->dbh;
 
-  my $sg = Scope::Guard->new(\&cleanup);
+  my $sg = Scope::Guard->new(sub { cleanup($schema) });
 
   eval { $dbh->do(q[DROP TABLE "artist"]) };
   $dbh->do(<<EOF);
@@ -100,9 +113,21 @@ EOF
   my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
   is($st->pkid1, 55, "Firebird Auto-PK without trigger: First primary key set manually");
 
+# test transaction commit
+  $schema->txn_do(sub {
+    $ars->create({ name => 'in_transaction' });
+  });
+  ok (($ars->search({ name => 'in_transaction' })->first),
+    'transaction committed');
+  is $schema->storage->_dbh->{AutoCommit}, 1,
+    '$dbh->{AutoCommit} is correct after transaction commit';
+
+  $ars->search({ name => 'in_transaction' })->delete;
+
 # test savepoints
   throws_ok {
     $schema->txn_do(sub {
+      my ($schema, $ars) = @_;
       eval {
         $schema->txn_do(sub {
           $ars->create({ name => 'in_savepoint' });
@@ -113,9 +138,12 @@ EOF
         'savepoint rolled back');
       $ars->create({ name => 'in_outer_txn' });
       die "rolling back outer txn";
-    });
+    }, $schema, $ars);
   } qr/rolling back outer txn/,
     'correct exception for rollback';
+
+  is $schema->storage->_dbh->{AutoCommit}, 1,
+    '$dbh->{AutoCommit} is correct after transaction rollback';
 
   ok ((not $ars->search({ name => 'in_outer_txn' })->first),
     'outer txn rolled back');
@@ -164,7 +192,6 @@ EOF
   my ($updated) = $schema->resultset('Artist')->search({name => 'foo'});
   is eval { $updated->rank }, 4, 'and the update made it to the database';
 
-
 # test LIMIT support
   my $lim = $ars->search( {},
     {
@@ -181,6 +208,24 @@ EOF
   is( eval { $lim->next->artistid }, 101, "iterator->next ok" );
   is( eval { $lim->next->artistid }, 102, "iterator->next ok" );
   is( $lim->next, undef, "next past end of resultset ok" );
+
+# test bug in paging
+  my $paged = $ars->search({ name => { -like => 'Artist%' } }, {
+    page => 1,
+    rows => 2,
+    order_by => 'artistid',
+  });
+
+  my $row;
+  lives_ok {
+    $row = $paged->next;
+  } 'paged query survived';
+
+  is try { $row->artistid }, 5, 'correct row from paged query';
+
+  # DBD bug - if any unfinished statements are present during
+  # DDL manipulation (test blobs below)- a segfault will occur
+  $paged->reset;
 
 # test nested cursors
   {
@@ -210,6 +255,14 @@ EOF
     } 'inferring generator from trigger source works';
   }
 
+  # at this point there should be no active statements
+  # (finish() was called everywhere, either explicitly via
+  # reset() or on DESTROY)
+  for (keys %{$schema->storage->dbh->{CachedKids}}) {
+    fail("Unreachable cached statement still active: $_")
+      if $schema->storage->dbh->{CachedKids}{$_}->FETCH('Active');
+  }
+
 # test blobs (stolen from 73oracle.t)
   eval { $dbh->do('DROP TABLE "bindtype_test"') };
   $dbh->do(q[
@@ -218,7 +271,8 @@ EOF
     "id"     INT PRIMARY KEY,
     "bytea"  INT,
     "blob"   BLOB,
-    "clob"   BLOB SUB_TYPE TEXT
+    "clob"   BLOB SUB_TYPE TEXT,
+    "a_memo" INT
   )
   ]);
 
@@ -255,13 +309,15 @@ EOF
         };
     }
   }
-}
+}}
 
 done_testing;
 
 # clean up our mess
 
 sub cleanup {
+  my $schema = shift;
+
   my $dbh;
   eval {
     $schema->storage->disconnect; # to avoid object FOO is in use errors
@@ -282,8 +338,11 @@ sub cleanup {
     diag $@ if $@;
   }
 
-  foreach my $table (qw/artist bindtype_test sequence_test/) {
+  foreach my $table (qw/artist sequence_test/) {
     eval { $dbh->do(qq[DROP TABLE "$table"]) };
     diag $@ if $@;
   }
+
+  eval { $dbh->do(q{DROP TABLE "bindtype_test"}) };
+  diag $@ if $@;
 }

@@ -1,13 +1,6 @@
 use strict;
+use warnings;
 use Test::More;
-
-
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => 'Class::Trigger and DBIx::ContextualFetch required' if $@;
-  plan tests => 31;
-}
-
 
 use lib 't/cdbi/testlib';
 use Film;
@@ -53,7 +46,7 @@ eval { my $pj = Film->add_to_actors(\%pj_data) };
 like $@, qr/class/, "add_to_actors must be object method";
 
 eval { my $pj = $btaste->add_to_actors(%pj_data) };
-like $@, qr/needs/, "add_to_actors takes hash";
+like $@, qr/expects a hashref/, "add_to_actors takes hash";
 
 ok(
   my $pj = $btaste->add_to_actors(
@@ -124,3 +117,5 @@ is($as->Name, 'Arnold Schwarzenegger', "Arnie's still Arnie");
 
     is_deeply [sort map { $_->id } $other_thing->things], [1,2];
 }
+
+done_testing;

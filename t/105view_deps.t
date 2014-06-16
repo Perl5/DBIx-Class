@@ -37,7 +37,7 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
 
 #################### DEPLOY
 
-  $schema->deploy( { add_drop_table => 1 } );
+  $schema->deploy;
 
 #################### DOES ORDERING WORK?
 
@@ -54,7 +54,7 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
       aba_name_artists
       aba_name_artists_and_2010_cds_with_many_tracks
     /],
-    "SQLT view order triumphantly matches our order." 
+    "SQLT view order triumphantly matches our order."
   );
 
 #################### AND WHAT ABOUT USING THE SCHEMA?
@@ -75,7 +75,7 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
 
 #################### DEPLOY2
 
-  warnings_exist { $schema2->deploy( { add_drop_table => 1 } ) }
+  warnings_exist { $schema2->deploy }
     [qr/no such table: main.aba_name_artists/],
     "Deploying the bad schema produces a warning: aba_name_artists was not created.";
 
@@ -94,7 +94,7 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
       aba_name_artists_and_2010_cds_with_many_tracks
       aba_name_artists
     /],
-    "SQLT view order triumphantly matches our order." 
+    "SQLT view order triumphantly matches our order."
   );
 
 #################### AND WHAT ABOUT USING THE SCHEMA2?

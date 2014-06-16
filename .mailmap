@@ -1,0 +1,33 @@
+# This file allows us to map authors more correctly
+# so if someone were to legally change their name, we could use it to fix that
+# while maintaining the integrity of the repository
+
+# https://www.kernel.org/pub/software/scm/git/docs/git-shortlog.html#_mapping_authors
+
+Alexander Hartmaier <abraxxa@cpan.org>      <alexander.hartmaier@t-systems.at>
+Amiri Barksdale <amiribarksdale@gmail.com>  <amiri@metalabel.com>
+Andrew Rodland <andrew@cleverdomain.org>    <arodland@cpan.org>
+Arthur Axel "fREW" Schmidt                  <frioux@gmail.com>
+Brendan Byrd <Perl@ResonatorSoft.org>       <byrd.b@insightcom.com>
+Brendan Byrd <Perl@ResonatorSoft.org>       <GitHub@ResonatorSoft.org>
+Brendan Byrd <Perl@ResonatorSoft.org>       <perl@resonatorsoft.org>
+Brian Phillips <bphillips@cpan.org>         <bphillips@digitalriver.com>
+Dagfinn Ilmari Mannsåker <ilmari@ilmari.org><ilmari.mannsaker@net-a-porter.com>
+David Kamholz <dkamholz@cpan.org>           <davekam@pobox.com>
+David Schmidt <mail@davidschmidt.at>        <d.schmidt@tripwolf.com>
+David Schmidt <mail@davidschmidt.at>        <dt@univie.ac.at>
+David Schmidt <mail@davidschmidt.at>        <davewood@gmx.at>
+Devin Austin <dhoss@cpan.org>               <devin.austin@gmail.com>
+Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>  <ostmann@sadraksaemp.intern4.websuche.de>
+Gerda Shank <gshank@cpan.org>               <gerda.shank@gmail.com>
+Gianni Ceccarelli <dakkar@thenautilus.net>  <gianni.ceccarelli@net-a-porter.com>
+Gordon Irving <goraxe@cpan.org>             <goraxe@goraxe.me.uk>
+Hakim Cassimally <osfameron@cpan.org>       <hakim@vm-participo.(none)>
+Jonathan Chu <milki@rescomp.berkeley.edu>   <milki@rescomp.berkeley.edu>
+Matt Phillips <mattp@cpan.org>              <mphillips@oanda.com>
+Norbert Csongrádi <bert@cpan.org>           <bert@cpan.org>
+Roman Filippov <romanf@cpan.org>            <moltar@moltar.net>
+Peter Rabbitson <ribasushi@cpan.org>        <rabbit@viator.rabbit.us>
+Tim Bunce <Tim.Bunce@pobox.com>             <Tim.Bunce@ig.co.uk>
+Toby Corkindale <tjc@cpan.org>              <toby@dryft.net>
+Wallace Reis <wreis@cpan.org>               <wallace@reis.org.br>

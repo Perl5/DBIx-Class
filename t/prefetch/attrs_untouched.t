@@ -1,7 +1,7 @@
-use warnings;  
+use warnings;
+use strict;
 
 use Test::More;
-use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 

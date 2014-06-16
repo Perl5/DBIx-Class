@@ -3,10 +3,20 @@ use warnings;
 
 use Test::More;
 
+use lib qw(t/lib);
+use DBICTest;
+
 BEGIN {
     require DBIx::Class;
     plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
       unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
+
+    if (DBICTest::RunMode->is_smoker) {
+      my $mver = Moose->VERSION;
+      plan skip_all => "A trial version $mver of Moose detected known to break replication - skipping test known to fail"
+        if ($mver >= 1.99 and $mver <= 1.9902);
+    }
+
 }
 
 use Test::Moose;
@@ -19,15 +29,28 @@ use Moose();
 use MooseX::Types();
 note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
-use lib qw(t/lib);
-use DBICTest;
-
 my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
 
-use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
-use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
-use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
-use_ok 'DBIx::Class::Storage::DBI::Replicated';
+## Add a connect_info option to test option merging.
+use DBIx::Class::Storage::DBI::Replicated;
+{
+    package DBIx::Class::Storage::DBI::Replicated;
+
+    use Moose;
+
+    __PACKAGE__->meta->make_mutable;
+
+    around connect_info => sub {
+      my ($next, $self, $info) = @_;
+      $info->[3]{master_option} = 1;
+      $self->$next($info);
+    };
+
+    __PACKAGE__->meta->make_immutable;
+
+    no Moose;
+}
+
 
 
 =head1 HOW TO USE
@@ -72,15 +95,8 @@ TESTSCHEMACLASSES: {
     ## Get the Schema and set the replication storage type
 
     sub init_schema {
-        # current SQLT SQLite producer does not handle DROP TABLE IF EXISTS, trap warnings here
-        local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/s };
-
-        my ($class, $schema_method) = @_;
-
-        my $method = "get_schema_$schema_method";
-        my $schema = $class->$method;
-
-        return $schema;
+        #my ($class, $schema_getter) = @_;
+        shift->${\ ( 'get_schema_' . shift ) };
     }
 
     sub get_schema_by_storage_type {
@@ -122,27 +138,6 @@ TESTSCHEMACLASSES: {
     sub generate_replicant_connect_info {}
     sub replicate {}
     sub cleanup {}
-
-    ## --------------------------------------------------------------------- ##
-    ## Add a connect_info option to test option merging.
-    ## --------------------------------------------------------------------- ##
-    {
-    package DBIx::Class::Storage::DBI::Replicated;
-
-    use Moose;
-
-    __PACKAGE__->meta->make_mutable;
-
-    around connect_info => sub {
-      my ($next, $self, $info) = @_;
-      $info->[3]{master_option} = 1;
-      $self->$next($info);
-    };
-
-    __PACKAGE__->meta->make_immutable;
-
-    no Moose;
-    }
 
     ## --------------------------------------------------------------------- ##
     ## Subclass for when you are using SQLite for testing, this provides a fake
@@ -209,10 +204,11 @@ TESTSCHEMACLASSES: {
         }
     }
 
-    ## Cleanup after ourselves.  Unlink all gthe slave paths.
+    ## Cleanup after ourselves. Unlink all the slave paths.
 
     sub cleanup {
         my $self = shift @_;
+        $_->disconnect for values %{ $self->schema->storage->replicants };
         foreach my $slave (@{$self->slave_paths}) {
             if(-e $slave) {
                 unlink $slave;
@@ -917,6 +913,7 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 
     is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
 }
+
 ## Delete the old database files
 $replicated->cleanup;
 

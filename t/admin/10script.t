@@ -4,37 +4,54 @@ use warnings;
 
 use Test::More;
 use Config;
+use File::Spec;
 use lib qw(t/lib);
-$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 use DBICTest;
 
-
 BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
+  require DBIx::Class;
+  plan skip_all => 'Test needs ' .
+    DBIx::Class::Optional::Dependencies->req_missing_for('test_admin_script')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('test_admin_script');
+
+  # just in case the user env has stuff in it
+  delete $ENV{JSON_ANY_ORDER};
 }
 
-my @json_backends = qw/XS JSON DWIW/;
-my $tests_per_run = 5;
-plan tests => ($tests_per_run * @json_backends) + 1;
+$ENV{PATH} = '';
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
+require JSON::Any;
+my @json_backends = qw(DWIW PP JSON CPANEL XS);
 
 # test the script is setting @INC properly
-test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --insert --connect=[] |);
+test_exec (qw|-It/lib/testinclude --schema=DBICTestAdminInc --connect=[] --insert|);
 cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC schema' );
+
+# test that config works properly
+{
+  no warnings 'qw';
+  test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --create --connect=["klaatu","barada","nikto"]|);
+  cmp_ok( $? >> 8, '==', 71, 'Correct schema loaded via config' ) || exit;
+}
+
+# test that config-file works properly
+test_exec(qw|-It/lib/testinclude --schema=DBICTestConfig --config=t/lib/admincfgtest.json --config-stanza=Model::Gort --deploy|);
+cmp_ok ($? >> 8, '==', 71, 'Correct schema loaded via testconfig');
 
 for my $js (@json_backends) {
 
-    eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("JSON backend $js is not available, skip testing", $tests_per_run) if $@;
+        eval {JSON::Any->import ($js); 1 }
+          or skip ("JSON backend $js is not available, skip testing", 1);
 
-        $ENV{JSON_ANY_ORDER} = $js;
+        local $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
         diag $@ if $@;
     }
 }
+
+done_testing();
 
 sub test_dbicadmin {
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
@@ -54,9 +71,11 @@ sub test_dbicadmin {
     test_exec( default_args(), qw|--op=insert --set={"name":"Aran"}| );
 
     SKIP: {
-        skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
+        skip ("MSWin32 doesn't support -|", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  ( $^X, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        my ($perl) = $^X =~ /(.*)/;
+
+        open(my $fh, "-|",  ( $perl, '-MDBICTest::RunMode', 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -69,30 +88,29 @@ sub test_dbicadmin {
 }
 
 sub default_args {
+  my $dsn = JSON::Any->encode([
+    'dbi:SQLite:dbname=' . DBICTest->_sqlite_dbfilename,
+    '',
+    '',
+    { AutoCommit => 1 },
+  ]);
+
   return (
     qw|--quiet --schema=DBICTest::Schema --class=Employee|,
-    q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
+    qq|--connect=$dsn|,
     qw|--force -I testincludenoniterference|,
   );
 }
 
-# Why do we need this crap? Apparently MSWin32 can not pass through quotes properly
-# (sometimes it will and sometimes not, depending on what compiler was used to build
-# perl). So we go the extra mile to escape all the quotes. We can't also use ' instead
-# of ", because JSON::XS (proudly) does not support "malformed JSON" as the author
-# calls it. Bleh.
-#
 sub test_exec {
-  my $perl = $^X;
+  my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ('script/dbicadmin', @_);
+  my @args = ($perl, '-MDBICTest::RunMode', File::Spec->catfile(qw(script dbicadmin)), @_);
 
-  if ( $^O eq 'MSWin32' ) {
-    $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
-    for (@args) {
-      $_ =~ s/"/\\"/g;
-    }
+  if ($^O eq 'MSWin32') {
+    require Win32::ShellQuote; # included in test optdeps
+    @args = Win32::ShellQuote::quote_system_list(@args);
   }
 
-  system ($perl, @args);
+  system @args;
 }

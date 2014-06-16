@@ -3,22 +3,20 @@ use strict;
 
 use Test::More;
 use List::Util 'first';
-use lib qw(t/lib);
+use lib qw(t/lib maint/.Generated_Pod/lib);
 use DBICTest;
 use namespace::clean;
-
-# Don't run tests for installs
-if ( DBICTest::RunMode->is_plain ) {
-  plan( skip_all => "Author tests not required for installation" );
-}
 
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_podcoverage');
-  $ENV{RELEASE_TESTING} || DBICTest::RunMode->is_author
+  $ENV{RELEASE_TESTING}
     ? die ("Failed to load release-testing module requirements: $missing")
     : plan skip_all => "Test needs: $missing"
 }
+
+# this has already been required but leave it here for CPANTS static analysis
+require Test::Pod::Coverage;
 
 # Since this is about checking documentation, a little documentation
 # of what this is doing might be in order.
@@ -42,14 +40,14 @@ my $exceptions = {
             mk_classaccessor
         /]
     },
+    'DBIx::Class::Carp' => {
+        ignore => [qw/
+            unimport
+        /]
+    },
     'DBIx::Class::Row' => {
         ignore => [qw/
             MULTICREATE_DEBUG
-        /],
-    },
-    'DBIx::Class::Storage::TxnScopeGuard' => {
-        ignore => [qw/
-            IS_BROKEN_PERL
         /],
     },
     'DBIx::Class::FilterColumn' => {
@@ -68,6 +66,8 @@ my $exceptions = {
             resolve_condition
             resolve_join
             resolve_prefetch
+            STORABLE_freeze
+            STORABLE_thaw
         /],
     },
     'DBIx::Class::ResultSet' => {
@@ -116,18 +116,22 @@ my $exceptions = {
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
+    'DBIx::Class::AccessorGroup'                    => { skip => 1 },
     'DBIx::Class::Relationship::*'                  => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                   => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                => { skip => 1 },
     'DBIx::Class::ResultSource::*'                  => { skip => 1 },
     'DBIx::Class::Storage::Statistics'              => { skip => 1 },
     'DBIx::Class::Storage::DBI::Replicated::Types'  => { skip => 1 },
+    'DBIx::Class::GlobalDestruction'                => { skip => 1 },
+    'DBIx::Class::Storage::BlockRunner'             => { skip => 1 }, # temporary
 
 # test some specific components whose parents are exempt below
     'DBIx::Class::Relationship::Base'               => {},
     'DBIx::Class::SQLMaker::LimitDialects'          => {},
 
 # internals
+    'DBIx::Class::_Util'                            => { skip => 1 },
     'DBIx::Class::SQLMaker*'                        => { skip => 1 },
     'DBIx::Class::SQLAHacks*'                       => { skip => 1 },
     'DBIx::Class::Storage::DBI*'                    => { skip => 1 },
@@ -141,6 +145,9 @@ my $exceptions = {
 
 # skipped because the synopsis covers it clearly
     'DBIx::Class::InflateColumn::File'              => { skip => 1 },
+
+# internal subclass, nothing to POD
+    'DBIx::Class::ResultSet::Pager'                 => { skip => 1 },
 };
 
 my $ex_lookup = {};
@@ -151,7 +158,7 @@ for my $string (keys %$exceptions) {
   $ex_lookup->{$re} = $ex;
 }
 
-my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
+my @modules = sort { $a cmp $b } Test::Pod::Coverage::all_modules('lib');
 
 foreach my $module (@modules) {
   SKIP: {

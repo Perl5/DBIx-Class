@@ -1,0 +1,62 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Module::Runtime 'use_module';
+use SQL::Translator;
+use Path::Class 'file';
+use Getopt::Long;
+my $getopt = Getopt::Long::Parser->new(
+  config => [qw/gnu_getopt bundling_override no_ignore_case/]
+);
+my $args = {};
+$getopt->getoptions($args, qw/
+  ddl-out=s@
+  schema-class=s@
+  deploy-to=s@
+/);
+
+die "You need to specify one DDL output filename via --ddl-out\n"
+  if @{$args->{'ddl-out'}||[]} != 1;
+
+die "You need to specify one DBIC schema class via --schema-class\n"
+  if @{$args->{'schema-class'}||[]} != 1;
+
+die "You may not specify more than one deploy path via --deploy-to\n"
+  if @{$args->{'deploy-to'}||[]} > 1;
+
+local $ENV{DBI_DSN};
+my $schema = use_module( $args->{'schema-class'}[0] )->connect(
+  $args->{'deploy-to'}
+    ? ( "DBI:SQLite:$args->{'deploy-to'}[0]", undef, undef, { on_connect_do => "PRAGMA synchronous = OFF" } )
+    : ()
+);
+
+if ($args->{'deploy-to'}) {
+  file($args->{'deploy-to'}[0])->dir->mkpath;
+  $schema->deploy({ add_drop_table => 1 });
+}
+
+my $ddl_fh;
+if ($args->{'ddl-out'}[0] eq '-') {
+  $ddl_fh = *STDOUT;
+}
+else {
+  my $fn = file($args->{'ddl-out'}[0]);
+  $fn->dir->mkpath;
+  open $ddl_fh, '>', $fn
+    or die "Unable to open $fn: $!\n";
+}
+binmode $ddl_fh;  # avoid win32 \n crapfest
+
+print $ddl_fh scalar $schema->deployment_statements(
+  'SQLite',
+  undef,
+  undef,
+  {
+    producer_args => { no_transaction => 1 },
+    quote_identifiers => 1,
+    no_comments => 1,
+  },
+);

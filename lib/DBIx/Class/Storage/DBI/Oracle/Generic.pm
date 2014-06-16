@@ -2,12 +2,21 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 
 use strict;
 use warnings;
+use base qw/DBIx::Class::Storage::DBI/;
+use mro 'c3';
+use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
+use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
+__PACKAGE__->sql_quote_char ('"');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
+__PACKAGE__->datetime_parser_type('DateTime::Format::Oracle');
+
+sub __cache_queries_with_max_lob_parts { 2 }
 
 =head1 NAME
 
@@ -69,16 +78,11 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 This class implements base Oracle support. The subclass
 L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> is for C<(+)> joins in Oracle
-versions before 9.
+versions before 9.0.
 
 =head1 METHODS
 
 =cut
-
-use base qw/DBIx::Class::Storage::DBI/;
-use mro 'c3';
-
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
 
 sub _determine_supports_insert_returning {
   my $self = shift;
@@ -154,13 +158,13 @@ sub _dbh_get_autoinc_seq {
   my ( $schema, $table ) = $source_name =~ /( (?:${ql})? \w+ (?:${qr})? ) \. ( (?:${ql})? \w+ (?:${qr})? )/x;
 
   # if no explicit schema was requested - use the default schema (which in the case of Oracle is the db user)
-  $schema ||= uc( ($self->_dbi_connect_info||[])->[1] || '');
+  $schema ||= \'= USER';
 
   my ($sql, @bind) = $sql_maker->select (
     'ALL_TRIGGERS',
     [qw/TRIGGER_BODY TABLE_OWNER TRIGGER_NAME/],
     {
-      $schema ? (OWNER => $schema) : (),
+      OWNER => $schema,
       TABLE_NAME => $table || $source_name,
       TRIGGERING_EVENT => { -like => '%INSERT%' },  # this will also catch insert_or_update
       TRIGGER_TYPE => { -like => '%BEFORE%' },      # we care only about 'before' triggers
@@ -170,6 +174,7 @@ sub _dbh_get_autoinc_seq {
 
   # to find all the triggers that mention the column in question a simple
   # regex grep since the trigger_body above is a LONG and hence not searchable
+  # via -like
   my @triggers = ( map
     { my %inf; @inf{qw/body schema name/} = @$_; \%inf }
     ( grep
@@ -178,10 +183,15 @@ sub _dbh_get_autoinc_seq {
     )
   );
 
-  # extract all sequence names mentioned in each trigger
-  for (@triggers) {
-    $_->{sequences} = [ $_->{body} =~ / ( "? [\.\w\"\-]+ "? ) \. nextval /xig ];
-  }
+  # extract all sequence names mentioned in each trigger, throw away
+  # triggers without apparent sequences
+  @triggers = map {
+    my @seqs = $_->{body} =~ / ( [\.\w\"\-]+ ) \. nextval /xig;
+    @seqs
+      ? { %$_, sequences => \@seqs }
+      : ()
+    ;
+  } @triggers;
 
   my $chosen_trigger;
 
@@ -193,7 +203,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to introspect trigger '%s' for column %s.%s (references multiple sequences). "
+        "Unable to introspect trigger '%s' for column '%s.%s' (references multiple sequences). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $triggers[0]{name},
         $source_name,
@@ -215,7 +225,7 @@ sub _dbh_get_autoinc_seq {
     }
     else {
       $self->throw_exception( sprintf (
-        "Unable to reliably select a BEFORE INSERT trigger for column %s.%s (possibilities: %s). "
+        "Unable to reliably select a BEFORE INSERT trigger for column '%s.%s' (possibilities: %s). "
       . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
         $source_name,
         $col,
@@ -236,7 +246,7 @@ sub _dbh_get_autoinc_seq {
   }
 
   $self->throw_exception( sprintf (
-    "No suitable BEFORE INSERT triggers found for column %s.%s. "
+    "No suitable BEFORE INSERT triggers found for column '%s.%s'. "
   . "You need to specify the correct 'sequence' explicitly in '%s's column_info.",
     $source_name,
     $col,
@@ -248,8 +258,12 @@ sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
 
   # use the maker to leverage quoting settings
-  my $sql_maker = $self->sql_maker;
-  my ($id) = $self->_get_dbh->selectrow_array ($sql_maker->select('DUAL', [ ref $seq ? \"$$seq.$type" : "$seq.$type" ] ) );
+  my $sth = $self->_dbh->prepare_cached(
+    $self->sql_maker->select('DUAL', [ ref $seq ? \"$$seq.$type" : "$seq.$type" ] )
+  );
+  $sth->execute;
+  my ($id) = $sth->fetchrow_array;
+  $sth->finish;
   return $id;
 }
 
@@ -270,42 +284,56 @@ sub _ping {
 }
 
 sub _dbh_execute {
-  my $self = shift;
-  my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  #my ($self, $dbh, $sql, $bind, $bind_attrs) = @_;
+  my ($self, $sql, $bind) = @_[0,2,3];
 
-  my (@res, $tried);
-  my $want = wantarray;
+  # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
+  local $self->{disable_sth_caching} = 1 if first {
+    ($_->[0]{_ora_lob_autosplit_part}||0)
+      >
+    (__cache_queries_with_max_lob_parts - 1)
+  } @$bind;
+
   my $next = $self->next::can;
-  do {
-    try {
-      my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
 
-      if (!defined $want) {
-        $exec->();
-      }
-      elsif (! $want) {
-        $res[0] = $exec->();
-      }
-      else {
-        @res = $exec->();
-      }
+  # if we are already in a txn we can't retry anything
+  return shift->$next(@_)
+    if $self->transaction_depth;
 
-      $tried++;
-    }
-    catch {
-      if (! $tried and $_ =~ /ORA-01003/) {
-        # ORA-01003: no statement parsed (someone changed the table somehow,
-        # invalidating your cursor.)
-        my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+  # cheat the blockrunner we are just about to create
+  # we do want to rerun things regardless of outer state
+  local $self->{_in_do_block};
+
+  return DBIx::Class::Storage::BlockRunner->new(
+    storage => $self,
+    wrap_txn => 0,
+    retry_handler => sub {
+      # ORA-01003: no statement parsed (someone changed the table somehow,
+      # invalidating your cursor.)
+      if (
+        $_[0]->failed_attempt_count == 1
+          and
+        $_[0]->last_exception =~ /ORA-01003/
+          and
+        my $dbh = $_[0]->storage->_dbh
+      ) {
         delete $dbh->{CachedKids}{$sql};
+        return 1;
       }
       else {
-        $self->throw_exception($_);
+        return 0;
       }
-    };
-  } while (! $tried++);
+    },
+  )->run( $next, @_ );
+}
 
-  return wantarray ? @res : $res[0];
+sub _dbh_execute_for_fetch {
+  #my ($self, $sth, $tuple_status, @extra) = @_;
+
+  # DBD::Oracle warns loudly on partial execute_for_fetch failures
+  local $_[1]->{PrintWarn} = 0;
+
+  shift->next::method(@_);
 }
 
 =head2 get_autoinc_seq
@@ -324,10 +352,6 @@ sub get_autoinc_seq {
 
 This sets the proper DateTime::Format module for use with
 L<DBIx::Class::InflateColumn::DateTime>.
-
-=cut
-
-sub datetime_parser_type { return "DateTime::Format::Oracle"; }
 
 =head2 connect_call_datetime_setup
 
@@ -377,70 +401,232 @@ sub connect_call_datetime_setup {
   );
 }
 
-=head2 source_bind_attributes
+### Note originally by Ron "Quinn" Straight <quinnfazigu@gmail.org>
+### http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=commitdiff;h=5db2758de644d53e07cd3e05f0e9037bf40116fc
+#
+# Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
+# with the driver assuming your input is the deprecated LONG type if you
+# encode it as a hex string.  That ain't gonna fly at larger values, where
+# you'll discover you have to do what this does.
+#
+# This method had to be overridden because we need to set ora_field to the
+# actual column, and that isn't passed to the call (provided by Storage) to
+# bind_attribute_by_data_type.
+#
+# According to L<DBD::Oracle>, the ora_field isn't always necessary, but
+# adding it doesn't hurt, and will save your bacon if you're modifying a
+# table with more than one LOB column.
+#
+sub _dbi_attrs_for_bind {
+  my ($self, $ident, $bind) = @_;
 
-Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
-with the driver assuming your input is the deprecated LONG type if you
-encode it as a hex string.  That ain't gonna fly at larger values, where
-you'll discover you have to do what this does.
+  my $attrs = $self->next::method($ident, $bind);
 
-This method had to be overridden because we need to set ora_field to the
-actual column, and that isn't passed to the call (provided by Storage) to
-bind_attribute_by_data_type.
+  for my $i (0 .. $#$attrs) {
+    if (keys %{$attrs->[$i]||{}} and my $col = $bind->[$i][0]{dbic_colname}) {
+      $attrs->[$i]{ora_field} = $col;
+    }
+  }
 
-According to L<DBD::Oracle>, the ora_field isn't always necessary, but
-adding it doesn't hurt, and will save your bacon if you're modifying a
-table with more than one LOB column.
+  $attrs;
+}
 
-=cut
+sub bind_attribute_by_data_type {
+  my ($self, $dt) = @_;
 
-sub source_bind_attributes
-{
-  require DBD::Oracle;
-  my $self = shift;
-  my($source) = @_;
+  if ($self->_is_lob_type($dt)) {
 
-  my %bind_attributes;
+    # this is a hot-ish codepath, store an escape-flag in the DBD namespace, so that
+    # things like Class::Unload work (unlikely but possible)
+    unless ($DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__) {
 
-  foreach my $column ($source->columns) {
-    my $data_type = $source->column_info($column)->{data_type}
-      or next;
-
-    my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
-
-    if ($data_type =~ /^[BC]LOB$/i) {
+      # no earlier - no later
       if ($DBD::Oracle::VERSION eq '1.23') {
         $self->throw_exception(
-"BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
-"version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
+          "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
+          "version (https://rt.cpan.org/Public/Bug/Display.html?id=46016)"
         );
       }
 
-      $column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB'
-        ? DBD::Oracle::ORA_CLOB()
-        : DBD::Oracle::ORA_BLOB()
-      ;
-      $column_bind_attrs{'ora_field'} = $column;
+      $DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__ = 1;
     }
 
-    $bind_attributes{$column} = \%column_bind_attrs;
+    return {
+      ora_type => $self->_is_text_lob_type($dt)
+        ? DBD::Oracle::ORA_CLOB()
+        : DBD::Oracle::ORA_BLOB()
+    };
   }
-
-  return \%bind_attributes;
+  else {
+    return undef;
+  }
 }
 
-sub _svp_begin {
+# Handle blob columns in WHERE.
+#
+# For equality comparisons:
+#
+# We split data intended for comparing to a LOB into 2000 character chunks and
+# compare them using dbms_lob.substr on the LOB column.
+#
+# We turn off DBD::Oracle LOB binds for these partial LOB comparisons by passing
+# dbd_attrs => undef, because these are regular varchar2 comparisons and
+# otherwise the query will fail.
+#
+# Since the most common comparison size is likely to be under 4000 characters
+# (TEXT comparisons previously deployed to other RDBMSes) we disable
+# prepare_cached for queries with more than two part comparisons to a LOB
+# column. This is done in _dbh_execute (above) which was previously overridden
+# to gracefully recover from an Oracle error. This is to be careful to not
+# exhaust your application's open cursor limit.
+#
+# See:
+# http://itcareershift.com/blog1/2011/02/21/oracle-max-number-of-open-cursors-complete-reference-for-the-new-oracle-dba/
+# on the open_cursor limit.
+#
+# For everything else:
+#
+# We assume that everything that is not a LOB comparison, will most likely be a
+# LIKE query or some sort of function invocation. This may prove to be a naive
+# assumption in the future, but for now it should cover the two most likely
+# things users would want to do with a BLOB or CLOB, an equality test or a LIKE
+# query (on a CLOB.)
+#
+# For these expressions, the bind must NOT have the attributes of a LOB bind for
+# DBD::Oracle, otherwise the query will fail. This is done by passing
+# dbd_attrs => undef.
+
+sub _prep_for_execute {
+  my $self = shift;
+  my ($op) = @_;
+
+  return $self->next::method(@_)
+    if $op eq 'insert';
+
+  my ($sql, $bind) = $self->next::method(@_);
+
+  my $lob_bind_indices = { map {
+    (
+      $bind->[$_][0]{sqlt_datatype}
+        and
+      $self->_is_lob_type($bind->[$_][0]{sqlt_datatype})
+    ) ? ( $_ => 1 ) : ()
+  } ( 0 .. $#$bind ) };
+
+  return ($sql, $bind) unless %$lob_bind_indices;
+
+  my ($final_sql, @final_binds);
+  if ($op eq 'update') {
+    $self->throw_exception('Update with complex WHERE clauses involving BLOB columns currently not supported')
+      if $sql =~ /\bWHERE\b .+ \bWHERE\b/xs;
+
+    my $where_sql;
+    ($final_sql, $where_sql) = $sql =~ /^ (.+?) ( \bWHERE\b .+) /xs;
+
+    if (my $set_bind_count = $final_sql =~ y/?//) {
+
+      delete $lob_bind_indices->{$_} for (0 .. ($set_bind_count - 1));
+
+      # bail if only the update part contains blobs
+      return ($sql, $bind) unless %$lob_bind_indices;
+
+      @final_binds = splice @$bind, 0, $set_bind_count;
+      $lob_bind_indices = { map
+        { $_ - $set_bind_count => $lob_bind_indices->{$_} }
+        keys %$lob_bind_indices
+      };
+    }
+
+    # if we got that far - assume the where SQL is all we got
+    # (the first part is already shoved into $final_sql)
+    $sql = $where_sql;
+  }
+  elsif ($op ne 'select' and $op ne 'delete') {
+    $self->throw_exception("Unsupported \$op: $op");
+  }
+
+  my @sql_parts = split /\?/, $sql;
+
+  my $col_equality_re = qr/ (?<=\s) ([\w."]+) (\s*=\s*) $/x;
+
+  for my $b_idx (0 .. $#$bind) {
+    my $bound = $bind->[$b_idx];
+
+    if (
+      $lob_bind_indices->{$b_idx}
+        and
+      my ($col, $eq) = $sql_parts[0] =~ $col_equality_re
+    ) {
+      my $data = $bound->[1];
+
+      $data = "$data" if ref $data;
+
+      my @parts = unpack '(a2000)*', $data;
+
+      my @sql_frag;
+
+      for my $idx (0..$#parts) {
+        push @sql_frag, sprintf (
+          'UTL_RAW.CAST_TO_VARCHAR2(RAWTOHEX(DBMS_LOB.SUBSTR(%s, 2000, %d))) = ?',
+          $col, ($idx*2000 + 1),
+        );
+      }
+
+      my $sql_frag = '( ' . (join ' AND ', @sql_frag) . ' )';
+
+      $sql_parts[0] =~ s/$col_equality_re/$sql_frag/;
+
+      $final_sql .= shift @sql_parts;
+
+      for my $idx (0..$#parts) {
+        push @final_binds, [
+          {
+            %{ $bound->[0] },
+            _ora_lob_autosplit_part => $idx,
+            dbd_attrs => undef,
+          },
+          $parts[$idx]
+        ];
+      }
+    }
+    else {
+      $final_sql .= shift(@sql_parts) . '?';
+      push @final_binds, $lob_bind_indices->{$b_idx}
+        ? [
+          {
+            %{ $bound->[0] },
+            dbd_attrs => undef,
+          },
+          $bound->[1],
+        ] : $bound
+      ;
+    }
+  }
+
+  if (@sql_parts > 1) {
+    carp "There are more placeholders than binds, this should not happen!";
+    @sql_parts = join ('?', @sql_parts);
+  }
+
+  $final_sql .= $sql_parts[0];
+
+  return ($final_sql, \@final_binds);
+}
+
+# Savepoints stuff.
+
+sub _exec_svp_begin {
   my ($self, $name) = @_;
-  $self->_get_dbh->do("SAVEPOINT $name");
+  $self->_dbh->do("SAVEPOINT $name");
 }
 
 # Oracle automatically releases a savepoint when you start another one with the
 # same name.
-sub _svp_release { 1 }
+sub _exec_svp_release { 1 }
 
-sub _svp_rollback {
+sub _exec_svp_rollback {
   my ($self, $name) = @_;
-  $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+  $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head2 relname_to_table_alias
@@ -462,7 +648,9 @@ sub relname_to_table_alias {
 
   my $alias = $self->next::method(@_);
 
-  return $self->sql_maker->_shorten_identifier($alias, [$relname]);
+  # we need to shorten here in addition to the shortening in SQLA itself,
+  # since the final relnames are crucial for the join optimizer
+  return $self->sql_maker->_shorten_identifier($alias);
 }
 
 =head2 with_deferred_fk_checks
@@ -519,7 +707,7 @@ and child rows of the hierarchy.
   #     person me
   # CONNECT BY
   #     parentid = prior persionid
-  
+
 
   connect_by_nocycle => { parentid => 'prior personid' }
 
@@ -580,7 +768,7 @@ It uses the same syntax as L<DBIx::Class::ResultSet/order_by>
 
 =head1 AUTHOR
 
-See L<DBIx::Class/CONTRIBUTORS>.
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
@@ -589,3 +777,4 @@ You may distribute this code under the same terms as Perl itself.
 =cut
 
 1;
+# vim:sts=2 sw=2:

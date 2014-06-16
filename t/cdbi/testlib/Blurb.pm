@@ -1,7 +1,9 @@
 package # hide from PAUSE
     Blurb;
 
+use warnings;
 use strict;
+
 use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('Blurbs');

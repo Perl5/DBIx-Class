@@ -8,14 +8,15 @@ package SQL::Translator::Parser::DBIx::Class;
 
 use strict;
 use warnings;
-use vars qw($DEBUG $VERSION @EXPORT_OK);
+our ($DEBUG, $VERSION, @EXPORT_OK);
 $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
-use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use Scalar::Util qw/weaken blessed/;
+use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
+use DBIx::Class::Exception;
+use Scalar::Util 'blessed';
 use Try::Tiny;
 use namespace::clean;
 
@@ -33,24 +34,40 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
-    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
-    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
-    weaken $_[1] if ref ($_[1]);
-
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
-    my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
-    $dbicschema     ||= $args->{'package'};
-    my $limit_sources = $args->{'sources'};
 
-    croak 'No DBIx::Class::Schema' unless ($dbicschema);
+    my $dbicschema = $data || $args->{dbic_schema};
+
+    for (qw(DBIx::Class::Schema DBIx::Schema package)) {
+      if (defined (my $s = delete $args->{$_} )) {
+        carp_unique("Supplying a schema via  ... parser_args => { '$_' => \$schema } is deprecated. Please use parser_args => { dbic_schema => \$schema } instead");
+
+        # move it from the deprecated to the proper $args slot
+        unless ($dbicschema) {
+          $args->{dbic_schema} = $dbicschema = $s;
+        }
+      }
+    }
+
+    DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
+
     if (!ref $dbicschema) {
-      try {
-        eval "require $dbicschema;"
-      }
-      catch {
-        croak "Can't load $dbicschema ($_)";
-      }
+      eval "require $dbicschema"
+        or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
+    }
+
+    if (
+      ref $args->{dbic_schema}
+        and
+      $args->{dbic_schema}->storage
+    ) {
+      # we have a storage-holding $schema instance in $args
+      # we need to dissociate it from that $storage
+      # otherwise SQLT insanity may ensue due to how some
+      # serializing producers treat $args (crazy crazy shit)
+      local $args->{dbic_schema}{storage};
+      $args->{dbic_schema} = $args->{dbic_schema}->clone;
     }
 
     my $schema      = $tr->schema;
@@ -60,7 +77,7 @@ sub parse {
       unless ($schema->name);
 
     my @monikers = sort $dbicschema->sources;
-    if ($limit_sources) {
+    if (my $limit_sources = $args->{'sources'}) {
         my $ref = ref $limit_sources || '';
         $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
           unless( $ref eq 'ARRAY' || ref eq 'HASH' );
@@ -154,7 +171,11 @@ sub parse {
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $relsource = $source->related_source($rel);
+            my $relsource = try { $source->related_source($rel) };
+            unless ($relsource) {
+              carp "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              next;
+            };
 
             # related sources might be excluded via a {sources} filter or might be views
             next unless exists $table_monikers{$relsource->source_name};
@@ -216,7 +237,7 @@ sub parse {
                 # Constraints are added only if applicable
                 next unless $fk_constraint;
 
-                # Make sure we dont create the same foreign key constraint twice
+                # Make sure we don't create the same foreign key constraint twice
                 my $key_test = join("\x00", sort @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
 
@@ -284,7 +305,7 @@ sub parse {
 
       # the hook might have already removed the table
       if ($schema->get_table($table) && $table =~ /^ \s* \( \s* SELECT \s+/ix) {
-        warn <<'EOW';
+        carp <<'EOW';
 
 Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, for more details see
 "Arbitrary SQL through a custom ResultSource" in DBIx::Class::Manual::Cookbook
@@ -425,7 +446,7 @@ from a DBIx::Class::Schema instance
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
       parser_args => {
-          package => $schema,
+          dbic_schema => $schema,
           add_fk_index => 0,
           sources => [qw/
             Artist
@@ -454,6 +475,27 @@ have SQL::Translator installed. To do this see
 L<DBIx::Class::Schema/create_ddl_dir>.
 
 =head1 PARSER OPTIONS
+
+=head2 dbic_schema
+
+The DBIx::Class schema (either an instance or a class name) to be parsed.
+This argument is in fact optional - instead one can supply it later at
+translation time as an argument to L<SQL::Translator/translate>. In
+other words both of the following invocations are valid and will produce
+conceptually identical output:
+
+  my $yaml = SQL::Translator->new(
+    parser => 'SQL::Translator::Parser::DBIx::Class',
+    parser_args => {
+      dbic_schema => $schema,
+    },
+    producer => 'SQL::Translator::Producer::YAML',
+  )->translate;
+
+  my $yaml = SQL::Translator->new(
+    parser => 'SQL::Translator::Parser::DBIx::Class',
+    producer => 'SQL::Translator::Producer::YAML',
+  )->translate(data => $schema);
 
 =head2 add_fk_index
 

@@ -8,10 +8,36 @@ use base qw/
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
-use Carp::Clan qw/^DBIx::Class/;
 
-# Temporary fix for mysterious MRO fail on 5.8 perls
-Class::C3::reinitialize if $] < '5.01';
+use DBIx::Class::Carp;
+use namespace::clean;
+
+=head1 NAME
+
+DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server - Support for Microsoft
+SQL Server via DBD::Sybase
+
+=head1 SYNOPSIS
+
+This subclass supports MSSQL server connections via L<DBD::Sybase>.
+
+=head1 DESCRIPTION
+
+This driver tries to determine whether your version of L<DBD::Sybase> and
+supporting libraries (usually FreeTDS) support using placeholders, if not the
+storage will be reblessed to
+L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars>.
+
+The MSSQL specific functionality is provided by
+L<DBIx::Class::Storage::DBI::MSSQL>.
+
+=head1 METHODS
+
+=cut
+
+__PACKAGE__->datetime_parser_type(
+  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format'
+);
 
 sub _rebless {
   my $self = shift;
@@ -19,6 +45,19 @@ sub _rebless {
 
   return if ref $self ne __PACKAGE__;
   if (not $self->_use_typeless_placeholders) {
+    carp_once <<'EOF' unless $ENV{DBIC_MSSQL_FREETDS_LOWVER_NOWARN};
+Placeholders do not seem to be supported in your configuration of
+DBD::Sybase/FreeTDS.
+
+This means you are taking a large performance hit, as caching of prepared
+statements is disabled.
+
+Make sure to configure your server with "tds version" of 8.0 or 7.0 in
+/etc/freetds/freetds.conf .
+
+To turn off this warning, set the DBIC_MSSQL_FREETDS_LOWVER_NOWARN environment
+variable.
+EOF
     require
       DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars;
     bless $self,
@@ -27,35 +66,33 @@ sub _rebless {
   }
 }
 
-sub _run_connection_actions {
+sub _init {
   my $self = shift;
-
-  # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
-  # huge on some versions of SQL server and can cause memory problems, so we
-  # fix it up here (see ::DBI::Sybase.pm)
-  $self->set_textsize;
 
   $self->next::method(@_);
+
+  # work around massively broken freetds versions after 0.82
+  # - explicitly no scope_identity
+  # - no sth caching
+  #
+  # warn about the fact as well, do not provide a mechanism to shut it up
+  if ($self->_using_freetds and (my $ver = $self->_using_freetds_version||999) > 0.82) {
+    carp_once(
+      "Your DBD::Sybase was compiled against buggy FreeTDS version $ver. "
+    . 'Statement caching does not work and will be disabled.'
+    );
+
+    $self->_identity_method('@@identity');
+    $self->_no_scope_identity_query(1);
+    $self->disable_sth_caching(1);
+  }
 }
 
-sub _dbh_begin_work {
-  my $self = shift;
+# invoked only if DBD::Sybase is compiled against FreeTDS
+sub _set_autocommit_stmt {
+  my ($self, $on) = @_;
 
-  $self->_get_dbh->do('BEGIN TRAN');
-}
-
-sub _dbh_commit {
-  my $self = shift;
-  my $dbh  = $self->_dbh
-    or $self->throw_exception('cannot COMMIT on a disconnected handle');
-  $dbh->do('COMMIT');
-}
-
-sub _dbh_rollback {
-  my $self = shift;
-  my $dbh  = $self->_dbh
-    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
-  $dbh->do('ROLLBACK');
+  return 'SET IMPLICIT_TRANSACTIONS ' . ($on ? 'OFF' : 'ON');
 }
 
 sub _get_server_version {
@@ -90,33 +127,27 @@ C<SMALLDATETIME> columns only have minute precision.
 
 =cut
 
-{
-  my $old_dbd_warned = 0;
+sub connect_call_datetime_setup {
+  my $self = shift;
+  my $dbh = $self->_get_dbh;
 
-  sub connect_call_datetime_setup {
-    my $self = shift;
-    my $dbh = $self->_get_dbh;
-
-    if ($dbh->can('syb_date_fmt')) {
-      # amazingly, this works with FreeTDS
-      $dbh->syb_date_fmt('ISO_strict');
-    } elsif (not $old_dbd_warned) {
-      carp "Your DBD::Sybase is too old to support ".
-      "DBIx::Class::InflateColumn::DateTime, please upgrade!";
-      $old_dbd_warned = 1;
-    }
+  if ($dbh->can('syb_date_fmt')) {
+    # amazingly, this works with FreeTDS
+    $dbh->syb_date_fmt('ISO_strict');
+  }
+  else{
+    carp_once
+      'Your DBD::Sybase is too old to support '
+    . 'DBIx::Class::InflateColumn::DateTime, please upgrade!';
   }
 }
 
-sub datetime_parser_type {
-  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format'
-} 
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::DateTime::Format;
 
 my $datetime_parse_format  = '%Y-%m-%dT%H:%M:%S.%3NZ';
-my $datetime_format_format = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T 
+my $datetime_format_format = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T
 
 my ($datetime_parser, $datetime_formatter);
 
@@ -141,25 +172,6 @@ sub format_datetime {
 }
 
 1;
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server - Support for Microsoft
-SQL Server via DBD::Sybase
-
-=head1 SYNOPSIS
-
-This subclass supports MSSQL server connections via L<DBD::Sybase>.
-
-=head1 DESCRIPTION
-
-This driver tries to determine whether your version of L<DBD::Sybase> and
-supporting libraries (usually FreeTDS) support using placeholders, if not the
-storage will be reblessed to
-L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars>.
-
-The MSSQL specific functionality is provided by
-L<DBIx::Class::Storage::DBI::MSSQL>.
 
 =head1 AUTHOR
 
