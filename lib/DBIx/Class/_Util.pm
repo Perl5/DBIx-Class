@@ -23,14 +23,8 @@ BEGIN {
     DBICTEST => eval { DBICTest::RunMode->is_author } ? 1 : 0,
 
     # During 5.13 dev cycle HELEMs started to leak on copy
-    PEEPEENESS =>
-      # request for all tests would force "non-leaky" illusion and vice-versa
-      defined $ENV{DBICTEST_ALL_LEAKS}                                              ? !$ENV{DBICTEST_ALL_LEAKS}
-      # otherwise confess that this perl is busted ONLY on smokers
-    : eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006)  ? 1
-      # otherwise we are good
-                                                                                    : 0
-    ,
+    # add an escape for these perls ON SMOKERS - a user will still get death
+    PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006) ),
 
     ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
 
