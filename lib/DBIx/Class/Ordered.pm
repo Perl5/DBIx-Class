@@ -367,7 +367,30 @@ sub move_to {
 
     my $position_column = $self->position_column;
 
-    if ($self->is_column_changed ($position_column) ) {
+    my $is_txn;
+    if ($is_txn = $self->result_source->schema->storage->transaction_depth) {
+      # Reload position state from storage
+      # The thinking here is that if we are in a transaction, it is
+      # *more likely* the object went out of sync due to resultset
+      # level shenanigans. Instead of always reloading (slow) - go
+      # ahead and hand-hold only in the case of higher layers
+      # requesting the safety of a txn
+
+      $self->store_column(
+        $position_column,
+        ( $self->result_source
+                ->resultset
+                 ->search($self->_storage_ident_condition, { rows => 1, columns => $position_column })
+                  ->cursor
+                   ->next
+        )[0] || $self->throw_exception(
+          sprintf "Unable to locate object '%s' in storage - object went ouf of sync...?",
+          $self->ID
+        ),
+      );
+      delete $self->{_dirty_columns}{$position_column};
+    }
+    elsif ($self->is_column_changed ($position_column) ) {
       # something changed our position, we need to know where we
       # used to be - use the stashed value
       $self->store_column($position_column, delete $self->{_column_data_in_storage}{$position_column});
@@ -380,7 +403,7 @@ sub move_to {
       return 0;
     }
 
-    my $guard = $self->result_source->schema->txn_scope_guard;
+    my $guard = $is_txn ? undef : $self->result_source->schema->txn_scope_guard;
 
     my ($direction, @between);
     if ( $from_position < $to_position ) {
@@ -402,7 +425,7 @@ sub move_to {
     $self->_shift_siblings ($direction, @between);
     $self->_ordered_internal_update({ $position_column => $new_pos_val });
 
-    $guard->commit;
+    $guard->commit if $guard;
     return 1;
 }
 
@@ -861,18 +884,18 @@ will prevent such race conditions going undetected.
 
 =head2 Multiple Moves
 
-Be careful when issuing move_* methods to multiple objects.  If
-you've pre-loaded the objects then when you move one of the objects
-the position of the other object will not reflect their new value
-until you reload them from the database - see
-L<DBIx::Class::Row/discard_changes>.
+If you have multiple same-group result objects already loaded from storage,
+you need to be careful when executing C<move_*> operations on them:
+without a L</position_column> reload the L</_position_value> of the
+"siblings" will be out of sync with the underlying storage.
 
-There are times when you will want to move objects as groups, such
-as changing the parent of several objects at once - this directly
-conflicts with this problem.  One solution is for us to write a
-ResultSet class that supports a parent() method, for example.  Another
-solution is to somehow automagically modify the objects that exist
-in the current object's result set to have the new position value.
+Starting from version C<0.082800> DBIC will implicitly perform such
+reloads when the C<move_*> happens as a part of a transaction
+(a good example of such situation is C<< $ordered_resultset->delete_all >>).
+
+If it is not possible for you to wrap the entire call-chain in a transaction,
+you will need to call L<DBIx::Class::Row/discard_changes> to get an object
+up-to-date before proceeding, otherwise undefined behavior will result.
 
 =head2 Default Values
 

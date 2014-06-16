@@ -9,19 +9,22 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 
 my $cd = $schema->resultset('CD')->next;
+$cd->tracks->delete;
 
-lives_ok {
-  $cd->tracks->delete;
+$schema->resultset('CD')->related_resultset('tracks')->delete;
 
-  my @tracks = map
-    { $cd->create_related('tracks', { title => "t_$_", position => $_ }) }
-    (4,2,5,1,3)
-  ;
+is $cd->tracks->count, 0, 'No tracks';
 
-  for (@tracks) {
-    $_->discard_changes;
-    $_->delete;
-  }
-} 'Creation/deletion of out-of order tracks successful';
+$cd->create_related('tracks', { title => "t_$_", position => $_ })
+  for (4,2,3,1,5);
+
+is $cd->tracks->count, 5, 'Created 5 tracks';
+
+# a txn should force the implicit pos reload, regardless of order
+$schema->txn_do(sub {
+  $cd->tracks->delete_all
+});
+
+is $cd->tracks->count, 0, 'Successfully deleted everything';
 
 done_testing;

@@ -10,6 +10,8 @@ Revision history for DBIx::Class
         - Add extra custom condition coderef attribute 'foreign_resultobj'
           to allow for proper reverse-relationship emulation
           (i.e. $result->set_from_related($custom_cond, $foreign_resultobj)
+        - When in a transaction, DBIC::Ordered now seamlesly handles result
+          objects that went out of sync with the storage (RT#96499)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases
