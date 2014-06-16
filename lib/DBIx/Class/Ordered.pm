@@ -742,20 +742,13 @@ sub _shift_siblings {
     if (
       first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
     ) {
-        my $cursor = $shift_rs->search (
+        my $clean_rs = $rsrc->resultset;
+
+        for ( $shift_rs->search (
           {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
-        )->cursor;
-        my $rs = $rsrc->resultset;
-
-        my @all_data = $cursor->all;
-        while (my $data = shift @all_data) {
-          my $pos = shift @$data;
-          my $cond;
-          for my $i (0.. $#pcols) {
-            $cond->{$pcols[$i]} = $data->[$i];
-          }
-
-          $rs->find($cond)->update ({ $position_column => $pos + ( ($op eq '+') ? 1 : -1 ) });
+        )->cursor->all ) {
+          my $pos = shift @$_;
+          $clean_rs->find(@$_)->update ({ $position_column => $pos + ( ($op eq '+') ? 1 : -1 ) });
         }
     }
     else {
