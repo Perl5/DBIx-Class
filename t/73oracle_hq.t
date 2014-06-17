@@ -3,6 +3,12 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
+
+# I *strongly* suspect Oracle has an implicit stable output order when
+# dealing with HQs. So just punt on the entire shuffle thing.
+BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
+
+
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 

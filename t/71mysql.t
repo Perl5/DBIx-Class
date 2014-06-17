@@ -352,8 +352,8 @@ ZEROINSEARCH: {
   ]});
 
   warnings_exist { is_deeply (
-    [ $restrict_rs->get_column('y')->all ],
-    [ $y_rs->all ],
+    [ sort $restrict_rs->get_column('y')->all ],
+    [ sort $y_rs->all ],
     'Zero year was correctly excluded from resultset',
   ) } qr/
     \QUse of distinct => 1 while selecting anything other than a column \E

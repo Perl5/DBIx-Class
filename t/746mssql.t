@@ -280,8 +280,8 @@ SQL
           my $sealed_owners = $owners->as_subselect_rs;
 
           is_deeply (
-            [ map { $_->name } ($sealed_owners->all) ],
-            [ map { $_->name } ($owners->all) ],
+            [ sort map { $_->name } ($sealed_owners->all) ],
+            [ sort map { $_->name } ($owners->all) ],
             "$test_type: Sort preserved from within a subquery",
           );
         }

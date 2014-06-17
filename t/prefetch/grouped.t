@@ -23,10 +23,12 @@ for ($cd_rs->all) {
   is ($_->tracks->count, 3, '3 tracks for CD' . $_->id );
 }
 
+my @cdids = sort $cd_rs->get_column ('cdid')->all;
+
 # Test a belongs_to prefetch of a has_many
 {
   my $track_rs = $schema->resultset ('Track')->search (
-    { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },
+    { 'me.cd' => { -in => \@cdids } },
     {
       select => [
         'me.cd',
@@ -72,7 +74,7 @@ for ($cd_rs->all) {
       me
     )',
     [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
-      => $_ ] } ($cd_rs->get_column ('cdid')->all) ],
+      => $_ ] } @cdids ],
     'count() query generated expected SQL',
   );
 
@@ -91,7 +93,7 @@ for ($cd_rs->all) {
       WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
     )',
     [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
-      => $_ ] } ( ($cd_rs->get_column ('cdid')->all) x 2 ) ],
+      => $_ ] } (@cdids) x 2 ],
     'next() query generated expected SQL',
   );
 
@@ -283,7 +285,7 @@ for ($cd_rs->all) {
 # RT 47779, test group_by as a scalar ref
 {
   my $track_rs = $schema->resultset ('Track')->search (
-    { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },
+    { 'me.cd' => { -in => \@cdids } },
     {
       select => [
         'me.cd',
@@ -312,7 +314,7 @@ for ($cd_rs->all) {
       me
     )',
     [ map { [ { sqlt_datatype => 'integer', dbic_colname => 'me.cd' }
-      => $_ ] } ($cd_rs->get_column ('cdid')->all) ],
+      => $_ ] } (@cdids) ],
     'count() query generated expected SQL',
   );
 }

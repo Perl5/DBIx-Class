@@ -185,7 +185,7 @@ lives_ok (sub {
   });
 
   is_deeply(
-    $rs->all_hri,
+    $rs->search({}, { order_by => 'me.title' })->all_hri,
     [
       { title => "Caterwaulin' Blues", max_trk => 3 },
       { title => "Come Be Depressed With Us", max_trk => 3 },

@@ -29,6 +29,7 @@ is_deeply (
       {
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
         prefetch => ['artist', { tracks => [qw/cd year1999cd year2000cd/] } ],
+        order_by => 'tracks.trackid',
       },
     )->all
   ],
@@ -39,6 +40,7 @@ is_deeply (
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
         prefetch => ['artist', { tracks => [qw/cd year1999cd year2000cd/] } ],
         columns => [qw/cdid single_track title/],   # to match the columns retrieved by the virtview
+        order_by => 'tracks.trackid',
       },
     )->all
   ],

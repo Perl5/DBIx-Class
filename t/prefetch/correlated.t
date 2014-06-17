@@ -13,7 +13,7 @@ my $cdrs = $schema->resultset('CD')->search({ 'me.artist' => { '!=', 2 }});
 my $cd_data = { map {
   $_->cdid => {
     siblings => $cdrs->search ({ artist => $_->get_column('artist') })->count - 1,
-    track_titles => [ map { $_->title } ($_->tracks->all) ],
+    track_titles => [ sort $_->tracks->get_column('title')->all ],
   },
 } ( $cdrs->all ) };
 
@@ -65,7 +65,7 @@ $schema->is_executed_querycount( sub {
   cmp_deeply (
     { map
       { $_->cdid => {
-        track_titles => [ map { $_->title } ($_->tracks->all) ],
+        track_titles => [ sort map { $_->title } ($_->tracks->all) ],
         siblings => $_->get_column ('sibling_count'),
       } }
       $c_rs->all

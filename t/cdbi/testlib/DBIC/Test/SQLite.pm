@@ -36,6 +36,11 @@ use warnings;
 
 use Test::More;
 
+# adding implicit search criteria to the iterator will alter the test
+# mechanics - leave everything as-is instead, and hope SQLite won't
+# change too much
+BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
+
 use lib 't/lib';
 use DBICTest;
 

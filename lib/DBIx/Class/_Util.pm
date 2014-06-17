@@ -26,6 +26,8 @@ BEGIN {
     # add an escape for these perls ON SMOKERS - a user will still get death
     PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006) ),
 
+    SHUFFLE_UNORDERED_RESULTSETS => $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} ? 1 : 0,
+
     ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
 
     IV_SIZE => $Config{ivsize},
