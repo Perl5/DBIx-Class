@@ -259,6 +259,28 @@ lives_ok (sub {
   }, 'partial schema tests successful');
 }
 
+{
+  my $cd_rsrc = $schema->source('CD');
+  $cd_rsrc->name(\'main.cd');
+
+  my $sqlt_schema = create_schema(
+    { schema => $schema },
+    args => { ignore_constraint_names => 0, ignore_index_names => 0 }
+  );
+
+  foreach my $source_name (qw(CD)) {
+    my $table = get_table($sqlt_schema, $schema, $source_name);
+    ok(
+      !(grep {$_->name =~ m/main\./} $table->get_indices),
+      'indices have periods stripped out'
+    );
+    ok(
+      !(grep {$_->name =~ m/main\./} $table->get_constraints),
+      'constraints have periods stripped out'
+    );
+  }
+}
+
 done_testing;
 
 sub create_schema {
