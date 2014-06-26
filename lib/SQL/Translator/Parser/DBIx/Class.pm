@@ -252,9 +252,12 @@ sub parse {
                     $tables{$table_name}{foreign_table_deps}{$rel_table}++;
                   }
 
+                  # trim schema before generating constraint/index names
+                  (my $table_abbrev = $table_name) =~ s/ ^ [^\.]+ \. //x;
+
                   $table->add_constraint(
                     type             => 'foreign_key',
-                    name             => join('_', $table_name, 'fk', @keys),
+                    name             => join('_', $table_abbrev, 'fk', @keys),
                     fields           => \@keys,
                     reference_fields => \@refkeys,
                     reference_table  => $rel_table,
@@ -275,8 +278,9 @@ sub parse {
                   next if join("\x00", @keys) eq join("\x00", @primary);
 
                   if ($add_fk_index_rel) {
+                      (my $idx_name = $table_name) =~ s/ ^ [^\.]+ \. //x;
                       my $index = $table->add_index(
-                          name   => join('_', $table_name, 'idx', @keys),
+                          name   => join('_', $table_abbrev, 'idx', @keys),
                           fields => \@keys,
                           type   => 'NORMAL',
                       );

@@ -836,6 +836,7 @@ sub name_unique_constraint {
 
   my $name = $self->name;
   $name = $$name if (ref $name eq 'SCALAR');
+  $name =~ s/ ^ [^\.]+ \. //x;  # strip possible schema qualifier
 
   return join '_', $name, @$cols;
 }

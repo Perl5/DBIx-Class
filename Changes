@@ -49,6 +49,8 @@ Revision history for DBIx::Class
           additional codepath (missed in 0.08260)
         - Fix more inconsistencies of the quote_names attribute propagating
           to SQL::Translator (partially RT#87731)
+        - Fix SQLT constraint naming when DBIC table names are fully qualified
+          (PR#48)
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
         - Fix CDBICompat to match Class::DBI behavior handling non-result
