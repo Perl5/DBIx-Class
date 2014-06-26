@@ -829,6 +829,7 @@ sub name_unique_constraint {
 
   my $name = $self->name;
   $name = $$name if (ref $name eq 'SCALAR');
+  $name =~ s/ ^ [\w\-]+ \. //x;
 
   return join '_', $name, @$cols;
 }
