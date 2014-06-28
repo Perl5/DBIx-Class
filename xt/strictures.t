@@ -12,8 +12,17 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_strictures') ) {
     : plan skip_all => "Test needs: $missing"
 }
 
-
 use File::Find;
+
+# The rationale is - if we can load all our optdeps
+# that are related to lib/ - then we should be able to run
+# perl -c checks (via syntax_ok), and all should just work
+my $missing_groupdeps_present = grep
+  { DBIx::Class::Optional::Dependencies->req_ok_for($_) }
+  grep
+    { $_ !~ /^ (?: test | rdbms | dist ) _ /x }
+    keys %{DBIx::Class::Optional::Dependencies->req_group_list}
+;
 
 find({
   wanted => sub {
@@ -31,7 +40,8 @@ find({
     Test::Strict::strict_ok($f);
     Test::Strict::warnings_ok($f);
 
-    #Test::Strict::syntax_ok($f) if $f =~ /^ (?: lib  )/x;
+    Test::Strict::syntax_ok($f)
+      if ! $missing_groupdeps_present and $f =~ /^ (?: lib  )/x;
   },
   no_chdir => 1,
 }, (qw(lib t examples maint)) );
