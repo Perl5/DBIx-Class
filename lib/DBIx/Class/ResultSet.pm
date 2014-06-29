@@ -80,7 +80,47 @@ However, if it is used in a boolean context it is B<always> true.  So if
 you want to check if a resultset has any results, you must use C<if $rs
 != 0>.
 
-=head1 CUSTOM ResultSet CLASSES THAT USE Moose
+=head1 CUSTOM RESULTSET CLASSES
+
+To add methods to your resultsets, you can subclass L<DBIx::Class::ResultSet>, similar to:
+
+    package MyApp::Schema::ResultSet::User;
+
+    use strict;
+    use warnings;
+
+    use base 'DBIx::Class::ResultSet';
+
+    sub active {
+        shift->search({ active => 1 });
+    }
+
+    sub unverified {
+        shift->search({ verified => 0 });
+    }
+
+    sub users_to_warn {
+        my $self = shift;
+        my $datetime_formatter =
+          $self->result_source->schema->storage->datetime_parser;
+        return $self->active->unverified->search(
+            {
+                create_date => {
+                    '<=' => $datetime_formatter->format_datetime(
+                        DateTime->now( time_zone => 'UTC' )
+                            ->subtract( days => 7 ) )
+                } } );
+    }
+
+    1;
+
+See L<DBIx::Class::Schema/load_namespaces> for how ResulSet classes are normally resolved.
+
+=head2 Custom ResultSet classes that use Moose or Moo
+
+Using L<Moose> or L<Moo> for your ResultSet classes is usually overkill, but if your ResultSets
+do a lot of work ( has xml_parser, has json, etc ) or you just prefer to organize your code with Moo(se) roles
+you may find it useful.
 
 If you want to make your custom ResultSet classes with L<Moose>, use a template
 similar to:
@@ -107,6 +147,24 @@ clash with the regular ResultSet constructor. Alternatively, you can use:
 
 The L<BUILDARGS|Moose::Manual::Construction/BUILDARGS> is necessary because the
 signature of the ResultSet C<new> is C<< ->new($source, \%args) >>.
+
+Writing custom ResultSet classes with L<Moo>, is similar:
+
+    use Moo;
+    use namespace::autoclean;
+
+    extends 'DBIx::Class::ResultSet';
+
+    sub BUILDARGS { $_[2] }
+
+    sub FOREIGNBUILDARGS { $_[2] }
+
+    ...your code...
+
+
+    1;
+
+Moo doesn't require an equivalent to MooseX::NonMoose since that's built in to Moo.
 
 =head1 EXAMPLES
 
