@@ -172,24 +172,24 @@ See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
 If you want to make your custom ResultSet classes with L<Moose>, use a template
 similar to:
 
-    package MyApp::Schema::ResultSet::User;
+  package MyApp::Schema::ResultSet::User;
 
-    use Moose;
-    use MooseX::NonMoose;
-    extends 'DBIx::Class::ResultSet';
+  use Moose;
+  use MooseX::NonMoose;
+  extends 'DBIx::Class::ResultSet';
 
-    sub BUILDARGS { $_[2] }
+  sub BUILDARGS { $_[2] }
 
-    ...your code...
+  ...your code...
 
-    __PACKAGE__->meta->make_immutable;
+  __PACKAGE__->meta->make_immutable;
 
-    1;
+  1;
 
 The L<MooseX::NonMoose> is necessary so that the L<Moose> constructor does not
 clash with the regular ResultSet constructor. Alternatively, you can use:
 
-    __PACKAGE__->meta->make_immutable(inline_constructor => 0);
+  __PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
 The L<BUILDARGS|Moose::Manual::Construction/BUILDARGS> is necessary because the
 signature of the ResultSet C<new> is C<< ->new($source, \%args) >>.

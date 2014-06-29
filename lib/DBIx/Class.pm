@@ -528,6 +528,8 @@ semifor: Marc Mims <marc@questright.com>
 
 SineSwiper: Brendan Byrd <bbyrd@cpan.org>
 
+skaufman: Samuel Kaufman <sam@socialflow.com>
+
 solomon: Jared Johnson <jaredj@nmgi.com>
 
 spb: Stephen Bennett <stephen@freenode.net>
