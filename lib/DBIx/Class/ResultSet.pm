@@ -167,7 +167,47 @@ Which is the same as:
 
 See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
 
-=head2 Custom ResultSet classes using Moose
+=head2 Custom ResultSet classes
+
+To add methods to your resultsets, you can subclass L<DBIx::Class::ResultSet>, similar to:
+
+  package MyApp::Schema::ResultSet::User;
+
+  use strict;
+  use warnings;
+
+  use base 'DBIx::Class::ResultSet';
+
+  sub active {
+    my $self = shift;
+    $self->search({ $self->current_source_alias . '.active' => 1 });
+  }
+
+  sub unverified {
+    my $self = shift;
+    $self->search({ $self->current_source_alias . '.verified' => 0 });
+  }
+
+  sub created_n_days_ago {
+    my ($self, $days_ago) = @_;
+    $self->search({
+      $self->current_source_alias . '.create_date' => {
+        '<=',
+      $self->result_source->schema->storage->datetime_parser->format_datetime(
+        DateTime->now( time_zone => 'UTC' )->subtract( days => $days_ago )
+      )}
+    });
+  }
+
+  sub users_to_warn { shift->active->unverified->created_n_days_ago(7) }
+
+  1;
+
+See L<DBIx::Class::Schema/load_namespaces> on how DBIC can discover and
+automatically attach L<Result|DBIx::Class::Manual::ResultClass>-specific
+L<ResulSet|DBIx::Class::ResultSet> classes.
+
+=head3 ResultSet subclassing with Moose
 
 If you want to make your custom ResultSet classes with L<Moose>, use a template
 similar to:
