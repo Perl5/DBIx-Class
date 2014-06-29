@@ -207,10 +207,31 @@ See L<DBIx::Class::Schema/load_namespaces> on how DBIC can discover and
 automatically attach L<Result|DBIx::Class::Manual::ResultClass>-specific
 L<ResulSet|DBIx::Class::ResultSet> classes.
 
-=head3 ResultSet subclassing with Moose
+=head3 ResultSet subclassing with Moose and similar constructor-providers
 
-If you want to make your custom ResultSet classes with L<Moose>, use a template
-similar to:
+Using L<Moose> or L<Moo> in your ResultSet classes is usually overkill, but
+you may find it useful if your ResultSets contain a lot of business logic
+(e.g. C<has xml_parser>, C<has json>, etc) or if you just prefer to organize
+your code via roles.
+
+In order to write custom ResultSet classes with L<Moo> you need to use the
+following template. The L<BUILDARGS|Moo/BUILDARGS> is necessary due to the
+unusual signature of the L<constructor provided by DBIC
+|DBIx::Class::ResultSet/new> C<< ->new($source, \%args) >>.
+
+  use Moo;
+  extends 'DBIx::Class::ResultSet';
+  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
+
+  ...your code...
+
+  1;
+
+If you want to build your custom ResultSet classes with L<Moose>, you need
+a similar, though a little more elaborate template in order to interface the
+inlining of the L<Moose>-provided
+L<object constructor|Moose::Manual::Construction/WHERE'S THE CONSTRUCTOR?>,
+with the DBIC one.
 
   package MyApp::Schema::ResultSet::User;
 
@@ -218,7 +239,7 @@ similar to:
   use MooseX::NonMoose;
   extends 'DBIx::Class::ResultSet';
 
-  sub BUILDARGS { $_[2] }
+  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
 
   ...your code...
 
@@ -227,12 +248,11 @@ similar to:
   1;
 
 The L<MooseX::NonMoose> is necessary so that the L<Moose> constructor does not
-clash with the regular ResultSet constructor. Alternatively, you can use:
+entirely overwrite the DBIC one (in contrast L<Moo> does this automatically).
+Alternatively, you can skip L<MooseX::NonMoose> and get by with just L<Moose>
+instead by doing:
 
   __PACKAGE__->meta->make_immutable(inline_constructor => 0);
-
-The L<BUILDARGS|Moose::Manual::Construction/BUILDARGS> is necessary because the
-signature of the ResultSet C<new> is C<< ->new($source, \%args) >>.
 
 =head1 METHODS
 
