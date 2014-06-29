@@ -114,7 +114,7 @@ To add methods to your resultsets, you can subclass L<DBIx::Class::ResultSet>, s
 
     1;
 
-See L<DBIx::Class::Schema#load_namespaces> for how ResulSet classes are normally resolved.
+See L<DBIx::Class::Schema/load_namespaces> for how ResulSet classes are normally resolved.
 
 =head2 Custom ResultSet classes that use Moose or Moo
 
