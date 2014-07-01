@@ -88,7 +88,6 @@ similar to:
     package MyApp::Schema::ResultSet::User;
 
     use Moose;
-    use namespace::autoclean;
     use MooseX::NonMoose;
     extends 'DBIx::Class::ResultSet';
 

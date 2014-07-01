@@ -15,7 +15,7 @@ use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use MooseX::Types::LoadableClass qw(LoadableClass);
 use Try::Tiny;
-use namespace::autoclean;
+use namespace::clean;
 
 =head1 NAME
 

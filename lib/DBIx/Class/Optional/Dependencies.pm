@@ -36,7 +36,6 @@ my $admin_basic = {
   %$min_json_any,
   'MooseX::Types::Path::Class'    => '0.05',
   'MooseX::Types::JSON'           => '0.02',
-  'namespace::autoclean'          => '0.09',
 };
 
 my $admin_script = {
