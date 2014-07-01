@@ -16,7 +16,8 @@ BEGIN {
 }
 
 homepage 'http://www.dbix-class.org/';
-resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
+resources 'x_IRC'       => 'irc://irc.perl.org/#dbix-class';
+resources 'x_WebIRC'    => 'https://chat.mibbit.com/#dbix-class@irc.perl.org';
 resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'https://github.com/dbsrgits/DBIx-Class';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
