@@ -249,8 +249,6 @@ require an equivalent to MooseX::NonMoose since that's built in to Moo.
 
   sub BUILDARGS { $_[2] }
 
-  sub FOREIGNBUILDARGS { $_[2] }
-
   ...your code...
 
   1;
