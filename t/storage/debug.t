@@ -23,7 +23,6 @@ $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
 $schema->storage->debugfh($lfn->openw);
-$schema->storage->debugfh->autoflush(1);
 $schema->resultset('CD')->count;
 
 my @loglines = $lfn->slurp;

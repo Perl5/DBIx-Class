@@ -67,7 +67,6 @@ sub debugfh {
         or die("Duplication of STDERR for debug output failed (perhaps your STDERR is closed?): $!");
     }
 
-    $fh->autoflush();
     $self->_debugfh($fh);
   }
 
@@ -85,7 +84,7 @@ sub print {
 
   return if $self->silence;
 
-  $self->debugfh->print($msg);
+  $self->debugfh->printflush($msg);
 }
 
 =head2 silence
