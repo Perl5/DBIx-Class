@@ -4,6 +4,7 @@ no warnings 'once';
 
 use Test::More;
 use Test::Exception;
+use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class qw/file/;
@@ -53,12 +54,21 @@ END {
 }
 
 open(STDERRCOPY, '>&STDERR');
-close(STDERR);
-dies_ok {
-  $schema->resultset('CD')->search({})->count;
-} 'Died on closed FH';
 
-open(STDERR, '>&STDERRCOPY');
+# STDERR will be closed, no T::B diag in blocks
+my $exception = try {
+  close(STDERR);
+  $schema->resultset('CD')->search({})->count;
+} catch {
+  $_
+} finally {
+  # restore STDERR
+  open(STDERR, '>&STDERRCOPY');
+};
+
+like $exception, qr/\QDuplication of STDERR for debug output failed (perhaps your STDERR is closed?)/;
+
+
 
 # test debugcb and debugobj protocol
 {
