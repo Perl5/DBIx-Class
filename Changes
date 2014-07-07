@@ -36,6 +36,8 @@ Revision history for DBIx::Class
           savepoints on DBD::SQLite < 1.39
 
     * Misc
+        - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
+          wide-char warnings if the trace happens to contain unicode
         - Stop explicitly stringifying objects before passing them to DBI,
           instead assume that the DBI/DBD combo will take care of things
         - Remove ::ResultSource::resolve_condition - the underlying machinery

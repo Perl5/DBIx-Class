@@ -5,6 +5,7 @@ no warnings 'once';
 use Test::More;
 use Test::Exception;
 use Try::Tiny;
+use File::Spec;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class qw/file/;
@@ -67,6 +68,25 @@ my $exception = try {
 
 like $exception, qr/\QDuplication of STDERR for debug output failed (perhaps your STDERR is closed?)/;
 
+my @warnings;
+$exception = try {
+  local $SIG{__WARN__} = sub { push @warnings, @_ if $_[0] =~ /character/i };
+  close STDERR;
+  open(STDERR, '>', File::Spec->devnull) or die $!;
+  $schema->resultset('CD')->search({ title => "\x{1f4a9}" })->count;
+  '';
+} catch {
+  $_;
+} finally {
+  # restore STDERR
+  close STDERR;
+  open(STDERR, '>&STDERRCOPY');
+};
+
+die "How did that fail... $exception"
+  if $exception;
+
+is_deeply(\@warnings, [], 'No warnings with unicode on STDERR');
 
 
 # test debugcb and debugobj protocol

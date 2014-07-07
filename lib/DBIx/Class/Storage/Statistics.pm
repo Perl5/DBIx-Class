@@ -3,9 +3,10 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class/;
+use DBIx::Class::_Util 'sigwarn_silencer';
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh silence/);
+__PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh _defaulted_to_stderr silence/);
 
 =head1 NAME
 
@@ -55,6 +56,7 @@ sub debugfh {
 
   if (@_) {
     $self->_debugfh($_[0]);
+    $self->_defaulted_to_stderr(undef);
   } elsif (!defined($self->_debugfh())) {
     my $fh;
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
@@ -65,6 +67,7 @@ sub debugfh {
     } else {
       open ($fh, '>&STDERR')
         or die("Duplication of STDERR for debug output failed (perhaps your STDERR is closed?): $!");
+      $self->_defaulted_to_stderr(1);
     }
 
     $self->_debugfh($fh);
@@ -84,7 +87,13 @@ sub print {
 
   return if $self->silence;
 
-  $self->debugfh->printflush($msg);
+  my $fh = $self->debugfh;
+
+  # not using 'no warnings' here because all of this can change at runtime
+  local $SIG{__WARN__} = sigwarn_silencer(qr/^Wide character in print/)
+    if $self->_defaulted_to_stderr;
+
+  $fh->printflush($msg);
 }
 
 =head2 silence
