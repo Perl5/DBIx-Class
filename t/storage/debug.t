@@ -55,9 +55,11 @@ END {
 
 open(STDERRCOPY, '>&STDERR');
 
+my $exception_line_number;
 # STDERR will be closed, no T::B diag in blocks
 my $exception = try {
   close(STDERR);
+  $exception_line_number = __LINE__ + 1;  # important for test, do not reformat
   $schema->resultset('CD')->search({})->count;
 } catch {
   $_
@@ -66,7 +68,11 @@ my $exception = try {
   open(STDERR, '>&STDERRCOPY');
 };
 
-like $exception, qr/\QDuplication of STDERR for debug output failed (perhaps your STDERR is closed?)/;
+like $exception, qr/
+  \QDuplication of STDERR for debug output failed (perhaps your STDERR is closed?)\E
+    .+
+  \Qat @{[__FILE__]} line $exception_line_number\E$
+/xms;
 
 my @warnings;
 $exception = try {

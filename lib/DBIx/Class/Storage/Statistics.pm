@@ -2,11 +2,21 @@ package DBIx::Class::Storage::Statistics;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class/;
+# DO NOT edit away without talking to riba first, he will just put it back
+# BEGIN pre-Moo2 import block
+BEGIN {
+  require warnings;
+  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  require Moo; Moo->import;
+  require Sub::Quote; Sub::Quote->import('quote_sub');
+  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
+}
+# END pre-Moo2 import block
+
+extends 'DBIx::Class';
 use DBIx::Class::_Util 'sigwarn_silencer';
 use namespace::clean;
-
-__PACKAGE__->mk_group_accessors(simple => qw/callback _debugfh _defaulted_to_stderr silence/);
 
 =head1 NAME
 
@@ -26,19 +36,9 @@ for collecting the statistics as discussed in L<DBIx::Class::Manual::Cookbook>.
 
 =head1 METHODS
 
-=cut
-
 =head2 new
 
 Returns a new L<DBIx::Class::Storage::Statistics> object.
-
-=cut
-sub new {
-  my $self = {};
-  bless $self, (ref($_[0]) || $_[0]);
-
-  return $self;
-}
 
 =head2 debugfh
 
@@ -51,30 +51,44 @@ As getter it will lazily open a filehandle for you if one is not already set.
 
 =cut
 
+# FIXME - there ought to be a way to fold this into _debugfh itself
+# having the undef re-trigger the builder (or better yet a default
+# which can be folded in as a qsub)
 sub debugfh {
   my $self = shift;
 
-  if (@_) {
-    $self->_debugfh($_[0]);
-    $self->_defaulted_to_stderr(undef);
-  } elsif (!defined($self->_debugfh())) {
-    my $fh;
-    my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
-                  || $ENV{DBIC_TRACE};
-    if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-      open ($fh, '>>', $1)
-        or die("Cannot open trace file $1: $!");
-    } else {
-      open ($fh, '>&STDERR')
-        or die("Duplication of STDERR for debug output failed (perhaps your STDERR is closed?): $!");
-      $self->_defaulted_to_stderr(1);
-    }
+  return $self->_debugfh(@_) if @_;
+  $self->_debugfh || $self->_build_debugfh;
+}
 
-    $self->_debugfh($fh);
+has _debugfh => (
+  is => 'rw',
+  lazy => 1,
+  trigger => quote_sub( '$_[0]->_defaulted_to_stderr(undef)' ),
+  builder => '_build_debugfh',
+);
+
+sub _build_debugfh {
+  my $fh;
+
+  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} || $ENV{DBIC_TRACE};
+
+  if (defined($debug_env) and ($debug_env =~ /=(.+)$/)) {
+    open ($fh, '>>', $1)
+      or die("Cannot open trace file $1: $!\n");
+  }
+  else {
+    open ($fh, '>&STDERR')
+      or die("Duplication of STDERR for debug output failed (perhaps your STDERR is closed?): $!\n");
+    $_[0]->_defaulted_to_stderr(1);
   }
 
-  $self->_debugfh;
+  $fh;
 }
+
+has [qw(_defaulted_to_stderr silence callback)] => (
+  is => 'rw',
+);
 
 =head2 print
 
