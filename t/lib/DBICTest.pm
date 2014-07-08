@@ -259,10 +259,16 @@ sub _database {
 }
 
 sub __mk_disconnect_guard {
-  return if DBIx::Class::_ENV_::PEEPEENESS; # leaks handles, delaying DESTROY, can't work right
 
   my $db_file = shift;
-  return unless -f $db_file;
+
+  return if (
+    # this perl leaks handles, delaying DESTROY, can't work right
+    DBIx::Class::_ENV_::PEEPEENESS
+      or
+    ! -f $db_file
+  );
+
 
   my $orig_inode = (stat($db_file))[1]
     or return;
