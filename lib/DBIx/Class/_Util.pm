@@ -177,7 +177,9 @@ sub is_plain_value ($) {
       # intersted in are much more limited than the fullblown thing, and
       # this is a relatively hot piece of code
       (
-        # either has stringification which DBI prefers out of the box
+        # FIXME - DBI needs fixing to stringify regardless of DBD
+        #
+        # either has stringification which DBI SHOULD prefer out of the box
         #first { *{$_ . '::(""'}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
         overload::Method($_[0], '""')
           or

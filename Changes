@@ -40,8 +40,6 @@ Revision history for DBIx::Class
     * Misc
         - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
           wide-char warnings if the trace happens to contain unicode
-        - Stop explicitly stringifying objects before passing them to DBI,
-          instead assume that the DBI/DBD combo will take care of things
         - Remove ::ResultSource::resolve_condition - the underlying machinery
           is in flux, and the method has had a deprecation warning for 5 years
 

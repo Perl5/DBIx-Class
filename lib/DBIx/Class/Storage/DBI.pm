@@ -1895,9 +1895,16 @@ sub _bind_sth_params {
       );
     }
     else {
+      # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
+      my $v = ( length ref $bind->[$i][1] and is_plain_value $bind->[$i][1] )
+        ? "$bind->[$i][1]"
+        : $bind->[$i][1]
+      ;
+
       $sth->bind_param(
         $i + 1,
-        $bind->[$i][1],
+        # The temp-var is CRUCIAL - DO NOT REMOVE IT, breaks older DBD::SQLite RT#79576
+        $v,
         $bind_attrs->[$i],
       );
     }
@@ -2035,6 +2042,16 @@ sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
   my @col_range = (0..$#$cols);
+
+  # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
+  # For the time being forcibly stringify whatever is stringifiable
+  # ResultSet::populate() hands us a copy - safe to mangle
+  for my $r (0 .. $#$data) {
+    for my $c (0 .. $#{$data->[$r]}) {
+      $data->[$r][$c] = "$data->[$r][$c]"
+        if ( length ref $data->[$r][$c] and is_plain_value $data->[$r][$c] );
+    }
+  }
 
   my $colinfos = $source->columns_info($cols);
 

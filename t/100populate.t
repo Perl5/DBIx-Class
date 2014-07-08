@@ -416,7 +416,7 @@ warnings_like {
   )
     ? ()
     # one unique for populate() and create() each
-    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 3
+    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 2
 ], 'Data integrity warnings as planned';
 
 lives_ok {
