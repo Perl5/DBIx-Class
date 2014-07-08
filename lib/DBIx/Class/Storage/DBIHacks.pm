@@ -887,13 +887,13 @@ sub _order_by_is_stable {
   my @cols = (
     ( map { $_->[0] } $self->_extract_order_criteria($order_by) ),
     ( $where ? @{ $self->_extract_fixed_condition_columns($where) || [] } : () ),
-  ) or return undef;
+  ) or return 0;
 
   my $colinfo = $self->_resolve_column_info($ident, \@cols);
 
   return keys %$colinfo
     ? $self->_columns_comprise_identifying_set( $colinfo,  \@cols )
-    : undef
+    : 0
   ;
 }
 
@@ -909,14 +909,14 @@ sub _columns_comprise_identifying_set {
     return 1 if $src->_identifying_column_set($_);
   }
 
-  return undef;
+  return 0;
 }
 
-# this is almost identical to the above, except it accepts only
+# this is almost similar to _order_by_is_stable, except it takes
 # a single rsrc, and will succeed only if the first portion of the order
 # by is stable.
 # returns that portion as a colinfo hashref on success
-sub _main_source_order_by_portion_is_stable {
+sub _extract_colinfo_of_stable_main_source_order_by_portion {
   my ($self, $main_rsrc, $order_by, $where) = @_;
 
   die "Huh... I expect a blessed result_source..."

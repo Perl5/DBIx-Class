@@ -543,7 +543,7 @@ sub _GenericSubQ {
   . 'root-table-based order criteria.'
   );
 
-  my $usable_order_ci = $root_rsrc->storage->_main_source_order_by_portion_is_stable(
+  my $usable_order_colinfo = $root_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
     $root_rsrc,
     $supplied_order,
     $rs_attrs->{where},
@@ -562,14 +562,14 @@ sub _GenericSubQ {
   };
 
   # truncate to what we'll use
-  $#order_bits = ( (keys %$usable_order_ci) - 1 );
+  $#order_bits = ( (keys %$usable_order_colinfo) - 1 );
 
   # @order_bits likely will come back quoted (due to how the prefetch
   # rewriter operates
   # Hence supplement the column_info lookup table with quoted versions
   if ($self->quote_char) {
-    $usable_order_ci->{$self->_quote($_)} = $usable_order_ci->{$_}
-      for keys %$usable_order_ci;
+    $usable_order_colinfo->{$self->_quote($_)} = $usable_order_colinfo->{$_}
+      for keys %$usable_order_colinfo;
   }
 
 # calculate the condition
@@ -584,15 +584,15 @@ sub _GenericSubQ {
     ($bit, my $is_desc) = $self->_split_order_chunk($bit);
 
     push @is_desc, $is_desc;
-    push @unqualified_names, $usable_order_ci->{$bit}{-colname};
-    push @qualified_names, $usable_order_ci->{$bit}{-fq_colname};
+    push @unqualified_names, $usable_order_colinfo->{$bit}{-colname};
+    push @qualified_names, $usable_order_colinfo->{$bit}{-fq_colname};
 
-    push @new_order_by, { ($is_desc ? '-desc' : '-asc') => $usable_order_ci->{$bit}{-fq_colname} };
+    push @new_order_by, { ($is_desc ? '-desc' : '-asc') => $usable_order_colinfo->{$bit}{-fq_colname} };
   };
 
   my (@where_cond, @skip_colpair_stack);
   for my $i (0 .. $#order_bits) {
-    my $ci = $usable_order_ci->{$order_bits[$i]};
+    my $ci = $usable_order_colinfo->{$order_bits[$i]};
 
     my ($subq_col, $main_col) = map { "$_.$ci->{-colname}" } ($count_tbl_alias, $root_alias);
     my $cur_cond = { $subq_col => { ($is_desc[$i] ? '>' : '<') => { -ident => $main_col } } };
