@@ -1327,7 +1327,7 @@ sub _construct_results {
           and
         $rsrc->schema
               ->storage
-               ->_extract_colinfo_of_stable_main_source_order_by_portion($rsrc, $attrs->{order_by}, $attrs->{where})
+               ->_extract_colinfo_of_stable_main_source_order_by_portion($attrs)
       ) ? 1 : 0
     ) unless defined $attrs->{_ordered_for_collapse};
 

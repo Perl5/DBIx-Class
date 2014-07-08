@@ -538,23 +538,31 @@ sub _GenericSubQ {
   # GenSubQ is slow enough as it is, just emulating things
   # like in other cases is not wise - make the user work
   # to shoot their DBA in the foot
-  my $supplied_order = delete $rs_attrs->{order_by} or $self->throw_exception (
+  $self->throw_exception (
     'Generic Subquery Limit does not work on resultsets without an order. Provide a stable, '
   . 'main-table-based order criteria.'
-  );
+  ) unless $rs_attrs->{order_by};
 
   my $usable_order_colinfo = $main_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
-    $main_rsrc,
-    $supplied_order,
-    $rs_attrs->{where},
-  ) or $self->throw_exception(
-    'Generic Subquery Limit can not work with order criteria based on sources other than the current one'
+    $rs_attrs
+  );
+
+  $self->throw_exception(
+    'Generic Subquery Limit can not work with order criteria based on sources other than the main one'
+  ) if (
+    ! keys %{$usable_order_colinfo||{}}
+      or
+    grep
+      { $_->{-source_alias} ne $rs_attrs->{alias} }
+      (values %$usable_order_colinfo)
   );
 
 ###
 ###
 ### we need to know the directions after we figured out the above - reextract *again*
 ### this is eyebleed - trying to get it to work at first
+  my $supplied_order = delete $rs_attrs->{order_by};
+
   my @order_bits = do {
     local $self->{quote_char};
     local $self->{order_bind};

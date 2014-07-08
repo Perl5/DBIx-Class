@@ -784,31 +784,9 @@ sub _resolve_column_info {
 sub _inner_join_to_node {
   my ($self, $from, $alias) = @_;
 
-  # subqueries and other oddness are naturally not supported
-  return $from if (
-    ref $from ne 'ARRAY'
-      ||
-    @$from <= 1
-      ||
-    ref $from->[0] ne 'HASH'
-      ||
-    ! $from->[0]{-alias}
-      ||
-    $from->[0]{-alias} eq $alias  # this last bit means $alias is the head of $from - nothing to do
-  );
+  my $switch_branch = $self->_find_join_path_to_node($from, $alias);
 
-  # find the current $alias in the $from structure
-  my $switch_branch;
-  JOINSCAN:
-  for my $j (@{$from}[1 .. $#$from]) {
-    if ($j->[0]{-alias} eq $alias) {
-      $switch_branch = $j->[0]{-join_path};
-      last JOINSCAN;
-    }
-  }
-
-  # something else went quite wrong
-  return $from unless $switch_branch;
+  return $from unless @{$switch_branch||[]};
 
   # So it looks like we will have to switch some stuff around.
   # local() is useless here as we will be leaving the scope
@@ -834,6 +812,29 @@ sub _inner_join_to_node {
   }
 
   return \@new_from;
+}
+
+sub _find_join_path_to_node {
+  my ($self, $from, $target_alias) = @_;
+
+  # subqueries and other oddness are naturally not supported
+  return undef if (
+    ref $from ne 'ARRAY'
+      ||
+    ref $from->[0] ne 'HASH'
+      ||
+    ! defined $from->[0]{-alias}
+  );
+
+  # no path - the head is the alias
+  return [] if $from->[0]{-alias} eq $target_alias;
+
+  for my $i (1 .. $#$from) {
+    return $from->[$i][0]{-join_path} if ( ($from->[$i][0]{-alias}||'') eq $target_alias );
+  }
+
+  # something else went quite wrong
+  return undef;
 }
 
 sub _extract_order_criteria {
@@ -917,70 +918,62 @@ sub _columns_comprise_identifying_set {
 # by is stable.
 # returns that portion as a colinfo hashref on success
 sub _extract_colinfo_of_stable_main_source_order_by_portion {
-  my ($self, $main_rsrc, $order_by, $where) = @_;
+  my ($self, $attrs) = @_;
 
-  die "Huh... I expect a blessed result_source..."
-    if ref($main_rsrc) eq 'ARRAY';
+  my $nodes = $self->_find_join_path_to_node($attrs->{from}, $attrs->{alias});
+
+  return unless defined $nodes;
 
   my @ord_cols = map
     { $_->[0] }
-    ( $self->_extract_order_criteria($order_by) )
+    ( $self->_extract_order_criteria($attrs->{order_by}) )
   ;
   return unless @ord_cols;
 
-  my $colinfos = $self->_resolve_column_info($main_rsrc);
+  my $valid_aliases = { map { $_ => 1 } (
+    $attrs->{from}[0]{-alias},
+    map { values %$_ } @$nodes,
+  ) };
 
-  for (0 .. $#ord_cols) {
-    if (
-      ! $colinfos->{$ord_cols[$_]}
-        or
-      $colinfos->{$ord_cols[$_]}{-result_source} != $main_rsrc
-    ) {
-      $#ord_cols =  $_ - 1;
-      last;
-    }
+  my $colinfos = $self->_resolve_column_info($attrs->{from});
+
+  my ($colinfos_to_return, $seen_main_src_cols);
+
+  for my $col (@ord_cols) {
+    # if order criteria is unresolvable - there is nothing we can do
+    my $colinfo = $colinfos->{$col} or last;
+
+    # if we reached the end of the allowed aliases - also nothing we can do
+    last unless $valid_aliases->{$colinfo->{-source_alias}};
+
+    $colinfos_to_return->{$col} = $colinfo;
+
+    $seen_main_src_cols->{$colinfo->{-colname}} = 1
+      if $colinfo->{-source_alias} eq $attrs->{alias};
   }
 
-  # we just truncated it above
-  return unless @ord_cols;
+  # FIXME the condition may be singling out things on its own, so we
+  # conceivable could come back wi "stable-ordered by nothing"
+  # not confient enough in the parser yet, so punt for the time being
+  return unless $seen_main_src_cols;
 
-  my $order_portion_ci = { map {
-    $colinfos->{$_}{-colname} => $colinfos->{$_},
-    $colinfos->{$_}{-fq_colname} => $colinfos->{$_},
-  } @ord_cols };
+  my $main_src_fixed_cols_from_cond = [ $attrs->{where}
+    ? (
+      map
+      {
+        ( $colinfos->{$_} and $colinfos->{$_}{-source_alias} eq $attrs->{alias} )
+          ? $colinfos->{$_}{-colname}
+          : ()
+      }
+      @{$self->_extract_fixed_condition_columns($attrs->{where}) || []}
+    )
+    : ()
+  ];
 
-  # since all we check here are the start of the order_by belonging to the
-  # top level $rsrc, a present identifying set will mean that the resultset
-  # is ordered by its leftmost table in a stable manner
-  #
-  # RV of _identifying_column_set contains unqualified names only
-  my $unqualified_idset = $main_rsrc->_identifying_column_set({
-    ( $where ? %{
-      $self->_resolve_column_info(
-        $main_rsrc, $self->_extract_fixed_condition_columns($where)||[]
-      )
-    } : () ),
-    %$order_portion_ci
-  }) or return;
-
-  my $ret_info;
-  my %unqualified_idcols_from_order = map {
-    $order_portion_ci->{$_} ? ( $_ => $order_portion_ci->{$_} ) : ()
-  } @$unqualified_idset;
-
-  # extra optimization - cut the order_by at the end of the identifying set
-  # (just in case the user was stupid and overlooked the obvious)
-  for my $i (0 .. $#ord_cols) {
-    my $col = $ord_cols[$i];
-    my $unqualified_colname = $order_portion_ci->{$col}{-colname};
-    $ret_info->{$col} = { %{$order_portion_ci->{$col}}, -idx_in_order_subset => $i };
-    delete $unqualified_idcols_from_order{$ret_info->{$col}{-colname}};
-
-    # we didn't reach the end of the identifying portion yet
-    return $ret_info unless keys %unqualified_idcols_from_order;
-  }
-
-  die 'How did we get here...';
+  return $attrs->{result_source}->_identifying_column_set([
+    keys %$seen_main_src_cols,
+    @$main_src_fixed_cols_from_cond,
+  ]) ? $colinfos_to_return : ();
 }
 
 # Attempts to flatten a passed in SQLA condition as much as possible towards
