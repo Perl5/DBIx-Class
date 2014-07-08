@@ -2413,20 +2413,12 @@ sub _select_args {
   #) if $orig_attrs->{!args_as_stored_at_the_end_of_this_method!};
 
   my $sql_maker = $self->sql_maker;
-  my $alias2source = $self->_resolve_ident_sources ($ident);
 
   my $attrs = {
     %$orig_attrs,
     select => $select,
     from => $ident,
     where => $where,
-
-    # limit dialects use this stuff
-    # yes, some CDBICompat crap does not supply an {alias} >.<
-    ( $orig_attrs->{alias} and $alias2source->{$orig_attrs->{alias}} )
-      ? ( _rsroot_rsrc => $alias2source->{$orig_attrs->{alias}} )
-      : ()
-    ,
   };
 
   # Sanity check the attributes (SQLMaker does it too, but
@@ -2517,6 +2509,8 @@ sub _select_args {
   $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
 
 ###
+  #   my $alias2source = $self->_resolve_ident_sources ($ident);
+  #
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial

@@ -278,7 +278,7 @@ EOS
   if (
     $rs_attrs->{order_by}
       and
-    $rs_attrs->{_rsroot_rsrc}->storage->_order_by_is_stable(
+    $rs_attrs->{result_source}->storage->_order_by_is_stable(
       @{$rs_attrs}{qw/from order_by where/}
     )
   ) {
@@ -331,7 +331,7 @@ sub _prep_for_skimming_limit {
     if ($sq_attrs->{order_by_requested}) {
       $self->throw_exception (
         'Unable to safely perform "skimming type" limit with supplied unstable order criteria'
-      ) unless ($rs_attrs->{_rsroot_rsrc}->schema->storage->_order_by_is_stable(
+      ) unless ($rs_attrs->{result_source}->schema->storage->_order_by_is_stable(
         $rs_attrs->{from},
         $requested_order,
         $rs_attrs->{where},
@@ -343,11 +343,11 @@ sub _prep_for_skimming_limit {
       $inner_order = [ map
         { "$rs_attrs->{alias}.$_" }
         ( @{
-          $rs_attrs->{_rsroot_rsrc}->_identifying_column_set
+          $rs_attrs->{result_source}->_identifying_column_set
             ||
           $self->throw_exception(sprintf(
             'Unable to auto-construct stable order criteria for "skimming type" limit '
-          . "dialect based on source '%s'", $rs_attrs->{_rsroot_rsrc}->name) );
+          . "dialect based on source '%s'", $rs_attrs->{result_source}->name) );
         } )
       ];
     }
@@ -532,7 +532,7 @@ Currently used by B<Sybase ASE>, due to lack of any other option.
 sub _GenericSubQ {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
-  my $root_rsrc = $rs_attrs->{_rsroot_rsrc};
+  my $main_rsrc = $rs_attrs->{result_source};
 
   # Explicitly require an order_by
   # GenSubQ is slow enough as it is, just emulating things
@@ -540,11 +540,11 @@ sub _GenericSubQ {
   # to shoot their DBA in the foot
   my $supplied_order = delete $rs_attrs->{order_by} or $self->throw_exception (
     'Generic Subquery Limit does not work on resultsets without an order. Provide a stable, '
-  . 'root-table-based order criteria.'
+  . 'main-table-based order criteria.'
   );
 
-  my $usable_order_colinfo = $root_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
-    $root_rsrc,
+  my $usable_order_colinfo = $main_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
+    $main_rsrc,
     $supplied_order,
     $rs_attrs->{where},
   ) or $self->throw_exception(
@@ -574,8 +574,8 @@ sub _GenericSubQ {
 
 # calculate the condition
   my $count_tbl_alias = 'rownum__emulation';
-  my $root_alias = $rs_attrs->{alias};
-  my $root_tbl_name = $root_rsrc->name;
+  my $main_alias = $rs_attrs->{alias};
+  my $main_tbl_name = $main_rsrc->name;
 
   my (@unqualified_names, @qualified_names, @is_desc, @new_order_by);
 
@@ -594,7 +594,7 @@ sub _GenericSubQ {
   for my $i (0 .. $#order_bits) {
     my $ci = $usable_order_colinfo->{$order_bits[$i]};
 
-    my ($subq_col, $main_col) = map { "$_.$ci->{-colname}" } ($count_tbl_alias, $root_alias);
+    my ($subq_col, $main_col) = map { "$_.$ci->{-colname}" } ($count_tbl_alias, $main_alias);
     my $cur_cond = { $subq_col => { ($is_desc[$i] ? '>' : '<') => { -ident => $main_col } } };
 
     push @skip_colpair_stack, [
@@ -683,7 +683,7 @@ WHERE ( SELECT COUNT(*) FROM %s %s $counted_where ) $rownum_cond
 $inner_order_sql
   ", map { $self->_quote ($_) } (
     $rs_attrs->{alias},
-    $root_tbl_name,
+    $main_tbl_name,
     $count_tbl_alias,
   ));
 }
@@ -693,7 +693,7 @@ $inner_order_sql
 #
 # Generates inner/outer select lists for various limit dialects
 # which result in one or more subqueries (e.g. RNO, Top, RowNum)
-# Any non-root-table columns need to have their table qualifier
+# Any non-main-table columns need to have their table qualifier
 # turned into a column alias (otherwise names in subqueries clash
 # and/or lose their source table)
 #

@@ -3393,7 +3393,7 @@ sub _resolved_attrs {
   return $self->{_attrs} if $self->{_attrs};
 
   my $attrs  = { %{ $self->{attrs} || {} } };
-  my $source = $self->result_source;
+  my $source = $attrs->{result_source} = $self->result_source;
   my $alias  = $attrs->{alias};
 
   $self->throw_exception("Specifying distinct => 1 in conjunction with collapse => 1 is unsupported")
