@@ -1,0 +1,57 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use DBICTest;
+
+use Module::Runtime 'use_module';
+use SQL::Translator;
+use Path::Class 'file';
+use Getopt::Long;
+my $getopt = Getopt::Long::Parser->new(
+  config => [qw/gnu_getopt bundling_override no_ignore_case/]
+);
+my $args = {};
+$getopt->getoptions($args, qw/
+  diagram-out=s@
+  schema-class=s@
+/);
+
+die "You need to specify one diagram output filename via --diagram-out\n"
+  if @{$args->{'diagram-out'}||[]} != 1;
+
+die "You need to specify one DBIC schema class via --schema-class\n"
+  if @{$args->{'schema-class'}||[]} != 1;
+
+my $diagram_fh;
+if ($args->{'diagram-out'}[0] eq '-') {
+  $diagram_fh = *STDOUT;
+}
+else {
+  my $fn = file($args->{'diagram-out'}[0]);
+  $fn->dir->mkpath;
+  open $diagram_fh, '>', $fn
+    or die "Unable to open $fn: $!\n";
+}
+binmode $diagram_fh;  # avoid win32 \n crapfest
+
+my $schema_class = $args->{'schema-class'}[0];
+use_module( $schema_class );
+my $schema = $schema_class->connect( DBICTest->_database(quote_char => '"') );
+
+my $trans = SQL::Translator->new(
+  parser        => 'SQL::Translator::Parser::DBIx::Class',
+  parser_args   => { dbic_schema => $schema },
+  producer      => 'GraphViz',
+  producer_args => {
+    show_constraints => 1,
+    show_datatypes   => 1,
+    show_sizes       => 1,
+    out_file         => $diagram_fh,
+    output_type      => 'svg',
+    layout           => 'neato',
+  }
+);
+
+$trans->translate or die $trans->error;

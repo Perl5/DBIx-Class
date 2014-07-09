@@ -669,7 +669,8 @@ my $dbic_reqs = {
     req => {
       'ExtUtils::MakeMaker' => '6.64',
       'Pod::Inherit'        => '0.91',
-    },
+      'GraphViz'            => '0',
+    }
   },
 
   dist_upload => {

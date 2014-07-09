@@ -1,6 +1,8 @@
 require File::Spec;
 my $test_ddl_fn     = File::Spec->catfile(qw( t lib sqlite.sql ));
 my @test_ddl_cmd    = qw( -I lib -I t/lib -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
+my $test_graph_fn   = File::Spec->catfile(qw( examples DBICTest db-diagram.svg ));
+my @test_graph_cmd  = qw( -I lib -I t/lib -- maint/gen_dbictest_schema_diagram --schema-class DBICTest::Schema );
 
 my $example_ddl_fn  = File::Spec->catfile(qw( examples Schema db example.sql ));
 my $example_db_fn   = File::Spec->catfile(qw( examples Schema db example.db ));
@@ -14,6 +16,9 @@ require DBIx::Class::Optional::Dependencies;
 if ( DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
   print "Regenerating $test_ddl_fn\n";
   system( $^X, @test_ddl_cmd, '--ddl-out' => $test_ddl_fn );
+
+  print "Regenerating $test_graph_fn\n";
+  system( $^X, @test_graph_cmd, '--diagram-out' => $test_graph_fn );
 
   print "Regenerating $example_ddl_fn and $example_db_fn\n";
   system( $^X, @example_ddl_cmd, '--ddl-out' => $example_ddl_fn, '--deploy-to' => $example_db_fn );
