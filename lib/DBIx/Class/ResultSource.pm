@@ -1729,11 +1729,15 @@ sub _resolve_condition {
 #######################
 
   # now it's fucking easy isn't it?!
-  my @res = $self->_resolve_relationship_condition( $args );
+  my $rc = $self->_resolve_relationship_condition( $args );
 
-  # FIXME - this is also insane, but just be consistent for now
-  # _resolve_relationship_condition always returns qualified cols
-  # even in the case of objects, but nothing downstream expects this
+  my @res = (
+    ( $rc->{join_free_condition} || $rc->{condition} ),
+    ! $rc->{join_free_condition},
+  );
+
+  # _resolve_relationship_condition always returns qualified cols even in the
+  # case of join_free_condition, but nothing downstream expects this
   if (ref $res[0] eq 'HASH' and ($is_objlike[0] or $is_objlike[1]) ) {
     $res[0] = { map
       { ($_ =~ /\.(.+)/) => $res[0]{$_} }
@@ -1741,7 +1745,7 @@ sub _resolve_condition {
     };
   }
 
-  # more legacy
+  # and more legacy
   return wantarray ? @res : $res[0];
 }
 
@@ -1754,31 +1758,51 @@ our $UNRESOLVABLE_CONDITION = UNRESOLVABLE_CONDITION;
 # we are moving to a constant
 Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 
-# Resolves the passed condition to a concrete query fragment and a flag
-# indicating whether this is a cross-table condition. Also an optional
-# list of non-trivial values (normally conditions) returned as a part
-# of a joinfree condition hash
+# Resolves the passed condition to a concrete query fragment and extra
+# metadata
+#
+## self-explanatory API, modeled on the custom cond coderef:
+# rel_name
+# foreign_alias
+# foreign_resultobj
+# self_alias
+# self_resultobj
+# require_join_free_condition
+# infer_values_based_on (optional, mandatory hashref argument)
+# condition (optional, derived from $self->rel_info(rel_name))
+#
+## returns a hash
+# condition
+# join_free_condition (maybe undef)
+# inferred_values (maybe undef, always complete or empty)
+#
 sub _resolve_relationship_condition {
   my $self = shift;
 
-  # self-explanatory API, modeled on the custom cond coderef:
-  # condition
-  # rel_name
-  # foreign_alias
-  # foreign_resultobj
-  # self_alias
-  # self_resultobj
   my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
   for ( qw( rel_name self_alias foreign_alias ) ) {
-    $self->throw_exception("Mandatory attribute '$_' is not a plain string")
+    $self->throw_exception("Mandatory argument '$_' is not a plain string")
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
   $self->throw_exception('No practical way to resolve a relationship between two objects')
     if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
 
-  $args->{condition} ||= $self->relationship_info($args->{rel_name})->{cond};
+  my $rel_info = $self->relationship_info($args->{rel_name});
+  #  or $self->throw_exception( "No such relationship '$args->{rel_name}'" );
+
+  $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
+    if defined blessed $args->{foreign_resultobj} and ! $args->{foreign_resultobj}->isa($rel_info->{class});
+
+  $args->{condition} ||= $rel_info->{cond};
+
+  $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
+    if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
+
+  $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
+
+  my $ret;
 
   if (ref $args->{condition} eq 'CODE') {
 
@@ -1787,22 +1811,29 @@ sub _resolve_relationship_condition {
       self_resultsource => $self,
       self_alias => $args->{self_alias},
       foreign_alias => $args->{foreign_alias},
-      self_resultobj => $args->{self_resultobj},
-      foreign_resultobj => $args->{foreign_resultobj},
+      ( map
+        { (exists $args->{$_}) ? ( $_ => $args->{$_} ) : () }
+        qw( self_resultobj foreign_resultobj )
+      ),
     };
 
     # legacy - never remove these!!!
     $cref_args->{foreign_relname} = $cref_args->{rel_name};
-    $cref_args->{self_rowobj} = $cref_args->{self_resultobj};
 
-    my ($crosstable_cond, $joinfree_cond, @extra) = $args->{condition}->($cref_args);
+    $cref_args->{self_rowobj} = $cref_args->{self_resultobj}
+      if exists $cref_args->{self_resultobj};
+
+    ($ret->{condition}, $ret->{join_free_condition}, my @extra) = $args->{condition}->($cref_args);
 
     # FIXME sanity check
     carp_unique('A custom condition coderef can return at most 2 conditions: extra return values discarded')
       if @extra;
 
-    my @nonvalue_cols;
-    if ($joinfree_cond) {
+    if (my $jfc = $ret->{join_free_condition}) {
+
+      $self->throw_exception (
+        "The join-free condition returned for relationship '$args->{rel_name}' must be a hash reference"
+      ) unless ref $jfc eq 'HASH';
 
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_resultobj}) {
@@ -1819,34 +1850,16 @@ sub _resolve_relationship_condition {
         "A join-free condition returned for relationship '$args->{rel_name}' without a result object to chain from"
       ) unless $joinfree_alias;
 
-      my $fq_col_list = { map { ( "$joinfree_alias.$_" => 1 ) } $joinfree_source->columns };
+      my $fq_col_list = { map
+        { ( "$joinfree_alias.$_" => 1 ) }
+        $joinfree_source->columns
+      };
 
-      # FIXME another sanity check
-      if (
-        ref $joinfree_cond ne 'HASH'
-          or
-        grep { ! $fq_col_list->{$_} } keys %$joinfree_cond
-      ) {
-        $self->throw_exception (
-          "The join-free condition returned for relationship '$args->{rel_name}' must be a hash "
-         .'reference with all keys being fully qualified column names of the corresponding source'
-        );
-      }
+      $fq_col_list->{$_} or $self->throw_exception (
+        "The join-free condition returned for relationship '$args->{rel_name}' may only "
+      . 'contain keys that are fully qualified column names of the corresponding source'
+      ) for keys %$jfc;
 
-      # see which parts of the joinfree cond are *NOT* foreign-source-column equalities
-      my $joinfree_cond_equality_columns =
-        $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond, 'consider_nulls');
-
-      @nonvalue_cols = map
-        { $_ =~ /^\Q$joinfree_alias.\E(.+)/ }
-        grep
-          { ! exists $joinfree_cond_equality_columns->{$_} }
-          keys %$joinfree_cond;
-
-      return ($joinfree_cond, 0, (@nonvalue_cols ? \@nonvalue_cols : undef));
-    }
-    else {
-      return ($crosstable_cond, 1);
     }
   }
   elsif (ref $args->{condition} eq 'HASH') {
@@ -1869,16 +1882,13 @@ sub _resolve_relationship_condition {
       push @l_cols, $lc;
     }
 
-    # plain values
-    if (! defined $args->{self_resultobj} and ! defined $args->{foreign_resultobj}) {
-      return ( { map
-        {( "$args->{foreign_alias}.$f_cols[$_]" => { -ident => "$args->{self_alias}.$l_cols[$_]" } )}
-        (0..$#f_cols)
-      }, 1 ); # is crosstable
-    }
-    else {
+    # construct the crosstable condition
+    $ret->{condition} = { map
+      {( "$args->{foreign_alias}.$f_cols[$_]" => { -ident => "$args->{self_alias}.$l_cols[$_]" } )}
+      (0..$#f_cols)
+    };
 
-      my $cond;
+    if (exists $args->{self_resultobj} or exists $args->{foreign_resultobj}) {
 
       my ($obj, $obj_alias, $plain_alias, $obj_cols, $plain_cols) = defined $args->{self_resultobj}
         ? ( @{$args}{qw( self_resultobj self_alias foreign_alias )}, \@l_cols, \@f_cols )
@@ -1889,7 +1899,7 @@ sub _resolve_relationship_condition {
 
         # FIXME - temp shim
         if (! blessed $obj) {
-          $cond->{"$plain_alias.$plain_cols->[$i]"} = $obj->{$obj_cols->[$i]};
+          $ret->{join_free_condition}{"$plain_alias.$plain_cols->[$i]"} = $obj->{$obj_cols->[$i]};
         }
         elsif (
           defined $args->{self_resultobj}
@@ -1907,48 +1917,96 @@ sub _resolve_relationship_condition {
             $obj_cols->[$i],
           ) if $obj->in_storage;
 
-          return UNRESOLVABLE_CONDITION;
+          # FIXME - temporarly force-override
+          delete $args->{require_join_free_condition};
+          $ret->{join_free_condition} = UNRESOLVABLE_CONDITION;
+          last;
         }
         else {
-          $cond->{"$plain_alias.$plain_cols->[$i]"} = $obj->get_column($obj_cols->[$i]);
+          $ret->{join_free_condition}{"$plain_alias.$plain_cols->[$i]"} = $obj->get_column($obj_cols->[$i]);
         }
       }
-
-      return ($cond, 0); # joinfree
     }
   }
   elsif (ref $args->{condition} eq 'ARRAY') {
     if (@{$args->{condition}} == 0) {
-      return UNRESOLVABLE_CONDITION;
+      $ret = {
+        condition => UNRESOLVABLE_CONDITION,
+        join_free_condition => UNRESOLVABLE_CONDITION,
+      };
     }
     elsif (@{$args->{condition}} == 1) {
-      return $self->_resolve_relationship_condition({
+      $ret = $self->_resolve_relationship_condition({
         %$args,
         condition => $args->{condition}[0],
       });
     }
     else {
-      # FIXME - we are discarding nonvalues here... likely incorrect...
-      # then again - the entire thing is an OR, so we *can't* use
-      # the values anyway
-      # Return a hard crosstable => 1 to ensure nothing tries to use
-      # the result in such manner
-      my @ret;
-      for (@{$args->{condition}}) {
-        my ($cond) = $self->_resolve_relationship_condition({
-          %$args,
-          condition => $_,
-        });
-        push @ret, $cond;
+      # we are discarding inferred values here... likely incorrect...
+      # then again - the entire thing is an OR, so we *can't* use them anyway
+      for my $subcond ( map
+        { $self->_resolve_relationship_condition({ %$args, condition => $_ }) }
+        @{$args->{condition}}
+      ) {
+        $self->throw_exception('Either all or none of the OR-condition members can resolve to a join-free condition')
+          if $ret->{join_free_condition} and ! $subcond->{join_free_condition};
+
+        $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
       }
-      return (\@ret, 1); # forced cross-tab
     }
   }
   else {
     $self->throw_exception ("Can't handle condition $args->{condition} for relationship '$args->{rel_name}' yet :(");
   }
 
-  die "not supposed to get here - missing return()";
+  $self->throw_exception("Relationship '$args->{rel_name}' does not resolve to a join-free condition fragment") if (
+    $args->{require_join_free_condition}
+      and
+    ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
+  );
+
+  # we got something back - sanity check and infer values if we can
+  my @nonvalues;
+  if ( my $jfc = $ret->{join_free_condition} and $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION ) {
+
+    my $jfc_eqs = $self->schema->storage->_extract_fixed_condition_columns($jfc, 'consider_nulls');
+
+    if (keys %$jfc_eqs) {
+
+      for (keys %$jfc) {
+        # $jfc is fully qualified by definition
+        my ($col) = $_ =~ /\.(.+)/;
+
+        if (exists $jfc_eqs->{$_} and ($jfc_eqs->{$_}||'') ne UNRESOLVABLE_CONDITION) {
+          $ret->{inferred_values}{$col} = $jfc_eqs->{$_};
+        }
+        elsif ( !$args->{infer_values_based_on} or ! exists $args->{infer_values_based_on}{$col} ) {
+          push @nonvalues, $col;
+        }
+      }
+
+      # all or nothing
+      delete $ret->{inferred_values} if @nonvalues;
+    }
+  }
+
+  # did the user explicitly ask
+  if ($args->{infer_values_based_on}) {
+
+    $self->throw_exception(sprintf (
+      "Unable to complete value inferrence - custom relationship '%s' returns conditions instead of values for column(s): %s",
+      $args->{rel_name},
+      map { "'$_'" } @nonvalues
+    )) if @nonvalues;
+
+
+    $ret->{inferred_values} ||= {};
+
+    $ret->{inferred_values}{$_} = $args->{infer_values_based_on}{$_}
+      for keys %{$args->{infer_values_based_on}};
+  }
+
+  $ret
 }
 
 =head2 related_source

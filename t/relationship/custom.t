@@ -159,7 +159,7 @@ lives_ok {
 # try to create_related a 80s cd
 throws_ok {
   $artist->create_related('cds_80s', { title => 'related creation 1' });
-} qr/\QCustom relationship 'cds_80s' not definitive - returns conditions instead of values for column(s): 'year'/,
+} qr/\QUnable to complete value inferrence - custom relationship 'cds_80s' returns conditions instead of values for column(s): 'year'/,
 'Create failed - complex cond';
 
 # now supply an explicit arg overwriting the ambiguous cond

@@ -631,39 +631,15 @@ your storage until you call L<DBIx::Class::Row/insert> on it.
 =cut
 
 sub new_related {
-  my ($self, $rel, $values) = @_;
+  my ($self, $rel, $data) = @_;
 
-  # FIXME - this is a bad position for this (also an identical copy in
-  # set_from_related), but I have no saner way to hook, and I absolutely
-  # want this to throw at least for coderefs, instead of the "insert a NULL
-  # when it gets hard" insanity --ribasushi
-  #
-  # sanity check - currently throw when a complex coderef rel is encountered
-  # FIXME - should THROW MOAR!
-
-    my $rsrc = $self->result_source;
-    my $rel_info = $rsrc->relationship_info($rel)
-      or $self->throw_exception( "No such relationship '$rel'" );
-    my (undef, $crosstable, $nonequality_foreign_columns) = $rsrc->_resolve_condition (
-      $rel_info->{cond}, $rel, $self, $rel
-    );
-
-    $self->throw_exception("Relationship '$rel' does not resolve to a join-free condition fragment")
-      if $crosstable;
-
-    if (
-      $nonequality_foreign_columns
-        and
-      my @unspecified_rel_condition_chunks = grep { ! exists $values->{$_} } @$nonequality_foreign_columns
-    ) {
-      $self->throw_exception(sprintf (
-        "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
-        $rel,
-        map { "'$_'" } @unspecified_rel_condition_chunks
-      ));
-    }
-
-  return $self->search_related($rel)->new_result($values);
+  return $self->search_related($rel)->new_result( $self->result_source->_resolve_relationship_condition (
+    infer_values_based_on => $data,
+    rel_name => $rel,
+    self_resultobj => $self,
+    foreign_alias => $rel,
+    self_alias => 'me',
+  )->{inferred_values} );
 }
 
 =head2 create_related
@@ -805,37 +781,13 @@ set them in the storage.
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
 
-  my $rsrc = $self->result_source;
-  my $rel_info = $rsrc->relationship_info($rel)
-    or $self->throw_exception( "No such relationship '$rel'" );
-
-  if (defined $f_obj) {
-    my $f_class = $rel_info->{class};
-    $self->throw_exception( "Object '$f_obj' isn't a ".$f_class )
-      unless blessed $f_obj and $f_obj->isa($f_class);
-  }
-
-
-  # FIXME - this is a bad position for this (also an identical copy in
-  # new_related), but I have no saner way to hook, and I absolutely
-  # want this to throw at least for coderefs, instead of the "insert a NULL
-  # when it gets hard" insanity --ribasushi
-  #
-  # sanity check - currently throw when a complex coderef rel is encountered
-  # FIXME - should THROW MOAR!
-  my ($cond, $crosstable, $nonequality_foreign_columns) = $rsrc->_resolve_condition (
-    $rel_info->{cond}, $f_obj, $rel, $rel
-  );
-  $self->throw_exception("Relationship '$rel' does not resolve to a join-free condition fragment")
-    if $crosstable;
-
-  $self->throw_exception(sprintf (
-    "Custom relationship '%s' not definitive - returns conditions instead of values for column(s): %s",
-    $rel,
-    map { "'$_'" } @$nonequality_foreign_columns
-  )) if $nonequality_foreign_columns;
-
-  $self->set_columns($cond);
+  $self->set_columns( $self->result_source->_resolve_relationship_condition (
+    infer_values_based_on => {},
+    rel_name => $rel,
+    foreign_resultobj => $f_obj,
+    foreign_alias => $rel,
+    self_alias => 'me',
+  )->{inferred_values} );
 
   return 1;
 }
