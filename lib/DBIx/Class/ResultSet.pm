@@ -7,7 +7,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
-  fail_on_internal_wantarray is_plain_value is_literal_value UNRESOLVABLE_CONDITION
+  fail_on_internal_wantarray UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
@@ -2485,7 +2485,7 @@ sub new_result {
 sub _merge_with_rscond {
   my ($self, $data) = @_;
 
-  my (%new_data, @cols_from_relations);
+  my ($implied_data, @cols_from_relations);
 
   my $alias = $self->{attrs}{alias};
 
@@ -2493,43 +2493,25 @@ sub _merge_with_rscond {
     # just massage $data below
   }
   elsif ($self->{cond} eq UNRESOLVABLE_CONDITION) {
-    %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
-    @cols_from_relations = keys %new_data;
-  }
-  elsif (ref $self->{cond} ne 'HASH') {
-    $self->throw_exception(
-      "Can't abstract implicit construct, resultset condition not a hash"
-    );
+    $implied_data = $self->{attrs}{related_objects};  # nothing might have been inserted yet
+    @cols_from_relations = keys %{ $implied_data || {} };
   }
   else {
-    if ($self->{cond}) {
-      my $implied = $self->_remove_alias(
-        $self->result_source->schema->storage->_collapse_cond($self->{cond}),
-        $alias,
-      );
-
-      for my $c (keys %$implied) {
-        my $v = $implied->{$c};
-        if ( ! length ref $v or is_plain_value($v) ) {
-          $new_data{$c} = $v;
-        }
-        elsif (
-          ref $v eq 'HASH' and keys %$v == 1 and exists $v->{'='} and is_literal_value($v->{'='})
-        ) {
-          $new_data{$c} = $v->{'='};
-        }
-      }
-    }
+    my $eqs = $self->result_source->schema->storage->_extract_fixed_condition_columns($self->{cond}, 'consider_nulls');
+    $implied_data = { map {
+      ( ($eqs->{$_}||'') eq UNRESOLVABLE_CONDITION ) ? () : ( $_ => $eqs->{$_} )
+    } keys %$eqs };
   }
 
-  # precedence must be given to passed values over values inherited from
-  # the cond, so the order here is important.
-  %new_data = (
-    %new_data,
-    %{ $self->_remove_alias($data, $alias) },
+  return (
+    { map
+      { %{ $self->_remove_alias($_, $alias) } }
+      # precedence must be given to passed values over values inherited from
+      # the cond, so the order here is important.
+      ( $implied_data||(), $data)
+    },
+    \@cols_from_relations
   );
-
-  return (\%new_data, \@cols_from_relations);
 }
 
 # _has_resolved_attr

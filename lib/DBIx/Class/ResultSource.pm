@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw(is_literal_value UNRESOLVABLE_CONDITION);
+use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
@@ -1834,14 +1834,13 @@ sub _resolve_relationship_condition {
       }
 
       # see which parts of the joinfree cond are *NOT* foreign-source-column equalities
-      my $joinfree_cond_equality_columns = { map
-        {( $_ => 1 )}
-        @{ $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond) }
-      };
+      my $joinfree_cond_equality_columns =
+        $self->schema->storage->_extract_fixed_condition_columns($joinfree_cond, 'consider_nulls');
+
       @nonvalue_cols = map
         { $_ =~ /^\Q$joinfree_alias.\E(.+)/ }
         grep
-          { ! $joinfree_cond_equality_columns->{$_} }
+          { ! exists $joinfree_cond_equality_columns->{$_} }
           keys %$joinfree_cond;
 
       return ($joinfree_cond, 0, (@nonvalue_cols ? \@nonvalue_cols : undef));

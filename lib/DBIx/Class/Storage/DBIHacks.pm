@@ -16,7 +16,7 @@ use mro 'c3';
 use List::Util 'first';
 use Scalar::Util 'blessed';
 use Sub::Name 'subname';
-use DBIx::Class::_Util qw(is_plain_value is_literal_value);
+use DBIx::Class::_Util qw(is_plain_value is_literal_value UNRESOLVABLE_CONDITION);
 use namespace::clean;
 
 #
@@ -887,7 +887,7 @@ sub _order_by_is_stable {
 
   my @cols = (
     ( map { $_->[0] } $self->_extract_order_criteria($order_by) ),
-    ( $where ? @{ $self->_extract_fixed_condition_columns($where) || [] } : () ),
+    ( $where ? keys %{ $self->_extract_fixed_condition_columns($where) } : () ),
   ) or return 0;
 
   my $colinfo = $self->_resolve_column_info($ident, \@cols);
@@ -965,7 +965,7 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
           ? $colinfos->{$_}{-colname}
           : ()
       }
-      @{$self->_extract_fixed_condition_columns($attrs->{where}) || []}
+      keys %{ $self->_extract_fixed_condition_columns($attrs->{where}) }
     )
     : ()
   ];
@@ -1074,10 +1074,7 @@ sub _collapse_cond {
         : { $w[0] => undef }
       ;
     }
-    elsif ( ref $w[0] ) {
-      return \@w;
-    }
-    elsif ( @w == 2 ) {
+    elsif ( @w == 2 and ! ref $w[0]) {
       if ( ( $w[0]||'' ) =~ /^\-and$/i ) {
         return (ref $w[1] eq 'HASH' or ref $w[1] eq 'ARRAY')
           ? $self->_collapse_cond($w[1], (ref $w[1] eq 'ARRAY') )
@@ -1088,14 +1085,16 @@ sub _collapse_cond {
         return $self->_collapse_cond({ @w });
       }
     }
+    else {
+      return { -or => \@w };
+    }
   }
   else {
     # not a hash not an array
     return { '' => $where };
   }
 
-  # catchall, some of the things above fall through
-  return $where;
+  die 'should not get here';
 }
 
 sub _collapse_cond_unroll_pairs {
@@ -1179,48 +1178,72 @@ sub _collapse_cond_unroll_pairs {
   return @conds;
 }
 
-
-# returns an arrayref of column names which *definitely* have some
-# sort of non-nullable *single* equality requested in the given condition
-# specification. This is used to figure out if a resultset is
-# constrained to a column which is part of a unique constraint,
-# which in turn allows us to better predict how ordering will behave
-# etc.
+# Analyzes a given condition and attempts to extract all columns
+# with a definitive fixed-condition criteria. Returns a hashref
+# of k/v pairs suitable to be passed to set_columns(), with a
+# MAJOR CAVEAT - multi-value (contradictory) equalities are still
+# represented as a reference to the UNRESOVABLE_CONDITION constant
+# The reason we do this is that some codepaths only care about the
+# codition being stable, as opposed to actually making sense
 #
-# this is a rudimentary, incomplete, and error-prone extractor
-# however this is OK - it is conservative, and if we can not find
-# something that is in fact there - the stack will recover gracefully
+# The normal mode is used to figure out if a resultset is constrained
+# to a column which is part of a unique constraint, which in turn
+# allows us to better predict how ordering will behave etc.
+#
+# With the optional "consider_nulls" boolean argument, the function
+# is instead used to infer inambiguous values from conditions
+# (e.g. the inheritance of resultset conditions on new_result)
+#
+my $undef_marker = \ do{ my $x = 'undef' };
 sub _extract_fixed_condition_columns {
-  my $self = shift;
-  my $where_hash = $self->_collapse_cond(shift);
+  my ($self, $where, $consider_nulls) = @_;
+  my $where_hash = $self->_collapse_cond($_[1]);
 
-  my $res;
-  for my $c (keys %$where_hash) {
-    if (defined (my $v = $where_hash->{$c}) ) {
-      if (
-        ! length ref $v
-          or
-        is_plain_value ($v)
-          or
-        (
-          ref $v eq 'HASH'
-            and
-          keys %$v == 1
-            and
-          ref $v->{'='}
-            and
-          is_literal_value($v->{'='})
-        )
-      ) {
-        $res->{$c} = 1;
+  my $res = {};
+  my ($c, $v);
+  for $c (keys %$where_hash) {
+    my $vals;
+
+    if (!defined ($v = $where_hash->{$c}) ) {
+      $vals->{$undef_marker} = $v if $consider_nulls
+    }
+    elsif (
+      ! length ref $v
+        or
+      is_plain_value ($v)
+    ) {
+      $vals->{$v} = $v;
+    }
+    elsif (
+      ref $v eq 'HASH'
+        and
+      keys %$v == 1
+        and
+      ref $v->{'='}
+        and
+      # do not need to check for plain values - _collapse_cond did it for us
+      is_literal_value($v->{'='})
+    ) {
+      $vals->{$v->{'='}} = $v->{'='};
+    }
+    elsif (ref $v eq 'ARRAY' and ($v->[0]||'') eq '-and') {
+      for ( @{$v}[1..$#$v] ) {
+        my $subval = $self->_extract_fixed_condition_columns({ $c => $_ }, 'consider nulls');  # always fish nulls out on recursion
+        next unless exists $subval->{$c};  # didn't find anything
+        $vals->{defined $subval->{$c} ? $subval->{$c} : $undef_marker} = $subval->{$c};
       }
-      elsif (ref $v eq 'ARRAY' and ($v->[0]||'') eq '-and') {
-        $res->{$_} = 1 for map { @{ $self->_extract_fixed_condition_columns({ $c => $_ }) } } @{$v}[1..$#$v];
-      }
+    }
+
+    if (keys %$vals == 1) {
+      ($res->{$c}) = (values %$vals)
+        unless !$consider_nulls and exists $vals->{$undef_marker};
+    }
+    elsif (keys %$vals > 1) {
+      $res->{$c} = UNRESOLVABLE_CONDITION;
     }
   }
 
-  return [ sort keys %$res ];
+  $res;
 }
 
 1;
