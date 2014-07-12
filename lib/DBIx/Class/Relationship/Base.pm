@@ -641,8 +641,6 @@ sub new_related {
   # sanity check - currently throw when a complex coderef rel is encountered
   # FIXME - should THROW MOAR!
 
-  if (ref $self) {  # cdbi calls this as a class method, /me vomits
-
     my $rsrc = $self->result_source;
     my $rel_info = $rsrc->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
@@ -664,7 +662,6 @@ sub new_related {
         map { "'$_'" } @unspecified_rel_condition_chunks
       ));
     }
-  }
 
   return $self->search_related($rel)->new_result($values);
 }

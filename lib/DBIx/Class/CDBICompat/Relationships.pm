@@ -200,4 +200,8 @@ sub search {
   $self->next::method($where, $attrs);
 }
 
+sub new_related {
+  return shift->search_related(shift)->new_result(shift);
+}
+
 1;
