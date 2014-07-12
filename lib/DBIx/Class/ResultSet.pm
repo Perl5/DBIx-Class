@@ -7,7 +7,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
-  fail_on_internal_wantarray is_plain_value is_literal_value
+  fail_on_internal_wantarray is_plain_value is_literal_value UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
@@ -2492,7 +2492,7 @@ sub _merge_with_rscond {
   if (! defined $self->{cond}) {
     # just massage $data below
   }
-  elsif ($self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+  elsif ($self->{cond} eq UNRESOLVABLE_CONDITION) {
     %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
     @cols_from_relations = keys %new_data;
   }

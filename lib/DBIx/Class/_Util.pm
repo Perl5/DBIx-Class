@@ -59,7 +59,10 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray
   refcount hrefaddr is_exception
   is_plain_value is_literal_value
+  UNRESOLVABLE_CONDITION
 );
+
+use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
 
 sub sigwarn_silencer ($) {
   my $pattern = shift;

@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
 use Try::Tiny;
+use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 use namespace::clean;
 
 =head1 NAME
@@ -493,7 +494,7 @@ sub related_resultset {
     }
     catch {
       $self->throw_exception ($_) if $self->in_storage;
-      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV, no return()
+      UNRESOLVABLE_CONDITION;  # RV, no return()
     };
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
@@ -522,7 +523,7 @@ sub related_resultset {
       # FIXME - this conditional doesn't seem correct - got to figure out
       # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
       # business seems shady - we could simply not query *at all*
-      if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+      if ($cond eq UNRESOLVABLE_CONDITION) {
         my $reverse = $rsrc->reverse_relationship_info($rel);
         foreach my $rev_rel (keys %$reverse) {
           if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {

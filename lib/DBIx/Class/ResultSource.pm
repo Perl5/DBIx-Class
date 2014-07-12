@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'is_literal_value';
+use DBIx::Class::_Util qw(is_literal_value UNRESOLVABLE_CONDITION);
 use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
@@ -1745,7 +1745,14 @@ sub _resolve_condition {
   return wantarray ? @res : $res[0];
 }
 
-our $UNRESOLVABLE_CONDITION = \ '1 = 0';
+# Keep this indefinitely. There is evidence of both CPAN and
+# darkpan using it, and there isn't much harm in an extra var
+# anyway.
+our $UNRESOLVABLE_CONDITION = UNRESOLVABLE_CONDITION;
+# YES I KNOW THIS IS EVIL
+# it is there to save darkpan from themselves, since internally
+# we are moving to a constant
+Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 
 # Resolves the passed condition to a concrete query fragment and a flag
 # indicating whether this is a cross-table condition. Also an optional
@@ -1901,7 +1908,7 @@ sub _resolve_relationship_condition {
             $obj_cols->[$i],
           ) if $obj->in_storage;
 
-          return $UNRESOLVABLE_CONDITION;
+          return UNRESOLVABLE_CONDITION;
         }
         else {
           $cond->{"$plain_alias.$plain_cols->[$i]"} = $obj->get_column($obj_cols->[$i]);
@@ -1913,7 +1920,7 @@ sub _resolve_relationship_condition {
   }
   elsif (ref $args->{condition} eq 'ARRAY') {
     if (@{$args->{condition}} == 0) {
-      return $UNRESOLVABLE_CONDITION;
+      return UNRESOLVABLE_CONDITION;
     }
     elsif (@{$args->{condition}} == 1) {
       return $self->_resolve_relationship_condition({
