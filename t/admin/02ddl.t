@@ -47,7 +47,7 @@ my $admin = DBIx::Class::Admin->new(
 );
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
-lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
+lives_ok { $admin->create('SQLite', {quote_identifiers=>1}); } 'Can Create SQLite sql';
 lives_ok {
   local $SIG{__WARN__} = sigwarn_silencer( qr/no such table.+DROP TABLE/s );
   $admin->deploy()

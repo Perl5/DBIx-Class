@@ -1,3 +1,7 @@
+CREATE TABLE "`with` [some] ""quotes""" (
+  "`has` [more] ""quotes""" integer NOT NULL
+);
+
 CREATE TABLE "artist" (
   "artistid" INTEGER PRIMARY KEY NOT NULL,
   "name" varchar(100),

@@ -32,6 +32,13 @@ is_same_sql_bind(
   'got correct SQL for count query with bracket quoting'
 );
 
+is_same_sql_bind(
+  $schema->resultset('Quotes')->search({})->as_query,
+  '(SELECT [me].[`has` [more]] "quotes"] FROM [`with` [some]] "quotes"] [me])',
+  [],
+  'got correct escaped quotes with bracket quoting'
+);
+
 $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');
 
@@ -40,6 +47,13 @@ is_same_sql_bind (
   "(SELECT COUNT( * ) FROM cd `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? ))",
   $expected_bind,
   'got correct SQL for count query with mysql quoting'
+);
+
+is_same_sql_bind(
+  $schema->resultset('Quotes')->search({})->as_query,
+  '(SELECT `me`.```has`` [more] "quotes"` FROM ```with`` [some] "quotes"` `me`)',
+  [],
+  'got correct escaped quotes with mysql quoting'
 );
 
 # !!! talk to ribasushi *explicitly* before modfying these tests !!!

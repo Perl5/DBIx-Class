@@ -130,9 +130,9 @@ for my $db (sort {
   # if something was produced - it better be quoted
   if ( my $ddl = try { $schema->deployment_statements } ) {
 
-    my $quoted_artist = $schema->storage->sql_maker->_quote('artist');
+    my $quoted_table = $schema->storage->sql_maker->_quote($schema->source('Quotes')->from);
 
-    like ($ddl, qr/^CREATE\s+TABLE\s+\Q$quoted_artist/msi, "$db DDL contains expected quoted table name");
+    like ($ddl, qr/^CREATE\s+TABLE\s+\Q$quoted_table/msi, "$db DDL contains expected quoted table name");
   }
 }
 

@@ -42,7 +42,7 @@ use Sub::Name 'subname';
 use DBIx::Class::Carp;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
+__PACKAGE__->mk_group_accessors (simple => qw/quote_char escape_char name_sep limit_dialect/);
 
 # for when I need a normalized l/r pair
 sub _quote_chars {
