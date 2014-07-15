@@ -5,7 +5,7 @@ use strict;
 
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
-use DBIx::Class::_Util qw(refcount hrefaddr);
+use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
 use DBIx::Class::Optional::Dependencies;
 use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
@@ -20,15 +20,6 @@ our @EXPORT_OK = qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 my $refs_traced = 0;
 my $leaks_found = 0;
 my %reg_of_regs;
-
-# so we don't trigger stringification
-sub _describe_ref {
-  sprintf '%s%s(%s)',
-    (defined blessed $_[0]) ? blessed($_[0]) . '=' : '',
-    reftype $_[0],
-    hrefaddr $_[0],
-  ;
-}
 
 sub populate_weakregistry {
   my ($weak_registry, $target, $note) = @_;
@@ -65,7 +56,7 @@ sub populate_weakregistry {
     $refs_traced++;
   }
 
-  my $desc = _describe_ref($target);
+  my $desc = refdesc $target;
   $weak_registry->{$refaddr}{slot_names}{$desc} = 1;
   if ($note) {
     $note =~ s/\s*\Q$desc\E\s*//g;
@@ -153,7 +144,7 @@ sub visit_refs {
         } scalar PadWalker::closed_over($r) ] }); # scalar due to RT#92269
       }
       1;
-    } or warn "Could not descend into @{[ _describe_ref($r) ]}: $@\n";
+    } or warn "Could not descend into @{[ refdesc $r ]}: $@\n";
   }
   $visited_cnt;
 }
