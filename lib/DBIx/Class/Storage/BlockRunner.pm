@@ -144,7 +144,7 @@ sub _run {
     my $storage = $self->storage;
     my $cur_depth = $storage->transaction_depth;
 
-    if (defined $txn_init_depth and $run_err eq '') {
+    if (defined $txn_init_depth and ! is_exception $run_err) {
       my $delta_txn = (1 + $txn_init_depth) - $cur_depth;
 
       if ($delta_txn) {

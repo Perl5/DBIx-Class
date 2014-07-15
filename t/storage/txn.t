@@ -407,4 +407,41 @@ warnings_are {
 
 } [], 'No warnings on AutoCommit => 0 with txn_do';
 
+
+# make sure we are not fucking up the stacktrace on broken overloads
+{
+  package DBICTest::BrokenOverload;
+
+  use overload '""' => sub { $_[0] };
+}
+
+{
+  my @w;
+  local $SIG{__WARN__} = sub {
+    $_[0] =~ /\QExternal exception class DBICTest::BrokenOverload implements partial (broken) overloading preventing its instances from being used in simple (\E\$x eq \$y\Q) comparisons/
+      ? push @w, @_
+      : warn @_
+  };
+
+  my $s = DBICTest->init_schema(no_deploy => 1);
+  $s->stacktrace(0);
+  my $g = $s->storage->txn_scope_guard;
+  my $broken_exception = bless {}, 'DBICTest::BrokenOverload';
+
+  # FIXME - investigate what confuses the regex engine below
+
+  # do not reformat - line-num part of the test
+  my $ln = __LINE__ + 6;
+  throws_ok {
+    $s->txn_do( sub {
+      $s->txn_do( sub {
+        $s->storage->_dbh->disconnect;
+        die $broken_exception
+      });
+    })
+  } qr/\QTransaction aborted: $broken_exception. Rollback failed: lost connection to storage at @{[__FILE__]} line $ln\E\n/;  # FIXME wtf - ...\E$/m doesn't work here
+
+  is @w, 1, 'One matching warning only';
+}
+
 done_testing;

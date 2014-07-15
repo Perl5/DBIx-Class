@@ -199,7 +199,7 @@ for my $post_poison (0,1) {
 
   my @w;
   local $SIG{__WARN__} = sub {
-    $_[0] =~ /External exception object .+? \Qimplements partial (broken) overloading/
+    $_[0] =~ /External exception class .+? \Qimplements partial (broken) overloading/
       ? push @w, @_
       : warn @_
   };

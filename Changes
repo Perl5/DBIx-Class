@@ -34,6 +34,8 @@ Revision history for DBIx::Class
           without bombing out (RT#93244)
         - Fix set_inflated_column incorrectly handling \[] literals (GH#44)
         - Ensure that setting a column to a literal invariably marks it dirty
+        - Work around exception objects with broken string overloading in one
+          additional codepath (missed in 0.08260)
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
 
