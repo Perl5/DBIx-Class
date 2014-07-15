@@ -263,8 +263,6 @@ sub new {
           next;
         }
       }
-      $new->throw_exception("No such column '$key' on $class")
-        unless $class->has_column($key);
       $new->store_column($key => $attrs->{$key});
     }
 
@@ -673,7 +671,7 @@ sub get_column {
     ));
   }
 
-  $self->throw_exception( "No such column '${column}'" )
+  $self->throw_exception( "No such column '${column}' on " . ref $self )
     unless $self->has_column($column);
 
   return undef;
@@ -801,7 +799,7 @@ really changed.
 sub make_column_dirty {
   my ($self, $column) = @_;
 
-  $self->throw_exception( "No such column '${column}'" )
+  $self->throw_exception( "No such column '${column}' on " . ref $self )
     unless exists $self->{_column_data}{$column} || $self->has_column($column);
 
   # the entire clean/dirty code relies on exists, not on true/false
@@ -1199,7 +1197,7 @@ extend this method to catch all data setting methods.
 
 sub store_column {
   my ($self, $column, $value) = @_;
-  $self->throw_exception( "No such column '${column}'" )
+  $self->throw_exception( "No such column '${column}' on " . ref $self )
     unless exists $self->{_column_data}{$column} || $self->has_column($column);
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
