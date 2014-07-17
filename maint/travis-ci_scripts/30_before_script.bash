@@ -107,7 +107,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest 'SQL::Abstract~<1.99' Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest 'SQL::Abstract@1.78_02' Moose Module::Install JSON SQL::Translator File::Which
 
   if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
     # the official version is very much outdated and does not compile on 5.14+
@@ -126,6 +126,9 @@ run_or_err "Configure on current branch" "perl Makefile.PL"
 if [[ "$CLEANTEST" = "true" ]]; then
   # we may need to prepend some stuff to that list
   HARD_DEPS="$(echo $(make listdeps))"
+
+  # temporary
+  HARD_DEPS="R/RI/RIBASUSHI/SQL-Abstract-1.78_02.tar.gz $HARD_DEPS"
 
 ##### TEMPORARY WORKAROUNDS needed in case we will be using CPAN.pm
   if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
