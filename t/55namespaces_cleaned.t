@@ -33,6 +33,29 @@ BEGIN {
 use strict;
 use warnings;
 
+# FIXME This is a crock of shit, needs to go away
+# currently here to work around https://rt.cpan.org/Ticket/Display.html?id=74151
+# kill with fire when PS::XS / RT#74151 is *finally* fixed
+BEGIN {
+  my $PS_provider;
+
+  if ( "$]" < 5.010 ) {
+    require Package::Stash::PP;
+    $PS_provider = 'Package::Stash::PP';
+  }
+  else {
+    require Package::Stash;
+    $PS_provider = 'Package::Stash';
+  }
+  eval <<"EOS" or die $@;
+
+sub stash_for (\$) {
+  $PS_provider->new(\$_[0]);
+}
+1;
+EOS
+}
+
 use Test::More;
 
 use lib 't/lib';
@@ -41,7 +64,6 @@ use DBICTest;
 use File::Find;
 use File::Spec;
 use B qw/svref_2object/;
-use Package::Stash;
 
 # makes sure we can load at least something
 use DBIx::Class;
@@ -98,7 +120,7 @@ for my $mod (@modules) {
     skip "$mod exempt from namespace checks",1 if $skip_idx->{$mod};
 
     my %all_method_like = (map
-      { %{Package::Stash->new($_)->get_all_symbols('CODE')} }
+      { %{stash_for($_)->get_all_symbols('CODE')} }
       (reverse @{mro::get_linear_isa($mod)})
     );
 
@@ -143,9 +165,18 @@ for my $mod (@modules) {
             last;
           }
         }
-        fail ("${mod}::${name} appears to have entered inheritance chain by import into "
-            . ($via || 'UNKNOWN')
-        );
+
+        # exception time
+        if (
+          ( $name eq 'import' and $via = 'Exporter' )
+        ) {
+          pass("${mod}::${name} is a valid uncleaned import from ${name}");
+        }
+        else {
+          fail ("${mod}::${name} appears to have entered inheritance chain by import into "
+              . ($via || 'UNKNOWN')
+          );
+        }
       }
     }
 

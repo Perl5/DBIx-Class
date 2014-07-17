@@ -552,7 +552,17 @@ SKIP: {
     @{$persistence_tests->{PPerl}{cmd}}[ 1 .. $#{$persistence_tests->{PPerl}{cmd}} ],
   ];
 
-  require IPC::Open2;
+  # set up -I
+  require Config;
+  $ENV{PERL5LIB} = join ($Config::Config{path_sep}, @INC);
+
+  # adjust PATH for -T
+  if (length $ENV{PATH}) {
+    ( $ENV{PATH} ) = join ( $Config::Config{path_sep},
+      map { length($_) ? File::Spec->rel2abs($_) : () }
+        split /\Q$Config::Config{path_sep}/, $ENV{PATH}
+    ) =~ /\A(.+)\z/;
+  }
 
   for my $type (keys %$persistence_tests) { SKIP: {
     unless (eval "require $type") {
@@ -573,6 +583,8 @@ SKIP: {
       skip "Something is wrong with $type ($!)", 1
         if system(@cmd);
     }
+
+    require IPC::Open2;
 
     for (1,2,3) {
       note ("Starting run in persistent env ($type pass $_)");

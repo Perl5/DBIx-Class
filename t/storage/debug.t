@@ -10,6 +10,9 @@ use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 use Path::Class qw/file/;
 
+plan skip_all => "Test is finicky under -T before 5.10"
+  if "$]" < 5.010 and ${^TAINT};
+
 BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
 
 my $schema = DBICTest->init_schema();
@@ -50,7 +53,7 @@ $schema->storage->debugfh(undef);
 }
 
 END {
-  unlink $lfn;
+  unlink $lfn if $lfn;
 }
 
 open(STDERRCOPY, '>&STDERR');
