@@ -1120,25 +1120,36 @@ sub _collapse_cond_unroll_pairs {
       if (ref $rhs eq 'HASH' and ! keys %$rhs) {
         # FIXME - SQLA seems to be doing... nothing...?
       }
+      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
+        push @conds, { $lhs => { '=', $rhs } };
+      }
+      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-value} and is_plain_value $rhs->{-value}) {
+        push @conds, { $lhs => $rhs->{-value} };
+      }
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}) {
-        for my $p ($self->_collapse_cond_unroll_pairs([ [ $lhs => $rhs->{'='} ] ])) {
+        if( is_literal_value $rhs->{'='}) {
+          push @conds, { $lhs => $rhs };
+        }
+        else {
+          for my $p ($self->_collapse_cond_unroll_pairs([ [ $lhs => $rhs->{'='} ] ])) {
 
-          # extra sanity check
-          if (keys %$p > 1) {
-            require Data::Dumper::Concise;
-            local $Data::Dumper::Deepcopy = 1;
-            $self->throw_exception(
-              "Internal error: unexpected collapse unroll:"
-            . Data::Dumper::Concise::Dumper { in => { $lhs => $rhs }, out => $p }
-            );
+            # extra sanity check
+            if (keys %$p > 1) {
+              require Data::Dumper::Concise;
+              local $Data::Dumper::Deepcopy = 1;
+              $self->throw_exception(
+                "Internal error: unexpected collapse unroll:"
+              . Data::Dumper::Concise::Dumper { in => { $lhs => $rhs }, out => $p }
+              );
+            }
+
+            my ($l, $r) = %$p;
+
+            push @conds, ( ! length ref $r or is_plain_value($r) )
+              ? { $l => $r }
+              : { $l => { '=' => $r } }
+            ;
           }
-
-          my ($l, $r) = %$p;
-
-          push @conds, ( ! length ref $r or is_plain_value($r) )
-            ? { $l => $r }
-            : { $l => { '=' => $r } }
-          ;
         }
       }
       elsif (ref $rhs eq 'ARRAY') {
@@ -1208,23 +1219,29 @@ sub _extract_fixed_condition_columns {
       $vals->{$undef_marker} = $v if $consider_nulls
     }
     elsif (
+      ref $v eq 'HASH'
+        and
+      keys %$v == 1
+    ) {
+      if (exists $v->{-value}) {
+        if (defined $v->{-value}) {
+          $vals->{$v->{-value}} = $v->{-value}
+        }
+        elsif( $consider_nulls ) {
+          $vals->{$undef_marker} = $v->{-value};
+        }
+      }
+      # do not need to check for plain values - _collapse_cond did it for us
+      elsif(ref $v->{'='} and is_literal_value($v->{'='}) ) {
+        $vals->{$v->{'='}} = $v->{'='};
+      }
+    }
+    elsif (
       ! length ref $v
         or
       is_plain_value ($v)
     ) {
       $vals->{$v} = $v;
-    }
-    elsif (
-      ref $v eq 'HASH'
-        and
-      keys %$v == 1
-        and
-      ref $v->{'='}
-        and
-      # do not need to check for plain values - _collapse_cond did it for us
-      is_literal_value($v->{'='})
-    ) {
-      $vals->{$v->{'='}} = $v->{'='};
     }
     elsif (ref $v eq 'ARRAY' and ($v->[0]||'') eq '-and') {
       for ( @{$v}[1..$#$v] ) {

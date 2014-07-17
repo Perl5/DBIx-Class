@@ -5,7 +5,7 @@ use Test::Warn;
 
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION modver_gt_or_eq);
 
 use Data::Dumper;
 
@@ -131,6 +131,36 @@ for my $t (
     sql => 'WHERE ( _macro.to LIKE ? OR _wc_macros.to LIKE ? ) AND group.is_active = ? AND me.is_active = ?',
     efcc_result => { 'group.is_active' => 1, 'me.is_active' => 1 },
   },
+
+  # need fixed SQLA to correctly work with this
+  #
+  ( modver_gt_or_eq('SQL::Abstract', '1.78_01') ? {
+    where => { -and => [
+      artistid => { -value => [1] },
+      charfield => { -ident => 'foo' },
+      name => { '=' => { -value => undef } },
+      rank => { '=' => { -ident => 'bar' } },
+    ] },
+    sql => 'WHERE artistid = ? AND charfield = foo AND name IS NULL AND rank = bar',
+    cc_result => {
+      artistid => { -value => [1] },
+      name => undef,
+      charfield => { '=', { -ident => 'foo' } },
+      rank => { '=' => { -ident => 'bar' } },
+    },
+    efcc_result => {
+      artistid => [1],
+      charfield => { -ident => 'foo' },
+      rank => { -ident => 'bar' },
+    },
+    efcc_n_result => {
+      artistid => [1],
+      name => undef,
+      charfield => { -ident => 'foo' },
+      rank => { -ident => 'bar' },
+    },
+  } : () ),
+
   {
     where => { artistid => [] },
     cc_result => { artistid => [] },

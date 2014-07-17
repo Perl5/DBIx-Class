@@ -172,6 +172,8 @@ sub is_literal_value ($) {
   (
     ref $_[0] eq 'SCALAR'
       or
+    ( ref $_[0] eq 'HASH' and keys %{$_[0]} == 1 and defined $_[0]->{-ident} and ! length ref $_[0]->{-ident} )
+      or
     ( ref $_[0] eq 'REF' and ref ${$_[0]} eq 'ARRAY' )
   ) ? 1 : 0;
 }

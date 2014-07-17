@@ -7,6 +7,7 @@ use Sub::Name;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util 'is_literal_value';
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
@@ -291,7 +292,10 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       { -value => [3,4] },
       \[ '= ?' => [arrayfield => [3, 4]] ],
     ) {
-      local $TODO = 'No introspection of complex conditions :(';
+      local $TODO = 'No introspection of complex literal conditions :('
+        if is_literal_value $cond;
+
+
       my $arr_rs_cond = $arr_rs->search({ arrayfield => $cond });
 
       my $row = $arr_rs_cond->create({});
