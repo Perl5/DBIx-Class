@@ -77,15 +77,9 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # handholding
 
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # Many dists still do not pass tests under tb1.5 properly (and it itself
-    # does not even install on things like 5.10). Install the *stable-dev*
-    # latest T::B here, so that it will not show up as a dependency, and
-    # hence it will not get installed a second time as an unsatisfied dep
-    # under cpanm --dev
+    # We are not "quite ready" for SQLA 1.99, do not consider it
     #
-    # We are also not "quite ready" for SQLA 1.99, do not consider it
-    #
-    installdeps 'Test::Builder~<1.005' 'SQL::Abstract~<1.99'
+    installdeps 'SQL::Abstract~<1.99'
 
   elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
@@ -98,13 +92,6 @@ else
   # we will be running all dbic tests - preinstall lots of stuff, run basic tests
   # using SQLT and set up whatever databases necessary
   export DBICTEST_SQLT_DEPLOY=1
-
-  # FIXME - need new TB1.5 devrel
-  # if we run under --dev install latest github of TB1.5 first
-  # (unreleased workaround for precedence warnings)
-  if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    parallel_installdeps_notest git://github.com/nthykier/test-more.git@fix-return-precedence-issue
-  fi
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
