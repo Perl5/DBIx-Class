@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::Row';
-use DBIx::Class::_Util 'is_literal_value';
+use SQL::Abstract 'is_literal_value';
 use namespace::clean;
 
 =head1 NAME

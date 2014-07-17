@@ -149,9 +149,18 @@ for my $mod (@modules) {
             last;
           }
         }
-        fail ("${mod}::${name} appears to have entered inheritance chain by import into "
-            . ($via || 'UNKNOWN')
-        );
+
+        # exception time
+        if (
+          ( $name eq 'import' and $via = 'Exporter' )
+        ) {
+          pass("${mod}::${name} is a valid uncleaned import from ${name}");
+        }
+        else {
+          fail ("${mod}::${name} appears to have entered inheritance chain by import into "
+              . ($via || 'UNKNOWN')
+          );
+        }
       }
     }
 

@@ -14,7 +14,7 @@ use Sub::Name 'subname';
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
-use DBIx::Class::_Util qw(is_plain_value is_literal_value);
+use SQL::Abstract qw(is_plain_value is_literal_value);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes

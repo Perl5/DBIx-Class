@@ -5,7 +5,7 @@ use Test::Warn;
 
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION modver_gt_or_eq);
+use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 
 use Data::Dumper;
 
@@ -132,9 +132,7 @@ for my $t (
     efcc_result => { 'group.is_active' => 1, 'me.is_active' => 1 },
   },
 
-  # need fixed SQLA to correctly work with this
-  #
-  ( modver_gt_or_eq('SQL::Abstract', '1.78_01') ? {
+  {
     where => { -and => [
       artistid => { -value => [1] },
       charfield => { -ident => 'foo' },
@@ -159,7 +157,7 @@ for my $t (
       charfield => { -ident => 'foo' },
       rank => { -ident => 'bar' },
     },
-  } : () ),
+  },
 
   {
     where => { artistid => [] },

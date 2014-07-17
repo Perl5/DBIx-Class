@@ -52,13 +52,11 @@ use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
 use Carp 'croak';
 use Scalar::Util qw(weaken blessed reftype);
 use List::Util qw(first);
-use overload ();
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray
   refdesc refcount hrefaddr is_exception
-  is_plain_value is_literal_value
   UNRESOLVABLE_CONDITION
 );
 
@@ -166,47 +164,6 @@ sub modver_gt_or_eq ($$) {
 
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
-}
-
-sub is_literal_value ($) {
-  (
-    ref $_[0] eq 'SCALAR'
-      or
-    ( ref $_[0] eq 'HASH' and keys %{$_[0]} == 1 and defined $_[0]->{-ident} and ! length ref $_[0]->{-ident} )
-      or
-    ( ref $_[0] eq 'REF' and ref ${$_[0]} eq 'ARRAY' )
-  ) ? 1 : 0;
-}
-
-# FIXME XSify - this can be done so much more efficiently
-sub is_plain_value ($) {
-  no strict 'refs';
-  (
-    # plain scalar
-    (! length ref $_[0])
-      or
-    (
-      blessed $_[0]
-        and
-      # deliberately not using Devel::OverloadInfo - the checks we are
-      # intersted in are much more limited than the fullblown thing, and
-      # this is a relatively hot piece of code
-      (
-        # FIXME - DBI needs fixing to stringify regardless of DBD
-        #
-        # either has stringification which DBI SHOULD prefer out of the box
-        #first { *{$_ . '::(""'}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
-        overload::Method($_[0], '""')
-          or
-        # has nummification and fallback is *not* disabled
-        (
-          $_[1] = first { *{"${_}::(0+"}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
-            and
-          ( ! defined ${"$_[1]::()"} or ${"$_[1]::()"} )
-        )
-      )
-    )
-  ) ? 1 : 0;
 }
 
 {

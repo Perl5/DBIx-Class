@@ -9,7 +9,7 @@ use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'is_literal_value';
+use SQL::Abstract 'is_literal_value';
 
 ###
 ### Internal method

@@ -6,7 +6,8 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer is_plain_value);
+use SQL::Abstract 'is_plain_value';
+use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;

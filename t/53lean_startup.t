@@ -106,6 +106,7 @@ BEGIN {
 
     Class::Accessor::Grouped
     Class::C3::Componentised
+    SQL::Abstract
   ));
 
   require DBICTest::Schema;
@@ -129,7 +130,6 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     DBI
-    SQL::Abstract
     Hash::Merge
   ));
 
