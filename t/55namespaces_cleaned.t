@@ -36,8 +36,14 @@ use warnings;
 use Test::More;
 
 use lib 't/lib';
-use DBICTest;
 
+BEGIN {
+  require DBICTest::RunMode;
+  plan( skip_all => "Skipping test on plain module install" )
+    if DBICTest::RunMode->is_plain;
+}
+
+use DBICTest;
 use File::Find;
 use File::Spec;
 use B qw/svref_2object/;
