@@ -3,6 +3,39 @@ package DBICTest::Util;
 use warnings;
 use strict;
 
+# this noop trick initializes the STDOUT, so that the TAP::Harness
+# issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
+# keep spinning and scheduling jobs
+# This results in an overall much smoother job-queue drainage, since
+# the Harness blocks less
+# (ideally this needs to be addressed in T::H, but a quick patchjob
+# broke everything so tabling it for now)
+BEGIN {
+  if ($INC{'Test/Builder.pm'}) {
+    local $| = 1;
+    print "#\n";
+  }
+}
+
+use Module::Runtime 'module_notional_filename';
+BEGIN {
+  for my $mod (qw( SQL::Abstract::Test SQL::Abstract )) {
+    if ( $INC{ module_notional_filename($mod) } ) {
+      # FIXME this does not seem to work in BEGIN - why?!
+      #require Carp;
+      #$Carp::Internal{ (__PACKAGE__) }++;
+      #Carp::croak( __PACKAGE__ . " must be loaded before $mod" );
+
+      my ($fr, @frame) = 1;
+      while (@frame = caller($fr++)) {
+        last if $frame[1] !~ m|^t/lib/DBICTest|;
+      }
+
+      die __PACKAGE__ . " must be loaded before $mod (or modules using $mod) at $frame[1] line $frame[2]\n";
+    }
+  }
+}
+
 use Config;
 use Carp 'confess';
 use Scalar::Util qw(blessed refaddr);
