@@ -389,7 +389,7 @@ sub search {
   my $rs = $self->search_rs( @_ );
 
   if (wantarray) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray($rs);
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
     return $rs->all;
   }
   elsif (defined wantarray) {

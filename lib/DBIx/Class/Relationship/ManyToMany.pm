@@ -71,7 +71,7 @@ EOW
 
     my $meth_name = join '::', $class, $meth;
     *$meth_name = subname $meth_name, sub {
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and wantarray and my $sog = fail_on_internal_wantarray($_[0]);
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
       my $self = shift;
       my $rs = $self->$rs_meth( @_ );
       return (wantarray ? $rs->all : $rs);

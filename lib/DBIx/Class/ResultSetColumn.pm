@@ -406,7 +406,7 @@ sub func {
   my $cursor = $self->func_rs($function)->cursor;
 
   if( wantarray ) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray($self);
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
     return map { $_->[ 0 ] } $cursor->all;
   }
 

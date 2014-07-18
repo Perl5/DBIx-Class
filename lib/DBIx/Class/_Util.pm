@@ -169,7 +169,7 @@ sub modver_gt_or_eq ($$) {
 {
   my $list_ctx_ok_stack_marker;
 
-  sub fail_on_internal_wantarray {
+  sub fail_on_internal_wantarray () {
     return if $list_ctx_ok_stack_marker;
 
     if (! defined wantarray) {
@@ -192,12 +192,23 @@ sub modver_gt_or_eq ($$) {
       $cf++;
     }
 
+    my ($fr, $want, $argdesc);
+    {
+      package DB;
+      $fr = [ caller($cf) ];
+      $want = ( caller($cf-1) )[5];
+      $argdesc = ref $DB::args[0]
+        ? DBIx::Class::_Util::refdesc($DB::args[0])
+        : 'non '
+      ;
+    };
+
     if (
-      (caller($cf))[0] =~ /^(?:DBIx::Class|DBICx::)/
+      $want and $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
     ) {
       DBIx::Class::Exception->throw( sprintf (
-        "Improper use of %s instance in list context at %s line %d\n\n\tStacktrace starts",
-        refdesc($_[0]), (caller($cf))[1,2]
+        "Improper use of %s instance in list context at %s line %d\n\n    Stacktrace starts",
+        $argdesc, @{$fr}[1,2]
       ), 'with_stacktrace');
     }
 
