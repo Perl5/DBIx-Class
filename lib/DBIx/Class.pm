@@ -456,6 +456,8 @@ mithaldu: Christian Walde <walde.christian@gmail.com>
 
 mjemmeson: Michael Jemmeson <michael.jemmeson@gmail.com>
 
+mrf: Mike Francis <ungrim97@gmail.com>
+
 mstratman: Mark A. Stratman <stratman@gmail.com>
 
 ned: Neil de Carteret

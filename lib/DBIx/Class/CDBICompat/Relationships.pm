@@ -40,6 +40,13 @@ sub _declare_has_a {
 
   my $rel_info;
 
+  # Class::DBI allows Non database has_a with implicit deflate and inflate
+  # Hopefully the following will catch Non-database tables.
+  if( !$f_class->isa('DBIx::Class::Row') and !$f_class->isa('Class::DBI::Row') ) {
+    $args{'inflate'} ||= sub { $f_class->new(shift) }; # implicit inflate by calling new
+    $args{'deflate'} ||= sub { shift . '' }; # implicit deflate by stringification
+  }
+
   if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
     if (!ref $args{'inflate'}) {
       my $meth = $args{'inflate'};
