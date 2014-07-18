@@ -8,8 +8,7 @@ use base 'DBIx::Class';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util 'refcount';
-use Sub::Name 'subname';
+use DBIx::Class::_Util qw(refcount quote_sub);
 use Devel::GlobalDestruction;
 use namespace::clean;
 
@@ -897,7 +896,6 @@ sub compose_namespace {
     local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
     use warnings qw/redefine/;
 
-    no strict qw/refs/;
     foreach my $source_name ($self->sources) {
       my $orig_source = $self->source($source_name);
 
@@ -919,11 +917,8 @@ sub compose_namespace {
       }
     }
 
-    foreach my $meth (qw/class source resultset/) {
-      no warnings 'redefine';
-      *{"${target}::${meth}"} = subname "${target}::${meth}" =>
-        sub { shift->schema->$meth(@_) };
-    }
+    quote_sub "${target}::${_}" => "shift->schema->$_(\@_)"
+      for qw(class source resultset);
   }
 
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
@@ -1497,11 +1492,7 @@ sub compose_connection {
   }
 
   my $schema = $self->compose_namespace($target, $base);
-  {
-    no strict 'refs';
-    my $name = join '::', $target, 'schema';
-    *$name = subname $name, sub { $schema };
-  }
+  quote_sub "${target}::schema", '$s', { '$s' => \$schema };
 
   $schema->connection(@info);
   foreach my $source_name ($schema->sources) {

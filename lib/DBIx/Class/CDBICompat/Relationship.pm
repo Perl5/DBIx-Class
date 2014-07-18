@@ -3,7 +3,8 @@ package
 
 use strict;
 use warnings;
-use Sub::Name ();
+
+use DBIx::Class::_Util 'quote_sub';
 
 =head1 NAME
 
@@ -23,20 +24,13 @@ my %method2key = (
     args            => 'args',
 );
 
+quote_sub __PACKAGE__ . "::$_" => "\$_[0]->{$method2key{$_}}"
+  for keys %method2key;
+
 sub new {
     my($class, $args) = @_;
 
     return bless $args, $class;
-}
-
-for my $method (keys %method2key) {
-    my $key = $method2key{$method};
-    my $code = sub {
-        $_[0]->{$key};
-    };
-
-    no strict 'refs';
-    *{$method} = Sub::Name::subname $method, $code;
 }
 
 1;

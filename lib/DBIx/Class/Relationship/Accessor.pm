@@ -3,9 +3,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Sub::Name;
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use DBIx::Class::_Util qw(quote_sub perlstring);
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -24,33 +23,32 @@ sub register_relationship {
 sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
 
-  my %meth;
   if ($acc_type eq 'single') {
-    $meth{$rel} = sub {
+    quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel);
       my $self = shift;
 
       if (@_) {
-        $self->set_from_related($rel, @_);
-        return $self->{_relationship_data}{$rel} = $_[0];
+        $self->set_from_related( %1$s => @_ );
+        return $self->{_relationship_data}{%1$s} = $_[0];
       }
-      elsif (exists $self->{_relationship_data}{$rel}) {
-        return $self->{_relationship_data}{$rel};
+      elsif (exists $self->{_relationship_data}{%1$s}) {
+        return $self->{_relationship_data}{%1$s};
       }
       else {
-        my $rel_info = $class->relationship_info($rel);
+        my $rel_info = $self->result_source->relationship_info(%1$s);
         my $cond = $self->result_source->_resolve_condition(
-          $rel_info->{cond}, $rel, $self, $rel
+          $rel_info->{cond}, %1$s, $self, %1$s
         );
         if ($rel_info->{attrs}->{undef_on_null_fk}){
           return undef unless ref($cond) eq 'HASH';
-          return undef if grep { not defined $_ } values %$cond;
+          return undef if grep { not defined $_ } values %%$cond;
         }
-        my $val = $self->find_related($rel, {}, {});
+        my $val = $self->find_related( %1$s => {} );
         return $val unless $val;  # $val instead of undef so that null-objects can go through
 
-        return $self->{_relationship_data}{$rel} = $val;
+        return $self->{_relationship_data}{%1$s} = $val;
       }
-    };
+EOC
   }
   elsif ($acc_type eq 'filter') {
     $class->throw_exception("No such column '$rel' to filter")
@@ -89,25 +87,17 @@ sub add_relationship_accessor {
   }
   elsif ($acc_type eq 'multi') {
 
-    $meth{$rel} = sub {
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-      shift->search_related($rel, @_)
-    };
-    $meth{"${rel}_rs"} = sub { shift->search_related_rs($rel, @_) };
-    $meth{"add_to_${rel}"} = sub { shift->create_related($rel, @_); };
+    quote_sub "${class}::${rel}_rs", "shift->search_related_rs( $rel => \@_ )";
+    quote_sub "${class}::add_to_${rel}", "shift->create_related( $rel => \@_ )";
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
+      shift->search_related( %s => @_ )
+EOC
   }
   else {
     $class->throw_exception("No such relationship accessor type '$acc_type'");
   }
 
-  {
-    no strict 'refs';
-    no warnings 'redefine';
-    foreach my $meth (keys %meth) {
-      my $name = join '::', $class, $meth;
-      *$name = subname($name, $meth{$meth});
-    }
-  }
 }
 
 1;

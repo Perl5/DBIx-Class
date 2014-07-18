@@ -38,7 +38,7 @@ throws_ok (
 # exception fallback:
 
 SKIP: {
-  if (DBIx::Class::_ENV_::PEEPEENESS) {
+  if ( !!DBIx::Class::_ENV_::PEEPEENESS ) {
     skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
   }
 

@@ -3,11 +3,11 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Sub::Name ();
-use base qw/Class::Data::Inheritable/;
+use base 'Class::Data::Inheritable';
 
 use Clone;
 use DBIx::Class::CDBICompat::Relationship;
+use DBIx::Class::_Util qw(quote_sub perlstring);
 
 __PACKAGE__->mk_classdata('__meta_info' => {});
 
@@ -119,19 +119,14 @@ sub has_many {
   );
 
   if (@f_method) {
-    no strict 'refs';
-    no warnings 'redefine';
-    my $post_proc = sub { my $o = shift; $o = $o->$_ for @f_method; $o; };
-    my $name = join '::', $class, $rel;
-    *$name = Sub::Name::subname $name,
-      sub {
-        my $rs = shift->search_related($rel => @_);
-        $rs->{attrs}{record_filter} = $post_proc;
-        return (wantarray ? $rs->all : $rs);
-      };
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel), { '$rf' => \sub { my $o = shift; $o = $o->$_ for @f_method; $o } };
+      my $rs = shift->search_related( %s => @_);
+      $rs->{attrs}{record_filter} = $rf;
+      return (wantarray ? $rs->all : $rs);
+EOC
+
     return 1;
   }
-
 }
 
 

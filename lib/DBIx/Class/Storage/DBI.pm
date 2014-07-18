@@ -10,11 +10,11 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
-use Sub::Name 'subname';
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
 use SQL::Abstract qw(is_plain_value is_literal_value);
+use DBIx::Class::_Util qw(quote_sub perlstring);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -119,9 +119,11 @@ for my $meth (keys %$storage_accessor_idx, qw(
   my $orig = __PACKAGE__->can ($meth)
     or die "$meth is not a ::Storage::DBI method!";
 
-  no strict 'refs';
-  no warnings 'redefine';
-  *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
+  my $is_getter = $storage_accessor_idx->{$meth} ? 0 : 1;
+
+  quote_sub
+    __PACKAGE__ ."::$meth", sprintf( <<'EOC', $is_getter, perlstring $meth ), { '$orig' => \$orig };
+
     if (
       # only fire when invoked on an instance, a valid class-based invocation
       # would e.g. be setting a default for an inherited accessor
@@ -133,7 +135,7 @@ for my $meth (keys %$storage_accessor_idx, qw(
         and
       # if this is a known *setter* - just set it, no need to connect
       # and determine the driver
-      ! ( $storage_accessor_idx->{$meth} and @_ > 1 )
+      ( %1$s or @_ <= 1 )
         and
       # Only try to determine stuff if we have *something* that either is or can
       # provide a DSN. Allows for bare $schema's generated with a plain ->connect()
@@ -142,16 +144,15 @@ for my $meth (keys %$storage_accessor_idx, qw(
     ) {
       $_[0]->_determine_driver;
 
-      # This for some reason crashes and burns on perl 5.8.1
-      # IFF the method ends up throwing an exception
-      #goto $_[0]->can ($meth);
+      # work around http://rt.perl.org/rt3/Public/Bug/Display.html?id=35878
+      goto $_[0]->can(%2$s) unless DBIx::Class::_ENV_::BROKEN_GOTO;
 
-      my $cref = $_[0]->can ($meth);
+      my $cref = $_[0]->can(%2$s);
       goto $cref;
     }
 
     goto $orig;
-  };
+EOC
 }
 
 =head1 NAME
@@ -1633,17 +1634,13 @@ sub _exec_txn_rollback {
   shift->_dbh->rollback;
 }
 
-# generate some identical methods
-for my $meth (qw/svp_begin svp_release svp_rollback/) {
-  no strict qw/refs/;
-  *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
-    my $self = shift;
-    $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
-    $self->throw_exception("Unable to $meth() on a disconnected storage")
-      unless $self->_dbh;
-    $self->next::method(@_);
-  };
-}
+# generate the DBI-specific stubs, which then fallback to ::Storage proper
+quote_sub __PACKAGE__ . "::$_" => sprintf (<<'EOS', $_) for qw(svp_begin svp_release svp_rollback);
+  $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+  $_[0]->throw_exception('Unable to %s() on a disconnected storage')
+    unless $_[0]->_dbh;
+  shift->next::method(@_);
+EOS
 
 # This used to be the top-half of _execute.  It was split out to make it
 #  easier to override in NoBindVars without duping the rest.  It takes up

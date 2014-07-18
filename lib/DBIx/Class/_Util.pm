@@ -17,6 +17,8 @@ BEGIN {
     # but of course
     BROKEN_FORK => ($^O eq 'MSWin32') ? 1 : 0,
 
+    BROKEN_GOTO => ($] < '5.008003') ? 1 : 0,
+
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
     # ::Runmode would only be loaded by DBICTest, which in turn implies t/

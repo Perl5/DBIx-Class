@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::ContextualFetch;
-use Sub::Name ();
+use DBIx::Class::_Util qw(quote_sub perlstring);
 
 use base qw(Class::Data::Inheritable);
 
@@ -81,26 +81,20 @@ sub __driver {
 
 sub set_sql {
   my ($class, $name, $sql) = @_;
-  no strict 'refs';
-  my $sql_name = "sql_${name}";
-  my $full_sql_name = join '::', $class, $sql_name;
-  *$full_sql_name = Sub::Name::subname $full_sql_name,
-    sub {
-      my $sql = $sql;
-      my $class = shift;
-      return $class->storage->dbh_do(
-        _prepare_sth => $class->transform_sql($sql, @_)
-      );
-    };
-  if ($sql =~ /select/i) {
-    my $search_name = "search_${name}";
-    my $full_search_name = join '::', $class, $search_name;
-    *$full_search_name = Sub::Name::subname $full_search_name,
-      sub {
-        my ($class, @args) = @_;
-        my $sth = $class->$sql_name;
-        return $class->sth_to_objects($sth, \@args);
-      };
+
+  quote_sub "${class}::sql_${name}", sprintf( <<'EOC', perlstring $sql );
+    my $class = shift;
+    return $class->storage->dbh_do(
+      _prepare_sth => $class->transform_sql(%s, @_)
+    );
+EOC
+
+
+  if ($sql =~ /select/i) {  # FIXME - this should be anchore surely...?
+    quote_sub "${class}::search_${name}", sprintf( <<'EOC', "sql_$name" );
+      my ($class, @args) = @_;
+      $class->sth_to_objects( $class->%s, \@args);
+EOC
   }
 }
 

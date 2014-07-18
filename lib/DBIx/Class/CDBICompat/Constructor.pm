@@ -1,14 +1,13 @@
 package # hide from PAUSE
     DBIx::Class::CDBICompat::Constructor;
 
-use base qw(DBIx::Class::CDBICompat::ImaDBI);
-
-use Sub::Name();
-
 use strict;
 use warnings;
 
+use base 'DBIx::Class::CDBICompat::ImaDBI';
+
 use Carp;
+use DBIx::Class::_Util qw(quote_sub perlstring);
 
 __PACKAGE__->set_sql(Retrieve => <<'');
 SELECT __ESSENTIAL__
@@ -17,17 +16,16 @@ WHERE  %s
 
 sub add_constructor {
     my ($class, $method, $fragment) = @_;
-    return croak("constructors needs a name") unless $method;
 
-    no strict 'refs';
-    my $meth = "$class\::$method";
-    return carp("$method already exists in $class")
-            if *$meth{CODE};
+    croak("constructors needs a name") unless $method;
 
-    *$meth = Sub::Name::subname $meth => sub {
-            my $self = shift;
-            $self->sth_to_objects($self->sql_Retrieve($fragment), \@_);
-    };
+    carp("$method already exists in $class") && return
+       if $class->can($method);
+
+    quote_sub "${class}::${method}" => sprintf( <<'EOC', perlstring $fragment );
+      my $self = shift;
+      $self->sth_to_objects($self->sql_Retrieve(%s), \@_);
+EOC
 }
 
 1;

@@ -164,7 +164,7 @@ sub visit_namespaces {
 
 
     $visited += visit_namespaces({ %$args, package => $_ }) for map
-      { $_ =~ /(.+?)::$/ && "${base}::$1" }
+      { $_ =~ /(.+?)::$/ ? "${base}::$1" : () }
       grep
         { $_ =~ /(?<!^main)::$/ }
         do {  no strict 'refs'; keys %{ $base . '::'} }
@@ -240,6 +240,8 @@ sub symtable_referenced_addresses {
 sub assert_empty_weakregistry {
   my ($weak_registry, $quiet) = @_;
 
+  Sub::Defer::undefer_all();
+
   # in case we hooked bless any extra object creation will wreak
   # havoc during the assert phase
   local *CORE::GLOBAL::bless;
@@ -266,12 +268,25 @@ sub assert_empty_weakregistry {
       if defined $weak_registry->{$addr}{weakref} and ! isweak( $weak_registry->{$addr}{weakref} );
   }
 
-  # the walk is very expensive - if we are $quiet (running in an END block)
-  # we do not really need to be too thorough
-  unless ($quiet) {
-    delete $weak_registry->{$_} for keys %{ symtable_referenced_addresses() };
-  }
-
+  # the symtable walk is very expensive
+  # if we are $quiet (running in an END block) we do not really need to be
+  # that thorough - can get by with only %Sub::Quote::QUOTED
+  delete $weak_registry->{$_} for $quiet
+    ? do {
+      my $refs = {};
+      visit_refs (
+        # only look at the closed over stuffs
+        refs => [ grep { length ref $_ } map { values %{$_->[2]} } grep { ref $_ eq 'ARRAY' } values %Sub::Quote::QUOTED ],
+        seen_refs => $refs,
+        action => sub { 1 },
+      );
+      keys %$refs;
+    }
+    : (
+      # full sumtable walk, starting from ::
+      keys %{ symtable_referenced_addresses() }
+    )
+  ;
 
   for my $addr (sort { $weak_registry->{$a}{display_name} cmp $weak_registry->{$b}{display_name} } keys %$weak_registry) {
 

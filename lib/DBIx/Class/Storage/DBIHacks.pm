@@ -15,7 +15,6 @@ use mro 'c3';
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
-use Sub::Name 'subname';
 use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use namespace::clean;

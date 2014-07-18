@@ -93,6 +93,8 @@ my $skip_idx = { map { $_ => 1 } (
 
 my $has_moose = eval { require Moose::Util };
 
+Sub::Defer::undefer_all();
+
 # can't use Class::Inspector for the mundane parts as it does not
 # distinguish imports from anything else, what a crock of...
 # Moose is not always available either - hence just do it ourselves

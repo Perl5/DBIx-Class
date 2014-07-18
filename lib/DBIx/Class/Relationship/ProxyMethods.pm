@@ -3,8 +3,9 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Sub::Name ();
-use base qw/DBIx::Class/;
+use base 'DBIx::Class';
+use DBIx::Class::_Util 'quote_sub';
+use namespace::clean;
 
 our %_pod_inherit_config =
   (
@@ -22,21 +23,17 @@ sub register_relationship {
 sub proxy_to_related {
   my ($class, $rel, $proxy_args) = @_;
   my %proxy_map = $class->_build_proxy_map_from($proxy_args);
-  no strict 'refs';
-  no warnings 'redefine';
-  foreach my $meth_name ( keys %proxy_map ) {
-    my $proxy_to_col = $proxy_map{$meth_name};
-    my $name = join '::', $class, $meth_name;
-    *$name = Sub::Name::subname $name => sub {
-      my $self = shift;
-      my $relobj = $self->$rel;
-      if (@_ && !defined $relobj) {
-        $relobj = $self->create_related($rel, { $proxy_to_col => $_[0] });
-        @_ = ();
-      }
-      return ($relobj ? $relobj->$proxy_to_col(@_) : undef);
-   }
-  }
+
+  quote_sub "${class}::$_", sprintf( <<'EOC', $rel, $proxy_map{$_} )
+    my $self = shift;
+    my $relobj = $self->%1$s;
+    if (@_ && !defined $relobj) {
+      $relobj = $self->create_related( %1$s => { %2$s => $_[0] } );
+      @_ = ();
+    }
+    $relobj ? $relobj->%2$s(@_) : undef;
+EOC
+    for keys %proxy_map
 }
 
 sub _build_proxy_map_from {
