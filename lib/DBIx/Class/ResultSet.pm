@@ -2446,7 +2446,7 @@ sub new_result {
   $self->throw_exception( "new_result takes only one argument - a hashref of values" )
     if @_ > 2;
 
-  $self->throw_exception( "new_result expects a hashref" )
+  $self->throw_exception( "Result object instantiation requires a hashref as argument" )
     unless (ref $values eq 'HASH');
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
@@ -2747,10 +2747,8 @@ L</new>.
 =cut
 
 sub create {
-  my ($self, $col_data) = @_;
-  $self->throw_exception( "create needs a hashref" )
-    unless ref $col_data eq 'HASH';
-  return $self->new_result($col_data)->insert;
+  #my ($self, $col_data) = @_;
+  return shift->new_result(shift)->insert;
 }
 
 =head2 find_or_create

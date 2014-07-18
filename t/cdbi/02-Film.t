@@ -32,7 +32,7 @@ is(Film->__driver, "SQLite", "Driver set correctly");
 }
 
 eval { my $duh = Film->insert; };
-like $@, qr/create needs a hashref/, "needs a hashref";
+like $@, qr/Result object instantiation requires a hashref as argument/, "needs a hashref";
 
 ok +Film->create_test_film;
 
