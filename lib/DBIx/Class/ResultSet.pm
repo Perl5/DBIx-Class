@@ -7,7 +7,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
-  fail_on_internal_wantarray UNRESOLVABLE_CONDITION
+  fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
 use Data::Compare (); # no imports!!! guard against insane architecture
@@ -301,7 +301,11 @@ creation B<will not work>. See also warning pertaining to L</create>.
 
 sub new {
   my $class = shift;
-  return $class->new_result(@_) if ref $class;
+
+  if (ref $class) {
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+    return $class->new_result(@_);
+  }
 
   my ($source, $attrs) = @_;
   $source = $source->resolve
@@ -2236,7 +2240,7 @@ sub populate {
   return unless @$data;
 
   if(defined wantarray) {
-    my @created = map { $self->create($_) } @$data;
+    my @created = map { $self->new_result($_)->insert } @$data;
     return wantarray ? @created : \@created;
   }
   else {
@@ -2272,7 +2276,7 @@ sub populate {
 
       foreach my $rel (@rels) {
         next unless ref $data->[$index]->{$rel} eq "HASH";
-        my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
+        my $result = $self->related_resultset($rel)->new_result($data->[$index]->{$rel})->insert;
         my (undef, $reverse_relinfo) = %{$rsrc->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(
           $reverse_relinfo->{cond},
@@ -2748,6 +2752,7 @@ L</new>.
 
 sub create {
   #my ($self, $col_data) = @_;
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->new_result(shift)->insert;
 }
 
@@ -2830,7 +2835,7 @@ sub find_or_create {
   if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
     return $row;
   }
-  return $self->create($hash);
+  return $self->new_result($hash)->insert;
 }
 
 =head2 update_or_create
@@ -2900,7 +2905,7 @@ sub update_or_create {
     return $row;
   }
 
-  return $self->create($cond);
+  return $self->new_result($cond)->insert;
 }
 
 =head2 update_or_new

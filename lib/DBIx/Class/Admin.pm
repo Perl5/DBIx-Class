@@ -451,7 +451,7 @@ sub insert {
   $rs ||= $self->resultset();
   $set ||= $self->set();
   my $resultset = $self->schema->resultset($rs);
-  my $obj = $resultset->create( $set );
+  my $obj = $resultset->new_result($set)->insert;
   print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
 }
 

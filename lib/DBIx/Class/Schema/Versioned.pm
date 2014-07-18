@@ -603,7 +603,7 @@ sub _on_connect
     my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
-      map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
+      map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
       $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
@@ -710,7 +710,7 @@ sub _set_db_version {
   # formatted by this new function will sort _after_ any existing 200... strings.
   my @tm = gettimeofday();
   my @dt = gmtime ($tm[0]);
-  my $o = $vtable->create({
+  my $o = $vtable->new_result({
     version => $version,
     installed => sprintf("v%04d%02d%02d_%02d%02d%02d.%03.0f",
       $dt[5] + 1900,
@@ -721,7 +721,7 @@ sub _set_db_version {
       $dt[0],
       int($tm[1] / 1000), # convert to millisecs
     ),
-  });
+  })->insert;
 }
 
 sub _read_sql_file {

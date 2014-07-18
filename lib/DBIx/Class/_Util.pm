@@ -30,6 +30,8 @@ BEGIN {
 
     ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
 
+    ASSERT_NO_INTERNAL_INDIRECT_CALLS => $ENV{DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS} ? 1 : 0,
+
     IV_SIZE => $Config{ivsize},
 
     OS_NAME => $^O,
@@ -55,7 +57,8 @@ use List::Util qw(first);
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq fail_on_internal_wantarray
+  sigwarn_silencer modver_gt_or_eq
+  fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
   UNRESOLVABLE_CONDITION
 );
@@ -215,6 +218,35 @@ sub modver_gt_or_eq ($$) {
     my $mark = [];
     weaken ( $list_ctx_ok_stack_marker = $mark );
     $mark;
+  }
+}
+
+sub fail_on_internal_call {
+  my ($fr, $argdesc);
+  {
+    package DB;
+    $fr = [ caller(1) ];
+    $argdesc = ref $DB::args[0]
+      ? DBIx::Class::_Util::refdesc($DB::args[0])
+      : undef
+    ;
+  };
+
+  if (
+    $argdesc
+      and
+    $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
+      and
+    $fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+  ) {
+    DBIx::Class::Exception->throw( sprintf (
+      "Illegal internal call of indirect proxy-method %s() with argument %s: examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
+      $fr->[3], $argdesc, @{$fr}[1,2], ( $fr->[6] || do {
+        require B::Deparse;
+        no strict 'refs';
+        B::Deparse->new->coderef2text(\&{$fr->[3]})
+      }),
+    ), 'with_stacktrace');
   }
 }
 
