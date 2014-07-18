@@ -31,16 +31,22 @@ sub has_a {
     return 1;
 }
 
-
 sub _declare_has_a {
   my ($self, $col, $f_class, %args) = @_;
   $self->throw_exception( "No such column ${col}" )
-   unless $self->has_column($col);
+    unless $self->has_column($col);
   $self->ensure_class_loaded($f_class);
 
   my $rel_info;
 
-  if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
+  # Class::DBI allows Non database has_a with implicit deflate and inflate
+  # Hopefully the following will catch Non-database tables.
+  if (!$f_class->isa('DBIx::Class') && !$f_class->isa('Class::DBI')){
+    $args{'inflate'} ||= sub { $f_class->new(shift); }; # implicite inflate by calling new
+    $args{'deflate'} ||= sub { my $value = shift; "$value"; }; # implicite deflate by stringification
+  }
+
+  if ($args{'inflate'} || $args{'deflate'}){ # Non-database has_a
     if (!ref $args{'inflate'}) {
       my $meth = $args{'inflate'};
       $args{'inflate'} = sub { $f_class->$meth(shift); };
@@ -52,10 +58,9 @@ sub _declare_has_a {
     $self->inflate_column($col, \%args);
 
     $rel_info = {
-        class => $f_class
+      class => $f_class
     };
-  }
-  else {
+  } else {
     $self->belongs_to($col, $f_class);
     $rel_info = $self->result_source_instance->relationship_info($col);
   }
