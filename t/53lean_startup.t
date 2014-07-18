@@ -99,6 +99,7 @@ BEGIN {
     namespace::clean
     Try::Tiny
     Sub::Name
+    Sub::Quote
 
     Scalar::Util
     List::Util
@@ -117,7 +118,6 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     Moo
-    Sub::Quote
     Context::Preserve
   ));
 

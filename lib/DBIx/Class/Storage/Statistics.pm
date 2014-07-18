@@ -1,21 +1,20 @@
 package DBIx::Class::Storage::Statistics;
+
 use strict;
 use warnings;
 
 # DO NOT edit away without talking to riba first, he will just put it back
 # BEGIN pre-Moo2 import block
 BEGIN {
-  require warnings;
   my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
   local $ENV{PERL_STRICTURES_EXTRA} = 0;
   require Moo; Moo->import;
-  require Sub::Quote; Sub::Quote->import('quote_sub');
   ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
 }
 # END pre-Moo2 import block
 
 extends 'DBIx::Class';
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw(sigwarn_silencer qsub);
 use namespace::clean;
 
 =head1 NAME
@@ -64,7 +63,7 @@ sub debugfh {
 has _debugfh => (
   is => 'rw',
   lazy => 1,
-  trigger => quote_sub( '$_[0]->_defaulted_to_stderr(undef)' ),
+  trigger => qsub '$_[0]->_defaulted_to_stderr(undef)',
   builder => '_build_debugfh',
 );
 

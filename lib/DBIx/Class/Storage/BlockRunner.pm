@@ -1,22 +1,26 @@
 package # hide from pause until we figure it all out
   DBIx::Class::Storage::BlockRunner;
 
+use warnings;
 use strict;
+
+# DO NOT edit away without talking to riba first, he will just put it back
+# BEGIN pre-Moo2 import block
+BEGIN {
+  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  require Moo; Moo->import;
+  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
+}
+# END pre-Moo2 import block
 
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::_Util qw(is_exception qsub);
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
 
-# DO NOT edit away without talking to riba first, he will just put it back
-BEGIN {
-  local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  require Moo; Moo->import;
-  require Sub::Quote; Sub::Quote->import('quote_sub');
-}
-use warnings NONFATAL => 'all';
 use namespace::clean;
 
 =head1 NAME
@@ -43,16 +47,16 @@ has wrap_txn => (
 has retry_handler => (
   is => 'ro',
   required => 1,
-  isa => quote_sub( q{
+  isa => qsub q{
     (Scalar::Util::reftype($_[0])||'') eq 'CODE'
       or DBIx::Class::Exception->throw('retry_handler must be a CODE reference')
-  }),
+  },
 );
 
 has retry_debug => (
   is => 'rw',
   # use a sub - to be evaluated on the spot lazily
-  default => quote_sub( '$ENV{DBIC_STORAGE_RETRY_DEBUG}' ),
+  default => qsub '$ENV{DBIC_STORAGE_RETRY_DEBUG}',
   lazy => 1,
 );
 
@@ -67,19 +71,19 @@ has failed_attempt_count => (
   writer => '_set_failed_attempt_count',
   default => 0,
   lazy => 1,
-  trigger => quote_sub(q{
+  trigger => qsub q{
     $_[0]->throw_exception( sprintf (
       'Reached max_attempts amount of %d, latest exception: %s',
       $_[0]->max_attempts, $_[0]->last_exception
     )) if $_[0]->max_attempts <= ($_[1]||0);
-  }),
+  },
 );
 
 has exception_stack => (
   is => 'ro',
   init_arg => undef,
   clearer => '_reset_exception_stack',
-  default => quote_sub(q{ [] }),
+  default => qsub q{ [] },
   lazy => 1,
 );
 

@@ -55,12 +55,23 @@ use Carp 'croak';
 use Scalar::Util qw(weaken blessed reftype);
 use List::Util qw(first);
 
+# DO NOT edit away without talking to riba first, he will just put it back
+# BEGIN pre-Moo2 import block
+BEGIN {
+  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  require Sub::Quote; Sub::Quote->import('quote_sub');
+  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
+}
+sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
+# END pre-Moo2 import block
+
 use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
-  perlstring
+  quote_sub qsub perlstring
   UNRESOLVABLE_CONDITION
 );
 
