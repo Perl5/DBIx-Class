@@ -159,7 +159,7 @@ lives_ok {
 # try to create_related a 80s cd
 throws_ok {
   $artist->create_related('cds_80s', { title => 'related creation 1' });
-} qr/\QUnable to complete value inferrence - custom relationship 'cds_80s' returns conditions instead of values for column(s): 'year'/,
+} qr/\QUnable to complete value inferrence - custom relationship 'cds_80s' on source 'Artist' returns conditions instead of values for column(s): 'year'/,
 'Create failed - complex cond';
 
 # now supply an explicit arg overwriting the ambiguous cond
@@ -182,7 +182,7 @@ is(
 # try a specific everything via a non-simplified rel
 throws_ok {
   $artist->create_related('cds_90s', { title => 'related_creation 4', year => '2038' });
-} qr/\QRelationship 'cds_90s' does not resolve to a join-free condition fragment/,
+} qr/\QRelationship 'cds_90s' on source 'Artist' does not resolve to a join-free condition fragment/,
 'Create failed - non-simplified rel';
 
 # Do a self-join last-entry search

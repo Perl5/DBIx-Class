@@ -1782,15 +1782,18 @@ sub _resolve_relationship_condition {
   my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
   for ( qw( rel_name self_alias foreign_alias ) ) {
-    $self->throw_exception("Mandatory argument '$_' is not a plain string")
+    $self->throw_exception("Mandatory argument '$_' to _resolve_relationship_condition() is not a plain string")
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
-  $self->throw_exception('No practical way to resolve a relationship between two objects')
-    if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
-
   my $rel_info = $self->relationship_info($args->{rel_name});
   #  or $self->throw_exception( "No such relationship '$args->{rel_name}'" );
+
+  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
+
+  $self->throw_exception("No practical way to resolve $exception_rel_id between two objects")
+    if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
+
 
   $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
     if defined blessed $args->{foreign_resultobj} and ! $args->{foreign_resultobj}->isa($rel_info->{class});
@@ -1832,7 +1835,7 @@ sub _resolve_relationship_condition {
     if (my $jfc = $ret->{join_free_condition}) {
 
       $self->throw_exception (
-        "The join-free condition returned for relationship '$args->{rel_name}' must be a hash reference"
+        "The join-free condition returned for $exception_rel_id must be a hash reference"
       ) unless ref $jfc eq 'HASH';
 
       my ($joinfree_alias, $joinfree_source);
@@ -1847,7 +1850,7 @@ sub _resolve_relationship_condition {
 
       # FIXME sanity check until things stabilize, remove at some point
       $self->throw_exception (
-        "A join-free condition returned for relationship '$args->{rel_name}' without a result object to chain from"
+        "A join-free condition returned for $exception_rel_id without a result object to chain from"
       ) unless $joinfree_alias;
 
       my $fq_col_list = { map
@@ -1856,7 +1859,7 @@ sub _resolve_relationship_condition {
       };
 
       $fq_col_list->{$_} or $self->throw_exception (
-        "The join-free condition returned for relationship '$args->{rel_name}' may only "
+        "The join-free condition returned for $exception_rel_id may only "
       . 'contain keys that are fully qualified column names of the corresponding source'
       ) for keys %$jfc;
 
@@ -1956,10 +1959,10 @@ sub _resolve_relationship_condition {
     }
   }
   else {
-    $self->throw_exception ("Can't handle condition $args->{condition} for relationship '$args->{rel_name}' yet :(");
+    $self->throw_exception ("Can't handle condition $args->{condition} for $exception_rel_id yet :(");
   }
 
-  $self->throw_exception("Relationship '$args->{rel_name}' does not resolve to a join-free condition fragment") if (
+  $self->throw_exception(ucfirst "$exception_rel_id does not resolve to a join-free condition fragment") if (
     $args->{require_join_free_condition}
       and
     ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
@@ -1994,8 +1997,7 @@ sub _resolve_relationship_condition {
   if ($args->{infer_values_based_on}) {
 
     $self->throw_exception(sprintf (
-      "Unable to complete value inferrence - custom relationship '%s' returns conditions instead of values for column(s): %s",
-      $args->{rel_name},
+      "Unable to complete value inferrence - custom $exception_rel_id returns conditions instead of values for column(s): %s",
       map { "'$_'" } @nonvalues
     )) if @nonvalues;
 
