@@ -23,17 +23,21 @@ sub register_relationship {
 
 sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
+
   my %meth;
   if ($acc_type eq 'single') {
-    my $rel_info = $class->relationship_info($rel);
     $meth{$rel} = sub {
       my $self = shift;
+
       if (@_) {
         $self->set_from_related($rel, @_);
         return $self->{_relationship_data}{$rel} = $_[0];
-      } elsif (exists $self->{_relationship_data}{$rel}) {
+      }
+      elsif (exists $self->{_relationship_data}{$rel}) {
         return $self->{_relationship_data}{$rel};
-      } else {
+      }
+      else {
+        my $rel_info = $class->relationship_info($rel);
         my $cond = $self->result_source->_resolve_condition(
           $rel_info->{cond}, $rel, $self, $rel
         );
@@ -47,49 +51,55 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{$rel} = $val;
       }
     };
-  } elsif ($acc_type eq 'filter') {
+  }
+  elsif ($acc_type eq 'filter') {
     $class->throw_exception("No such column '$rel' to filter")
        unless $class->has_column($rel);
+
     my $f_class = $class->relationship_info($rel)->{class};
-    $class->inflate_column($rel,
-      { inflate => sub {
-          my ($val, $self) = @_;
-          return $self->find_or_new_related($rel, {}, {});
-        },
-        deflate => sub {
-          my ($val, $self) = @_;
-          $self->throw_exception("'$val' isn't a $f_class") unless $val->isa($f_class);
 
-          # MASSIVE FIXME - this code assumes we pointed at the PK, but the belongs_to
-          # helper does not check any of this
-          # fixup the code a bit to make things saner, but ideally 'filter' needs to
-          # be deprecated ASAP and removed shortly after
-          # Not doing so before 0.08250 however, too many things in motion already
-          my ($pk_col, @rest) = $val->result_source->_pri_cols_or_die;
-          $self->throw_exception(
-            "Relationship '$rel' of type 'filter' can not work with a multicolumn primary key on source '$f_class'"
-          ) if @rest;
+    $class->inflate_column($rel, {
+      inflate => sub {
+        my ($val, $self) = @_;
+        return $self->find_or_new_related($rel, {}, {});
+      },
+      deflate => sub {
+        my ($val, $self) = @_;
+        $self->throw_exception("'$val' isn't a $f_class") unless $val->isa($f_class);
 
-          my $pk_val = $val->get_column($pk_col);
-          carp_unique (
-            "Unable to deflate 'filter'-type relationship '$rel' (related object "
-          . "primary key not retrieved), assuming undef instead"
-          ) if ( ! defined $pk_val and $val->in_storage );
+        # MASSIVE FIXME - this code assumes we pointed at the PK, but the belongs_to
+        # helper does not check any of this
+        # fixup the code a bit to make things saner, but ideally 'filter' needs to
+        # be deprecated ASAP and removed shortly after
+        # Not doing so before 0.08250 however, too many things in motion already
+        my ($pk_col, @rest) = $val->result_source->_pri_cols_or_die;
+        $self->throw_exception(
+          "Relationship '$rel' of type 'filter' can not work with a multicolumn primary key on source '$f_class'"
+        ) if @rest;
 
-          return $pk_val;
-        }
-      }
-    );
-  } elsif ($acc_type eq 'multi') {
+        my $pk_val = $val->get_column($pk_col);
+        carp_unique (
+          "Unable to deflate 'filter'-type relationship '$rel' (related object "
+        . "primary key not retrieved), assuming undef instead"
+        ) if ( ! defined $pk_val and $val->in_storage );
+
+        return $pk_val;
+      },
+    });
+  }
+  elsif ($acc_type eq 'multi') {
+
     $meth{$rel} = sub {
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
       shift->search_related($rel, @_)
     };
     $meth{"${rel}_rs"} = sub { shift->search_related_rs($rel, @_) };
     $meth{"add_to_${rel}"} = sub { shift->create_related($rel, @_); };
-  } else {
+  }
+  else {
     $class->throw_exception("No such relationship accessor type '$acc_type'");
   }
+
   {
     no strict 'refs';
     no warnings 'redefine';
