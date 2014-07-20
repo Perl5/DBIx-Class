@@ -5,9 +5,12 @@ use strict;
 use warnings;
 
 use DBIx::Class::Carp;
-use Sub::Name 'subname';
-use Scalar::Util 'blessed';
-use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use DBIx::Class::_Util qw(fail_on_internal_wantarray quote_sub);
+
+# FIXME - this souldn't be needed
+my $cu;
+BEGIN { $cu = \&carp_unique }
+
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -25,10 +28,6 @@ sub many_to_many {
   $class->throw_exception(
     "missing foreign relation in many-to-many"
   ) unless $f_rel;
-
-  {
-    no strict 'refs';
-    no warnings 'redefine';
 
     my $add_meth = "add_to_${meth}";
     my $remove_meth = "remove_from_${meth}";
@@ -57,48 +56,45 @@ EOW
       }
     }
 
-    $rel_attrs->{alias} ||= $f_rel;
+    my $qsub_attrs = {
+      '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
+      '$carp_unique' => \$cu,
+    };
 
-
-    my $rs_meth_name = join '::', $class, $rs_meth;
-    *$rs_meth_name = subname $rs_meth_name, sub {
+    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', $rel, $f_rel ), $qsub_attrs;
 
       # this little horror is there replicating a deprecation from
       # within search_rs() itself
-      shift->search_related_rs($rel)
+      shift->search_related_rs( q{%1$s} )
             ->search_related_rs(
-              $f_rel,
+              q{%2$s},
               undef,
               ( @_ > 1 and ref $_[-1] eq 'HASH' )
-                ? { %$rel_attrs, %{ pop @_ } }
+                ? { %%$rel_attrs, %%{ pop @_ } }
                 : $rel_attrs
             )->search_rs(@_)
       ;
+EOC
 
-    };
 
+    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
 
-    my $meth_name = join '::', $class, $meth;
-    *$meth_name = subname $meth_name, sub {
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
 
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-
-      my $rs = shift->$rs_meth( @_ );
+      my $rs = shift->%s( @_ );
 
       wantarray ? $rs->all : $rs;
+EOC
 
-    };
 
-
-    my $add_meth_name = join '::', $class, $add_meth;
-    *$add_meth_name = subname $add_meth_name, sub {
+    quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), $qsub_attrs;
 
       ( @_ >= 2 and @_ <= 3 ) or $_[0]->throw_exception(
-        "'$add_meth' expects an object or hashref to link to, and an optional hashref of link data"
+        "'%1$s' expects an object or hashref to link to, and an optional hashref of link data"
       );
 
       $_[0]->throw_exception(
-        "The optional link data supplied to '$add_meth' is not a hashref (it was previously ignored)"
+        "The optional link data supplied to '%1$s' is not a hashref (it was previously ignored)"
       ) if $_[2] and ref $_[2] ne 'HASH';
 
       my( $self, $far_obj ) = @_;
@@ -107,44 +103,43 @@ EOW
 
       # the API needs is always expected to return the far object, possibly
       # creating it in the process
-      if( not defined blessed $far_obj ) {
+      if( not defined Scalar::Util::blessed( $far_obj ) ) {
 
         $guard = $self->result_source->schema->storage->txn_scope_guard;
 
         # reify the hash into an actual object
         $far_obj = $self->result_source
-                         ->related_source( $rel )
-                          ->related_source( $f_rel )
+                         ->related_source( q{%2$s} )
+                          ->related_source( q{%3$s} )
                            ->resultset
                             ->search_rs( undef, $rel_attrs )
                              ->find_or_create( $far_obj );
       }
 
       my $link = $self->new_related(
-        $rel,
+        q{%2$s},
         $_[2] || {},
       );
 
-      $link->set_from_related( $f_rel, $far_obj );
+      $link->set_from_related( q{%3$s}, $far_obj );
 
       $link->insert();
 
       $guard->commit if $guard;
 
       $far_obj;
-    };
+EOC
 
 
-    my $set_meth_name = join '::', $class, $set_meth;
-    *$set_meth_name = subname $set_meth_name, sub {
+    quote_sub "${class}::${set_meth}", sprintf( <<'EOC', $set_meth, $add_meth, $rel, $f_rel ), $qsub_attrs;
 
       my $self = shift;
 
       my $set_to = ( ref $_[0] eq 'ARRAY' )
         ? ( shift @_ )
         : do {
-          carp_unique(
-            "Calling '$set_meth' with a list of items to link to is deprecated, use an arrayref instead"
+          $carp_unique->(
+            "Calling '%1$s' with a list of items to link to is deprecated, use an arrayref instead"
           );
 
           # gobble up everything from @_ into a new arrayref
@@ -154,7 +149,7 @@ EOW
 
       # make sure folks are not invoking a bizarre mix of deprecated and curent syntax
       $self->throw_exception(
-        "'$set_meth' expects an arrayref of objects or hashrefs to link to, and an optional hashref of link data"
+        "'%1$s' expects an arrayref of objects or hashrefs to link to, and an optional hashref of link data"
       ) if (
         @_ > 1
           or
@@ -170,35 +165,33 @@ EOW
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
       $self->search_related(
-        $rel,
+        q{%3$s},
         ( $rel_attrs->{where}
-          ? ( $rel_attrs->{where}, { join => $f_rel } )
+          ? ( $rel_attrs->{where}, { join => q{%4$s} } )
           : ()
         )
       )->delete;
 
       # add in the set rel objects
-      $self->$add_meth(
+      $self->%2$s(
         $_,
         @_, # at this point @_ is either empty or contains a lone link-data hash
       ) for @$set_to;
 
       $guard->commit if $guard;
-    };
+EOC
 
 
-    my $remove_meth_name = join '::', $class, $remove_meth;
-    *$remove_meth_name = subname $remove_meth_name, sub {
+    quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel );
 
-      $_[0]->throw_exception("'$remove_meth' expects an object")
-        unless defined blessed $_[1];
+      $_[0]->throw_exception("'%1$s' expects an object")
+        unless defined Scalar::Util::blessed( $_[1] );
 
-      $_[0]->search_related_rs( $rel )
-            ->search_rs( $_[1]->ident_condition( $f_rel ), { join => $f_rel } )
+      $_[0]->search_related_rs( q{%2$s} )
+            ->search_rs( $_[1]->ident_condition( q{%3$s} ), { join => q{%3$s} } )
              ->delete;
-    };
+EOC
 
-  }
 }
 
 1;
