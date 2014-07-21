@@ -4,14 +4,21 @@ package # hide from PAUSE Indexer
 use strict;
 use warnings;
 
+use Scalar::Util 'blessed';
+use namespace::clean;
+
 sub mk_group_accessors {
     my ($class, $group, @cols) = @_;
 
     foreach my $col (@cols) {
-        my($accessor, $col) = ref $col ? @$col : (undef, $col);
+        my($accessor, $col) = ref $col eq 'ARRAY' ? @$col : (undef, $col);
 
         my($ro_meth, $wo_meth);
-        if( defined $accessor and ($accessor ne $col)) {
+        if (defined blessed $col and $col->isa('Class::DBI::Column')) {
+            $ro_meth = $col->accessor;
+            $wo_meth = $col->mutator;
+        }
+        elsif (defined $accessor and ($accessor ne $col)) {
             $ro_meth = $wo_meth = $accessor;
         }
         else {
