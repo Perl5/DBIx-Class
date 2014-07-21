@@ -1786,24 +1786,46 @@ sub _resolve_relationship_condition {
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
-  my $rel_info = $self->relationship_info($args->{rel_name});
-  #  or $self->throw_exception( "No such relationship '$args->{rel_name}'" );
-
   my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
+
+  my $rel_info = $self->relationship_info($args->{rel_name});
+  #  or $self->throw_exception( "No such $exception_rel_id" );
 
   $self->throw_exception("No practical way to resolve $exception_rel_id between two objects")
     if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
-
-
-  $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
-    if defined blessed $args->{foreign_resultobj} and ! $args->{foreign_resultobj}->isa($rel_info->{class});
-
-  $args->{condition} ||= $rel_info->{cond};
 
   $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
     if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
 
   $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
+
+  $args->{condition} ||= $rel_info->{cond};
+
+  if (exists $args->{self_resultobj}) {
+    if (defined blessed $args->{self_resultobj}) {
+#      $self->throw_exception( "Object '$args->{self_resultobj}' must be of class '@{[ $self->result_class ]}'" )
+#        unless $args->{self_resultobj}->isa($self->result_class);
+    }
+    else {
+      $args->{self_resultobj} = DBIx::Class::Core->new({
+        -result_source => $self,
+        %{ $args->{self_resultobj}||{} }
+      });
+    }
+  }
+
+  if (exists $args->{foreign_resultobj}) {
+    if (defined blessed $args->{foreign_resultobj}) {
+#      $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
+#        unless $args->{foreign_resultobj}->isa($rel_info->{class});
+    }
+    else {
+      $args->{foreign_resultobj} = DBIx::Class::Core->new({
+        -result_source => $self->related_source($args->{rel_name}),
+        %{ $args->{foreign_resultobj}||{} }
+      });
+    }
+  }
 
   my $ret;
 
@@ -1900,11 +1922,7 @@ sub _resolve_relationship_condition {
 
       for my $i (0..$#$obj_cols) {
 
-        # FIXME - temp shim
-        if (! blessed $obj) {
-          $ret->{join_free_condition}{"$plain_alias.$plain_cols->[$i]"} = $obj->{$obj_cols->[$i]};
-        }
-        elsif (
+        if (
           defined $args->{self_resultobj}
             and
           ! $obj->has_column_loaded($obj_cols->[$i])
