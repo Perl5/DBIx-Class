@@ -257,8 +257,12 @@ sub new {
           }
           $inflated->{$key} = $rel_obj;
           next;
-        } elsif ($class->has_column($key)
-            && $class->column_info($key)->{_inflate_info}) {
+        }
+        elsif (
+          $rsrc->has_column($key)
+            and
+          $rsrc->column_info($key)->{_inflate_info}
+        ) {
           $inflated->{$key} = $attrs->{$key};
           next;
         }
@@ -672,7 +676,7 @@ sub get_column {
   }
 
   $self->throw_exception( "No such column '${column}' on " . ref $self )
-    unless $self->has_column($column);
+    unless $self->result_source->has_column($column);
 
   return undef;
 }
@@ -800,7 +804,7 @@ sub make_column_dirty {
   my ($self, $column) = @_;
 
   $self->throw_exception( "No such column '${column}' on " . ref $self )
-    unless exists $self->{_column_data}{$column} || $self->has_column($column);
+    unless exists $self->{_column_data}{$column} || $self->result_source->has_column($column);
 
   # the entire clean/dirty code relies on exists, not on true/false
   return 1 if exists $self->{_dirty_columns}{$column};
@@ -842,9 +846,9 @@ See L<DBIx::Class::InflateColumn> for how to setup inflation.
 sub get_inflated_columns {
   my $self = shift;
 
-  my $loaded_colinfo = $self->columns_info ([
-    grep { $self->has_column_loaded($_) } $self->columns
-  ]);
+  my $loaded_colinfo = $self->result_source->columns_info;
+  $self->has_column_loaded($_) or delete $loaded_colinfo->{$_}
+    for keys %$loaded_colinfo;
 
   my %cols_to_return = ( %{$self->{_column_data}}, %$loaded_colinfo );
 
@@ -887,7 +891,7 @@ sub get_inflated_columns {
 
 sub _is_column_numeric {
    my ($self, $column) = @_;
-    my $colinfo = $self->column_info ($column);
+    my $colinfo = $self->result_source->column_info ($column);
 
     # cache for speed (the object may *not* have a resultsource instance)
     if (
@@ -1018,7 +1022,7 @@ sub _eq_column_values {
 # value tracked between column changes and commitment to storage
 sub _track_storage_value {
   my ($self, $col) = @_;
-  return defined first { $col eq $_ } ($self->primary_columns);
+  return defined first { $col eq $_ } ($self->result_source->primary_columns);
 }
 
 =head2 set_columns
@@ -1080,9 +1084,11 @@ See also L<DBIx::Class::Relationship::Base/set_from_related>.
 
 sub set_inflated_columns {
   my ( $self, $upd ) = @_;
+  my $rsrc;
   foreach my $key (keys %$upd) {
     if (ref $upd->{$key}) {
-      my $info = $self->relationship_info($key);
+      $rsrc ||= $self->result_source;
+      my $info = $rsrc->relationship_info($key);
       my $acc_type = $info->{attrs}{accessor} || '';
 
       if ($acc_type eq 'single') {
@@ -1095,7 +1101,11 @@ sub set_inflated_columns {
           "Recursive update is not supported over relationships of type '$acc_type' ($key)"
         );
       }
-      elsif ($self->has_column($key) && exists $self->column_info($key)->{_inflate_info}) {
+      elsif (
+        $rsrc->has_column($key)
+          and
+        exists $rsrc->column_info($key)->{_inflate_info}
+      ) {
         $self->set_inflated_column($key, delete $upd->{$key});
       }
     }
@@ -1135,7 +1145,9 @@ sub copy {
   $changes ||= {};
   my $col_data = { %{$self->{_column_data}} };
 
-  my $colinfo = $self->columns_info([ keys %$col_data ]);
+  my $rsrc = $self->result_source;
+
+  my $colinfo = $rsrc->columns_info([ keys %$col_data ]);
   foreach my $col (keys %$col_data) {
     delete $col_data->{$col}
       if $colinfo->{$col}{is_auto_increment};
@@ -1144,7 +1156,7 @@ sub copy {
   my $new = { _column_data => $col_data };
   bless $new, ref $self;
 
-  $new->result_source($self->result_source);
+  $new->result_source($rsrc);
   $new->set_inflated_columns($changes);
   $new->insert;
 
@@ -1153,12 +1165,12 @@ sub copy {
   # constraints
   my $rel_names_copied = {};
 
-  foreach my $rel_name ($self->result_source->relationships) {
-    my $rel_info = $self->result_source->relationship_info($rel_name);
+  foreach my $rel_name ($rsrc->relationships) {
+    my $rel_info = $rsrc->relationship_info($rel_name);
 
     next unless $rel_info->{attrs}{cascade_copy};
 
-    my $resolved = $self->result_source->_resolve_condition(
+    my $resolved = $rsrc->_resolve_condition(
       $rel_info->{cond}, $rel_name, $new, $rel_name
     );
 
@@ -1198,7 +1210,7 @@ extend this method to catch all data setting methods.
 sub store_column {
   my ($self, $column, $value) = @_;
   $self->throw_exception( "No such column '${column}' on " . ref $self )
-    unless exists $self->{_column_data}{$column} || $self->has_column($column);
+    unless exists $self->{_column_data}{$column} || $self->result_source->has_column($column);
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
   return $self->{_column_data}{$column} = $value;

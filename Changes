@@ -40,6 +40,8 @@ Revision history for DBIx::Class
           savepoints on DBD::SQLite < 1.39
 
     * Misc
+        - Ensure source metadata calls always take place on the result source
+          instance registered with the caller
         - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
           wide-char warnings if the trace happens to contain unicode
         - Remove ::ResultSource::resolve_condition - the underlying machinery

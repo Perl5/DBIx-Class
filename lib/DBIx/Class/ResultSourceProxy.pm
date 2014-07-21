@@ -81,10 +81,11 @@ for my $method_to_proxy (qw/
   relationship_info
   has_relationship
 /) {
-  quote_sub
-    __PACKAGE__."::$method_to_proxy"
-      => "shift->result_source_instance->$method_to_proxy (\@_);"
-  ;
+  quote_sub __PACKAGE__."::$method_to_proxy", sprintf( <<'EOC', $method_to_proxy );
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+    shift->result_source_instance->%s (@_);
+EOC
+
 }
 
 1;

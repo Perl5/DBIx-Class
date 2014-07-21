@@ -475,7 +475,9 @@ sub related_resultset {
 
   return $self->{related_resultsets}{$rel} = do {
 
-    my $rel_info = $self->relationship_info($rel)
+    my $rsrc = $self->result_source;
+
+    my $rel_info = $rsrc->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
 
     my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
@@ -484,8 +486,6 @@ sub related_resultset {
     $self->throw_exception( "Invalid query: @_" )
       if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
-
-    my $rsrc = $self->result_source;
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)

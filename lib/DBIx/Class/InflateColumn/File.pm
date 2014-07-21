@@ -43,7 +43,7 @@ sub register_column {
 sub _file_column_file {
     my ($self, $column, $filename) = @_;
 
-    my $column_info = $self->column_info($column);
+    my $column_info = $self->result_source->column_info($column);
 
     return unless $column_info->{is_file_column};
 
@@ -60,8 +60,10 @@ sub _file_column_file {
 sub delete {
     my ( $self, @rest ) = @_;
 
-    for ( $self->columns ) {
-        if ( $self->column_info($_)->{is_file_column} ) {
+    my $colinfos = $self->result_source->columns_info;
+
+    for ( keys %$colinfos ) {
+        if ( $colinfos->{$_}{is_file_column} ) {
             rmtree( [$self->_file_column_file($_)->dir], 0, 0 );
             last; # if we've deleted one, we've deleted them all
         }
@@ -75,9 +77,11 @@ sub insert {
 
     # cache our file columns so we can write them to the fs
     # -after- we have a PK
+    my $colinfos = $self->result_source->columns_info;
+
     my %file_column;
-    for ( $self->columns ) {
-        if ( $self->column_info($_)->{is_file_column} ) {
+    for ( keys %$colinfos ) {
+        if ( $colinfos->{$_}{is_file_column} ) {
             $file_column{$_} = $self->$_;
             $self->store_column($_ => $self->$_->{filename});
         }

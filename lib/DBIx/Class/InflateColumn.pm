@@ -111,7 +111,7 @@ sub _inflated_column {
     is_literal_value($value) #that would be a not-yet-reloaded literal update
   );
 
-  my $info = $self->column_info($col)
+  my $info = $self->result_source->column_info($col)
     or $self->throw_exception("No column info for $col");
 
   return $value unless exists $info->{_inflate_info};
@@ -133,7 +133,7 @@ sub _deflated_column {
     is_literal_value($value)
   );
 
-  my $info = $self->column_info($col) or
+  my $info = $self->result_source->column_info($col) or
     $self->throw_exception("No column info for $col");
 
   return $value unless exists $info->{_inflate_info};
@@ -160,7 +160,7 @@ sub get_inflated_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not an inflated column")
-    unless exists $self->column_info($col)->{_inflate_info};
+    unless exists $self->result_source->column_info($col)->{_inflate_info};
 
   # we take care of keeping things in sync
   return $self->{_inflated_column}{$col}

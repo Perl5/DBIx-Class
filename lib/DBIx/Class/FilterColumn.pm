@@ -34,7 +34,7 @@ sub _column_from_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->column_info($col)
+  my $info = $self->result_source->column_info($col)
     or $self->throw_exception("No column info for $col");
 
   return $value unless exists $info->{_filter_info};
@@ -49,7 +49,7 @@ sub _column_to_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->column_info($col) or
+  my $info = $self->result_source->column_info($col) or
     $self->throw_exception("No column info for $col");
 
   return $value unless exists $info->{_filter_info};
@@ -63,7 +63,7 @@ sub get_filtered_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not a filtered column")
-    unless exists $self->column_info($col)->{_filter_info};
+    unless exists $self->result_source->column_info($col)->{_filter_info};
 
   return $self->{_filtered_column}{$col}
     if exists $self->{_filtered_column}{$col};
@@ -140,12 +140,10 @@ sub set_filtered_column {
 sub update {
   my ($self, $data, @rest) = @_;
 
+  my $colinfos = $self->result_source->columns_info;
+
   foreach my $col (keys %{$data||{}}) {
-    if (
-      $self->has_column($col)
-        &&
-      exists $self->column_info($col)->{_filter_info}
-    ) {
+    if ( exists $colinfos->{$col}{_filter_info} ) {
       $self->set_filtered_column($col, delete $data->{$col});
 
       # FIXME update() reaches directly into the object-hash
@@ -160,14 +158,16 @@ sub update {
 
 sub new {
   my ($class, $data, @rest) = @_;
-  my $source = $data->{-result_source}
+
+  my $rsrc = $data->{-result_source}
     or $class->throw_exception('Sourceless rows are not supported with DBIx::Class::FilterColumn');
 
   my $obj = $class->next::method($data, @rest);
 
+  my $colinfos = $rsrc->columns_info;
+
   foreach my $col (keys %{$data||{}}) {
-    if ($obj->has_column($col) &&
-          exists $obj->column_info($col)->{_filter_info} ) {
+    if (exists $colinfos->{$col}{_filter_info} ) {
       $obj->set_filtered_column($col, $data->{$col});
     }
   }
