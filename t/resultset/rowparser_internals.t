@@ -5,6 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use B::Deparse;
+use DBIx::Class::_Util 'perlstring';
 
 # globally set for the rest of test
 # the rowparser maker does not order its hashes by default for the miniscule
@@ -758,7 +759,7 @@ sub is_same_src { SKIP: {
   skip "Not testing equality of source containing defined-or operator on this perl $]", 1
     if ($] < 5.010 and$expect =~ m!\Q//=!);
 
-  $expect =~ s/__NBC__/B::perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
+  $expect =~ s/__NBC__/perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
 
   $expect = "  { use strict; use warnings FATAL => 'all';\n$expect\n  }";
 

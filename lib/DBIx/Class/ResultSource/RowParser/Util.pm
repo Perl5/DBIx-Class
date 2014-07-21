@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 use List::Util 'first';
-use B 'perlstring';
+use DBIx::Class::_Util 'perlstring';
 
 use constant HAS_DOR => ( $] < 5.010 ? 0 : 1 );
 

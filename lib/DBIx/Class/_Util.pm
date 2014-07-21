@@ -60,6 +60,7 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
+  perlstring
   UNRESOLVABLE_CONDITION
 );
 
@@ -74,6 +75,8 @@ sub sigwarn_silencer ($) {
 
   return sub { &$orig_sig_warn unless $_[0] =~ $pattern };
 }
+
+sub perlstring ($) { q{"}. quotemeta( shift ). q{"} };
 
 sub hrefaddr ($) { sprintf '0x%x', &Scalar::Util::refaddr||0 }
 
