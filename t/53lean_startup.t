@@ -108,6 +108,9 @@ BEGIN {
     Class::Accessor::Grouped
     Class::C3::Componentised
     SQL::Abstract
+
+    Module::Runtime
+    File::Spec
   ));
 
   require DBICTest::Schema;

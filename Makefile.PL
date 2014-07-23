@@ -15,6 +15,40 @@ BEGIN {
   $Module::Install::AUTHOR = 0 if (grep { $ENV{"PERL5_${_}_IS_RUNNING"} } (qw/CPANM CPANPLUS CPAN/) );
 }
 
+##
+## TEMPORARY (and non-portable)
+## Get trial SQLA
+##
+BEGIN {
+  my $target_libdir = 'lib/DBIx/Class/_TempExtlib';
+
+  if ( ($Module::Install::AUTHOR or $ENV{TRAVIS}) and ! $ENV{MAKELEVEL} ) {
+
+    `rm -rf $target_libdir`;
+    `mkdir $target_libdir`;
+    for (
+      [ 'SQL-Abstract' => 'master' ],
+    ) {
+      my $tdir = "/tmp/dbictemplib/$_->[0]/";
+
+      `rm -rf $tdir`;
+
+      `GIT_SSH=maint/careless_ssh.bash git clone --bare --quiet --branch=$_->[1] --depth=1 git://git.shadowcat.co.uk/dbsrgits/$_->[0] $tdir`;
+      printf "\nIncluding %s git rev %s\n",
+        $_->[0],
+        scalar `GIT_DIR=$tdir git rev-parse $_->[1]`,
+      ;
+      `git archive --format=tar --remote=file://$tdir $_->[1] lib/ | tar --strip-components=1 -xC $target_libdir`;
+
+      #`rm -rf $tdir`;
+    }
+
+    unshift @INC, $target_libdir;
+
+    no_index directory => $target_libdir;
+  }
+}
+
 homepage 'http://www.dbix-class.org/';
 resources 'x_IRC'       => 'irc://irc.perl.org/#dbix-class';
 resources 'x_WebIRC'    => 'https://chat.mibbit.com/#dbix-class@irc.perl.org';
@@ -85,7 +119,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.24',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.78_02',  # TEMPORARY
+  'SQL::Abstract'            => '1.78',
   'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required
