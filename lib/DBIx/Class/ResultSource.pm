@@ -1712,9 +1712,6 @@ sub _resolve_condition {
     }
   }
 
-  $self->throw_exception('No practical way to resolve a relationship between two structures')
-    if $is_objlike[0] and $is_objlike[1];
-
   my $args = {
     condition => $cond,
 
@@ -1788,12 +1785,15 @@ sub _resolve_relationship_condition {
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
+  $self->throw_exception("Arguments 'self_alias' and 'foreign_alias' may not be identical")
+    if $args->{self_alias} eq $args->{foreign_alias};
+
   my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
 
-  my $rel_info = $self->relationship_info($args->{rel_name});
-  #  or $self->throw_exception( "No such $exception_rel_id" );
+  my $rel_info = $self->relationship_info($args->{rel_name})
+    or $self->throw_exception( "No such $exception_rel_id" );
 
-  $self->throw_exception("No practical way to resolve $exception_rel_id between two objects")
+  $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
     if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
 
   $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
@@ -1805,8 +1805,8 @@ sub _resolve_relationship_condition {
 
   if (exists $args->{self_resultobj}) {
     if (defined blessed $args->{self_resultobj}) {
-#      $self->throw_exception( "Object '$args->{self_resultobj}' must be of class '@{[ $self->result_class ]}'" )
-#        unless $args->{self_resultobj}->isa($self->result_class);
+      $self->throw_exception( "Object '$args->{self_resultobj}' must be of class '@{[ $self->result_class ]}'" )
+        unless $args->{self_resultobj}->isa($self->result_class);
     }
     else {
       $args->{self_resultobj} = DBIx::Class::Core->new({
@@ -1818,8 +1818,8 @@ sub _resolve_relationship_condition {
 
   if (exists $args->{foreign_resultobj}) {
     if (defined blessed $args->{foreign_resultobj}) {
-#      $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
-#        unless $args->{foreign_resultobj}->isa($rel_info->{class});
+      $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
+        unless $args->{foreign_resultobj}->isa($rel_info->{class});
     }
     else {
       $args->{foreign_resultobj} = DBIx::Class::Core->new({
