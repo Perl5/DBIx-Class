@@ -10,6 +10,7 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Try::Tiny;
 use List::Util 'first';
@@ -1773,8 +1774,9 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 #
 ## returns a hash
 # condition
-# join_free_condition (maybe undef)
-# inferred_values (maybe undef, always complete or empty)
+# identity_map
+# join_free_condition (maybe unset)
+# inferred_values (always either complete or unset)
 #
 sub _resolve_relationship_condition {
   my $self = shift;
@@ -1907,10 +1909,10 @@ sub _resolve_relationship_condition {
       push @l_cols, $lc;
     }
 
-    # construct the crosstable condition
-    $ret->{condition} = { map
-      {( "$args->{foreign_alias}.$f_cols[$_]" => { -ident => "$args->{self_alias}.$l_cols[$_]" } )}
-      (0..$#f_cols)
+    # construct the crosstable condition and the identity map
+    for  (0..$#f_cols) {
+      $ret->{condition}{"$args->{foreign_alias}.$f_cols[$_]"} = { -ident => "$args->{self_alias}.$l_cols[$_]" };
+      $ret->{identity_map}{$l_cols[$_]} = $f_cols[$_];
     };
 
     if (exists $args->{self_resultobj} or exists $args->{foreign_resultobj}) {
@@ -2024,6 +2026,44 @@ sub _resolve_relationship_condition {
 
     $ret->{inferred_values}{$_} = $args->{infer_values_based_on}{$_}
       for keys %{$args->{infer_values_based_on}};
+  }
+
+  # add the identities based on the main condition
+  # (may already be there, since easy to calculate on the fly in the HASH case)
+  if ( ! $ret->{identity_map} ) {
+
+    my $col_eqs = $self->schema->storage->_extract_fixed_condition_columns($ret->{condition});
+
+    my $colinfos;
+    for my $lhs (keys %$col_eqs) {
+
+      next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
+      my ($rhs) = @{ is_literal_value( $ret->{condition}{$lhs} ) || next };
+
+      # there is no way to know who is right and who is left
+      # therefore the ugly scan below
+      $colinfos ||= $self->schema->storage->_resolve_column_info([
+        { -alias => $args->{self_alias}, -rsrc => $self },
+        { -alias => $args->{foreign_alias}, -rsrc => $self->related_source($args->{rel_name}) },
+      ]);
+
+      my ($l_col, $l_alias, $r_col, $r_alias) = map {
+        ( reverse $_ =~ / ^ (?: ([^\.]+) $ | ([^\.]+) \. (.+) ) /x )[0,1]
+      } ($lhs, $rhs);
+
+      if (
+        $colinfos->{$l_col}
+          and
+        $colinfos->{$r_col}
+          and
+        $colinfos->{$l_col}{-source_alias} ne $colinfos->{$r_col}{-source_alias}
+      ) {
+        ( $colinfos->{$l_col}{-source_alias} eq $args->{self_alias} )
+          ? ( $ret->{identity_map}{$l_col} = $r_col )
+          : ( $ret->{identity_map}{$r_col} = $l_col )
+        ;
+      }
+    }
   }
 
   $ret
