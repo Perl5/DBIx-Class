@@ -184,7 +184,7 @@ While every coderef-based condition must return a valid C<ON> clause, it may
 elect to additionally return a simplified join-free condition hashref when
 invoked as C<< $result->relationship >>, as opposed to
 C<< $rs->related_resultset('relationship') >>. In this case C<$result> is
-passed to the coderef as C<< $args->{self_resultobj} >>, so a user can do the
+passed to the coderef as C<< $args->{self_result_object} >>, so a user can do the
 following:
 
   sub {
@@ -195,8 +195,8 @@ following:
         "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
-      $args->{self_resultobj} && {
-        "$args->{foreign_alias}.artist" => $args->{self_resultobj}->artistid,
+      $args->{self_result_object} && {
+        "$args->{foreign_alias}.artist" => $args->{self_result_object}->artistid,
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
     );
@@ -233,20 +233,20 @@ clause, the C<$args> hashref passed to the subroutine contains some extra
 metadata. Currently the supplied coderef is executed as:
 
   $relationship_info->{cond}->({
-    self_resultsource => The resultsource instance on which rel_name is registered
-    rel_name          => The relationship name (does *NOT* always match foreign_alias)
+    self_resultsource     => The resultsource instance on which rel_name is registered
+    rel_name              => The relationship name (does *NOT* always match foreign_alias)
 
-    self_alias        => The alias of the invoking resultset
-    foreign_alias     => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
+    self_alias            => The alias of the invoking resultset
+    foreign_alias         => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
 
     # only one of these (or none at all) will ever be supplied to aid in the
     # construction of a join-free condition
-    self_resultobj    => The invocant object itself in case of a $resultobj->$rel_name() call
-    foreign_resultobj => The related object in case of $resultobj->set_from_related($rel_name, $foreign_resultobj)
+    self_result_object    => The invocant object itself in case of a $result_object->$rel_name( ... ) call
+    foreign_result_object => The related object in case of $result_object->set_from_related( $rel_name, $foreign_result_object )
 
     # deprecated inconsistent names, will be forever available for legacy code
-    self_rowobj       => Old deprecated slot for self_resultobj
-    foreign_relname   => Old deprecated slot for rel_name
+    self_rowobj           => Old deprecated slot for self_result_object
+    foreign_relname       => Old deprecated slot for rel_name
   });
 
 =head3 attributes
@@ -636,7 +636,7 @@ sub new_related {
   return $self->search_related($rel)->new_result( $self->result_source->_resolve_relationship_condition (
     infer_values_based_on => $data,
     rel_name => $rel,
-    self_resultobj => $self,
+    self_result_object => $self,
     foreign_alias => $rel,
     self_alias => 'me',
   )->{inferred_values} );
@@ -784,7 +784,7 @@ sub set_from_related {
   $self->set_columns( $self->result_source->_resolve_relationship_condition (
     infer_values_based_on => {},
     rel_name => $rel,
-    foreign_resultobj => $f_obj,
+    foreign_result_object => $f_obj,
     foreign_alias => $rel,
     self_alias => 'me',
   )->{inferred_values} );

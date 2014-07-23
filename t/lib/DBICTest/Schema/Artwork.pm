@@ -36,8 +36,8 @@ __PACKAGE__->has_many('artwork_to_artist_test_m2m', 'DBICTest::Schema::Artwork_t
     return (
       { "$args->{foreign_alias}.artwork_cd_id" => { -ident => "$args->{self_alias}.cd_id" },
       },
-      $args->{self_resultobj} && {
-        "$args->{foreign_alias}.artwork_cd_id" => $args->{self_resultobj}->cd_id,
+      $args->{self_result_object} && {
+        "$args->{foreign_alias}.artwork_cd_id" => $args->{self_result_object}->cd_id,
       }
     );
   }

@@ -1717,8 +1717,8 @@ sub _resolve_condition {
 
     # where-is-waldo block guesses relname, then further down we override it if available
     (
-      $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_resultobj    => $res_args[1] )
-    : $is_objlike[0] ? ( rel_name => $res_args[1], self_alias => 'me',         foreign_alias => $res_args[1], foreign_resultobj => $res_args[0] )
+      $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_result_object    => $res_args[1] )
+    : $is_objlike[0] ? ( rel_name => $res_args[1], self_alias => 'me',         foreign_alias => $res_args[1], foreign_result_object => $res_args[0] )
     :                  ( rel_name => $res_args[0], self_alias => $res_args[1], foreign_alias => $res_args[0]                                    )
     ),
 
@@ -1762,9 +1762,9 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 ## self-explanatory API, modeled on the custom cond coderef:
 # rel_name
 # foreign_alias
-# foreign_resultobj
+# foreign_result_object
 # self_alias
-# self_resultobj
+# self_result_object
 # require_join_free_condition
 # infer_values_based_on (optional, mandatory hashref argument)
 # condition (optional, derived from $self->rel_info(rel_name))
@@ -1794,7 +1794,7 @@ sub _resolve_relationship_condition {
     or $self->throw_exception( "No such $exception_rel_id" );
 
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
-    if defined $args->{self_resultobj} and defined $args->{foreign_resultobj};
+    if defined $args->{self_result_object} and defined $args->{foreign_result_object};
 
   $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
     if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
@@ -1803,28 +1803,28 @@ sub _resolve_relationship_condition {
 
   $args->{condition} ||= $rel_info->{cond};
 
-  if (exists $args->{self_resultobj}) {
-    if (defined blessed $args->{self_resultobj}) {
-      $self->throw_exception( "Object '$args->{self_resultobj}' must be of class '@{[ $self->result_class ]}'" )
-        unless $args->{self_resultobj}->isa($self->result_class);
+  if (exists $args->{self_result_object}) {
+    if (defined blessed $args->{self_result_object}) {
+      $self->throw_exception( "Object '$args->{self_result_object}' must be of class '@{[ $self->result_class ]}'" )
+        unless $args->{self_result_object}->isa($self->result_class);
     }
     else {
-      $args->{self_resultobj} = DBIx::Class::Core->new({
+      $args->{self_result_object} = DBIx::Class::Core->new({
         -result_source => $self,
-        %{ $args->{self_resultobj}||{} }
+        %{ $args->{self_result_object}||{} }
       });
     }
   }
 
-  if (exists $args->{foreign_resultobj}) {
-    if (defined blessed $args->{foreign_resultobj}) {
-      $self->throw_exception( "Object '$args->{foreign_resultobj}' must be of class '$rel_info->{class}'" )
-        unless $args->{foreign_resultobj}->isa($rel_info->{class});
+  if (exists $args->{foreign_result_object}) {
+    if (defined blessed $args->{foreign_result_object}) {
+      $self->throw_exception( "Object '$args->{foreign_result_object}' must be of class '$rel_info->{class}'" )
+        unless $args->{foreign_result_object}->isa($rel_info->{class});
     }
     else {
-      $args->{foreign_resultobj} = DBIx::Class::Core->new({
+      $args->{foreign_result_object} = DBIx::Class::Core->new({
         -result_source => $self->related_source($args->{rel_name}),
-        %{ $args->{foreign_resultobj}||{} }
+        %{ $args->{foreign_result_object}||{} }
       });
     }
   }
@@ -1840,15 +1840,15 @@ sub _resolve_relationship_condition {
       foreign_alias => $args->{foreign_alias},
       ( map
         { (exists $args->{$_}) ? ( $_ => $args->{$_} ) : () }
-        qw( self_resultobj foreign_resultobj )
+        qw( self_result_object foreign_result_object )
       ),
     };
 
     # legacy - never remove these!!!
     $cref_args->{foreign_relname} = $cref_args->{rel_name};
 
-    $cref_args->{self_rowobj} = $cref_args->{self_resultobj}
-      if exists $cref_args->{self_resultobj};
+    $cref_args->{self_rowobj} = $cref_args->{self_result_object}
+      if exists $cref_args->{self_result_object};
 
     ($ret->{condition}, $ret->{join_free_condition}, my @extra) = $args->{condition}->($cref_args);
 
@@ -1863,11 +1863,11 @@ sub _resolve_relationship_condition {
       ) unless ref $jfc eq 'HASH';
 
       my ($joinfree_alias, $joinfree_source);
-      if (defined $args->{self_resultobj}) {
+      if (defined $args->{self_result_object}) {
         $joinfree_alias = $args->{foreign_alias};
         $joinfree_source = $self->related_source($args->{rel_name});
       }
-      elsif (defined $args->{foreign_resultobj}) {
+      elsif (defined $args->{foreign_result_object}) {
         $joinfree_alias = $args->{self_alias};
         $joinfree_source = $self;
       }
@@ -1915,17 +1915,17 @@ sub _resolve_relationship_condition {
       $ret->{identity_map}{$l_cols[$_]} = $f_cols[$_];
     };
 
-    if (exists $args->{self_resultobj} or exists $args->{foreign_resultobj}) {
+    if (exists $args->{self_result_object} or exists $args->{foreign_result_object}) {
 
-      my ($obj, $obj_alias, $plain_alias, $obj_cols, $plain_cols) = defined $args->{self_resultobj}
-        ? ( @{$args}{qw( self_resultobj self_alias foreign_alias )}, \@l_cols, \@f_cols )
-        : ( @{$args}{qw( foreign_resultobj foreign_alias self_alias )}, \@f_cols, \@l_cols )
+      my ($obj, $obj_alias, $plain_alias, $obj_cols, $plain_cols) = defined $args->{self_result_object}
+        ? ( @{$args}{qw( self_result_object self_alias foreign_alias )}, \@l_cols, \@f_cols )
+        : ( @{$args}{qw( foreign_result_object foreign_alias self_alias )}, \@f_cols, \@l_cols )
       ;
 
       for my $i (0..$#$obj_cols) {
 
         if (
-          defined $args->{self_resultobj}
+          defined $args->{self_result_object}
             and
           ! $obj->has_column_loaded($obj_cols->[$i])
         ) {

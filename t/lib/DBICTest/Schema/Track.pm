@@ -66,12 +66,12 @@ sub {
       "$args->{foreign_alias}.cdid" => { -ident => "$args->{self_alias}.cd" },
     },
 
-    ( $args->{self_resultobj} ? {
-     "$args->{foreign_alias}.cdid" => $args->{self_resultobj}->cd
+    ( $args->{self_result_object} ? {
+     "$args->{foreign_alias}.cdid" => $args->{self_result_object}->cd
     } : () ),
 
-    ( $args->{foreign_resultobj} ? {
-     "$args->{self_alias}.cd" => $args->{foreign_resultobj}->cdid
+    ( $args->{foreign_result_object} ? {
+     "$args->{self_alias}.cd" => $args->{foreign_result_object}->cdid
     } : () ),
   );
 }
@@ -108,9 +108,9 @@ __PACKAGE__->has_many (
       { "$args->{foreign_alias}.cd"       => { -ident => "$args->{self_alias}.cd" },
         "$args->{foreign_alias}.position" => { '>' => { -ident => "$args->{self_alias}.position" } },
       },
-      $args->{self_resultobj} && {
-        "$args->{foreign_alias}.cd"       => $args->{self_resultobj}->get_column('cd'),
-        "$args->{foreign_alias}.position" => { '>' => $args->{self_resultobj}->pos },
+      $args->{self_result_object} && {
+        "$args->{foreign_alias}.cd"       => $args->{self_result_object}->get_column('cd'),
+        "$args->{foreign_alias}.position" => { '>' => $args->{self_result_object}->pos },
       }
     )
   }

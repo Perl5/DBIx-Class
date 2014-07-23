@@ -101,22 +101,22 @@ sub check_customcond_args ($) {
 
   my $rowobj_cnt = 0;
 
-  if (defined $args->{self_resultobj} or defined $args->{self_rowobj} ) {
+  if (defined $args->{self_result_object} or defined $args->{self_rowobj} ) {
     $rowobj_cnt++;
-    for (qw(self_resultobj self_rowobj)) {
+    for (qw(self_result_object self_rowobj)) {
       confess "Custom condition argument '$_' must be a result instance"
         unless defined blessed $args->{$_} and $args->{$_}->isa('DBIx::Class::Row');
     }
 
-    confess "Current and legacy self_resultobj arguments do not match"
-      if refaddr($args->{self_resultobj}) != refaddr($args->{self_rowobj});
+    confess "Current and legacy self_result_object arguments do not match"
+      if refaddr($args->{self_result_object}) != refaddr($args->{self_rowobj});
   }
 
-  if (defined $args->{foreign_resultobj}) {
+  if (defined $args->{foreign_result_object}) {
     $rowobj_cnt++;
 
-    confess "Custom condition argument 'foreign_resultobj' must be a result instance"
-      unless defined blessed $args->{foreign_resultobj} and $args->{foreign_resultobj}->isa('DBIx::Class::Row');
+    confess "Custom condition argument 'foreign_result_object' must be a result instance"
+      unless defined blessed $args->{foreign_result_object} and $args->{foreign_result_object}->isa('DBIx::Class::Row');
   }
 
   confess "Result objects supplied on both ends of a relationship"
