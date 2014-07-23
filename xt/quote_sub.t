@@ -27,17 +27,17 @@ my $no_nothing_q = do {
   no strict;
   no warnings;
   quote_sub <<'EOC';
+    BEGIN { warn "-->${^WARNING_BITS}<--\n" };
     my $n = "Test::Warn::warnings_exist";
     warn "-->@{[ *{$n}{CODE} ]}<--\n";
-    warn "-->@{[ ${^WARNING_BITS} || '' ]}<--\n";
 EOC
 };
 
 my $we_cref = Test::Warn->can('warnings_exist');
 
 warnings_exist { $no_nothing_q->() } [
+  qr/^\-\-\>\0+\<\-\-$/m,
   qr/^\Q-->$we_cref<--\E$/m,
-  qr/^\-\-\>\0*\<\-\-$/m, # some perls have a string of nulls, some just an empty string
 ], 'Expected warnings, strict did not leak inside the qsub'
   or do {
     require B::Deparse;
