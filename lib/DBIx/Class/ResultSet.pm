@@ -4072,7 +4072,7 @@ syntax as outlined above.
 Shortcut to request a particular set of columns to be retrieved. Each
 column spec may be a string (a table column name), or a hash (in which
 case the key is the C<as> value, and the value is used as the C<select>
-expression). Adds C<me.> onto the start of any column without a C<.> in
+expression). Adds the L</current_source_alias> onto the start of any column without a C<.> in
 it and sets C<select> from that, then auto-populates C<as> from
 C<select> as normal. (You may also use the C<cols> attribute, as in
 earlier versions of DBIC, but this is deprecated)
