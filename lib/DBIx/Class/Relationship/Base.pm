@@ -181,11 +181,14 @@ L<SQL::Abstract> and the resulting SQL will be used verbatim as the C<ON>
 clause of the C<JOIN> statement associated with this relationship.
 
 While every coderef-based condition must return a valid C<ON> clause, it may
-elect to additionally return a simplified join-free condition hashref when
-invoked as C<< $result->relationship >>, as opposed to
+elect to additionally return a simplified B<optional> join-free condition
+hashref when invoked as C<< $result->$relationship >>, as opposed to
 C<< $rs->related_resultset('relationship') >>. In this case C<$result> is
-passed to the coderef as C<< $args->{self_result_object} >>, so a user can do the
-following:
+passed to the coderef as C<< $args->{self_result_object} >>. Alternatively
+the user-space could be calling C<< $result->set_from_related( $rel =>
+$foreign_related_object ) >>, in which case C<$foreign_related_object> will
+be passed to the coderef as C<< $args->{foreign_result_object >>. In other
+words if you define your condition coderef as:
 
   sub {
     my $args = shift;
@@ -195,14 +198,17 @@ following:
         "$args->{foreign_alias}.artist" => { -ident => "$args->{self_alias}.artistid" },
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
-      $args->{self_result_object} && {
+      ! $args->{self_result_object} ? () : {
         "$args->{foreign_alias}.artist" => $args->{self_result_object}->artistid,
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
+      ! $args->{foreign_result_object} ? () : {
+        "$args->{self_alias}.artistid" => $args->{foreign_result_object}->artist,
+      }
     );
   }
 
-Now this code:
+Then this code:
 
     my $artist = $schema->resultset("Artist")->find({ id => 4 });
     $artist->cds_80s->all;
@@ -218,6 +224,14 @@ Can skip a C<JOIN> altogether and instead produce:
 With the bind values:
 
     '4', '1990', '1979'
+
+While this code:
+
+    my $cd = $schema->resultset("CD")->search({ artist => 1 }, { rows => 1 })->single;
+    my $artist = $schema->resultset("Artist")->new({});
+    $artist->set_from_related('cds_80s');
+
+Will properly set the C<< $artist->artistid >> field of this new object to C<1>
 
 Note that in order to be able to use
 L<< $result->create_related|DBIx::Class::Relationship::Base/create_related >>,

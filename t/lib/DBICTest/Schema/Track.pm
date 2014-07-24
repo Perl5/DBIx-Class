@@ -66,13 +66,13 @@ sub {
       "$args->{foreign_alias}.cdid" => { -ident => "$args->{self_alias}.cd" },
     },
 
-    ( $args->{self_result_object} ? {
+    ! $args->{self_result_object} ? () : {
      "$args->{foreign_alias}.cdid" => $args->{self_result_object}->cd
-    } : () ),
+    },
 
-    ( $args->{foreign_result_object} ? {
+    ! $args->{foreign_result_object} ? () : {
      "$args->{self_alias}.cd" => $args->{foreign_result_object}->cdid
-    } : () ),
+    },
   );
 }
 );
