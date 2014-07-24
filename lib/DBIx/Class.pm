@@ -412,6 +412,8 @@ jawnsy: Jonathan Yu <jawnsy@cpan.org>
 
 jasonmay: Jason May <jason.a.may@gmail.com>
 
+jegade: Jens Gassmann <jens.gassmann@atomix.de>
+
 jesper: Jesper Krogh
 
 jgoulah: John Goulah <jgoulah@cpan.org>

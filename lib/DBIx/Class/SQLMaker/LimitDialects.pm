@@ -61,7 +61,7 @@ sub _LimitOffset {
 
 =head2 LimitXY
 
- SELECT ... LIMIT $offset $limit
+ SELECT ... LIMIT $offset, $limit
 
 Supported by B<MySQL> and any L<SQL::Statement> based DBD
 
