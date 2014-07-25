@@ -4360,8 +4360,10 @@ For a more in-depth discussion, see L</PREFETCHING>.
 
 =back
 
-This attribute is a shorthand for specifying a L</join> spec, adding all
-columns from the joined related sources as L</+columns> and setting
+While the L<join> attribute will join a table without including the tables 
+columns in the select, prefetch will add the columns to the select spec at 
+the same time. This attribute is a shorthand for specifying a L</join> spec, 
+adding all columns from the joined related sources as L</+columns> and setting
 L</collapse> to a true value. For example, the following two queries are
 equivalent:
 
