@@ -182,13 +182,31 @@ clause of the C<JOIN> statement associated with this relationship.
 
 While every coderef-based condition must return a valid C<ON> clause, it may
 elect to additionally return a simplified B<optional> join-free condition
-hashref when invoked as C<< $result->$relationship >>, as opposed to
-C<< $rs->related_resultset('relationship') >>. In this case C<$result> is
-passed to the coderef as C<< $args->{self_result_object} >>. Alternatively
-the user-space could be calling C<< $result->set_from_related( $rel =>
-$foreign_related_object ) >>, in which case C<$foreign_related_object> will
-be passed to the coderef as C<< $args->{foreign_result_object >>. In other
-words if you define your condition coderef as:
+consisting of a hashref with B<all keys being fully qualified names of columns
+declared on the corresponding result source>. This boils down to two scenarios:
+
+=over
+
+=item *
+
+When relationship resolution is invoked after C<< $result->$rel_name >>, as
+opposed to C<< $rs->related_resultset($rel_name) >>, the C<$result> object
+is passed to the coderef as C<< $args->{self_result_object} >>.
+
+=item *
+
+Alternatively when the user-space invokes resolution via
+C<< $result->set_from_related( $rel_name => $foreign_values_or_object ) >>, the
+corresponding data is passed to the coderef as C<< $args->{foreign_values} >>,
+B<always> in the form of a hashref. If a foreign result object is supplied
+(which is valid usage of L</set_from_related>), its values will be extracted
+into hashref form by calling L<get_columns|DBIx::Class::Row/get_columns>.
+
+=back
+
+Note that the above scenarios are mutually exclusive, that is you will be supplied
+none or only one of C<self_result_object> and C<foreign_values>. In other words if
+you define your condition coderef as:
 
   sub {
     my $args = shift;
@@ -202,8 +220,8 @@ words if you define your condition coderef as:
         "$args->{foreign_alias}.artist" => $args->{self_result_object}->artistid,
         "$args->{foreign_alias}.year"   => { '>', "1979", '<', "1990" },
       },
-      ! $args->{foreign_result_object} ? () : {
-        "$args->{self_alias}.artistid" => $args->{foreign_result_object}->artist,
+      ! $args->{foreign_values} ? () : {
+        "$args->{self_alias}.artistid" => $args->{foreign_values}{artist},
       }
     );
   }
@@ -233,34 +251,38 @@ While this code:
 
 Will properly set the C<< $artist->artistid >> field of this new object to C<1>
 
-Note that in order to be able to use
-L<< $result->create_related|DBIx::Class::Relationship::Base/create_related >>,
-the coderef must not only return as its second such a "simple" condition
-hashref which does not depend on joins being available, but the hashref must
-contain only plain values/deflatable objects, such that the result can be
-passed directly to L<DBIx::Class::Relationship::Base/set_from_related>. For
-instance the C<year> constraint in the above example prevents the relationship
-from being used to create related objects (an exception will be thrown).
+Note that in order to be able to use L</set_from_related> (and by extension
+L<< $result->create_related|DBIx::Class::Relationship::Base/create_related >>),
+the returned join free condition B<must> contain only plain values/deflatable
+objects. For instance the C<year> constraint in the above example prevents
+the relationship from being used to create related objects using
+C<< $artst->create_related( cds_80s => { title => 'blah' } ) >> (an
+exception will be thrown).
 
 In order to allow the user to go truly crazy when generating a custom C<ON>
 clause, the C<$args> hashref passed to the subroutine contains some extra
 metadata. Currently the supplied coderef is executed as:
 
   $relationship_info->{cond}->({
-    self_resultsource     => The resultsource instance on which rel_name is registered
-    rel_name              => The relationship name (does *NOT* always match foreign_alias)
+    self_resultsource   => The resultsource instance on which rel_name is registered
+    rel_name            => The relationship name (does *NOT* always match foreign_alias)
 
-    self_alias            => The alias of the invoking resultset
-    foreign_alias         => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
+    self_alias          => The alias of the invoking resultset
+    foreign_alias       => The alias of the to-be-joined resultset (does *NOT* always match rel_name)
 
     # only one of these (or none at all) will ever be supplied to aid in the
     # construction of a join-free condition
-    self_result_object    => The invocant object itself in case of a $result_object->$rel_name( ... ) call
-    foreign_result_object => The related object in case of $result_object->set_from_related( $rel_name, $foreign_result_object )
+
+    self_result_object  => The invocant *object* itself in case of a call like
+                           $result_object->$rel_name( ... )
+
+    foreign_values      => A *hashref* of related data: may be passed in directly or
+                           derived via ->get_columns() from a related object in case of
+                           $result_object->set_from_related( $rel_name, $foreign_result_object )
 
     # deprecated inconsistent names, will be forever available for legacy code
-    self_rowobj           => Old deprecated slot for self_result_object
-    foreign_relname       => Old deprecated slot for rel_name
+    self_rowobj         => Old deprecated slot for self_result_object
+    foreign_relname     => Old deprecated slot for rel_name
   });
 
 =head3 attributes
@@ -798,7 +820,7 @@ sub set_from_related {
   $self->set_columns( $self->result_source->_resolve_relationship_condition (
     infer_values_based_on => {},
     rel_name => $rel,
-    foreign_result_object => $f_obj,
+    foreign_values => $f_obj,
     foreign_alias => $rel,
     self_alias => 'me',
   )->{inferred_values} );

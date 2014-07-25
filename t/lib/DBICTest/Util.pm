@@ -99,10 +99,10 @@ sub check_customcond_args ($) {
   confess "Passed resultsource has no record of the supplied rel_name - likely wrong \$rsrc"
     unless ref $args->{self_resultsource}->relationship_info($args->{rel_name});
 
-  my $rowobj_cnt = 0;
+  my $struct_cnt = 0;
 
   if (defined $args->{self_result_object} or defined $args->{self_rowobj} ) {
-    $rowobj_cnt++;
+    $struct_cnt++;
     for (qw(self_result_object self_rowobj)) {
       confess "Custom condition argument '$_' must be a result instance"
         unless defined blessed $args->{$_} and $args->{$_}->isa('DBIx::Class::Row');
@@ -112,15 +112,15 @@ sub check_customcond_args ($) {
       if refaddr($args->{self_result_object}) != refaddr($args->{self_rowobj});
   }
 
-  if (defined $args->{foreign_result_object}) {
-    $rowobj_cnt++;
+  if (defined $args->{foreign_values}) {
+    $struct_cnt++;
 
-    confess "Custom condition argument 'foreign_result_object' must be a result instance"
-      unless defined blessed $args->{foreign_result_object} and $args->{foreign_result_object}->isa('DBIx::Class::Row');
+    confess "Custom condition argument 'foreign_values' must be a hash reference"
+      unless ref $args->{foreign_values} eq 'HASH';
   }
 
-  confess "Result objects supplied on both ends of a relationship"
-    if $rowobj_cnt == 2;
+  confess "Data structures supplied on both ends of a relationship"
+    if $struct_cnt == 2;
 
   $args;
 }

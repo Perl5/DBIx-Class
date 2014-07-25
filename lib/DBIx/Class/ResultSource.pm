@@ -1722,9 +1722,9 @@ sub _resolve_condition {
 
     # where-is-waldo block guesses relname, then further down we override it if available
     (
-      $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_result_object    => $res_args[1] )
-    : $is_objlike[0] ? ( rel_name => $res_args[1], self_alias => 'me',         foreign_alias => $res_args[1], foreign_result_object => $res_args[0] )
-    :                  ( rel_name => $res_args[0], self_alias => $res_args[1], foreign_alias => $res_args[0]                                    )
+      $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_result_object  => $res_args[1] )
+    : $is_objlike[0] ? ( rel_name => $res_args[1], self_alias => 'me',         foreign_alias => $res_args[1], foreign_values      => $res_args[0] )
+    :                  ( rel_name => $res_args[0], self_alias => $res_args[1], foreign_alias => $res_args[0]                                      )
     ),
 
     ( $rel_name ? ( rel_name => $rel_name ) : () ),
@@ -1767,11 +1767,11 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 ## self-explanatory API, modeled on the custom cond coderef:
 # rel_name
 # foreign_alias
-# foreign_result_object
+# foreign_values
 # self_alias
 # self_result_object
 # require_join_free_condition
-# infer_values_based_on (optional, mandatory hashref argument)
+# infer_values_based_on (either not supplied or a hashref, implies require_join_free_condition)
 # condition (optional, derived from $self->rel_info(rel_name))
 #
 ## returns a hash
@@ -1799,7 +1799,7 @@ sub _resolve_relationship_condition {
     or $self->throw_exception( "No such $exception_rel_id" );
 
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
-    if defined $args->{self_result_object} and defined $args->{foreign_result_object};
+    if exists $args->{self_result_object} and exists $args->{foreign_values};
 
   $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
     if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
@@ -1808,29 +1808,31 @@ sub _resolve_relationship_condition {
 
   $args->{condition} ||= $rel_info->{cond};
 
+  my $rel_rsrc = $self->related_source($args->{rel_name});
+
   if (exists $args->{self_result_object}) {
-    if (defined blessed $args->{self_result_object}) {
-      $self->throw_exception( "Object '$args->{self_result_object}' must be of class '@{[ $self->result_class ]}'" )
-        unless $args->{self_result_object}->isa($self->result_class);
-    }
-    else {
-      $args->{self_result_object} = DBIx::Class::Core->new({
-        -result_source => $self,
-        %{ $args->{self_result_object}||{} }
-      });
-    }
+    $self->throw_exception( "Argument 'self_result_object' must be an object of class '@{[ $self->result_class ]}'" )
+      unless defined blessed $args->{self_result_object};
+
+    $self->throw_exception( "Object '$args->{self_result_object}' must be of class '@{[ $self->result_class ]}'" )
+      unless $args->{self_result_object}->isa($self->result_class);
   }
 
-  if (exists $args->{foreign_result_object}) {
-    if (defined blessed $args->{foreign_result_object}) {
-      $self->throw_exception( "Object '$args->{foreign_result_object}' must be of class '$rel_info->{class}'" )
-        unless $args->{foreign_result_object}->isa($rel_info->{class});
+  if (exists $args->{foreign_values}) {
+    if (defined blessed $args->{foreign_values}) {
+      $self->throw_exception( "Object supplied as 'foreign_values' ($args->{foreign_values}) must be of class '$rel_info->{class}'" )
+        unless $args->{foreign_values}->isa($rel_info->{class});
+
+      $args->{foreign_values} = { $args->{foreign_values}->get_columns };
+    }
+    elsif (! defined $args->{foreign_values} or ref $args->{foreign_values} eq 'HASH') {
+      my $ci = $rel_rsrc->columns_info;
+      ! exists $ci->{$_} and $self->throw_exception(
+        "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'"
+      ) for keys %{ $args->{foreign_values} ||= {} };
     }
     else {
-      $args->{foreign_result_object} = DBIx::Class::Core->new({
-        -result_source => $self->related_source($args->{rel_name}),
-        %{ $args->{foreign_result_object}||{} }
-      });
+      $self->throw_exception( "Argument 'foreign_values' must be either an object inheriting from '$rel_info->{class}' or a hash reference or undef" );
     }
   }
 
@@ -1845,7 +1847,7 @@ sub _resolve_relationship_condition {
       foreign_alias => $args->{foreign_alias},
       ( map
         { (exists $args->{$_}) ? ( $_ => $args->{$_} ) : () }
-        qw( self_result_object foreign_result_object )
+        qw( self_result_object foreign_values )
       ),
     };
 
@@ -1870,9 +1872,9 @@ sub _resolve_relationship_condition {
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_result_object}) {
         $joinfree_alias = $args->{foreign_alias};
-        $joinfree_source = $self->related_source($args->{rel_name});
+        $joinfree_source = $rel_rsrc;
       }
-      elsif (defined $args->{foreign_result_object}) {
+      elsif (defined $args->{foreign_values}) {
         $joinfree_alias = $args->{self_alias};
         $joinfree_source = $self;
       }
@@ -1920,38 +1922,31 @@ sub _resolve_relationship_condition {
       $ret->{identity_map}{$l_cols[$_]} = $f_cols[$_];
     };
 
-    if (exists $args->{self_result_object} or exists $args->{foreign_result_object}) {
+    if ($args->{foreign_values}) {
+      $ret->{join_free_condition}{"$args->{self_alias}.$l_cols[$_]"} = $args->{foreign_values}{$f_cols[$_]}
+        for 0..$#f_cols;
+    }
+    elsif (defined $args->{self_result_object}) {
 
-      my ($obj, $obj_alias, $plain_alias, $obj_cols, $plain_cols) = defined $args->{self_result_object}
-        ? ( @{$args}{qw( self_result_object self_alias foreign_alias )}, \@l_cols, \@f_cols )
-        : ( @{$args}{qw( foreign_result_object foreign_alias self_alias )}, \@f_cols, \@l_cols )
-      ;
-
-      for my $i (0..$#$obj_cols) {
-
-        if (
-          defined $args->{self_result_object}
-            and
-          ! $obj->has_column_loaded($obj_cols->[$i])
-        ) {
-
+      for my $i (0..$#l_cols) {
+        if ( $args->{self_result_object}->has_column_loaded($l_cols[$i]) ) {
+          $ret->{join_free_condition}{"$args->{foreign_alias}.$f_cols[$i]"} = $args->{self_result_object}->get_column($l_cols[$i]);
+        }
+        else {
           $self->throw_exception(sprintf
             "Unable to resolve relationship '%s' from object '%s': column '%s' not "
           . 'loaded from storage (or not passed to new() prior to insert()). You '
           . 'probably need to call ->discard_changes to get the server-side defaults '
           . 'from the database.',
             $args->{rel_name},
-            $obj,
-            $obj_cols->[$i],
-          ) if $obj->in_storage;
+            $args->{self_result_object},
+            $l_cols[$i],
+          ) if $args->{self_result_object}->in_storage;
 
           # FIXME - temporarly force-override
           delete $args->{require_join_free_condition};
           $ret->{join_free_condition} = UNRESOLVABLE_CONDITION;
           last;
-        }
-        else {
-          $ret->{join_free_condition}{"$plain_alias.$plain_cols->[$i]"} = $obj->get_column($obj_cols->[$i]);
         }
       }
     }
@@ -1976,8 +1971,8 @@ sub _resolve_relationship_condition {
         { $self->_resolve_relationship_condition({ %$args, condition => $_ }) }
         @{$args->{condition}}
       ) {
-        $self->throw_exception('Either all or none of the OR-condition members can resolve to a join-free condition')
-          if $ret->{join_free_condition} and ! $subcond->{join_free_condition};
+        $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
+          if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
 
         $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
       }
@@ -1993,11 +1988,13 @@ sub _resolve_relationship_condition {
     ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
   );
 
+  my $storage = $self->schema->storage;
+
   # we got something back - sanity check and infer values if we can
   my @nonvalues;
   if ( my $jfc = $ret->{join_free_condition} and $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION ) {
 
-    my $jfc_eqs = $self->schema->storage->_extract_fixed_condition_columns($jfc, 'consider_nulls');
+    my $jfc_eqs = $storage->_extract_fixed_condition_columns($jfc, 'consider_nulls');
 
     if (keys %$jfc_eqs) {
 
@@ -2037,7 +2034,7 @@ sub _resolve_relationship_condition {
   # (may already be there, since easy to calculate on the fly in the HASH case)
   if ( ! $ret->{identity_map} ) {
 
-    my $col_eqs = $self->schema->storage->_extract_fixed_condition_columns($ret->{condition});
+    my $col_eqs = $storage->_extract_fixed_condition_columns($ret->{condition});
 
     my $colinfos;
     for my $lhs (keys %$col_eqs) {
@@ -2047,9 +2044,9 @@ sub _resolve_relationship_condition {
 
       # there is no way to know who is right and who is left
       # therefore the ugly scan below
-      $colinfos ||= $self->schema->storage->_resolve_column_info([
+      $colinfos ||= $storage->_resolve_column_info([
         { -alias => $args->{self_alias}, -rsrc => $self },
-        { -alias => $args->{foreign_alias}, -rsrc => $self->related_source($args->{rel_name}) },
+        { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
       ]);
 
       my ($l_col, $l_alias, $r_col, $r_alias) = map {

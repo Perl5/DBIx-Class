@@ -7,8 +7,8 @@ Revision history for DBIx::Class
           returned from storage
         - Custom condition relationships are now invoked with a slightly
           different signature (existing coderefs will continue to work)
-        - Add extra custom condition coderef attribute 'foreign_result_object'
-          to allow for proper reverse-relationship emulation
+        - Add extra custom condition coderef attribute 'foreign_values'
+          to allow for proper reverse-relationship-like behavior
           (i.e. $result->set_from_related($custom_rel, $foreign_result_object)
         - When in a transaction, DBIC::Ordered now seamlesly handles result
           objects that went out of sync with the storage (RT#96499)

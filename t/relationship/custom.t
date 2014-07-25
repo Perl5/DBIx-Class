@@ -273,21 +273,38 @@ is_deeply (
   'Prefetched singles in proper order'
 );
 
-# test set_from_related with a belongs_to custom condition
-my $cd = $schema->resultset("CD")->find(4);
-$artist = $cd->search_related('artist');
-my $track = $schema->resultset("Track")->create( {
-  trackid => 1,
-  cd => 3,
-  position => 99,
-  title => 'Some Track'
-} );
-$track->set_from_related( cd_cref_cond => $cd );
-is ($track->get_column('cd'), 4, 'set from related via coderef cond');
-is_deeply (
-  { $track->cd->get_columns },
-  { $cd->get_columns },
+# test set_from_related/find_related with a belongs_to custom condition
+my $preexisting_cd = $schema->resultset('CD')->find(1);
+
+my $cd_single_track = $schema->resultset('CD')->create({
+  artist => $artist,
+  title => 'one one one',
+  year => 2001,
+  tracks => [{ title => 'uno uno uno' }]
+});
+
+my $single_track = $cd_single_track->tracks->next;
+
+is_deeply
+  { $schema->resultset('Track')->find({ cd_cref_cond => { cdid => $cd_single_track->id } })->get_columns },
+  { $single_track->get_columns },
+  'Proper find with related via coderef cond',
+;
+
+$single_track->set_from_related( cd_cref_cond => undef );
+ok $single_track->is_column_changed('cd');
+is $single_track->get_column('cd'), undef, 'UNset from related via coderef cond';
+is $single_track->cd, undef, 'UNset related object via coderef cond';
+
+$single_track->discard_changes;
+
+$single_track->set_from_related( cd_cref_cond => $preexisting_cd );
+ok $single_track->is_column_changed('cd');
+is $single_track->get_column('cd'), 1, 'set from related via coderef cond';
+is_deeply
+  { $single_track->cd->get_columns },
+  { $preexisting_cd->get_columns },
   'set from related via coderef cond inflates properly',
-);
+;
 
 done_testing;

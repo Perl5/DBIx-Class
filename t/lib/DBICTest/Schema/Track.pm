@@ -70,8 +70,8 @@ sub {
      "$args->{foreign_alias}.cdid" => $args->{self_result_object}->cd
     },
 
-    ! $args->{foreign_result_object} ? () : {
-     "$args->{self_alias}.cd" => $args->{foreign_result_object}->cdid
+    ! $args->{foreign_values} ? () : {
+     "$args->{self_alias}.cd" => $args->{foreign_values}{cdid}
     },
   );
 }
