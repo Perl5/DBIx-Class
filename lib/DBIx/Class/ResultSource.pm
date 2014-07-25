@@ -1675,6 +1675,11 @@ sub _pk_depends_on {
   return 1;
 }
 
+sub resolve_condition {
+  carp 'resolve_condition is a private method, stop calling it';
+  shift->_resolve_condition (@_);
+}
+
 sub _resolve_condition {
 #  carp_unique sprintf
 #    '_resolve_condition is a private method, and moreover is about to go '
