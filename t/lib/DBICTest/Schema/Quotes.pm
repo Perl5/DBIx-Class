@@ -15,6 +15,15 @@ __PACKAGE__->add_columns(
     is_auto_increment => 1,
     accessor => 'has_more_quotes',
   },
+  'has # comment' => {
+    data_type => 'integer',
+    accessor => 'has_comment',
+  },
+  artistid => {
+    data_type => 'integer',
+  },
 );
+
+__PACKAGE__->belongs_to(artist => 'DBICTest::Schema::Artist', 'artistid');
 
 1;

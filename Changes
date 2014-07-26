@@ -38,6 +38,8 @@ Revision history for DBIx::Class
           additional codepath (missed in 0.08260)
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
+        - Fix prefetching tables with columns with regex metacharacters
+          in the name
 
     * Misc
         - Ensure source metadata calls always take place on the result source

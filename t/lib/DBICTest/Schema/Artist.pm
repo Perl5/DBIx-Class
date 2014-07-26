@@ -169,6 +169,8 @@ __PACKAGE__->has_many(
     },
 );
 
+__PACKAGE__->has_many(quotes => 'DBICTest::Schema::Quotes', 'artistid');
+
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;
 

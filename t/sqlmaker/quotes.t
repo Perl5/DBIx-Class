@@ -34,7 +34,7 @@ is_same_sql_bind(
 
 is_same_sql_bind(
   $schema->resultset('Quotes')->search({})->as_query,
-  '(SELECT [me].[`has` [more]] "quotes"] FROM [`with` [some]] "quotes"] [me])',
+  '(SELECT [me].[`has` [more]] "quotes"], [me].[has # comment], [me].[artistid] FROM [`with` [some]] "quotes"] [me])',
   [],
   'got correct escaped quotes with bracket quoting'
 );
@@ -51,9 +51,16 @@ is_same_sql_bind (
 
 is_same_sql_bind(
   $schema->resultset('Quotes')->search({})->as_query,
-  '(SELECT `me`.```has`` [more] "quotes"` FROM ```with`` [some] "quotes"` `me`)',
+  '(SELECT `me`.```has`` [more] "quotes"`, `me`.`has # comment`, `me`.`artistid` FROM ```with`` [some] "quotes"` `me`)',
   [],
   'got correct escaped quotes with mysql quoting'
+);
+
+is_same_sql_bind(
+  $schema->resultset('Artist')->search({}, { prefetch => 'quotes' })->as_query,
+  '(SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`, `quotes`.```has`` [more] "quotes"`, `quotes`.`has # comment`, `quotes`.`artistid` FROM `artist` `me` LEFT JOIN ```with`` [some] "quotes"` `quotes` ON `quotes`.`artistid` = `me`.`artistid`)',
+  [],
+  'got correct escaped comment with prefetch and mysql quoting'
 );
 
 # !!! talk to ribasushi *explicitly* before modfying these tests !!!
