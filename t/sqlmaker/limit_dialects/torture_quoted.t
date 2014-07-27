@@ -20,6 +20,10 @@ $bs->add_columns(
     data_type => 'integer',
     is_nullable => 1,
   },
+  'short desc' => {
+    data_type => 'text',
+    is_nullable => 1,
+  },
 );
 
 my $native_limit_dialect = $schema->storage->sql_maker->{limit_dialect};
@@ -100,7 +104,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
         LIMIT ?
       )",
       [
@@ -121,7 +125,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
         LIMIT ?
         OFFSET ?
       )",
@@ -137,7 +141,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -163,7 +167,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
         LIMIT ?, ?
       )",
       [
@@ -178,7 +182,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -204,7 +208,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
       )",
       [
         [ { sqlt_datatype => 'integer' } => 3 ],
@@ -218,7 +222,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT SKIP ? FIRST ? `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -243,7 +247,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
       )",
       [
         [ { sqlt_datatype => 'integer' } => 4 ],
@@ -257,7 +261,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT FIRST ? SKIP ? `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -293,10 +297,10 @@ my $tests = {
     my $ordered_sql = "(
       SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`
         FROM (
-          SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, ROW_NUMBER() OVER( ORDER BY `ORDER__BY__001`, `ORDER__BY__002` ) AS `rno__row__index`
+          SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, ROW_NUMBER() OVER( ORDER BY `ORDER__BY__001`, `ORDER__BY__002`, `ORDER__BY__003` ) AS `rno__row__index`
             FROM (
               SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`,
-                     ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`
+                     ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`, `me`.`short desc` AS `ORDER__BY__003`
                 FROM `books` `me`
                 JOIN `owners` `owner`
                   ON `owner`.`id` = `me`.`owner`
@@ -353,7 +357,7 @@ my $tests = {
       ],
       limit_offset_prefetch => [
         "(
-          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
             FROM (
               SELECT `me`.`name`, `me`.`id`
                 FROM (
@@ -429,7 +433,7 @@ my $tests = {
           [ { sqlt_datatype => 'integer' } => 7 ],
         ],
       ],
-      ordered_limit => [ $limit_sql->('ORDER BY ? / ?, ?'),
+      ordered_limit => [ $limit_sql->('ORDER BY ? / ?, ?, `me`.`short desc`'),
         [
           @select_bind,
           @where_bind,
@@ -452,7 +456,7 @@ my $tests = {
                   WHERE $where_string
                   GROUP BY (`me`.`id` / ?), `owner`.`id`
                   HAVING ?
-                  ORDER BY ? / ?, ?
+                  ORDER BY ? / ?, ?, `me`.`short desc`
                 ) `me`
               WHERE ROWNUM <= ?
             ) `me`
@@ -470,7 +474,7 @@ my $tests = {
       ],
       limit_offset_prefetch => [
         "(
-          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
             FROM (
               SELECT `me`.`name`, `me`.`id`
                 FROM (
@@ -544,7 +548,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
         FETCH FIRST 4 ROWS ONLY
       )",
       [
@@ -559,22 +563,22 @@ my $tests = {
       "(
         SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`
           FROM (
-            SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, `ORDER__BY__001`, `ORDER__BY__002`
+            SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, `ORDER__BY__001`, `ORDER__BY__002`, `ORDER__BY__003`
               FROM (
-                SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`
+                SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`, `me`.`short desc` AS `ORDER__BY__003`
                   FROM `books` `me`
                   JOIN `owners` `owner`
                     ON `owner`.`id` = `me`.`owner`
                 WHERE $where_string
                 GROUP BY (`me`.`id` / ?), `owner`.`id`
                 HAVING ?
-                ORDER BY ? / ?, ?
+                ORDER BY ? / ?, ?, `me`.`short desc`
                 FETCH FIRST 7 ROWS ONLY
               ) `me`
-            ORDER BY `ORDER__BY__001` DESC, `ORDER__BY__002` DESC
+            ORDER BY `ORDER__BY__001` DESC, `ORDER__BY__002` DESC, `ORDER__BY__003` DESC
             FETCH FIRST 4 ROWS ONLY
           ) `me`
-        ORDER BY `ORDER__BY__001`, `ORDER__BY__002`
+        ORDER BY `ORDER__BY__001`, `ORDER__BY__002`, `ORDER__BY__003`
       )",
       [
         @select_bind,
@@ -587,7 +591,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM (
@@ -655,7 +659,7 @@ my $tests = {
         WHERE $where_string
         GROUP BY (`me`.`id` / ?), `owner`.`id`
         HAVING ?
-        ORDER BY ? / ?, ?
+        ORDER BY ? / ?, ?, `me`.`short desc`
       )",
       [
         @select_bind,
@@ -669,20 +673,20 @@ my $tests = {
       "(
         SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`
           FROM (
-            SELECT TOP 4 `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, `ORDER__BY__001`, `ORDER__BY__002`
+            SELECT TOP 4 `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`, `ORDER__BY__001`, `ORDER__BY__002`, `ORDER__BY__003`
               FROM (
-                SELECT TOP 7 `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`
+                SELECT TOP 7 `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, ? / ? AS `ORDER__BY__001`, ? AS `ORDER__BY__002`, `me`.`short desc` AS `ORDER__BY__003`
                   FROM `books` `me`
                   JOIN `owners` `owner`
                     ON `owner`.`id` = `me`.`owner`
                 WHERE $where_string
                 GROUP BY (`me`.`id` / ?), `owner`.`id`
                 HAVING ?
-                ORDER BY ? / ?, ?
+                ORDER BY ? / ?, ?, `me`.`short desc`
               ) `me`
-            ORDER BY `ORDER__BY__001` DESC, `ORDER__BY__002` DESC
+            ORDER BY `ORDER__BY__001` DESC, `ORDER__BY__002` DESC, `ORDER__BY__003` DESC
           ) `me`
-        ORDER BY `ORDER__BY__001`, `ORDER__BY__002`
+        ORDER BY `ORDER__BY__001`, `ORDER__BY__002`, `ORDER__BY__003`
       )",
       [
         @select_bind,
@@ -695,7 +699,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT TOP 3 `me`.`name`, `me`.`id`
               FROM (
@@ -808,7 +812,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`, `books`.`short desc`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM (
@@ -904,8 +908,8 @@ for my $limtype (sort keys %$tests) {
   # order + limit, no offset
   $rs = $rs->search(undef, {
     order_by => ( $limtype =~ /GenericSubQ/
-      ? [ { -desc => 'price (#)' }, 'me.id', \[ '`owner`.`name` + ?', 'bah' ] ] # needs a same-table stable order to be happy
-      : [ \['? / ?', [ \ 'int' => 1 ], [ name => 2 ]], \[ '?', 3 ] ]
+      ? [ { -desc => 'price (#)' }, 'me.id', \[ '`owner`.`name` + ?', 'bah' ], \'`me`.`short desc`' ] # needs a same-table stable order to be happy
+      : [ \['? / ?', [ \ 'int' => 1 ], [ name => 2 ]], \[ '?', 3 ], \'`me`.`short desc`' ]
     ),
   });
 
