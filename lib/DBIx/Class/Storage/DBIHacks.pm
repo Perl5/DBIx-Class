@@ -111,8 +111,8 @@ sub _adjust_select_args_for_complex_prefetch {
   my $outer_attrs = { %$attrs };
   delete @{$outer_attrs}{qw(from bind rows offset group_by _grouped_by_distinct having)};
 
-  my $inner_attrs = { %$attrs };
-  delete @{$inner_attrs}{qw(for collapse select as _related_results_construction)};
+  my $inner_attrs = { %$attrs, _simple_passthrough_construction => 1 };
+  delete @{$inner_attrs}{qw(for collapse select as)};
 
   # there is no point of ordering the insides if there is no limit
   delete $inner_attrs->{order_by} if (

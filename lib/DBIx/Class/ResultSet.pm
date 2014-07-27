@@ -312,7 +312,7 @@ sub new {
     if $source->isa('DBIx::Class::ResultSourceHandle');
 
   $attrs = { %{$attrs||{}} };
-  delete @{$attrs}{qw(_last_sqlmaker_alias_map _related_results_construction)};
+  delete @{$attrs}{qw(_last_sqlmaker_alias_map _simple_passthrough_construction)};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -1415,8 +1415,8 @@ sub _construct_results {
   ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_hri};
 
 
-  if (! $attrs->{_related_results_construction}) {
-    # construct a much simpler array->hash folder for the one-table cases right here
+  if ($attrs->{_simple_passthrough_construction}) {
+    # construct a much simpler array->hash folder for the one-table HRI cases right here
     if ($self->{_result_inflator}{is_hri}) {
       for my $r (@$rows) {
         $r = { map { $infmap->[$_] => $r->[$_] } 0..$#$infmap };
@@ -3749,10 +3749,11 @@ sub _resolved_attrs {
   push @{$attrs->{select}}, @prefetch_select;
   push @{$attrs->{as}}, @prefetch_as;
 
-  # whether we can get away with the dumbest (possibly DBI-internal) collapser
-  if ( List::Util::first { $_ =~ /\./ } @{$attrs->{as}} ) {
-    $attrs->{_related_results_construction} = 1;
-  }
+  $attrs->{_simple_passthrough_construction} = !(
+    $attrs->{collapse}
+      or
+    grep { $_ =~ /\./ } @{$attrs->{as}}
+  );
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has

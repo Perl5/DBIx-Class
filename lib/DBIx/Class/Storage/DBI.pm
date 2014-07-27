@@ -2469,7 +2469,7 @@ sub _select_args {
     # are happy (this includes MySQL in strict_mode)
     # If any of the other joined tables are referenced in the group_by
     # however - the user is on their own
-    ( $prefetch_needs_subquery or $attrs->{_related_results_construction} )
+    ( $prefetch_needs_subquery or ! $attrs->{_simple_passthrough_construction} )
       and
     $attrs->{group_by}
       and
