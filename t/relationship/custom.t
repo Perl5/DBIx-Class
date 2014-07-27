@@ -307,4 +307,9 @@ is_deeply
   'set from related via coderef cond inflates properly',
 ;
 
+throws_ok {
+  local $schema->source('Track')->relationship_info('cd_cref_cond')->{cond} = sub { 1,2,3 };
+  $schema->resultset('Track')->find({ cd_cref_cond => {} });
+} qr/\QA custom condition coderef can return at most 2 conditions, but relationship 'cd_cref_cond' on source 'Track' returned extra values: 3/;
+
 done_testing;

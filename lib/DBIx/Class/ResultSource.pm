@@ -1864,8 +1864,8 @@ sub _resolve_relationship_condition {
 
     ($ret->{condition}, $ret->{join_free_condition}, my @extra) = $args->{condition}->($cref_args);
 
-    # FIXME sanity check
-    carp_unique('A custom condition coderef can return at most 2 conditions: extra return values discarded')
+    # sanity check
+    $self->throw_exception("A custom condition coderef can return at most 2 conditions, but $exception_rel_id returned extra values: @extra")
       if @extra;
 
     if (my $jfc = $ret->{join_free_condition}) {
