@@ -484,9 +484,9 @@ sub _resolve_aliastypes_from_select_args {
   # alias (should work even if they are in scalarrefs)
   for my $alias (keys %$alias_list) {
     my $al_re = qr/
-      $lquote $alias $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
+      $lquote \Q$alias\E $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
         |
-      \b $alias \. ([^\s\)\($rquote]+)?
+      \b \Q$alias\E \. ([^\s\)\($rquote]+)?
     /x;
 
     for my $type (keys %$to_scan) {
@@ -505,7 +505,7 @@ sub _resolve_aliastypes_from_select_args {
   for my $col (keys %$colinfo) {
     next if $col =~ / \. /x;   # if column is qualified it was caught by the above
 
-    my $col_re = qr/ $lquote ($col) $rquote /x;
+    my $col_re = qr/ $lquote (\Q$col\E) $rquote /x;
 
     for my $type (keys %$to_scan) {
       for my $piece (@{$to_scan->{$type}}) {

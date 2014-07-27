@@ -13,6 +13,15 @@ my $schema = DBICTest->init_schema(
   name_sep => '.',
 );
 
+my $bs = $schema->source('BooksInLibrary');
+$bs->remove_column('price');
+$bs->add_columns(
+  'price (#)' => {
+    data_type => 'integer',
+    is_nullable => 1,
+  },
+);
+
 my $native_limit_dialect = $schema->storage->sql_maker->{limit_dialect};
 
 my $where_string = '`me`.`title` = ? AND `source` != ? AND `source` = ?';
@@ -128,7 +137,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -169,7 +178,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -209,7 +218,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT SKIP ? FIRST ? `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -248,7 +257,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT FIRST ? SKIP ? `me`.`name`, `me`.`id`
               FROM `owners` `me`
@@ -344,7 +353,7 @@ my $tests = {
       ],
       limit_offset_prefetch => [
         "(
-          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
             FROM (
               SELECT `me`.`name`, `me`.`id`
                 FROM (
@@ -461,7 +470,7 @@ my $tests = {
       ],
       limit_offset_prefetch => [
         "(
-          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+          SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
             FROM (
               SELECT `me`.`name`, `me`.`id`
                 FROM (
@@ -578,7 +587,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM (
@@ -686,7 +695,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT TOP 3 `me`.`name`, `me`.`id`
               FROM (
@@ -708,7 +717,7 @@ my $tests = {
       "(
         SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`
           FROM (
-            SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, `me`.`price`
+            SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, `me`.`price (#)`
               FROM `books` `me`
               JOIN `owners` `owner`
                 ON `owner`.`id` = `me`.`owner`
@@ -720,27 +729,27 @@ my $tests = {
           SELECT COUNT( * )
             FROM `books` `rownum__emulation`
           WHERE
-            ( `me`.`price` IS NULL AND `rownum__emulation`.`price` IS NOT NULL )
+            ( `me`.`price (#)` IS NULL AND `rownum__emulation`.`price (#)` IS NOT NULL )
               OR
             (
-              `rownum__emulation`.`price` > `me`.`price`
+              `rownum__emulation`.`price (#)` > `me`.`price (#)`
                 AND
-              `me`.`price` IS NOT NULL
+              `me`.`price (#)` IS NOT NULL
                 AND
-              `rownum__emulation`.`price` IS NOT NULL
+              `rownum__emulation`.`price (#)` IS NOT NULL
             )
               OR
             (
               (
-                `me`.`price` = `rownum__emulation`.`price`
+                `me`.`price (#)` = `rownum__emulation`.`price (#)`
                  OR
-                ( `me`.`price` IS NULL AND `rownum__emulation`.`price` IS NULL )
+                ( `me`.`price (#)` IS NULL AND `rownum__emulation`.`price (#)` IS NULL )
               )
                 AND
               `rownum__emulation`.`id` < `me`.`id`
             )
           ) < ?
-        ORDER BY `me`.`price` DESC, `me`.`id` ASC
+        ORDER BY `me`.`price (#)` DESC, `me`.`id` ASC
       )",
       [
         @select_bind,
@@ -754,7 +763,7 @@ my $tests = {
       "(
         SELECT `me`.`id`, `owner__id`, `owner__name`, `bar`, `baz`
           FROM (
-            SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, `me`.`price`
+            SELECT `me`.`id`, `owner`.`id` AS `owner__id`, `owner`.`name` AS `owner__name`, ? * ? AS `bar`, ? AS `baz`, `me`.`price (#)`
               FROM `books` `me`
               JOIN `owners` `owner`
                 ON `owner`.`id` = `me`.`owner`
@@ -766,27 +775,27 @@ my $tests = {
           SELECT COUNT( * )
             FROM `books` `rownum__emulation`
           WHERE
-            ( `me`.`price` IS NULL AND `rownum__emulation`.`price` IS NOT NULL )
+            ( `me`.`price (#)` IS NULL AND `rownum__emulation`.`price (#)` IS NOT NULL )
               OR
             (
-              `rownum__emulation`.`price` > `me`.`price`
+              `rownum__emulation`.`price (#)` > `me`.`price (#)`
                 AND
-              `me`.`price` IS NOT NULL
+              `me`.`price (#)` IS NOT NULL
                 AND
-              `rownum__emulation`.`price` IS NOT NULL
+              `rownum__emulation`.`price (#)` IS NOT NULL
             )
               OR
             (
               (
-                `me`.`price` = `rownum__emulation`.`price`
+                `me`.`price (#)` = `rownum__emulation`.`price (#)`
                  OR
-                ( `me`.`price` IS NULL AND `rownum__emulation`.`price` IS NULL )
+                ( `me`.`price (#)` IS NULL AND `rownum__emulation`.`price (#)` IS NULL )
               )
                 AND
               `rownum__emulation`.`id` < `me`.`id`
             )
           ) BETWEEN ? AND ?
-        ORDER BY `me`.`price` DESC, `me`.`id` ASC
+        ORDER BY `me`.`price (#)` DESC, `me`.`id` ASC
       )",
       [
         @select_bind,
@@ -799,7 +808,7 @@ my $tests = {
     ],
     limit_offset_prefetch => [
       "(
-        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price`
+        SELECT `me`.`name`, `books`.`id`, `books`.`source`, `books`.`owner`, `books`.`title`, `books`.`price (#)`
           FROM (
             SELECT `me`.`name`, `me`.`id`
               FROM (
@@ -895,7 +904,7 @@ for my $limtype (sort keys %$tests) {
   # order + limit, no offset
   $rs = $rs->search(undef, {
     order_by => ( $limtype =~ /GenericSubQ/
-      ? [ { -desc => 'price' }, 'me.id', \[ '`owner`.`name` + ?', 'bah' ] ] # needs a same-table stable order to be happy
+      ? [ { -desc => 'price (#)' }, 'me.id', \[ '`owner`.`name` + ?', 'bah' ] ] # needs a same-table stable order to be happy
       : [ \['? / ?', [ \ 'int' => 1 ], [ name => 2 ]], \[ '?', 3 ] ]
     ),
   });
