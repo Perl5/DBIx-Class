@@ -502,4 +502,31 @@ sub cmp_structures {
   cmp_deeply($left, $right, $msg||()) or next INFTYPE;
 }
 
+{
+  package DBICTest::_DoubleResult;
+
+  sub inflate_result {
+    my $class = shift;
+    return map { DBIx::Class::ResultClass::HashRefInflator->inflate_result(@_) } (1,2);
+  }
+}
+
+my $oxygene_rs = $schema->resultset('CD')->search({ 'me.title' => 'Oxygene' });
+
+is_deeply(
+  [ $oxygene_rs->search({}, { result_class => 'DBICTest::_DoubleResult' })->all ],
+  [ ({ $oxygene_rs->single->get_columns }) x 2 ],
+);
+
+is_deeply(
+  [ $oxygene_rs->search({}, {
+    result_class => 'DBICTest::_DoubleResult', prefetch => [qw(artist tracks)],
+    order_by => [qw(me.cdid tracks.title)],
+  })->all ],
+  [ (@{$oxygene_rs->search({}, {
+    prefetch=> [qw(artist tracks)],
+    order_by => [qw(me.cdid tracks.title)],
+  })->all_hri}) x 2 ],
+);
+
 done_testing;

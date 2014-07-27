@@ -1429,15 +1429,19 @@ sub _construct_results {
     #
     # crude unscientific benchmarking indicated the shortcut eval is not worth it for
     # this particular resultset size
-    elsif (@$rows < 60) {
+    elsif ( $self->{_result_inflator}{is_core_row} and @$rows < 60 ) {
       for my $r (@$rows) {
         $r = $inflator_cref->($res_class, $rsrc, { map { $infmap->[$_] => $r->[$_] } (0..$#$infmap) } );
       }
     }
     else {
       eval sprintf (
-        '$_ = $inflator_cref->($res_class, $rsrc, { %s }) for @$rows',
-        join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap )
+        ( $self->{_result_inflator}{is_core_row}
+          ? '$_ = $inflator_cref->($res_class, $rsrc, { %s }) for @$rows'
+          # a custom inflator may be a multiplier/reductor - put it in direct list ctx
+          : '@$rows = map { $inflator_cref->($res_class, $rsrc, { %s } ) } @$rows'
+        ),
+        ( join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap ) )
       );
     }
   }
@@ -1510,9 +1514,14 @@ EOS
       $next_cref ? ( $next_cref, $self->{_stashed_rows} = [] ) : (),
     );
 
-    # Special-case multi-object HRI - there is no $inflator_cref pass
-    unless ($self->{_result_inflator}{is_hri}) {
+    # simple in-place substitution, does not regrow $rows
+    if ($self->{_result_inflator}{is_core_row}) {
       $_ = $inflator_cref->($res_class, $rsrc, @$_) for @$rows
+    }
+    # Special-case multi-object HRI - there is no $inflator_cref pass at all
+    elsif ( ! $self->{_result_inflator}{is_hri} ) {
+      # the inflator may be a multiplier/reductor - put it in list ctx
+      @$rows = map { $inflator_cref->($res_class, $rsrc, @$_) } @$rows;
     }
   }
 
