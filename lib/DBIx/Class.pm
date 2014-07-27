@@ -428,6 +428,8 @@ jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
 jon: Jon Schutz <jjschutz@cpan.org>
 
+Joe Carlson <jwcarlson@lbl.gov>
+
 jshirley: J. Shirley <jshirley@gmail.com>
 
 kaare: Kaare Rasmussen

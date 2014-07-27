@@ -39,6 +39,7 @@ Revision history for DBIx::Class
           up by create() and populate()
         - Ensure definitive condition extractor handles bizarre corner cases
           without bombing out (RT#93244)
+        - Fix set_column on non-native (+columns) selections (RT#86685)
         - Fix set_inflated_column incorrectly handling \[] literals (GH#44)
         - Ensure that setting a column to a literal invariably marks it dirty
         - Work around exception objects with broken string overloading in one
