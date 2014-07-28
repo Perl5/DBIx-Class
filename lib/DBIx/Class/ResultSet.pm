@@ -825,17 +825,15 @@ sub find {
     @{$call_cond}{@c_cols} = @_;
   }
 
-  my %related;
   for my $key (keys %$call_cond) {
     if (
-      my $keyref = ref($call_cond->{$key})
+      length ref($call_cond->{$key})
         and
       my $relinfo = $rsrc->relationship_info($key)
+        and
+      # implicitly skip has_many's (likely MC)
+      (ref (my $val = delete $call_cond->{$key}) ne 'ARRAY' )
     ) {
-      my $val = delete $call_cond->{$key};
-
-      next if $keyref eq 'ARRAY'; # has_many for multi_create
-
       my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
         $relinfo->{cond}, $val, $key, $key
       );
@@ -843,13 +841,12 @@ sub find {
       $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
          if $crosstable or ref($rel_cond) ne 'HASH';
 
-      # supplement
-      @related{keys %$rel_cond} = values %$rel_cond;
+      # supplement condition
+      # relationship conditions take precedence (?)
+      @{$call_cond}{keys %$rel_cond} = values %$rel_cond;
     }
   }
 
-  # relationship conditions take precedence (?)
-  @{$call_cond}{keys %related} = values %related;
 
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
   my $final_cond;
