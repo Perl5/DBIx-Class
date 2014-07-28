@@ -1730,7 +1730,8 @@ sub _count_subq_rs {
         $sql_maker->{name_sep} = '';
       }
 
-      my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
+      my $sep = quotemeta($sql_maker->name_sep);
+      my $ident_re = $sql_maker->_quoted_ident_re;
 
       my $having_sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
       my %seen_having;
@@ -1738,13 +1739,13 @@ sub _count_subq_rs {
       # search for both a proper quoted qualified string, for a naive unquoted scalarref
       # and if all fails for an utterly naive quoted scalar-with-function
       while ($having_sql =~ /
-        $rquote $sep $lquote (.+?) $rquote
+        $ident_re $sep ($ident_re)
           |
         [\s,] \w+ \. (\w+) [\s,]
           |
-        [\s,] $lquote (.+?) $rquote [\s,]
+        [\s,] ($ident_re) [\s,]
       /gx) {
-        my $part = $1 || $2 || $3;  # one of them matched if we got here
+        my $part = $sql_maker->_unquote($1 || $2 || $3);  # one of them matched if we got here
         unless ($seen_having{$part}++) {
           push @parts, $part;
         }
