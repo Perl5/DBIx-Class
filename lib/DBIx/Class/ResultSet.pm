@@ -825,6 +825,7 @@ sub find {
     @{$call_cond}{@c_cols} = @_;
   }
 
+  # process relationship data if any
   for my $key (keys %$call_cond) {
     if (
       length ref($call_cond->{$key})
@@ -847,6 +848,8 @@ sub find {
     }
   }
 
+  # add-in the resultset condition if any
+  ($call_cond) = $self->_merge_with_rscond($call_cond);
 
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
   my $final_cond;
@@ -939,16 +942,9 @@ sub _qualify_cond_columns {
 }
 
 sub _build_unique_cond {
-  my ($self, $constraint_name, $extra_cond, $croak_on_null) = @_;
+  my ($self, $constraint_name, $final_cond, $croak_on_null) = @_;
 
   my @c_cols = $self->result_source->unique_constraint_columns($constraint_name);
-
-  # combination may fail if $self->{cond} is non-trivial
-  my ($final_cond) = try {
-    $self->_merge_with_rscond ($extra_cond)
-  } catch {
-    +{ %$extra_cond }
-  };
 
   # trim out everything not in $columns
   $final_cond = { map {
