@@ -3991,6 +3991,13 @@ is the same as
     select => [qw/foo baz/],
     as => [qw/foo bar/]
 
+Like elsewhere, literal SQL or literal values can be included by
+using a scalar reference, and these values will be available in the result
+with C<get_column>:
+
+    # equivalent SQL: SELECT 1, "a string", IF(x,1,2) ...
+    columns => [ { foo => \1, bar => \'"a string"', baz => \'IF(x,1,2)' } ]
+
 =head2 +columns
 
 =over 4
