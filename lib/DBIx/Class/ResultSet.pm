@@ -3991,12 +3991,19 @@ is the same as
     select => [qw/foo baz/],
     as => [qw/foo bar/]
 
-Like elsewhere, literal SQL or literal values can be included by
-using a scalar reference, and these values will be available in the result
-with C<get_column>:
+Like elsewhere, literal SQL or literal values can be included by using a
+scalar reference or a literal bind value, and these values will be available
+in the result with C<get_column> (see also
+L<SQL::Abstract/Literal-SQL-and-value-type-operators>):
 
     # equivalent SQL: SELECT 1, 'a string', IF(x,1,2) ...
-    columns => [ { foo => \1, bar => \q{'a string'}, baz => \'IF(x,1,2)' } ]
+    columns => [
+        {
+            foo => \1,
+            bar => \q{'a string'},
+            baz => \[ '?', 'IF(x,1,2)' ],
+        }
+    ]
 
 =head2 +columns
 
