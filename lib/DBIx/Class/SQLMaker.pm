@@ -60,6 +60,40 @@ sub _quote_chars {
   ;
 }
 
+sub _escape_char {
+  $_[0]->{escape_char} || ($_[0]->_quote_chars)[1] || '';
+}
+
+sub _unquote {
+  my ($self, $value) = @_;
+
+  return $value unless defined $value;
+
+  my ($l, $r, $e) = map { quotemeta $_ } $self->_quote_chars, $self->_escape_char;
+
+  # no quoting, all bets are off
+  return $value unless length $e;
+
+  my $re = $self->_quoted_ident_re($l, $r, $e);
+
+  if ($value =~ /\A$re\z/) {
+    $value =~ s/\A$l//;
+    $value =~ s/$r\z//;
+    $value =~ s/( $e [$e$r] )/substr($1, 1)/gex;
+    return $value;
+  }
+  else {
+    # not a quoted value, assume it's an identifier
+    return $value;
+  }
+}
+
+sub _quoted_ident_re {
+  my $self = shift;
+  my ($l, $r, $e) = @_ ? @_ : map { quotemeta $_ } $self->_quote_chars, $self->_escape_char;
+  return qr/ $l (?: [^$e$r] | $e [$e$r] )+ $r /x;
+}
+
 # FIXME when we bring in the storage weaklink, check its schema
 # weaklink and channel through $schema->throw_exception
 sub throw_exception { DBIx::Class::Exception->throw($_[1]) }

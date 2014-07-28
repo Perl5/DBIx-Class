@@ -402,10 +402,12 @@ sub _resolve_aliastypes_from_select_args {
   # name_sep, otherwise sorry nasty legacy syntax like
   # { 'count(foo.id)' => { '>' => 3 } } will stop working >:(
   local $sql_maker->{quote_char} = $sql_maker->{quote_char};
+  local $sql_maker->{escape_char} = $sql_maker->{escape_char};
   local $sql_maker->{name_sep} = $sql_maker->{name_sep};
 
   unless (defined $sql_maker->{quote_char} and length $sql_maker->{quote_char}) {
     $sql_maker->{quote_char} = ["\x00", "\xFF"];
+    $sql_maker->{escape_char} = "\xFF";
     # if we don't unset it we screw up retarded but unfortunately working
     # 'MAX(foo.bar)' => { '>', 3 }
     $sql_maker->{name_sep} = '';
@@ -482,16 +484,17 @@ sub _resolve_aliastypes_from_select_args {
 
   # now loop through all fully qualified columns and get the corresponding
   # alias (should work even if they are in scalarrefs)
+  my $ident_re = $sql_maker->_quoted_ident_re;
   for my $alias (keys %$alias_list) {
     my $al_re = qr/
-      $lquote \Q$alias\E $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
+      $lquote \Q$alias\E $rquote $sep ($ident_re)?
         |
       \b \Q$alias\E \. ([^\s\)\($rquote]+)?
     /x;
 
     for my $type (keys %$to_scan) {
       for my $piece (@{$to_scan->{$type}}) {
-        if (my @matches = $piece =~ /$al_re/g) {
+        if (my @matches = map { $sql_maker->_unquote($_) } $piece =~ /$al_re/g) {
           $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
           $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = "$alias.$_"
             for grep { defined $_ } @matches;
