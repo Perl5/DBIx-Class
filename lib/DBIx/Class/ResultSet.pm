@@ -4094,6 +4094,20 @@ chain such that it matches existing relationships:
         },
     });
 
+Like elsewhere, literal SQL or literal values can be included by using a
+scalar reference or a literal bind value, and these values will be available
+in the result with C<get_column> (see also
+L<SQL::Abstract/Literal SQL and value type operators>):
+
+    # equivalent SQL: SELECT 1, 'a string', IF(x,1,2) ...
+    columns => [
+        {
+            foo => \1,
+            bar => \q{'a string'},
+            baz => \[ '?', 'IF(x,1,2)' ],
+        }
+    ]
+
 =head2 +columns
 
 B<NOTE:> You B<MUST> explicitly quote C<'+columns'> when using this attribute.
