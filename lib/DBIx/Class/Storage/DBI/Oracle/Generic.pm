@@ -130,7 +130,7 @@ sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
 
   my $sql_maker = $self->sql_maker;
-  my ($ql, $qr) = map { $_ ? (quotemeta $_) : '' } $sql_maker->_quote_chars;
+  my $quoting = !!($sql_maker->_quote_chars)[0];
 
   my $source_name;
   if ( ref $source->name eq 'SCALAR' ) {
@@ -142,7 +142,7 @@ sub _dbh_get_autoinc_seq {
   }
   else {
     $source_name = $source->name;
-    $source_name = uc($source_name) unless $ql;
+    $source_name = uc($source_name) unless $quoting;
   }
 
   # trigger_body is a LONG
@@ -151,8 +151,10 @@ sub _dbh_get_autoinc_seq {
   # disable default bindtype
   local $sql_maker->{bindtype} = 'normal';
 
+  my $ident_re = $quoting ? qr/ @{[$sql_maker->quoted_ident_re]} | \w+ /x : qr/ \w+ /x;
+
   # look up the correct sequence automatically
-  my ( $schema, $table ) = $source_name =~ /( (?:${ql})? \w+ (?:${qr})? ) \. ( (?:${ql})? \w+ (?:${qr})? )/x;
+  my ( $schema, $table ) = map { $sql_maker->_unquote($_) } $source_name =~ /( $ident_re ) \. ( $ident_re )/x;
 
   # if no explicit schema was requested - use the default schema (which in the case of Oracle is the db user)
   $schema ||= \'= USER';
@@ -172,10 +174,11 @@ sub _dbh_get_autoinc_seq {
   # to find all the triggers that mention the column in question a simple
   # regex grep since the trigger_body above is a LONG and hence not searchable
   # via -like
+  my $qcol = $sql_maker->_quote($col);
   my @triggers = ( map
     { my %inf; @inf{qw/body schema name/} = @$_; \%inf }
     ( grep
-      { $_->[0] =~ /\:new\.${ql}${col}${qr} | \:new\.$col/xi }
+      { $_->[0] =~ /\:new\.(?: \Q$qcol\E | \Q$col\E )/xi }
       @{ $dbh->selectall_arrayref( $sql, {}, @bind ) }
     )
   );
@@ -213,7 +216,7 @@ sub _dbh_get_autoinc_seq {
   elsif (@triggers > 1) {
 
     my @candidates = grep
-      { $_->{body} =~ / into \s+ \:new\.$col /xi }
+      { $_->{body} =~ / into \s+ \:new\.\Q$col\E /xi }
       @triggers
     ;
 
