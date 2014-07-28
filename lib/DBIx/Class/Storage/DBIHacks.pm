@@ -849,10 +849,14 @@ sub _extract_order_criteria {
     return scalar $sql_maker->_order_by_chunks ($order_by)
       unless wantarray;
 
-    my ($lq, $rq, $sep) = map { quotemeta($_) } (
-      ($orig_quote_chars ? @$orig_quote_chars : $sql_maker->_quote_chars),
-      $sql_maker->name_sep
-    );
+    my $sep = quotemeta($sql_maker->name_sep);
+
+    my @quotes = map { quotemeta($_) }
+        $orig_quote_chars
+          ? @$orig_quote_chars
+          : ($sql_maker->_quote_chars, $sql_maker->_escape_char);
+
+    my $quoted_ident_re = $sql_maker->_quoted_ident_re(@quotes);
 
     my @chunks;
     for ($sql_maker->_order_by_chunks ($order_by) ) {
@@ -861,8 +865,9 @@ sub _extract_order_criteria {
 
       # order criteria may have come back pre-quoted (literals and whatnot)
       # this is fragile, but the best we can currently do
-      $chunk->[0] =~ s/^ $lq (.+?) $rq $sep $lq (.+?) $rq $/"$1.$2"/xe
-        or $chunk->[0] =~ s/^ $lq (.+) $rq $/$1/x;
+      if (my @quoted = $chunk->[0] =~ /\A ($quoted_ident_re) (?: $sep ($quoted_ident_re) )? \z/x) {
+        $chunk->[0] = join('.', map { $sql_maker->_unquote($_, @quotes) } grep { defined } @quoted);
+      }
 
       push @chunks, $chunk;
     }
@@ -878,7 +883,7 @@ sub _extract_order_criteria {
 
     # pass these in to deal with literals coming from
     # the user or the deep guts of prefetch
-    my $orig_quote_chars = [$sql_maker->_quote_chars];
+    my $orig_quote_chars = [$sql_maker->_quote_chars, $sql_maker->_escape_char];
 
     local $sql_maker->{quote_char};
     return $parser->($sql_maker, $order_by, $orig_quote_chars);

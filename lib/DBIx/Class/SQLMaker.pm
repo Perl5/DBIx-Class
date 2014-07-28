@@ -65,11 +65,11 @@ sub _escape_char {
 }
 
 sub _unquote {
-  my ($self, $value) = @_;
+  my ($self, $value, @quotes) = @_;
 
   return $value unless defined $value;
 
-  my ($l, $r, $e) = map { quotemeta $_ } $self->_quote_chars, $self->_escape_char;
+  my ($l, $r, $e) = @quotes ? @quotes : map { quotemeta $_ } $self->_quote_chars, $self->_escape_char;
 
   # no quoting, all bets are off
   return $value unless length $e;
