@@ -5,6 +5,8 @@ Revision history for DBIx::Class
           like the rest of DBIC
         - DBIC::FilterColumn "from_storage" handler is now invoked on NULLs
           returned from storage
+        - find() now throws an exception if some of the supplied values are
+          managed by DBIC::FilterColumn (RT#95054)
         - Custom condition relationships are now invoked with a slightly
           different signature (existing coderefs will continue to work)
         - Add extra custom condition coderef attribute 'foreign_values'

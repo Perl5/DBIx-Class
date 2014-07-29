@@ -870,7 +870,7 @@ sub find {
     # relationship
   }
   else {
-    my (@unique_queries, %seen_column_combinations);
+    my (@unique_queries, %seen_column_combinations, $ci, @fc_exceptions);
 
     # no key was specified - fall down to heuristics mode:
     # run through all unique queries registered on the resultset, and
@@ -887,17 +887,25 @@ sub find {
         join "\x00", sort $rsrc->unique_constraint_columns($c_name)
       }++;
 
-      push @unique_queries, try {
-        $self->result_source->_minimal_valueset_satisfying_constraint(
-          constraint_name => $c_name,
-          values => ($self->_merge_with_rscond($call_cond))[0],
-        ),
-      } || ();
+      try {
+        push @unique_queries, $self->_qualify_cond_columns(
+          $self->result_source->_minimal_valueset_satisfying_constraint(
+            constraint_name => $c_name,
+            values => ($self->_merge_with_rscond($call_cond))[0],
+            columns_info => ($ci ||= $self->result_source->columns_info),
+          ),
+          $alias
+        );
+      }
+      catch {
+        push @fc_exceptions, $_ if $_ =~ /\bFilterColumn\b/;
+      };
     }
 
-    $final_cond = @unique_queries
-      ? [ map { $self->_qualify_cond_columns($_, $alias) } @unique_queries ]
-      : $self->_non_unique_find_fallback ($call_cond, $attrs)
+    $final_cond =
+        @unique_queries   ? \@unique_queries
+      : @fc_exceptions    ? $self->throw_exception(join "; ", map { $_ =~ /(.*) at .+ line \d+$/s } @fc_exceptions )
+      :                     $self->_non_unique_find_fallback ($call_cond, $attrs)
     ;
   }
 

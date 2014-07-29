@@ -1556,6 +1556,8 @@ sub _minimal_valueset_satisfying_constraint {
   my $self = shift;
   my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
+  $args->{columns_info} ||= $self->columns_info;
+
   my $vals = $self->storage->_extract_fixed_condition_columns(
     $args->{values},
     ($args->{carp_on_nulls} ? 'consider_nulls' : undef ),
@@ -1572,12 +1574,24 @@ sub _minimal_valueset_satisfying_constraint {
     else {
       $cols->{present}{$col} = 1;
     }
+
+    $cols->{fc}{$col} = 1 if (
+      ! ( $cols->{missing} || {})->{$col}
+        and
+      $args->{columns_info}{$col}{_filter_info}
+    );
   }
 
   $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', missing values for column(s): %s",
     $args->{constraint_name},
     join (', ', map { "'$_'" } sort keys %{$cols->{missing}} ),
   ) ) if $cols->{missing};
+
+  $self->throw_exception( sprintf (
+    "Unable to satisfy requested constraint '%s', FilterColumn values not usable for column(s): %s",
+    $args->{constraint_name},
+    join (', ', map { "'$_'" } sort keys %{$cols->{fc}}),
+  )) if $cols->{fc};
 
   if (
     $cols->{undefined}
