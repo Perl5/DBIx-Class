@@ -2872,6 +2872,7 @@ sub create_ddl_dir {
     add_drop_table => 1,
     ignore_constraint_names => 1,
     ignore_index_names => 1,
+    quote_identifiers => !!$self->sql_maker->_quote_chars,
     %{$sqltargs || {}}
   };
 
@@ -2966,10 +2967,21 @@ sub create_ddl_dir {
         unless $dest_schema->name;
     }
 
-    my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
-                                                  $dest_schema,   $db,
-                                                  $sqltargs
-                                                 );
+    my $diff = do {
+      # FIXME - this is a terrible workaround for
+      # https://github.com/dbsrgits/sql-translator/commit/2d23c1e
+      # Fixing it in this sloppy manner so that we don't hve to
+      # lockstep an SQLT release as well. Needs to be removed at
+      # some point, and SQLT dep bumped
+      local $SQL::Translator::Producer::SQLite::NO_QUOTES
+        if $SQL::Translator::Producer::SQLite::NO_QUOTES;
+
+      SQL::Translator::Diff::schema_diff($source_schema, $db,
+                                         $dest_schema,   $db,
+                                         $sqltargs
+                                       );
+    };
+
     if(!open $file, ">$difffile") {
       $self->throw_exception("Can't write to $difffile ($!)");
       next;
@@ -3028,6 +3040,10 @@ sub deployment_statements {
   # coming in
   $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
       if exists $sqltargs->{sources};
+
+  $sqltargs->{quote_identifiers}
+    = !!$self->sql_maker->_quote_chars
+  if ! exists $sqltargs->{quote_identifiers};
 
   my $tr = SQL::Translator->new(
     producer => "SQL::Translator::Producer::${type}",

@@ -245,10 +245,6 @@ sub deployment_statements {
     $sqltargs->{producer_args}{sqlite_version} = $dver;
   }
 
-  $sqltargs->{quote_identifiers}
-    = !!$self->sql_maker->_quote_chars
-  if ! exists $sqltargs->{quote_identifiers};
-
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 

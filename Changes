@@ -47,6 +47,8 @@ Revision history for DBIx::Class
         - Ensure that setting a column to a literal invariably marks it dirty
         - Work around exception objects with broken string overloading in one
           additional codepath (missed in 0.08260)
+        - Fix more inconsistencies of the quote_names attribute propagating
+          to SQL::Translator (partially RT#87731)
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
         - Fix CDBICompat to match Class::DBI behavior handling non-result

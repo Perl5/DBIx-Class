@@ -103,9 +103,6 @@ sub deployment_statements {
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
-  my $quote_char = $self->schema->storage->sql_maker->quote_char;
-  $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
-  $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
   if (
     ! exists $sqltargs->{producer_args}{oracle_version}
