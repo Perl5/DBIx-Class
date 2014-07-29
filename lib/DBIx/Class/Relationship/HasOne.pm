@@ -77,6 +77,7 @@ sub _has_one {
    { accessor => 'single',
      cascade_update => $default_cascade,
      cascade_delete => $default_cascade,
+     is_depends_on => 0,
      ($join_type ? ('join_type' => $join_type) : ()),
      %{$attrs || {}} });
   1;

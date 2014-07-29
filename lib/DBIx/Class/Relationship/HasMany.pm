@@ -46,6 +46,7 @@ sub has_many {
     join_type => 'LEFT',
     cascade_delete => $default_cascade,
     cascade_copy => $default_cascade,
+    is_depends_on => 0,
     %{$attrs||{}}
   });
 }
