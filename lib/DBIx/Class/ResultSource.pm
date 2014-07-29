@@ -2116,8 +2116,8 @@ sub _resolve_relationship_condition {
       next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
       my ($rhs) = @{ is_literal_value( $ret->{condition}{$lhs} ) || next };
 
-      # there is no way to know who is right and who is left
-      # therefore the ugly scan below
+      # there is no way to know who is right and who is left in a cref
+      # therefore a full blown resolution call
       # TEMP
       my $rel_rsrc = $self->related_source($args->{rel_name});
       $colinfos ||= $storage->_resolve_column_info([
@@ -2125,9 +2125,7 @@ sub _resolve_relationship_condition {
         { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
       ]);
 
-      my ($l_col, $l_alias, $r_col, $r_alias) = map {
-        ( reverse $_ =~ / ^ (?: ([^\.]+) $ | ([^\.]+) \. (.+) ) /x )[0,1]
-      } ($lhs, $rhs);
+      my ($l_col, $r_col) = map { $_ =~ / ([^\.]+) $ /x } ($lhs, $rhs);
 
       if (
         $colinfos->{$l_col}
