@@ -91,8 +91,9 @@ sub _validate_has_one_condition {
     my $self_id = $cond->{$foreign_id};
 
     # we can ignore a bad $self_id because add_relationship handles this
-    # warning
+    # exception
     return unless $self_id =~ /^self\.(.*)$/;
+
     my $key = $1;
     $class->throw_exception("Defining rel on ${class} that includes '$key' but no such column defined here yet")
         unless $class->has_column($key);

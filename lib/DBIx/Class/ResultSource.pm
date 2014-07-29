@@ -1320,10 +1320,11 @@ sub add_relationship {
 
   # Check foreign and self are right in cond
   if ( (ref $cond ||'') eq 'HASH') {
-    for (keys %$cond) {
-      $self->throw_exception("Keys of condition should be of form 'foreign.col', not '$_'")
-        if /\./ && !/^foreign\./;
-    }
+    $_ =~ /^foreign\./ or $self->throw_exception("Malformed relationship condition key '$_': must be prefixed with 'foreign.'")
+      for keys %$cond;
+
+    $_ =~ /^self\./ or $self->throw_exception("Malformed relationship condition value '$_': must be prefixed with 'self.'")
+      for values %$cond;
   }
 
   my %rels = %{ $self->_relationships };

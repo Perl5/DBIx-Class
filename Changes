@@ -30,6 +30,7 @@ Revision history for DBIx::Class
           mode of a has_many prefetch off a search_related chain
         - Prevent erroneous database hit when accessing prefetched related
           resultsets with no rows
+        - Proper exceptions on malformed relationship conditions (RT#92234)
         - Fix incorrect handling of custom relationship conditions returning
           SQLA literal expressions
         - Fix long standing bug with populate() missing data from hashrefs with
