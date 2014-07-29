@@ -50,7 +50,7 @@ BEGIN {
       CORE::require('Test/More.pm');
       Test::More::fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      if ($ENV{TEST_VERBOSE}) {
+      if ( $ENV{TEST_VERBOSE} or ! DBICTest::RunMode->is_plain ) {
         CORE::require('DBICTest/Util.pm');
         Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
       }
