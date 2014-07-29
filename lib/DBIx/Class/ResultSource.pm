@@ -1552,6 +1552,53 @@ sub _identifying_column_set {
   return undef;
 }
 
+sub _minimal_valueset_satisfying_constraint {
+  my $self = shift;
+  my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
+
+  my $vals = $self->storage->_extract_fixed_condition_columns(
+    $args->{values},
+    ($args->{carp_on_nulls} ? 'consider_nulls' : undef ),
+  );
+
+  my $cols;
+  for my $col ($self->unique_constraint_columns($args->{constraint_name}) ) {
+    if( ! exists $vals->{$col} ) {
+      $cols->{missing}{$col} = 1;
+    }
+    elsif( ! defined $vals->{$col} ) {
+      $cols->{$args->{carp_on_nulls} ? 'undefined' : 'missing'}{$col} = 1;
+    }
+    else {
+      $cols->{present}{$col} = 1;
+    }
+  }
+
+  $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', missing values for column(s): %s",
+    $args->{constraint_name},
+    join (', ', map { "'$_'" } sort keys %{$cols->{missing}} ),
+  ) ) if $cols->{missing};
+
+  if (
+    $cols->{undefined}
+      and
+    !$ENV{DBIC_NULLABLE_KEY_NOWARN}
+  ) {
+    carp_unique ( sprintf (
+      "NULL/undef values supplied for requested unique constraint '%s' (NULL "
+    . 'values in column(s): %s). This is almost certainly not what you wanted, '
+    . 'though you can set DBIC_NULLABLE_KEY_NOWARN to disable this warning.',
+      $args->{constraint_name},
+      join (', ', map { "'$_'" } sort keys %{$cols->{undefined}}),
+    ));
+  }
+
+  return { map
+    { $_ => $vals->{$_} }
+    ( keys %{$cols->{present}}, keys %{$cols->{undefined}} )
+  };
+}
+
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
   my ($self, $join, $alias, $seen, $jpath, $parent_force_left) = @_;

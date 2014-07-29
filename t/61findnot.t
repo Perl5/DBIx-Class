@@ -47,8 +47,10 @@ ok(@cd && !defined($cd[0]), 'Array contains an undef as only element');
 
 $cd = $schema->resultset("CD")->first;
 my $artist_rs = $schema->resultset("Artist")->search({ artistid => $cd->artist->artistid });
-$art = $artist_rs->find({ name => 'some other name' }, { key => 'primary' });
-ok($art, 'Artist found by key in the resultset');
+for my $key ('', 'primary') {
+  my $art = $artist_rs->find({ name => 'some other name' }, { $key ? (key => $key) : () });
+  is($art->artistid, $cd->get_column('artist'), "Artist found through @{[ $key ? 'explicit' : 'implicit' ]} key locked in the resultset");
+}
 
 # collapsing and non-collapsing are separate codepaths, thus the separate tests
 

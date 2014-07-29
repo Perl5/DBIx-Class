@@ -821,7 +821,6 @@ sub find {
     . "corresponding to the columns of the specified unique constraint '$constraint_name'"
     ) unless @c_cols == @_;
 
-    $call_cond = {};
     @{$call_cond}{@c_cols} = @_;
   }
 
@@ -848,17 +847,15 @@ sub find {
     }
   }
 
-  # add-in the resultset condition if any
-  ($call_cond) = $self->_merge_with_rscond($call_cond);
-
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
   my $final_cond;
   if (defined $constraint_name) {
     $final_cond = $self->_qualify_cond_columns (
 
-      $self->_build_unique_cond (
-        $constraint_name,
-        $call_cond,
+      $self->result_source->_minimal_valueset_satisfying_constraint(
+        constraint_name => $constraint_name,
+        values => ($self->_merge_with_rscond($call_cond))[0],
+        carp_on_nulls => 1,
       ),
 
       $alias,
@@ -873,17 +870,28 @@ sub find {
     # relationship
   }
   else {
+    my (@unique_queries, %seen_column_combinations);
+
     # no key was specified - fall down to heuristics mode:
     # run through all unique queries registered on the resultset, and
     # 'OR' all qualifying queries together
-    my (@unique_queries, %seen_column_combinations);
-    for my $c_name ($rsrc->unique_constraint_names) {
+    #
+    # always start from 'primary' if it exists at all
+    for my $c_name ( sort {
+        $a eq 'primary' ? -1
+      : $b eq 'primary' ? 1
+      : $a cmp $b
+    } $rsrc->unique_constraint_names) {
+
       next if $seen_column_combinations{
         join "\x00", sort $rsrc->unique_constraint_columns($c_name)
       }++;
 
       push @unique_queries, try {
-        $self->_build_unique_cond ($c_name, $call_cond, 'croak_on_nulls')
+        $self->result_source->_minimal_valueset_satisfying_constraint(
+          constraint_name => $c_name,
+          values => ($self->_merge_with_rscond($call_cond))[0],
+        ),
       } || ();
     }
 
@@ -942,44 +950,20 @@ sub _qualify_cond_columns {
 }
 
 sub _build_unique_cond {
-  my ($self, $constraint_name, $final_cond, $croak_on_null) = @_;
+  carp_unique sprintf
+    '_build_unique_cond is a private method, and moreover is about to go '
+  . 'away. Please contact the development team at %s if you believe you '
+  . 'have a genuine use for this method, in order to discuss alternatives.',
+    DBIx::Class::_ENV_::HELP_URL,
+  ;
 
-  my @c_cols = $self->result_source->unique_constraint_columns($constraint_name);
+  my ($self, $constraint_name, $cond, $croak_on_null) = @_;
 
-  # trim out everything not in $columns
-  $final_cond = { map {
-    exists $final_cond->{$_}
-      ? ( $_ => $final_cond->{$_} )
-      : ()
-  } @c_cols };
-
-  if (my @missing = grep
-    { ! ($croak_on_null ? defined $final_cond->{$_} : exists $final_cond->{$_}) }
-    (@c_cols)
-  ) {
-    $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', no values for column(s): %s",
-      $constraint_name,
-      join (', ', map { "'$_'" } @missing),
-    ) );
-  }
-
-  if (
-    !$croak_on_null
-      and
-    !$ENV{DBIC_NULLABLE_KEY_NOWARN}
-      and
-    my @undefs = sort grep { ! defined $final_cond->{$_} } (keys %$final_cond)
-  ) {
-    carp_unique ( sprintf (
-      "NULL/undef values supplied for requested unique constraint '%s' (NULL "
-    . 'values in column(s): %s). This is almost certainly not what you wanted, '
-    . 'though you can set DBIC_NULLABLE_KEY_NOWARN to disable this warning.',
-      $constraint_name,
-      join (', ', map { "'$_'" } @undefs),
-    ));
-  }
-
-  return $final_cond;
+  $self->result_source->_minimal_valueset_satisfying_constraint(
+    constraint_name => $constraint_name,
+    values => $cond,
+    carp_on_nulls => !$croak_on_null
+  );
 }
 
 =head2 search_related
