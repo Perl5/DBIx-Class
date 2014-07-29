@@ -8,32 +8,32 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $no_albums_artist = { name => 'We Have No Albums' };
-$schema->resultset('Artist')->create($no_albums_artist);
+my $queries;
+my $debugcb = sub { $queries++; };
+my $orig_debug = $schema->storage->debug;
 
-foreach (
-  [empty => \'0 = 1', 0],
-  [nonempty => $no_albums_artist, 1],
-) {
-  my ($desc, $cond, $count) = @$_;
+{
+  $queries = 0;
+  $schema->storage->debugcb($debugcb);
+  $schema->storage->debug(1);
 
-  my $artists_rs = $schema->resultset('Artist')
-    ->search($cond, { prefetch => 'cds', cache => 1 });
+  my $cds_rs = $schema->resultset('CD')
+    ->search(\'0 = 1', { prefetch => 'tracks', cache => 1 });
 
-  $schema->is_executed_querycount( sub {
-    my @artists = $artists_rs->all;
-    is( 0+@{$artists_rs->get_cache}, $count, "$desc cache on original resultset" );
-    is( 0+@artists, $count, "$desc original resultset" );
-  }, 1, "->all on $desc original resultset hit db" );
+  my @cds = $cds_rs->all;
+  is( $queries, 1, '->all on empty original resultset hit db' );
+  is_deeply( $cds_rs->get_cache, [], 'empty cache on original resultset' );
+  is( 0+@cds, 0, 'empty original resultset' );
 
-  $schema->is_executed_querycount( sub {
-    my $cds_rs = $artists_rs->related_resultset('cds');
-    is_deeply( $cds_rs->get_cache, [], 'empty cache on related resultset' );
+  my $tracks_rs = $cds_rs->related_resultset('tracks');
+  is_deeply( $tracks_rs->get_cache, [], 'empty cache on related resultset' );
 
-    my @cds = $cds_rs->all;
-    is( 0+@cds, 0, 'empty related resultset' );
-  }, 0, '->all on empty related resultest didn\'t hit db' );
+  my @tracks = $tracks_rs->all;
+  is( $queries, 1, "->all on empty related resultset didn't hit db" );
+  is( 0+@tracks, 0, 'empty related resultset' );
+
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug($orig_debug);
 }
-
 
 done_testing;
