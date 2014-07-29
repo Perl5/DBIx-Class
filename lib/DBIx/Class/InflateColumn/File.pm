@@ -47,6 +47,10 @@ sub _file_column_file {
 
     return unless $column_info->{is_file_column};
 
+    # DO NOT CHANGE
+    # This call to id() is generally incorrect - will not DTRT on
+    # multicolumn key. However changing this may introduce
+    # backwards-comp regressions, thus leaving as is
     my $id = $self->id || $self->throw_exception(
         'id required for filename generation'
     );

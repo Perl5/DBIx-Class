@@ -87,7 +87,7 @@ sub ID {
 
 sub _create_ID {
   my ($self, %vals) = @_;
-  return undef unless 0 == grep { !defined } values %vals;
+  return undef if grep { !defined } values %vals;
   return join '|', ref $self || $self, $self->result_source->name,
     map { $_ . '=' . $vals{$_} } sort keys %vals;
 }

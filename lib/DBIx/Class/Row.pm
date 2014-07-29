@@ -1180,10 +1180,8 @@ sub copy {
 
     my $copied = $rel_names_copied->{ $rel_info->{source} } ||= {};
     foreach my $related ($self->search_related($rel_name)->all) {
-      my $id_str = join("\0", $related->id);
-      next if $copied->{$id_str};
-      $copied->{$id_str} = 1;
-      my $rel_copy = $related->copy($resolved);
+      $related->copy($resolved)
+        unless $copied->{$related->ID}++;
     }
 
   }

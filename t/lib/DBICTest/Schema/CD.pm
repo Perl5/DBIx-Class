@@ -69,6 +69,9 @@ __PACKAGE__->has_many(
     cd_to_producer => 'DBICTest::Schema::CD_to_Producer' => 'cd'
 );
 
+__PACKAGE__->has_many( twokeys => 'DBICTest::Schema::TwoKeys', 'cd' );
+
+
 # the undef condition in this rel is *deliberate*
 # tests oddball legacy syntax
 __PACKAGE__->might_have(

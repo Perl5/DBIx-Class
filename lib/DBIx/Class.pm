@@ -396,6 +396,8 @@ Grant Street Group L<http://www.grantstreet.com/>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
 
+guacamole: Fred Steinberg <fred.steinberg@gmail.com>
+
 Haarg: Graham Knop <haarg@haarg.org>
 
 hobbs: Andrew Rodland <arodland@cpan.org>
