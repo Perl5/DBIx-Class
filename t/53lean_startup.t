@@ -99,6 +99,7 @@ BEGIN {
     namespace::clean
     Try::Tiny
     Sub::Name
+    strictures
     Sub::Quote
 
     Scalar::Util
