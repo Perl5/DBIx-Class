@@ -22,7 +22,7 @@ local $ENV{DBI_DSN};
 # there ought to be more code like this in the wild
 like(
   DBICTest::Schema->connect->deployment_statements('SQLite'),
-  qr/\bCREATE TABLE\b/i
+  qr/\bCREATE TABLE artist\b/i  # ensure quoting *is* disabled
 );
 
 lives_ok( sub {

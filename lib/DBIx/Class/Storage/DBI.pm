@@ -2872,7 +2872,7 @@ sub create_ddl_dir {
     add_drop_table => 1,
     ignore_constraint_names => 1,
     ignore_index_names => 1,
-    quote_identifiers => !!$self->sql_maker->_quote_chars,
+    quote_identifiers => $self->sql_maker->_quoting_enabled,
     %{$sqltargs || {}}
   };
 
@@ -3041,9 +3041,8 @@ sub deployment_statements {
   $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
       if exists $sqltargs->{sources};
 
-  $sqltargs->{quote_identifiers}
-    = !!$self->sql_maker->_quote_chars
-  if ! exists $sqltargs->{quote_identifiers};
+  $sqltargs->{quote_identifiers} = $self->sql_maker->_quoting_enabled
+    unless exists $sqltargs->{quote_identifiers};
 
   my $tr = SQL::Translator->new(
     producer => "SQL::Translator::Producer::${type}",

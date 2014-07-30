@@ -44,8 +44,16 @@ use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
 
+sub _quoting_enabled {
+  ( defined $_[0]->{quote_char} and length $_[0]->{quote_char} ) ? 1 : 0
+}
+
 # for when I need a normalized l/r pair
 sub _quote_chars {
+
+  # in case we are called in the old !!$sm->_quote_chars fashion
+  return () if !wantarray and ( ! defined $_[0]->{quote_char} or ! length $_[0]->{quote_char} );
+
   map
     { defined $_ ? $_ : '' }
     ( ref $_[0]->{quote_char} ? (@{$_[0]->{quote_char}}) : ( ($_[0]->{quote_char}) x 2 ) )
