@@ -2248,6 +2248,8 @@ sub populate {
     my (@results, $guard);
 
     if (ref $data->[0] eq 'ARRAY') {
+      # column names only, nothing to do
+      return if @$data == 1;
 
       $guard = $self->result_source->schema->storage->txn_scope_guard
         if @$data > 2;
@@ -2290,6 +2292,8 @@ sub populate {
 
       # positional(!) explicit column list
       if ($i == 0) {
+        # column names only, nothing to do
+        return if @$data == 1;
 
         $colinfo->{$data->[0][$_]} = { pos => $_, name => $data->[0][$_] } and push @$colnames, $data->[0][$_]
           for 0 .. $#{$data->[0]};

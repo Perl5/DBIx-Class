@@ -383,6 +383,7 @@ lives_ok {
 } 'literal+bind with semantically identical attrs works after normalization';
 
 # test all kinds of population with stringified objects
+# or with empty sets
 warnings_like {
   local $ENV{DBIC_RT79576_NOWARN};
 
@@ -438,10 +439,15 @@ warnings_like {
       [qw( rank name )],
       [ $rank, $fn ],
     ]},
+
+    'empty set' => { AoA => [
+      [qw( name rank )],
+    ]},
   };
 
   # generate the AoH equivalent based on the AoAs above
   for my $bag (values %$args) {
+    $bag->{AoH} = [];
     my @hdr = @{$bag->{AoA}[0]};
     for my $v ( @{$bag->{AoA}}[1..$#{$bag->{AoA}}] ) {
       push @{$bag->{AoH}}, my $h = {};

@@ -13,6 +13,7 @@ use warnings;
 
 use Test::More;
 use Test::Warn;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -704,6 +705,26 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   }
 }
 
-ok(eval { $art_rs->populate([]); 1 }, "Empty populate runs but does nothing");
+EMPTY_POPULATE: {
+  foreach(
+    [ empty         => [] ],
+    [ columns_only  => [ [qw(name rank charfield)] ] ],
+  ) {
+    my ($desc, $arg) = @{$_};
+
+    $schema->is_executed_sql_bind( sub {
+
+      my $rs = $art_rs;
+      lives_ok { $rs->populate($arg); 1 } "$desc populate in void context lives";
+
+      my @r = $art_rs->populate($arg);
+      is_deeply( \@r, [], "$desc populate in list context returns empty list" );
+
+      my $r = $art_rs->populate($arg);
+      is( $r, undef, "$desc populate in scalar context returns undef" );
+
+    }, [], "$desc populate executed no statements" );
+  }
+}
 
 done_testing;
