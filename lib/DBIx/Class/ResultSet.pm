@@ -2228,36 +2228,40 @@ case there are obviously no benefits to using this method over L</create>.
 sub populate {
   my $self = shift;
 
-  my ($data, $guard);
-
   # this is naive and just a quick check
   # the types will need to be checked more thoroughly when the
   # multi-source populate gets added
-  if (ref $_[0] eq 'ARRAY') {
-    return unless @{$_[0]};
-
-    $data = $_[0] if (ref $_[0][0] eq 'HASH' or ref $_[0][0] eq 'ARRAY');
-  }
-
-  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs')
-    unless $data;
+  my $data = (
+    ref $_[0] eq 'ARRAY'
+      and
+    ( @{$_[0]} or return )
+      and
+    ( ref $_[0][0] eq 'HASH' or ref $_[0][0] eq 'ARRAY' )
+      and
+    $_[0]
+  ) or $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
 
   # FIXME - no cref handling
   # At this point assume either hashes or arrays
 
   if(defined wantarray) {
-    my @results;
-
-    $guard = $self->result_source->schema->storage->txn_scope_guard
-      if ( @$data > 2 or ( @$data == 2 and ref $data->[0] eq 'ARRAY' ) );
+    my (@results, $guard);
 
     if (ref $data->[0] eq 'ARRAY') {
+
+      $guard = $self->result_source->schema->storage->txn_scope_guard
+        if @$data > 2;
+
       @results = map
         { my $vals = $_; $self->new_result({ map { $data->[0][$_] => $vals->[$_] } 0..$#{$data->[0]} })->insert }
         @{$data}[1 .. $#$data]
       ;
     }
     else {
+
+      $guard = $self->result_source->schema->storage->txn_scope_guard
+        if @$data > 1;
+
       @results = map { $self->new_result($_)->insert } @$data;
     }
 
@@ -2423,6 +2427,7 @@ sub populate {
   }
 
 ### start work
+  my $guard;
   $guard = $rsrc->schema->storage->txn_scope_guard
     if $slices_with_rels;
 

@@ -2038,8 +2038,6 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-  my @col_range = (0..$#$cols);
-
   # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
   # For the time being forcibly stringify whatever is stringifiable
   # ResultSet::populate() hands us a copy - safe to mangle
@@ -2053,7 +2051,7 @@ sub insert_bulk {
   my $colinfos = $source->columns_info($cols);
 
   local $self->{_autoinc_supplied_for_op} =
-    (first { $_->{is_auto_increment} } values %$colinfos)
+    (grep { $_->{is_auto_increment} } values %$colinfos)
       ? 1
       : 0
   ;
@@ -2080,16 +2078,16 @@ sub insert_bulk {
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
   my ($proto_data, $value_type_by_col_idx);
-  for my $i (@col_range) {
-    my $colname = $cols->[$i];
-    if (ref $data->[0][$i] eq 'SCALAR') {
+  for my $col_idx (0..$#$cols) {
+    my $colname = $cols->[$col_idx];
+    if (ref $data->[0][$col_idx] eq 'SCALAR') {
       # no bind value at all - no type
 
-      $proto_data->{$colname} = $data->[0][$i];
+      $proto_data->{$colname} = $data->[0][$col_idx];
     }
-    elsif (ref $data->[0][$i] eq 'REF' and ref ${$data->[0][$i]} eq 'ARRAY' ) {
+    elsif (ref $data->[0][$col_idx] eq 'REF' and ref ${$data->[0][$col_idx]} eq 'ARRAY' ) {
       # repack, so we don't end up mangling the original \[]
-      my ($sql, @bind) = @${$data->[0][$i]};
+      my ($sql, @bind) = @${$data->[0][$col_idx]};
 
       # normalization of user supplied stuff
       my $resolved_bind = $self->_resolve_bindattrs(
@@ -2098,23 +2096,23 @@ sub insert_bulk {
 
       # store value-less (attrs only) bind info - we will be comparing all
       # supplied binds against this for sanity
-      $value_type_by_col_idx->{$i} = [ map { $_->[0] } @$resolved_bind ];
+      $value_type_by_col_idx->{$col_idx} = [ map { $_->[0] } @$resolved_bind ];
 
       $proto_data->{$colname} = \[ $sql, map { [
         # inject slice order to use for $proto_bind construction
-          { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $i, _literal_bind_subindex => $_+1 }
+          { %{$resolved_bind->[$_][0]}, _bind_data_slice_idx => $col_idx, _literal_bind_subindex => $_+1 }
             =>
           $resolved_bind->[$_][1]
         ] } (0 .. $#bind)
       ];
     }
     else {
-      $value_type_by_col_idx->{$i} = undef;
+      $value_type_by_col_idx->{$col_idx} = undef;
 
       $proto_data->{$colname} = \[ '?', [
-        { dbic_colname => $colname, _bind_data_slice_idx => $i }
+        { dbic_colname => $colname, _bind_data_slice_idx => $col_idx }
           =>
-        $data->[0][$i]
+        $data->[0][$col_idx]
       ] ];
     }
   }
@@ -2147,13 +2145,13 @@ sub insert_bulk {
         Data::Dumper::Concise::Dumper ({
           map { $cols->[$_] =>
             $data->[$r_idx][$_]
-          } @col_range
+          } 0..$#$cols
         }),
       }
     );
   };
 
-  for my $col_idx (@col_range) {
+  for my $col_idx (0..$#$cols) {
     my $reference_val = $data->[0][$col_idx];
 
     for my $row_idx (1..$#$data) {  # we are comparing against what we got from [0] above, hence start from 1
@@ -2257,16 +2255,13 @@ sub insert_bulk {
 sub _dbh_execute_for_fetch {
   my ($self, $source, $sth, $proto_bind, $cols, $data) = @_;
 
-  my @idx_range = ( 0 .. $#$proto_bind );
-
   # If we have any bind attributes to take care of, we will bind the
   # proto-bind data (which will never be used by execute_for_fetch)
   # However since column bindtypes are "sticky", this is sufficient
   # to get the DBD to apply the bindtype to all values later on
-
   my $bind_attrs = $self->_dbi_attrs_for_bind($source, $proto_bind);
 
-  for my $i (@idx_range) {
+  for my $i (0 .. $#$proto_bind) {
     $sth->bind_param (
       $i+1, # DBI bind indexes are 1-based
       $proto_bind->[$i][1],
