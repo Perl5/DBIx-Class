@@ -2038,16 +2038,6 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-  # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
-  # For the time being forcibly stringify whatever is stringifiable
-  # ResultSet::populate() hands us a copy - safe to mangle
-  for my $r (0 .. $#$data) {
-    for my $c (0 .. $#{$data->[$r]}) {
-      $data->[$r][$c] = "$data->[$r][$c]"
-        if ( length ref $data->[$r][$c] and is_plain_value $data->[$r][$c] );
-    }
-  }
-
   my $colinfos = $source->columns_info($cols);
 
   local $self->{_autoinc_supplied_for_op} =
@@ -2282,7 +2272,7 @@ sub _dbh_execute_for_fetch {
     return undef if ++$fetch_row_idx > $#$data;
 
     return [ map {
-      ! defined $_->{_literal_bind_subindex}
+      my $v = ! defined $_->{_literal_bind_subindex}
 
         ? $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]
 
@@ -2294,7 +2284,14 @@ sub _dbh_execute_for_fetch {
             [ ${ $data->[ $fetch_row_idx ]->[ $_->{_bind_data_slice_idx} ]}->[ $_->{_literal_bind_subindex} ] ],
             {},     # a fake column_info bag
           )->[0][1]
+      ;
 
+      # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
+      # For the time being forcibly stringify whatever is stringifiable
+      (length ref $v and is_plain_value $v)
+        ? "$v"
+        : $v
+      ;
     } map { $_->[0] } @$proto_bind ];
   };
 
