@@ -126,13 +126,18 @@ for (
 ) {
   my ($ver, $join_op) = @$_;
 
-  no warnings 'redefine';
-  local *DBIx::Class::Storage::DBI::mysql::_get_server_version = sub { $ver };
-
   # we do not care at this point if data is available, just do a reconnect cycle
-  # to clear all caches
-  $schema->storage->disconnect;
-  $schema->storage->ensure_connected;
+  # to clear the server version cache and then get a new maker
+  {
+    $schema->storage->disconnect;
+    $schema->storage->_sql_maker(undef);
+
+    no warnings 'redefine';
+    local *DBIx::Class::Storage::DBI::mysql::_get_server_version = sub { $ver };
+
+    $schema->storage->ensure_connected;
+    $schema->storage->sql_maker;
+  }
 
   is_same_sql_bind (
     $schema->resultset('CD')->search ({}, { prefetch => 'artist' })->as_query,

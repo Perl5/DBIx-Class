@@ -1038,8 +1038,11 @@ sub _init {}
 sub _populate_dbh {
 
   $_[0]->_dbh(undef); # in case ->connected failed we might get sent here
+
   $_[0]->_dbh_details({}); # reset everything we know
-  $_[0]->_sql_maker(undef); # this may also end up being different
+
+  # FIXME - this needs reenabling with the proper "no reset on same DSN" check
+  #$_[0]->_sql_maker(undef); # this may also end up being different
 
   $_[0]->_dbh($_[0]->_connect);
 
