@@ -1550,9 +1550,8 @@ sub _exec_txn_begin {
 sub txn_commit {
   my $self = shift;
 
-  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $self->throw_exception("Unable to txn_commit() on a disconnected storage")
-    unless $self->_dbh;
+    unless $self->_seems_connected;
 
   # esoteric case for folks using external $dbh handles
   if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {
@@ -1581,9 +1580,8 @@ sub _exec_txn_commit {
 sub txn_rollback {
   my $self = shift;
 
-  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $self->throw_exception("Unable to txn_rollback() on a disconnected storage")
-    unless $self->_dbh;
+    unless $self->_seems_connected;
 
   # esoteric case for folks using external $dbh handles
   if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {
@@ -1611,9 +1609,8 @@ sub _exec_txn_rollback {
 
 # generate the DBI-specific stubs, which then fallback to ::Storage proper
 quote_sub __PACKAGE__ . "::$_" => sprintf (<<'EOS', $_) for qw(svp_begin svp_release svp_rollback);
-  $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   $_[0]->throw_exception('Unable to %s() on a disconnected storage')
-    unless $_[0]->_dbh;
+    unless $_[0]->_seems_connected;
   shift->next::method(@_);
 EOS
 
