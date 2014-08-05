@@ -2434,7 +2434,7 @@ sub populate {
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->storage->insert_bulk(
+  $rsrc->storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {

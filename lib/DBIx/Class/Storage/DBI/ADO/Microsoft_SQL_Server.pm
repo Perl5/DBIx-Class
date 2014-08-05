@@ -189,9 +189,9 @@ sub _dbi_attrs_for_bind {
   return $attrs;
 }
 
-# Can't edit all the binds in _dbi_attrs_for_bind for insert_bulk, so we take
+# Can't edit all the binds in _dbi_attrs_for_bind for _insert_bulk, so we take
 # care of those GUIDs here.
-sub insert_bulk {
+sub _insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 

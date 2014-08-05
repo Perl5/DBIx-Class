@@ -179,7 +179,7 @@ sub disconnect {
 
 # Even though we call $sth->finish for uses off the bulk API, there's still an
 # "active statement" warning on disconnect, which we throw away here.
-# This is due to the bug described in insert_bulk.
+# This is due to the bug described in _insert_bulk.
 # Currently a noop because 'prepare' is used instead of 'prepare_cached'.
   local $SIG{__WARN__} = sigwarn_silencer(qr/active statement/i)
     if $self->_is_bulk_storage;
@@ -501,7 +501,7 @@ sub update {
   }
 }
 
-sub insert_bulk {
+sub _insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
@@ -607,7 +607,7 @@ sub insert_bulk {
 # This ignores any data conversion errors detected by the client side libs, as
 # they are usually harmless.
   my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
-    Sub::Name::subname insert_bulk => sub {
+    Sub::Name::subname _insert_bulk_cslib_errhandler => sub {
       my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
 
       return 1 if $errno == 36;
@@ -685,7 +685,7 @@ sub insert_bulk {
 
     $self->_bulk_storage(undef);
     unshift @_, $self;
-    goto \&insert_bulk;
+    goto \&_insert_bulk;
   }
   elsif ($exception) {
 # rollback makes the bulkLogin connection unusable
@@ -717,7 +717,7 @@ sub _remove_blob_cols {
   return %blob_cols ? \%blob_cols : undef;
 }
 
-# same for insert_bulk
+# same for _insert_bulk
 sub _remove_blob_cols_array {
   my ($self, $source, $cols, $data) = @_;
 

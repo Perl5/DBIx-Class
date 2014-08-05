@@ -265,7 +265,6 @@ my $method_dispatch = {
     build_datetime_parser
     last_insert_id
     insert
-    insert_bulk
     update
     delete
     dbh
@@ -315,6 +314,8 @@ my $method_dispatch = {
     _native_data_type
     _get_dbh
     sql_maker_class
+    insert_bulk
+    _insert_bulk
     _execute
     _do_query
     _dbh_execute

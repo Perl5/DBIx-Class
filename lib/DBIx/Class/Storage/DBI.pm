@@ -101,11 +101,12 @@ for my $meth (keys %$storage_accessor_idx, qw(
   txn_begin
 
   insert
-  insert_bulk
   update
   delete
   select
   select_single
+
+  _insert_bulk
 
   with_deferred_fk_checks
 
@@ -2036,7 +2037,23 @@ sub insert {
 }
 
 sub insert_bulk {
+  carp_unique(
+    'insert_bulk() should have never been exposed as a public method and '
+  . 'calling it is depecated as of Aug 2014. If you believe having a genuine '
+  . 'use for this method please contact the development team via '
+  . DBIx::Class::_ENV_::HELP_URL
+  );
+
+  return '0E0' unless @{$_[3]||[]};
+
+  shift->_insert_bulk(@_);
+}
+
+sub _insert_bulk {
   my ($self, $source, $cols, $data) = @_;
+
+  $self->throw_exception('Calling _insert_bulk without a dataset to process makes no sense')
+    unless @{$data||[]};
 
   my $colinfos = $source->columns_info($cols);
 
@@ -2117,7 +2134,7 @@ sub insert_bulk {
     # if the bindlist is empty and we had some dynamic binds, this means the
     # storage ate them away (e.g. the NoBindVars component) and interpolated
     # them directly into the SQL. This obviously can't be good for multi-inserts
-    $self->throw_exception('Cannot insert_bulk without support for placeholders');
+    $self->throw_exception('Unable to invoke fast-path insert without storage placeholder support');
   }
 
   # sanity checks

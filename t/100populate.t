@@ -98,7 +98,7 @@ is(scalar @links, 2);
 is($links[0]->url, undef);
 is($links[1]->url, 'url42');
 
-## make sure populate -> insert_bulk honors fields/orders in void context
+## make sure populate -> _insert_bulk honors fields/orders in void context
 ## schema order
 $schema->populate('Link', [
 [ qw/id url title/ ],
@@ -191,7 +191,7 @@ is($links[2]->title, undef);
   my $rs = $schema->resultset('Link');
   $rs->delete;
 
-  # test insert_bulk with all literal sql (no binds)
+  # test populate with all literal sql (no binds)
 
   $rs->populate([
     (+{
@@ -229,7 +229,7 @@ is($links[2]->title, undef);
   my $rs = $schema->resultset('Link');
   $rs->delete;
 
-  # test insert_bulk with all literal/bind sql
+  # test populate with all literal/bind sql
   $rs->populate([
     (+{
         url => \['?', [ {} => 'cpan.org' ] ],
@@ -244,7 +244,7 @@ is($links[2]->title, undef);
 
   $rs->delete;
 
-  # test insert_bulk with mix literal and literal/bind
+  # test populate with mix literal and literal/bind
   $rs->populate([
     (+{
         url => \"'cpan.org'",
