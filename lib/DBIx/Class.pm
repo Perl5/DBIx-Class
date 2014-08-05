@@ -480,6 +480,8 @@ nuba: Nuba Princigalli <nuba@cpan.org>
 
 Numa: Dan Sully <daniel@cpan.org>
 
+oalders: Olaf Alders <olaf@wundersolutions.com>
+
 ovid: Curtis "Ovid" Poe <ovid@cpan.org>
 
 oyse: E<Oslash>ystein Torget <oystein.torget@dnv.com>

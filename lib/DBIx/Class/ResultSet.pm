@@ -4546,15 +4546,20 @@ A arrayref of columns to group by. Can include columns of joined tables.
 
 =back
 
-HAVING is a select statement attribute that is applied between GROUP BY and
-ORDER BY. It is applied to the after the grouping calculations have been
-done.
+The HAVING operator specifies a B<secondary> condition applied to the set
+after the grouping calculations have been done. In other words it is a
+constraint just like L</where> (and accepting the same
+L<SQL::Abstract syntax|SQL::Abstract/WHERE CLAUSES>) applied to the data
+as it exists after GROUP BY has taken place. Specifying L</having> without
+L</group_by> is a logical mistake, and a fatal error on most RDBMS engines.
+
+E.g.
 
   having => { 'count_employee' => { '>=', 100 } }
 
 or with an in-place function in which case literal SQL is required:
 
-  having => \[ 'count(employee) >= ?', [ count => 100 ] ]
+  having => \[ 'count(employee) >= ?', 100 ]
 
 =head2 distinct
 
