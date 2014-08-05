@@ -4448,7 +4448,7 @@ A arrayref of columns to group by. Can include columns of joined tables.
 =back
 
 HAVING is a select statement attribute that is applied between GROUP BY and
-ORDER BY. It is applied to the after the grouping calculations have been
+ORDER BY. It is applied to the query after the grouping calculations have been
 done.
 
   having => { 'count_employee' => { '>=', 100 } }
