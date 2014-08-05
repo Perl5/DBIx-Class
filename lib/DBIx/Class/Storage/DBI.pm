@@ -254,12 +254,10 @@ sub new {
 }
 
 sub DESTROY {
-  my $self = shift;
-
+  $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   # some databases spew warnings on implicit disconnect
-  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   local $SIG{__WARN__} = sub {};
-  $self->_dbh(undef);
+  $_[0]->_dbh(undef);
 
   # this op is necessary, since the very last perl runtime statement
   # triggers a global destruction shootout, and the $SIG localization
@@ -270,14 +268,14 @@ sub DESTROY {
 
 # handle pid changes correctly - do not destroy parent's connection
 sub _verify_pid {
-  my $self = shift;
 
-  my $pid = $self->_conn_pid;
-  if( defined $pid and $pid != $$ and my $dbh = $self->_dbh ) {
+  my $pid = $_[0]->_conn_pid;
+
+  if( defined $pid and $pid != $$ and my $dbh = $_[0]->_dbh ) {
     $dbh->{InactiveDestroy} = 1;
-    $self->_dbh(undef);
-    $self->transaction_depth(0);
-    $self->savepoints([]);
+    $_[0]->_dbh(undef);
+    $_[0]->transaction_depth(0);
+    $_[0]->savepoints([]);
   }
 
   return;
@@ -871,22 +869,20 @@ database is not in C<AutoCommit> mode.
 =cut
 
 sub disconnect {
-  my ($self) = @_;
 
-  if( $self->_dbh ) {
-    my @actions;
+  if( my $dbh = $_[0]->_dbh ) {
 
-    push @actions, ( $self->on_disconnect_call || () );
-    push @actions, $self->_parse_connect_do ('on_disconnect_do');
-
-    $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
+    $_[0]->_do_connection_actions(disconnect_call_ => $_) for (
+      ( $_[0]->on_disconnect_call || () ),
+      $_[0]->_parse_connect_do ('on_disconnect_do')
+    );
 
     # stops the "implicit rollback on disconnect" warning
-    $self->_exec_txn_rollback unless $self->_dbh_autocommit;
+    $_[0]->_exec_txn_rollback unless $_[0]->_dbh_autocommit;
 
-    %{ $self->_dbh->{CachedKids} } = ();
-    $self->_dbh->disconnect;
-    $self->_dbh(undef);
+    %{ $dbh->{CachedKids} } = ();
+    $dbh->disconnect;
+    $_[0]->_dbh(undef);
   }
 }
 
@@ -907,8 +903,8 @@ in MySQL's case disabled entirely.
 
 # Storage subclasses should override this
 sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
-  $sub->();
+  #my ($self, $sub) = @_;
+  $_[1]->();
 }
 
 =head2 connected
@@ -928,40 +924,26 @@ answering, etc.) This method is used internally by L</dbh>.
 =cut
 
 sub connected {
-  my $self = shift;
-  return 0 unless $self->_seems_connected;
+  return 0 unless $_[0]->_seems_connected;
 
   #be on the safe side
-  local $self->_dbh->{RaiseError} = 1;
+  local $_[0]->_dbh->{RaiseError} = 1;
 
-  return $self->_ping;
+  return $_[0]->_ping;
 }
 
 sub _seems_connected {
-  my $self = shift;
+  $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
 
-  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
-
-  my $dbh = $self->_dbh
-    or return 0;
-
-  return $dbh->FETCH('Active');
+  ($_[0]->_dbh || return 0)->FETCH('Active');
 }
 
 sub _ping {
-  my $self = shift;
-
-  my $dbh = $self->_dbh or return 0;
-
-  return $dbh->ping;
+  ($_[0]->_dbh || return 0)->ping;
 }
 
 sub ensure_connected {
-  my ($self) = @_;
-
-  unless ($self->connected) {
-    $self->_populate_dbh;
-  }
+  $_[0]->connected || ( $_[0]->_populate_dbh && 1 );
 }
 
 =head2 dbh
@@ -975,22 +957,17 @@ instead.
 =cut
 
 sub dbh {
-  my ($self) = @_;
-
-  if (not $self->_dbh) {
-    $self->_populate_dbh;
-  } else {
-    $self->ensure_connected;
-  }
-  return $self->_dbh;
+  # maybe save a ping call
+  $_[0]->_dbh
+    ? ( $_[0]->ensure_connected and $_[0]->_dbh )
+    : $_[0]->_populate_dbh
+  ;
 }
 
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
-  my $self = shift;
-  $self->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
-  $self->_populate_dbh unless $self->_dbh;
-  return $self->_dbh;
+  $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+  $_[0]->_dbh || $_[0]->_populate_dbh;
 }
 
 # *DELIBERATELY* not a setter (for the time being)
@@ -1059,33 +1036,32 @@ sub _rebless {}
 sub _init {}
 
 sub _populate_dbh {
-  my ($self) = @_;
 
-  $self->_dbh(undef); # in case ->connected failed we might get sent here
-  $self->_dbh_details({}); # reset everything we know
-  $self->_sql_maker(undef); # this may also end up being different
+  $_[0]->_dbh(undef); # in case ->connected failed we might get sent here
+  $_[0]->_dbh_details({}); # reset everything we know
+  $_[0]->_sql_maker(undef); # this may also end up being different
 
-  $self->_dbh($self->_connect);
+  $_[0]->_dbh($_[0]->_connect);
 
-  $self->_conn_pid($$) unless DBIx::Class::_ENV_::BROKEN_FORK; # on win32 these are in fact threads
+  $_[0]->_conn_pid($$) unless DBIx::Class::_ENV_::BROKEN_FORK; # on win32 these are in fact threads
 
-  $self->_determine_driver;
+  $_[0]->_determine_driver;
 
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
-  $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
+  $_[0]->{transaction_depth} = $_[0]->_dbh_autocommit ? 0 : 1;
 
-  $self->_run_connection_actions unless $self->{_in_determine_driver};
+  $_[0]->_run_connection_actions unless $_[0]->{_in_determine_driver};
+
+  $_[0]->_dbh;
 }
 
 sub _run_connection_actions {
-  my $self = shift;
-  my @actions;
 
-  push @actions, ( $self->on_connect_call || () );
-  push @actions, $self->_parse_connect_do ('on_connect_do');
-
-  $self->_do_connection_actions(connect_call_ => $_) for @actions;
+  $_[0]->_do_connection_actions(connect_call_ => $_) for (
+    ( $_[0]->on_connect_call || () ),
+    $_[0]->_parse_connect_do ('on_connect_do'),
+  );
 }
 
 
@@ -1543,19 +1519,17 @@ sub _connect {
 }
 
 sub txn_begin {
-  my $self = shift;
-
   # this means we have not yet connected and do not know the AC status
   # (e.g. coderef $dbh), need a full-fledged connection check
-  if (! defined $self->_dbh_autocommit) {
-    $self->ensure_connected;
+  if (! defined $_[0]->_dbh_autocommit) {
+    $_[0]->ensure_connected;
   }
   # Otherwise simply connect or re-connect on pid changes
   else {
-    $self->_get_dbh;
+    $_[0]->_get_dbh;
   }
 
-  $self->next::method(@_);
+  shift->next::method(@_);
 }
 
 sub _exec_txn_begin {
