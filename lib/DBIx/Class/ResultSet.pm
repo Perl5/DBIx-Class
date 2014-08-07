@@ -4360,11 +4360,12 @@ For a more in-depth discussion, see L</PREFETCHING>.
 
 =back
 
-While the L<join> attribute will join a table without including the tables 
-columns in the select, prefetch will add the columns to the select spec at 
-the same time. This attribute is a shorthand for specifying a L</join> spec, 
-adding all columns from the joined related sources as L</+columns> and setting
-L</collapse> to a true value. For example, the following two queries are
+This attribute is a shorthand for specifying a L</join> spec, adding all
+columns from the joined related sources as L</+columns> and setting
+L</collapse> to a true value. It can be thought of as a rough B<superset>
+of the L</join> attribute.
+
+For example, the following two queries are
 equivalent:
 
   my $rs = $schema->resultset('Artist')->search({}, {
