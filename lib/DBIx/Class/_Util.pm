@@ -29,6 +29,9 @@ BEGIN {
     File::Spec->catdir( (File::Spec->splitpath(__FILE__))[1], '_TempExtlib' )
   ) =~ /^(.*)$/; # screw you, taint mode
 
+  die "TempExtlib $HERE does not seem to exist - perhaps you need to run `perl Makefile.PL` in the DBIC checkout?\n"
+    unless -d $HERE;
+
   unshift @INC, $HERE;
 }
 
