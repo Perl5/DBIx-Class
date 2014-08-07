@@ -510,6 +510,8 @@ rafl: Florian Ragwitz <rafl@debian.org>
 
 rainboxx: Matthias Dietrich <perl@rb.ly>
 
+Relequestual: Ben Hutton <relequestual@gmail.com>
+
 rbo: Robert Bohne <rbo@cpan.org>
 
 rbuels: Robert Buels <rmb32@cornell.edu>
