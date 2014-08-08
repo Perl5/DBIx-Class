@@ -4156,10 +4156,11 @@ names:
 
 B<NOTE:> You will almost always need a corresponding L</as> attribute when you
 use L</select>, to instruct DBIx::Class how to store the result of the column.
-Also note that the L</as> attribute has nothing to do with the SQL-side 'AS'
-identifier aliasing. You can however alias a function, so you can use it in
-e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
-attribute> supplied as shown in the example above.
+
+Also note that the L</as> attribute has B<nothing to do> with the SQL-side
+C<AS> identifier aliasing. You B<can> alias a function (so you can use it e.g.
+in an C<ORDER BY> clause), however this is done via the C<-as> B<select
+function attribute> supplied as shown in the example above.
 
 =head2 +select
 
@@ -4189,8 +4190,10 @@ Indicates DBIC-side names for object inflation. That is L</as> indicates the
 slot name in which the column value will be stored within the
 L<Row|DBIx::Class::Row> object. The value will then be accessible via this
 identifier by the C<get_column> method (or via the object accessor B<if one
-with the same name already exists>) as shown below. The L</as> attribute has
-B<nothing to do> with the SQL-side C<AS>. See L</select> for details.
+with the same name already exists>) as shown below.
+
+The L</as> attribute has B<nothing to do> with the SQL-side identifier
+aliasing C<AS>. See L</select> for details.
 
   $rs = $schema->resultset('Employee')->search(undef, {
     select => [
