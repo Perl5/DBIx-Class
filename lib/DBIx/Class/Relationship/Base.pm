@@ -406,7 +406,7 @@ the relationship attributes.
 
 The C<belongs_to> relationship does not update across relationships
 by default, so if you have a 'proxy' attribute on a belongs_to and want to
-use 'update' on it, you muse set C<< cascade_update => 1 >>.
+use 'update' on it, you must set C<< cascade_update => 1 >>.
 
 This is not a RDMS style cascade update - it purely means that when
 an object has update called on it, all the related objects also
