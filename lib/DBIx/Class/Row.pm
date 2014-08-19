@@ -711,6 +711,26 @@ sub has_column_loaded {
   ) ? 1 : 0;
 }
 
+sub _has_related_resultset_cached {
+  my ($self, $relname) = @_;
+
+  my $accessor = ($self->relationship_info($relname) || {})->{attrs}{accessor} || '';
+
+  return ((
+      $accessor eq 'single'
+        and
+      exists $self->{_relationship_data}{$relname}
+    ) or (
+      $accessor eq 'filter'
+        and
+      exists $self->{_inflated_column}{$relname}
+    ) or (
+      defined $self->{related_resultsets}{$relname}
+        and
+      defined $self->{related_resultsets}{$relname}->get_cache
+    )) ? 1 : 0;
+}
+
 =head2 get_columns
 
   my %data = $result->get_columns;
@@ -744,9 +764,7 @@ sub get_columns {
         ) if (
           ! $ENV{DBIC_COLUMNS_INCLUDE_FILTER_RELS}
             and
-          defined $self->{related_resultsets}{$col}
-            and
-          defined $self->{related_resultsets}{$col}->get_cache
+          $self->_has_related_resultset_cached($col)
         );
 
         $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}));
@@ -858,9 +876,7 @@ sub get_inflated_columns {
       if (
         $loaded_colinfo->{$_}{_inflate_info}
           and
-        defined $self->{related_resultsets}{$_}
-          and
-        defined $self->{related_resultsets}{$_}->get_cache
+        $self->_has_related_resultset_cached($_)
       ) {
         carp_unique(
           "Returning prefetched 'filter' rels as part of get_inflated_columns() is deprecated and will "
@@ -1247,8 +1263,9 @@ L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
 sub inflate_result {
   my ($class, $rsrc, $me, $prefetch) = @_;
 
+  # XXX: WTF is $me sometimes undef?
   my $new = bless
-    { _column_data => $me, _result_source => $rsrc },
+    { _column_data => $me || {}, _result_source => $rsrc },
     ref $class || $class
   ;
 
@@ -1273,7 +1290,7 @@ sub inflate_result {
       $class->throw_exception("No accessor type declared for prefetched relationship '$rel_name'")
         unless $relinfo->{attrs}{accessor};
 
-      my $rel_rs = $new->related_resultset($rel_name);
+      my $rel_rsrc = $rsrc->related_source($rel_name);
 
       my @rel_objects;
       if (
@@ -1283,8 +1300,7 @@ sub inflate_result {
       ) {
 
         if (ref $prefetch->{$rel_name}[0] eq 'ARRAY') {
-          my $rel_rsrc = $rel_rs->result_source;
-          my $rel_class = $rel_rs->result_class;
+          my $rel_class = $rel_rsrc->result_class;
           my $rel_inflator = $rel_class->can('inflate_result');
           @rel_objects = map
             { $rel_class->$rel_inflator ( $rel_rsrc, @$_ ) }
@@ -1292,8 +1308,8 @@ sub inflate_result {
           ;
         }
         else {
-          @rel_objects = $rel_rs->result_class->inflate_result(
-            $rel_rs->result_source, @{$prefetch->{$rel_name}}
+          @rel_objects = $rel_rsrc->result_class->inflate_result(
+            $rel_rsrc, @{$prefetch->{$rel_name}}
           );
         }
       }
@@ -1304,8 +1320,9 @@ sub inflate_result {
       elsif ($relinfo->{attrs}{accessor} eq 'filter') {
         $new->{_inflated_column}{$rel_name} = $rel_objects[0];
       }
-
-      $rel_rs->set_cache(\@rel_objects);
+      else {
+          $new->related_resultset($rel_name)->set_cache(\@rel_objects);
+      }
     }
   }
 

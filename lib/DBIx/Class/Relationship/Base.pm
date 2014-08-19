@@ -534,71 +534,88 @@ sub related_resultset {
     };
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
-    if ($is_crosstable and ref $rel_info->{cond} eq 'CODE') {
+    my $rs = do {
+      if ($is_crosstable and ref $rel_info->{cond} eq 'CODE') {
 
-      # A WHOREIFFIC hack to reinvoke the entire condition resolution
-      # with the correct alias. Another way of doing this involves a
-      # lot of state passing around, and the @_ positions are already
-      # mapped out, making this crap a less icky option.
-      #
-      # The point of this exercise is to retain the spirit of the original
-      # $obj->search_related($rel) where the resulting rset will have the
-      # root alias as 'me', instead of $rel (as opposed to invoking
-      # $rs->search_related)
+        # A WHOREIFFIC hack to reinvoke the entire condition resolution
+        # with the correct alias. Another way of doing this involves a
+        # lot of state passing around, and the @_ positions are already
+        # mapped out, making this crap a less icky option.
+        #
+        # The point of this exercise is to retain the spirit of the original
+        # $obj->search_related($rel) where the resulting rset will have the
+        # root alias as 'me', instead of $rel (as opposed to invoking
+        # $rs->search_related)
 
-      # make the fake 'me' rel
-      local $rsrc->{_relationships}{me} = {
-        %{ $rsrc->{_relationships}{$rel} },
-        _original_name => $rel,
-      };
+        # make the fake 'me' rel
+        local $rsrc->{_relationships}{me} = {
+          %{ $rsrc->{_relationships}{$rel} },
+          _original_name => $rel,
+        };
 
-      my $obj_table_alias = lc($rsrc->source_name) . '__row';
-      $obj_table_alias =~ s/\W+/_/g;
+        my $obj_table_alias = lc($rsrc->source_name) . '__row';
+        $obj_table_alias =~ s/\W+/_/g;
 
-      $rsrc->resultset->search(
-        $self->ident_condition($obj_table_alias),
-        { alias => $obj_table_alias },
-      )->search_related('me', $query, $attrs)
-    }
-    else {
-      # FIXME - this conditional doesn't seem correct - got to figure out
-      # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
-      # business seems shady - we could simply not query *at all*
-      if ($cond eq UNRESOLVABLE_CONDITION) {
-        my $reverse = $rsrc->reverse_relationship_info($rel);
-        foreach my $rev_rel (keys %$reverse) {
-          if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-            weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
-          } else {
-            weaken($attrs->{related_objects}{$rev_rel} = $self);
-          }
-        }
+        $rsrc->resultset->search(
+          $self->ident_condition($obj_table_alias),
+          { alias => $obj_table_alias },
+        )->search_related('me', $query, $attrs)
       }
-      elsif (ref $cond eq 'ARRAY') {
-        $cond = [ map {
-          if (ref $_ eq 'HASH') {
-            my $hash;
-            foreach my $key (keys %$_) {
-              my $newkey = $key !~ /\./ ? "me.$key" : $key;
-              $hash->{$newkey} = $_->{$key};
+      else {
+        # FIXME - this conditional doesn't seem correct - got to figure out
+        # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
+        # business seems shady - we could simply not query *at all*
+        if ($cond eq UNRESOLVABLE_CONDITION) {
+          my $reverse = $rsrc->reverse_relationship_info($rel);
+          foreach my $rev_rel (keys %$reverse) {
+            if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+              weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
+            } else {
+              weaken($attrs->{related_objects}{$rev_rel} = $self);
             }
-            $hash;
-          } else {
-            $_;
           }
-        } @$cond ];
-      }
-      elsif (ref $cond eq 'HASH') {
-       foreach my $key (grep { ! /\./ } keys %$cond) {
-          $cond->{"me.$key"} = delete $cond->{$key};
         }
-      }
+        elsif (ref $cond eq 'ARRAY') {
+          $cond = [ map {
+            if (ref $_ eq 'HASH') {
+              my $hash;
+              foreach my $key (keys %$_) {
+                my $newkey = $key !~ /\./ ? "me.$key" : $key;
+                $hash->{$newkey} = $_->{$key};
+              }
+              $hash;
+            } else {
+              $_;
+            }
+          } @$cond ];
+        }
+        elsif (ref $cond eq 'HASH') {
+         foreach my $key (grep { ! /\./ } keys %$cond) {
+            $cond->{"me.$key"} = delete $cond->{$key};
+          }
+        }
 
-      $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-      $rsrc->related_source($rel)->resultset->search(
-        $query, $attrs
-      );
+        $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
+        $rsrc->related_source($rel)->resultset->search(
+          $query, $attrs
+        );
+      }
+    };
+    if (
+      $rel_info->{attrs}{accessor} eq 'single'
+        and
+      exists $self->{_relationship_data}{$rel}
+    ) {
+      $rs->set_cache([ $self->{_relationship_data}{$rel} || () ]);
     }
+    elsif (
+      $rel_info->{attrs}{accessor} eq 'filter'
+        and
+      exists $self->{_inflated_column}{$rel}
+    ) {
+      $rs->set_cache([ $self->{_inflated_column}{$rel} || () ]);
+    }
+    $rs;
   };
 }
 
