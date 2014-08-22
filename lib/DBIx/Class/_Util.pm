@@ -104,7 +104,7 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
-  quote_sub qsub perlstring
+  quote_sub qsub perlstring serialize
   UNRESOLVABLE_CONDITION
 );
 
@@ -143,6 +143,12 @@ sub refcount ($) {
   # No tempvars - must operate on $_[0], otherwise the pad
   # will count as an extra ref
   B::svref_2object($_[0])->REFCNT;
+}
+
+sub serialize ($) {
+  require Storable;
+  local $Storable::canonical = 1;
+  Storable::nfreeze($_[0]);
 }
 
 sub is_exception ($) {

@@ -15,7 +15,7 @@ use mro 'c3';
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use namespace::clean;
 
@@ -1004,7 +1004,7 @@ sub _collapse_cond {
         push @pairs, -or => $chunk
           if @$chunk;
       }
-      elsif ( ! ref $chunk) {
+      elsif ( ! length ref $chunk) {
         push @pairs, $chunk, shift @pieces;
       }
       else {
@@ -1045,6 +1045,7 @@ sub _collapse_cond {
       }
     }
 
+    # unroll single-element -and nodes
     if ( ref $fin->{-and} eq 'ARRAY' and @{$fin->{-and}} == 1 ) {
       my $piece = (delete $fin->{-and})->[0];
       if (ref $piece eq 'ARRAY') {
@@ -1069,12 +1070,12 @@ sub _collapse_cond {
     return unless @w;
 
     if ( @w == 1 ) {
-      return ( ref $w[0] )
+      return ( length ref $w[0] )
         ? $self->_collapse_cond($w[0])
         : { $w[0] => undef }
       ;
     }
-    elsif ( @w == 2 and ! ref $w[0]) {
+    elsif ( @w == 2 and ! length ref $w[0]) {
       if ( ( $w[0]||'' ) =~ /^\-and$/i ) {
         return (ref $w[1] eq 'HASH' or ref $w[1] eq 'ARRAY')
           ? $self->_collapse_cond($w[1], (ref $w[1] eq 'ARRAY') )
@@ -1205,7 +1206,6 @@ sub _collapse_cond_unroll_pairs {
 # is instead used to infer inambiguous values from conditions
 # (e.g. the inheritance of resultset conditions on new_result)
 #
-my $undef_marker = \ do{ my $x = 'undef' };
 sub _extract_fixed_condition_columns {
   my ($self, $where, $consider_nulls) = @_;
   my $where_hash = $self->_collapse_cond($_[1]);
@@ -1216,7 +1216,7 @@ sub _extract_fixed_condition_columns {
     my $vals;
 
     if (!defined ($v = $where_hash->{$c}) ) {
-      $vals->{$undef_marker} = $v if $consider_nulls
+      $vals->{UNDEF} = $v if $consider_nulls
     }
     elsif (
       ref $v eq 'HASH'
@@ -1225,15 +1225,15 @@ sub _extract_fixed_condition_columns {
     ) {
       if (exists $v->{-value}) {
         if (defined $v->{-value}) {
-          $vals->{$v->{-value}} = $v->{-value}
+          $vals->{"VAL_$v->{-value}"} = $v->{-value}
         }
         elsif( $consider_nulls ) {
-          $vals->{$undef_marker} = $v->{-value};
+          $vals->{UNDEF} = $v->{-value};
         }
       }
       # do not need to check for plain values - _collapse_cond did it for us
-      elsif(ref $v->{'='} and is_literal_value($v->{'='}) ) {
-        $vals->{$v->{'='}} = $v->{'='};
+      elsif(length ref $v->{'='} and is_literal_value($v->{'='}) ) {
+        $vals->{ 'SER_' . serialize $v->{'='} } = $v->{'='};
       }
     }
     elsif (
@@ -1241,19 +1241,23 @@ sub _extract_fixed_condition_columns {
         or
       is_plain_value ($v)
     ) {
-      $vals->{$v} = $v;
+      $vals->{"VAL_$v"} = $v;
     }
     elsif (ref $v eq 'ARRAY' and ($v->[0]||'') eq '-and') {
       for ( @{$v}[1..$#$v] ) {
         my $subval = $self->_extract_fixed_condition_columns({ $c => $_ }, 'consider nulls');  # always fish nulls out on recursion
         next unless exists $subval->{$c};  # didn't find anything
-        $vals->{defined $subval->{$c} ? $subval->{$c} : $undef_marker} = $subval->{$c};
+        $vals->{
+          ! defined $subval->{$c}                                        ? 'UNDEF'
+        : ( ! length ref $subval->{$c} or is_plain_value $subval->{$c} ) ? "VAL_$subval->{$c}"
+        : ( 'SER_' . serialize $subval->{$c} )
+        } = $subval->{$c};
       }
     }
 
     if (keys %$vals == 1) {
       ($res->{$c}) = (values %$vals)
-        unless !$consider_nulls and exists $vals->{$undef_marker};
+        unless !$consider_nulls and exists $vals->{UNDEF};
     }
     elsif (keys %$vals > 1) {
       $res->{$c} = UNRESOLVABLE_CONDITION;
