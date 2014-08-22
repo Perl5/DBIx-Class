@@ -95,14 +95,16 @@ for my $t (
   },
   {
     where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [-and => \'1', \['?',2] ] }, rank => { '=' => [ $num, $num ] } },
-    cc_result => { artistid => 1, charfield => [-and => { '=' => \'1' }, { '=' => \['?',2] } ], rank => { '=' => [$num, $num] } },
+    cc_result => { artistid => 1, charfield => [ -and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
     sql => 'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
+    collapsed_sql => 'WHERE artistid = ? AND charfield = ? AND charfield = 1 AND ( rank = ? OR rank = ? )',
     efcc_result => { artistid => 1, charfield => UNRESOLVABLE_CONDITION },
   },
   {
     where => { -and => [ artistid => 1, artistid => 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => [ -or => { '=', 2 } ], rank => [-and => undef, { '=', undef }, { '!=', 2 } ] },
-    cc_result => { artistid => [ -and => 1, 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => 2, rank => [ -and => undef, undef, { '!=', 2 } ] },
+    cc_result => { artistid => [ -and => 1, 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => 2, rank => [ -and => { '!=', 2 }, undef ] },
     sql => 'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank IS NULL AND rank IS NULL AND rank != ?',
+    collapsed_sql => 'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank != ? AND rank IS NULL',
     efcc_result => {
       artistid => UNRESOLVABLE_CONDITION,
       name => 2,
@@ -194,8 +196,9 @@ for my $t (
   # batshit insanity, just to be thorough
   {
     where => { -and => [ [ 'artistid' ], [ -and => [ artistid => { '!=', 69 }, artistid => undef, artistid => { '=' => 200 } ]], artistid => [], { -or => [] }, { -and => [] }, [ 'charfield' ], { name => [] }, 'rank' ] },
-    cc_result => { artistid => [ -and => undef, { '!=', 69 }, undef, 200, [] ], charfield => undef, name => [], rank => undef },
+    cc_result => { artistid => [ -and => [], { '!=', 69 }, undef, 200  ], charfield => undef, name => [], rank => undef },
     sql => 'WHERE artistid IS NULL AND artistid != ? AND artistid IS NULL AND artistid = ? AND 0=1 AND charfield IS NULL AND 0=1 AND rank IS NULL',
+    collapsed_sql => 'WHERE 0=1 AND artistid != ? AND artistid IS NULL AND artistid = ? AND charfield IS NULL AND 0=1 AND rank IS NULL',
     efcc_result => { artistid => UNRESOLVABLE_CONDITION },
     efcc_n_result => { artistid => UNRESOLVABLE_CONDITION, charfield => undef, rank => undef },
   },
@@ -236,17 +239,17 @@ for my $t (
   ) {
     my $name = do { local ($Data::Dumper::Indent, $Data::Dumper::Terse, $Data::Dumper::Sortkeys) = (0, 1, 1); Dumper $w };
 
-    my @orig_sql_bind = $sm->where($w);
+    my ($generated_sql) = $sm->where($w);
 
-    is_same_sql ( $orig_sql_bind[0], $t->{sql}, "Expected SQL from $name" )
+    is_same_sql ( $generated_sql, $t->{sql}, "Expected SQL from $name" )
       if exists $t->{sql};
 
     my $collapsed_cond = $schema->storage->_collapse_cond($w);
 
-    is_same_sql_bind(
-      \[ $sm->where($collapsed_cond) ],
-      \\@orig_sql_bind,
-      "Collapse did not alter final SQL based on $name",
+    is_same_sql(
+      ($sm->where($collapsed_cond))[0],
+      ( $t->{collapsed_sql} || $t->{sql} || $generated_sql ),
+      "Collapse did not alter *the semantics* of the final SQL based on $name",
     );
 
     is_deeply(

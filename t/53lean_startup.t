@@ -104,7 +104,6 @@ BEGIN {
 
     Scalar::Util
     List::Util
-    Data::Compare
 
     Class::Accessor::Grouped
     Class::C3::Componentised
@@ -123,6 +122,7 @@ BEGIN {
   register_lazy_loadable_requires(qw(
     Moo
     Context::Preserve
+    Data::Compare
   ));
 
   my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');

@@ -10,7 +10,6 @@ use DBIx::Class::_Util qw(
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
-use Data::Compare (); # no imports!!! guard against insane architecture
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -656,26 +655,17 @@ sub _stack_cond {
     (ref $_ eq 'HASH' and ! keys %$_)
   ) and $_ = undef for ($left, $right);
 
-  # either on of the two undef or both undef
-  if ( ( (defined $left) xor (defined $right) ) or ! defined $left ) {
+  # either one of the two undef
+  if ( (defined $left) xor (defined $right) ) {
     return defined $left ? $left : $right;
   }
-
-  my $cond = $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
-
-  for my $c (grep { ref $cond->{$_} eq 'ARRAY' and ($cond->{$_}[0]||'') eq '-and' } keys %$cond) {
-
-    my @vals = sort @{$cond->{$c}}[ 1..$#{$cond->{$c}} ];
-    my @fin = shift @vals;
-
-    for my $v (@vals) {
-      push @fin, $v unless Data::Compare::Compare( $fin[-1], $v );
-    }
-
-    $cond->{$c} = (@fin == 1) ? $fin[0] : [-and => @fin ];
+  # both undef
+  elsif ( ! defined $left ) {
+    return undef
   }
-
-  $cond;
+  else {
+    return $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
+  }
 }
 
 =head2 search_literal

@@ -1056,6 +1056,23 @@ sub _collapse_cond {
       }
     }
 
+    # compress same-column conds found in $fin
+    for my $col ( keys %$fin ) {
+      next unless ref $fin->{$col} eq 'ARRAY' and ($fin->{$col}[0]||'') eq '-and';
+      my $val_bag = { map {
+        (! defined $_ )                   ? ( UNDEF => undef )
+      : ( ! ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
+      : ( ( 'SER_' . serialize $_ ) => $_ )
+      } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
+
+      if (keys %$val_bag == 1 ) {
+        ($fin->{$col}) = values %$val_bag;
+      }
+      else {
+        $fin->{$col} = [ -and => map { $val_bag->{$_} } sort keys %$val_bag ];
+      }
+    }
+
     return $fin;
   }
   elsif (ref $where eq 'ARRAY') {
