@@ -613,17 +613,20 @@ sub _on_connect
   if($pversion eq $self->schema_version)
     {
         #carp "This version is already installed";
+        $self->{vschema}->storage->disconnect;
         return 1;
     }
 
   if(!$pversion)
     {
         carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.";
+        $self->{vschema}->storage->disconnect;
         return 1;
     }
 
   carp "Versions out of sync. This is " . $self->schema_version .
     ", your database contains version $pversion, please call upgrade on your Schema.";
+  $self->{vschema}->storage->disconnect;
 }
 
 # is this just a waste of time? if not then merge with DBI.pm
