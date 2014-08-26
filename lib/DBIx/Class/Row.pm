@@ -1119,7 +1119,7 @@ sub set_inflated_columns {
 
 =head2 copy
 
-  my $copy = $orig->copy({ change => $to, ... });
+  my $copy = $orig->copy({ change => $to, ... }, $dont_cascade?);
 
 =over
 
@@ -1137,15 +1137,15 @@ C<< is_auto_increment => 1 >> are explicitly removed before the copy,
 so that the database can insert its own autoincremented values into
 the new object.
 
-Relationships will be followed by the copy procedure B<only> if the
-relationship specifies a true value for its
+Unless $dont_cascade is passed, relationships will be followed by the copy
+procedure B<only> if the relationship specifies a true value for its
 L<cascade_copy|DBIx::Class::Relationship::Base> attribute. C<cascade_copy>
 is set by default on C<has_many> relationships and unset on all others.
 
 =cut
 
 sub copy {
-  my ($self, $changes) = @_;
+  my ($self, $changes, $dont_cascade) = @_;
   $changes ||= {};
   my $col_data = { %{$self->{_column_data}} };
 
@@ -1163,6 +1163,7 @@ sub copy {
   $new->result_source($rsrc);
   $new->set_inflated_columns($changes);
   $new->insert;
+  return $new if $dont_cascade;
 
   # Its possible we'll have 2 relations to the same Source. We need to make
   # sure we don't try to insert the same row twice else we'll violate unique
