@@ -1031,7 +1031,7 @@ sub _collapse_cond {
 
             (ref $_ ne 'ARRAY' or !@$_) and $_ = [ -and => $_ ] for ($l, $r);
 
-            if (@$l and @$r and $l->[0] eq $r->[0] and $l->[0] eq '-and') {
+            if (@$l and @$r and $l->[0] eq $r->[0] and $l->[0] =~ /^\-and$/i) {
               $fin->{$col} = [ -and => map { @$_[1..$#$_] } ($l, $r) ];
             }
             else {
@@ -1188,7 +1188,7 @@ sub _collapse_cond_unroll_pairs {
             unshift @$pairs, $lhs => $rhs->[1];
           }
           else {
-            push @conds, { $lhs => $rhs };
+            push @conds, { $lhs => [ @{$rhs}[1..$#$rhs] ] };
           }
         }
         elsif (@$rhs == 1) {

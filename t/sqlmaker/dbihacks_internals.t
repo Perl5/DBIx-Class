@@ -94,8 +94,8 @@ for my $t (
     efcc_n_result => { artistid => 1, charfield => undef },
   },
   {
-    where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [-and => \'1', \['?',2] ] }, rank => { '=' => [ $num, $num ] } },
-    cc_result => { artistid => 1, charfield => [ -and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
+    where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [ -AND => \'1', \['?',2] ] }, rank => { '=' => [ -OR => $num, $num ] } },
+    cc_result => { artistid => 1, charfield => [-and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
     sql => 'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
     collapsed_sql => 'WHERE artistid = ? AND charfield = ? AND charfield = 1 AND ( rank = ? OR rank = ? )',
     efcc_result => { artistid => 1, charfield => UNRESOLVABLE_CONDITION },
@@ -227,7 +227,10 @@ for my $t (
 
   for my $w (
     $t->{where},
+    $t->{where},  # do it twice, make sure we didn't destory the condition
     [ -and => $t->{where} ],
+    [ -AND => $t->{where} ],
+    { -OR => [ -AND => $t->{where} ] },
     ( keys %{$t->{where}} <= 1 ? [ %{$t->{where}} ] : () ),
     ( (keys %{$t->{where}} == 1 and $t->{where}{-or})
       ? ( ref $t->{where}{-or} eq 'HASH'
