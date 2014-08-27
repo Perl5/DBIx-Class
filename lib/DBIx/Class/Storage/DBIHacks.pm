@@ -998,17 +998,17 @@ sub _collapse_cond {
       my $chunk = shift @pieces;
 
       if (ref $chunk eq 'HASH') {
-        push @pairs, map { [ $_ => $chunk->{$_} ] } sort keys %$chunk;
+        push @pairs, map { $_ => $chunk->{$_} } sort keys %$chunk;
       }
       elsif (ref $chunk eq 'ARRAY') {
-        push @pairs, [ -or => $chunk ]
+        push @pairs, -or => $chunk
           if @$chunk;
       }
       elsif ( ! ref $chunk) {
-        push @pairs, [ $chunk, shift @pieces ];
+        push @pairs, $chunk, shift @pieces;
       }
       else {
-        push @pairs, [ '', $chunk ];
+        push @pairs, '', $chunk;
       }
     }
 
@@ -1103,7 +1103,7 @@ sub _collapse_cond_unroll_pairs {
   my @conds;
 
   while (@$pairs) {
-    my ($lhs, $rhs) = @{ shift @$pairs };
+    my ($lhs, $rhs) = splice @$pairs, 0, 2;
 
     if ($lhs eq '') {
       push @conds, $self->_collapse_cond($rhs);
@@ -1131,7 +1131,7 @@ sub _collapse_cond_unroll_pairs {
           push @conds, { $lhs => $rhs };
         }
         else {
-          for my $p ($self->_collapse_cond_unroll_pairs([ [ $lhs => $rhs->{'='} ] ])) {
+          for my $p ($self->_collapse_cond_unroll_pairs([ $lhs => $rhs->{'='} ])) {
 
             # extra sanity check
             if (keys %$p > 1) {
@@ -1163,18 +1163,18 @@ sub _collapse_cond_unroll_pairs {
             if  @$rhs == 1;
 
           if( $rhs->[0] =~ /^\-and$/i ) {
-            unshift @$pairs, map { [ $lhs => $_ ] } @{$rhs}[1..$#$rhs];
+            unshift @$pairs, map { $lhs => $_ } @{$rhs}[1..$#$rhs];
           }
           # if not an AND then it's an OR
           elsif(@$rhs == 2) {
-            unshift @$pairs, [ $lhs => $rhs->[1] ];
+            unshift @$pairs, $lhs => $rhs->[1];
           }
           else {
             push @conds, { $lhs => $rhs };
           }
         }
         elsif (@$rhs == 1) {
-          unshift @$pairs, [ $lhs => $rhs->[0] ];
+          unshift @$pairs, $lhs => $rhs->[0];
         }
         else {
           push @conds, { $lhs => $rhs };
