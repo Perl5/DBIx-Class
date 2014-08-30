@@ -66,7 +66,7 @@ $schema_v1->create_ddl_dir('MySQL', undef, $ddl_dir);
 ok(-f $fn->{v1}, 'Created DDL file');
 $schema_v1->deploy({ add_drop_table => 1 });
 
-my $tvrs = $schema_v1->{vschema}->resultset('Table');
+my $tvrs = $schema_v1->resultset('Version::Table');
 is($schema_v1->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 # loading a new module defining a new version of the same table

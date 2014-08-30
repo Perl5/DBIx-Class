@@ -256,7 +256,7 @@ sub install
 
   if ($new_version) {
     # create versions table and version row
-    $self->{vschema}->deploy;
+    $self->_deploy_version_table;
     $self->_set_db_version({ version => $new_version });
   }
 }
@@ -272,6 +272,25 @@ sub deploy {
   $self->next::method(@_);
   $self->install();
 }
+
+sub _deploy_version_table {
+  my $self = shift;
+
+  my $conn_info = $self->storage->connect_info;
+  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+
+  my $vtable = $self->resultset('Version::Table');
+  unless ($self->_source_exists($vtable)) {
+    $self->{vschema}->deploy;
+  }
+  $self->{vschema}->storage->disconnect;
+}
+
+sub sqlt_deploy_hook {
+   my ($self, $sqlt_schema) = @_;
+
+   $sqlt_schema->drop_table('dbix_class_schema_versions');
+ }
 
 =head2 create_upgrade_path
 
@@ -525,7 +544,7 @@ sub get_db_version
 {
     my ($self, $rs) = @_;
 
-    my $vtable = $self->{vschema}->resultset('Table');
+    my $vtable = $self->resultset('Version::Table');
     my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
@@ -589,22 +608,23 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  my $conn_info = $self->storage->connect_info;
-  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
-  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
+  my $conn_attrs = $self->storage->_dbic_connect_attributes || {};
 
-  my $vtable = $self->{vschema}->resultset('Table');
+  $self->register_class('Version::Table', 'DBIx::Class::Version::Table');
+  my $vtable = $self->resultset('Version::Table');
 
   # useful when connecting from scripts etc
   return if ($conn_attrs->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $conn_attrs->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
+    $self->register_class('Version::TableCompat', 'DBIx::Class::Version::TableCompat');
+    my $vtable_compat = $self->resultset('Version::TableCompat');
     if ($self->_source_exists($vtable_compat)) {
-      $self->{vschema}->deploy;
+      $self->_deploy_version_table;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
       $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+      $self->unregister_source('Version::TableCompat');
     }
   }
 
@@ -694,7 +714,7 @@ sub _set_db_version {
   $params ||= {};
 
   my $version = $params->{version} ? $params->{version} : $self->schema_version;
-  my $vtable = $self->{vschema}->resultset('Table');
+  my $vtable = $self->resultset('Version::Table');
 
   ##############################################################################
   #                             !!! NOTE !!!
