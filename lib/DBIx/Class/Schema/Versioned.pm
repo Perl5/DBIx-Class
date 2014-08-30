@@ -286,6 +286,13 @@ sub _deploy_version_table {
   $self->{vschema}->storage->disconnect;
 }
 
+=head2 sqlt_deploy_hook
+
+Hook to exlude the 'dbix_class_schema_versions' table from being modified
+deployment of the schema.
+
+=cut
+
 sub sqlt_deploy_hook {
    my ($self, $sqlt_schema) = @_;
 
