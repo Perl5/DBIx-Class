@@ -288,8 +288,8 @@ sub _deploy_version_table {
 
 =head2 sqlt_deploy_hook
 
-Hook to exlude the 'dbix_class_schema_versions' table from being modified
-deployment of the schema.
+Hook to exclude the 'dbix_class_schema_versions' table from being modified
+during schema deployment.
 
 =cut
 
