@@ -179,6 +179,25 @@ for my $t (
       efcc_result => {},
       sql => '',
     },
+    {
+      where => { -or => [ foo => 1, $_ ] },
+      cc_result => { foo => 1 },
+      efcc_result => { foo => 1 },
+      sql => 'WHERE foo = ?',
+    },
+    {
+      where => { -or => [ $_, foo => 1 ] },
+      cc_result => { foo => 1 },
+      efcc_result => { foo => 1 },
+      sql => 'WHERE foo = ?',
+    },
+    {
+      where => { -and => [ fuu => 2, $_, foo => 1 ] },
+      sql => 'WHERE fuu = ? AND foo = ?',
+      collapsed_sql => 'WHERE foo = ? AND fuu = ?',
+      cc_result => { foo => 1, fuu => 2 },
+      efcc_result => { foo => 1, fuu => 2 },
+    },
   } (
     # bare
     [], {},

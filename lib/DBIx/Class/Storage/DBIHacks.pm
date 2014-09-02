@@ -1076,36 +1076,41 @@ sub _collapse_cond {
     return $fin;
   }
   elsif (ref $where eq 'ARRAY') {
-    my @w = @$where;
 
-    while ( @w and (
-      (ref $w[0] eq 'ARRAY' and ! @{$w[0]} )
-        or
-      (ref $w[0] eq 'HASH' and ! keys %{$w[0]})
-    )) { shift @w };
+    # we are always at top-level here, it is safe to dump empty *standalone* pieces
+    my $fin_idx;
 
-    return unless @w;
+    for (my $i = 0; $i <= $#$where; $i++ ) {
 
-    if ( @w == 1 ) {
-      return ( length ref $w[0] )
-        ? $self->_collapse_cond($w[0])
-        : { $w[0] => undef }
-      ;
-    }
-    elsif ( @w == 2 and ! length ref $w[0]) {
-      if ( ( $w[0]||'' ) =~ /^\-and$/i ) {
-        return (ref $w[1] eq 'HASH' or ref $w[1] eq 'ARRAY')
-          ? $self->_collapse_cond($w[1], (ref $w[1] eq 'ARRAY') )
-          : $self->throw_exception("Unsupported top-level op/arg pair: [ $w[0] => $w[1] ]")
-        ;
+      my $logic_mod = lc ( ($where->[$i] =~ /^(\-(?:and|or))$/i)[0] || '' );
+
+      if ($logic_mod) {
+        $i++;
+        $self->throw_exception("Unsupported top-level op/arg pair: [ $logic_mod => $where->[$i] ]")
+          unless ref $where->[$i] eq 'HASH' or ref $where->[$i] eq 'ARRAY';
+
+        my $sub_elt = $self->_collapse_cond({ $logic_mod => $where->[$i] })
+          or next;
+
+        $fin_idx->{ serialize $sub_elt } = $sub_elt;
+      }
+      elsif (! length ref $where->[$i] ) {
+        $fin_idx->{"$where->[$i]_$i"} = $self->_collapse_cond({ @{$where}[$i, $i+1] }) || next;
+        $i++;
       }
       else {
-        return $self->_collapse_cond({ @w });
+        $fin_idx->{ serialize $where->[$i] } = $self->_collapse_cond( $where->[$i] ) || next;
       }
     }
-    else {
-      return { -or => \@w };
-    }
+
+    return unless $fin_idx;
+
+    return ( keys %$fin_idx == 1 ) ? (values %$fin_idx)[0] : {
+      -or => [ map
+        { ref $fin_idx->{$_} eq 'HASH' ? %{$fin_idx->{$_}} : $fin_idx->{$_} }
+        sort keys %$fin_idx
+      ]
+    };
   }
   else {
     # not a hash not an array
