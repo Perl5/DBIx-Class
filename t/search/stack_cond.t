@@ -35,8 +35,10 @@ for my $c (
   my $bare_cond = is_literal_value($c->{cond}) ? { '=', $c->{cond} } : $c->{cond};
 
   my @query_steps = (
-    # this is a monkey-wrench, always there
+    # these are monkey-wrenches, always there
     { title => { '!=', [ -and => \'bar' ] }, year => { '!=', [ -and => 'bar' ] } },
+    { -or => [ genreid => undef, genreid => { '!=' => \42 } ] },
+    { -or => [ genreid => undef, genreid => { '!=' => \42 } ] },
 
     { title => $bare_cond, year => { '=', $c->{cond} } },
     { -and => [ year => $bare_cond, { title => { '=', $c->{cond} } } ] },
@@ -69,7 +71,18 @@ for my $c (
     "(
       SELECT me.title
         FROM cd me
-      WHERE title != bar AND title $c->{sql} AND year != ? AND year $c->{sql}
+      WHERE
+        ( genreid != 42 OR genreid IS NULL )
+          AND
+        ( genreid != 42 OR genreid IS NULL )
+          AND
+        title != bar
+          AND
+        title $c->{sql}
+          AND
+        year != ?
+          AND
+        year $c->{sql}
     )",
     \@bind,
     'Double condition correctly collapsed for steps' . Dumper \@query_steps,

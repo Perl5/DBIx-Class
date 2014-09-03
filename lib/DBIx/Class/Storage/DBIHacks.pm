@@ -986,6 +986,8 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
 sub _collapse_cond {
   my ($self, $where, $where_is_anded_array) = @_;
 
+  my $fin;
+
   if (! $where) {
     return;
   }
@@ -1018,25 +1020,31 @@ sub _collapse_cond {
       or return;
 
     # Consolidate various @conds back into something more compact
-    my $fin;
-
     for my $c (@conds) {
       if (ref $c ne 'HASH') {
         push @{$fin->{-and}}, $c;
       }
       else {
         for my $col (sort keys %$c) {
-          if (exists $fin->{$col}) {
-            my ($l, $r) = ($fin->{$col}, $c->{$col});
 
-            (ref $_ ne 'ARRAY' or !@$_) and $_ = [ -and => $_ ] for ($l, $r);
-
-            if (@$l and @$r and $l->[0] eq $r->[0] and $l->[0] =~ /^\-and$/i) {
-              $fin->{$col} = [ -and => map { @$_[1..$#$_] } ($l, $r) ];
-            }
-            else {
-              $fin->{$col} = [ -and => $fin->{$col}, $c->{$col} ];
-            }
+          # consolidate all -and nodes
+          if ($col =~ /^\-and$/i) {
+            push @{$fin->{-and}},
+              ref $c->{$col} eq 'ARRAY' ? @{$c->{$col}}
+            : ref $c->{$col} eq 'HASH' ? %{$c->{$col}}
+            : { $col => $c->{$col} }
+            ;
+          }
+          elsif ($col =~ /^\-/) {
+            push @{$fin->{-and}}, { $col => $c->{$col} };
+          }
+          elsif (exists $fin->{$col}) {
+            $fin->{$col} = [ -and => map {
+              (ref $_ eq 'ARRAY' and ($_->[0]||'') =~ /^\-and$/i )
+                ? @{$_}[1..$#$_]
+                : $_
+              ;
+            } ($fin->{$col}, $c->{$col}) ];
           }
           else {
             $fin->{$col} = $c->{$col};
@@ -1044,39 +1052,8 @@ sub _collapse_cond {
         }
       }
     }
-
-    # unroll single-element -and nodes
-    if ( ref $fin->{-and} eq 'ARRAY' and @{$fin->{-and}} == 1 ) {
-      my $piece = (delete $fin->{-and})->[0];
-      if (ref $piece eq 'ARRAY') {
-        $fin->{-or} = $fin->{-or} ? [ $piece, $fin->{-or} ] : $piece;
-      }
-      elsif (! exists $fin->{''}) {
-        $fin->{''} = $piece;
-      }
-    }
-
-    # compress same-column conds found in $fin
-    for my $col ( keys %$fin ) {
-      next unless ref $fin->{$col} eq 'ARRAY' and ($fin->{$col}[0]||'') eq '-and';
-      my $val_bag = { map {
-        (! defined $_ )                   ? ( UNDEF => undef )
-      : ( ! ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
-      : ( ( 'SER_' . serialize $_ ) => $_ )
-      } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
-
-      if (keys %$val_bag == 1 ) {
-        ($fin->{$col}) = values %$val_bag;
-      }
-      else {
-        $fin->{$col} = [ -and => map { $val_bag->{$_} } sort keys %$val_bag ];
-      }
-    }
-
-    return $fin;
   }
   elsif (ref $where eq 'ARRAY') {
-
     # we are always at top-level here, it is safe to dump empty *standalone* pieces
     my $fin_idx;
 
@@ -1092,20 +1069,23 @@ sub _collapse_cond {
         my $sub_elt = $self->_collapse_cond({ $logic_mod => $where->[$i] })
           or next;
 
-        $fin_idx->{ serialize $sub_elt } = $sub_elt;
+        $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
       }
       elsif (! length ref $where->[$i] ) {
-        $fin_idx->{"$where->[$i]_$i"} = $self->_collapse_cond({ @{$where}[$i, $i+1] }) || next;
+        my $sub_elt = $self->_collapse_cond({ @{$where}[$i, $i+1] })
+          or next;
+
+        $fin_idx->{ "COL_$where->[$i]_" . serialize $sub_elt } = $sub_elt;
         $i++;
       }
       else {
-        $fin_idx->{ serialize $where->[$i] } = $self->_collapse_cond( $where->[$i] ) || next;
+        $fin_idx->{ "SER_" . serialize $where->[$i] } = $self->_collapse_cond( $where->[$i] ) || next;
       }
     }
 
     return unless $fin_idx;
 
-    return ( keys %$fin_idx == 1 ) ? (values %$fin_idx)[0] : {
+    $fin = ( keys %$fin_idx == 1 ) ? (values %$fin_idx)[0] : {
       -or => [ map
         { ref $fin_idx->{$_} eq 'HASH' ? %{$fin_idx->{$_}} : $fin_idx->{$_} }
         sort keys %$fin_idx
@@ -1114,10 +1094,48 @@ sub _collapse_cond {
   }
   else {
     # not a hash not an array
-    return { '' => $where };
+    $fin = { '' => $where };
   }
 
-  die 'should not get here';
+  # unroll single-element -and's
+  while (
+    $fin->{-and}
+      and
+    @{$fin->{-and}} < 2
+  ) {
+    my $and = delete $fin->{-and};
+    last if @$and == 0;
+
+    # at this point we have @$and == 1
+    if (
+      ref $and->[0] eq 'HASH'
+        and
+      ! grep { exists $fin->{$_} } keys %{$and->[0]}
+    ) {
+      $fin = {
+        %$fin, %{$and->[0]}
+      };
+    }
+  }
+
+  # compress same-column conds found in $fin
+  for my $col ( grep { $_ !~ /^\-/ } keys %$fin ) {
+    next unless ref $fin->{$col} eq 'ARRAY' and ($fin->{$col}[0]||'') =~ /^\-and$/i;
+    my $val_bag = { map {
+      (! defined $_ )                   ? ( UNDEF => undef )
+    : ( ! ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
+    : ( ( 'SER_' . serialize $_ ) => $_ )
+    } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
+
+    if (keys %$val_bag == 1 ) {
+      ($fin->{$col}) = values %$val_bag;
+    }
+    else {
+      $fin->{$col} = [ -and => map { $val_bag->{$_} } sort keys %$val_bag ];
+    }
+  }
+
+  return keys %$fin ? $fin : ();
 }
 
 sub _collapse_cond_unroll_pairs {

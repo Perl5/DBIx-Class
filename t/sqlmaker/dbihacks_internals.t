@@ -117,6 +117,105 @@ for my $t (
       rank => undef,
     },
   },
+  (map { {
+    where => $_,
+    sql => 'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
+    collapsed_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
+    cc_result => { -and => [
+      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
+      { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
+    ] },
+    efcc_result => {},
+    efcc_n_result => {},
+  } } (
+    { -and => [
+      -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
+    ] },
+
+    {
+      -OR => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
+    },
+  ) ),
+  {
+    where => { -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => { '=' => 1 }, genreid => { '=' => \['?', 2] } ] },
+    sql => 'WHERE rank = 13 OR charfield IS NULL OR artistid = ? OR genreid = ?',
+    collapsed_sql => 'WHERE artistid = ? OR charfield IS NULL OR genreid = ? OR rank = 13',
+    cc_result => { -or => [ artistid => 1, charfield => undef, genreid => { '=' => \['?', 2] }, rank => { '=' => \13 } ] },
+    efcc_result => {},
+    efcc_n_result => {},
+  },
+  {
+    where => { -and => [
+      -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '=' => \13 } },
+    ] },
+    cc_result => { -and => [
+      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
+      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
+    ] },
+    sql => 'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
+    collapsed_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
+    efcc_result => {},
+    efcc_n_result => {},
+  },
+  {
+    where => { -and => [
+      -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
+      -and => [ foo => { '=' => \1 }, bar => 2 ],
+      -and => [ foo => 3, bar => { '=' => \4 } ],
+      -exists => \'(SELECT 1)',
+      -exists => \'(SELECT 2)',
+      -not => { foo => 69 },
+      -not => { foo => 42 },
+    ]},
+    sql => 'WHERE
+          ( rank = 13 OR charfield IS NULL OR artistid = ? )
+      AND ( artistid = ? OR charfield IS NULL OR rank != 42 )
+      AND foo = 1
+      AND bar = ?
+      AND foo = ?
+      AND bar = 4
+      AND (EXISTS (SELECT 1))
+      AND (EXISTS (SELECT 2))
+      AND NOT foo = ?
+      AND NOT foo = ?
+    ',
+    collapsed_sql => 'WHERE
+          ( artistid = ? OR charfield IS NULL OR rank = 13 )
+      AND ( artistid = ? OR charfield IS NULL OR rank != 42 )
+      AND (EXISTS (SELECT 1))
+      AND (EXISTS (SELECT 2))
+      AND NOT foo = ?
+      AND NOT foo = ?
+      AND bar = 4
+      AND bar = ?
+      AND foo = 1
+      AND foo = ?
+    ',
+    cc_result => {
+      -and => [
+        { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
+        { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
+        { -exists => \'(SELECT 1)' },
+        { -exists => \'(SELECT 2)' },
+        { -not => { foo => 69 } },
+        { -not => { foo => 42 } },
+      ],
+      foo => [ -and => { '=' => \1 }, 3 ],
+      bar => [ -and => { '=' => \4 }, 2 ],
+    },
+    efcc_result => {
+      foo => UNRESOLVABLE_CONDITION,
+      bar => UNRESOLVABLE_CONDITION,
+    },
+    efcc_n_result => {
+      foo => UNRESOLVABLE_CONDITION,
+      bar => UNRESOLVABLE_CONDITION,
+    },
+  },
   {
     where => { -and => [
       [ '_macro.to' => { -like => '%correct%' }, '_wc_macros.to' => { -like => '%correct%' } ],
