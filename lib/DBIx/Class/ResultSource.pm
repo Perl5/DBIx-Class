@@ -1809,7 +1809,7 @@ sub _resolve_condition {
 
   # _resolve_relationship_condition always returns qualified cols even in the
   # case of join_free_condition, but nothing downstream expects this
-  if (ref $res[0] eq 'HASH' and ($is_objlike[0] or $is_objlike[1]) ) {
+  if ($rc->{join_free_condition} and ref $res[0] eq 'HASH') {
     $res[0] = { map
       { ($_ =~ /\.(.+)/) => $res[0]{$_} }
       keys %{$res[0]}
