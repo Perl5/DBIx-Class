@@ -147,6 +147,16 @@ for my $t (
 
   ) ),
   {
+    where => { -or => [ -and => [ foo => { '!=', undef }, bar => { -in => [ 69, 42 ] } ], foo => { '=', { -value => undef } } ] },
+    sql => 'WHERE ( foo IS NOT NULL AND bar IN ( ?, ? ) ) OR foo IS NULL',
+    collapsed_sql => 'WHERE foo IS NULL OR ( bar IN ( ?, ? ) AND foo IS NOT NULL )',
+    cc_result => { -or => [
+      foo => undef,
+      { bar => { -in => [ 69, 42 ] }, foo => { '!=', undef } }
+    ] },
+    efcc_result => {},
+  },
+  {
     where => { -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => { '=' => 1 }, genreid => { '=' => \['?', 2] } ] },
     sql => 'WHERE rank = 13 OR charfield IS NULL OR artistid = ? OR genreid = ?',
     collapsed_sql => 'WHERE artistid = ? OR charfield IS NULL OR genreid = ? OR rank = 13',

@@ -1086,10 +1086,12 @@ sub _collapse_cond {
     return unless $fin_idx;
 
     $fin = ( keys %$fin_idx == 1 ) ? (values %$fin_idx)[0] : {
-      -or => [ map
-        { ref $fin_idx->{$_} eq 'HASH' ? %{$fin_idx->{$_}} : $fin_idx->{$_} }
-        sort keys %$fin_idx
-      ]
+      -or => [ map {
+        # unroll single-element hashes
+        ( ref $fin_idx->{$_} eq 'HASH' and keys %{$fin_idx->{$_}} == 1 )
+          ? %{$fin_idx->{$_}}
+          : $fin_idx->{$_}
+      } sort keys %$fin_idx ]
     };
   }
   else {
