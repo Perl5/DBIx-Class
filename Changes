@@ -58,6 +58,8 @@ Revision history for DBIx::Class
           blind new) (GH#51)
 
     * Misc
+        - A bunch of fixes for the botched condition parsing in the previous
+          devrels (082700_01 ~ 082700_05) (RT#98161)
         - Ensure source metadata calls always take place on the result source
           instance registered with the caller
         - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
