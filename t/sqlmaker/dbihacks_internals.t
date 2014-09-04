@@ -147,10 +147,17 @@ for my $t (
 
   ) ),
   {
-    where => { -or => [ -and => [ foo => { '!=', undef }, bar => { -in => [ 69, 42 ] } ], foo => { '=', { -value => undef } } ] },
-    sql => 'WHERE ( foo IS NOT NULL AND bar IN ( ?, ? ) ) OR foo IS NULL',
-    collapsed_sql => 'WHERE foo IS NULL OR ( bar IN ( ?, ? ) AND foo IS NOT NULL )',
+    where => { -or => [
+      -and => [ foo => { '!=', { -value => undef } }, bar => { -in => [ 69, 42 ] } ],
+      foo => { '=', { -value => undef } },
+      baz => { '!=' => { -ident => 'bozz' } },
+      baz => { -ident => 'buzz' },
+    ] },
+    sql => 'WHERE ( foo IS NOT NULL AND bar IN ( ?, ? ) ) OR foo IS NULL OR baz != bozz OR baz = buzz',
+    collapsed_sql => 'WHERE baz != bozz OR baz = buzz OR foo IS NULL OR ( bar IN ( ?, ? ) AND foo IS NOT NULL )',
     cc_result => { -or => [
+      baz => { '!=' => { -ident => 'bozz' } },
+      baz => { '=' => { -ident => 'buzz' } },
       foo => undef,
       { bar => { -in => [ 69, 42 ] }, foo => { '!=', undef } }
     ] },

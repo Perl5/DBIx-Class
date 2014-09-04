@@ -1223,6 +1223,18 @@ sub _collapse_cond_unroll_pairs {
           push @conds, { $lhs => $rhs };
         }
       }
+      # unroll func + { -value => ... }
+      elsif (
+        ref $rhs eq 'HASH'
+          and
+        ( my ($subop) = keys %$rhs ) == 1
+          and
+        length ref ((values %$rhs)[0])
+          and
+        my $vref = is_plain_value( (values %$rhs)[0] )
+      ) {
+        push @conds, { $lhs => { $subop => @$vref } }
+      }
       else {
         push @conds, { $lhs => $rhs };
       }
