@@ -1833,20 +1833,23 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 # metadata
 #
 ## self-explanatory API, modeled on the custom cond coderef:
-# rel_name
-# foreign_alias
-# foreign_values
-# self_alias
-# self_result_object
-# require_join_free_condition
-# infer_values_based_on (either not supplied or a hashref, implies require_join_free_condition)
-# condition (optional, derived from $self->rel_info(rel_name))
+# rel_name              => (scalar)
+# foreign_alias         => (scalar)
+# foreign_values        => (either not supplied or a hashref)
+# self_alias            => (scalar)
+# self_result_object    => (either not supplied or a result object)
+# require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
+# infer_values_based_on => (either not supplied or a hashref, implies require_join_free_condition)
+# condition             => (sqla cond struct, optional, defeaults to from $self->rel_info(rel_name)->{cond})
 #
 ## returns a hash
-# condition
-# identity_map
-# join_free_condition (maybe unset)
-# inferred_values (always either complete or unset)
+# condition           => (a valid *likely fully qualified* sqla cond structure)
+# identity_map        => (a hashref of foreign-to-self *unqualified* column equality names)
+# join_free_condition => (a valid *fully qualified* sqla cond structure, maybe unset)
+# inferred_values     => (in case of an available join_free condition, this is a hashref of
+#                         *unqualified* column/value *EQUALITY* pairs, representing an amalgamation
+#                         of the JF-cond parse and infer_values_based_on
+#                         always either complete or unset)
 #
 sub _resolve_relationship_condition {
   my $self = shift;
