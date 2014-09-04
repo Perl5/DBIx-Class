@@ -8,6 +8,12 @@ use DBICTest ':DiffSQL';
 use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 
 use Data::Dumper;
+BEGIN {
+  if ( eval { require Test::Differences } ) {
+    no warnings 'redefine';
+    *is_deeply = \&Test::Differences::eq_or_diff;
+  }
+}
 
 my $schema = DBICTest->init_schema( no_deploy => 1);
 my $sm = $schema->storage->sql_maker;
@@ -128,6 +134,7 @@ for my $t (
     efcc_result => {},
     efcc_n_result => {},
   } } (
+
     { -and => [
       -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
       -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
@@ -137,6 +144,7 @@ for my $t (
       -OR => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
       -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
     },
+
   ) ),
   {
     where => { -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => { '=' => 1 }, genreid => { '=' => \['?', 2] } ] },
@@ -390,6 +398,8 @@ for my $t (
       $t->{efcc_n_result},
       "Expected fixed_condition including NULLs produced on $name",
     ) if $t->{efcc_n_result};
+
+    die unless Test::Builder->new->is_passing;
   }
 }
 
