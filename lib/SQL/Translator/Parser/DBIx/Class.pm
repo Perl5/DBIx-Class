@@ -186,9 +186,6 @@ sub parse {
             # support quoting properly to be signaled about this
             $rel_table = $$rel_table if ref $rel_table eq 'SCALAR';
 
-            my $reverse_rels = $source->reverse_relationship_info($rel);
-            my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
-
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
@@ -216,6 +213,8 @@ sub parse {
             else {
                 $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
             }
+
+            my ($otherrelname, $otherrelationship) = %{ $source->reverse_relationship_info($rel) };
 
             my $cascade;
             for my $c (qw/delete update/) {
