@@ -7,12 +7,13 @@ CPAN_MIRROR=$(echo "$PERL_CPANM_OPT" | grep -oP -- '--mirror\s+\S+' | head -n 1 
 if ! [[ "$CPAN_MIRROR" =~ "http://" ]] ; then
   echo_err "Unable to extract primary cpan mirror from PERL_CPANM_OPT - something is wrong"
   echo_err "PERL_CPANM_OPT: $PERL_CPANM_OPT"
-  CPAN_MIRROR="https://cpan.metacpan.org/"
+  CPAN_MIRROR="http://cpan.shadowcatprojects.net/"
   PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
   echo_err "Using $CPAN_MIRROR for the time being"
 fi
 
-export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 PERLBREW_CPAN_MIRROR="$CPAN_MIRROR" HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
+# do not set PERLBREW_CPAN_MIRROR - the canonical backpan.perl.org does not have the perl tarballs
+export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
 
 # try CPAN's latest offering if requested
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
