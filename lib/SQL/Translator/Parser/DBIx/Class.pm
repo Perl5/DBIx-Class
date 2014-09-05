@@ -163,8 +163,8 @@ sub parse {
         # global add_fk_index set in parser_args
         my $add_fk_index = (exists $args->{add_fk_index} && ! $args->{add_fk_index}) ? 0 : 1;
 
-        foreach my $rel (sort @rels)
-        {
+        REL:
+        foreach my $rel (sort @rels) {
 
             my $rel_info = $source->relationship_info($rel);
 
@@ -189,7 +189,15 @@ sub parse {
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
-            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
+
+            for ( keys %{$rel_info->{cond}} ) {
+              unless (exists $other_columns_idx{$_}) {
+                carp "Ignoring relationship '$rel' - related resultsource does not contain one of the specified columns: '$_'\n";
+                next REL;
+              }
+            }
+
+            my @cond = sort { $other_columns_idx{$a} <=> $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
 
             # Get the key information, mapping off the foreign/self markers
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
