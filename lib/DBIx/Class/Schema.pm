@@ -241,11 +241,11 @@ sub load_namespaces {
   my $resultsets_by_source_name = $class->_map_namespaces($resultset_namespace);
 
   if($lazy_load) {
-    for(keys %results) {
+    for(keys %$results_by_source_name) {
       # $source_class => [$source_name, $resultset_class]
-      $class->class_mappings->{$results{$_}} = [ $_, $resultsets{$_} || $default_resultset_class ];
+      $class->class_mappings->{$results_by_source_name->{$_}} = [ $_, $resultsets_by_source_name->{$_} || $default_resultset_class ];
       # $source_name => [$source_class, $resultset_class]
-      $class->source_registrations->{$_} = [ $results{$_}, $resultsets{$_} || $default_resultset_class ];
+      $class->source_registrations->{$_} = [ $results_by_source_name->{$_}, $resultsets_by_source_name->{$_} || $default_resultset_class ];
     }
     return;
   }
