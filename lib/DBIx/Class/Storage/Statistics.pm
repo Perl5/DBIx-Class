@@ -15,6 +15,7 @@ BEGIN {
 
 extends 'DBIx::Class';
 use DBIx::Class::_Util qw(sigwarn_silencer qsub);
+use IO::Handle ();
 use namespace::clean;
 
 =head1 NAME
@@ -42,11 +43,13 @@ Returns a new L<DBIx::Class::Storage::Statistics> object.
 =head2 debugfh
 
 Sets or retrieves the filehandle used for trace/debug output.  This should
-be an IO::Handle compatible object (only the C<print> method is used). Initially
-should be set to STDERR - although see information on the
-L<DBIC_TRACE> environment variable.
+be an L<IO::Handle> compatible object (only the
+L<< printflush|IO::Handle/$io->printflush_(_ARGS_) >> method is used). By
+default it is initially set to STDERR - although see discussion of the
+L<DBIC_TRACE|DBIx::Class::Storage/DBIC_TRACE> environment variable.
 
-As getter it will lazily open a filehandle for you if one is not already set.
+Invoked as a getter it will lazily open a filehandle for you if one is not
+already set.
 
 =cut
 

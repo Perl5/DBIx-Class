@@ -24,7 +24,6 @@ use Test::Exception;
 use List::Util 'first';
 use Scalar::Util 'reftype';
 use File::Spec;
-use IO::Handle;
 use Moose();
 use MooseX::Types();
 note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";

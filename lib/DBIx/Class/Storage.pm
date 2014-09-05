@@ -436,10 +436,10 @@ shell environment.
 
 =head2 debugfh
 
-Set or retrieve the filehandle used for trace/debug output.  This should be
-an IO::Handle compatible object (only the C<print> method is used).  Initially
-set to be STDERR - although see information on the
-L<DBIC_TRACE> environment variable.
+An opportunistic proxy to L<< ->debugobj->debugfh(@_)
+|DBIx::Class::Storage::Statistics/debugfh >>
+If the currently set L</debugobj> does not have a L</debugfh> method, caling
+this is a no-op.
 
 =cut
 
