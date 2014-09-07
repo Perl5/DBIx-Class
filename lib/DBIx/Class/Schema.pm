@@ -1070,9 +1070,11 @@ sub _copy_state_from {
 
   foreach my $source_name ($from->sources) {
 
-    # Skip any source that isn't yet created
-    # This allows lazy to work past connect
-    next unless is_loaded($source_name);
+    # Skip any source which isn't actually an object yet
+    # The hatchlings for sources are just arrayrefs
+    unless (blessed $sregs->{ $source_name }){
+        next;
+        }
 
     my $source = $from->source($source_name);
     my $new = $source->new($source);
