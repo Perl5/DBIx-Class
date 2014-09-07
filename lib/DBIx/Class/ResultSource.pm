@@ -1881,13 +1881,13 @@ sub _resolve_relationship_condition {
 
   $args->{condition} ||= $rel_info->{cond};
 
-  if (exists $args->{self_result_object}) {
-    $self->throw_exception( "Argument 'self_result_object' must be an object of class '@{[ $self->result_class ]}'" )
-      unless defined blessed $args->{self_result_object};
-
-    $self->throw_exception( "Object '$args->{self_result_object}' must be of class '@{[ $self->result_class ]}'" )
-      unless $args->{self_result_object}->isa($self->result_class);
-  }
+  $self->throw_exception( "Argument 'self_result_object' must be an object of class '@{[ $self->result_class ]}'" )
+    if (
+      exists $args->{self_result_object}
+        and
+      ( ! defined blessed $args->{self_result_object} or ! $args->{self_result_object}->isa($self->result_class) )
+    )
+  ;
 
   my $rel_rsrc = $self->related_source($args->{rel_name});
 
