@@ -12,7 +12,6 @@ use DBIx::Class::_Util 'refcount';
 use Sub::Name 'subname';
 use Devel::GlobalDestruction;
 use namespace::clean;
-use Module::Loaded;
 
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
