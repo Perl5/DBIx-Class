@@ -1881,9 +1881,6 @@ sub _resolve_relationship_condition {
 
   $args->{condition} ||= $rel_info->{cond};
 
-# TEMP
-#  my $rel_rsrc = $self->related_source($args->{rel_name});
-
   if (exists $args->{self_result_object}) {
     $self->throw_exception( "Argument 'self_result_object' must be an object of class '@{[ $self->result_class ]}'" )
       unless defined blessed $args->{self_result_object};
@@ -1891,6 +1888,8 @@ sub _resolve_relationship_condition {
     $self->throw_exception( "Object '$args->{self_result_object}' must be of class '@{[ $self->result_class ]}'" )
       unless $args->{self_result_object}->isa($self->result_class);
   }
+
+  my $rel_rsrc = $self->related_source($args->{rel_name});
 
   if (exists $args->{foreign_values}) {
     if (defined blessed $args->{foreign_values}) {
@@ -1900,8 +1899,6 @@ sub _resolve_relationship_condition {
       $args->{foreign_values} = { $args->{foreign_values}->get_columns };
     }
     elsif (! defined $args->{foreign_values} or ref $args->{foreign_values} eq 'HASH') {
-      # TEMP
-      my $rel_rsrc = $self->related_source($args->{rel_name});
       my $ci = $rel_rsrc->columns_info;
       ! exists $ci->{$_} and $self->throw_exception(
         "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'"
@@ -1947,8 +1944,6 @@ sub _resolve_relationship_condition {
 
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_result_object}) {
-        # TEMP
-        my $rel_rsrc = $self->related_source($args->{rel_name});
         $joinfree_alias = $args->{foreign_alias};
         $joinfree_source = $rel_rsrc;
       }
@@ -2122,8 +2117,6 @@ sub _resolve_relationship_condition {
 
       # there is no way to know who is right and who is left in a cref
       # therefore a full blown resolution call
-      # TEMP
-      my $rel_rsrc = $self->related_source($args->{rel_name});
       $colinfos ||= $storage->_resolve_column_info([
         { -alias => $args->{self_alias}, -rsrc => $self },
         { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
