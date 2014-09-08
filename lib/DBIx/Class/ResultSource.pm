@@ -1580,7 +1580,7 @@ sub _minimal_valueset_satisfying_constraint {
     $cols->{fc}{$col} = 1 if (
       ! ( $cols->{missing} || {})->{$col}
         and
-      $args->{columns_info}{$col}{_filter_info}
+      keys %{ $args->{columns_info}{$col}{_filter_info} || {} }
     );
   }
 
