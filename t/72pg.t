@@ -4,10 +4,12 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Sub::Name;
+use Config;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use SQL::Abstract 'is_literal_value';
+use DBIx::Class::_Util 'is_exception';
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
@@ -339,14 +341,9 @@ my $cds = $artist->cds_unordered->search({
 lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
 
 ## Test SELECT ... FOR UPDATE
-
   SKIP: {
-      if(eval { require Sys::SigAction }) {
-          Sys::SigAction->import( 'set_sig_handler' );
-      }
-      else {
-        skip "Sys::SigAction is not available", 6;
-      }
+      skip "Your system does not support unsafe signals (d_sigaction) - unable to run deadlock test", 1
+        unless eval { $Config{d_sigaction} and require POSIX };
 
       my ($timed_out, $artist2);
 
@@ -385,15 +382,28 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
           is($artist->artistid, 1, "select returns artistid = 1");
 
           $timed_out = 0;
+
           eval {
-              my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
+              # can not use %SIG assignment directly - we need sigaction below
+              # localization to a block still works however
+              local $SIG{ALRM};
+
+              POSIX::sigaction( POSIX::SIGALRM() => POSIX::SigAction->new(
+                sub { die "DBICTestTimeout" },
+              ));
+
               alarm(2);
               $artist2 = $schema2->resultset('Artist')->find(1);
               $artist2->name('fooey');
               $artist2->update;
-              alarm(0);
           };
-          $timed_out = $@ =~ /DBICTestTimeout/;
+
+          alarm(0);
+
+          if (is_exception($@)) {
+            $timed_out = $@ =~ /DBICTestTimeout/
+              or die $@;
+          }
         });
 
         $t->{test_sub}->();

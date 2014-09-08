@@ -453,7 +453,6 @@ my $reqs = {
         ? (
           # when changing this list make sure to adjust xt/optional_deps.t
           %$rdbms_pg,
-          ($^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : ()),
           'DBD::Pg'               => '2.009002',
         ) : ()
     },
