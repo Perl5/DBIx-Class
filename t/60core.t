@@ -130,6 +130,13 @@ throws_ok {
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
 
+# test find on an unresolvable condition
+is(
+  $schema->resultset('Artist')->find({ artistid => [ -and => 1, 2 ]}),
+  undef
+);
+
+
 # test find_or_new
 {
   my $existing_obj = $schema->resultset('Artist')->find_or_new({

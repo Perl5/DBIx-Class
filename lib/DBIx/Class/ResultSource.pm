@@ -1567,18 +1567,21 @@ sub _minimal_valueset_satisfying_constraint {
 
   my $cols;
   for my $col ($self->unique_constraint_columns($args->{constraint_name}) ) {
-    if( ! exists $vals->{$col} ) {
-      $cols->{missing}{$col} = 1;
+    if( ! exists $vals->{$col} or ( $vals->{$col}||'' ) eq UNRESOLVABLE_CONDITION ) {
+      $cols->{missing}{$col} = undef;
     }
     elsif( ! defined $vals->{$col} ) {
-      $cols->{$args->{carp_on_nulls} ? 'undefined' : 'missing'}{$col} = 1;
+      $cols->{$args->{carp_on_nulls} ? 'undefined' : 'missing'}{$col} = undef;
     }
     else {
-      $cols->{present}{$col} = 1;
+      # we need to inject back the '=' as _extract_fixed_condition_columns
+      # will strip it from literals and values alike, resulting in an invalid
+      # condition in the end
+      $cols->{present}{$col} = { '=' => $vals->{$col} };
     }
 
     $cols->{fc}{$col} = 1 if (
-      ! ( $cols->{missing} || {})->{$col}
+      ( ! $cols->{missing} or ! exists $cols->{missing}{$col} )
         and
       keys %{ $args->{columns_info}{$col}{_filter_info} || {} }
     );
@@ -1609,10 +1612,7 @@ sub _minimal_valueset_satisfying_constraint {
     ));
   }
 
-  return { map
-    { $_ => $vals->{$_} }
-    ( keys %{$cols->{present}}, keys %{$cols->{undefined}} )
-  };
+  return { map { %{ $cols->{$_}||{} } } qw(present undefined) };
 }
 
 # Returns the {from} structure used to express JOIN conditions
