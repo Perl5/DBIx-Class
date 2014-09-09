@@ -416,6 +416,8 @@ jasonmay: Jason May <jason.a.may@gmail.com>
 
 jegade: Jens Gassmann <jens.gassmann@atomix.de>
 
+jeneric: Eric A. Miller <emiller@cpan.org>
+
 jesper: Jesper Krogh
 
 jgoulah: John Goulah <jgoulah@cpan.org>

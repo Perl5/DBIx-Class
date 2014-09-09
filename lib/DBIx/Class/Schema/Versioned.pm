@@ -204,6 +204,7 @@ use base 'DBIx::Class::Schema';
 use DBIx::Class::Carp;
 use Time::HiRes qw/gettimeofday/;
 use Try::Tiny;
+use Scalar::Util 'weaken';
 use namespace::clean;
 
 __PACKAGE__->mk_classdata('_filedata');
@@ -589,9 +590,10 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  my $conn_info = $self->storage->connect_info;
-  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
-  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
+  weaken (my $w_self = $self );
+
+  $self->{vschema} = DBIx::Class::Version->connect(sub { $w_self->storage->dbh });
+  my $conn_attrs = $self->storage->_dbic_connect_attributes || {};
 
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -600,7 +602,7 @@ sub _on_connect
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_self->storage->dbh })->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
