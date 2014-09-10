@@ -242,7 +242,7 @@ To join two relations at the same level, use an arrayref instead:
 
 Or combine the two:
 
-  join => { room => [ 'chair', { table => 'leg' } ]
+  join => { room => [ 'chair', { table => 'leg' } ] }
 
 =head2 Table aliases
 
