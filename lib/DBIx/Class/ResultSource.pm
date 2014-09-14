@@ -2139,28 +2139,29 @@ sub _resolve_relationship_condition {
     for my $lhs (keys %$col_eqs) {
 
       next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
-      my ($rhs) = @{ is_literal_value( $ret->{condition}{$lhs} ) || next };
 
       # there is no way to know who is right and who is left in a cref
-      # therefore a full blown resolution call
+      # therefore a full blown resolution call, and figure out the
+      # direction a bit further below
       $colinfos ||= $storage->_resolve_column_info([
         { -alias => $args->{self_alias}, -rsrc => $self },
         { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
       ]);
 
-      my ($l_col, $r_col) = map { $_ =~ / ([^\.]+) $ /x } ($lhs, $rhs);
+      next unless $colinfos->{$lhs};  # someone is engaging in witchcraft
 
-      if (
-        $colinfos->{$l_col}
-          and
-        $colinfos->{$r_col}
-          and
-        $colinfos->{$l_col}{-source_alias} ne $colinfos->{$r_col}{-source_alias}
-      ) {
-        ( $colinfos->{$l_col}{-source_alias} eq $args->{self_alias} )
-          ? ( $ret->{identity_map}{$l_col} = $r_col )
-          : ( $ret->{identity_map}{$r_col} = $l_col )
-        ;
+      if ( my $rhs_ref = is_literal_value( $col_eqs->{$lhs} ) ) {
+
+        if (
+          $colinfos->{$rhs_ref->[0]}
+            and
+          $colinfos->{$lhs}{-source_alias} ne $colinfos->{$rhs_ref->[0]}{-source_alias}
+        ) {
+          ( $colinfos->{$lhs}{-source_alias} eq $args->{self_alias} )
+            ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = $colinfos->{$rhs_ref->[0]}{-colname} )
+            : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = $colinfos->{$lhs}{-colname} )
+          ;
+        }
       }
     }
   }
