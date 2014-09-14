@@ -80,6 +80,19 @@ sub _recurse_oracle_joins {
         && $jt !~ /inner/i;
     }
 
+    # FIXME - the code below *UTTERLY* doesn't work with custom conds... sigh
+    # for the time being do not do any processing with the likes of _collapse_cond
+    # instead only unroll the -and hack if present
+    $on = $on->{-and}[0] if (
+      ref $on eq 'HASH'
+        and
+      keys %$on == 1
+        and
+      ref $on->{-and} eq 'ARRAY'
+        and
+      @{$on->{-and}} == 1
+    );
+
     # sadly SQLA treats where($scalar) as literal, so we need to jump some hoops
     push @where, map { \sprintf ('%s%s = %s%s',
       ref $_ ? $self->_recurse_where($_) : $self->_quote($_),

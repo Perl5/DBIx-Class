@@ -2163,10 +2163,28 @@ sub _resolve_relationship_condition {
           ;
         }
       }
+      elsif (
+        $col_eqs->{$lhs} =~ /^ ( \Q$args->{self_alias}\E \. .+ ) /x
+          and
+        ($colinfos->{$1}||{})->{-result_source} == $rel_rsrc
+      ) {
+        my ($lcol, $rcol) = map
+          { $colinfos->{$_}{-colname} }
+          ( $lhs, $1 )
+        ;
+        carp_unique(
+          "The $exception_rel_id specifies equality of column '$lcol' and the "
+        . "*VALUE* '$rcol' (you did not use the { -ident => ... } operator)"
+        );
+      }
     }
   }
 
-  $ret
+  # FIXME - temporary, to fool the idiotic check in SQLMaker::_join_condition
+  $ret->{condition} = { -and => [ $ret->{condition} ] }
+    unless $ret->{condition} eq UNRESOLVABLE_CONDITION;
+
+  $ret;
 }
 
 =head2 related_source

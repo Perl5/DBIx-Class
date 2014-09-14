@@ -116,6 +116,20 @@ __PACKAGE__->has_many (
   }
 );
 
+__PACKAGE__->has_many (
+  deliberately_broken_all_cd_tracks => __PACKAGE__,
+  sub {
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my $args = &check_customcond_args;
+
+    return {
+      "$args->{foreign_alias}.cd" => "$args->{self_alias}.cd"
+    };
+  }
+);
+
 our $hook_cb;
 
 sub sqlt_deploy_hook {
