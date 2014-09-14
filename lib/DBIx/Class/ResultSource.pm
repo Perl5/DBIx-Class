@@ -1331,6 +1331,7 @@ sub add_relationship {
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
                   source => $f_source_name,
+                  _original_name => $rel,
                   cond  => $cond,
                   attrs => $attrs };
   $self->_relationships(\%rels);
@@ -1864,12 +1865,12 @@ sub _resolve_relationship_condition {
   $self->throw_exception("Arguments 'self_alias' and 'foreign_alias' may not be identical")
     if $args->{self_alias} eq $args->{foreign_alias};
 
-  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
-
   my $rel_info = $self->relationship_info($args->{rel_name})
 # TEMP
 #    or $self->throw_exception( "No such $exception_rel_id" );
-    or carp_unique("Requesting resolution on non-existent $exception_rel_id: fix your code *soon*, as it will break with the next major version");
+    or carp_unique("Requesting resolution on non-existent relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}': fix your code *soon*, as it will break with the next major version");
+
+  my $exception_rel_id = "relationship '$rel_info->{_original_name}' on source '@{[ $self->source_name ]}'";
 
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
     if exists $args->{self_result_object} and exists $args->{foreign_values};
