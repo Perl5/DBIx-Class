@@ -50,9 +50,9 @@ for my $c (
 
   if (my $v = is_plain_value($c->{cond})) {
     push @query_steps,
-      { year => $v->[0] },
-      { title => $v->[0] },
-      { -and => [ year => $v->[0], title => $v->[0] ] },
+      { year => $$v },
+      { title => $$v },
+      { -and => [ year => $$v, title => $$v ] },
     ;
   }
 

@@ -1124,8 +1124,8 @@ sub _collapse_cond {
   for my $col ( grep { $_ !~ /^\-/ } keys %$fin ) {
     next unless ref $fin->{$col} eq 'ARRAY' and ($fin->{$col}[0]||'') =~ /^\-and$/i;
     my $val_bag = { map {
-      (! defined $_ )                   ? ( UNDEF => undef )
-    : ( ! ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
+      (! defined $_ )                          ? ( UNDEF => undef )
+    : ( ! length ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
     : ( ( 'SER_' . serialize $_ ) => $_ )
     } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
 
@@ -1233,7 +1233,7 @@ sub _collapse_cond_unroll_pairs {
           and
         my $vref = is_plain_value( (values %$rhs)[0] )
       ) {
-        push @conds, { $lhs => { $subop => @$vref } }
+        push @conds, { $lhs => { $subop => $$vref } }
       }
       else {
         push @conds, { $lhs => $rhs };
