@@ -1973,10 +1973,25 @@ sub _resolve_relationship_condition {
         $joinfree_source->columns
       };
 
-      $fq_col_list->{$_} or $self->throw_exception (
+      exists $fq_col_list->{$_} or $self->throw_exception (
         "The join-free condition returned for $exception_rel_id may only "
-      . 'contain keys that are fully qualified column names of the corresponding source'
+      . 'contain keys that are fully qualified column names of the corresponding source '
+      . "(it returned '$_')"
       ) for keys %$jfc;
+
+      (
+        length ref $_
+          and
+        defined blessed($_)
+          and
+        $_->isa('DBIx::Class::Row')
+          and
+        $self->throw_exception (
+          "The join-free condition returned for $exception_rel_id may not "
+        . 'contain result objects as values - perhaps instead of invoking '
+        . '->$something you meant to return ->get_column($something)'
+        )
+      ) for values %$jfc;
 
     }
   }

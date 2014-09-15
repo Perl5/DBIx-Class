@@ -67,7 +67,7 @@ sub {
     },
 
     ! $args->{self_result_object} ? () : {
-     "$args->{foreign_alias}.cdid" => $args->{self_result_object}->cd
+     "$args->{foreign_alias}.cdid" => $args->{self_result_object}->get_column('cd')
     },
 
     ! $args->{foreign_values} ? () : {

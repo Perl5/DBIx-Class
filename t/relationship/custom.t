@@ -285,6 +285,12 @@ my $cd_single_track = $schema->resultset('CD')->create({
 
 my $single_track = $cd_single_track->tracks->next;
 
+is(
+  $single_track->cd_cref_cond->title,
+  $cd_single_track->title,
+  'Got back the expected single-track cd title',
+);
+
 is_deeply
   { $schema->resultset('Track')->find({ cd_cref_cond => { cdid => $cd_single_track->id } })->get_columns },
   { $single_track->get_columns },
