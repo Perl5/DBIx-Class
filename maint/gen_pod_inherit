@@ -3,6 +3,8 @@
 use warnings;
 use strict;
 
+use DBIx::Class::_Util; # load early in case any shims are needed
+
 my $lib_dir = 'lib';
 my $pod_dir = 'maint/.Generated_Pod';
 
