@@ -1147,14 +1147,14 @@ is set by default on C<has_many> relationships and unset on all others.
 sub copy {
   my ($self, $changes) = @_;
   $changes ||= {};
-  my $col_data = { %{$self->{_column_data}} };
+  my $col_data = { $self->get_columns };
 
   my $rsrc = $self->result_source;
 
-  my $colinfo = $rsrc->columns_info([ keys %$col_data ]);
+  my $colinfo = $rsrc->columns_info;
   foreach my $col (keys %$col_data) {
     delete $col_data->{$col}
-      if $colinfo->{$col}{is_auto_increment};
+      if ( ! $colinfo->{$col} or $colinfo->{$col}{is_auto_increment} );
   }
 
   my $new = { _column_data => $col_data };
