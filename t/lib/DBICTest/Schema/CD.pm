@@ -55,6 +55,14 @@ __PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track',
   { join_type => 'left'},
 );
 
+__PACKAGE__->belongs_to( single_track_opaque => 'DBICTest::Schema::Track',
+  sub {
+    my $args = &check_customcond_args;
+    \ " $args->{foreign_alias}.trackid = $args->{self_alias}.single_track ";
+  },
+  { join_type => 'left'},
+);
+
 # add a non-left single relationship for the complex prefetch tests
 __PACKAGE__->belongs_to( existing_single_track => 'DBICTest::Schema::Track',
   { 'foreign.trackid' => 'self.single_track' },
