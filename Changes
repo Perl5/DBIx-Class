@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           objects that went out of sync with the storage (RT#96499)
         - CDBICompat::columns() now supports adding columns through supplied
           Class::DBI::Column instances (GH#52)
+        - Deprecate { col1 => col2 } expressions in manual from structures
+          (at some point of time manual from will be deprecated itself)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases

@@ -6,6 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
 
@@ -164,6 +165,8 @@ my @tests = (
 for my $i (0 .. $#tests) {
   my $t = $tests[$i];
   for my $p (1, 2) {  # repeat everything twice, make sure we do not clobber search arguments
+    local $SIG{__WARN__} = sigwarn_silencer( qr/\Q{from} structures with conditions not conforming to the SQL::Abstract syntax are deprecated/ );
+
     is_same_sql_bind (
       $t->{rs}->search ($t->{search}, $t->{attrs})->as_query,
       $t->{sqlbind},

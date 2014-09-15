@@ -452,8 +452,6 @@ sub _join_condition {
 
   # Backcompat for the old days when a plain hashref
   # { 't1.col1' => 't2.col2' } meant ON t1.col1 = t2.col2
-  # Once things settle we should start warning here so that
-  # folks unroll their hacks
   if (
     ref $cond eq 'HASH'
       and
@@ -463,6 +461,12 @@ sub _join_condition {
       and
     ! ref ( (values %$cond)[0] )
   ) {
+    carp_unique(
+      "ResultSet {from} structures with conditions not conforming to the "
+    . "SQL::Abstract syntax are deprecated: you either need to stop abusing "
+    . "{from} altogether, or express the condition properly using the "
+    . "{ -ident => ... } operator"
+    );
     $cond = { keys %$cond => { -ident => values %$cond } }
   }
   elsif ( ref $cond eq 'ARRAY' ) {
