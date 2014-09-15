@@ -206,18 +206,7 @@ while (@chunks) {
   fi
 
 else
-
-  # listalldeps is deliberate - will upgrade everything it can find
-  # we exclude SQLA specifically, since we do not want to pull
-  # in 1.99_xx on bleadcpan runs
-  deplist="$(make listalldeps | grep -vP '^(SQL::Abstract)$')"
-
-  # assume MDV on POISON_ENV, do not touch DBI/SQLite
-  if [[ "$POISON_ENV" = "true" ]] ; then
-    deplist="$(grep -vP '^(DBI|DBD::SQLite)$' <<< "$deplist")"
-  fi
-
-  parallel_installdeps_notest "$deplist"
+  parallel_installdeps_notest "$(make listdeps)"
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
