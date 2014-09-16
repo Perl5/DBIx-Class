@@ -1907,8 +1907,9 @@ sub _resolve_relationship_condition {
       $args->{foreign_values} = { $args->{foreign_values}->get_columns };
     }
     elsif (! defined $args->{foreign_values} or ref $args->{foreign_values} eq 'HASH') {
+      my $ri = { map { $_ => 1 } $rel_rsrc->relationships };
       my $ci = $rel_rsrc->columns_info;
-      ! exists $ci->{$_} and $self->throw_exception(
+      ! exists $ci->{$_} and ! exists $ri->{$_} and $self->throw_exception(
         "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'"
       ) for keys %{ $args->{foreign_values} ||= {} };
     }
