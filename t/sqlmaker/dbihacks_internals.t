@@ -81,8 +81,15 @@ for my $t (
   },
   {
     where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'} ] },
-    cc_result => { '' => \'foo=bar', name => 'Caterwauler McCrae', artistid => $num },
+    cc_result => { -and => [ \'foo=bar' ], name => 'Caterwauler McCrae', artistid => $num },
     sql => 'WHERE foo=bar AND artistid = ? AND name = ?',
+    efcc_result => { name => 'Caterwauler McCrae', artistid => $num },
+  },
+  {
+    where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'}, \'buzz=bozz' ] },
+    cc_result => { -and => [ \'foo=bar', \'buzz=bozz' ], name => 'Caterwauler McCrae', artistid => $num },
+    sql => 'WHERE foo=bar AND artistid = ? AND name = ? AND buzz=bozz',
+    collapsed_sql => 'WHERE foo=bar AND buzz=bozz AND artistid = ? AND name = ?',
     efcc_result => { name => 'Caterwauler McCrae', artistid => $num },
   },
   {
@@ -357,15 +364,82 @@ for my $t (
         [ { 'me.title' => 'Spoonful of bees' } ],
     ]},
     cc_result => {
-      '' => \[
+      -and => [ \[
         "LOWER(me.title) LIKE ?",
         '%spoon%',
-      ],
+      ]],
       'me.title' => 'Spoonful of bees',
     },
     sql => 'WHERE LOWER(me.title) LIKE ? AND me.title = ?',
     efcc_result => { 'me.title' => 'Spoonful of bees' },
-  }
+  },
+
+  # crazy literals
+  {
+    where => {
+      -or => [
+        \'foo = bar',
+      ],
+    },
+    sql => 'WHERE foo = bar',
+    cc_result => {
+      -and => [
+        \'foo = bar',
+      ],
+    },
+    efcc_result => {},
+  },
+  {
+    where => {
+      -or => [
+        \'foo = bar',
+        \'baz = ber',
+      ],
+    },
+    sql => 'WHERE foo = bar OR baz = ber',
+    collapsed_sql => 'WHERE baz = ber OR foo = bar',
+    cc_result => {
+      -or => [
+        \'baz = ber',
+        \'foo = bar',
+      ],
+    },
+    efcc_result => {},
+  },
+  {
+    where => {
+      -and => [
+        \'foo = bar',
+        \'baz = ber',
+      ],
+    },
+    sql => 'WHERE foo = bar AND baz = ber',
+    cc_result => {
+      -and => [
+        \'foo = bar',
+        \'baz = ber',
+      ],
+    },
+    efcc_result => {},
+  },
+  {
+    where => {
+      -and => [
+        \'foo = bar',
+        \'baz = ber',
+        x => { -ident => 'y' },
+      ],
+    },
+    sql => 'WHERE foo = bar AND baz = ber AND x = y',
+    cc_result => {
+      -and => [
+        \'foo = bar',
+        \'baz = ber',
+      ],
+      x => { '=' => { -ident => 'y' } }
+    },
+    efcc_result => { x => { -ident => 'y' } },
+  },
 ) {
 
   for my $w (
@@ -390,13 +464,13 @@ for my $t (
     is_same_sql ( $generated_sql, $t->{sql}, "Expected SQL from $name" )
       if exists $t->{sql};
 
-    my $collapsed_cond = $schema->storage->_collapse_cond($w);
-
     is_same_sql(
-      ($sm->where($collapsed_cond))[0],
+      ($sm->where($t->{cc_result}))[0],
       ( $t->{collapsed_sql} || $t->{sql} || $generated_sql ),
       "Collapse did not alter *the semantics* of the final SQL based on $name",
     );
+
+    my $collapsed_cond = $schema->storage->_collapse_cond($w);
 
     is_deeply(
       $collapsed_cond,

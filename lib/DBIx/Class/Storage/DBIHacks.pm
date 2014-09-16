@@ -1083,20 +1083,57 @@ sub _collapse_cond {
       }
     }
 
-    return unless $fin_idx;
+    if (! $fin_idx) {
+      return;
+    }
+    elsif ( keys %$fin_idx == 1 ) {
+      $fin = (values %$fin_idx)[0];
+    }
+    else {
+      my @or;
 
-    $fin = ( keys %$fin_idx == 1 ) ? (values %$fin_idx)[0] : {
-      -or => [ map {
-        # unroll single-element hashes
-        ( ref $fin_idx->{$_} eq 'HASH' and keys %{$fin_idx->{$_}} == 1 )
-          ? %{$fin_idx->{$_}}
-          : $fin_idx->{$_}
-      } sort keys %$fin_idx ]
-    };
+      # at this point everything is at most one level deep - unroll if needed
+      for (sort keys %$fin_idx) {
+        if ( ref $fin_idx->{$_} eq 'HASH' and keys %{$fin_idx->{$_}} == 1 ) {
+          my ($l, $r) = %{$fin_idx->{$_}};
+
+          if (
+            ref $r eq 'ARRAY'
+              and
+            (
+              ( @$r == 1 and $l =~ /^\-and$/i )
+                or
+              $l =~ /^\-or$/i
+            )
+          ) {
+            push @or, @$r
+          }
+
+          elsif (
+            ref $r eq 'HASH'
+              and
+            keys %$r == 1
+              and
+            $l =~ /^\-(?:and|or)$/i
+          ) {
+            push @or, %$r;
+          }
+
+          else {
+            push @or, $l, $r;
+          }
+        }
+        else {
+          push @or, $fin_idx->{$_};
+        }
+      }
+
+      $fin->{-or} = \@or;
+    }
   }
   else {
     # not a hash not an array
-    $fin = { '' => $where };
+    $fin = { -and => [ $where ] };
   }
 
   # unroll single-element -and's
@@ -1117,6 +1154,10 @@ sub _collapse_cond {
       $fin = {
         %$fin, %{$and->[0]}
       };
+    }
+    else {
+      $fin->{-and} = $and;
+      last;
     }
   }
 
