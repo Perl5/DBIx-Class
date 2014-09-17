@@ -546,7 +546,12 @@ sub related_resultset {
       # root alias as 'me', instead of $rel (as opposed to invoking
       # $rs->search_related)
 
-      local $rsrc->{_relationships}{me} = $rsrc->{_relationships}{$rel};  # make the fake 'me' rel
+      # make the fake 'me' rel
+      local $rsrc->{_relationships}{me} = {
+        %{ $rsrc->{_relationships}{$rel} },
+        _original_name => $rel,
+      };
+
       my $obj_table_alias = lc($rsrc->source_name) . '__row';
       $obj_table_alias =~ s/\W+/_/g;
 

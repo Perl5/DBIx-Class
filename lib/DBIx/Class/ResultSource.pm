@@ -1331,7 +1331,6 @@ sub add_relationship {
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
                   source => $f_source_name,
-                  _original_name => $rel,
                   cond  => $cond,
                   attrs => $attrs };
   $self->_relationships(\%rels);
@@ -1875,7 +1874,7 @@ sub _resolve_relationship_condition {
 
 # TEMP
   $exception_rel_id = "relationship '$rel_info->{_original_name}' on source '@{[ $self->source_name ]}'"
-    if $rel_info;
+    if $rel_info and exists $rel_info->{_original_name};
 
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
     if exists $args->{self_result_object} and exists $args->{foreign_values};
