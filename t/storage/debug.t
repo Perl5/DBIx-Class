@@ -24,6 +24,7 @@ $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
 $schema->storage->debugfh($lfn->openw);
+$schema->storage->debugfh->autoflush(1);
 $schema->resultset('CD')->count;
 
 my @loglines = $lfn->slurp;
@@ -94,7 +95,6 @@ die "How did that fail... $exception"
 
 is_deeply(\@warnings, [], 'No warnings with unicode on STDERR');
 
-
 # test debugcb and debugobj protocol
 {
   my $rs = $schema->resultset('CD')->search( {
@@ -134,6 +134,42 @@ is_deeply(\@warnings, [], 'No warnings with unicode on STDERR');
   is( $do->{_traced_sql}, $sql_trace );
 
   is_deeply ( $do->{_traced_bind}, \@bind_trace );
+}
+
+# recreate test as seen in DBIx::Class::QueryLog
+# the rationale is that if someone uses a non-IO::Handle object
+# on CPAN, many are *bound* to use one on darkpan. Thus this
+# test to ensure there is no future silent breakage
+{
+  my $output = "";
+
+  {
+    package DBICTest::_Printable;
+
+    sub print {
+      my ($self, @args) = @_;
+      $output .= join('', @args);
+    }
+  }
+
+  $schema->storage->debugobj(undef);
+  $schema->storage->debug(1);
+  $schema->storage->debugfh( bless {}, "DBICTest::_Printable" );
+  $schema->storage->txn_do( sub { $schema->resultset('Artist')->count } );
+
+  like (
+    $output,
+    qr/
+      \A
+      ^ \QBEGIN WORK\E \s*?
+      ^ \QSELECT COUNT( * ) FROM artist me:\E \s*?
+      ^ \QCOMMIT\E \s*?
+      \z
+    /xm
+  );
+
+  $schema->storage->debug(0);
+  $schema->storage->debugfh(undef);
 }
 
 done_testing;

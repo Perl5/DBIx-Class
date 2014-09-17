@@ -15,7 +15,6 @@ BEGIN {
 
 extends 'DBIx::Class';
 use DBIx::Class::_Util qw(sigwarn_silencer qsub);
-use IO::Handle ();
 use namespace::clean;
 
 =head1 NAME
@@ -44,12 +43,13 @@ Returns a new L<DBIx::Class::Storage::Statistics> object.
 
 Sets or retrieves the filehandle used for trace/debug output.  This should
 be an L<IO::Handle> compatible object (only the
-L<< printflush|IO::Handle/$io->printflush_(_ARGS_) >> method is used). By
+L<< print|IO::Handle/METHODS >> method is used). By
 default it is initially set to STDERR - although see discussion of the
 L<DBIC_TRACE|DBIx::Class::Storage/DBIC_TRACE> environment variable.
 
-Invoked as a getter it will lazily open a filehandle for you if one is not
-already set.
+Invoked as a getter it will lazily open a filehandle and set it to
+L<< autoflush|perlvar/HANDLE->autoflush( EXPR ) >> (if one is not
+already set).
 
 =cut
 
@@ -85,6 +85,8 @@ sub _build_debugfh {
     $_[0]->_defaulted_to_stderr(1);
   }
 
+  $fh->autoflush(1);
+
   $fh;
 }
 
@@ -109,7 +111,7 @@ sub print {
   local $SIG{__WARN__} = sigwarn_silencer(qr/^Wide character in print/)
     if $self->_defaulted_to_stderr;
 
-  $fh->printflush($msg);
+  $fh->print($msg);
 }
 
 =head2 silence
