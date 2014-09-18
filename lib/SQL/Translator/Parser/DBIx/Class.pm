@@ -173,7 +173,7 @@ sub parse {
 
             my $relsource = try { $source->related_source($rel) };
             unless ($relsource) {
-              carp "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              carp "Ignoring relationship '$rel' on '$moniker' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
               next;
             };
 
@@ -192,7 +192,7 @@ sub parse {
 
             for ( keys %{$rel_info->{cond}} ) {
               unless (exists $other_columns_idx{$_}) {
-                carp "Ignoring relationship '$rel' - related resultsource does not contain one of the specified columns: '$_'\n";
+                carp "Ignoring relationship '$rel' on '$moniker' - related resultsource '@{[ $relsource->source_name ]}' does not contain one of the specified columns: '$_'\n";
                 next REL;
               }
             }
