@@ -3614,18 +3614,18 @@ sub _resolved_attrs {
       ];
   }
 
-  if ( defined $attrs->{order_by} ) {
-    $attrs->{order_by} = (
-      ref( $attrs->{order_by} ) eq 'ARRAY'
-      ? [ @{ $attrs->{order_by} } ]
-      : [ $attrs->{order_by} || () ]
-    );
-  }
+  for my $attr (qw(order_by group_by)) {
 
-  if ($attrs->{group_by} and ref $attrs->{group_by} ne 'ARRAY') {
-    $attrs->{group_by} = [ $attrs->{group_by} ];
-  }
+    if ( defined $attrs->{$attr} ) {
+      $attrs->{$attr} = (
+        ref( $attrs->{$attr} ) eq 'ARRAY'
+        ? [ @{ $attrs->{$attr} } ]
+        : [ $attrs->{$attr} || () ]
+      );
 
+      delete $attrs->{$attr} unless @{$attrs->{$attr}};
+    }
+  }
 
   # generate selections based on the prefetch helper
   my ($prefetch, @prefetch_select, @prefetch_as);

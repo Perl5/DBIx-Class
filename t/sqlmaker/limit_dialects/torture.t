@@ -37,6 +37,12 @@ my @order_bind = (
 my $tests = {
 
   LimitOffset => {
+    limit_plain => [
+      "( SELECT me.artistid FROM artist me LIMIT ? )",
+      [
+        [ { sqlt_datatype => 'integer' } => 5 ]
+      ],
+    ],
     limit => [
       "(
         SELECT me.id, owner.id, owner.name, ? * ?, ?
@@ -140,6 +146,12 @@ my $tests = {
   },
 
   LimitXY => {
+    limit_plain => [
+      "( SELECT me.artistid FROM artist me LIMIT ? )",
+      [
+        [ { sqlt_datatype => 'integer' } => 5 ]
+      ],
+    ],
     ordered_limit_offset => [
       "(
         SELECT me.id, owner.id, owner.name, ? * ?, ?
@@ -181,6 +193,12 @@ my $tests = {
   },
 
   SkipFirst => {
+    limit_plain => [
+      "( SELECT FIRST ? me.artistid FROM artist me )",
+      [
+        [ { sqlt_datatype => 'integer' } => 5 ]
+      ],
+    ],
     ordered_limit_offset => [
       "(
         SELECT SKIP ? FIRST ? me.id, owner.id, owner.name, ? * ?, ?
@@ -220,6 +238,12 @@ my $tests = {
   },
 
   FirstSkip => {
+    limit_plain => [
+      "( SELECT FIRST ? me.artistid FROM artist me )",
+      [
+        [ { sqlt_datatype => 'integer' } => 5 ]
+      ],
+    ],
     ordered_limit_offset => [
       "(
         SELECT FIRST ? SKIP ? me.id, owner.id, owner.name, ? * ?, ?
@@ -295,6 +319,23 @@ my $tests = {
     )";
 
     {
+      limit_plain => [
+        "(
+          SELECT me.artistid
+            FROM (
+              SELECT me.artistid, ROW_NUMBER() OVER(  ) AS rno__row__index
+                FROM (
+                  SELECT me.artistid
+                    FROM artist me
+                ) me
+            ) me
+          WHERE rno__row__index >= ? AND rno__row__index <= ?
+        )",
+        [
+          [ { sqlt_datatype => 'integer' } => 1 ],
+          [ { sqlt_datatype => 'integer' } => 5 ],
+        ],
+      ],
       limit => [$unordered_sql,
         [
           @select_bind,
@@ -380,6 +421,19 @@ my $tests = {
     };
 
     {
+      limit_plain => [
+        "(
+          SELECT me.artistid
+            FROM (
+              SELECT me.artistid
+                FROM artist me
+            ) me
+          WHERE ROWNUM <= ?
+        )",
+        [
+          [ { sqlt_datatype => 'integer' } => 5 ],
+        ],
+      ],
       limit => [ $limit_sql->(),
         [
           @select_bind,
@@ -479,6 +533,10 @@ my $tests = {
   },
 
   FetchFirst => {
+    limit_plain => [
+      "( SELECT me.artistid FROM artist me FETCH FIRST 5 ROWS ONLY )",
+      [],
+    ],
     limit => [
       "(
         SELECT me.id, owner.id, owner.name, ? * ?, ?
@@ -593,6 +651,10 @@ my $tests = {
   },
 
   Top => {
+    limit_plain => [
+      "( SELECT TOP 5 me.artistid FROM artist me )",
+      [],
+    ],
     limit => [
       "(
         SELECT TOP 4 me.id, owner.id, owner.name, ? * ?, ?
@@ -699,6 +761,25 @@ my $tests = {
   },
 
   GenericSubQ => {
+    limit_plain => [
+      "(
+        SELECT me.artistid
+          FROM (
+            SELECT me.artistid
+              FROM artist me
+          ) me
+        WHERE
+          (
+            SELECT COUNT(*)
+              FROM artist rownum__emulation
+            WHERE rownum__emulation.artistid < me.artistid
+          ) < ?
+        ORDER BY me.artistid ASC
+      )",
+      [
+        [ { sqlt_datatype => 'integer' } => 5 ]
+      ],
+    ],
     ordered_limit => [
       "(
         SELECT me.id, owner__id, owner__name, bar, baz
@@ -836,7 +917,25 @@ for my $limtype (sort keys %$tests) {
   delete $schema->storage->_sql_maker->{_cached_syntax};
   $schema->storage->_sql_maker->limit_dialect ($limtype);
 
-  my $can_run = ($limtype eq $native_limit_dialect or $limtype eq 'GenericSubQ');
+  # do the simplest thing possible first
+  if ($tests->{$limtype}{limit_plain}) {
+    is_same_sql_bind(
+      $schema->resultset('Artist')->search(
+        [ -and => [ {}, [] ], -or => [ {}, [] ] ],
+        {
+          columns => 'artistid',
+          join => [ {}, [ [ {}, {} ] ], {} ],
+          prefetch => [ [ [ {}, [] ], {} ], {}, [ {} ] ],
+          order_by => ( $limtype eq 'GenericSubQ' ? 'artistid' : [] ),
+          group_by => [],
+          rows => 5,
+          offset => 0,
+        }
+      )->as_query,
+      @{$tests->{$limtype}{limit_plain}},
+      "$limtype: Plain unordered ungrouped select with limit and no offset",
+    )
+  }
 
   # chained search is necessary to exercise the recursive {where} parser
   my $rs = $schema->resultset('BooksInLibrary')->search(
@@ -856,6 +955,7 @@ for my $limtype (sort keys %$tests) {
   #
   # not all tests run on all dialects (somewhere impossible, somewhere makes no sense)
   #
+  my $can_run = ($limtype eq $native_limit_dialect or $limtype eq 'GenericSubQ');
 
   # only limit, no offset, no order
   if ($tests->{$limtype}{limit}) {
