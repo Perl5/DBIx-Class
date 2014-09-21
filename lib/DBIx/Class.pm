@@ -57,7 +57,15 @@ sub _attr_cache {
   };
 }
 
+# *DO NOT* change this URL nor the identically named =head1 below
+# it is linked throughout the ecosystem
+sub DBIx::Class::_ENV_::HELP_URL () {
+  'http://p3rl.org/DBIx::Class#GETTING_HELP/SUPPORT'
+}
+
 1;
+
+__END__
 
 =encoding UTF-8
 
@@ -73,12 +81,6 @@ recommended to read (at the very least) the
 L<Manuals|DBIx::Class::Manual::DocMap/Manuals> in the order presented there.
 
 =cut
-
-# *DO NOT* change this heading - it is linked throughout the ecosystem
-
-sub DBIx::Class::_ENV_::HELP_URL () {
-  'http://p3rl.org/DBIx::Class#GETTING_HELP/SUPPORT'
-}
 
 =head1 GETTING HELP/SUPPORT
 
