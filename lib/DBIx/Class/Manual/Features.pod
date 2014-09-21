@@ -479,7 +479,9 @@ on our system (Microsoft SQL) is:
    ) rpt_score
  WHERE rno__row__index BETWEEN 1 AND 1
 
-See: L<DBIx::Class::ResultSet/related_resultset>, L<DBIx::ClassResultSet/search_related>, and L<DBIx::Class::ResultSet/get_column>.
+See: L<DBIx::Class::ResultSet/related_resultset>,
+L<DBIx::Class::ResultSet/search_related>, and
+L<DBIx::Class::ResultSet/get_column>.
 
 =head2 bonus rel methods
 
@@ -661,5 +663,5 @@ Better:
     price => \['price + ?', [inc => $inc]],
  });
 
-See L<SQL::Abstract/Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
+See L<SQL::Abstract/Literal SQL with placeholders and bind values (subqueries)>
 

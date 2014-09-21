@@ -147,7 +147,7 @@ Returns an B<ordered> resultset of all other objects in the same
 group excluding the one you called it on.
 
 The ordering is a backwards-compatibility artifact - if you need
-a resultset with no ordering applied use L</_siblings>
+a resultset with no ordering applied use C<_siblings>
 
 =cut
 sub siblings {

@@ -239,7 +239,7 @@ Call this to initialise a previously unversioned database. The table 'dbix_class
 
 Takes one argument which should be the version that the database is currently at. Defaults to the return value of L</schema_version>.
 
-See L</getting_started> for more details.
+See L</GETTING STARTED> for more details.
 
 =cut
 

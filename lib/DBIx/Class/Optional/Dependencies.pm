@@ -154,7 +154,7 @@ my $reqs = {
     },
     pod => {
       title => 'Storage::DBI::deploy()',
-      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deploy> and L<DBIx::Class::Storage::DBI/deployment_statements>',
+      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deployment_statements> and L<DBIx::Class::Schema/deploy>',
     },
   },
 

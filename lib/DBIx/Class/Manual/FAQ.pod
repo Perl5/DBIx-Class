@@ -78,7 +78,7 @@ lot later.
 If your database server allows you to run queries across multiple
 databases at once, then so can DBIx::Class. All you need to do is make
 sure you write the database name as part of the
-L<DBIx::Class::ResultSource/table> call. Eg:
+L<table|DBIx::Class::ResultSourceProxy::Table/table> call. Eg:
 
   __PACKAGE__->table('mydb.mytablename');
 
@@ -87,10 +87,10 @@ L<DBIx::Class::Schema/load_namespaces> call.
 
 =item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
 
-Add the name of the schema to the L<DBIx::Class::ResultSource/table>
-as part of the name, and make sure you give the one user you are going
-to connect with has permissions to read/write all the schemas/tables as
-necessary.
+Add the name of the schema to the table name, when invoking
+L<table|DBIx::Class::ResultSourceProxy::Table/table>, and make sure the user
+you are about to connect as has permissions to read/write all the
+schemas/tables as necessary.
 
 =back
 
@@ -154,7 +154,7 @@ See L<DBIx::Class::Relationship>.
 =item .. use a relationship?
 
 Use its name. An accessor is created using the name. See examples in
-L<DBIx::Class::Manual::Cookbook/Using relationships>.
+L<DBIx::Class::Manual::Cookbook/USING RELATIONSHIPS>.
 
 =back
 

@@ -52,7 +52,7 @@ All "Row objects" derived from a Schema-attached L<DBIx::Class::ResultSet>
 object (such as a typical C<< L<search|DBIx::Class::ResultSet/search>->
 L<next|DBIx::Class::ResultSet/next> >> call) are actually Result
 instances, based on your application's
-L<Result class|DBIx::Class::Manual::Glossary/Result_class>.
+L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
 
 L<DBIx::Class::Row> implements most of the row-based communication with the
 underlying storage, but a Result class B<should not inherit from it directly>.
@@ -480,8 +480,8 @@ sub insert {
 
 Indicates whether the object exists as a row in the database or
 not. This is set to true when L<DBIx::Class::ResultSet/find>,
-L<DBIx::Class::ResultSet/create> or L<DBIx::Class::ResultSet/insert>
-are used.
+L<DBIx::Class::ResultSet/create> or L<DBIx::Class::Row/insert>
+are invoked.
 
 Creating a result object using L<DBIx::Class::ResultSet/new_result>, or
 calling L</delete> on one, sets it to false.
@@ -1325,7 +1325,7 @@ sub inflate_result {
 
 =back
 
-L</Update>s the object if it's already in the database, according to
+L</update>s the object if it's already in the database, according to
 L</in_storage>, else L</insert>s it.
 
 =head2 insert_or_update

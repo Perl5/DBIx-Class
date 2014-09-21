@@ -58,7 +58,7 @@ just stores all the conditions needed to create the query.
 
 A basic ResultSet representing the data of an entire table is returned
 by calling C<resultset> on a L<DBIx::Class::Schema> and passing in a
-L<Source|DBIx::Class::Manual::Glossary/Source> name.
+L<Source|DBIx::Class::Manual::Glossary/ResultSource> name.
 
   my $users_rs = $schema->resultset('User');
 
@@ -1147,7 +1147,7 @@ You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
-This method is deprecated and will be removed in 0.09. Use L</search()>
+This method is deprecated and will be removed in 0.09. Use L<search()|/search>
 instead. An example conversion is:
 
   ->search_like({ foo => 'bar' });
@@ -1542,8 +1542,8 @@ L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
 Note that changing the result_class will also remove any components
 that were originally loaded in the source class via
-L<DBIx::Class::ResultSource/load_components>. Any overloaded methods
-in the original source class will not run.
+L<load_components|Class::C3::Componentised/load_components( @comps )>.
+Any overloaded methods in the original source class will not run.
 
 =cut
 

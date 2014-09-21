@@ -77,7 +77,7 @@ More specifically, the L<DBIx::Class::Core> base class pulls in the
 L<DBIx::Class::ResultSourceProxy::Table> component, which defines
 the L<table|DBIx::Class::ResultSourceProxy::Table/table> method.
 When called, C<table> creates and stores an instance of
-L<DBIx::Class::ResultSoure::Table>. Luckily, to use tables as result
+L<DBIx::Class::ResultSource::Table>. Luckily, to use tables as result
 sources, you don't need to remember any of this.
 
 Result sources representing select queries, or views, can also be
@@ -86,7 +86,8 @@ created, see L<DBIx::Class::ResultSource::View> for full details.
 =head2 Finding result source objects
 
 As mentioned above, a result source instance is created and stored for
-you when you define a L<result class|DBIx::Class::Manual::Glossary/Result class>.
+you when you define a
+L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
 
 You can retrieve the result source at runtime in the following ways:
 
@@ -582,7 +583,7 @@ sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 Defines one or more columns as primary key for this source. Must be
 called after L</add_columns>.
 
-Additionally, defines a L<unique constraint|add_unique_constraint>
+Additionally, defines a L<unique constraint|/add_unique_constraint>
 named C<primary>.
 
 Note: you normally do want to define a primary key on your sources

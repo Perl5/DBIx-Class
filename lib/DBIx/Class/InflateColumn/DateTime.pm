@@ -78,8 +78,8 @@ deflation/inflation as defined in the storage class. For instance, for
 a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
 would be called on deflation/inflation. If the storage class does not
 provide a specialized inflator/deflator, C<[parse|format]_datetime> will
-be used as a fallback. See L<DateTime::Format> for more information on
-date formatting.
+be used as a fallback. See L<DateTime/Formatters And Stringification>
+for more information on date formatting.
 
 For more help with using components, see L<DBIx::Class::Manual::Component/USING>.
 

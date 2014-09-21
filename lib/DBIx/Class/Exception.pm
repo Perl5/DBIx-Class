@@ -40,8 +40,8 @@ overload fallback to give natural boolean/numeric values.
 This is meant for internal use by L<DBIx::Class>'s C<throw_exception>
 code, and shouldn't be used directly elsewhere.
 
-Expects a scalar exception message.  The optional argument
-C<$stacktrace> tells it to output a full trace similar to L<Carp/confess>.
+Expects a scalar exception message. The optional boolean C<$stacktrace>
+causes it to output a full trace similar to L<confess|Carp/DESCRIPTION>.
 
   DBIx::Class::Exception->throw('Foo');
   try { ... } catch { DBIx::Class::Exception->throw(shift) }

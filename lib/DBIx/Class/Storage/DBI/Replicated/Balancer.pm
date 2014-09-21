@@ -97,7 +97,7 @@ This class defines the following methods.
 
 =head2 _build_current_replicant
 
-Lazy builder for the L</current_replicant_storage> attribute.
+Lazy builder for the L</current_replicant> attribute.
 
 =cut
 

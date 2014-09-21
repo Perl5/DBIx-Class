@@ -635,7 +635,7 @@ Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
 the L<DBIx::Class::Relationship> name is shortened and appended with half of an
 MD5 hash.
 
-See L<DBIx::Class::Storage/"relname_to_table_alias">.
+See L<DBIx::Class::Storage::DBI/relname_to_table_alias>.
 
 =cut
 

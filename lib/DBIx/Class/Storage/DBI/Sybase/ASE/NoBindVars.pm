@@ -81,8 +81,10 @@ You can also enable this driver explicitly using:
   $schema->storage_type('::DBI::Sybase::ASE::NoBindVars');
   $schema->connect($dsn, $user, $pass, \%opts);
 
-See the discussion in L<< DBD::Sybase/Using ? Placeholders & bind parameters to
-$sth->execute >> for details on the pros and cons of using placeholders.
+See the discussion in
+L<< DBD::Sybase/Using ? Placeholders & bind parameters to $sth->execute >>
+for details on the pros and cons of using placeholders with this particular
+driver.
 
 One advantage of not using placeholders is that C<select @@identity> will work
 for obtaining the last insert id of an C<IDENTITY> column, instead of having to

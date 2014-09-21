@@ -38,7 +38,9 @@ when it gets too far behind the master, if it stops replicating, etc.
 
 This attribute DOES NOT reflect a replicant's internal status, i.e. if it is
 properly replicating from a master and has not fallen too many seconds behind a
-reliability threshold.  For that, use L</is_replicating>  and L</lag_behind_master>.
+reliability threshold. For that, use
+L<DBIx::Class::Storage::DBI::Replicated/is_replicating> and
+L<DBIx::Class::Storage::DBI::Replicated/lag_behind_master>.
 Since the implementation of those functions database specific (and not all DBIC
 supported DBs support replication) you should refer your database-specific
 storage driver for more information.

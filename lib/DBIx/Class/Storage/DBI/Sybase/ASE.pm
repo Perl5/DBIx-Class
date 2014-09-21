@@ -233,7 +233,7 @@ Also sets the C<log_on_update> value for blob write operations. The default is
 C<1>, but C<0> is better if your database is configured for it.
 
 See
-L<DBD::Sybase/Handling_IMAGE/TEXT_data_with_syb_ct_get_data()/syb_ct_send_data()>.
+L<DBD::Sybase/Handling IMAGE/TEXT data with syb_ct_get_data()/syb_ct_send_data()>.
 
 =cut
 
@@ -1082,15 +1082,15 @@ for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 LIMITED QUERIES
 
-Because ASE does not have a good way to limit results in SQL that works for all
-types of queries, the limit dialect is set to
-L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ>.
+Because ASE does not have a good way to limit results in SQL that works for
+all types of queries, the limit dialect is set to
+L<GenericSubQ|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ>.
 
 Fortunately, ASE and L<DBD::Sybase> support cursors properly, so when
-L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ> is too slow you can use
-the L<software_limit|DBIx::Class::ResultSet/software_limit>
-L<DBIx::Class::ResultSet> attribute to simulate limited queries by skipping over
-records.
+L<GenericSubQ|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ> is too slow
+you can use the L<software_limit|DBIx::Class::ResultSet/software_limit>
+L<DBIx::Class::ResultSet> attribute to simulate limited queries by skipping
+over records.
 
 =head1 TEXT/IMAGE COLUMNS
 

@@ -405,7 +405,7 @@ for my $method (@{$method_dispatch->{unimplemented}}) {
 
 =head2 read_handler
 
-Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
+Defines an object that implements the read side of L<DBIx::Class::Storage::DBI>.
 
 =cut
 
@@ -418,7 +418,7 @@ has 'read_handler' => (
 
 =head2 write_handler
 
-Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
+Defines an object that implements the write side of L<DBIx::Class::Storage::DBI>,
 as well as methods that don't write or read that can be called on only one
 storage, methods that return a C<$dbh>, and any methods that don't make sense to
 run on a replicant.
@@ -590,7 +590,8 @@ sub _build_read_handler {
 =head2 around: connect_replicants
 
 All calls to connect_replicants needs to have an existing $schema tacked onto
-top of the args, since L<DBIx::Storage::DBI> needs it, and any C<connect_info>
+top of the args, since L<DBIx::Class::Storage::DBI> needs it, and any
+L<connect_info|DBIx::Class::Storage::DBI/connect_info>
 options merged with the master, with replicant opts having higher priority.
 
 =cut

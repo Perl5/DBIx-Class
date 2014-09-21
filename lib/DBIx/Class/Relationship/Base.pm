@@ -814,8 +814,8 @@ call set_from_related on the book.
 This is called internally when you pass existing objects as values to
 L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
 
-The columns are only set in the local copy of the object, call L</update> to
-set them in the storage.
+The columns are only set in the local copy of the object, call
+L<update|DBIx::Class::Row/update> to update them in the storage.
 
 =cut
 

@@ -60,7 +60,7 @@ size of the bind sizes in the first prepare call:
 
 L<https://rt.cpan.org/Ticket/Display.html?id=52048>
 
-The C<ado_size> workaround is used (see L<DBD::ADO/"ADO Providers">) with the
+The C<ado_size> workaround is used (see L<DBD::ADO/ADO providers>) with the
 approximate maximum size of the data_type of the bound column, or 8000 (maximum
 VARCHAR size) if the data_type is not available.
 
