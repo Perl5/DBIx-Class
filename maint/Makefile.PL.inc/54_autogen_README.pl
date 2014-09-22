@@ -13,9 +13,9 @@ postamble <<"EOP";
 
 clonedir_generate_files : dbic_clonedir_gen_readme
 
-dbic_clonedir_gen_readme :
+dbic_clonedir_gen_readme : dbic_distdir_gen_dbic_pod
 \t@{[ $mm_proto->oneliner('mkpath', ['-MExtUtils::Command']) ]} $dir
-\tpod2text lib/DBIx/Class.pm > $fn
+\tpod2text $dir/lib/DBIx/Class.pod > $fn
 
 EOP
 

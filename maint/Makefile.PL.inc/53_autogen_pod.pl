@@ -93,6 +93,32 @@ EOP
 }
 
 
+# generate the DBIx/Class.pod only during distdir
+{
+  my $dist_pod_fn = File::Spec->catfile($pod_dir, qw(lib DBIx Class.pod));
+
+  postamble <<"EOP";
+
+clonedir_generate_files : dbic_distdir_gen_dbic_pod
+
+dbic_distdir_gen_dbic_pod :
+
+\tperldoc -u lib/DBIx/Class.pm > $dist_pod_fn
+\t@{[ $mm_proto->oneliner(
+  "s!^.*?this line is replaced with the author list.*! qq{List of the awesome contributors who made DBIC v$ver possible\n\n} . qx(\$^X -Ilib maint/gen_pod_authors)!me",
+  [qw( -0777 -p -i )]
+) ]} $dist_pod_fn
+
+create_distdir : dbic_distdir_defang_authors
+
+# Remove the maintainer-only warning (be nice ;)
+dbic_distdir_defang_authors :
+\t@{[ $mm_proto->oneliner('s/ ^ \s* \# \s* \*\*\* .+ \n ( ^ \s* \# \s*? \n )? //xmg', [qw( -0777 -p -i )] ) ]} \$(DISTVNAME)/AUTHORS
+
+EOP
+}
+
+
 # on some OSes generated files may have an incorrect \n - fix it
 # so that the xt tests pass on a fresh checkout (also shipping a
 # dist with CRLFs is beyond obnoxious)

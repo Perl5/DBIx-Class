@@ -1,6 +1,25 @@
-# authorshipz
-author 'mst: Matt S. Trout <mst@shadowcat.co.uk>';
+# principal author list is kinda mandated by spec, luckily is rather static
+author 'mst: Matt S Trout <mst@shadowcat.co.uk> (project founder - original idea, architecture and implementation)';
+author 'castaway: Jess Robinson <castaway@desert-island.me.uk> (lions share of the reference documentation and manuals)';
+author 'ribasushi: Peter Rabbitson <ribasushi@cpan.org> (present day maintenance and controlled evolution)';
+
+# pause sanity
 Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
+
+# populate x_contributors
+# a direct dump of the sort is ok - xt/authors.t guarantees source sanity
+Meta->{values}{x_contributors} = [ do {
+  # according to #p5p this is how one safely reads random unicode
+  # this set of boilerplate is insane... wasn't perl unicode-king...?
+  no warnings 'once';
+  require Encode;
+  require PerlIO::encoding;
+  local $PerlIO::encoding::fallback = Encode::FB_CROAK();
+
+  open (my $fh, '<:encoding(UTF-8)', 'AUTHORS') or die "Unable to open AUTHORS - can't happen: $!\n";
+  map { chomp; ( (! $_ or $_ =~ /^\s*\#/) ? () : $_ ) } <$fh>;
+
+}];
 
 # legalese
 license 'perl';

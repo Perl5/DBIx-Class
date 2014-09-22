@@ -6,9 +6,9 @@ DBIx::Class::Manual::Features - A boatload of DBIx::Class features with links to
 
 =head2 Large Community
 
-Currently there are 88 people listed as contributors to DBIC.  That ranges
-from documentation help, to test help, to added features, to entire database
-support.
+There are L<hundres of DBIC contributors|DBIx::Class/AUTHORS> listed in
+F<AUTHORS>. That ranges from documentation help, to test help, to added
+features, to entire database support.
 
 =head2 Active Community
 

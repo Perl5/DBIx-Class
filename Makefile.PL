@@ -206,7 +206,12 @@ for my $mod (sort keys %final_req) {
 # IFF we are running interactively
 auto_install();
 
-WriteAll();
+{
+  # M::I understands unicode in meta but does not write with the right
+  # layers - fhtagn!!!
+  local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /Wide character in print/ };
+  WriteAll();
+}
 
 exit 0;
 
