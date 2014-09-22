@@ -49,30 +49,9 @@ BEGIN {
   }
 }
 
-homepage 'http://www.dbix-class.org/';
-resources 'x_IRC'       => 'irc://irc.perl.org/#dbix-class';
-resources 'x_WebIRC'    => 'https://chat.mibbit.com/#dbix-class@irc.perl.org';
-resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'https://github.com/dbsrgits/DBIx-Class';
-resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
-resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class';
-
-name     'DBIx-Class';
+name         'DBIx-Class';
+version_from 'lib/DBIx/Class.pm';
 perl_version '5.008001';
-all_from 'lib/DBIx/Class.pm';
-Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
-
-# nothing determined at runtime, except for possibly SQLT dep, see
-# comment further down
-dynamic_config 0;
-
-tests_recursive (qw|
-    t
-|);
-
-install_script (qw|
-    script/dbicadmin
-|);
 
 ###
 ### DO NOT ADD OPTIONAL DEPENDENCIES HERE, EVEN AS recommends()
@@ -172,6 +151,14 @@ if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   }
 }
 
+tests_recursive (qw|
+    t
+|);
+
+install_script (qw|
+    script/dbicadmin
+|);
+
 # this is so we can order requires alphabetically
 # copies are needed for potential author requires injection
 my $reqs = {
@@ -222,6 +209,13 @@ auto_install();
 WriteAll();
 
 exit 0;
+
+
+###
+### Nothing user-serviceable beyond this point
+### (none of this executes on regular install)
+###
+
 
 # needs to be here to keep 5.8 string eval happy
 # (the include of Makefile.PL.inc loop)
