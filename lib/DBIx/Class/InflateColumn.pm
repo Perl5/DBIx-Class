@@ -233,19 +233,16 @@ sub store_inflated_column {
 
 =back
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-Daniel Westermann-Clark <danieltwc@cpan.org> (documentation)
-
-Jess Robinson <cpan@desert-island.demon.co.uk>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

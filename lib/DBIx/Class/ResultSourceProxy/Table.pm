@@ -110,15 +110,11 @@ sub table {
 
 Gets or sets the table class used for construction and validation.
 
-=cut
-
 =head2 has_column
 
   if ($obj->has_column($col)) { ... }
 
 Returns 1 if the class has a column of this name, 0 otherwise.
-
-=cut
 
 =head2 column_info
 
@@ -128,23 +124,23 @@ Returns the column metadata hashref for a column. For a description of
 the various types of column data in this hashref, see
 L<DBIx::Class::ResultSource/add_column>
 
-=cut
-
 =head2 columns
 
   my @column_names = $obj->columns;
+
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 
 1;
 
-=head1 AUTHOR AND CONTRIBUTORS
-
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
-=cut
 

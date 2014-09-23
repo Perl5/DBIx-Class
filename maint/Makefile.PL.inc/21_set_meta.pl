@@ -22,7 +22,7 @@ Meta->{values}{x_contributors} = [ do {
 }];
 
 # legalese
-license 'perl';
+license 'perl_5';
 resources 'license' => 'http://dev.perl.org/licenses/';
 
 # misc resources

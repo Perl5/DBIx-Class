@@ -154,13 +154,15 @@ the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
 
 L<DBIx::Class::Schema/txn_scope_guard>.
 
-=head1 AUTHOR
+L<Scope::Guard> by chocolateboy (inspiration for this module)
 
-Ash Berlin, 2008.
+=head1 FURTHER QUESTIONS?
 
-Inspired by L<Scope::Guard> by chocolateboy.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-This module is free software. It may be used, redistributed and/or modified
-under the same terms as Perl itself.
+=head1 COPYRIGHT AND LICENSE
 
-=cut
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

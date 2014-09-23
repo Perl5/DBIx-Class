@@ -364,12 +364,15 @@ C<MyApp::Schema::ResultSet> namespace (although we created the directory
 in the directions above we did not add, or need to add, any resultset
 classes).
 
-=head1 TODO
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHOR
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-  sc_ from irc.perl.org#dbix-class
-  Kieren Diment <kd@totaldatasolution.com>
-  Nigel Metheringham <nigelm@cpan.org>
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut

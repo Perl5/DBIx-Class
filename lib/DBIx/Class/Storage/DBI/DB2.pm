@@ -60,8 +60,6 @@ sub _dbh_last_insert_id {
   return @res ? $res[0] : undef;
 }
 
-1;
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI::DB2 - IBM DB2 support for DBIx::Class
@@ -73,13 +71,19 @@ RowNumberOver over FetchFirst depending on the availability of support for
 RowNumberOver, queries the server name_sep from L<DBI> and sets the L<DateTime>
 parser to L<DateTime::Format::DB2>.
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
+
+1;
+
 # vim:sts=2 sw=2:

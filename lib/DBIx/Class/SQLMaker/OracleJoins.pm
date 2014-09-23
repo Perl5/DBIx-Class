@@ -107,7 +107,7 @@ sub _recurse_oracle_joins {
 
 1;
 
-=pod
+__END__
 
 =head1 NAME
 
@@ -165,17 +165,13 @@ Does not support full outer joins (however neither really does DBIC itself)
 
 =back
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-Justin Wheeler C<< <jwheeler@datademons.com> >>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-David Jack Olrik C<< <djo@cpan.org> >>
-
-=head1 LICENSE
-
-This module is licensed under the same terms as Perl itself.
-
-=cut
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

@@ -127,6 +127,8 @@ sub unimport {
 
 1;
 
+__END__
+
 =head1 NAME
 
 DBIx::Class::Carp - Provides advanced Carp::Clan-like warning functions for DBIx::Class internals
@@ -178,5 +180,16 @@ same ruleset as L</carp>).
 
 Like L</carp> but warns only once for the life of the perl interpreter
 (regardless of callsite).
+
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut

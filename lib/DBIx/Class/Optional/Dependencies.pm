@@ -909,10 +909,16 @@ EOD
 Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group.
 EOD
-    '=head1 AUTHOR',
-    'See L<DBIx::Class/CONTRIBUTORS>.',
-    '=head1 LICENSE',
-    'You may distribute this code under the same terms as Perl itself',
+    '=head1 FURTHER QUESTIONS?',
+    'Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.',
+    '=head1 COPYRIGHT AND LICENSE',
+    <<'EOL',
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
+EOL
+
   );
 
   open (my $fh, '>', $podfn) or Carp::croak "Unable to write to $podfn: $!";

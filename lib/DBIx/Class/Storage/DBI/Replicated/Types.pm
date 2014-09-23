@@ -35,12 +35,4 @@ subtype Weight,
   where { $_ >= 0 },
   message { 'weight must be a decimal greater than 0' };
 
-# AUTHOR
-#
-#  John Napiorkowski <john.napiorkowski@takkle.com>
-#
-# LICENSE
-#
-#  You may distribute this code under the same terms as Perl itself.
-
 1;

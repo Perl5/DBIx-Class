@@ -20,8 +20,6 @@ use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
-=encoding utf8
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Replicated - BETA Replicated database support
@@ -1115,18 +1113,16 @@ using the Schema clone method.
   ## $new_schema will use only the Master storage for all reads/writes while
   ## the $schema object will use replicated storage.
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-  John Napiorkowski <john.napiorkowski@takkle.com>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-Based on code originated by:
+=head1 COPYRIGHT AND LICENSE
 
-  Norbert Csongrádi <bert@cpan.org>
-  Peter Siklósi <einon@einon.hu>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

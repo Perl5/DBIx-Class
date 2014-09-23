@@ -22,11 +22,13 @@ L<DBD::Firebird>
 This is an empty subclass of L<DBIx::Class::Storage::DBI::InterBase> for use
 with L<DBD::Firebird>, see that driver for details.
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

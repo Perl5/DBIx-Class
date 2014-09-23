@@ -96,13 +96,13 @@ course) into the SQL query itself, without using placeholders.
 The caching of prepared statements is also explicitly disabled, as the
 interpolation renders it useless.
 
-=head1 AUTHORS
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
-
-=cut
-# vim:sts=2 sw=2:
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

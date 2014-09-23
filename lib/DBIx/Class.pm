@@ -67,8 +67,6 @@ sub DBIx::Class::_ENV_::HELP_URL () {
 
 __END__
 
-=encoding UTF-8
-
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
@@ -300,11 +298,10 @@ the root of this distribution (or repository). The canonical source of
 per-line authorship is the L<git repository|/HOW TO CONTRIBUTE> history
 itself.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005 the DBIx::Class L</AUTHORS> as listed above.
-
-=head1 LICENSE
+Copyright (c) 2005 by mst, castaway, ribasushi, and other DBIx::Class
+L</AUTHORS> as listed above and in F<AUTHORS>.
 
 This library is free software and may be distributed under the same terms
-as perl itself.
+as perl5 itself. See F<LICENSE> for the complete licensing terms.
