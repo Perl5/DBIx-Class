@@ -37,18 +37,20 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
 
-  apt_install memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
+  apt_install libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
+  run_or_err "Restarting MySQL" "sudo /etc/init.d/mysql restart"
   run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
 ### config pg
+  run_or_err "Restarting PostgreSQL" "sudo /etc/init.d/postgresql restart"
   run_or_err "Creating PostgreSQL TestDB" "psql -c 'create database dbic_test;' -U postgres"
   export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
   export DBICTEST_PG_USER=postgres
