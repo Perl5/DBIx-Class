@@ -17,7 +17,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS
 plan skip_all => 'Set $ENV{DBICTEST_INFORMIX_DSN}, _USER and _PASS to run this test'
   unless $dsn;
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+my $schema = DBICTest->connect_schema($dsn, $user, $pass, {
   auto_savepoint => 1
 });
 

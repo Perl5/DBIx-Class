@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 use DBICTest::Util 'local_umask';
-use DBICTest::Schema;
+use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use Carp;
 use Path::Class::File ();
@@ -314,6 +314,8 @@ sub init_schema {
 
     my $schema;
 
+    require DBICTest::Schema;
+
     if ($args{compose_connection}) {
       $schema = DBICTest::Schema->compose_connection(
                   'DBICTest', $self->_database(%args)
@@ -343,7 +345,11 @@ sub init_schema {
 }
 
 END {
+  # Make sure we run after any cleanup in other END blocks
+  require B;
+  push @{ B::end_av()->object_2svref }, sub {
     assert_empty_weakregistry($weak_registry, 'quiet');
+  };
 }
 
 =head2 deploy_schema
@@ -568,6 +574,12 @@ sub populate_schema {
         [ 2, 1, "Dynamical Systems", "Library",  37 ],
         [ 3, 2, "Best Recipe Cookbook", "Library", 65 ],
     ]);
+}
+
+sub connect_schema {
+  my $self = shift;
+  require DBICTest::Schema;
+  return DBICTest::Schema->connect(@_);
 }
 
 1;

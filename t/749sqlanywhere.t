@@ -23,14 +23,15 @@ plan skip_all => 'Test needs ' .
     or
     (not $dsn || $dsn2);
 
-DBICTest::Schema->load_classes('ArtistGUID');
-
 # tests stolen from 748informix.t
 
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_SQLANYWHERE_DSN} and/or $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN},
 _USER and _PASS to run these tests
 EOF
+
+require DBICTest::Schema;
+DBICTest::Schema->load_classes('ArtistGUID');
 
 my @info = (
   [ $dsn,  $user,  $pass  ],

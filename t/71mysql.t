@@ -20,7 +20,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { quote_names => 1 });
+my $schema = DBICTest->connect_schema($dsn, $user, $pass, { quote_names => 1 });
 
 my $dbh = $schema->storage->dbh;
 
@@ -52,7 +52,7 @@ $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, so
 
 # make sure sqlt_type overrides work (::Storage::DBI::mysql does this)
 {
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $schema = DBICTest->connect_schema($dsn, $user, $pass);
 
   ok (!$schema->storage->_dbh, 'definitely not connected');
   is ($schema->storage->sqlt_type, 'MySQL', 'sqlt_type correct pre-connection');
@@ -209,7 +209,7 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 # with it (ribasushi, 2009/07/03)
 
 NULLINSEARCH: {
-    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
+    my $ansi_schema = DBICTest->connect_schema ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
 
     $ansi_schema->resultset('Artist')->create ({ name => 'last created artist' });
 
@@ -233,7 +233,7 @@ NULLINSEARCH: {
 
 # check for proper grouped counts
 {
-  my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, {
+  my $ansi_schema = DBICTest->connect_schema ($dsn, $user, $pass, {
     on_connect_call => 'set_strict_mode',
     quote_char => '`',
   });
@@ -363,7 +363,7 @@ ZEROINSEARCH: {
 
 # make sure find hooks determine driver
 {
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $schema = DBICTest->connect_schema($dsn, $user, $pass);
   $schema->resultset("Artist")->find(4);
   isa_ok($schema->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
 }
@@ -371,13 +371,13 @@ ZEROINSEARCH: {
 # make sure the mysql_auto_reconnect buggery is avoided
 {
   local $ENV{MOD_PERL} = 'boogiewoogie';
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $schema = DBICTest->connect_schema($dsn, $user, $pass);
   ok (! $schema->storage->_get_dbh->{mysql_auto_reconnect}, 'mysql_auto_reconnect unset regardless of ENV' );
 
   # Make sure hardcore forking action still works even if mysql_auto_reconnect
   # is true (test inspired by ether)
 
-  my $schema_autorecon = DBICTest::Schema->connect($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
+  my $schema_autorecon = DBICTest->connect_schema($dsn, $user, $pass, { mysql_auto_reconnect => 1 });
   my $orig_dbh = $schema_autorecon->storage->_get_dbh;
   weaken $orig_dbh;
 

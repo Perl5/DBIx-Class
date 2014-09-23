@@ -62,6 +62,7 @@ $ENV{NLS_LANG} = "AMERICAN";
   1;
 }
 
+require DBICTest::Schema;
 DBICTest::Schema->load_classes('ArtistFQN');
 
 # This is in Core now, but it's here just to test that it doesn't break

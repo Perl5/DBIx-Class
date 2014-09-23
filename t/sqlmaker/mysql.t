@@ -6,7 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 
-my $schema = DBICTest::Schema->connect (DBICTest->_database, { quote_char => '`' });
+my $schema = DBICTest->connect_schema (DBICTest->_database, { quote_char => '`' });
 # cheat
 require DBIx::Class::Storage::DBI::mysql;
 *DBIx::Class::Storage::DBI::mysql::_get_server_version = sub { 5 };

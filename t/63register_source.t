@@ -4,7 +4,6 @@ use warnings;
 use Test::Exception tests => 1;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::Schema;
 use DBIx::Class::ResultSource::Table;
 
 my $schema = DBICTest->init_schema();

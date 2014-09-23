@@ -21,6 +21,7 @@ plan skip_all => 'Set $ENV{DBICTEST_DB2_400_DSN}, _USER and _PASS to run this te
 
 plan tests => 6;
 
+require DBICTest::Schema;
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;

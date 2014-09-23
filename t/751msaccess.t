@@ -23,6 +23,7 @@ plan skip_all => 'Test needs ' .
     or
     (not $dsn || $dsn2);
 
+require DBICTest::Schema;
 DBICTest::Schema->load_classes('ArtistGUID');
 
 # Example DSNs (32bit only):

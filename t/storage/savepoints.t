@@ -42,7 +42,7 @@ for ('', keys %$env2optdep) { SKIP: {
     skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
       unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
-    $schema = DBICTest::Schema->connect ($dsn,$user,$pass,{ auto_savepoint => 1 });
+    $schema = DBICTest->connect_schema ($dsn,$user,$pass,{ auto_savepoint => 1 });
 
     my $create_sql;
     $schema->storage->ensure_connected;
@@ -234,6 +234,8 @@ for ('', keys %$env2optdep) { SKIP: {
 
 done_testing;
 
+# XXX: The leak tests fail if this is END compiled before (and thus
+# executed after) the one in DBICTest::BaseSchema
 END {
   eval { $schema->storage->dbh->do ("DROP TABLE artist") } if defined $schema;
   undef $schema;

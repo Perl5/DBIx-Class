@@ -24,7 +24,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1 });
+my $schema = DBICTest->connect_schema($dsn, $user, $pass, { AutoCommit => 1 });
 
 my $parent_rs;
 

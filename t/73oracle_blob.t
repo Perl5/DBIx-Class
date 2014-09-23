@@ -23,7 +23,7 @@ $ENV{NLS_COMP} = "BINARY";
 $ENV{NLS_LANG} = "AMERICAN";
 
 my $v = do {
-  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  my $si = DBICTest->connect_schema($dsn, $user, $pass)->storage->_server_info;
   $si->{normalized_dbms_version}
     or die "Unparseable Oracle server version: $si->{dbms_version}\n";
 };
@@ -43,7 +43,7 @@ my $dbh;
 
 my $schema;
 for my $opt (@tryopt) {
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opt);
+  my $schema = DBICTest->connect_schema($dsn, $user, $pass, $opt);
 
   $dbh = $schema->storage->dbh;
   my $q = $schema->storage->sql_maker->quote_char || '';

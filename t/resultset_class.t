@@ -7,6 +7,7 @@ unshift(@INC, './t/lib');
 use lib 't/lib';
 
 use DBICTest;
+use DBICTest::Schema;
 
 is(DBICTest::Schema->source('Artist')->resultset_class, 'DBICTest::BaseResultSet', 'default resultset class');
 ok(!Class::Inspector->loaded('DBICNSTest::ResultSet::A'), 'custom resultset class not loaded');

@@ -4,6 +4,7 @@ use Test::More;
 
 use lib qw(t/lib);
 use DBICTest;
+use DBICTest::Schema;
 
 my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 

@@ -47,7 +47,7 @@ for my $prefix (keys %$env2optdep) { SKIP: {
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+  $schema = DBICTest->connect_schema($dsn, $user, $pass, {
     auto_savepoint  => 1,
     quote_names     => 1,
     ($dsn !~ /ODBC/ ? (on_connect_call => 'use_softcommit') : ()),

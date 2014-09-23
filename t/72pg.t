@@ -28,11 +28,12 @@ EOM
 ### load any test classes that are defined further down in the file via BEGIN blocks
 
 our @test_classes; #< array that will be pushed into by test classes defined in this file
+require DBICTest::Schema;
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
 ###  pre-connect tests (keep each test separate as to make sure rebless() runs)
   {
-    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $s = DBICTest->connect_schema($dsn, $user, $pass);
 
     ok (!$s->storage->_dbh, 'definitely not connected');
 
@@ -54,7 +55,7 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
   }
 
   {
-    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $s = DBICTest->connect_schema($dsn, $user, $pass);
     # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
     ok (!$s->storage->_dbh, 'definitely not connected');
     is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
@@ -63,7 +64,7 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
 # test LIMIT support
 {
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $schema = DBICTest->connect_schema($dsn, $user, $pass);
   drop_test_schema($schema);
   create_test_schema($schema);
   for (1..6) {
@@ -95,14 +96,14 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 # check if we indeed do support stuff
 my $test_server_supports_insert_returning = do {
 
-  my $si = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info;
+  my $si = DBICTest->connect_schema($dsn, $user, $pass)->storage->_server_info;
   die "Unparseable Pg server version: $si->{dbms_version}\n"
     unless $si->{normalized_dbms_version};
 
   $si->{normalized_dbms_version} < 8.002 ? 0 : 1;
 };
 is (
-  DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
+  DBICTest->connect_schema($dsn, $user, $pass)->storage->_use_insert_returning,
   $test_server_supports_insert_returning,
   'insert returning capability guessed correctly'
 );
@@ -123,7 +124,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
 ### test capability override
   {
-    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+    my $s = DBICTest->connect_schema($dsn, $user, $pass);
 
     ok (!$s->storage->_dbh, 'definitely not connected');
 
@@ -136,7 +137,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
 ### connect, create postgres-specific test schema
 
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema = DBICTest->connect_schema($dsn, $user, $pass);
   $schema->storage->ensure_connected;
 
   drop_test_schema($schema);
@@ -366,7 +367,7 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
         },
       ) {
         # create a new schema
-        my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
+        my $schema2 = DBICTest->connect_schema($dsn, $user, $pass);
         $schema2->source("Artist")->name("dbic_t_schema.artist");
 
         $schema->txn_do( sub {

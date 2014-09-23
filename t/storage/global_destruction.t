@@ -29,7 +29,7 @@ for my $type (qw/PG MYSQL SQLite/) {
         unless DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mysql');
     }
 
-    my $schema = DBICTest::Schema->connect (@dsn);
+    my $schema = DBICTest->connect_schema (@dsn);
 
     # emulate a singleton-factory, just cache the object *somewhere in a different package*
     # to induce out-of-order destruction

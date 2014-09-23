@@ -105,7 +105,7 @@ for my $db (sort {
   my $schema;
 
   try {
-    $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+    $schema = DBICTest->connect_schema($dsn, $user, $pass, {
       quote_names => 1
     });
     $schema->storage->ensure_connected;

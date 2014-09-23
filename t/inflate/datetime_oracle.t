@@ -24,7 +24,7 @@ $ENV{NLS_LANG} = 'AMERICAN_AMERICA.WE8ISO8859P1';
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest->connect_schema($dsn, $user, $pass);
 
 # older oracles do not support a TIMESTAMP datatype
 my $timestamp_datatype = ($schema->storage->_server_info->{normalized_dbms_version}||0) < 9

@@ -4,6 +4,7 @@ use Test::More;
 
 use lib 't/lib';
 use DBICTest;
+use DBICTest::Schema;
 
 my $warnings;
 eval {

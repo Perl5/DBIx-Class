@@ -43,9 +43,7 @@ foreach my $info (@info) {
 
   next unless $dsn;
 
-  $schema = DBICTest::Schema->clone;
-
-  $schema->connection($dsn, $user, $pass, {
+  $schema = DBICTest->connect_schema($dsn, $user, $pass, {
     on_connect_call => 'datetime_setup',
   });
 

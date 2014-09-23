@@ -29,6 +29,7 @@ eval "require DBIx::Class::Storage::$_;" for @storage_types;
 my $schema;
 my $storage_idx = -1;
 
+require DBICTest::Schema;
 sub get_schema {
   DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => [

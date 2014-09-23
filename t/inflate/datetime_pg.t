@@ -10,6 +10,7 @@ use DBICTest;
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
 
+require DBICTest::Schema;
 DBICTest::Schema->load_classes('EventTZPg');
 
 my $schema = DBICTest->init_schema();

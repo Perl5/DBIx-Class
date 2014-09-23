@@ -34,7 +34,7 @@ if ($err) {
 my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});
 # this is only so we grab a lock on mysql
 {
-  my $x = DBICTest::Schema->connect(@connect);
+  my $x = DBICTest->connect_schema(@connect);
 }
 
 $dbh = DBI->connect(@connect) or die DBI->errstr;

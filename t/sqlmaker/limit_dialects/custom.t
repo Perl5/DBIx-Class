@@ -22,7 +22,7 @@ use DBICTest ':DiffSQL';
     );
   }
 }
-my $s = DBICTest::Schema->connect (DBICTest->_database);
+my $s = DBICTest->connect_schema (DBICTest->_database);
 $s->storage->sql_maker_class ('DBICTest::SQLMaker::CustomDialect');
 
 my $rs = $s->resultset ('CD');

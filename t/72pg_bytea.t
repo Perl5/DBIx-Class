@@ -15,7 +15,7 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
 
-my $schema = DBICTest::Schema->connect($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+my $schema = DBICTest->connect_schema($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
 
 if ($schema->storage->_server_info->{normalized_dbms_version} >= 9.0) {
   if (not try { DBD::Pg->VERSION('2.17.2') }) {

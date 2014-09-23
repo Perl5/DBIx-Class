@@ -19,6 +19,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" } qw/DSN USER PAS
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ADO_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
+require DBICTest::Schema;
 DBICTest::Schema->load_classes(qw/VaryingMAX ArtistGUID/);
 
 my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );

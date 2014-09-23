@@ -5,6 +5,7 @@ use Test::More;
 
 use lib 't/cdbi/testlib';
 use DBIC::Test::SQLite;
+use DBICTest::Schema;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat CDBICompat::Pager/);
 

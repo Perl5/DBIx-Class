@@ -18,7 +18,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_DB2_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_DB2_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest->connect_schema($dsn, $user, $pass);
 
 my $name_sep = $schema->storage->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR');
 

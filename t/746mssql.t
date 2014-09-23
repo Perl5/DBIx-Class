@@ -18,7 +18,7 @@ plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this
   unless ($dsn && $user);
 
 {
-  my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};
+  my $srv_ver = DBICTest->connect_schema($dsn, $user, $pass)->storage->_server_info->{dbms_version};
   ok ($srv_ver, 'Got a test server version on fresh schema: ' . ($srv_ver||'???') );
 }
 
@@ -64,7 +64,7 @@ my %opts = (
 for my $opts_name (keys %opts) {
   SKIP: {
     my $opts = $opts{$opts_name}{opts};
-    $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+    $schema = DBICTest->connect_schema($dsn, $user, $pass, $opts);
 
     try {
       $schema->storage->ensure_connected
@@ -168,7 +168,7 @@ SQL
 
       lives_ok ( sub {
         # start a new connection, make sure rebless works
-        my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+        my $schema = DBICTest->connect_schema($dsn, $user, $pass, $opts);
         $schema->populate ('Owners', [
           [qw/id  name  /],
           [qw/1   wiggle/],
@@ -193,7 +193,7 @@ SQL
       lives_ok (sub {
         # start a new connection, make sure rebless works
         # test an insert with a supplied identity, followed by one without
-        my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+        my $schema = DBICTest->connect_schema($dsn, $user, $pass, $opts);
         for (2, 1) {
           my $id = $_ * 20 ;
           $schema->resultset ('Owners')->create ({ id => $id, name => "troglodoogle $id" });
@@ -205,7 +205,7 @@ SQL
 
       lives_ok ( sub {
         # start a new connection, make sure rebless works
-        my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+        my $schema = DBICTest->connect_schema($dsn, $user, $pass, $opts);
         $schema->populate ('BooksInLibrary', [
           [qw/source  owner title   /],
           [qw/Library 1     secrets0/],
@@ -235,7 +235,7 @@ SQL
     ) {
       for my $quoted (0, 1) {
 
-        $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+        $schema = DBICTest->connect_schema($dsn, $user, $pass, {
             limit_dialect => $dialect,
             %$opts,
             $quoted
@@ -420,7 +420,7 @@ SQL
       });
 
       # start disconnected to make sure insert works on an un-reblessed storage
-      $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
+      $schema = DBICTest->connect_schema($dsn, $user, $pass, $opts);
 
       my $row;
       lives_ok {

@@ -21,7 +21,7 @@ local $ENV{DBI_DSN};
 # instance, but no conninfo)
 # there ought to be more code like this in the wild
 like(
-  DBICTest::Schema->connect->deployment_statements('SQLite'),
+  DBICTest->connect_schema->deployment_statements('SQLite'),
   qr/\bCREATE TABLE artist\b/i  # ensure quoting *is* disabled
 );
 

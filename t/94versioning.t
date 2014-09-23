@@ -33,7 +33,7 @@ BEGIN {
 
 # this is just to grab a lock
 {
-  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $s = DBICTest->connect_schema($dsn, $user, $pass);
 }
 
 # in case it came from the env
