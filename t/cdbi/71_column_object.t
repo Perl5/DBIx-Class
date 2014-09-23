@@ -6,6 +6,11 @@ use warnings;
 
 use Test::More;
 
+BEGIN {
+  eval { require Class::DBI::Column }
+    or plan skip_all => 'Class::DBI::Column required for this test';
+}
+
 use lib 't/cdbi/testlib';
 use ColumnObject;
 

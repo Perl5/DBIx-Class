@@ -41,13 +41,15 @@ use Test::More;
 # change too much
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
 
+BEGIN {
+  require DBIx::Class::Optional::Dependencies;
+  DBIx::Class::Optional::Dependencies->req_ok_for($_)
+    or plan skip_all => DBIx::Class::Optional::Dependencies->req_missing_for($_) . ' required for this test'
+      for qw(cdbicompat test_cdbicompat);
+}
+
 use lib 't/lib';
 use DBICTest;
-
-BEGIN {
-  eval { require DBIx::Class::CDBICompat }
-    or plan skip_all => 'Class::DBI required for this test';
-}
 
 use base qw/DBIx::Class/;
 

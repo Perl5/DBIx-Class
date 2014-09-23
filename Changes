@@ -3,6 +3,9 @@ Revision history for DBIx::Class
     * Fixes
         - Fix $rs->create() with no values on Oracle
 
+    * Misc
+        - Speed up skipping CDBICompat tests when dependencies are missing
+
 0.082800 2014-09-25 14:45 (UTC)
     * Known Issues
         - Passing large amounts of objects with stringification overload

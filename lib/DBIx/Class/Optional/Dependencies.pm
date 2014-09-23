@@ -255,10 +255,31 @@ my $reqs = {
 
   test_cdbicompat => {
     req => {
-      'Class::DBI::Plugin::DeepAbstractSearch' => '0',
       %$datetime_basic,
       'Time::Piece::MySQL'        => '0',
       'Date::Simple'              => '3.03',
+    },
+  },
+
+  test_cdbicompat_deepabstractsearch => {
+    req => {
+      'Class::DBI::Plugin::DeepAbstractSearch' => '0',
+    },
+  },
+
+  cdbicompat => {
+    req => {
+      'Class::Trigger'        => '0',
+      'DBIx::ContextualFetch' => '0',
+      'Clone'                 => '0',
+    },
+  },
+
+  cdbicompat => {
+    req => {
+      'Class::Trigger'        => '0',
+      'DBIx::ContextualFetch' => '0',
+      'Clone'                 => '0',
     },
   },
 
