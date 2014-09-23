@@ -113,7 +113,7 @@ done_testing;
 
 # clean up our mess
 END {
-  if($schema && (my $dbh = $schema->storage->dbh)) {
+  if($schema && (my $dbh = $schema->storage->_dbh)) {
     $dbh->do("DROP TABLE event");
   }
   undef $schema;
