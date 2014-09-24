@@ -4099,12 +4099,13 @@ scalar reference or a literal bind value, and these values will be available
 in the result with C<get_column> (see also
 L<SQL::Abstract/Literal SQL and value type operators>):
 
-    # equivalent SQL: SELECT 1, 'a string', IF(x,1,2) ...
+    # equivalent SQL: SELECT 1, 'a string', IF(my_column,?,?) ...
+    # bind values: $true_value, $false_value
     columns => [
         {
             foo => \1,
             bar => \q{'a string'},
-            baz => \[ '?', 'IF(x,1,2)' ],
+            baz => \[ 'IF(my_column,?,?)', $true_value, $false_value ],
         }
     ]
 
