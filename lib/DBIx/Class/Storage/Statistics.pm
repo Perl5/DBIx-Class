@@ -3,18 +3,29 @@ package DBIx::Class::Storage::Statistics;
 use strict;
 use warnings;
 
+use DBIx::Class::_Util qw(sigwarn_silencer qsub);
+
 # DO NOT edit away without talking to riba first, he will just put it back
 # BEGIN pre-Moo2 import block
 BEGIN {
   my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+
   local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  require Moo; Moo->import;
+  # load all of these now, so that lazy-loading does not escape
+  # the current PERL_STRICTURES_EXTRA setting
+  require Sub::Quote;
+  require Sub::Defer;
+  require Moo;
+  require Moo::Object;
+  require Method::Generate::Accessor;
+  require Method::Generate::Constructor;
+
+  Moo->import;
   ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
 }
 # END pre-Moo2 import block
 
 extends 'DBIx::Class';
-use DBIx::Class::_Util qw(sigwarn_silencer qsub);
 use namespace::clean;
 
 =head1 NAME

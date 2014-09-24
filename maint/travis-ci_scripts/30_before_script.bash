@@ -23,6 +23,8 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
   export DBI_DRIVER="ADO"
 
+  # some people do in fact set this - boggle!!!
+  export PERL_STRICTURES_EXTRA=1
 
   # emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack
