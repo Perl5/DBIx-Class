@@ -342,9 +342,16 @@ sub assert_empty_weakregistry {
 }
 
 END {
-  if ($INC{'Test/Builder.pm'}) {
-    my $tb = Test::Builder->new;
-
+  if (
+    $INC{'Test/Builder.pm'}
+      and
+    my $tb = do {
+      local $@;
+      my $t = eval { Test::Builder->new }
+        or warn "Test::Builder->new failed:\n$@\n";
+      $t;
+    }
+  ) {
     # we check for test passage - a leak may be a part of a TODO
     if ($leaks_found and !$tb->is_passing) {
 
