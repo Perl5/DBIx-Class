@@ -129,7 +129,6 @@ BEGIN {
     Method::Generate::Accessor
     Method::Generate::Constructor
     Context::Preserve
-    Data::Compare
   ));
 
   my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');

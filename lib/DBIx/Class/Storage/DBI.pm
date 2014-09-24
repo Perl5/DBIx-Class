@@ -12,9 +12,8 @@ use Scalar::Util qw/refaddr weaken reftype blessed/;
 use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use Data::Compare (); # no imports!!! guard against insane architecture
 use SQL::Abstract qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring);
+use DBIx::Class::_Util qw(quote_sub perlstring serialize);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -2070,7 +2069,7 @@ sub _insert_bulk {
   # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
-  my ($proto_data, $value_type_by_col_idx);
+  my ($proto_data, $serialized_bind_type_by_col_idx);
   for my $col_idx (0..$#$cols) {
     my $colname = $cols->[$col_idx];
     if (ref $data->[0][$col_idx] eq 'SCALAR') {
@@ -2089,7 +2088,7 @@ sub _insert_bulk {
 
       # store value-less (attrs only) bind info - we will be comparing all
       # supplied binds against this for sanity
-      $value_type_by_col_idx->{$col_idx} = [ map { $_->[0] } @$resolved_bind ];
+      $serialized_bind_type_by_col_idx->{$col_idx} = serialize [ map { $_->[0] } @$resolved_bind ];
 
       $proto_data->{$colname} = \[ $sql, map { [
         # inject slice order to use for $proto_bind construction
@@ -2100,7 +2099,7 @@ sub _insert_bulk {
       ];
     }
     else {
-      $value_type_by_col_idx->{$col_idx} = undef;
+      $serialized_bind_type_by_col_idx->{$col_idx} = undef;
 
       $proto_data->{$colname} = \[ '?', [
         { dbic_colname => $colname, _bind_data_slice_idx => $col_idx }
@@ -2116,7 +2115,7 @@ sub _insert_bulk {
     [ $proto_data ],
   );
 
-  if (! @$proto_bind and keys %$value_type_by_col_idx) {
+  if (! @$proto_bind and keys %$serialized_bind_type_by_col_idx) {
     # if the bindlist is empty and we had some dynamic binds, this means the
     # storage ate them away (e.g. the NoBindVars component) and interpolated
     # them directly into the SQL. This obviously can't be good for multi-inserts
@@ -2150,7 +2149,7 @@ sub _insert_bulk {
     for my $row_idx (1..$#$data) {  # we are comparing against what we got from [0] above, hence start from 1
       my $val = $data->[$row_idx][$col_idx];
 
-      if (! exists $value_type_by_col_idx->{$col_idx}) { # literal no binds
+      if (! exists $serialized_bind_type_by_col_idx->{$col_idx}) { # literal no binds
         if (ref $val ne 'SCALAR') {
           $bad_slice_report_cref->(
             "Incorrect value (expecting SCALAR-ref \\'$$reference_val')",
@@ -2166,7 +2165,7 @@ sub _insert_bulk {
           );
         }
       }
-      elsif (! defined $value_type_by_col_idx->{$col_idx} ) {  # regular non-literal value
+      elsif (! defined $serialized_bind_type_by_col_idx->{$col_idx} ) {  # regular non-literal value
         if (is_literal_value($val)) {
           $bad_slice_report_cref->("Literal SQL found where a plain bind value is expected", $row_idx, $col_idx);
         }
@@ -2194,16 +2193,17 @@ sub _insert_bulk {
           }
           # need to check the bind attrs - a bind will happen only once for
           # the entire dataset, so any changes further down will be ignored.
-          elsif (! Data::Compare::Compare(
-            $value_type_by_col_idx->{$col_idx},
-            [
+          elsif (
+            $serialized_bind_type_by_col_idx->{$col_idx}
+              ne
+            serialize [
               map
               { $_->[0] }
               @{$self->_resolve_bindattrs(
                 $source, [ @{$$val}[1 .. $#$$val] ], $colinfos,
               )}
-            ],
-          )) {
+            ]
+          ) {
             $bad_slice_report_cref->(
               'Differing bind attributes on literal/bind values not supported',
               $row_idx,

@@ -58,8 +58,6 @@ perl_version '5.008001';
 ### All of them *MUST* go to DBIx::Class::Optional::Dependencies
 ###
 my $runtime_requires = {
-  # FIXME - temporary, needs throwing out for something more efficient
-  'Data::Compare'            => '1.22',
 
   # DBI itself should be capable of installation and execution in pure-perl
   # mode. However it has never been tested yet, so consider XS for the time
