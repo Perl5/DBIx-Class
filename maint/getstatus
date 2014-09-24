@@ -1,0 +1,52 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use Config;
+use Term::ANSIColor ':constants';
+my $CRST = RESET;
+my $CCODE = BOLD;
+my $CSTAT = BOLD . GREEN;
+my $CCORE = BOLD . CYAN;
+my $CSIG = CYAN;
+
+if (@ARGV) {
+  my $code = system (@ARGV);
+
+  if ($code < 0) {
+    exit 127;
+  }
+  elsif ($code > 0) {
+
+    my $status = $code >> 8;
+    my $signum = $code & 127;
+    my $core = $code & 128;
+
+    my %sig_idx;
+    @sig_idx{split /\s+/, $Config{sig_num}} = split /\s/, $Config{sig_name};
+
+    printf STDERR (
+<<EOF
+
+Results of execution: `%s`
+----------------------
+System exit code:$CCODE %d $CRST$CSIG %s $CRST
+ ($CSTAT%08b$CRST$CCORE%b$CRST$CSIG%07b$CRST)
+
+Status: %3s ($CSTAT%08b$CRST)
+Signal: %3s ($CSIG%08b$CRST)
+Core:   %3s
+----------------------
+EOF
+    , (join ' ', @ARGV),
+      $code, ($signum ? "(SIG-$sig_idx{$signum})" : ''),
+      $status, $core, $signum,
+      ($status) x 2,
+      ($signum) x 2,
+      ($core ? 'Yes': 'No')
+    );
+
+    exit ($status);
+  }
+}

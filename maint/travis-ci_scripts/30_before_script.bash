@@ -237,20 +237,13 @@ echo_err "
 ===================== DEPENDENCY CONFIGURATION COMPLETE =====================
 $(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
 
-= CPUinfo
-$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
-
 = Meminfo
 $(free -m -t)
 
-= Kernel info
-$(uname -a)
+= Diskinfo
+$(sudo df -h)
 
-= Network Configuration
-$(ip addr)
-
-= Network Sockets Status
-$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+$(mount | grep '^/')
 
 = Environment
 $(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)

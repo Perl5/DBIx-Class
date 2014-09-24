@@ -123,7 +123,7 @@ parallel_installdeps_notest() {
     "echo \\
 \"$MODLIST\" \\
       | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$($TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'OUT=\$(maint/getstatus $TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
