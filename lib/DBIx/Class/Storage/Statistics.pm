@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::_Util qw(sigwarn_silencer qsub);
+use IO::Handle ();
 
 # DO NOT edit away without talking to riba first, he will just put it back
 # BEGIN pre-Moo2 import block
