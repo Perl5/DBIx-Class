@@ -1,5 +1,15 @@
 Revision history for DBIx::Class
 
+    * Known Issues
+        - Passing large amounts of objects with stringification overload
+          directly to DBIx::Class may result in strange action at a distance
+          exceptions. More info (and a workaround description) can be found
+          under "Note" at https://metacpan.org/pod/SQL::Abstract#is_plain_value
+        - The relationship condition resolution fixes come with the side effect
+          of returning more complete data, tripping up *some* users of an
+          undocumented but widely used internal function. In particular
+          https://rt.cpan.org/Ticket/Display.html?id=91375#txn-1407239
+
     * Notable Changes and Deprecations
         - DBIC::FilterColumn now properly bypasses \'' and \[] literals, just
           like the rest of DBIC
@@ -16,8 +26,8 @@ Revision history for DBIx::Class
           objects that went out of sync with the storage (RT#96499)
         - CDBICompat::columns() now supports adding columns through supplied
           Class::DBI::Column instances (GH#52)
-        - Deprecate { col1 => col2 } expressions in manual from structures
-          (at some point of time manual from will be deprecated itself)
+        - Deprecate { col1 => col2 } expressions in manual {from} structures
+          (at some point of time manual {from} will be deprecated entirely)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases
@@ -63,8 +73,6 @@ Revision history for DBIx::Class
           blind new) (GH#51)
 
     * Misc
-        - A bunch of fixes for the botched condition parsing in the previous
-          devrels (082700_01 ~ 082700_05) (RT#98161)
         - Ensure source metadata calls always take place on the result source
           instance registered with the caller
         - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
