@@ -23,7 +23,6 @@ find({
 
     return unless -f $fn;
     return unless $fn =~ / \. (?: pm | pod ) $ /ix;
-    return if $fn =~ qr{\Qlib/DBIx/Class/_TempExtlib/};
 
     my $data = do { local (@ARGV, $/) = $fn; <> };
 
