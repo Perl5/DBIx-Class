@@ -11,7 +11,7 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # The oneliner is a tad convoluted - basicaly what we do is
 # slurp the entire file and get the index off the last
 # `processor    : XX` line
-export NUMTHREADS="$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))"
+export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 2 ))"
 
 export CACHE_DIR="/tmp/poormanscache"
 
