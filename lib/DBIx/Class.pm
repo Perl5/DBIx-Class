@@ -306,13 +306,13 @@ The fine folks nudging the project in a particular direction:
 
 =over
 
-ribasushi: Peter Rabbitson <ribasushi@cpan.org>
+B<ribasushi>: Peter Rabbitson <ribasushi@cpan.org>
 (present day maintenance and controlled evolution)
 
-castaway: Jess Robinson <castaway@desert-island.me.uk>
+B<castaway>: Jess Robinson <castaway@desert-island.me.uk>
 (lions share of the reference documentation and manuals)
 
-mst: Matt S Trout <mst@shadowcat.co.uk> (project founder -
+B<mst>: Matt S Trout <mst@shadowcat.co.uk> (project founder -
 original idea, architecture and implementation)
 
 =back

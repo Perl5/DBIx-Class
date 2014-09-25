@@ -19,9 +19,15 @@ my @known_authors = do {
 } or die "Known AUTHORS file seems empty... can't happen...";
 
 is_deeply (
-  [ grep { /^\s/ } @known_authors ],
+  [ grep { /^\s/ or /\s\s/ } @known_authors ],
   [],
-  "No entries with leading space",
+  "No entries with leading or doubled space",
+);
+
+is_deeply (
+  [ grep { / \:[^\s\/] /x or /^ [^:]*? \s+ \: /x } @known_authors ],
+  [],
+  "No entries with malformed nicks",
 );
 
 is_deeply (
