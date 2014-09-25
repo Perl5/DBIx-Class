@@ -293,7 +293,7 @@ sub assert_empty_weakregistry {
     next if ! defined $weak_registry->{$addr}{weakref};
 
     $leaks_found++ unless $tb->in_todo;
-    $tb->ok (0, "Leaked $weak_registry->{$addr}{display_name}");
+    $tb->ok (0, "Expected garbage collection of $weak_registry->{$addr}{display_name}");
 
     my $diag = do {
       local $Data::Dumper::Maxdepth = 1;
@@ -375,7 +375,7 @@ END {
       for (qw(indirect multidimensional bareword::filehandles)) {
         exists $INC{ Module::Runtime::module_notional_filename($_) }
           and
-        $tb->ok(0, "$_ load apparently attempted!!!" )
+        $tb->ok(0, "$_ load should not have been attempted!!!" )
       }
     }
 =cut
