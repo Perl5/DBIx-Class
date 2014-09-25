@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.082800 2014-09-25 14:45 (UTC)
     * Known Issues
         - Passing large amounts of objects with stringification overload
           directly to DBIx::Class may result in strange action at a distance
