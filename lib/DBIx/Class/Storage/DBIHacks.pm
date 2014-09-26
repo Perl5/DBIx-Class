@@ -17,6 +17,7 @@ use List::Util 'first';
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
 use SQL::Abstract qw(is_plain_value is_literal_value);
+use DBIx::Class::Carp;
 use namespace::clean;
 
 #
@@ -1000,13 +1001,29 @@ sub _collapse_cond {
       my $chunk = shift @pieces;
 
       if (ref $chunk eq 'HASH') {
-        push @pairs, map { $_ => $chunk->{$_} } sort keys %$chunk;
+        for (sort keys %$chunk) {
+
+          # Match SQLA 1.79 behavior
+          if ($_ eq '') {
+            is_literal_value($chunk->{$_})
+              ? carp 'Hash-pairs consisting of an empty string with a literal are deprecated, use -and => [ $literal ] instead'
+              : $self->throw_exception("Supplying an empty left hand side argument is not supported in hash-pairs")
+            ;
+          }
+
+          push @pairs, $_ => $chunk->{$_};
+        }
       }
       elsif (ref $chunk eq 'ARRAY') {
         push @pairs, -or => $chunk
           if @$chunk;
       }
       elsif ( ! length ref $chunk) {
+
+        # Match SQLA 1.79 behavior
+        $self->throw_exception("Supplying an empty left hand side argument is not supported in array-pairs")
+          if $where_is_anded_array and (! defined $chunk or $chunk eq '');
+
         push @pairs, $chunk, shift @pieces;
       }
       else {
@@ -1059,6 +1076,11 @@ sub _collapse_cond {
 
     for (my $i = 0; $i <= $#$where; $i++ ) {
 
+      # Match SQLA 1.79 behavior
+      $self->throw_exception(
+        "Supplying an empty left hand side argument is not supported in array-pairs"
+      ) if (! defined $where->[$i] or ! length $where->[$i]);
+
       my $logic_mod = lc ( ($where->[$i] =~ /^(\-(?:and|or))$/i)[0] || '' );
 
       if ($logic_mod) {
@@ -1069,7 +1091,13 @@ sub _collapse_cond {
         my $sub_elt = $self->_collapse_cond({ $logic_mod => $where->[$i] })
           or next;
 
-        $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
+        my @keys = keys %$sub_elt;
+        if ( @keys == 1 and $keys[0] !~ /^\-/ ) {
+          $fin_idx->{ "COL_$keys[0]_" . serialize $sub_elt } = $sub_elt;
+        }
+        else {
+          $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
+        }
       }
       elsif (! length ref $where->[$i] ) {
         my $sub_elt = $self->_collapse_cond({ @{$where}[$i, $i+1] })
