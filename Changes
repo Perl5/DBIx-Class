@@ -7,6 +7,7 @@ Revision history for DBIx::Class
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
+        - Adjust Oracle SQLMaker to accommodate fixed API in SQL::Abstract
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
