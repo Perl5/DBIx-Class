@@ -1,6 +1,32 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
+# Stop pre-started RDBMS and sync for some settle time
+run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
+run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop"
+/bin/sync
+
+# Sanity check VM before continuing
+echo "
+=============================================================================
+
+= Startup Meminfo
+$(free -m -t)
+
+============================================================================="
+
+CI_VM_MIN_FREE_MB=2000
+if [[ "$(free -m | grep 'buffers/cache:' | perl -p -e '$_ = (split /\s+/, $_)[3]')" -lt "$CI_VM_MIN_FREE_MB" ]]; then
+  SHORT_CIRCUIT_SMOKE=1
+  echo_err "
+=============================================================================
+
+CI virtual machine stuck in a state with a lot of memory locked for no reason.
+Under Travis this state usually results in a failed build.
+Short-circuiting buildjob to avoid false negatives, please restart it manually.
+
+============================================================================="
+fi
+
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 # Different boxes we run on may have different amount of hw threads
@@ -11,6 +37,10 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # The oneliner is a tad convoluted - basicaly what we do is
 # slurp the entire file and get the index off the last
 # `processor    : XX` line
+#
+# We also divide the result by two, otherwise the travis VM
+# gets overloaded (the amount of available swap is just TOOOO
+# damn small)
 export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 2 ))"
 
 export CACHE_DIR="/tmp/poormanscache"
@@ -44,13 +74,13 @@ if [[ "$CLEANTEST" != "true" ]]; then
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
-  run_or_err "Restarting MySQL" "sudo /etc/init.d/mysql restart"
+  run_or_err "Starting MySQL" "sudo /etc/init.d/mysql start"
   run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
 ### config pg
-  run_or_err "Restarting PostgreSQL" "sudo /etc/init.d/postgresql restart"
+  run_or_err "Starting PostgreSQL" "sudo /etc/init.d/postgresql start"
   run_or_err "Creating PostgreSQL TestDB" "psql -c 'create database dbic_test;' -U postgres"
   export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
   export DBICTEST_PG_USER=postgres
