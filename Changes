@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+    * Misc
+        - Adjust internals to accommodate fixed API in SQL::Abstract
+
 0.082800 2014-09-25 14:45 (UTC)
     * Known Issues
         - Passing large amounts of objects with stringification overload

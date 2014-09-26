@@ -1204,6 +1204,7 @@ sub _collapse_cond_unroll_pairs {
       if (ref $rhs eq 'HASH' and ! keys %$rhs) {
         # FIXME - SQLA seems to be doing... nothing...?
       }
+      # normalize top level -ident, for saner extract_fixed_condition_columns code
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
         push @conds, { $lhs => { '=', $rhs } };
       }
@@ -1211,7 +1212,7 @@ sub _collapse_cond_unroll_pairs {
         push @conds, { $lhs => $rhs->{-value} };
       }
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}) {
-        if( is_literal_value $rhs->{'='}) {
+        if ( length ref $rhs->{'='} and is_literal_value $rhs->{'='} ) {
           push @conds, { $lhs => $rhs };
         }
         else {
@@ -1229,7 +1230,14 @@ sub _collapse_cond_unroll_pairs {
 
             my ($l, $r) = %$p;
 
-            push @conds, ( ! length ref $r or is_plain_value($r) )
+            push @conds, (
+              ! length ref $r
+                or
+              # the unroller recursion may return a '=' prepended value already
+              ref $r eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}
+                or
+              is_plain_value($r)
+            )
               ? { $l => $r }
               : { $l => { '=' => $r } }
             ;
@@ -1327,7 +1335,15 @@ sub _extract_fixed_condition_columns {
         }
       }
       # do not need to check for plain values - _collapse_cond did it for us
-      elsif(length ref $v->{'='} and is_literal_value($v->{'='}) ) {
+      elsif(
+        length ref $v->{'='}
+          and
+        (
+          ( ref $v->{'='} eq 'HASH' and keys %{$v->{'='}} == 1 and exists $v->{'='}{-ident} )
+            or
+          is_literal_value($v->{'='})
+        )
+       ) {
         $vals->{ 'SER_' . serialize $v->{'='} } = $v->{'='};
       }
     }
