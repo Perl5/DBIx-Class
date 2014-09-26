@@ -93,13 +93,22 @@ sub _recurse_oracle_joins {
       @{$on->{-and}} == 1
     );
 
-    # sadly SQLA treats where($scalar) as literal, so we need to jump some hoops
-    push @where, map { \sprintf ('%s%s = %s%s',
-      ref $_ ? $self->_recurse_where($_) : $self->_quote($_),
-      $left_join,
-      ref $on->{$_} ? $self->_recurse_where($on->{$_}) : $self->_quote($on->{$_}),
-      $right_join,
-    )} keys %$on;
+
+    push @where, map { \do {
+        my ($sql) = $self->_recurse_where({
+          # FIXME - more borkage, more or less a copy of the kludge in ::SQLMaker::_join_condition()
+          $_ => ( length ref $on->{$_}
+            ? $on->{$_}
+            : { -ident => $on->{$_} }
+          )
+        });
+
+        $sql =~ s/\s*\=/$left_join =/
+          if $left_join;
+
+        "$sql$right_join";
+      }
+    } sort keys %$on;
   }
 
   return { -and => \@where };
