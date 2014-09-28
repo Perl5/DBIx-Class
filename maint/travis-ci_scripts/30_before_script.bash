@@ -236,17 +236,4 @@ echo_err "
 ===================== DEPENDENCY CONFIGURATION COMPLETE =====================
 $(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
 
-= Meminfo
-$(free -m -t)
-
-= Diskinfo
-$(sudo df -h)
-
-$(mount | grep '^/')
-
-= Environment
-$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
-
-= Perl in use
-$(perl -V)
-============================================================================="
+$(ci_vm_state_text)"

@@ -14,6 +14,41 @@ fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 
+ci_vm_state_text() {
+  echo "
+========================== CI System information ============================
+
+= CPUinfo
+$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+
+= Meminfo
+$(free -m -t)
+
+= Diskinfo
+$(sudo df -h)
+
+$(mount | grep '^/')
+
+= Kernel info
+$(uname -a)
+
+= Network Configuration
+$(ip addr)
+
+= Network Sockets Status
+$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+
+= Processlist
+$(sudo ps fuxa)
+
+= Environment
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+
+= Perl in use
+$(perl -V)
+============================================================================="
+}
+
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
 
