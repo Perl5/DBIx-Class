@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 if [[ "$CLEANTEST" != "true" ]] ; then

@@ -223,6 +223,9 @@ matrix:
 # console output
 
 before_install:
+  # common functions for all run phases below
+  - source maint/travis-ci_scripts/common.bash
+
   # Sets global envvars, downloads/configures debs based on CLEANTEST
   # Sets extra DBICTEST_* envvars
   #
