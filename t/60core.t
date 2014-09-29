@@ -570,8 +570,10 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 {
     my $new_artist = $schema->resultset('Artist')->new({});
     isa_ok( $new_artist, 'DBIx::Class::Row', '$rs->new gives a row object' );
+    lives_ok { $new_artist->insert() } 'inserting without specifying any columns works';
+    $new_artist->discard_changes;
+    $new_artist->delete;
 }
-
 
 # make sure we got rid of the compat shims
 SKIP: {

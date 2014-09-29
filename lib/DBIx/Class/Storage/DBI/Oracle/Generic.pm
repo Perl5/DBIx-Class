@@ -118,6 +118,21 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
+sub insert {
+  my ($self, $source, $to_insert) = @_;
+
+  # Oracle does not understand INSERT INTO ... DEFAULT VALUES syntax
+  # Furthermore it does not have any way to insert without specifying any columns
+  # We can't fix this in SQLMaker::Oracle because it doesn't know which column to add to the statement
+  unless (%$to_insert)
+  {
+    my ($col) = $source->columns;
+    $to_insert = { $col => \'DEFAULT' };
+  }
+
+  return $self->next::method($source, $to_insert);
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
   my @ids = ();
