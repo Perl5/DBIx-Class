@@ -82,8 +82,8 @@ L<DBIx::Class::ResultSource/table> call. Eg:
 
   __PACKAGE__->table('mydb.mytablename');
 
-And load all the Result classes for both / all databases using one
-L<DBIx::Class::Schema/load_namespaces> call.
+And load all the Result classes for both / all databases by calling
+L<DBIx::Class::Schema/load_namespaces>.
 
 =item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
 
