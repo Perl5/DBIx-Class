@@ -47,7 +47,7 @@ my $runtime_requires = {
   'Sub::Name'                => '0.04',
 
   # pure-perl (FatPack-able) libs
-  'Class::Accessor::Grouped' => '0.10010',
+  'Class::Accessor::Grouped' => '0.10012',
   'Class::C3::Componentised' => '1.0009',
   'Class::Inspector'         => '1.24',
   'Config::Any'              => '0.20',
@@ -62,7 +62,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.24',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.79',
+  'SQL::Abstract'            => '1.80',
   'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required
