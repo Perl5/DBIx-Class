@@ -254,24 +254,27 @@ install:
 before_script:
   # Preinstall/install deps based on envvars/CLEANTEST
   #
-  - maint/travis-ci_scripts/30_before_script.bash
+  # need to invoke the after_failure script manually
+  # because 'after_failure' runs only after 'script' fails
+  #
+  - maint/getstatus maint/travis-ci_scripts/30_before_script.bash || ( maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
 
 script:
   # Run actual tests
   #
-  - maint/travis-ci_scripts/40_script.bash
+  - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
-  - maint/travis-ci_scripts/50_after_success.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_success.bash
 
 after_failure:
-  # No tasks yet
+  # Final sysinfo printout on fail
   #
-  #- maint/travis-ci_scripts/50_after_failure.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_failure.bash
 
 after_script:
   # No tasks yet
   #
-  #- maint/travis-ci_scripts/60_after_script.bash
+  #- maint/getstatus maint/travis-ci_scripts/60_after_script.bash
