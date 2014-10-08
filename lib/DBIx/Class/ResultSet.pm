@@ -3320,6 +3320,9 @@ source alias of the current result set:
     });
   }
 
+The alias of L<newly created resultsets|/search> can be altered by the
+L<alias attribute|/alias>.
+
 =cut
 
 sub current_source_alias {
