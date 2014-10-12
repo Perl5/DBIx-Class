@@ -107,6 +107,7 @@ BEGIN {
 
     Scalar::Util
     List::Util
+    Storable
 
     Class::Accessor::Grouped
     Class::C3::Componentised

@@ -55,7 +55,9 @@ BEGIN {
 # Carp::Skip to the rescue soon
 use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
 
+use B ();
 use Carp 'croak';
+use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype);
 use List::Util qw(first);
 use Sub::Quote qw(qsub quote_sub);
@@ -100,16 +102,14 @@ sub refdesc ($) {
 sub refcount ($) {
   croak "Expecting a reference" if ! length ref $_[0];
 
-  require B;
   # No tempvars - must operate on $_[0], otherwise the pad
   # will count as an extra ref
   B::svref_2object($_[0])->REFCNT;
 }
 
 sub serialize ($) {
-  require Storable;
   local $Storable::canonical = 1;
-  Storable::nfreeze($_[0]);
+  nfreeze($_[0]);
 }
 
 sub is_exception ($) {
