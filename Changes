@@ -10,6 +10,8 @@ Revision history for DBIx::Class
 
     * Misc
         - Make the Optional::Dependencies error messages cpanm-friendly
+        - Incompatibly change values (not keys) of the hash returned by
+          Optional::Dependencies::req_group_list (no known users in the wild)
         - Depend on newer SQL::Abstract (fixing overly-aggressive parenthesis
           opener: RT#99503)
         - Depend on newer Moo, fixing some interoperability issues:

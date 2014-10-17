@@ -111,7 +111,7 @@ my $rdbms_firebird_odbc = {
   'DBD::ODBC'                     => '0',
 };
 
-my $reqs = {
+my $dbic_reqs = {
   replicated => {
     req => $replicated,
     pod => {
@@ -445,12 +445,13 @@ my $reqs = {
     },
   },
 
-# the order does matter because the rdbms support group might require
-# a different version that the test group
   test_rdbms_pg => {
     req => {
       $ENV{DBICTEST_PG_DSN}
         ? (
+          # the order does matter because the rdbms support group might require
+          # a different version that the test group
+          #
           # when changing this list make sure to adjust xt/optional_deps.t
           %$rdbms_pg,
           'DBD::Pg'               => '2.009002',
@@ -643,104 +644,133 @@ my $reqs = {
 # standalone library - keep the stupidity to a DBIC-secific shim!
 #
 sub req_list_for {
-  my ($class, $group) = @_;
-
-  croak "req_list_for() expects a requirement group name"
-    unless $group;
-
-  my $deps = $reqs->{$group}{req}
-    or croak "Requirement group '$group' does not exist";
-
-  return { %$deps };
+  shift->_groups_to_reqs(@_)->{modreqs};
 }
 
 sub req_group_list {
-  return { map { $_ => { %{ $reqs->{$_}{req} || {} } } } (keys %$reqs) };
+  +{ map
+    { $_ => $_[0]->_groups_to_reqs($_) }
+    keys %$dbic_reqs
+  }
 }
 
 sub req_errorlist_for {
-  my ($class, $group) = @_;
-
-  croak "req_errorlist_for() expects a requirement group name"
-    unless $group;
-
-  return $class->_check_deps($group)->{errorlist};
+  my $self = shift;
+  $self->_errorlist_for_modreqs( $self->_groups_to_reqs(@_)->{modreqs} );
 }
 
 sub req_ok_for {
-  my ($class, $group) = @_;
-
-  croak "req_ok_for() expects a requirement group name"
-    unless $group;
-
-  return $class->_check_deps($group)->{status};
+  my $self = shift;
+  $self->_errorlist_for_modreqs( $self->_groups_to_reqs(@_)->{modreqs} )
+    ? 0
+    : 1
+  ;
 }
 
 sub req_missing_for {
-  my ($class, $group) = @_;
+  my $self = shift;
 
-  croak "req_missing_for() expects a requirement group name"
-    unless $group;
+  my $reqs = $self->_groups_to_reqs(@_);
+  my $modreq_errors = $self->_errorlist_for_modreqs($reqs->{modreqs}) or return '';
 
-  return $class->_check_deps($group)->{missing};
+  join ' ',
+    (map { $reqs->{modreqs}{$_} ? qq("$_~>=$reqs->{modreqs}{$_}") : $_ } sort keys %$modreq_errors),
+    ( $reqs->{modreqs_fully_documented} ? "(see @{[ ref $self || $self ]} documentation for details)" : () ),
+  ;
 }
 
 sub die_unless_req_ok_for {
-  my ($class, $group) = @_;
-
-  croak "die_unless_req_ok_for() expects a requirement group name"
-    unless $group;
-
-  $class->_check_deps($group)->{status}
-    or die sprintf( "Required modules missing, unable to continue: %s\n", $class->_check_deps($group)->{missing} );
+  if (my $err = shift->req_missing_for(@_) ) {
+    die "Required modules missing, unable to continue: $err\n";
+  }
 }
 
 
 
 ### Private OO API
+our %req_unavailability_cache;
 
-our %req_availability_cache;
-sub _check_deps {
-  my ($class, $group) = @_;
+# this method is just a lister/metadata checker - it does not try to load anything
+sub _groups_to_reqs {
+  my ($self, $groups) = @_;
 
-  return $req_availability_cache{$group} ||= do {
+  $groups = [ $groups || () ]
+    unless ref $groups eq 'ARRAY';
 
-    my $deps = $class->req_list_for ($group);
+  croak "@{[ (caller(1))[3] ]}() expects a requirement group name or arrayref of group names"
+    unless @$groups;
 
-    my %errors;
-    for my $mod (keys %$deps) {
-      my $req_line = "require $mod;";
-      if (my $ver = $deps->{$mod}) {
-        $req_line .= "$mod->VERSION($ver);";
-      }
-
-      eval $req_line;
-
-      $errors{$mod} = $@ if $@;
-    }
-
-    my $res;
-
-    if (keys %errors) {
-      my $missing = join (', ', map { $deps->{$_} ? qq("${_}~>=$deps->{$_}") : $_ } (sort keys %errors) );
-      $missing .= " (see $class documentation for details)" if $reqs->{$group}{pod};
-      $res = {
-        status => 0,
-        errorlist => \%errors,
-        missing => $missing,
-      };
-    }
-    else {
-      $res = {
-        status => 1,
-        errorlist => {},
-        missing => '',
-      };
-    }
-
-    $res;
+  my $ret = {
+    modreqs => {},
+    modreqs_fully_documented => 1,
   };
+
+
+  for my $group ( @$groups ) {
+
+    $group =~ /\A [A-Za-z][0-9A-Z_a-z]* \z/x
+      or croak "Invalid requirement group name '$group': only ascii alphanumerics and _ are allowed";
+
+    my $group_reqs = ($dbic_reqs->{$group}||{})->{req}
+      or croak "Requirement group '$group' is not defined";
+
+    # sanity-check
+    for (keys %$group_reqs) {
+
+      $_ =~ /\A [A-Z_a-z][0-9A-Z_a-z]* (?:::[0-9A-Z_a-z]+)* \z /x
+        or croak "Requirement '$_' in group '$group' is not a valid module name";
+
+      # !!!DO NOT CHANGE!!!
+      # remember - version.pm may not be available on the system
+      croak "Requirement '$_' in group '$group' specifies an invalid version '$group_reqs->{$_}' (only plain non-underscored floating point decimals are supported)"
+        if ( ($group_reqs->{$_}||0) !~ / \A [0-9]+ (?: \. [0-9]+ )? \z /x );
+    }
+
+    # assemble into the final ret
+    for (keys %$group_reqs) {
+
+      $ret->{modreqs}{$_} = $group_reqs->{$_}||0 if (
+
+        ! exists $ret->{modreqs}{$_}
+          or
+        # we sanitized the version to be numeric above - we can just -gt it
+        ($group_reqs->{$_}||0) > $ret->{modreqs}{$_}
+
+      );
+    }
+
+    $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
+  }
+
+  return $ret;
 }
+
+
+# this method tries to load specified modreqs and returns a hashref of
+# module/loaderror pairs for anything that failed
+sub _errorlist_for_modreqs {
+  # args supposedly already went through _groups_to_reqs and are therefore sanitized
+  # safe to eval at will
+  my ($self, $reqs) = @_;
+
+  my $ret;
+
+  for my $m ( keys %$reqs ) {
+    my $v = $reqs->{$m};
+
+    if (! exists $req_unavailability_cache{$m}{$v} ) {
+      local $@;
+      eval( "require $m;" . ( $v ? "$m->VERSION(q($v))" : '' ) );
+      $req_unavailability_cache{$m}{$v} = $@;
+    }
+
+    $ret->{$m} = $req_unavailability_cache{$m}{$v}
+      if $req_unavailability_cache{$m}{$v};
+  }
+
+  $ret;
+}
+
 
 # This is to be called by the author only (automatically in Makefile.PL)
 sub _gen_pod {
@@ -770,7 +800,7 @@ sub _gen_pod {
 
   File::Path::mkpath([$dir]);
 
-  my $sqltver = $class->req_list_for ('deploy')->{'SQL::Translator'}
+  my $sqltver = $class->req_list_for('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";
 
 
@@ -858,8 +888,8 @@ authors alike.
 
 Dependencies are organized in L<groups|/CURRENT REQUIREMENT GROUPS> where each
 group can list one or more required modules, with an optional minimum version
-(or 0 for any version). The group name can be used in the
-L<public methods|/METHODS> as described below.
+(or 0 for any version). Each group name (or a combination thereof) can be used
+in the L<public methods|/METHODS> as described below.
 EOC
 
 
@@ -868,11 +898,11 @@ EOC
 #@@
   push @chunks, '=head1 CURRENT REQUIREMENT GROUPS';
 
-  for my $group (sort keys %$reqs) {
-    my $p = $reqs->{$group}{pod}
+  for my $group (sort keys %$dbic_reqs) {
+    my $p = $dbic_reqs->{$group}{pod}
       or next;
 
-    my $modlist = $reqs->{$group}{req}
+    my $modlist = $dbic_reqs->{$group}{req}
       or next;
 
     next unless keys %$modlist;
@@ -906,8 +936,8 @@ EOC
 =back
 
 This method should be used by DBIx::Class packagers, to get a hashref of all
-dependencies keyed by dependency group. Each key (group name) can be supplied
-to one of the group-specific methods below.
+dependencies B<keyed> by dependency group. Each key (group name), or a combination
+thereof (as an arrayref) can be supplied to the methods below.
 The B<values> of the returned hash are currently a set of options B<without a
 well defined structure>. If you have use for any of the contents - contact the
 maintainers, instead of treating this as public (left alone stable) API.
@@ -916,39 +946,40 @@ maintainers, instead of treating this as public (left alone stable) API.
 
 =over
 
-=item Arguments: $group_name
+=item Arguments: $group_name | \@group_names
 
-=item Return Value: \%list_of_module_version_pairs
+=item Return Value: \%set_of_module_version_pairs
 
 =back
 
 This method should be used by DBIx::Class extension authors, to determine the
-version of modules a specific feature requires in the B<current> version of
+version of modules a specific set of features requires for this version of
 DBIx::Class. See the L</SYNOPSIS> for a real-world example.
 
 =head2 req_ok_for
 
 =over
 
-=item Arguments: $group_name
+=item Arguments: $group_name | \@group_names
 
 =item Return Value: 1|0
 
 =back
 
 Returns true or false depending on whether all modules required by
-C<$group_name> are present on the system and loadable.
+the group(s) are present on the system and loadable.
 
 =head2 req_missing_for
 
 =over
 
-=item Arguments: $group_name
+=item Arguments: $group_name | \@group_names
 
 =item Return Value: $error_message_string
 
 =back
 
+Returns a single-line string suitable for inclusion in larger error messages.
 This method would normally be used by DBIx::Class core-modules, to indicate to
 the user that they need to install specific modules before being able to use a
 specific feature set.
@@ -967,11 +998,11 @@ returning the actual error seen by the user.
 
 =over
 
-=item Arguments: $group_name
+=item Arguments: $group_name | \@group_names
 
 =back
 
-Checks if L</req_ok_for> passes for the supplied C<$group_name>, and
+Checks if L</req_ok_for> passes for the supplied group(s), and
 in case of failure throws an exception including the information
 from L</req_missing_for>.
 
@@ -979,15 +1010,16 @@ from L</req_missing_for>.
 
 =over
 
-=item Arguments: $group_name
+=item Arguments: $group_name | \@group_names
 
-=item Return Value: \%list_of_loaderrors_per_module
+=item Return Value: \%set_of_loaderrors_per_module
 
 =back
 
 Returns a hashref containing the actual errors that occurred while attempting
-to load each module in the requirement group.
+to load each module in the requirement group(s).
 EOC
+
 
 #@@
 #@@ FOOTER
