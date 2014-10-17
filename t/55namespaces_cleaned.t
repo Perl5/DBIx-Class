@@ -87,6 +87,7 @@ my $skip_idx = { map { $_ => 1 } (
   'DBIx::Class::ResultSet::Pager',
 
   # utility classes, not part of the inheritance chain
+  'DBIx::Class::Optional::Dependencies',
   'DBIx::Class::ResultSource::RowParser::Util',
   'DBIx::Class::_Util',
 ) };

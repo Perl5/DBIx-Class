@@ -3,7 +3,7 @@ package DBIx::Class::Optional::Dependencies;
 use warnings;
 use strict;
 
-use Carp ();
+use Carp;
 
 # NO EXTERNAL NON-5.8.1 CORE DEPENDENCIES EVER (e.g. C::A::G)
 # This module is to be loaded by Makefile.PM on a pristine system
@@ -638,11 +638,11 @@ our %req_availability_cache;
 sub req_list_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_list_for() expects a requirement group name"
+  croak "req_list_for() expects a requirement group name"
     unless $group;
 
   my $deps = $reqs->{$group}{req}
-    or Carp::croak "Requirement group '$group' does not exist";
+    or croak "Requirement group '$group' does not exist";
 
   return { %$deps };
 }
@@ -651,7 +651,7 @@ sub req_list_for {
 sub die_unless_req_ok_for {
   my ($class, $group) = @_;
 
-  Carp::croak "die_unless_req_ok_for() expects a requirement group name"
+  croak "die_unless_req_ok_for() expects a requirement group name"
     unless $group;
 
   $class->_check_deps($group)->{status}
@@ -661,7 +661,7 @@ sub die_unless_req_ok_for {
 sub req_ok_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_ok_for() expects a requirement group name"
+  croak "req_ok_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{status};
@@ -670,7 +670,7 @@ sub req_ok_for {
 sub req_missing_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_missing_for() expects a requirement group name"
+  croak "req_missing_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{missing};
@@ -679,7 +679,7 @@ sub req_missing_for {
 sub req_errorlist_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_errorlist_for() expects a requirement group name"
+  croak "req_errorlist_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{errorlist};
@@ -920,10 +920,12 @@ EOL
 
   );
 
-  open (my $fh, '>', $podfn) or Carp::croak "Unable to write to $podfn: $!";
-  print $fh join ("\n\n", @chunks);
-  print $fh "\n";
-  close ($fh);
+  eval {
+    open (my $fh, '>', $podfn) or die;
+    print $fh join ("\n\n", @chunks) or die;
+    print $fh "\n" or die;
+    close ($fh) or die;
+  } or croak( "Unable to write $podfn: " . ( $! || $@ || 'unknown error') );
 }
 
 1;
