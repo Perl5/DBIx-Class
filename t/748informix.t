@@ -1,21 +1,14 @@
 use strict;
 use warnings;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_informix';
+
 use Test::More;
 use Test::Exception;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_informix')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_informix');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS/};
-
-#warn "$dsn $user $pass";
-
-plan skip_all => 'Set $ENV{DBICTEST_INFORMIX_DSN}, _USER and _PASS to run this test'
-  unless $dsn;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
   auto_savepoint => 1

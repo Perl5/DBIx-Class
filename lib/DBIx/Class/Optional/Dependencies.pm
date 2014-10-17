@@ -95,6 +95,7 @@ my $dbic_reqs = {
     req => {
       'Test::Pod'                 => '1.42',
     },
+    release_testing_mandatory => 1,
   },
 
   test_podcoverage => {
@@ -102,6 +103,7 @@ my $dbic_reqs = {
       'Test::Pod::Coverage'       => '1.08',
       'Pod::Coverage'             => '0.20',
     },
+    release_testing_mandatory => 1,
   },
 
   test_whitespace => {
@@ -109,12 +111,14 @@ my $dbic_reqs = {
       'Test::EOL'                 => '1.0',
       'Test::NoTabs'              => '0.9',
     },
+    release_testing_mandatory => 1,
   },
 
   test_strictures => {
     req => {
       'Test::Strict'              => '0.20',
     },
+    release_testing_mandatory => 1,
   },
 
   test_prettydebug => {
@@ -589,6 +593,27 @@ sub import {
       print "\n";
       exit 0;
     }
+    elsif ($action eq '-skip_all_without') {
+
+      # sanity check - make sure ->current_test is 0 and no plan has been declared
+      do {
+        local $@;
+        defined eval {
+          Test::Builder->new->current_test
+            or
+          Test::Builder->new->has_plan
+        };
+      } and croak("Unable to invoke -skip_all_without after testing has started");
+
+      if ( my $missing = $class->req_missing_for(\@_) ) {
+
+        die ("\nMandatory requirements not satisfied during release-testing: $missing\n\n")
+          if $ENV{RELEASE_TESTING} and $class->_groups_to_reqs(\@_)->{release_testing_mandatory};
+
+        print "1..0 # SKIP requirements not satisfied: $missing\n";
+        exit 0;
+      }
+    }
     elsif ($action =~ /^-/) {
       croak "Unknown import-time action '$action'";
     }
@@ -822,6 +847,8 @@ sub _groups_to_reqs {
     $ret->{effective_modreqs_differ} ||= !!$some_envs_missing;
 
     $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
+
+    $ret->{release_testing_mandatory} ||= !!$dbic_reqs->{$group}{release_testing_mandatory};
   }
 
   return $ret;
@@ -1012,6 +1039,38 @@ EOC
 
 Even though this module is not an L<Exporter>, it recognizes several C<actions>
 supplied to its C<import> method.
+
+=head2 -skip_all_without
+
+=over
+
+=item Arguments: @group_names
+
+=back
+
+A convenience wrapper for use during testing:
+EOC
+
+  push @chunks, " use $class -skip_all_without => qw(admin test_rdbms_mysql);";
+
+  push @chunks, 'Roughly equivalent to the following code:';
+
+  push @chunks, sprintf <<'EOS', ($class) x 2;
+
+ BEGIN {
+   require %s;
+   if ( my $missing = %s->req_missing_for(\@group_names_) ) {
+     print "1..0 # SKIP requirements not satisfied: $missing\n";
+     exit 0;
+   }
+ }
+EOS
+
+  push @chunks, <<'EOC';
+
+It also takes into account the C<RELEASE_TESTING> environment variable and
+behaves like L</-die_without> for any requirement groups marked as
+C<release_testing_mandatory>.
 
 =head2 -die_without
 

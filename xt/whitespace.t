@@ -1,18 +1,12 @@
 use warnings;
 use strict;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_whitespace';
+
 use Test::More;
 use File::Glob 'bsd_glob';
 use lib 't/lib';
 use DBICTest ':GlobalLock';
-
-require DBIx::Class;
-unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_whitespace') ) {
-  my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_whitespace');
-  $ENV{RELEASE_TESTING}
-    ? die ("Failed to load release-testing module requirements: $missing")
-    : plan skip_all => "Test needs: $missing"
-}
 
 # FIXME - temporary workaround for RT#82032, RT#82033
 # also add all scripts (no extension) and some extra extensions

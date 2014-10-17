@@ -1,21 +1,15 @@
 use strict;
 use warnings;
+
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+
 use Test::More;
 use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::Optional::Dependencies ();
 
 my $main_pid = $$;
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
-
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
-      . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
 
 # README: If you set the env var to a number greater than 10,
 #   we will use that many children
@@ -24,6 +18,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1 });
 
 my $parent_rs;

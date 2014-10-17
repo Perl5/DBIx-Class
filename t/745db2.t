@@ -1,23 +1,15 @@
 use strict;
 use warnings;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_db2';
+
 use Test::More;
 use Test::Exception;
 use Try::Tiny;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_db2')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_db2');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_DB2_${_}" } qw/DSN USER PASS/};
-
-#warn "$dsn $user $pass";
-
-plan skip_all => 'Set $ENV{DBICTEST_DB2_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
-
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $name_sep = $schema->storage->_dbh_get_info('SQL_QUALIFIER_NAME_SEPARATOR');

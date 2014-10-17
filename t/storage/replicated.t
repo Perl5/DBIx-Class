@@ -1,22 +1,19 @@
 use strict;
 use warnings;
 
-use Test::More;
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_replicated';
 
+use Test::More;
+use DBIx::Class::_Util 'modver_gt_or_eq_and_lt';
 use lib qw(t/lib);
 use DBICTest;
 
 BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
-
-    if (DBICTest::RunMode->is_smoker) {
-      my $mver = Moose->VERSION;
-      plan skip_all => "A trial version $mver of Moose detected known to break replication - skipping test known to fail"
-        if ($mver >= 1.99 and $mver <= 1.9902);
-    }
-
+  plan skip_all => "A trial version of Moose detected known to break replication - skipping test known to fail" if (
+    DBICTest::RunMode->is_smoker
+      and
+    modver_gt_or_eq_and_lt( 'Moose', '1.99', '1.9903' )
+  )
 }
 
 use Test::Moose;

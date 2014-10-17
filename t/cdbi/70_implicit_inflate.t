@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt_sqlite';
+
 # Class::DBI in its infinate wisdom allows implicit inflation
 # and deflation of foriegn clas looups in has_a relationships.
 # for inflate it would call ->new on the foreign_class and for
@@ -8,12 +10,6 @@ use warnings;
 # of the "" operator.
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies;
-
-BEGIN {
-  plan skip_all => "Test needs ".DBIx::Class::Optional::Dependencies->req_missing_for('test_dt_sqlite')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
-}
 
 use lib 't/cdbi/testlib';
 use ImplicitInflate;

@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'deploy';
+
 use Test::More;
 use Test::Warn;
 use Test::Exception;
@@ -9,13 +11,6 @@ use Scalar::Util ();
 use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
-
-BEGIN {
-  require DBIx::Class;
-  plan skip_all =>
-      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
-}
 
 # Test for SQLT-related leaks
 {

@@ -1,18 +1,12 @@
 use warnings;
 use strict;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_strictures';
+
 use Test::More;
+use File::Find;
 use lib 't/lib';
 use DBICTest;
-
-unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_strictures') ) {
-  my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_strictures');
-  $ENV{RELEASE_TESTING}
-    ? die ("Failed to load release-testing module requirements: $missing")
-    : plan skip_all => "Test needs: $missing"
-}
-
-use File::Find;
 
 # The rationale is - if we can load all our optdeps
 # that are related to lib/ - then we should be able to run

@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_oracle';
+
 use Test::Exception;
 use Test::More;
 
@@ -8,21 +10,7 @@ use Test::More;
 # dealing with HQs. So just punt on the entire shuffle thing.
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
 
-
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
-
-$ENV{NLS_SORT} = "BINARY";
-$ENV{NLS_COMP} = "BINARY";
-$ENV{NLS_LANG} = "AMERICAN";
-
-my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
- unless ($dsn && $user && $pass);
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_oracle')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_oracle');
 
 use DBICTest::Schema::Artist;
 BEGIN {
@@ -42,6 +30,11 @@ BEGIN {
 use DBICTest;
 use DBICTest::Schema;
 
+$ENV{NLS_SORT} = "BINARY";
+$ENV{NLS_COMP} = "BINARY";
+$ENV{NLS_LANG} = "AMERICAN";
+
+my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 note "Oracle Version: " . $schema->storage->_server_info->{dbms_version};
