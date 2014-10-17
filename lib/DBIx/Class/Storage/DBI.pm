@@ -2871,8 +2871,8 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
-    $self->throw_exception("Can't create a ddl file without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')) {
+    $self->throw_exception("Can't create a ddl file without $missing");
   }
 
   my $sqlt = SQL::Translator->new( $sqltargs );
@@ -3028,8 +3028,8 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
-    $self->throw_exception("Can't deploy without a ddl_dir or " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') ) {
+    $self->throw_exception("Can't deploy without a pregenerated 'ddl_dir' directory or $missing");
   }
 
   # sources needs to be a parser arg, but for simplicity allow at top level

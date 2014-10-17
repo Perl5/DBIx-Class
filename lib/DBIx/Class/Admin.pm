@@ -1,10 +1,14 @@
 package DBIx::Class::Admin;
 
+use warnings;
+use strict;
+
 # check deps
 BEGIN {
-  use DBIx::Class;
-  die('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('admin') ) {
+    die "The following extra modules are required for DBIx::Class::Admin: $missing\n";
+  }
 }
 
 use JSON::Any qw(DWIW PP JSON CPANEL XS);

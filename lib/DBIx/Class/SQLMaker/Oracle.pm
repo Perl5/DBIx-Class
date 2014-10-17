@@ -4,13 +4,14 @@ package # Hide from PAUSE
 use warnings;
 use strict;
 
-use base qw( DBIx::Class::SQLMaker );
-
 BEGIN {
-  use DBIx::Class::Optional::Dependencies;
-  die('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') . "\n" )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') ) {
+    die "The following extra modules are required for Oracle-based Storages: $missing\n";
+  }
 }
+
+use base 'DBIx::Class::SQLMaker';
 
 sub new {
   my $self = shift;

@@ -642,8 +642,8 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
-    $self->throw_exception("Unable to proceed without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('deploy') ) {
+    $self->throw_exception("Unable to proceed without $missing");
   }
 
   my $db_tr = SQL::Translator->new({
