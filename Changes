@@ -9,6 +9,8 @@ Revision history for DBIx::Class
           timeout lock-prone.
 
     * Misc
+        - Skip tests in a way more intelligent and speedy manner when optional
+          dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
         - Incompatibly change values (not keys) of the hash returned by
           Optional::Dependencies::req_group_list (no known users in the wild)

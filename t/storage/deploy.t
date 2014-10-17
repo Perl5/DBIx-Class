@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'deploy';
+
 use strict;
 use warnings;
 
@@ -7,13 +9,6 @@ use Path::Class qw/dir/;
 
 use lib qw(t/lib);
 use DBICTest;
-
-BEGIN {
-  require DBIx::Class;
-  plan skip_all =>
-      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
-}
 
 local $ENV{DBI_DSN};
 

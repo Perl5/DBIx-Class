@@ -1,8 +1,9 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt';
+
 use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use Scope::Guard ();
@@ -20,9 +21,6 @@ plan skip_all => join (' ',
 
   "WARNING: This test drops and creates a table called 'event'",
 ) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
-
-plan skip_all => ( 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('test_dt') )
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 my $schema;
 

@@ -1,15 +1,13 @@
-use strict;
-use warnings;
-no warnings qw/once/;
-
 my ($inc_before, $inc_after);
 BEGIN {
-  require Carp;   # Carp is not used in the test, but in OptDeps, load for proper %INC comparison
-
   $inc_before = [ keys %INC ];
   require DBIx::Class::Optional::Dependencies;
   $inc_after = [ keys %INC ];
 }
+
+use strict;
+use warnings;
+no warnings qw/once/;
 
 use Test::More;
 use Test::Exception;
@@ -17,15 +15,16 @@ use Test::Exception;
 # load before we break require()
 use Scalar::Util();
 use MRO::Compat();
+use Carp 'confess';
 
 ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related was loaded before inc-test')
   unless $ENV{PERL5OPT}; # a defined PERL5OPT may inject extra deps crashing this test
 
 is_deeply (
   [ sort @$inc_after],
-  [ sort (@$inc_before, 'DBIx/Class/Optional/Dependencies.pm') ],
+  [ sort (@$inc_before, qw( DBIx/Class/Optional/Dependencies.pm if.pm )) ],
   'Nothing loaded other than DBIx::Class::OptDeps',
-);
+) unless $ENV{RELEASE_TESTING};
 
 
 # check the project-local groups for sanity
@@ -43,7 +42,7 @@ is_deeply (
 {
 
 # make module loading impossible, regardless of actual libpath contents
-  local @INC = (sub { Carp::confess('Optional Dep Test') } );
+  local @INC = (sub { confess('Optional Dep Test') } );
 
 # basic test using the deploy target
   for ('deploy', ['deploy']) {

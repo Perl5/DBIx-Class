@@ -12,6 +12,8 @@ BEGIN {
 }
 use threads;
 
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+
 use strict;
 use warnings;
 
@@ -21,16 +23,8 @@ use Test::Exception;
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if $] < '5.008005';
 
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
-
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
-plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
-      . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
 
 # README: If you set the env var to a number greater than 10,
 #   we will use that many children
@@ -39,7 +33,7 @@ if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
-use_ok('DBICTest::Schema');
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 

@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt_sqlite';
+
 use strict;
 use warnings;
 
@@ -11,9 +13,6 @@ use DBICTest;
 delete $ENV{DBIC_DT_SEARCH_OK};
 
 my $schema = DBICTest->init_schema();
-
-plan skip_all => 'DT inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);

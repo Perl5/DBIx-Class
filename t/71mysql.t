@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mysql';
+
 use strict;
 use warnings;
 
@@ -12,13 +14,7 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { quote_names => 1 });
 

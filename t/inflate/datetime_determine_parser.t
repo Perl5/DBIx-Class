@@ -1,12 +1,11 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt_sqlite';
+
 use strict;
 use warnings;
 
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
 my $schema = DBICTest->init_schema(
     no_deploy => 1, # Deploying would cause an early rebless

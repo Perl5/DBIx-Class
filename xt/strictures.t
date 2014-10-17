@@ -1,18 +1,12 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_strictures';
+
 use warnings;
 use strict;
 
 use Test::More;
+use File::Find;
 use lib 't/lib';
 use DBICTest;
-
-unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_strictures') ) {
-  my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_strictures');
-  $ENV{RELEASE_TESTING}
-    ? die ("Failed to load release-testing module requirements: $missing")
-    : plan skip_all => "Test needs: $missing"
-}
-
-use File::Find;
 
 # The rationale is - if we can load all our optdeps
 # that are related to lib/ - then we should be able to run
@@ -33,6 +27,8 @@ find({
       maint/Makefile.PL.inc/.+                        # all the maint inc snippets are auto-strictured
         |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
+        |
+      lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load spee sensitive)
     )$}x;
 
     my $f = $_;

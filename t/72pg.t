@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+
 use strict;
 use warnings;
 
@@ -11,22 +13,9 @@ use DBICTest;
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util 'is_exception';
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => <<'EOM' unless $dsn && $user;
-Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
-( NOTE: This test drops and creates tables called 'artist', 'cd',
-'timestamp_primary_key_test', 'track', 'casecheck', 'array_test' and
-'sequence_test' as well as following sequences: 'pkid1_seq', 'pkid2_seq' and
-'nonpkid_seq'. as well as following schemas: 'dbic_t_schema',
-'dbic_t_schema_2', 'dbic_t_schema_3', 'dbic_t_schema_4', and 'dbic_t_schema_5')
-EOM
-
 ### load any test classes that are defined further down in the file via BEGIN blocks
-
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 

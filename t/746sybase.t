@@ -1,33 +1,25 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_ase';
+
 use strict;
 use warnings;
 no warnings 'uninitialized';
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
-
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
-if (not ($dsn && $user)) {
-  plan skip_all => join ' ',
-    'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test.',
-    'Warning: This test drops and creates the tables:',
-    "'artist', 'money_test' and 'bindtype_test'",
-  ;
-};
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
 my @storage_types = (
   'DBI::Sybase::ASE',
   'DBI::Sybase::ASE::NoBindVars',
 );
-eval "require DBIx::Class::Storage::$_;" for @storage_types;
+eval "require DBIx::Class::Storage::$_;" or die $@
+  for @storage_types;
 
 my $schema;
 my $storage_idx = -1;
+
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
 sub get_schema {
   DBICTest::Schema->connect($dsn, $user, $pass, {

@@ -1,19 +1,14 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+
 use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies ();
 use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_pg')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_pg');
-
 my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $dbuser);
 
 my $schema = DBICTest::Schema->connect($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
 

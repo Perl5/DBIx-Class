@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mssql_odbc';
+
 use strict;
 use warnings;
 
@@ -5,17 +7,10 @@ use Test::More;
 use Test::Exception;
 use Try::Tiny;
 
-use DBIx::Class::Optional::Dependencies ();
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mssql_odbc')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mssql_odbc');
-
 use lib qw(t/lib);
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
 
 {
   my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};

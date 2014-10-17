@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt';
+
 use strict;
 use warnings;
 
@@ -7,9 +9,6 @@ use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
-
-plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 $schema->class('CD') ->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
