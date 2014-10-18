@@ -30,11 +30,12 @@ sub with_deferred_fk_checks {
 
   $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
 
-  my $sg = Scope::Guard->new(sub {
-    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
-  });
-
-  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
+  return preserve_context {
+    my $sg = Scope::Guard->new(sub {
+      $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+    });
+    $sub->()
+  } after => sub { $txn_scope_guard->commit };
 }
 
 # only used when INSERT ... RETURNING is disabled
