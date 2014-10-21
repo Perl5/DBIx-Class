@@ -2,11 +2,9 @@ package DBIx::Class::Storage::DBI::Informix;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::SetConstraintsDeferred/;
 use mro 'c3';
 
-use Scope::Guard ();
-use Context::Preserve 'preserve_context';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('SkipFirst');
@@ -57,22 +55,6 @@ sub _exec_svp_rollback {
     my ($self, $name) = @_;
 
     $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
-}
-
-sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
-
-  my $txn_scope_guard = $self->txn_scope_guard;
-
-  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
-
-  return preserve_context {
-    my $inner_self = $self; # avoid nested closure leak on 5.8
-    my $sg = Scope::Guard->new(sub {
-      $inner_self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
-    });
-    $sub->()
-  } after => sub { $txn_scope_guard->commit };
 }
 
 =head2 connect_call_datetime_setup

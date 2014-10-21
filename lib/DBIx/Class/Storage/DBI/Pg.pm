@@ -3,10 +3,8 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::SetConstraintsDeferred/;
 
-use Scope::Guard ();
-use Context::Preserve 'preserve_context';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -21,22 +19,6 @@ sub _determine_supports_insert_returning {
     ? 1
     : 0
   ;
-}
-
-sub with_deferred_fk_checks {
-  my ($self, $sub) = @_;
-
-  my $txn_scope_guard = $self->txn_scope_guard;
-
-  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
-
-  return preserve_context {
-    my $inner_self = $self; # avoid nested closure leak on 5.8
-    my $sg = Scope::Guard->new(sub {
-      $inner_self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
-    });
-    $sub->()
-  } after => sub { $txn_scope_guard->commit };
 }
 
 # only used when INSERT ... RETURNING is disabled
