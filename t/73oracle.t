@@ -201,13 +201,6 @@ sub _run_tests {
     like ($seq, qr/\.${q}artist_pk_seq${q}$/, 'Correct PK sequence selected for sqlt-like trigger');
   }
 
-  lives_ok {
-    $new = $schema->resultset('Artist')->create({});
-    $new->discard_changes;
-    ok $new->artistid, 'Created row has id'
-  } 'Create with empty hashref works';
-
-
 # test LIMIT support
   for (1..6) {
     $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });

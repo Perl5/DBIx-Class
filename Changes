@@ -1,7 +1,6 @@
 Revision history for DBIx::Class
 
     * Fixes
-        - Fix $rs->create() with no values on Oracle
         - Silence with_deferred_fk_checks() warning on PostgreSQL 9.4
 
     * Misc
