@@ -82,10 +82,19 @@ if [[ "$CLEANTEST" = "true" ]]; then
     #
     installdeps 'SQL::Abstract~<1.99'
 
-  elif ! CPAN_is_sane ; then
-    # no configure_requires - we will need the usual suspects anyway
-    # without pre-installing these in one pass things like extract_prereqs won't work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+  else
+
+    if ! CPAN_is_sane ; then
+      # no configure_requires - we will need the usual suspects anyway
+      # without pre-installing these in one pass things like extract_prereqs won't work
+      installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+    fi
+
+    # FIXME - temporary until 1.46 comes out / RT#99747 is fixed
+    # insufficient testing of 5.8.3, ned older DBD::SQlite, ribasushi--
+    if ! perl -M5.008004 -e 1 &>/dev/null ; then
+      installdeps DBI I/IS/ISHIGAKI/DBD-SQLite-1.42.tar.gz
+    fi
 
   fi
 
