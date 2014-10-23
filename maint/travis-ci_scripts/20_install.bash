@@ -84,3 +84,45 @@ CPAN_CFG_SCRIPT="
   CPAN::Config->commit;
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
+
+# poison the environment
+if [[ "$POISON_ENV" = "true" ]] ; then
+
+  # in addition to making sure tests do not rely on implicid order of
+  # returned results, look through lib, find all mentioned ENVvars and
+  # set them to true and see if anything explodes
+  for var in \
+    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
+    $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -v DBIC_TRACE)
+  do
+    if [[ -z "${!var}" ]] ; then
+      export $var=1
+      echo "POISON_ENV: setting $var to 1"
+    fi
+  done
+
+  # bogus nonexisting DBI_*
+  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
+  export DBI_DRIVER="ADO"
+
+  # some people do in fact set this - boggle!!!
+  export PERL_STRICTURES_EXTRA=1
+
+  # emulate a local::lib-like env
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  run_or_err "Downloading latest stable DBIC from CPAN" \
+    "SHELL=/bin/true cpanm --look DBIx::Class"
+
+  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
+
+  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
+
+fi
+
+if [[ "$CLEANTEST" != "true" ]] ; then
+  # using SQLT if will be available
+  # not doing later because we will be running in a subshell
+  export DBICTEST_SQLT_DEPLOY=1
+
+fi

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# "autodie"
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr

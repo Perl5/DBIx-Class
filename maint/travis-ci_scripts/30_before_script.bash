@@ -1,44 +1,15 @@
 #!/bin/bash
 
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
+# this file is executed in a subshell - set up the common stuff
+source maint/travis-ci_scripts/common.bash
 
-# poison the environment
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
+
+# FIXME - this is a kludge in place of proper MDV testing. For the time
+# being simply use the minimum versions of our DBI/DBDstack, to avoid
+# fuckups like 0.08260 (went unnoticed for 5 months)
 if [[ "$POISON_ENV" = "true" ]] ; then
 
-  # in addition to making sure tests do not rely on implicid order of
-  # returned results, look through lib, find all mentioned ENVvars and
-  # set them to true and see if anything explodes
-  for var in \
-    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
-    $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -v DBIC_TRACE)
-  do
-    if [[ -z "${!var}" ]] ; then
-      export $var=1
-      echo "POISON_ENV: setting $var to 1"
-    fi
-  done
-
-  # bogus nonexisting DBI_*
-  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
-  export DBI_DRIVER="ADO"
-
-  # some people do in fact set this - boggle!!!
-  export PERL_STRICTURES_EXTRA=1
-
-  # emulate a local::lib-like env
-  # trick cpanm into executing true as shell - we just need the find+unpack
-  run_or_err "Downloading latest stable DBIC from CPAN" \
-    "SHELL=/bin/true cpanm --look DBIx::Class"
-
-  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
-
-  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
-  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
-
-  # FIXME - this is a kludge in place of proper MDV testing. For the time
-  # being simply use the minimum versions of our DBI/DBDstack, to avoid
-  # fuckups like 0.08260 (went unnoticed for 5 months)
-  #
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
   if perl -M5.013003 -e1 &>/dev/null ; then
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
@@ -100,8 +71,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 else
   # we will be running all dbic tests - preinstall lots of stuff, run basic tests
-  # using SQLT and set up whatever databases necessary
-  export DBICTEST_SQLT_DEPLOY=1
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
