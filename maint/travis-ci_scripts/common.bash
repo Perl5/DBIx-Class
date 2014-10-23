@@ -1,9 +1,10 @@
 #!/bin/bash
 
+# "autodie"
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
-TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=16m --signal=TERM 15m"
 
 echo_err() { echo "$@" 1>&2 ; }
 
@@ -85,9 +86,6 @@ run_or_err() {
 apt_install() {
   # flatten
   pkgs="$@"
-
-  # Need to do this at every step, the sources list may very well have changed
-  run_or_err "Updating APT available package list" "sudo apt-get update"
 
   run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }

@@ -2,14 +2,11 @@
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-CPAN_MIRROR=$(echo "$PERL_CPANM_OPT" | grep -oP -- '--mirror\s+\S+' | head -n 1 | cut -d ' ' -f 2)
-if ! [[ "$CPAN_MIRROR" =~ "http://" ]] ; then
-  echo_err "Unable to extract primary cpan mirror from PERL_CPANM_OPT - something is wrong"
-  echo_err "PERL_CPANM_OPT: $PERL_CPANM_OPT"
-  CPAN_MIRROR="http://cpan.metacpan.org/"
-  PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
-  echo_err "Using $CPAN_MIRROR for the time being"
-fi
+# we need a mirror that both has the standard index and a backpan version rolled
+# into one, due to MDV testing
+CPAN_MIRROR="http://cpan.metacpan.org/"
+
+PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
 # do not set PERLBREW_CPAN_MIRROR - not all backpan-like mirrors have the perl tarballs
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
@@ -84,3 +81,45 @@ CPAN_CFG_SCRIPT="
   CPAN::Config->commit;
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
+
+# poison the environment
+if [[ "$POISON_ENV" = "true" ]] ; then
+
+  # in addition to making sure tests do not rely on implicid order of
+  # returned results, look through lib, find all mentioned ENVvars and
+  # set them to true and see if anything explodes
+  for var in \
+    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
+    $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -v DBIC_TRACE)
+  do
+    if [[ -z "${!var}" ]] ; then
+      export $var=1
+      echo "POISON_ENV: setting $var to 1"
+    fi
+  done
+
+  # bogus nonexisting DBI_*
+  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
+  export DBI_DRIVER="ADO"
+
+  # some people do in fact set this - boggle!!!
+  export PERL_STRICTURES_EXTRA=1
+
+  # emulate a local::lib-like env
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  run_or_err "Downloading latest stable DBIC from CPAN" \
+    "SHELL=/bin/true cpanm --look DBIx::Class"
+
+  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
+
+  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
+
+fi
+
+if [[ "$CLEANTEST" != "true" ]] ; then
+  # using SQLT if will be available
+  # not doing later because we will be running in a subshell
+  export DBICTEST_SQLT_DEPLOY=1
+
+fi

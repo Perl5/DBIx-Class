@@ -28,6 +28,8 @@
 # functionality is moved to scripts. More about the problem (and the
 # WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
 #
+# the entire run times out after 50 minutes, or after 5 minutes without
+# console output
 
 #
 # Smoke all branches except for blocked* and wip/*
@@ -72,7 +74,7 @@ perl:
 
 env:
   - CLEANTEST=false
-  - CLEANTEST=true
+  - CLEANTEST=true NUMTHREADS=1
 
 matrix:
   fast_finish: true
@@ -216,52 +218,63 @@ matrix:
     - perl: devcpan_bleadperl_thr_mb
 
 
-# sourcing the files is *EXTREMELY* important - otherwise
-# no envvars will survive
-
-# the entire run times out after 50 minutes, or after 5 minutes without
-# console output
+###
+### For the following two phases -e is *set*
+###
 
 before_install:
   # common functions for all run phases below
+  #
+  # this is an exporter - sourcing it is crucial
+  # among other things it also sets -e
+  #
   - source maint/travis-ci_scripts/common.bash
 
   # Sets global envvars, downloads/configures debs based on CLEANTEST
   # Sets extra DBICTEST_* envvars
+  #
+  # this is an exporter - sourcing it is crucial
   #
   - source maint/travis-ci_scripts/10_before_install.bash
 
 install:
   # Build and switch to a custom perl if requested
   # Configure the perl env, preinstall some generic toolchain parts
+  # Possibly poison the environment
+  #
+  # this is an exporter - sourcing it is crucial
   #
   - source maint/travis-ci_scripts/20_install.bash
+
+###
+### From this point on -e is *unset*, rely on travis' error handling
+###
+  - set +e
 
 before_script:
   # Preinstall/install deps based on envvars/CLEANTEST
   #
-  - source maint/travis-ci_scripts/30_before_script.bash
+  # need to invoke the after_failure script manually
+  # because 'after_failure' runs only after 'script' fails
+  #
+  - maint/getstatus maint/travis-ci_scripts/30_before_script.bash || ( maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
 
 script:
   # Run actual tests
   #
-  - source maint/travis-ci_scripts/40_script.bash
+  - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
-  - source maint/travis-ci_scripts/50_after_success.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_success.bash
 
 after_failure:
-  # No tasks yet
+  # Final sysinfo printout on fail
   #
-  #- source maint/travis-ci_scripts/50_after_failure.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_failure.bash
 
 after_script:
   # No tasks yet
   #
-  #- source maint/travis-ci_scripts/60_after_script.bash
-
-  # if we do not unset this before we terminate the travis teardown will
-  # mark the entire job as failed
-  - set +e
+  #- maint/getstatus maint/travis-ci_scripts/60_after_script.bash
