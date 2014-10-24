@@ -1564,8 +1564,8 @@ See L<DBIx::Class::Schema/throw_exception>.
 sub throw_exception {
   my $self=shift;
 
-  if (ref $self && ref $self->result_source ) {
-    $self->result_source->throw_exception(@_)
+  if (ref $self && ref (my $rsrc = try { $self->result_source_instance } ) ) {
+    $rsrc->throw_exception(@_)
   }
   else {
     DBIx::Class::Exception->throw(@_);
