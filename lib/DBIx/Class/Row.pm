@@ -1412,11 +1412,10 @@ sub result_source {
 
     # note this is a || not a ||=, the difference is important
     : $_[0]->{_result_source} || do {
-        my $class = ref $_[0];
         $_[0]->can('result_source_instance')
           ? $_[0]->result_source_instance
           : $_[0]->throw_exception(
-            "No result source instance registered for $class, did you forget to call $class->table(...) ?"
+            "No result source instance registered for @{[ ref $_[0] ]}, did you forget to call @{[ ref $_[0] ]}->table(...) ?"
           )
       }
   ;
