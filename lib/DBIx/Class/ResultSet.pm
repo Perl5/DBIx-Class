@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
+use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
@@ -1382,11 +1383,7 @@ sub _construct_results {
   $self->{_result_inflator}{is_hri} = ( (
     ! $self->{_result_inflator}{is_core_row}
       and
-    $inflator_cref == (
-      require DBIx::Class::ResultClass::HashRefInflator
-        &&
-      DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
-    )
+    $inflator_cref == \&DBIx::Class::ResultClass::HashRefInflator::inflate_result
   ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_hri};
 
 
