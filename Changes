@@ -4,6 +4,10 @@ Revision history for DBIx::Class
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
 
+    * Misc
+        - Depend on newer Moo, fixing some interoperability issues:
+          http://lists.scsys.co.uk/pipermail/dbix-class/2014-October/011787.html
+
 0.082801 2014-10-05 23:55 (UTC)
     * Known Issues
         - Passing large amounts of objects with stringification overload
