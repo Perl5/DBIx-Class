@@ -51,6 +51,7 @@ my $datetime_basic = {
 };
 
 my $id_shortener = {
+  'Digest::MD5'                   => '0',
   'Math::BigInt'                  => '1.80',
   'Math::Base36'                  => '0.07',
 };

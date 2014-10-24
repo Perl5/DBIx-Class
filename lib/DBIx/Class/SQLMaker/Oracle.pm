@@ -145,9 +145,6 @@ sub _shorten_identifier {
   @keywords = $to_shorten unless @keywords;
 
   # get a base36 md5 of the identifier
-  require Digest::MD5;
-  require Math::BigInt;
-  require Math::Base36;
   my $b36sum = Math::Base36::encode_base36(
     Math::BigInt->from_hex (
       '0x' . Digest::MD5::md5_hex ($to_shorten)
