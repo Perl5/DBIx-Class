@@ -1463,6 +1463,9 @@ sub _construct_results {
         if @violating_idx;
 
       $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
+
+      utf8::upgrade($unrolled_non_null_cols_to_check)
+        if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
     }
 
     my $next_cref =
