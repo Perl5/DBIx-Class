@@ -153,12 +153,15 @@ sub assemble_collapsing_parser {
 
   my @idcol_args = $no_rowid_container ? ('', '') : (
     ', %cur_row_ids', # only declare the variable if we'll use it
-    join ("\n", map { qq(\$cur_row_ids{$_} = ) . (
-      # in case we prune - we will never hit these undefs
-      $args->{prune_null_branches} ? qq(\$cur_row_data->[$_];)
-      : HAS_DOR                    ? qq(\$cur_row_data->[$_] // "\0NULL\xFF\$rows_pos\xFF$_\0";)
-      :                              qq(defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : "\0NULL\xFF\$rows_pos\xFF$_\0";)
-    ) } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
+    join ("\n", map {
+      my $quoted_null_val = qq( "\0NULL\xFF\${rows_pos}\xFF${_}\0" );
+      qq(\$cur_row_ids{$_} = ) . (
+        # in case we prune - we will never hit these undefs
+        $args->{prune_null_branches} ? qq( \$cur_row_data->[$_]; )
+        : HAS_DOR                    ? qq( \$cur_row_data->[$_] // $quoted_null_val; )
+        :                              qq( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val; )
+      )
+    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
   );
 
   my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
