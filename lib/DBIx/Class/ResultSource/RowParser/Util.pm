@@ -18,6 +18,10 @@ our @EXPORT_OK = qw(
 # working title - we are hoping to extract this eventually...
 our $null_branch_class = 'DBIx::ResultParser::RelatedNullBranch';
 
+sub __wrap_in_strictured_scope {
+  "  { use strict; use warnings; use warnings FATAL => 'uninitialized';\n$_[0]\n  }"
+}
+
 sub assemble_simple_parser {
   #my ($args) = @_;
 
@@ -35,7 +39,7 @@ sub assemble_simple_parser {
   # change the quoted placeholders to unquoted alias-references
   $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$_->[$1]"/gex;
 
-  $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
+  __wrap_in_strictured_scope($parser_src);
 }
 
 # the simple non-collapsing nested structure recursor
@@ -218,7 +222,7 @@ EOS
     $no_rowid_container ? "\$cur_row_data->[$1]" : "\$cur_row_ids{$1}"
   /gex;
 
-  $parser_src = "  { use strict; use warnings FATAL => 'all';\n$parser_src\n  }";
+  __wrap_in_strictured_scope($parser_src);
 }
 
 
