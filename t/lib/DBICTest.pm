@@ -344,7 +344,6 @@ sub init_schema {
 
 END {
   # Make sure we run after any cleanup in other END blocks
-  require B;
   push @{ B::end_av()->object_2svref }, sub {
     assert_empty_weakregistry($weak_registry, 'quiet');
   };

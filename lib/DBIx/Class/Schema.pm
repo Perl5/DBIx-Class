@@ -1213,7 +1213,6 @@ reference to any schema, so are rather useless.
 sub thaw {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
-  require Storable;
   return Storable::thaw($obj);
 }
 
@@ -1225,7 +1224,6 @@ it is just provided here for symmetry.
 =cut
 
 sub freeze {
-  require Storable;
   return Storable::nfreeze($_[1]);
 }
 
@@ -1248,7 +1246,6 @@ objects so their references to the schema object
 sub dclone {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
-  require Storable;
   return Storable::dclone($obj);
 }
 
