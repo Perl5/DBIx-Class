@@ -1470,13 +1470,12 @@ sub compose_connection {
   carp_once "compose_connection deprecated as of 0.08000"
     unless $INC{"DBIx/Class/CDBICompat.pm"};
 
-  my $base = 'DBIx::Class::ResultSetProxy';
   try {
-    eval "require ${base};"
+    require DBIx::Class::ResultSetProxy;
   }
   catch {
     $self->throw_exception
-      ("No arguments to load_classes and couldn't load ${base} ($_)")
+      ("No arguments to load_classes and couldn't load DBIx::Class::ResultSetProxy ($_)")
   };
 
   if ($self eq $target) {
@@ -1484,7 +1483,7 @@ sub compose_connection {
     foreach my $source_name ($self->sources) {
       my $source = $self->source($source_name);
       my $class = $source->result_class;
-      $self->inject_base($class, $base);
+      $self->inject_base($class, 'DBIx::Class::ResultSetProxy');
       $class->mk_classdata(resultset_instance => $source->resultset);
       $class->mk_classdata(class_resolver => $self);
     }
@@ -1492,7 +1491,7 @@ sub compose_connection {
     return $self;
   }
 
-  my $schema = $self->compose_namespace($target, $base);
+  my $schema = $self->compose_namespace($target, 'DBIx::Class::ResultSetProxy');
   quote_sub "${target}::schema", '$s', { '$s' => \$schema };
 
   $schema->connection(@info);

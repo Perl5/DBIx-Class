@@ -139,15 +139,14 @@ sub select_single {
 
 sub build_datetime_parser {
   my $self = shift;
-  my $type = "DateTime::Format::Strptime";
   try {
-    eval "require ${type}"
+    require DateTime::Format::Strptime;
   }
   catch {
-    $self->throw_exception("Couldn't load ${type}: $_");
+    $self->throw_exception("Couldn't load DateTime::Format::Strptime: $_");
   };
 
-  return $type->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
+  return DateTime::Format::Strptime->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
 }
 
 =head2 connect_call_datetime_setup
