@@ -636,4 +636,6 @@ SKIP: {
 
 throws_ok { $schema->resultset} qr/resultset\(\) expects a source name/, 'resultset with no argument throws exception';
 
+throws_ok { $schema->source('Artist')->result_class->new( 'bugger' ) } qr/must be a hashref/;
+
 done_testing;
