@@ -144,6 +144,11 @@ $row->discard_changes;
 is ($row->rank, 'abc', 'proper rank inserted into database');
 
 # and make sure we do not lose actual bigints
+SKIP: {
+
+skip "Not testing bigint handling on known broken DBD::SQLite trial versions", 1
+  if( modver_gt_or_eq('DBD::SQLite', '1.45') and ! modver_gt_or_eq('DBD::SQLite', '1.45_03') );
+
 {
   package DBICTest::BigIntArtist;
   use base 'DBICTest::Schema::Artist';
@@ -310,7 +315,8 @@ SKIP: {
 }
 
   is_deeply (\@w, [], "No mismatch warnings on bigint operations ($v_desc)" );
-}
+
+}}
 
 done_testing;
 
