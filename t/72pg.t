@@ -149,6 +149,16 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   run_apk_tests($schema); #< older set of auto-pk tests
   run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
+
+######## test the pg-specific syntax from https://rt.cpan.org/Ticket/Display.html?id=99503
+  lives_ok {
+    is(
+      $schema->resultset('Artist')->search({ artistid => { -in => \ '(select 4) union (select 5)' } })->count,
+      2,
+      'Two expected artists found on subselect union within IN',
+    );
+  };
+
 ### type_info tests
 
   my $test_type_info = {
