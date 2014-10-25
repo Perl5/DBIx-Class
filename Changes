@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.082810 2014-10-25 13:58 (UTC)
     * Fixes
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
