@@ -9,7 +9,7 @@ use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::_Util qw(sigwarn_silencer modver_gt_or_eq);
+use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt );
 
 # check that we work somewhat OK with braindead SQLite transaction handling
 #
@@ -155,9 +155,7 @@ $schema->storage->dbh_do(sub {
   $_[1]->do('ALTER TABLE artist ADD COLUMN bigint BIGINT');
 });
 
-my $sqlite_broken_bigint = (
-  modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37')
-);
+my $sqlite_broken_bigint = modver_gt_or_eq_and_lt( 'DBD::SQLite', '1.34', '1.37' );
 
 # 63 bit integer
 my $many_bits = (Math::BigInt->new(2) ** 62);

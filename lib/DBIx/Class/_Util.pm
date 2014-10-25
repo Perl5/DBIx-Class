@@ -80,7 +80,7 @@ sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq
+  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
   quote_sub qsub perlstring serialize
@@ -197,6 +197,19 @@ sub modver_gt_or_eq ($$) {
 
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
+}
+
+sub modver_gt_or_eq_and_lt ($$$) {
+  my ($mod, $v_ge, $v_lt) = @_;
+
+  croak "Nonsensical maximum version supplied"
+    if ! defined $v_lt or $v_lt =~ /[^0-9\.\_]/;
+
+  return (
+    modver_gt_or_eq($mod, $v_ge)
+      and
+    ! modver_gt_or_eq($mod, $v_lt)
+  ) ? 1 : 0;
 }
 
 {
