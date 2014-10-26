@@ -446,175 +446,209 @@ my $dbic_reqs = {
   },
 
   test_rdbms_pg => {
+    env => [
+      DBICTEST_PG_DSN => 1,
+      DBICTEST_PG_USER => 0,
+      DBICTEST_PG_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_PG_DSN}
-        ? (
-          # the order does matter because the rdbms support group might require
-          # a different version that the test group
-          #
-          # when changing this list make sure to adjust xt/optional_deps.t
-          %$rdbms_pg,
-          'DBD::Pg'               => '2.009002',
-        ) : ()
+      # the order does matter because the rdbms support group might require
+      # a different version that the test group
+      #
+      # when changing this list make sure to adjust xt/optional_deps.t
+      %$rdbms_pg,
+      'DBD::Pg' => '2.009002',  # specific version to test bytea
     },
   },
 
   test_rdbms_mssql_odbc => {
+    env => [
+      DBICTEST_MSSQL_ODBC_DSN => 1,
+      DBICTEST_MSSQL_ODBC_USER => 0,
+      DBICTEST_MSSQL_ODBC_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MSSQL_ODBC_DSN}
-        ? (
-          %$rdbms_mssql_odbc,
-        ) : ()
+      %$rdbms_mssql_odbc,
     },
   },
 
   test_rdbms_mssql_ado => {
+    env => [
+      DBICTEST_MSSQL_ADO_DSN => 1,
+      DBICTEST_MSSQL_ADO_USER => 0,
+      DBICTEST_MSSQL_ADO_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MSSQL_ADO_DSN}
-        ? (
-          %$rdbms_mssql_ado,
-        ) : ()
+      %$rdbms_mssql_ado,
     },
   },
 
   test_rdbms_mssql_sybase => {
+    env => [
+      DBICTEST_MSSQL_DSN => 1,
+      DBICTEST_MSSQL_USER => 0,
+      DBICTEST_MSSQL_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MSSQL_DSN}
-        ? (
-          %$rdbms_mssql_sybase,
-        ) : ()
+      %$rdbms_mssql_sybase,
     },
   },
 
   test_rdbms_msaccess_odbc => {
+    env => [
+      DBICTEST_MSACCESS_ODBC_DSN => 1,
+      DBICTEST_MSACCESS_ODBC_USER => 0,
+      DBICTEST_MSACCESS_ODBC_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MSACCESS_ODBC_DSN}
-        ? (
-          %$rdbms_msaccess_odbc,
-          %$datetime_basic,
-          'Data::GUID' => '0',
-        ) : ()
+      %$rdbms_msaccess_odbc,
+      %$datetime_basic,
+      'Data::GUID' => '0',
     },
   },
 
   test_rdbms_msaccess_ado => {
+    env => [
+      DBICTEST_MSACCESS_ADO_DSN => 1,
+      DBICTEST_MSACCESS_ADO_USER => 0,
+      DBICTEST_MSACCESS_ADO_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MSACCESS_ADO_DSN}
-        ? (
-          %$rdbms_msaccess_ado,
-          %$datetime_basic,
-          'Data::GUID' => 0,
-        ) : ()
+      %$rdbms_msaccess_ado,
+      %$datetime_basic,
+      'Data::GUID' => 0,
     },
   },
 
   test_rdbms_mysql => {
+    env => [
+      DBICTEST_MYSQL_DSN => 1,
+      DBICTEST_MYSQL_USER => 0,
+      DBICTEST_MYSQL_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_MYSQL_DSN}
-        ? (
-          %$rdbms_mysql,
-        ) : ()
+      %$rdbms_mysql,
     },
   },
 
   test_rdbms_oracle => {
+    env => [
+      DBICTEST_ORA_DSN => 1,
+      DBICTEST_ORA_USER => 0,
+      DBICTEST_ORA_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_ORA_DSN}
-        ? (
-          %$rdbms_oracle,
-          'DateTime::Format::Oracle' => '0',
-          'DBD::Oracle'              => '1.24',
-        ) : ()
+      %$rdbms_oracle,
+      'DateTime::Format::Oracle' => '0',
+      'DBD::Oracle'              => '1.24',
     },
   },
 
   test_rdbms_ase => {
+    env => [
+      DBICTEST_SYBASE_DSN => 1,
+      DBICTEST_SYBASE_USER => 0,
+      DBICTEST_SYBASE_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_SYBASE_DSN}
-        ? (
-          %$rdbms_ase,
-        ) : ()
+      %$rdbms_ase,
     },
   },
 
   test_rdbms_db2 => {
+    env => [
+      DBICTEST_DB2_DSN => 1,
+      DBICTEST_DB2_USER => 0,
+      DBICTEST_DB2_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_DB2_DSN}
-        ? (
-          %$rdbms_db2,
-        ) : ()
+      %$rdbms_db2,
     },
   },
 
   test_rdbms_db2_400 => {
+    env => [
+      DBICTEST_DB2_400_DSN => 1,
+      DBICTEST_DB2_400_USER => 0,
+      DBICTEST_DB2_400_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_DB2_400_DSN}
-        ? (
-          %$rdbms_db2_400,
-        ) : ()
+      %$rdbms_db2_400,
     },
   },
 
   test_rdbms_informix => {
+    env => [
+      DBICTEST_INFORMIX_DSN => 1,
+      DBICTEST_INFORMIX_USER => 0,
+      DBICTEST_INFORMIX_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_INFORMIX_DSN}
-        ? (
-          %$rdbms_informix,
-        ) : ()
+      %$rdbms_informix,
     },
   },
 
   test_rdbms_sqlanywhere => {
+    env => [
+      DBICTEST_SQLANYWHERE_DSN => 1,
+      DBICTEST_SQLANYWHERE_USER => 0,
+      DBICTEST_SQLANYWHERE_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_SQLANYWHERE_DSN}
-        ? (
-          %$rdbms_sqlanywhere,
-        ) : ()
+      %$rdbms_sqlanywhere,
     },
   },
 
   test_rdbms_sqlanywhere_odbc => {
+    env => [
+      DBICTEST_SQLANYWHERE_ODBC_DSN => 1,
+      DBICTEST_SQLANYWHERE_ODBC_USER => 0,
+      DBICTEST_SQLANYWHERE_ODBC_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_SQLANYWHERE_ODBC_DSN}
-        ? (
-          %$rdbms_sqlanywhere_odbc,
-        ) : ()
+      %$rdbms_sqlanywhere_odbc,
     },
   },
 
   test_rdbms_firebird => {
+    env => [
+      DBICTEST_FIREBIRD_DSN => 1,
+      DBICTEST_FIREBIRD_USER => 0,
+      DBICTEST_FIREBIRD_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_FIREBIRD_DSN}
-        ? (
-          %$rdbms_firebird,
-        ) : ()
+      %$rdbms_firebird,
     },
   },
 
   test_rdbms_firebird_interbase => {
+    env => [
+      DBICTEST_FIREBIRD_INTERBASE_DSN => 1,
+      DBICTEST_FIREBIRD_INTERBASE_USER => 0,
+      DBICTEST_FIREBIRD_INTERBASE_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}
-        ? (
-          %$rdbms_firebird_interbase,
-        ) : ()
+      %$rdbms_firebird_interbase,
     },
   },
 
   test_rdbms_firebird_odbc => {
+    env => [
+      DBICTEST_FIREBIRD_ODBC_DSN => 1,
+      DBICTEST_FIREBIRD_ODBC_USER => 0,
+      DBICTEST_FIREBIRD_ODBC_PASS => 0,
+    ],
     req => {
-      $ENV{DBICTEST_FIREBIRD_ODBC_DSN}
-        ? (
-          %$rdbms_firebird_odbc,
-        ) : ()
+      %$rdbms_firebird_odbc,
     },
   },
 
   test_memcached => {
+    env => [
+      DBICTEST_MEMCACHED => 1,
+    ],
     req => {
-      $ENV{DBICTEST_MEMCACHED}
-        ? (
-          'Cache::Memcached' => 0,
-        ) : ()
+      'Cache::Memcached' => 0,
     },
   },
 
@@ -644,6 +678,10 @@ my $dbic_reqs = {
 # standalone library - keep the stupidity to a DBIC-secific shim!
 #
 sub req_list_for {
+  shift->_groups_to_reqs(@_)->{effective_modreqs};
+}
+
+sub modreq_list_for {
   shift->_groups_to_reqs(@_)->{modreqs};
 }
 
@@ -661,29 +699,77 @@ sub modreq_errorlist_for {
 }
 
 sub req_ok_for {
-  my $self = shift;
-  $self->_errorlist_for_modreqs( $self->_groups_to_reqs(@_)->{modreqs} )
-    ? 0
-    : 1
-  ;
+  shift->req_missing_for(@_) ? 0 : 1;
 }
 
 sub req_missing_for {
   my $self = shift;
 
   my $reqs = $self->_groups_to_reqs(@_);
-  my $modreq_errors = $self->_errorlist_for_modreqs($reqs->{modreqs}) or return '';
+  my $mods_missing = $self->modreq_missing_for(@_);
 
-  join ' ',
-    (map { $reqs->{modreqs}{$_} ? qq("$_~>=$reqs->{modreqs}{$_}") : $_ } sort keys %$modreq_errors),
-    ( $reqs->{modreqs_fully_documented} ? "(see @{[ ref $self || $self ]} documentation for details)" : () ),
+  return '' if
+    ! $mods_missing
+      and
+    ! $reqs->{missing_envvars}
+  ;
+
+  my @res = $mods_missing || ();
+
+  push @res, 'the following group(s) of environment variables: ' . join ' and ', map
+    { __envvar_group_desc($_) }
+    @{$reqs->{missing_envvars}}
+  if $reqs->{missing_envvars};
+
+  return (
+    ( join ' as well as ', @res )
+      .
+    ( $reqs->{modreqs_fully_documented} ? " (see @{[ ref $self || $self ]} documentation for details)" : '' ),
+  );
+}
+
+sub modreq_missing_for {
+  my $self = shift;
+
+  my $reqs = $self->_groups_to_reqs(@_);
+  my $modreq_errors = $self->_errorlist_for_modreqs($reqs->{modreqs})
+    or return '';
+
+  join ' ', map
+    { $reqs->{modreqs}{$_} ? qq("$_~>=$reqs->{modreqs}{$_}") : $_ }
+    sort { lc($a) cmp lc($b) } keys %$modreq_errors
   ;
 }
 
 sub die_unless_req_ok_for {
   if (my $err = shift->req_missing_for(@_) ) {
-    die "Required modules missing, unable to continue: $err\n";
+    die "Unable to continue due to missing requirements: $err\n";
   }
+}
+
+
+
+### Private functions
+
+# potentially shorten group desc
+sub __envvar_group_desc {
+  my @envs = @{$_[0]};
+
+  my (@res, $last_prefix);
+  while (my $ev = shift @envs) {
+    my ($pref, $sep, $suff) = split / ([\_\-]) (?= [^\_\-]+ \z )/x, $ev;
+
+    if ( defined $sep and ($last_prefix||'') eq $pref ) {
+        push @res, "...${sep}${suff}"
+    }
+    else {
+      push @res, $ev;
+    }
+
+    $last_prefix = $pref if $sep;
+  }
+
+  join '/', @res;
 }
 
 
@@ -691,7 +777,7 @@ sub die_unless_req_ok_for {
 ### Private OO API
 our %req_unavailability_cache;
 
-# this method is just a lister/metadata checker - it does not try to load anything
+# this method is just a lister and envvar/metadata checker - it does not try to load anything
 sub _groups_to_reqs {
   my ($self, $groups) = @_;
 
@@ -705,7 +791,6 @@ sub _groups_to_reqs {
     modreqs => {},
     modreqs_fully_documented => 1,
   };
-
 
   for my $group ( @$groups ) {
 
@@ -727,17 +812,56 @@ sub _groups_to_reqs {
         if ( ($group_reqs->{$_}||0) !~ / \A [0-9]+ (?: \. [0-9]+ )? \z /x );
     }
 
+    # check if we have all required envvars if such names are defined
+    my ($some_envs_required, $some_envs_missing);
+    if (my @e = @{$dbic_reqs->{$group}{env} || [] }) {
+
+      croak "Unexpected 'env' attribute under group '$group' (only allowed in test_* groups)"
+        unless $group =~ /^test_/;
+
+      croak "Unexpected *odd* list in 'env' under group '$group'"
+        if @e % 2;
+
+      my @group_envnames_list;
+
+      # deconstruct the whole thing
+      while (@e) {
+        push @group_envnames_list, my $envname = shift @e;
+
+        # env required or not
+        next unless shift @e;
+
+        $some_envs_required ||= 1;
+
+        $some_envs_missing ||= (
+          ! defined $ENV{$envname}
+            or
+          ! length $ENV{$envname}
+        );
+      }
+
+      croak "None of the envvars in group '$group' declared as required, making the requirement moot"
+        unless $some_envs_required;
+
+      push @{$ret->{missing_envvars}}, \@group_envnames_list if $some_envs_missing;
+    }
+
     # assemble into the final ret
-    for (keys %$group_reqs) {
+    for my $type (
+      'modreqs',
+      $some_envs_missing ? () : 'effective_modreqs'
+    ) {
+      for my $mod (keys %$group_reqs) {
 
-      $ret->{modreqs}{$_} = $group_reqs->{$_}||0 if (
+        $ret->{$type}{$mod} = $group_reqs->{$mod}||0 if (
 
-        ! exists $ret->{modreqs}{$_}
-          or
-        # we sanitized the version to be numeric above - we can just -gt it
-        ($group_reqs->{$_}||0) > $ret->{modreqs}{$_}
+          ! exists $ret->{$type}{$mod}
+            or
+          # we sanitized the version to be numeric above - we can just -gt it
+          ($group_reqs->{$mod}||0) > $ret->{$type}{$mod}
 
-      );
+        );
+      }
     }
 
     $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
@@ -889,8 +1013,12 @@ authors alike.
 
 Dependencies are organized in L<groups|/CURRENT REQUIREMENT GROUPS> where each
 group can list one or more required modules, with an optional minimum version
-(or 0 for any version). Each group name (or a combination thereof) can be used
-in the L<public methods|/METHODS> as described below.
+(or 0 for any version). In addition groups prefixed with C<test_> can specify
+a set of environment variables, some (or all) of which are marked as required
+for the group to be considered by L</req_list_for>
+
+Each group name (or a combination thereof) can be used in the
+L<public methods|/METHODS> as described below.
 EOC
 
 
@@ -955,7 +1083,29 @@ maintainers, instead of treating this as public (left alone stable) API.
 
 This method should be used by DBIx::Class extension authors, to determine the
 version of modules a specific set of features requires for this version of
-DBIx::Class. See the L</SYNOPSIS> for a real-world example.
+DBIx::Class (regardless of their availability on the system).
+See the L</SYNOPSIS> for a real-world example.
+
+When handling C<test_*> groups this method behaves B<differently> from
+L</modreq_list_for> below (and is the only such inconsistency among the
+C<req_*> methods). If a particular group declares as requirements some
+C<environment variables> and these requirements are not satisfied (the envvars
+are unset) - then the C<module requirements> of this group are not included in
+the returned list.
+
+=head2 modreq_list_for
+
+=over
+
+=item Arguments: $group_name | \@group_names
+
+=item Return Value: \%set_of_module_version_pairs
+
+=back
+
+Same as L</req_list_for> but does not take into consideration any
+C<environment variable requirements> - returns just the list of required
+modules.
 
 =head2 req_ok_for
 
@@ -967,8 +1117,8 @@ DBIx::Class. See the L</SYNOPSIS> for a real-world example.
 
 =back
 
-Returns true or false depending on whether all modules required by
-the group(s) are present on the system and loadable.
+Returns true or false depending on whether all modules/envvars required by
+the group(s) are loadable/set on the system.
 
 =head2 req_missing_for
 
@@ -981,9 +1131,9 @@ the group(s) are present on the system and loadable.
 =back
 
 Returns a single-line string suitable for inclusion in larger error messages.
-This method would normally be used by DBIx::Class core-modules, to indicate to
-the user that they need to install specific modules before being able to use a
-specific feature set.
+This method would normally be used by DBIx::Class core features, to indicate to
+the user that they need to install specific modules and/or set specific
+environment variables before being able to use a specific feature set.
 
 For example if some of the requirements for C<deploy> are not available,
 the returned string could look like:
@@ -993,8 +1143,30 @@ EOC
 
   push @chunks, <<'EOC';
 The author is expected to prepend the necessary text to this message before
-returning the actual error seen by the user.
+returning the actual error seen by the user. See also L</modreq_missing_for>
 
+=head2 modreq_missing_for
+
+=over
+
+=item Arguments: $group_name | \@group_names
+
+=item Return Value: $error_message_string
+
+=back
+
+Same as L</req_missing_for> except that the error string is guaranteed to be
+either empty, or contain a set of module requirement specifications suitable
+for piping to e.g. L<cpanminus|App::cpanminus>. The method explicitly does not
+attempt to validate the state of required environment variables (if any).
+
+For instance if some of the requirements for C<deploy> are not available,
+the returned string could look like:
+EOC
+
+  push @chunks, qq{ "SQL::Translator~>=$sqltver"};
+
+  push @chunks, <<'EOC';
 =head2 die_unless_req_ok_for
 
 =over
@@ -1025,7 +1197,6 @@ to load each module in the requirement group(s).
 Deprecated method name, equivalent (via proxy) to L</modreq_errorlist_for>.
 
 EOC
-
 
 #@@
 #@@ FOOTER
