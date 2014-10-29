@@ -6,8 +6,6 @@ use lib qw(t/lib);
 use DBICTest;
 use Test::More;
 
-plan tests => 15;
-
 my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset( 'CD' );
 
@@ -131,5 +129,20 @@ my $rs = $schema->resultset( 'CD' );
   is_deeply( $result, $expected );
 }
 
+{
+  my $a = [ { 'artist' => { 'manager' => {} } }, 'cd' ];
+  my $b = [ 'artist', { 'artist' => { 'manager' => {} } } ];
+  my $expected = [ { 'artist' => { 'manager' => {} } }, 'cd', { 'artist' => { 'manager' => {} } } ];
+  my $result = $rs->_merge_joinpref_attr($a, $b);
+  is_deeply( $result, $expected );
+}
 
-1;
+{
+  my $a = [ { 'artist' => { 'manager' => undef } }, 'cd' ];
+  my $b = [ 'artist', { 'artist' => { 'manager' => undef } } ];
+  my $expected = [ { 'artist' => { 'manager' => undef } }, 'cd', { 'artist' => { 'manager' => undef } } ];
+  my $result = $rs->_merge_joinpref_attr($a, $b);
+  is_deeply( $result, $expected );
+}
+
+done_testing;
