@@ -3816,8 +3816,10 @@ sub _calculate_score {
 
   if (ref $b eq 'HASH') {
     my ($b_key) = keys %{$b};
+    $b_key = '' if ! defined $b_key;
     if (ref $a eq 'HASH') {
       my ($a_key) = keys %{$a};
+      $a_key = '' if ! defined $a_key;
       if ($a_key eq $b_key) {
         return (1 + $self->_calculate_score( $a->{$a_key}, $b->{$b_key} ));
       } else {
