@@ -53,10 +53,11 @@ if [[ -n "$BREWVER" ]] ; then
 # the presently installed libs
 # Idea stolen from
 # https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
-elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] ; then
+# Only works on 5.12+ (where sitlib was finally properly fixed)
+elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] && perl -M5.012 -e 1 &>/dev/null ; then
 
   echo_err "$(tstamp) Cleaning precompiled Travis-Perl"
-  perl -MConfig -MFile::Find -e '
+  perl -M5.012 -MConfig -MFile::Find -e '
     my $sitedirs = {
       map { $Config{$_} => 1 }
         grep { $_ =~ /site(lib|arch)exp$/ }
@@ -93,7 +94,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   # set them to true and see if anything explodes
   for var in \
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
-    $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -v DBIC_TRACE)
+    $( grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' )
   do
     if [[ -z "${!var}" ]] ; then
       export $var=1
@@ -106,7 +107,10 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   export DBI_DRIVER="ADO"
 
   # some people do in fact set this - boggle!!!
-  export PERL_STRICTURES_EXTRA=1
+  # it of course won't work before 5.8.4
+  if perl -M5.008004 -e 1 &>/dev/null ; then
+    export PERL_STRICTURES_EXTRA=1
+  fi
 
   # emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack

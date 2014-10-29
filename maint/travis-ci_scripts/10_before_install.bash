@@ -62,7 +62,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
   # (https is critical - apt-get update can't seem to follow the 302)
   sudo bash -c 'echo -e "\ndeb [arch=i386] https://oss.oracle.com/debian unstable main non-free" >> /etc/apt/sources.list'
 
-  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --branch=poor_mans_travis_cache https://github.com/ribasushi/travis_futzing.git $CACHE_DIR && $CACHE_DIR/reassemble"
+  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
 
   run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
 
