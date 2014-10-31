@@ -53,7 +53,8 @@ sub get_tracks_by_artist {
         }
     );
     while (my $track = $rs->next) {
-        print $track->title . "\n";
+        print $track->title . " (from the CD '" . $track->cd->title
+          . "')\n";
     }
     print "\n";
 }
@@ -70,7 +71,7 @@ sub get_cd_by_track {
         }
     );
     my $cd = $rs->first;
-    print $cd->title . "\n\n";
+    print $cd->title . " has the track '$tracktitle'.\n\n";
 }
 
 sub get_cds_by_artist {
@@ -104,7 +105,7 @@ sub get_artist_by_track {
         }
     );
     my $artist = $rs->first;
-    print $artist->name . "\n\n";
+    print $artist->name . " recorded the track '$tracktitle'.\n\n";
 }
 
 sub get_artist_by_cd {
@@ -119,5 +120,5 @@ sub get_artist_by_cd {
         }
     );
     my $artist = $rs->first;
-    print $artist->name . "\n\n";
+    print $artist->name . " recorded the CD '$cdtitle'.\n\n";
 }
