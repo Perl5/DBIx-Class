@@ -4591,19 +4591,14 @@ setting is ignored and an appropriate warning is issued.
 
 =head2 where
 
-=over 4
-
-Adds to the WHERE clause.
+Adds extra conditions to the resultset, combined with the preexisting C<WHERE>
+conditions, same as the B<first> argument to the L<search operator|/search>
 
   # only return rows WHERE deleted IS NULL for all searches
   __PACKAGE__->resultset_attributes({ where => { deleted => undef } });
 
-Can be overridden by passing C<< { where => undef } >> as an attribute
-to a resultset.
-
-For more complicated where clauses see L<SQL::Abstract/WHERE CLAUSES>.
-
-=back
+Note that the above example is
+L<strongly discouraged|DBIx::Class::ResultSource/resultset_attributes>.
 
 =head2 cache
 
