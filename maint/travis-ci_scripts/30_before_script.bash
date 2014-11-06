@@ -5,10 +5,16 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
+# The prereq-install stage will not work with both POISON and DEVREL
+# DEVREL wins
+if [[ "$DEVREL_DEPS" = "true" ]] ; then
+  export POISON_ENV=""
+fi
+
 # FIXME - this is a kludge in place of proper MDV testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
-if [[ "$DEVREL_DEPS" != "true" ]] && [[ "$POISON_ENV" = "true" ]] ; then
+if [[ "$POISON_ENV" = "true" ]] ; then
 
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
   if [[ "$CLEANTEST" != "true" ]] || perl -M5.013003 -e1 &>/dev/null ; then
@@ -89,12 +95,6 @@ else
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest SQL::Abstract Moose Module::Install JSON SQL::Translator File::Which
-
-  # Neither DBD::Interbase nor DBD::Firebird compile on DBI < 1.611, so when
-  # we POISON_ENV - nothing will work on 1.57
-  if ( perl -MDBI -e 1 && ! perl -MDBI\ 1.611 -e 1 )&>/dev/null ; then
-    unset DBICTEST_FIREBIRD_DSN DBICTEST_FIREBIRD_INTERBASE_DSN
-  fi
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
