@@ -112,38 +112,47 @@ run_or_err "Configure on current branch" "perl Makefile.PL"
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
 
-  # we may need to prepend some stuff to that list
-  HARD_DEPS="$(echo $(make listdeps))"
+  # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-##### TEMPORARY WORKAROUNDS needed in case we will be using CPAN.pm
-  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
+    HARD_DEPS="$(echo $(make listalldeps))"
 
-    # DBD::SQLite reasonably wants DBI at config time
-    perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+  else
 
-    # this is a fucked CPAN - won't understand configure_requires of
-    # various pieces we may run into
-    # FIXME - need to get these off metacpan or something instead
-    HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
+    HARD_DEPS="$(echo $(make listdeps))"
 
-    # FIXME
-    # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
-    HARD_DEPS="parent $HARD_DEPS"
+##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
+    if ! CPAN_is_sane ; then
 
-    if CPAN_supports_BUILDPL ; then
-      # We will invoke a posibly MBT based BUILD-file, but we do not support
-      # configure requires. So we not only need to install MBT but its prereqs
-      # FIXME This is madness
-      HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
-    else
+      # DBD::SQLite reasonably wants DBI at config time
+      perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+
+      # this is a fucked CPAN - won't understand configure_requires of
+      # various pieces we may run into
+      # FIXME - need to get these off metacpan or something instead
+      HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
+
       # FIXME
-      # work around Params::Validate not having a Makefile.PL so really old
-      # toolchains can not figure out what the prereqs are ;(
-      # Need to do more research before filing a bug requesting Makefile inclusion
-      HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
+      # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
+      HARD_DEPS="parent $HARD_DEPS"
+
+      if CPAN_supports_BUILDPL ; then
+        # We will invoke a posibly MBT based BUILD-file, but we do not support
+        # configure requires. So we not only need to install MBT but its prereqs
+        # FIXME This is madness
+        HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
+      else
+        # FIXME
+        # work around Params::Validate not having a Makefile.PL so really old
+        # toolchains can not figure out what the prereqs are ;(
+        # Need to do more research before filing a bug requesting Makefile inclusion
+        HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
+      fi
+
     fi
-  fi
+
 ##### END TEMPORARY WORKAROUNDS
+  fi
 
   installdeps $HARD_DEPS
 
