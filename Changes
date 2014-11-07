@@ -28,7 +28,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
-        - Various doc improvements (GH#62, GH#70, GH#71, GH#72)
+        - Various doc improvements (GH#62, GH#66, GH#70, GH#71, GH#72)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
