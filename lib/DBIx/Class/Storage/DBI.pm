@@ -1667,8 +1667,8 @@ sub _gen_sql_bind {
   ) {
     carp_unique 'DateTime objects passed to search() are not supported '
       . 'properly (InflateColumn::DateTime formats and settings are not '
-      . 'respected.) See "Formatting DateTime objects in queries" in '
-      . 'DBIx::Class::Manual::Cookbook. To disable this warning for good '
+      . 'respected.) See ".. format a DateTime object for searching?" in '
+      . 'DBIx::Class::Manual::FAQ. To disable this warning for good '
       . 'set $ENV{DBIC_DT_SEARCH_OK} to true'
   }
 
