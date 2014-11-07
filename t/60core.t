@@ -387,24 +387,29 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   $schema->source("Artist")->column_info_from_storage(1);
   $schema->source("Artist")->{_columns_info_loaded} = 0;
 
+  my @undef_default = DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
+    ? ()
+    : ( default_value => undef )
+  ;
+
   is_deeply (
     $schema->source('Artist')->columns_info,
     {
       artistid => {
         data_type => "INTEGER",
-        default_value => undef,
+        @undef_default,
         is_nullable => 0,
         size => undef
       },
       charfield => {
         data_type => "char",
-        default_value => undef,
+        @undef_default,
         is_nullable => 1,
         size => 10
       },
       name => {
         data_type => "varchar",
-        default_value => undef,
+        @undef_default,
         is_nullable => 1,
         is_numeric => 0,
         size => 100
@@ -426,7 +431,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
     {
       artistid => {
         data_type => "INTEGER",
-        default_value => undef,
+        @undef_default,
         is_nullable => 0,
         size => undef
       },

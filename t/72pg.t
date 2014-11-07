@@ -196,14 +196,19 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
   my $type_info = $schema->storage->columns_info_for('dbic_t_schema.artist');
   my $artistid_defval = delete $type_info->{artistid}->{default_value};
-  like($artistid_defval,
-       qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
-       'columns_info_for - sequence matches Pg get_autoinc_seq expectations');
-  is_deeply($type_info, $test_type_info,
+
+  # The curor info is too radically different from what is in the column_info
+  # call - just punt it (DBD::SQLite tests the codepath plenty enough)
+  unless (DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE) {
+    like(
+      $artistid_defval,
+      qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
+      'columns_info_for - sequence matches Pg get_autoinc_seq expectations'
+    );
+
+    is_deeply($type_info, $test_type_info,
             'columns_info_for - column data types');
-
-
-
+  }
 
 ####### Array tests
 

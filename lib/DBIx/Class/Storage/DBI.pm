@@ -2584,9 +2584,9 @@ see L<DBIx::Class::SQLMaker::LimitDialects>.
 sub _dbh_columns_info_for {
   my ($self, $dbh, $table) = @_;
 
-  if ($dbh->can('column_info')) {
-    my %result;
-    my $caught;
+  my %result;
+
+  if (! DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE and $dbh->can('column_info')) {
     try {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
@@ -2603,39 +2603,75 @@ sub _dbh_columns_info_for {
         $result{$col_name} = \%column_info;
       }
     } catch {
-      $caught = 1;
+      %result = ();
     };
-    return \%result if !$caught && scalar keys %result;
+
+    return \%result if keys %result;
   }
 
-  my %result;
   my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
   $sth->execute;
-  my @columns = @{$sth->{NAME_lc}};
-  for my $i ( 0 .. $#columns ){
-    my %column_info;
-    $column_info{data_type} = $sth->{TYPE}->[$i];
-    $column_info{size} = $sth->{PRECISION}->[$i];
-    $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
 
-    if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
-      $column_info{data_type} = $1;
-      $column_info{size}    = $2;
+### The acrobatics with lc names is necessary to support both the legacy
+### API that used NAME_lc exclusively, *AND* at the same time work properly
+### with column names differing in cas eonly (thanks pg!)
+
+  my ($columns, $seen_lcs);
+
+  ++$seen_lcs->{lc($_)} and $columns->{$_} = {
+    idx => scalar keys %$columns,
+    name => $_,
+    lc_name => lc($_),
+  } for @{$sth->{NAME}};
+
+  $seen_lcs->{$_->{lc_name}} == 1
+    and
+  $_->{name} = $_->{lc_name}
+    for values %$columns;
+
+  for ( values %$columns ) {
+    my $inf = {
+      data_type => $sth->{TYPE}->[$_->{idx}],
+      size => $sth->{PRECISION}->[$_->{idx}],
+      is_nullable => $sth->{NULLABLE}->[$_->{idx}] ? 1 : 0,
+    };
+
+    if ($inf->{data_type} =~ m/^(.*?)\((.*?)\)$/) {
+      @{$inf}{qw( data_type  size)} = ($1, $2);
     }
 
-    $result{$columns[$i]} = \%column_info;
+    $result{$_->{name}} = $inf;
   }
+
   $sth->finish;
 
-  foreach my $col (keys %result) {
-    my $colinfo = $result{$col};
-    my $type_num = $colinfo->{data_type};
-    my $type_name;
-    if(defined $type_num && $dbh->can('type_info')) {
-      my $type_info = $dbh->type_info($type_num);
-      $type_name = $type_info->{TYPE_NAME} if $type_info;
-      $colinfo->{data_type} = $type_name if $type_name;
+  if ($dbh->can('type_info')) {
+    for my $inf (values %result) {
+      next if ! defined $inf->{data_type};
+
+      $inf->{data_type} = (
+        (
+          (
+            $dbh->type_info( $inf->{data_type} )
+              ||
+            next
+          )
+            ||
+          next
+        )->{TYPE_NAME}
+          ||
+        next
+      );
+
+      # FIXME - this may be an artifact of the DBD::Pg implmentation alone
+      # needs more testing in the future...
+      $inf->{size} -= 4 if (
+        ( $inf->{size}||0 > 4 )
+          and
+        $inf->{data_type} =~ qr/^text$/i
+      );
     }
+
   }
 
   return \%result;
