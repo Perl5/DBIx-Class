@@ -28,6 +28,8 @@
 # functionality is moved to scripts. More about the problem (and the
 # WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
 #
+# the entire run times out after 50 minutes, or after 5 minutes without
+# console output
 
 #
 # Smoke all branches except for blocked* and wip/*
@@ -68,7 +70,8 @@ notifications:
 language: perl
 
 perl:
-  - "5.18"
+  - "5.8"
+  - "5.20-extras"
 
 env:
   - CLEANTEST=false
@@ -77,188 +80,201 @@ env:
 matrix:
   fast_finish: true
   include:
-    # this particular perl is quite widespread
-    - perl: 5.8.8_thr_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.8.8
-
-    # so is this one (test a sane CPAN.pm)
-    - perl: 5.12.4_thr_mb
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.12.4
-
-    # this is the perl suse ships
-    - perl: 5.10.0_thr_dbg
-      env:
-        - CLEANTEST=true
-        - BREWOPTS="-DDEBUGGING -Duseithreads"
-        - BREWVER=5.10.0
-
-    # CLEANTEST of minimum supported
+    # CLEANTEST of minimum supported with non-tracing poisoning
     - perl: 5.8.3_nt_mb
       env:
         - CLEANTEST=true
-        - BREWOPTS="-Dusemorebits"
+        - DBIC_TRACE_PROFILE=console_monochrome
         - BREWVER=5.8.3
+        - BREWOPTS="-Dusemorebits"
 
-    # Full Test of minimum supported with threads
-    - perl: 5.8.5_thr
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads"
-        - BREWVER=5.8.5
-        - DBIC_TRACE_PROFILE=console
-
-    # Full Test of minimum supported without threads
+    # Full Test of minimum supported without threads with non-tracing poisoning
     - perl: 5.8.3_nt
       env:
         - CLEANTEST=false
-        - BREWOPTS=""
+        - POISON_ENV=true
         - BREWVER=5.8.3
-        - DBIC_TRACE_PROFILE=console_monochrome
+
+    # Full Test of minimum supported with threads with non-tracing poisoning
+    - perl: 5.8.5_thr
+      env:
+        - CLEANTEST=false
+        - POISON_ENV=true
+        - DBIC_TRACE_PROFILE=console
+        - BREWVER=5.8.5
+        - BREWOPTS="-Duseithreads"
+
+    # CLEANTEST of solaris-like perl with non-tracing poisoning
+    - perl: 5.8.4_nt
+      env:
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - DBIC_TRACE_PROFILE=console
+        - BREWVER=5.8.4
+
+    # CLEANTEST: this particular perl is quite widespread
+    - perl: 5.8.8_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWVER=5.8.8
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+
+    # CLEANTEST: this is the perl suse ships
+    - perl: 5.10.0_thr_dbg
+      env:
+        - CLEANTEST=true
+        - BREWVER=5.10.0
+        - BREWOPTS="-DDEBUGGING -Duseithreads"
+
+    # CLEANTEST: this one is in a number of debian-based LTS (test a sane CPAN.pm)
+    - perl: 5.14.2_thr_mb
+      env:
+        - CLEANTEST=true
+        - BREWVER=5.14.2
+        - BREWOPTS="-Duseithreads -Dusemorebits"
 
     ###
     # some permutations of tracing and envvar poisoning
 
-    - perl: 5.16.2_thr_mb
-      env:
-        - CLEANTEST=false
-        - POISON_ENV=true
-        - DBIC_TRACE=1
-        - DBIC_MULTICREATE_DEBUG=0
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.16.2
-
-    - perl: 5.18
-      env:
-        - CLEANTEST=false
-        - POISON_ENV=true
-        - DBIC_TRACE_PROFILE=console
-
-    - perl: 5.8
+    - perl: 5.12.3_thr
       env:
         - CLEANTEST=true
-        - POISON_ENV=true
         - DBIC_TRACE=1
+        - DBIC_MULTICREATE_DEBUG=1
+        - DBIC_STORAGE_RETRY_DEBUG=1
+        - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console
+        - BREWVER=5.12.3
+        - BREWOPTS="-Duseithreads"
 
-    - perl: 5.18
+    - perl: 5.16.3_thr_mb
       env:
         - CLEANTEST=false
-        - POISON_ENV=true
         - DBIC_TRACE=1
+        - POISON_ENV=true
+        - BREWVER=5.16.3
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+
+    - perl: 5.18-extras
+      env:
+        - CLEANTEST=false
+        - DBIC_TRACE=1
+        - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console_monochrome
-        - DBIC_MULTICREATE_DEBUG=0
 
     ###
     # Start of the allow_failures block
 
-    # old threaded with blead CPAN
-    - perl: devcpan_5.8.7_thr
+    # 5.8.4 threaded with blead CPAN with non-tracing poisoning
+    - perl: devcpan_5.8.4_thr
       env:
         - CLEANTEST=true
-        - BREWOPTS="-Duseithreads"
-        - BREWVER=5.8.7
         - DEVREL_DEPS=true
+        - POISON_ENV=true
+        - BREWVER=5.8.4
+        - BREWOPTS="-Duseithreads"
 
     # 5.10.0 threaded with blead CPAN
     - perl: devcpan_5.10.0_thr_mb
       env:
         - CLEANTEST=true
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.10.0
         - DEVREL_DEPS=true
+        - BREWVER=5.10.0
+        - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    # 5.12.2 with blead CPAN
-    - perl: devcpan_5.12.2_thr
+    # 5.12.1 with blead CPAN
+    - perl: devcpan_5.12.1_thr
       env:
         - CLEANTEST=true
+        - DEVREL_DEPS=true
+        - BREWVER=5.12.1
         - BREWOPTS="-Duseithreads"
-        - BREWVER=5.12.2
-        - DEVREL_DEPS=true
 
-    # recentish threaded stable with blead CPAN
-    - perl: devcpan_5.18.2_thr_mb
-      env:
-        - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=5.18.2
-        - DEVREL_DEPS=true
-
-    # bleadperl with stock CPAN, full depchain test
+    # bleadperl with stock CPAN, full depchain test with non-tracing poisoning
     - perl: bleadperl
       env:
         - CLEANTEST=true
+        - POISON_ENV=true
         - BREWVER=blead
 
-    # bleadperl with blead CPAN
+    # bleadperl with blead CPAN with non-tracing poisoning
     - perl: devcpan_bleadperl_thr_mb
       env:
         - CLEANTEST=false
-        - BREWOPTS="-Duseithreads -Dusemorebits"
-        - BREWVER=blead
         - DEVREL_DEPS=true
+        - POISON_ENV=true
+        - BREWVER=blead
+        - BREWOPTS="-Duseithreads -Dusemorebits"
 
 
   # which ones of the above can fail
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.8.7_thr
+    - perl: devcpan_5.8.4_thr
     - perl: devcpan_5.10.0_thr_mb
-    - perl: devcpan_5.12.2_thr
-    - perl: devcpan_5.18.2_thr_mb
+    - perl: devcpan_5.12.1_thr
     - perl: bleadperl
     - perl: devcpan_bleadperl_thr_mb
 
 
-# sourcing the files is *EXTREMELY* important - otherwise
-# no envvars will survive
-
-# the entire run times out after 50 minutes, or after 5 minutes without
-# console output
+###
+### For the following two phases -e is *set*
+###
 
 before_install:
+  # common functions for all run phases below
+  #
+  # this is an exporter - sourcing it is crucial
+  # among other things it also sets -e
+  #
+  - source maint/travis-ci_scripts/common.bash
+
   # Sets global envvars, downloads/configures debs based on CLEANTEST
   # Sets extra DBICTEST_* envvars
+  #
+  # this is an exporter - sourcing it is crucial
   #
   - source maint/travis-ci_scripts/10_before_install.bash
 
 install:
   # Build and switch to a custom perl if requested
   # Configure the perl env, preinstall some generic toolchain parts
+  # Possibly poison the environment
+  #
+  # this is an exporter - sourcing it is crucial
   #
   - source maint/travis-ci_scripts/20_install.bash
+
+###
+### From this point on -e is *unset*, rely on travis' error handling
+###
+  - set +e
 
 before_script:
   # Preinstall/install deps based on envvars/CLEANTEST
   #
-  - source maint/travis-ci_scripts/30_before_script.bash
+  # need to invoke the after_failure script manually
+  # because 'after_failure' runs only after 'script' fails
+  #
+  - maint/getstatus maint/travis-ci_scripts/30_before_script.bash || ( maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
 
 script:
   # Run actual tests
   #
-  - source maint/travis-ci_scripts/40_script.bash
+  - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
-  - source maint/travis-ci_scripts/50_after_success.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_success.bash
 
 after_failure:
-  # No tasks yet
+  # Final sysinfo printout on fail
   #
-  #- source maint/travis-ci_scripts/50_after_failure.bash
+  - maint/getstatus maint/travis-ci_scripts/50_after_failure.bash
 
 after_script:
   # No tasks yet
   #
-  #- source maint/travis-ci_scripts/60_after_script.bash
-
-  # if we do not unset this before we terminate the travis teardown will
-  # mark the entire job as failed
-  - set +e
+  #- maint/getstatus maint/travis-ci_scripts/60_after_script.bash

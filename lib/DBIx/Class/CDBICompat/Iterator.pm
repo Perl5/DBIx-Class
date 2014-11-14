@@ -32,9 +32,21 @@ sub _init_result_source_instance {
   return $table;
 }
 
+=head1 FURTHER QUESTIONS?
 
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-package DBIx::Class::CDBICompat::Iterator::ResultSet;
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
+
+=cut
+
+package # hide
+  DBIx::Class::CDBICompat::Iterator::ResultSet;
 
 use strict;
 use warnings;

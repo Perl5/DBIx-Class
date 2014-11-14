@@ -1,24 +1,22 @@
-package DBIx::Class::Storage::DBI::Replicated::Introduction;
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Replicated::Introduction - Minimum Need to Know
 
 =head1 SYNOPSIS
 
-This is an introductory document for L<DBIx::Class::Storage::Replication>.
+This is an introductory document for L<DBIx::Class::Storage::DBI::Replicated>.
 
 This document is not an overview of what replication is or why you should be
-using it.  It is not a document explaining how to setup MySQL native replication
-either.  Copious external resources are available for both.  This document
+using it. It is not a document explaining how to setup MySQL native replication
+either. Copious external resources are available for both. This document
 presumes you have the basics down.
 
 =head1 DESCRIPTION
 
-L<DBIx::Class> supports a framework for using database replication.  This system
+L<DBIx::Class> supports a framework for using database replication. This system
 is integrated completely, which means once it's setup you should be able to
 automatically just start using a replication cluster without additional work or
-changes to your code.  Some caveats apply, primarily related to the proper use
+changes to your code. Some caveats apply, primarily related to the proper use
 of transactions (you are wrapping all your database modifying statements inside
 a transaction, right ;) ) however in our experience properly written DBIC will
 work transparently with Replicated storage.
@@ -137,7 +135,7 @@ will result in increased database loads, so choose a number with care.  Our
 experience is that setting the number around 5 seconds results in a good
 performance / integrity balance.
 
-'master_read_weight' is an option associated with the ::Random balancer.  It
+'master_read_weight' is an option associated with the ::Random balancer. It
 allows you to let the master be read from.  I usually leave this off (default
 is off).
 
@@ -171,14 +169,14 @@ will find L<MySQL::Sandbox> an easy way to set up a replication cluster.
 
 And now your $schema object is properly configured!  Enjoy!
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-John Napiorkowski <jjnapiork@cpan.org>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
-=cut
-
-1;

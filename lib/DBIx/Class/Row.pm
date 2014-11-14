@@ -52,7 +52,7 @@ All "Row objects" derived from a Schema-attached L<DBIx::Class::ResultSet>
 object (such as a typical C<< L<search|DBIx::Class::ResultSet/search>->
 L<next|DBIx::Class::ResultSet/next> >> call) are actually Result
 instances, based on your application's
-L<Result class|DBIx::Class::Manual::Glossary/Result_class>.
+L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
 
 L<DBIx::Class::Row> implements most of the row-based communication with the
 underlying storage, but a Result class B<should not inherit from it directly>.
@@ -480,8 +480,8 @@ sub insert {
 
 Indicates whether the object exists as a row in the database or
 not. This is set to true when L<DBIx::Class::ResultSet/find>,
-L<DBIx::Class::ResultSet/create> or L<DBIx::Class::ResultSet/insert>
-are used.
+L<DBIx::Class::ResultSet/create> or L<DBIx::Class::Row/insert>
+are invoked.
 
 Creating a result object using L<DBIx::Class::ResultSet/new_result>, or
 calling L</delete> on one, sets it to false.
@@ -1147,14 +1147,14 @@ is set by default on C<has_many> relationships and unset on all others.
 sub copy {
   my ($self, $changes) = @_;
   $changes ||= {};
-  my $col_data = { %{$self->{_column_data}} };
+  my $col_data = { $self->get_columns };
 
   my $rsrc = $self->result_source;
 
-  my $colinfo = $rsrc->columns_info([ keys %$col_data ]);
+  my $colinfo = $rsrc->columns_info;
   foreach my $col (keys %$col_data) {
     delete $col_data->{$col}
-      if $colinfo->{$col}{is_auto_increment};
+      if ( ! $colinfo->{$col} or $colinfo->{$col}{is_auto_increment} );
   }
 
   my $new = { _column_data => $col_data };
@@ -1180,10 +1180,8 @@ sub copy {
 
     my $copied = $rel_names_copied->{ $rel_info->{source} } ||= {};
     foreach my $related ($self->search_related($rel_name)->all) {
-      my $id_str = join("\0", $related->id);
-      next if $copied->{$id_str};
-      $copied->{$id_str} = 1;
-      my $rel_copy = $related->copy($resolved);
+      $related->copy($resolved)
+        unless $copied->{$related->ID}++;
     }
 
   }
@@ -1327,7 +1325,7 @@ sub inflate_result {
 
 =back
 
-L</Update>s the object if it's already in the database, according to
+L</update>s the object if it's already in the database, according to
 L</in_storage>, else L</insert>s it.
 
 =head2 insert_or_update
@@ -1414,11 +1412,10 @@ sub result_source {
 
     # note this is a || not a ||=, the difference is important
     : $_[0]->{_result_source} || do {
-        my $class = ref $_[0];
         $_[0]->can('result_source_instance')
           ? $_[0]->result_source_instance
           : $_[0]->throw_exception(
-            "No result source instance registered for $class, did you forget to call $class->table(...) ?"
+            "No result source instance registered for @{[ ref $_[0] ]}, did you forget to call @{[ ref $_[0] ]}->table(...) ?"
           )
       }
   ;
@@ -1567,8 +1564,8 @@ See L<DBIx::Class::Schema/throw_exception>.
 sub throw_exception {
   my $self=shift;
 
-  if (ref $self && ref $self->result_source ) {
-    $self->result_source->throw_exception(@_)
+  if (ref $self && ref (my $rsrc = try { $self->result_source_instance } ) ) {
+    $rsrc->throw_exception(@_)
   }
   else {
     DBIx::Class::Exception->throw(@_);
@@ -1590,13 +1587,16 @@ sub throw_exception {
 Returns the primary key(s) for a row. Can't be called as a class method.
 Actually implemented in L<DBIx::Class::PK>
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

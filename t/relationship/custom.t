@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 
@@ -285,10 +286,38 @@ my $cd_single_track = $schema->resultset('CD')->create({
 
 my $single_track = $cd_single_track->tracks->next;
 
+is(
+  $single_track->cd_cref_cond->title,
+  $cd_single_track->title,
+  'Got back the expected single-track cd title',
+);
+
 is_deeply
   { $schema->resultset('Track')->find({ cd_cref_cond => { cdid => $cd_single_track->id } })->get_columns },
   { $single_track->get_columns },
   'Proper find with related via coderef cond',
+;
+
+warnings_exist {
+  is_same_sql_bind(
+    $single_track->deliberately_broken_all_cd_tracks->as_query,
+    '(
+      SELECT me.trackid, me.cd, me.position, me.title, me.last_updated_on, me.last_updated_at
+        FROM track track__row
+        JOIN track me
+          ON me.cd = ?
+      WHERE track__row.trackid = ?
+    )',
+    [
+      [{ dbic_colname => "me.cd", sqlt_datatype => "integer" }
+        => "track__row.cd" ],
+      [{ dbic_colname => "track__row.trackid", sqlt_datatype => "integer" }
+        => 19 ],
+    ],
+    'Expected nonsensical JOIN cond',
+  ),
+} qr/\Qrelationship 'deliberately_broken_all_cd_tracks' on source 'Track' specifies equality of column 'cd' and the *VALUE* 'cd' (you did not use the { -ident => ... } operator)/,
+  'Warning on 99.9999% malformed custom cond'
 ;
 
 $single_track->set_from_related( cd_cref_cond => undef );

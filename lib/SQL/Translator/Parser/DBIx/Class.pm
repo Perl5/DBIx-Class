@@ -16,6 +16,7 @@ use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use DBIx::Class::Exception;
+use Class::C3::Componentised;
 use Scalar::Util 'blessed';
 use Try::Tiny;
 use namespace::clean;
@@ -53,8 +54,11 @@ sub parse {
     DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
 
     if (!ref $dbicschema) {
-      eval "require $dbicschema"
-        or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
+      try {
+        Class::C3::Componentised->ensure_class_loaded($dbicschema)
+      } catch {
+        DBIx::Class::Exception->throw("Can't load $dbicschema: $_");
+      }
     }
 
     if (
@@ -163,8 +167,8 @@ sub parse {
         # global add_fk_index set in parser_args
         my $add_fk_index = (exists $args->{add_fk_index} && ! $args->{add_fk_index}) ? 0 : 1;
 
-        foreach my $rel (sort @rels)
-        {
+        REL:
+        foreach my $rel (sort @rels) {
 
             my $rel_info = $source->relationship_info($rel);
 
@@ -173,7 +177,7 @@ sub parse {
 
             my $relsource = try { $source->related_source($rel) };
             unless ($relsource) {
-              carp "Ignoring relationship '$rel' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
+              carp "Ignoring relationship '$rel' on '$moniker' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
               next;
             };
 
@@ -186,13 +190,18 @@ sub parse {
             # support quoting properly to be signaled about this
             $rel_table = $$rel_table if ref $rel_table eq 'SCALAR';
 
-            my $reverse_rels = $source->reverse_relationship_info($rel);
-            my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
-
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
-            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
+
+            for ( keys %{$rel_info->{cond}} ) {
+              unless (exists $other_columns_idx{$_}) {
+                carp "Ignoring relationship '$rel' on '$moniker' - related resultsource '@{[ $relsource->source_name ]}' does not contain one of the specified columns: '$_'\n";
+                next REL;
+              }
+            }
+
+            my @cond = sort { $other_columns_idx{$a} <=> $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
 
             # Get the key information, mapping off the foreign/self markers
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
@@ -216,6 +225,8 @@ sub parse {
             else {
                 $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
             }
+
+            my ($otherrelname, $otherrelationship) = %{ $source->reverse_relationship_info($rel) };
 
             my $cascade;
             for my $c (qw/delete update/) {
@@ -252,9 +263,12 @@ sub parse {
                     $tables{$table_name}{foreign_table_deps}{$rel_table}++;
                   }
 
+                  # trim schema before generating constraint/index names
+                  (my $table_abbrev = $table_name) =~ s/ ^ [^\.]+ \. //x;
+
                   $table->add_constraint(
                     type             => 'foreign_key',
-                    name             => join('_', $table_name, 'fk', @keys),
+                    name             => join('_', $table_abbrev, 'fk', @keys),
                     fields           => \@keys,
                     reference_fields => \@refkeys,
                     reference_table  => $rel_table,
@@ -275,8 +289,9 @@ sub parse {
                   next if join("\x00", @keys) eq join("\x00", @primary);
 
                   if ($add_fk_index_rel) {
+                      (my $idx_name = $table_name) =~ s/ ^ [^\.]+ \. //x;
                       my $index = $table->add_index(
-                          name   => join('_', $table_name, 'idx', @keys),
+                          name   => join('_', $table_abbrev, 'idx', @keys),
                           fields => \@keys,
                           type   => 'NORMAL',
                       );
@@ -517,12 +532,13 @@ Limit the amount of parsed sources by supplying an explicit list of source names
 
 L<SQL::Translator>, L<DBIx::Class::Schema>
 
-=head1 AUTHORS
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
-
-=cut
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

@@ -40,7 +40,10 @@ my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintErr
 $dbh = DBI->connect(@connect) or die DBI->errstr;
 my @table;
 
-END { $dbh->do("DROP TABLE $_") foreach @table }
+END {
+  $dbh->do("DROP TABLE $_") for @table;
+  undef $dbh;
+}
 
 __PACKAGE__->connection(@connect);
 

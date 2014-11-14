@@ -1,6 +1,32 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
+# Stop pre-started RDBMS and sync for some settle time
+run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
+run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop"
+/bin/sync
+
+# Sanity check VM before continuing
+echo "
+=============================================================================
+
+= Startup Meminfo
+$(free -m -t)
+
+============================================================================="
+
+CI_VM_MIN_FREE_MB=2000
+if [[ "$(free -m | grep 'buffers/cache:' | perl -p -e '$_ = (split /\s+/, $_)[3]')" -lt "$CI_VM_MIN_FREE_MB" ]]; then
+  SHORT_CIRCUIT_SMOKE=1
+  echo_err "
+=============================================================================
+
+CI virtual machine stuck in a state with a lot of memory locked for no reason.
+Under Travis this state usually results in a failed build.
+Short-circuiting buildjob to avoid false negatives, please restart it manually.
+
+============================================================================="
+fi
+
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 # Different boxes we run on may have different amount of hw threads
@@ -11,7 +37,10 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 # The oneliner is a tad convoluted - basicaly what we do is
 # slurp the entire file and get the index off the last
 # `processor    : XX` line
-export NUMTHREADS="$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))"
+#
+# We also divide the result by a factor, otherwise the travis VM gets
+# overloaded (the amount of available swap is just TOOOO damn small)
+export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
 
 export CACHE_DIR="/tmp/poormanscache"
 
@@ -33,22 +62,24 @@ if [[ "$CLEANTEST" != "true" ]]; then
   # (https is critical - apt-get update can't seem to follow the 302)
   sudo bash -c 'echo -e "\ndeb [arch=i386] https://oss.oracle.com/debian unstable main non-free" >> /etc/apt/sources.list'
 
-  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --branch=poor_mans_travis_cache https://github.com/ribasushi/travis_futzing.git $CACHE_DIR && $CACHE_DIR/reassemble"
+  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
 
   run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
 
-  apt_install memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
+  apt_install libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
+  run_or_err "Starting MySQL" "sudo /etc/init.d/mysql start"
   run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
 ### config pg
+  run_or_err "Starting PostgreSQL" "sudo /etc/init.d/postgresql start"
   run_or_err "Creating PostgreSQL TestDB" "psql -c 'create database dbic_test;' -U postgres"
   export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
   export DBICTEST_PG_USER=postgres

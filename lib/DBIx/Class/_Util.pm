@@ -4,34 +4,6 @@ package # hide from PAUSE
 use warnings;
 use strict;
 
-# Temporary - tempextlib
-use namespace::clean;
-BEGIN {
-  require Module::Runtime;
-  require File::Spec;
-
-  # There can be only one of these, make sure we get the bundled part and
-  # *not* something off the site lib
-  for (qw(
-    DBIx::Class::SQLMaker
-    SQL::Abstract
-    SQL::Abstract::Test
-  )) {
-    if ($INC{Module::Runtime::module_notional_filename($_)}) {
-      die "\nUnable to continue - a part of the bundled templib contents "
-        . "was already loaded (likely an older version from CPAN). "
-        . "Make sure that @{[ __PACKAGE__ ]} is loaded before $_\n\n"
-      ;
-    }
-  }
-
-  our ($HERE) = File::Spec->rel2abs(
-    File::Spec->catdir( (File::Spec->splitpath(__FILE__))[1], '_TempExtlib' )
-  ) =~ /^(.*)$/; # screw you, taint mode
-
-  unshift @INC, $HERE;
-}
-
 use constant SPURIOUS_VERSION_CHECK_WARNINGS => ($] < 5.010 ? 1 : 0);
 
 BEGIN {
@@ -62,6 +34,10 @@ BEGIN {
 
     ASSERT_NO_INTERNAL_INDIRECT_CALLS => $ENV{DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS} ? 1 : 0,
 
+    STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE => $ENV{DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE} ? 1 : 0,
+
+    STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE => $ENV{DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE} ? 1 : 0,
+
     IV_SIZE => $Config{ivsize},
 
     OS_NAME => $^O,
@@ -81,7 +57,9 @@ BEGIN {
 # Carp::Skip to the rescue soon
 use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
 
+use B ();
 use Carp 'croak';
+use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype);
 use List::Util qw(first);
 
@@ -89,8 +67,14 @@ use List::Util qw(first);
 # BEGIN pre-Moo2 import block
 BEGIN {
   my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+
   local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  require Sub::Quote; Sub::Quote->import('quote_sub');
+  # load all of these now, so that lazy-loading does not escape
+  # the current PERL_STRICTURES_EXTRA setting
+  require Sub::Quote;
+  require Sub::Defer;
+
+  Sub::Quote->import('quote_sub');
   ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
 }
 sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
@@ -98,10 +82,10 @@ sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq
+  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
-  quote_sub qsub perlstring
+  quote_sub qsub perlstring serialize
   UNRESOLVABLE_CONDITION
 );
 
@@ -136,10 +120,14 @@ sub refdesc ($) {
 sub refcount ($) {
   croak "Expecting a reference" if ! length ref $_[0];
 
-  require B;
   # No tempvars - must operate on $_[0], otherwise the pad
   # will count as an extra ref
   B::svref_2object($_[0])->REFCNT;
+}
+
+sub serialize ($) {
+  local $Storable::canonical = 1;
+  nfreeze($_[0]);
 }
 
 sub is_exception ($) {
@@ -211,6 +199,19 @@ sub modver_gt_or_eq ($$) {
 
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
+}
+
+sub modver_gt_or_eq_and_lt ($$$) {
+  my ($mod, $v_ge, $v_lt) = @_;
+
+  croak "Nonsensical maximum version supplied"
+    if ! defined $v_lt or $v_lt =~ /[^0-9\.\_]/;
+
+  return (
+    modver_gt_or_eq($mod, $v_ge)
+      and
+    ! modver_gt_or_eq($mod, $v_lt)
+  ) ? 1 : 0;
 }
 
 {

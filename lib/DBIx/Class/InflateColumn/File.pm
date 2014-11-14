@@ -47,6 +47,10 @@ sub _file_column_file {
 
     return unless $column_info->{is_file_column};
 
+    # DO NOT CHANGE
+    # This call to id() is generally incorrect - will not DTRT on
+    # multicolumn key. However changing this may introduce
+    # backwards-comp regressions, thus leaving as is
     my $id = $self->id || $self->throw_exception(
         'id required for filename generation'
     );
@@ -210,14 +214,16 @@ Method made to be overridden for callback purposes.
 
 sub _file_column_callback {}
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-Victor Igumnov
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-This library is free software, you can redistribute it and/or modify
-it under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

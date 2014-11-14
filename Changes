@@ -1,10 +1,34 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix incorrect collapsing-parser source being generated in the
+          presence of unicode data among the collapse-points
+        - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
+
+    * Misc
+        - Depend on newer SQL::Abstract (fixing overly-aggressive parenthesis
+          opener: RT#99503)
+        - Depend on newer Moo, fixing some interoperability issues:
+          http://lists.scsys.co.uk/pipermail/dbix-class/2014-October/011787.html
+
+0.082801 2014-10-05 23:55 (UTC)
+    * Known Issues
+        - Passing large amounts of objects with stringification overload
+          directly to DBIx::Class may result in strange action at a distance
+          exceptions. More info (and a workaround description) can be found
+          under "Note" at https://metacpan.org/pod/SQL::Abstract#is_plain_value
+        - The relationship condition resolution fixes come with the side effect
+          of returning more complete data, tripping up *some* users of an
+          undocumented but widely used internal function. In particular
+          https://rt.cpan.org/Ticket/Display.html?id=91375#txn-1407239
+
     * Notable Changes and Deprecations
         - DBIC::FilterColumn now properly bypasses \'' and \[] literals, just
           like the rest of DBIC
         - DBIC::FilterColumn "from_storage" handler is now invoked on NULLs
           returned from storage
+        - find() now throws an exception if some of the supplied values are
+          managed by DBIC::FilterColumn (RT#95054)
         - Custom condition relationships are now invoked with a slightly
           different signature (existing coderefs will continue to work)
         - Add extra custom condition coderef attribute 'foreign_values'
@@ -14,6 +38,8 @@ Revision history for DBIx::Class
           objects that went out of sync with the storage (RT#96499)
         - CDBICompat::columns() now supports adding columns through supplied
           Class::DBI::Column instances (GH#52)
+        - Deprecate { col1 => col2 } expressions in manual {from} structures
+          (at some point of time manual {from} will be deprecated entirely)
 
     * Fixes
         - Fix Resultset delete/update affecting *THE ENTIRE TABLE* in cases
@@ -28,6 +54,7 @@ Revision history for DBIx::Class
           mode of a has_many prefetch off a search_related chain
         - Prevent erroneous database hit when accessing prefetched related
           resultsets with no rows
+        - Proper exceptions on malformed relationship conditions (RT#92234)
         - Fix incorrect handling of custom relationship conditions returning
           SQLA literal expressions
         - Fix long standing bug with populate() missing data from hashrefs with
@@ -42,8 +69,15 @@ Revision history for DBIx::Class
         - Fix set_column on non-native (+columns) selections (RT#86685)
         - Fix set_inflated_column incorrectly handling \[] literals (GH#44)
         - Ensure that setting a column to a literal invariably marks it dirty
+        - Fix copy() not working correctly with extra selections present
         - Work around exception objects with broken string overloading in one
           additional codepath (missed in 0.08260)
+        - Fix more inconsistencies of the quote_names attribute propagating
+          to SQL::Translator (partially RT#87731)
+        - Fix SQLT constraint naming when DBIC table names are fully qualified
+          (PR#48)
+        - Ensure ::Schema::Versioned connects only once by reusing the main
+          connection (GH#57)
         - Fix inability to handle multiple consecutive transactions with
           savepoints on DBD::SQLite < 1.39
         - Fix CDBICompat to match Class::DBI behavior handling non-result
@@ -55,8 +89,6 @@ Revision history for DBIx::Class
           instance registered with the caller
         - IFF DBIC_TRACE output defaults to STDERR we now silence the possible
           wide-char warnings if the trace happens to contain unicode
-        - Remove ::ResultSource::resolve_condition - the underlying machinery
-          is in flux, and the method has had a deprecation warning for 5 years
 
 0.08270 2014-01-30 21:54 (PST)
     * Fixes

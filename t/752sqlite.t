@@ -9,7 +9,7 @@ use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::_Util qw(sigwarn_silencer modver_gt_or_eq);
+use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt );
 
 # check that we work somewhat OK with braindead SQLite transaction handling
 #
@@ -144,6 +144,11 @@ $row->discard_changes;
 is ($row->rank, 'abc', 'proper rank inserted into database');
 
 # and make sure we do not lose actual bigints
+SKIP: {
+
+skip "Not testing bigint handling on known broken DBD::SQLite trial versions", 1
+  if modver_gt_or_eq_and_lt( 'DBD::SQLite', '1.45', '1.45_03' );
+
 {
   package DBICTest::BigIntArtist;
   use base 'DBICTest::Schema::Artist';
@@ -155,9 +160,7 @@ $schema->storage->dbh_do(sub {
   $_[1]->do('ALTER TABLE artist ADD COLUMN bigint BIGINT');
 });
 
-my $sqlite_broken_bigint = (
-  modver_gt_or_eq('DBD::SQLite', '1.34') and ! modver_gt_or_eq('DBD::SQLite', '1.37')
-);
+my $sqlite_broken_bigint = modver_gt_or_eq_and_lt( 'DBD::SQLite', '1.34', '1.37' );
 
 # 63 bit integer
 my $many_bits = (Math::BigInt->new(2) ** 62);
@@ -310,7 +313,8 @@ SKIP: {
 }
 
   is_deeply (\@w, [], "No mismatch warnings on bigint operations ($v_desc)" );
-}
+
+}}
 
 done_testing;
 

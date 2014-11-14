@@ -406,7 +406,7 @@ the relationship attributes.
 
 The C<belongs_to> relationship does not update across relationships
 by default, so if you have a 'proxy' attribute on a belongs_to and want to
-use 'update' on it, you muse set C<< cascade_update => 1 >>.
+use 'update' on it, you must set C<< cascade_update => 1 >>.
 
 This is not a RDMS style cascade update - it purely means that when
 an object has update called on it, all the related objects also
@@ -546,7 +546,12 @@ sub related_resultset {
       # root alias as 'me', instead of $rel (as opposed to invoking
       # $rs->search_related)
 
-      local $rsrc->{_relationships}{me} = $rsrc->{_relationships}{$rel};  # make the fake 'me' rel
+      # make the fake 'me' rel
+      local $rsrc->{_relationships}{me} = {
+        %{ $rsrc->{_relationships}{$rel} },
+        _original_name => $rel,
+      };
+
       my $obj_table_alias = lc($rsrc->source_name) . '__row';
       $obj_table_alias =~ s/\W+/_/g;
 
@@ -809,8 +814,8 @@ call set_from_related on the book.
 This is called internally when you pass existing objects as values to
 L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
 
-The columns are only set in the local copy of the object, call L</update> to
-set them in the storage.
+The columns are only set in the local copy of the object, call
+L<update|DBIx::Class::Row/update> to update them in the storage.
 
 =cut
 
@@ -980,13 +985,16 @@ Removes the link between the current object and the related object. Note that
 the related object itself won't be deleted unless you call ->delete() on
 it. This method just removes the link between the two objects.
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

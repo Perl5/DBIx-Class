@@ -16,10 +16,9 @@ if ($v_maj > 8) {
   die "Illegal version $version_string - we are still in the 0.08 cycle\n"
 }
 
-Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
-  # all odd releases *after* 0.089x generate a -TRIAL, no exceptions
-  ( $v_point > 89 )
-);
+#Meta->makemaker_args->{DISTVNAME} = Meta->name . "-$version_string-TRIAL" if (
+#  ( $v_point > 89 )
+#);
 
 
 my $tags = { map { chomp $_; $_ => 1} `git tag` };

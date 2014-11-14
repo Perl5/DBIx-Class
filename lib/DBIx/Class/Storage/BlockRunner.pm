@@ -4,22 +4,32 @@ package # hide from pause until we figure it all out
 use warnings;
 use strict;
 
-# DO NOT edit away without talking to riba first, he will just put it back
-# BEGIN pre-Moo2 import block
-BEGIN {
-  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
-  local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  require Moo; Moo->import;
-  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
-}
-# END pre-Moo2 import block
-
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
 use DBIx::Class::_Util qw(is_exception qsub);
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
+
+# DO NOT edit away without talking to riba first, he will just put it back
+# BEGIN pre-Moo2 import block
+BEGIN {
+  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  # load all of these now, so that lazy-loading does not escape
+  # the current PERL_STRICTURES_EXTRA setting
+  require Sub::Quote;
+  require Sub::Defer;
+  require Moo;
+  require Moo::Object;
+  require Method::Generate::Accessor;
+  require Method::Generate::Constructor;
+
+  Moo->import;
+  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
+}
+# END pre-Moo2 import block
 
 use namespace::clean;
 
@@ -223,13 +233,16 @@ sub _run {
   };
 }
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

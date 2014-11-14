@@ -87,7 +87,7 @@ sub ID {
 
 sub _create_ID {
   my ($self, %vals) = @_;
-  return undef unless 0 == grep { !defined } values %vals;
+  return undef if grep { !defined } values %vals;
   return join '|', ref $self || $self, $self->result_source->name,
     map { $_ . '=' . $vals{$_} } sort keys %vals;
 }
@@ -134,15 +134,17 @@ sub _mk_ident_cond {
   return \%cond;
 }
 
-1;
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHOR AND CONTRIBUTORS
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+=head1 COPYRIGHT AND LICENSE
 
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 
+1;

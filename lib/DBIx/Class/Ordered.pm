@@ -147,7 +147,7 @@ Returns an B<ordered> resultset of all other objects in the same
 group excluding the one you called it on.
 
 The ordering is a backwards-compatibility artifact - if you need
-a resultset with no ordering applied use L</_siblings>
+a resultset with no ordering applied use C<_siblings>
 
 =cut
 sub siblings {
@@ -895,15 +895,13 @@ up-to-date before proceeding, otherwise undefined behavior will result.
 Using a database defined default_value on one of your group columns
 could result in the position not being assigned correctly.
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
- Original code framework
-   Aran Deltac <bluefeet@cpan.org>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
- Constraints support and code generalisation
-   Peter Rabbitson <ribasushi@cpan.org>
+=head1 COPYRIGHT AND LICENSE
 
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

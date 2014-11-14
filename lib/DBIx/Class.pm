@@ -11,7 +11,7 @@ our $VERSION;
 # $VERSION declaration must stay up here, ahead of any other package
 # declarations, as to not confuse various modules attempting to determine
 # this ones version, whether that be s.c.o. or Module::Metadata, etc
-$VERSION = '0.082700_01';
+$VERSION = '0.082899_01';
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
@@ -57,9 +57,15 @@ sub _attr_cache {
   };
 }
 
+# *DO NOT* change this URL nor the identically named =head1 below
+# it is linked throughout the ecosystem
+sub DBIx::Class::_ENV_::HELP_URL () {
+  'http://p3rl.org/DBIx::Class#GETTING_HELP/SUPPORT'
+}
+
 1;
 
-=encoding UTF-8
+__END__
 
 =head1 NAME
 
@@ -73,12 +79,6 @@ recommended to read (at the very least) the
 L<Manuals|DBIx::Class::Manual::DocMap/Manuals> in the order presented there.
 
 =cut
-
-# *DO NOT* change this heading - it is linked throughout the ecosystem
-
-sub DBIx::Class::_ENV_::HELP_URL () {
-  'http://p3rl.org/DBIx::Class#GETTING_HELP/SUPPORT'
-}
 
 =head1 GETTING HELP/SUPPORT
 
@@ -255,8 +255,10 @@ Contributions are always welcome, in all usable forms (we especially
 welcome documentation improvements). The delivery methods include git-
 or unified-diff formatted patches, GitHub pull requests, or plain bug
 reports either via RT or the Mailing list. Contributors are generally
-granted full access to the official repository after their first patch
-passes successful review.
+granted access to the official repository after their first several
+patches pass successful review. Don't hesitate to
+L<contact|/GETTING HELP/SUPPORT> either of the L</CAT HERDERS> with
+any further questions you may have.
 
 =for comment
 FIXME: Getty, frew and jnap need to get off their asses and finish the contrib section so we can link it here ;)
@@ -281,317 +283,44 @@ accessible at the following locations:
 
 =back
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
+Even though a large portion of the source I<appears> to be written by just a
+handful of people, this library continues to remain a collaborative effort -
+perhaps one of the most successful such projects on L<CPAN|http://cpan.org>.
+It is important to remember that ideas do not always result in a direct code
+contribution, but deserve acknowledgement just the same. Time and time again
+the seemingly most insignificant questions and suggestions have been shown
+to catalyze monumental improvements in consistency, accuracy and performance.
 
-(I mostly consider myself "project founder" these days but the AUTHOR heading
-is traditional :)
+=for comment this line is replaced with the author list at dist-building time
 
-=head1 CONTRIBUTORS
+The canonical source of authors and their details is the F<AUTHORS> file at
+the root of this distribution (or repository). The canonical source of
+per-line authorship is the L<git repository|/HOW TO CONTRIBUTE> history
+itself.
 
-abraxxa: Alexander Hartmaier <abraxxa@cpan.org>
+=head1 CAT HERDERS
 
-acca: Alexander Kuznetsov <acca@cpan.org>
+The fine folks nudging the project in a particular direction:
 
-aherzog: Adam Herzog <adam@herzogdesigns.com>
+=over
 
-Alexander Keusch <cpan@keusch.at>
+B<ribasushi>: Peter Rabbitson <ribasushi@cpan.org>
+(present day maintenance and controlled evolution)
 
-alexrj: Alessandro Ranellucci <aar@cpan.org>
+B<castaway>: Jess Robinson <castaway@desert-island.me.uk>
+(lions share of the reference documentation and manuals)
 
-alnewkirk: Al Newkirk <we@ana.im>
+B<mst>: Matt S Trout <mst@shadowcat.co.uk> (project founder -
+original idea, architecture and implementation)
 
-amiri: Amiri Barksdale <amiri@metalabel.com>
+=back
 
-amoore: Andrew Moore <amoore@cpan.org>
+=head1 COPYRIGHT AND LICENSE
 
-Andrew Mehta <Andrew@unitedgames.co.uk>
-
-andrewalker: Andre Walker <andre@andrewalker.net>
-
-andyg: Andy Grundman <andy@hybridized.org>
-
-ank: Andres Kievsky
-
-arc: Aaron Crane <arc@cpan.org>
-
-arcanez: Justin Hunter <justin.d.hunter@gmail.com>
-
-ash: Ash Berlin <ash@cpan.org>
-
-bert: Norbert Csongrádi <bert@cpan.org>
-
-bfwg: Colin Newell <colin.newell@gmail.com>
-
-blblack: Brandon L. Black <blblack@gmail.com>
-
-bluefeet: Aran Deltac <bluefeet@cpan.org>
-
-bphillips: Brian Phillips <bphillips@cpan.org>
-
-boghead: Bryan Beeley <cpan@beeley.org>
-
-brd: Brad Davis <brd@FreeBSD.org>
-
-bricas: Brian Cassidy <bricas@cpan.org>
-
-brunov: Bruno Vecchi <vecchi.b@gmail.com>
-
-caelum: Rafael Kitover <rkitover@cpan.org>
-
-caldrin: Maik Hentsche <maik.hentsche@amd.com>
-
-castaway: Jess Robinson
-
-claco: Christopher H. Laco
-
-clkao: CL Kao
-
-Ctrl-o L<http://ctrlo.com/>
-
-da5id: David Jack Olrik <djo@cpan.org>
-
-dariusj: Darius Jokilehto <dariusjokilehto@yahoo.co.uk>
-
-davewood: David Schmidt <davewood@gmx.at>
-
-daxim: Lars Dɪᴇᴄᴋᴏᴡ 迪拉斯 <daxim@cpan.org>
-
-debolaz: Anders Nor Berle <berle@cpan.org>
-
-dew: Dan Thomas <dan@godders.org>
-
-dim0xff: Dmitry Latin <dim0xff@gmail.com>
-
-dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
-
-dnm: Justin Wheeler <jwheeler@datademons.com>
-
-dpetrov: Dimitar Petrov <mitakaa@gmail.com>
-
-duncan_dmg: Duncan Garland <Duncan.Garland@motortrak.com>
-
-dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
-
-dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
-
-edenc: Eden Cardim <edencardim@gmail.com>
-
-Eligo L<http://eligo.co.uk/>
-
-ether: Karen Etheridge <ether@cpan.org>
-
-felliott: Fitz Elliott <fitz.elliott@gmail.com>
-
-freetime: Bill Moseley <moseley@hank.org>
-
-frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
-
-goraxe: Gordon Irving <goraxe@cpan.org>
-
-gphat: Cory G Watson <gphat@cpan.org>
-
-Grant Street Group L<http://www.grantstreet.com/>
-
-groditi: Guillermo Roditi <groditi@cpan.org>
-
-Haarg: Graham Knop <haarg@haarg.org>
-
-hobbs: Andrew Rodland <arodland@cpan.org>
-
-idn: Ian Norton <i.norton@shadowcat.co.uk>
-
-ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
-
-initself: Mike Baas <mike@initselftech.com>
-
-ironcamel: Naveed Massjouni <naveedm9@gmail.com>
-
-jawnsy: Jonathan Yu <jawnsy@cpan.org>
-
-jasonmay: Jason May <jason.a.may@gmail.com>
-
-jegade: Jens Gassmann <jens.gassmann@atomix.de>
-
-jesper: Jesper Krogh
-
-jgoulah: John Goulah <jgoulah@cpan.org>
-
-jguenther: Justin Guenther <jguenther@cpan.org>
-
-jhannah: Jay Hannah <jay@jays.net>
-
-jmac: Jason McIntosh <jmac@appleseed-sc.com>
-
-jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
-
-jon: Jon Schutz <jjschutz@cpan.org>
-
-Joe Carlson <jwcarlson@lbl.gov>
-
-jshirley: J. Shirley <jshirley@gmail.com>
-
-kaare: Kaare Rasmussen
-
-konobi: Scott McWhirter
-
-littlesavage: Alexey Illarionov <littlesavage@orionet.ru>
-
-lukes: Luke Saunders <luke.saunders@gmail.com>
-
-marcus: Marcus Ramberg <mramberg@cpan.org>
-
-mattlaw: Matt Lawrence
-
-mattp: Matt Phillips <mattp@cpan.org>
-
-mdk: Mark Keating <m.keating@shadowcat.co.uk>
-
-mna: Maya
-
-michaelr: Michael Reddick <michael.reddick@gmail.com>
-
-milki: Jonathan Chu <milki@rescomp.berkeley.edu>
-
-minty: Murray Walker <perl@minty.org>
-
-mithaldu: Christian Walde <walde.christian@gmail.com>
-
-mjemmeson: Michael Jemmeson <michael.jemmeson@gmail.com>
-
-mrf: Mike Francis <ungrim97@gmail.com>
-
-mstratman: Mark A. Stratman <stratman@gmail.com>
-
-ned: Neil de Carteret
-
-nigel: Nigel Metheringham <nigelm@cpan.org>
-
-ningu: David Kamholz <dkamholz@cpan.org>
-
-Nniuq: Ron "Quinn" Straight" <quinnfazigu@gmail.org>
-
-norbi: Norbert Buchmuller <norbi@nix.hu>
-
-nuba: Nuba Princigalli <nuba@cpan.org>
-
-Numa: Dan Sully <daniel@cpan.org>
-
-ovid: Curtis "Ovid" Poe <ovid@cpan.org>
-
-oyse: E<Oslash>ystein Torget <oystein.torget@dnv.com>
-
-paulm: Paul Makepeace
-
-penguin: K J Cheetham
-
-perigrin: Chris Prather <chris@prather.org>
-
-peter: Peter Collingbourne <peter@pcc.me.uk>
-
-Peter Siklósi <einon@einon.hu>
-
-Peter Valdemar ME<oslash>rch <peter@morch.com>
-
-phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
-
-plu: Johannes Plunien <plu@cpan.org>
-
-pplu: Jose Luis Martinez <jlmartinez@capside.com>
-
-Possum: Daniel LeWarne <possum@cpan.org>
-
-quicksilver: Jules Bean
-
-rafl: Florian Ragwitz <rafl@debian.org>
-
-rainboxx: Matthias Dietrich <perl@rb.ly>
-
-rbo: Robert Bohne <rbo@cpan.org>
-
-rbuels: Robert Buels <rmb32@cornell.edu>
-
-rdj: Ryan D Johnson <ryan@innerfence.com>
-
-ribasushi: Peter Rabbitson <ribasushi@cpan.org>
-
-rjbs: Ricardo Signes <rjbs@cpan.org>
-
-robkinyon: Rob Kinyon <rkinyon@cpan.org>
-
-Robert Olson <bob@rdolson.org>
-
-moltar: Roman Filippov <romanf@cpan.org>
-
-Sadrak: Felix Antonius Wilhelm Ostmann <sadrak@cpan.org>
-
-sc_: Just Another Perl Hacker
-
-scotty: Scotty Allen <scotty@scottyallen.com>
-
-semifor: Marc Mims <marc@questright.com>
-
-SineSwiper: Brendan Byrd <bbyrd@cpan.org>
-
-skaufman: Samuel Kaufman <sam@socialflow.com>
-
-solomon: Jared Johnson <jaredj@nmgi.com>
-
-spb: Stephen Bennett <stephen@freenode.net>
-
-Squeeks <squeek@cpan.org>
-
-sszabo: Stephan Szabo <sszabo@bigpanda.com>
-
-Stephen Peters <steve@stephenpeters.me>
-
-talexb: Alex Beamish <talexb@gmail.com>
-
-tamias: Ronald J Kimball <rjk@tamias.net>
-
-TBSliver: Tom Bloor <t.bloor@shadowcat.co.uk>
-
-teejay : Aaron Trevena <teejay@cpan.org>
-
-theorbtwo: James Mastros <james@mastros.biz>
-
-Todd Lipcon
-
-Tom Hukins
-
-tonvoon: Ton Voon <tonvoon@cpan.org>
-
-triode: Pete Gamache <gamache@cpan.org>
-
-typester: Daisuke Murase <typester@cpan.org>
-
-victori: Victor Igumnov <victori@cpan.org>
-
-wdh: Will Hawes
-
-wesm: Wes Malone <wes@mitsi.com>
-
-willert: Sebastian Willert <willert@cpan.org>
-
-wreis: Wallace Reis <wreis@cpan.org>
-
-xenoterracide: Caleb Cushing <xenoterracide@gmail.com>
-
-uree: Oriol Soriano <oriol.soriano@capside.com>
-
-yrlnry: Mark Jason Dominus <mjd@plover.com>
-
-zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
-
-Zefram: Andrew Main <zefram@fysh.org>
-
-=head1 COPYRIGHT
-
-Copyright (c) 2005 - 2011 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
-as listed above.
-
-=head1 LICENSE
+Copyright (c) 2005 by mst, castaway, ribasushi, and other DBIx::Class
+L</AUTHORS> as listed above and in F<AUTHORS>.
 
 This library is free software and may be distributed under the same terms
-as perl itself.
+as perl5 itself. See F<LICENSE> for the complete licensing terms.

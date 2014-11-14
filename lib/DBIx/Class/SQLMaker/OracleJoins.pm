@@ -80,13 +80,35 @@ sub _recurse_oracle_joins {
         && $jt !~ /inner/i;
     }
 
-    # sadly SQLA treats where($scalar) as literal, so we need to jump some hoops
-    push @where, map { \sprintf ('%s%s = %s%s',
-      ref $_ ? $self->_recurse_where($_) : $self->_quote($_),
-      $left_join,
-      ref $on->{$_} ? $self->_recurse_where($on->{$_}) : $self->_quote($on->{$_}),
-      $right_join,
-    )} keys %$on;
+    # FIXME - the code below *UTTERLY* doesn't work with custom conds... sigh
+    # for the time being do not do any processing with the likes of _collapse_cond
+    # instead only unroll the -and hack if present
+    $on = $on->{-and}[0] if (
+      ref $on eq 'HASH'
+        and
+      keys %$on == 1
+        and
+      ref $on->{-and} eq 'ARRAY'
+        and
+      @{$on->{-and}} == 1
+    );
+
+
+    push @where, map { \do {
+        my ($sql) = $self->_recurse_where({
+          # FIXME - more borkage, more or less a copy of the kludge in ::SQLMaker::_join_condition()
+          $_ => ( length ref $on->{$_}
+            ? $on->{$_}
+            : { -ident => $on->{$_} }
+          )
+        });
+
+        $sql =~ s/\s*\=/$left_join =/
+          if $left_join;
+
+        "$sql$right_join";
+      }
+    } sort keys %$on;
   }
 
   return { -and => \@where };
@@ -94,7 +116,7 @@ sub _recurse_oracle_joins {
 
 1;
 
-=pod
+__END__
 
 =head1 NAME
 
@@ -152,17 +174,13 @@ Does not support full outer joins (however neither really does DBIC itself)
 
 =back
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-Justin Wheeler C<< <jwheeler@datademons.com> >>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-David Jack Olrik C<< <djo@cpan.org> >>
-
-=head1 LICENSE
-
-This module is licensed under the same terms as Perl itself.
-
-=cut
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

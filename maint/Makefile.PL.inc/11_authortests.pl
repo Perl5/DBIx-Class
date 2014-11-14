@@ -17,8 +17,8 @@ Meta->tests(join (' ', map { $_ || () } @xt_tests, Meta->tests ) );
 # inject an explicit xt test run, mainly to check the contents of
 # lib and the generated POD's *before* anything is copied around
 #
-# at the end rerun the whitespace test in the distdir, to make sure everything
-# is pristine
+# at the end rerun the whitespace and footer tests in the distdir
+# to make sure everything is pristine
 postamble <<"EOP";
 
 dbic_clonedir_copy_generated_pod : test_xt
@@ -43,9 +43,9 @@ test_xt : pm_to_blib
   )
 ]}
 
-create_distdir : dbic_distdir_retest_whitespace
+create_distdir : dbic_distdir_retest_ws_and_footers
 
-dbic_distdir_retest_whitespace :
+dbic_distdir_retest_ws_and_footers :
 \t@{[
   $mm_proto->cd (
     '$(DISTVNAME)',
@@ -55,7 +55,7 @@ dbic_distdir_retest_whitespace :
         '$(ABSPERLRUN)',
         map { $mm_proto->quote_literal($_) } qw(-Ilib -e $ENV{RELEASE_TESTING}=1;$ENV{DBICTEST_NO_MAKEFILE_VERIFICATION}=1;)
       ),
-      'xt/whitespace.t'
+      'xt/whitespace.t xt/footers.t',
     )
   )
 ]}

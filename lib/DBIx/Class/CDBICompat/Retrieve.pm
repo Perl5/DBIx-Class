@@ -2,8 +2,11 @@ package # hide from PAUSE
     DBIx::Class::CDBICompat::Retrieve;
 
 use strict;
-use warnings FATAL => 'all';
 
+# even though fatalization has been proven over and over to be a universally
+# bad idea, this line has been part of the code from the beginning
+# leaving the compat layer as-is, something may in fact depend on that
+use warnings FATAL => 'all';
 
 sub retrieve {
   my $self = shift;

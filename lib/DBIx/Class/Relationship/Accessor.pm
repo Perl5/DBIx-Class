@@ -35,15 +35,24 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{%1$s};
       }
       else {
-        my $rel_info = $self->result_source->relationship_info(%1$s);
-        my $cond = $self->result_source->_resolve_condition(
-          $rel_info->{cond}, %1$s, $self, %1$s
+        my $relcond = $self->result_source->_resolve_relationship_condition(
+          rel_name => %1$s,
+          foreign_alias => %1$s,
+          self_alias => 'me',
+          self_result_object => $self,
         );
-        if ($rel_info->{attrs}->{undef_on_null_fk}){
-          return undef unless ref($cond) eq 'HASH';
-          return undef if grep { not defined $_ } values %%$cond;
-        }
-        my $val = $self->find_related( %1$s => {} );
+
+        return undef if (
+          $relcond->{join_free_condition}
+            and
+          $relcond->{join_free_condition} ne DBIx::Class::_Util::UNRESOLVABLE_CONDITION
+            and
+          scalar grep { not defined $_ } values %%{ $relcond->{join_free_condition} || {} }
+            and
+          $self->result_source->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
+        );
+
+        my $val = $self->search_related( %1$s )->single;
         return $val unless $val;  # $val instead of undef so that null-objects can go through
 
         return $self->{_relationship_data}{%1$s} = $val;

@@ -6,11 +6,12 @@ use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
 
-plan tests => 19;
-
 # select from a class with resultset_attributes
 my $resultset = $schema->resultset('BooksInLibrary');
 is($resultset, 3, "select from a class with resultset_attributes okay");
+
+$resultset = $resultset->search({}, { where => undef });
+is($resultset, 3, "where condition not obliterated");
 
 # now test out selects through a resultset
 my $owner = $schema->resultset('Owners')->find({name => "Newton"});
@@ -82,3 +83,5 @@ if ($@) { print $@ }
 ok( !$@, 'many_to_many set_$rel(\@objects) did not throw');
 is($pointy_objects->count, $pointy_count, 'many_to_many set_$rel($hash) count correct');
 is($round_objects->count, $round_count, 'many_to_many set_$rel($hash) other rel count correct');
+
+done_testing;

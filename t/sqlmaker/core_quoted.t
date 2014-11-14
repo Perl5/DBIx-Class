@@ -24,7 +24,7 @@ my ($sql, @bind) = $sql_maker->select(
                 '-join_type' => ''
               },
               {
-                'artist.artistid' => 'me.artist'
+                'artist.artistid' => { -ident => 'me.artist' },
               }
             ],
             [
@@ -33,7 +33,7 @@ my ($sql, @bind) = $sql_maker->select(
                 '-join_type' => 'left'
               },
               {
-                'tracks.cd' => 'me.cdid'
+                'tracks.cd' => { -ident => 'me.cdid' },
               }
             ],
           ],
@@ -307,7 +307,7 @@ $sql_maker->quote_char([qw/[ ]/]);
                 '-join_type' => ''
               },
               {
-                'artist.artistid' => 'me.artist'
+                'artist.artistid' => { -ident => 'me.artist' }
               }
             ]
           ],

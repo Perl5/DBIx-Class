@@ -3,7 +3,7 @@ package DBIx::Class::Optional::Dependencies;
 use warnings;
 use strict;
 
-use Carp ();
+use Carp;
 
 # NO EXTERNAL NON-5.8.1 CORE DEPENDENCIES EVER (e.g. C::A::G)
 # This module is to be loaded by Makefile.PM on a pristine system
@@ -51,6 +51,7 @@ my $datetime_basic = {
 };
 
 my $id_shortener = {
+  'Digest::MD5'                   => '0',
   'Math::BigInt'                  => '1.80',
   'Math::Base36'                  => '0.07',
 };
@@ -150,11 +151,11 @@ my $reqs = {
 
   deploy => {
     req => {
-      'SQL::Translator'           => '0.11016',
+      'SQL::Translator'           => '0.11018',
     },
     pod => {
       title => 'Storage::DBI::deploy()',
-      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deploy> and L<DBIx::Class::Storage::DBI/deployment_statements>',
+      desc => 'Modules required for L<DBIx::Class::Storage::DBI/deployment_statements> and L<DBIx::Class::Schema/deploy>',
     },
   },
 
@@ -453,7 +454,6 @@ my $reqs = {
         ? (
           # when changing this list make sure to adjust xt/optional_deps.t
           %$rdbms_pg,
-          ($^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : ()),
           'DBD::Pg'               => '2.009002',
         ) : ()
     },
@@ -622,9 +622,8 @@ my $reqs = {
     req => {
       %$test_and_dist_json_any,
       'ExtUtils::MakeMaker' => '6.64',
-      'Pod::Inherit'        => '0.90',
-      'Pod::Tree'           => '0',
-    }
+      'Pod::Inherit'        => '0.91',
+    },
   },
 
   dist_upload => {
@@ -640,11 +639,11 @@ our %req_availability_cache;
 sub req_list_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_list_for() expects a requirement group name"
+  croak "req_list_for() expects a requirement group name"
     unless $group;
 
   my $deps = $reqs->{$group}{req}
-    or Carp::croak "Requirement group '$group' does not exist";
+    or croak "Requirement group '$group' does not exist";
 
   return { %$deps };
 }
@@ -653,7 +652,7 @@ sub req_list_for {
 sub die_unless_req_ok_for {
   my ($class, $group) = @_;
 
-  Carp::croak "die_unless_req_ok_for() expects a requirement group name"
+  croak "die_unless_req_ok_for() expects a requirement group name"
     unless $group;
 
   $class->_check_deps($group)->{status}
@@ -663,7 +662,7 @@ sub die_unless_req_ok_for {
 sub req_ok_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_ok_for() expects a requirement group name"
+  croak "req_ok_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{status};
@@ -672,7 +671,7 @@ sub req_ok_for {
 sub req_missing_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_missing_for() expects a requirement group name"
+  croak "req_missing_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{missing};
@@ -681,7 +680,7 @@ sub req_missing_for {
 sub req_errorlist_for {
   my ($class, $group) = @_;
 
-  Carp::croak "req_errorlist_for() expects a requirement group name"
+  croak "req_errorlist_for() expects a requirement group name"
     unless $group;
 
   return $class->_check_deps($group)->{errorlist};
@@ -910,16 +909,24 @@ EOD
 Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group.
 EOD
-    '=head1 AUTHOR',
-    'See L<DBIx::Class/CONTRIBUTORS>.',
-    '=head1 LICENSE',
-    'You may distribute this code under the same terms as Perl itself',
+    '=head1 FURTHER QUESTIONS?',
+    'Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.',
+    '=head1 COPYRIGHT AND LICENSE',
+    <<'EOL',
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
+EOL
+
   );
 
-  open (my $fh, '>', $podfn) or Carp::croak "Unable to write to $podfn: $!";
-  print $fh join ("\n\n", @chunks);
-  print $fh "\n";
-  close ($fh);
+  eval {
+    open (my $fh, '>', $podfn) or die;
+    print $fh join ("\n\n", @chunks) or die;
+    print $fh "\n" or die;
+    close ($fh) or die;
+  } or croak( "Unable to write $podfn: " . ( $! || $@ || 'unknown error') );
 }
 
 1;

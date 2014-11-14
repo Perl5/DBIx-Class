@@ -41,7 +41,7 @@ sub pod_authorlic_text {
 
   return join ("\n\n",
     '=head1 AUTHORS',
-    'See L<DBIx::Class/CONTRIBUTORS>',
+    'See L<DBIx::Class/AUTHORS>',
     '=head1 LICENSE',
     'You may distribute this code under the same terms as Perl itself',
     '=cut',

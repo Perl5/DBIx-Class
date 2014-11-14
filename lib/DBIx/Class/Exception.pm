@@ -40,8 +40,8 @@ overload fallback to give natural boolean/numeric values.
 This is meant for internal use by L<DBIx::Class>'s C<throw_exception>
 code, and shouldn't be used directly elsewhere.
 
-Expects a scalar exception message.  The optional argument
-C<$stacktrace> tells it to output a full trace similar to L<Carp/confess>.
+Expects a scalar exception message. The optional boolean C<$stacktrace>
+causes it to output a full trace similar to L<confess|Carp/DESCRIPTION>.
 
   DBIx::Class::Exception->throw('Foo');
   try { ... } catch { DBIx::Class::Exception->throw(shift) }
@@ -88,13 +88,16 @@ sub rethrow {
     die shift;
 }
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

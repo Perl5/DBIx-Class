@@ -60,7 +60,7 @@ size of the bind sizes in the first prepare call:
 
 L<https://rt.cpan.org/Ticket/Display.html?id=52048>
 
-The C<ado_size> workaround is used (see L<DBD::ADO/"ADO Providers">) with the
+The C<ado_size> workaround is used (see L<DBD::ADO/ADO providers>) with the
 approximate maximum size of the data_type of the bound column, or 8000 (maximum
 VARCHAR size) if the data_type is not available.
 
@@ -189,9 +189,9 @@ sub _dbi_attrs_for_bind {
   return $attrs;
 }
 
-# Can't edit all the binds in _dbi_attrs_for_bind for insert_bulk, so we take
+# Can't edit all the binds in _dbi_attrs_for_bind for _insert_bulk, so we take
 # care of those GUIDs here.
-sub insert_bulk {
+sub _insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
@@ -436,15 +436,19 @@ sub format_datetime {
   return $datetime_parser->format_datetime(shift);
 }
 
-1;
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHOR
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+=head1 COPYRIGHT AND LICENSE
 
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
+
+1;
+
 # vim:sts=2 sw=2:

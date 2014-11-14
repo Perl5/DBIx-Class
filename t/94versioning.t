@@ -285,6 +285,17 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   ok($get_db_version_run == 0, "attributes pulled from list connect_info");
 }
 
+# at this point we have v1, v2 and v3 still connected
+# make sure they are the only connections and everything else is gone
+is
+  scalar( grep
+    { defined $_ and $_->{Active} }
+    map
+      { @{$_->{ChildHandles}} }
+      values %{ { DBI->installed_drivers } }
+  ), 3, "Expected number of connections at end of script"
+;
+
 END {
   unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
     $ddl_dir->rmtree;

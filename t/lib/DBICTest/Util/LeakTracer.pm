@@ -293,7 +293,7 @@ sub assert_empty_weakregistry {
     next if ! defined $weak_registry->{$addr}{weakref};
 
     $leaks_found++ unless $tb->in_todo;
-    $tb->ok (0, "Leaked $weak_registry->{$addr}{display_name}");
+    $tb->ok (0, "Expected garbage collection of $weak_registry->{$addr}{display_name}");
 
     my $diag = do {
       local $Data::Dumper::Maxdepth = 1;
@@ -342,9 +342,16 @@ sub assert_empty_weakregistry {
 }
 
 END {
-  if ($INC{'Test/Builder.pm'}) {
-    my $tb = Test::Builder->new;
-
+  if (
+    $INC{'Test/Builder.pm'}
+      and
+    my $tb = do {
+      local $@;
+      my $t = eval { Test::Builder->new }
+        or warn "Test::Builder->new failed:\n$@\n";
+      $t;
+    }
+  ) {
     # we check for test passage - a leak may be a part of a TODO
     if ($leaks_found and !$tb->is_passing) {
 
@@ -358,6 +365,21 @@ END {
     else {
       $tb->note("Auto checked $refs_traced references for leaks - none detected");
     }
+
+# Disable this until better times - SQLT and probably other things
+# still load strictures. Let's just wait until Moo2.0 and go from there
+=begin for tears
+    # also while we are here and not in plain runmode: make sure we never
+    # loaded any of the strictures XS bullshit (it's a leak in a sense)
+    unless (DBICTest::RunMode->is_plain) {
+      for (qw(indirect multidimensional bareword::filehandles)) {
+        exists $INC{ Module::Runtime::module_notional_filename($_) }
+          and
+        $tb->ok(0, "$_ load should not have been attempted!!!" )
+      }
+    }
+=cut
+
   }
 }
 

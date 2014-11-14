@@ -207,9 +207,9 @@ SQL
     name => { -like => 'bulk artist %' }
   });
 
-# test insert_bulk using populate.
+# test _insert_bulk using populate.
   SKIP: {
-    skip 'insert_bulk not supported', 4
+    skip '_insert_bulk not supported', 4
       unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
@@ -227,25 +227,25 @@ SQL
           charfield => 'foo',
         },
       ]);
-    } 'insert_bulk via populate';
+    } '_insert_bulk via populate';
 
-    is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
+    is $bulk_rs->count, 3, 'correct number inserted via _insert_bulk';
 
     is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-      'column set correctly via insert_bulk');
+      'column set correctly via _insert_bulk');
 
     my %bulk_ids;
     @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
 
     is ((scalar keys %bulk_ids), 3,
-      'identities generated correctly in insert_bulk');
+      'identities generated correctly in _insert_bulk');
 
     $bulk_rs->delete;
   }
 
-# make sure insert_bulk works a second time on the same connection
+# make sure _insert_bulk works a second time on the same connection
   SKIP: {
-    skip 'insert_bulk not supported', 3
+    skip '_insert_bulk not supported', 3
       unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
@@ -263,20 +263,20 @@ SQL
           charfield => 'bar',
         },
       ]);
-    } 'insert_bulk via populate called a second time';
+    } '_insert_bulk via populate called a second time';
 
     is $bulk_rs->count, 3,
-      'correct number inserted via insert_bulk';
+      'correct number inserted via _insert_bulk';
 
     is ((grep $_->charfield eq 'bar', $bulk_rs->all), 3,
-      'column set correctly via insert_bulk');
+      'column set correctly via _insert_bulk');
 
     $bulk_rs->delete;
   }
 
-# test invalid insert_bulk (missing required column)
+# test invalid _insert_bulk (missing required column)
 #
-# There should be a rollback, reconnect and the next valid insert_bulk should
+# There should be a rollback, reconnect and the next valid _insert_bulk should
 # succeed.
   throws_ok {
     $schema->resultset('Artist')->populate([
@@ -288,11 +288,11 @@ SQL
 # The second pattern is the error from fallback to regular array insert on
 # incompatible charset.
 # The third is for ::NoBindVars with no syb_has_blk.
-  'insert_bulk with missing required column throws error';
+  '_insert_bulk with missing required column throws error';
 
-# now test insert_bulk with IDENTITY_INSERT
+# now test _insert_bulk with IDENTITY_INSERT
   SKIP: {
-    skip 'insert_bulk not supported', 3
+    skip '_insert_bulk not supported', 3
       unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
@@ -313,13 +313,13 @@ SQL
           charfield => 'foo',
         },
       ]);
-    } 'insert_bulk with IDENTITY_INSERT via populate';
+    } '_insert_bulk with IDENTITY_INSERT via populate';
 
     is $bulk_rs->count, 3,
-      'correct number inserted via insert_bulk with IDENTITY_INSERT';
+      'correct number inserted via _insert_bulk with IDENTITY_INSERT';
 
     is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-      'column set correctly via insert_bulk with IDENTITY_INSERT');
+      'column set correctly via _insert_bulk with IDENTITY_INSERT');
 
     $bulk_rs->delete;
   }
@@ -434,7 +434,7 @@ SQL
 
     $rs->delete;
 
-    # now try insert_bulk with blobs and only blobs
+    # now try _insert_bulk with blobs and only blobs
     $new_str = $binstr{large} . 'bar';
     lives_ok {
       $rs->populate([
@@ -447,18 +447,18 @@ SQL
           clob => $new_str,
         },
       ]);
-    } 'insert_bulk with blobs does not die';
+    } '_insert_bulk with blobs does not die';
 
     is((grep $_->blob eq $binstr{large}, $rs->all), 2,
-      'IMAGE column set correctly via insert_bulk');
+      'IMAGE column set correctly via _insert_bulk');
 
     is((grep $_->clob eq $new_str, $rs->all), 2,
-      'TEXT column set correctly via insert_bulk');
+      'TEXT column set correctly via _insert_bulk');
 
-    # now try insert_bulk with blobs and a non-blob which also happens to be an
+    # now try _insert_bulk with blobs and a non-blob which also happens to be an
     # identity column
     SKIP: {
-      skip 'no insert_bulk without placeholders', 4
+      skip 'no _insert_bulk without placeholders', 4
         if $storage_type =~ /NoBindVars/i;
 
       $rs->delete;
@@ -480,16 +480,16 @@ SQL
             a_memo => 2,
           },
         ]);
-      } 'insert_bulk with blobs and explicit identity does NOT die';
+      } '_insert_bulk with blobs and explicit identity does NOT die';
 
       is((grep $_->blob eq $binstr{large}, $rs->all), 2,
-        'IMAGE column set correctly via insert_bulk with identity');
+        'IMAGE column set correctly via _insert_bulk with identity');
 
       is((grep $_->clob eq $new_str, $rs->all), 2,
-        'TEXT column set correctly via insert_bulk with identity');
+        'TEXT column set correctly via _insert_bulk with identity');
 
       is_deeply [ map $_->id, $rs->all ], [ 1,2 ],
-        'explicit identities set correctly via insert_bulk with blobs';
+        'explicit identities set correctly via _insert_bulk with blobs';
     }
 
     lives_and {

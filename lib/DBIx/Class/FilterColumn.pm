@@ -177,6 +177,8 @@ sub new {
 
 1;
 
+__END__
+
 =head1 NAME
 
 DBIx::Class::FilterColumn - Automatically convert column data
@@ -261,3 +263,14 @@ and one, using code like this:-
 
 In this case the C<filter_from_storage> is not required, as just
 passing the database value through to perl does the right thing.
+
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

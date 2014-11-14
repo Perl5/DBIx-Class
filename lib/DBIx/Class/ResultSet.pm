@@ -5,12 +5,12 @@ use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
+use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
-use Data::Compare (); # no imports!!! guard against insane architecture
 
 # not importing first() as it will clash with our own method
 use List::Util ();
@@ -59,7 +59,7 @@ just stores all the conditions needed to create the query.
 
 A basic ResultSet representing the data of an entire table is returned
 by calling C<resultset> on a L<DBIx::Class::Schema> and passing in a
-L<Source|DBIx::Class::Manual::Glossary/Source> name.
+L<Source|DBIx::Class::Manual::Glossary/ResultSource> name.
 
   my $users_rs = $schema->resultset('User');
 
@@ -656,26 +656,17 @@ sub _stack_cond {
     (ref $_ eq 'HASH' and ! keys %$_)
   ) and $_ = undef for ($left, $right);
 
-  # either on of the two undef or both undef
-  if ( ( (defined $left) xor (defined $right) ) or ! defined $left ) {
+  # either one of the two undef
+  if ( (defined $left) xor (defined $right) ) {
     return defined $left ? $left : $right;
   }
-
-  my $cond = $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
-
-  for my $c (grep { ref $cond->{$_} eq 'ARRAY' and ($cond->{$_}[0]||'') eq '-and' } keys %$cond) {
-
-    my @vals = sort @{$cond->{$c}}[ 1..$#{$cond->{$c}} ];
-    my @fin = shift @vals;
-
-    for my $v (@vals) {
-      push @fin, $v unless Data::Compare::Compare( $fin[-1], $v );
-    }
-
-    $cond->{$c} = (@fin == 1) ? $fin[0] : [-and => @fin ];
+  # both undef
+  elsif ( ! defined $left ) {
+    return undef
   }
-
-  $cond;
+  else {
+    return $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
+  }
 }
 
 =head2 search_literal
@@ -821,21 +812,19 @@ sub find {
     . "corresponding to the columns of the specified unique constraint '$constraint_name'"
     ) unless @c_cols == @_;
 
-    $call_cond = {};
     @{$call_cond}{@c_cols} = @_;
   }
 
-  my %related;
+  # process relationship data if any
   for my $key (keys %$call_cond) {
     if (
-      my $keyref = ref($call_cond->{$key})
+      length ref($call_cond->{$key})
         and
       my $relinfo = $rsrc->relationship_info($key)
+        and
+      # implicitly skip has_many's (likely MC)
+      (ref (my $val = delete $call_cond->{$key}) ne 'ARRAY' )
     ) {
-      my $val = delete $call_cond->{$key};
-
-      next if $keyref eq 'ARRAY'; # has_many for multi_create
-
       my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
         $relinfo->{cond}, $val, $key, $key
       );
@@ -843,22 +832,21 @@ sub find {
       $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
          if $crosstable or ref($rel_cond) ne 'HASH';
 
-      # supplement
-      @related{keys %$rel_cond} = values %$rel_cond;
+      # supplement condition
+      # relationship conditions take precedence (?)
+      @{$call_cond}{keys %$rel_cond} = values %$rel_cond;
     }
   }
-
-  # relationship conditions take precedence (?)
-  @{$call_cond}{keys %related} = values %related;
 
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
   my $final_cond;
   if (defined $constraint_name) {
     $final_cond = $self->_qualify_cond_columns (
 
-      $self->_build_unique_cond (
-        $constraint_name,
-        $call_cond,
+      $self->result_source->_minimal_valueset_satisfying_constraint(
+        constraint_name => $constraint_name,
+        values => ($self->_merge_with_rscond($call_cond))[0],
+        carp_on_nulls => 1,
       ),
 
       $alias,
@@ -873,23 +861,42 @@ sub find {
     # relationship
   }
   else {
+    my (@unique_queries, %seen_column_combinations, $ci, @fc_exceptions);
+
     # no key was specified - fall down to heuristics mode:
     # run through all unique queries registered on the resultset, and
     # 'OR' all qualifying queries together
-    my (@unique_queries, %seen_column_combinations);
-    for my $c_name ($rsrc->unique_constraint_names) {
+    #
+    # always start from 'primary' if it exists at all
+    for my $c_name ( sort {
+        $a eq 'primary' ? -1
+      : $b eq 'primary' ? 1
+      : $a cmp $b
+    } $rsrc->unique_constraint_names) {
+
       next if $seen_column_combinations{
         join "\x00", sort $rsrc->unique_constraint_columns($c_name)
       }++;
 
-      push @unique_queries, try {
-        $self->_build_unique_cond ($c_name, $call_cond, 'croak_on_nulls')
-      } || ();
+      try {
+        push @unique_queries, $self->_qualify_cond_columns(
+          $self->result_source->_minimal_valueset_satisfying_constraint(
+            constraint_name => $c_name,
+            values => ($self->_merge_with_rscond($call_cond))[0],
+            columns_info => ($ci ||= $self->result_source->columns_info),
+          ),
+          $alias
+        );
+      }
+      catch {
+        push @fc_exceptions, $_ if $_ =~ /\bFilterColumn\b/;
+      };
     }
 
-    $final_cond = @unique_queries
-      ? [ map { $self->_qualify_cond_columns($_, $alias) } @unique_queries ]
-      : $self->_non_unique_find_fallback ($call_cond, $attrs)
+    $final_cond =
+        @unique_queries   ? \@unique_queries
+      : @fc_exceptions    ? $self->throw_exception(join "; ", map { $_ =~ /(.*) at .+ line \d+$/s } @fc_exceptions )
+      :                     $self->_non_unique_find_fallback ($call_cond, $attrs)
     ;
   }
 
@@ -942,51 +949,20 @@ sub _qualify_cond_columns {
 }
 
 sub _build_unique_cond {
-  my ($self, $constraint_name, $extra_cond, $croak_on_null) = @_;
+  carp_unique sprintf
+    '_build_unique_cond is a private method, and moreover is about to go '
+  . 'away. Please contact the development team at %s if you believe you '
+  . 'have a genuine use for this method, in order to discuss alternatives.',
+    DBIx::Class::_ENV_::HELP_URL,
+  ;
 
-  my @c_cols = $self->result_source->unique_constraint_columns($constraint_name);
+  my ($self, $constraint_name, $cond, $croak_on_null) = @_;
 
-  # combination may fail if $self->{cond} is non-trivial
-  my ($final_cond) = try {
-    $self->_merge_with_rscond ($extra_cond)
-  } catch {
-    +{ %$extra_cond }
-  };
-
-  # trim out everything not in $columns
-  $final_cond = { map {
-    exists $final_cond->{$_}
-      ? ( $_ => $final_cond->{$_} )
-      : ()
-  } @c_cols };
-
-  if (my @missing = grep
-    { ! ($croak_on_null ? defined $final_cond->{$_} : exists $final_cond->{$_}) }
-    (@c_cols)
-  ) {
-    $self->throw_exception( sprintf ( "Unable to satisfy requested constraint '%s', no values for column(s): %s",
-      $constraint_name,
-      join (', ', map { "'$_'" } @missing),
-    ) );
-  }
-
-  if (
-    !$croak_on_null
-      and
-    !$ENV{DBIC_NULLABLE_KEY_NOWARN}
-      and
-    my @undefs = sort grep { ! defined $final_cond->{$_} } (keys %$final_cond)
-  ) {
-    carp_unique ( sprintf (
-      "NULL/undef values supplied for requested unique constraint '%s' (NULL "
-    . 'values in column(s): %s). This is almost certainly not what you wanted, '
-    . 'though you can set DBIC_NULLABLE_KEY_NOWARN to disable this warning.',
-      $constraint_name,
-      join (', ', map { "'$_'" } @undefs),
-    ));
-  }
-
-  return $final_cond;
+  $self->result_source->_minimal_valueset_satisfying_constraint(
+    constraint_name => $constraint_name,
+    values => $cond,
+    carp_on_nulls => !$croak_on_null
+  );
 }
 
 =head2 search_related
@@ -1172,7 +1148,7 @@ You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
-This method is deprecated and will be removed in 0.09. Use L</search()>
+This method is deprecated and will be removed in 0.09. Use L<search()|/search>
 instead. An example conversion is:
 
   ->search_like({ foo => 'bar' });
@@ -1407,11 +1383,7 @@ sub _construct_results {
   $self->{_result_inflator}{is_hri} = ( (
     ! $self->{_result_inflator}{is_core_row}
       and
-    $inflator_cref == (
-      require DBIx::Class::ResultClass::HashRefInflator
-        &&
-      DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
-    )
+    $inflator_cref == \&DBIx::Class::ResultClass::HashRefInflator::inflate_result
   ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_hri};
 
 
@@ -1488,6 +1460,9 @@ sub _construct_results {
         if @violating_idx;
 
       $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
+
+      utf8::upgrade($unrolled_non_null_cols_to_check)
+        if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
     }
 
     my $next_cref =
@@ -1567,8 +1542,8 @@ L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
 Note that changing the result_class will also remove any components
 that were originally loaded in the source class via
-L<DBIx::Class::ResultSource/load_components>. Any overloaded methods
-in the original source class will not run.
+L<load_components|Class::C3::Componentised/load_components( @comps )>.
+Any overloaded methods in the original source class will not run.
 
 =cut
 
@@ -2243,36 +2218,42 @@ case there are obviously no benefits to using this method over L</create>.
 sub populate {
   my $self = shift;
 
-  my ($data, $guard);
-
   # this is naive and just a quick check
   # the types will need to be checked more thoroughly when the
   # multi-source populate gets added
-  if (ref $_[0] eq 'ARRAY') {
-    return unless @{$_[0]};
-
-    $data = $_[0] if (ref $_[0][0] eq 'HASH' or ref $_[0][0] eq 'ARRAY');
-  }
-
-  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs')
-    unless $data;
+  my $data = (
+    ref $_[0] eq 'ARRAY'
+      and
+    ( @{$_[0]} or return )
+      and
+    ( ref $_[0][0] eq 'HASH' or ref $_[0][0] eq 'ARRAY' )
+      and
+    $_[0]
+  ) or $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
 
   # FIXME - no cref handling
   # At this point assume either hashes or arrays
 
   if(defined wantarray) {
-    my @results;
-
-    $guard = $self->result_source->schema->storage->txn_scope_guard
-      if ( @$data > 2 or ( @$data == 2 and ref $data->[0] eq 'ARRAY' ) );
+    my (@results, $guard);
 
     if (ref $data->[0] eq 'ARRAY') {
+      # column names only, nothing to do
+      return if @$data == 1;
+
+      $guard = $self->result_source->schema->storage->txn_scope_guard
+        if @$data > 2;
+
       @results = map
         { my $vals = $_; $self->new_result({ map { $data->[0][$_] => $vals->[$_] } 0..$#{$data->[0]} })->insert }
         @{$data}[1 .. $#$data]
       ;
     }
     else {
+
+      $guard = $self->result_source->schema->storage->txn_scope_guard
+        if @$data > 1;
+
       @results = map { $self->new_result($_)->insert } @$data;
     }
 
@@ -2301,6 +2282,8 @@ sub populate {
 
       # positional(!) explicit column list
       if ($i == 0) {
+        # column names only, nothing to do
+        return if @$data == 1;
 
         $colinfo->{$data->[0][$_]} = { pos => $_, name => $data->[0][$_] } and push @$colnames, $data->[0][$_]
           for 0 .. $#{$data->[0]};
@@ -2438,13 +2421,14 @@ sub populate {
   }
 
 ### start work
+  my $guard;
   $guard = $rsrc->schema->storage->txn_scope_guard
     if $slices_with_rels;
 
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->storage->insert_bulk(
+  $rsrc->storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {
@@ -3630,18 +3614,18 @@ sub _resolved_attrs {
       ];
   }
 
-  if ( defined $attrs->{order_by} ) {
-    $attrs->{order_by} = (
-      ref( $attrs->{order_by} ) eq 'ARRAY'
-      ? [ @{ $attrs->{order_by} } ]
-      : [ $attrs->{order_by} || () ]
-    );
-  }
+  for my $attr (qw(order_by group_by)) {
 
-  if ($attrs->{group_by} and ref $attrs->{group_by} ne 'ARRAY') {
-    $attrs->{group_by} = [ $attrs->{group_by} ];
-  }
+    if ( defined $attrs->{$attr} ) {
+      $attrs->{$attr} = (
+        ref( $attrs->{$attr} ) eq 'ARRAY'
+        ? [ @{ $attrs->{$attr} } ]
+        : [ $attrs->{$attr} || () ]
+      );
 
+      delete $attrs->{$attr} unless @{$attrs->{$attr}};
+    }
+  }
 
   # generate selections based on the prefetch helper
   my ($prefetch, @prefetch_select, @prefetch_as);
@@ -4110,6 +4094,21 @@ chain such that it matches existing relationships:
         },
     });
 
+Like elsewhere, literal SQL or literal values can be included by using a
+scalar reference or a literal bind value, and these values will be available
+in the result with C<get_column> (see also
+L<SQL::Abstract/Literal SQL and value type operators>):
+
+    # equivalent SQL: SELECT 1, 'a string', IF(my_column,?,?) ...
+    # bind values: $true_value, $false_value
+    columns => [
+        {
+            foo => \1,
+            bar => \q{'a string'},
+            baz => \[ 'IF(my_column,?,?)', $true_value, $false_value ],
+        }
+    ]
+
 =head2 +columns
 
 B<NOTE:> You B<MUST> explicitly quote C<'+columns'> when using this attribute.
@@ -4162,10 +4161,11 @@ names:
 
 B<NOTE:> You will almost always need a corresponding L</as> attribute when you
 use L</select>, to instruct DBIx::Class how to store the result of the column.
-Also note that the L</as> attribute has nothing to do with the SQL-side 'AS'
-identifier aliasing. You can however alias a function, so you can use it in
-e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
-attribute> supplied as shown in the example above.
+
+Also note that the L</as> attribute has B<nothing to do> with the SQL-side
+C<AS> identifier aliasing. You B<can> alias a function (so you can use it e.g.
+in an C<ORDER BY> clause), however this is done via the C<-as> B<select
+function attribute> supplied as shown in the example above.
 
 =head2 +select
 
@@ -4195,8 +4195,10 @@ Indicates DBIC-side names for object inflation. That is L</as> indicates the
 slot name in which the column value will be stored within the
 L<Row|DBIx::Class::Row> object. The value will then be accessible via this
 identifier by the C<get_column> method (or via the object accessor B<if one
-with the same name already exists>) as shown below. The L</as> attribute has
-B<nothing to do> with the SQL-side C<AS>. See L</select> for details.
+with the same name already exists>) as shown below.
+
+The L</as> attribute has B<nothing to do> with the SQL-side identifier
+aliasing C<AS>. See L</select> for details.
 
   $rs = $schema->resultset('Employee')->search(undef, {
     select => [
@@ -4372,8 +4374,10 @@ For a more in-depth discussion, see L</PREFETCHING>.
 
 This attribute is a shorthand for specifying a L</join> spec, adding all
 columns from the joined related sources as L</+columns> and setting
-L</collapse> to a true value. For example, the following two queries are
-equivalent:
+L</collapse> to a true value. It can be thought of as a rough B<superset>
+of the L</join> attribute.
+
+For example, the following two queries are equivalent:
 
   my $rs = $schema->resultset('Artist')->search({}, {
     prefetch => { cds => ['genre', 'tracks' ] },
@@ -4550,15 +4554,20 @@ A arrayref of columns to group by. Can include columns of joined tables.
 
 =back
 
-HAVING is a select statement attribute that is applied between GROUP BY and
-ORDER BY. It is applied to the after the grouping calculations have been
-done.
+The HAVING operator specifies a B<secondary> condition applied to the set
+after the grouping calculations have been done. In other words it is a
+constraint just like L</where> (and accepting the same
+L<SQL::Abstract syntax|SQL::Abstract/WHERE CLAUSES>) applied to the data
+as it exists after GROUP BY has taken place. Specifying L</having> without
+L</group_by> is a logical mistake, and a fatal error on most RDBMS engines.
+
+E.g.
 
   having => { 'count_employee' => { '>=', 100 } }
 
 or with an in-place function in which case literal SQL is required:
 
-  having => \[ 'count(employee) >= ?', [ count => 100 ] ]
+  having => \[ 'count(employee) >= ?', 100 ]
 
 =head2 distinct
 
@@ -4582,19 +4591,14 @@ setting is ignored and an appropriate warning is issued.
 
 =head2 where
 
-=over 4
-
-Adds to the WHERE clause.
+Adds extra conditions to the resultset, combined with the preexisting C<WHERE>
+conditions, same as the B<first> argument to the L<search operator|/search>
 
   # only return rows WHERE deleted IS NULL for all searches
   __PACKAGE__->resultset_attributes({ where => { deleted => undef } });
 
-Can be overridden by passing C<< { where => undef } >> as an attribute
-to a resultset.
-
-For more complicated where clauses see L<SQL::Abstract/WHERE CLAUSES>.
-
-=back
+Note that the above example is
+L<strongly discouraged|DBIx::Class::ResultSource/resultset_attributes>.
 
 =head2 cache
 
@@ -4800,11 +4804,15 @@ supported:
   [ undef,   $val ] === [ {}, $val ]
   $val              === [ {}, $val ]
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
+=cut

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# "autodie"
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
@@ -13,6 +14,41 @@ if [[ "$TRAVIS" != "true" ]] ; then
 fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
+
+ci_vm_state_text() {
+  echo "
+========================== CI System information ============================
+
+= CPUinfo
+$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+
+= Meminfo
+$(free -m -t)
+
+= Diskinfo
+$(sudo df -h)
+
+$(mount | grep '^/')
+
+= Kernel info
+$(uname -a)
+
+= Network Configuration
+$(ip addr)
+
+= Network Sockets Status
+$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+
+= Processlist
+$(sudo ps fuxa)
+
+= Environment
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+
+= Perl in use
+$(perl -V)
+============================================================================="
+}
 
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
@@ -123,7 +159,7 @@ parallel_installdeps_notest() {
     "echo \\
 \"$MODLIST\" \\
       | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$($TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+        'OUT=\$(maint/getstatus $TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }

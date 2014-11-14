@@ -204,6 +204,7 @@ use base 'DBIx::Class::Schema';
 use DBIx::Class::Carp;
 use Time::HiRes qw/gettimeofday/;
 use Try::Tiny;
+use Scalar::Util 'weaken';
 use namespace::clean;
 
 __PACKAGE__->mk_classdata('_filedata');
@@ -238,7 +239,7 @@ Call this to initialise a previously unversioned database. The table 'dbix_class
 
 Takes one argument which should be the version that the database is currently at. Defaults to the return value of L</schema_version>.
 
-See L</getting_started> for more details.
+See L</GETTING STARTED> for more details.
 
 =cut
 
@@ -589,9 +590,10 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  my $conn_info = $self->storage->connect_info;
-  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
-  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
+  weaken (my $w_self = $self );
+
+  $self->{vschema} = DBIx::Class::Version->connect(sub { $w_self->storage->dbh });
+  my $conn_attrs = $self->storage->_dbic_connect_attributes || {};
 
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -600,7 +602,7 @@ sub _on_connect
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_self->storage->dbh })->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
@@ -640,8 +642,8 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
-    $self->throw_exception("Unable to proceed without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('deploy') ) {
+    $self->throw_exception("Unable to proceed without $missing");
   }
 
   my $db_tr = SQL::Translator->new({
@@ -754,13 +756,17 @@ sub _source_exists
     };
 }
 
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
+
+=cut
+
 1;
-
-
-=head1 AUTHOR AND CONTRIBUTORS
-
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.

@@ -67,7 +67,7 @@ sub {
     },
 
     ! $args->{self_result_object} ? () : {
-     "$args->{foreign_alias}.cdid" => $args->{self_result_object}->cd
+     "$args->{foreign_alias}.cdid" => $args->{self_result_object}->get_column('cd')
     },
 
     ! $args->{foreign_values} ? () : {
@@ -113,6 +113,20 @@ __PACKAGE__->has_many (
         "$args->{foreign_alias}.position" => { '>' => $args->{self_result_object}->pos },
       }
     )
+  }
+);
+
+__PACKAGE__->has_many (
+  deliberately_broken_all_cd_tracks => __PACKAGE__,
+  sub {
+    # This is for test purposes only. A regular user does not
+    # need to sanity check the passed-in arguments, this is what
+    # the tests are for :)
+    my $args = &check_customcond_args;
+
+    return {
+      "$args->{foreign_alias}.cd" => "$args->{self_alias}.cd"
+    };
   }
 );
 

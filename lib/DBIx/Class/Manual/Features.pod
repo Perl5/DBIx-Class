@@ -6,9 +6,9 @@ DBIx::Class::Manual::Features - A boatload of DBIx::Class features with links to
 
 =head2 Large Community
 
-Currently there are 88 people listed as contributors to DBIC.  That ranges
-from documentation help, to test help, to added features, to entire database
-support.
+There are L<hundres of DBIC contributors|DBIx::Class/AUTHORS> listed in
+F<AUTHORS>. That ranges from documentation help, to test help, to added
+features, to entire database support.
 
 =head2 Active Community
 
@@ -479,7 +479,9 @@ on our system (Microsoft SQL) is:
    ) rpt_score
  WHERE rno__row__index BETWEEN 1 AND 1
 
-See: L<DBIx::Class::ResultSet/related_resultset>, L<DBIx::ClassResultSet/search_related>, and L<DBIx::Class::ResultSet/get_column>.
+See: L<DBIx::Class::ResultSet/related_resultset>,
+L<DBIx::Class::ResultSet/search_related>, and
+L<DBIx::Class::ResultSet/get_column>.
 
 =head2 bonus rel methods
 
@@ -661,5 +663,15 @@ Better:
     price => \['price + ?', [inc => $inc]],
  });
 
-See L<SQL::Abstract/Literal_SQL_with_placeholders_and_bind_values_(subqueries)>
+See L<SQL::Abstract/Literal SQL with placeholders and bind values (subqueries)>
 
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

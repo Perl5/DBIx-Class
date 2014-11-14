@@ -1,0 +1,27 @@
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+
+# we will be outputting *ENCODED* utf8, hence the raw open below
+# the file is already sanity-checked by xt/authors.t
+my @known_authors = do {
+  open (my $fh, '<:raw', 'AUTHORS') or die "Unable to open AUTHORS - can't happen: $!\n";
+  map { chomp; ( ( ! $_ or $_ =~ /^\s*\#/ ) ? () : $_ ) } <$fh>;
+} or die "Known AUTHORS file seems empty... can't happen...";
+
+$_ =~ s!^ ( [^\:]+ ) : \s !B<$1>:!x
+  for @known_authors;
+
+$_ =~ s!( \b https? :// [^\s\>]+ )!L<$1|$1>!x
+  for @known_authors;
+
+print join "\n\n",
+  '=encoding utf8',
+  '=over',
+  @known_authors,
+  '=back',
+  '',
+;
+
+1;

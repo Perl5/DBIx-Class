@@ -91,6 +91,9 @@ END {
 
   if (keys %removed_build_requires) {
     print "Regenerating META with author requires excluded\n";
+    # M::I understands unicode in meta but does not write with the right
+    # layers - fhtagn!!!
+    local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /Wide character in print/ };
     Meta->write;
   }
 

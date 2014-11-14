@@ -179,7 +179,7 @@ sub disconnect {
 
 # Even though we call $sth->finish for uses off the bulk API, there's still an
 # "active statement" warning on disconnect, which we throw away here.
-# This is due to the bug described in insert_bulk.
+# This is due to the bug described in _insert_bulk.
 # Currently a noop because 'prepare' is used instead of 'prepare_cached'.
   local $SIG{__WARN__} = sigwarn_silencer(qr/active statement/i)
     if $self->_is_bulk_storage;
@@ -233,7 +233,7 @@ Also sets the C<log_on_update> value for blob write operations. The default is
 C<1>, but C<0> is better if your database is configured for it.
 
 See
-L<DBD::Sybase/Handling_IMAGE/TEXT_data_with_syb_ct_get_data()/syb_ct_send_data()>.
+L<DBD::Sybase/Handling IMAGE/TEXT data with syb_ct_get_data()/syb_ct_send_data()>.
 
 =cut
 
@@ -501,7 +501,7 @@ sub update {
   }
 }
 
-sub insert_bulk {
+sub _insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
@@ -607,7 +607,7 @@ sub insert_bulk {
 # This ignores any data conversion errors detected by the client side libs, as
 # they are usually harmless.
   my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
-    Sub::Name::subname insert_bulk => sub {
+    Sub::Name::subname _insert_bulk_cslib_errhandler => sub {
       my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
 
       return 1 if $errno == 36;
@@ -685,7 +685,7 @@ sub insert_bulk {
 
     $self->_bulk_storage(undef);
     unshift @_, $self;
-    goto \&insert_bulk;
+    goto \&_insert_bulk;
   }
   elsif ($exception) {
 # rollback makes the bulkLogin connection unusable
@@ -717,7 +717,7 @@ sub _remove_blob_cols {
   return %blob_cols ? \%blob_cols : undef;
 }
 
-# same for insert_bulk
+# same for _insert_bulk
 sub _remove_blob_cols_array {
   my ($self, $source, $cols, $data) = @_;
 
@@ -1082,15 +1082,15 @@ for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 LIMITED QUERIES
 
-Because ASE does not have a good way to limit results in SQL that works for all
-types of queries, the limit dialect is set to
-L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ>.
+Because ASE does not have a good way to limit results in SQL that works for
+all types of queries, the limit dialect is set to
+L<GenericSubQ|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ>.
 
 Fortunately, ASE and L<DBD::Sybase> support cursors properly, so when
-L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ> is too slow you can use
-the L<software_limit|DBIx::Class::ResultSet/software_limit>
-L<DBIx::Class::ResultSet> attribute to simulate limited queries by skipping over
-records.
+L<GenericSubQ|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ> is too slow
+you can use the L<software_limit|DBIx::Class::ResultSet/software_limit>
+L<DBIx::Class::ResultSet> attribute to simulate limited queries by skipping
+over records.
 
 =head1 TEXT/IMAGE COLUMNS
 
@@ -1196,13 +1196,13 @@ bulk_insert using prepare_cached (see comments.)
 
 =back
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
-
-=cut
-# vim:sts=2 sw=2:
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

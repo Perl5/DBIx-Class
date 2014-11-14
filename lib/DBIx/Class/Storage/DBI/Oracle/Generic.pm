@@ -103,9 +103,6 @@ sub deployment_statements {
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
-  my $quote_char = $self->schema->storage->sql_maker->quote_char;
-  $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
-  $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
   if (
     ! exists $sqltargs->{producer_args}{oracle_version}
@@ -638,7 +635,7 @@ Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
 the L<DBIx::Class::Relationship> name is shortened and appended with half of an
 MD5 hash.
 
-See L<DBIx::Class::Storage/"relname_to_table_alias">.
+See L<DBIx::Class::Storage::DBI/relname_to_table_alias>.
 
 =cut
 
@@ -766,13 +763,16 @@ It uses the same syntax as L<DBIx::Class::ResultSet/order_by>
   # ORDER SIBLINGS BY
   #     firstname ASC
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

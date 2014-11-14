@@ -9,7 +9,7 @@ use Scalar::Util; # load before we break require()
 use Carp ();   # Carp is not used in the test, but we want to have it loaded for proper %INC comparison
 
 # a dummy test which lazy-loads more modules (so we can compare INC below)
-ok (1);
+is_deeply([], []);
 
 # record contents of %INC - makes sure there are no extra deps slipping into
 # Opt::Dep.
@@ -119,7 +119,6 @@ is_deeply(
 is_deeply(
   DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_pg'),
   {
-    $^O ne 'MSWin32' ? ('Sys::SigAction' => '0') : (),
     'DBD::Pg'        => '2.009002',
   }, 'optional dependencies for testing Postgres with ENV var ok');
 

@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 @YA::Film::ISA = 'Film';
 
@@ -105,7 +107,8 @@ sub taste_bad {
 
 sub fail_with_bad_object {
   my ($dir, $codir) = @_;
-  eval {
+  throws_ok {
+    local $SIG{__WARN__} = sigwarn_silencer( qr/\Qusually should inherit from the related ResultClass ('Director')/ );
     YA::Film->create(
       {
         Title             => 'Tastes Bad',
@@ -115,8 +118,7 @@ sub fail_with_bad_object {
         NumExplodingSheep => 23
       }
     );
-  };
-  ok $@, $@;
+  } qr/isn't a Director/;
 }
 
 package Foo;

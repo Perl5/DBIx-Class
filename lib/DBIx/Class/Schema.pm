@@ -108,11 +108,12 @@ are no matching Result classes like this:
 
   load_namespaces found ResultSet class $classname with no corresponding Result class
 
-If a Result class is found to already have a ResultSet class set using
-L</resultset_class> to some other class, you will be warned like this:
+If a ResultSource instance is found to already have a ResultSet class set
+using L<resultset_class|DBIx::Class::ResultSource/resultset_class> to some
+other class, you will be warned like this:
 
-  We found ResultSet class '$rs_class' for '$result', but it seems
-  that you had already set '$result' to use '$rs_set' instead
+  We found ResultSet class '$rs_class' for '$result_class', but it seems
+  that you had already set '$result_class' to use '$rs_set' instead
 
 =head3 Examples
 
@@ -1117,8 +1118,8 @@ sub deploy {
 
 A convenient shortcut to
 C<< $self->storage->deployment_statements($self, @args) >>.
-Returns the SQL statements used by L</deploy> and
-L<DBIx::Class::Schema::Storage/deploy>.
+Returns the statements used by L</deploy> and
+L<DBIx::Class::Storage/deploy>.
 
 =cut
 
@@ -1212,19 +1213,17 @@ reference to any schema, so are rather useless.
 sub thaw {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
-  require Storable;
   return Storable::thaw($obj);
 }
 
 =head2 freeze
 
-This doesn't actually do anything more than call L<Storable/nfreeze>, it is just
-provided here for symmetry.
+This doesn't actually do anything beyond calling L<nfreeze|Storable/SYNOPSIS>,
+it is just provided here for symmetry.
 
 =cut
 
 sub freeze {
-  require Storable;
   return Storable::nfreeze($_[1]);
 }
 
@@ -1247,7 +1246,6 @@ objects so their references to the schema object
 sub dclone {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
-  require Storable;
   return Storable::dclone($obj);
 }
 
@@ -1469,13 +1467,12 @@ sub compose_connection {
   carp_once "compose_connection deprecated as of 0.08000"
     unless $INC{"DBIx/Class/CDBICompat.pm"};
 
-  my $base = 'DBIx::Class::ResultSetProxy';
   try {
-    eval "require ${base};"
+    require DBIx::Class::ResultSetProxy;
   }
   catch {
     $self->throw_exception
-      ("No arguments to load_classes and couldn't load ${base} ($_)")
+      ("No arguments to load_classes and couldn't load DBIx::Class::ResultSetProxy ($_)")
   };
 
   if ($self eq $target) {
@@ -1483,7 +1480,7 @@ sub compose_connection {
     foreach my $source_name ($self->sources) {
       my $source = $self->source($source_name);
       my $class = $source->result_class;
-      $self->inject_base($class, $base);
+      $self->inject_base($class, 'DBIx::Class::ResultSetProxy');
       $class->mk_classdata(resultset_instance => $source->resultset);
       $class->mk_classdata(class_resolver => $self);
     }
@@ -1491,7 +1488,7 @@ sub compose_connection {
     return $self;
   }
 
-  my $schema = $self->compose_namespace($target, $base);
+  my $schema = $self->compose_namespace($target, 'DBIx::Class::ResultSetProxy');
   quote_sub "${target}::schema", '$s', { '$s' => \$schema };
 
   $schema->connection(@info);
@@ -1506,14 +1503,17 @@ sub compose_connection {
   return $schema;
 }
 
-1;
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHOR AND CONTRIBUTORS
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
+=head1 COPYRIGHT AND LICENSE
 
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
+
+1;

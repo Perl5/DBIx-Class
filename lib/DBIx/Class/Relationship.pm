@@ -13,6 +13,10 @@ __PACKAGE__->load_own_components(qw/
   Base
 /);
 
+1;
+
+__END__
+
 =head1 NAME
 
 DBIx::Class::Relationship - Inter-table relationships
@@ -629,17 +633,13 @@ L<DBIx::Class::ResultSet> for a L<list of standard resultset
 attributes|DBIx::Class::ResultSet/ATTRIBUTES> which can be assigned to
 relationships as well.
 
-=cut
+=head1 FURTHER QUESTIONS?
 
-1;
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 AUTHOR AND CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-See L<AUTHOR|DBIx::Class/AUTHOR> and L<CONTRIBUTORS|DBIx::Class/CONTRIBUTORS> in DBIx::Class
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
-=cut
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

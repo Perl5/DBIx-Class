@@ -78,8 +78,8 @@ deflation/inflation as defined in the storage class. For instance, for
 a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
 would be called on deflation/inflation. If the storage class does not
 provide a specialized inflator/deflator, C<[parse|format]_datetime> will
-be used as a fallback. See L<DateTime::Format> for more information on
-date formatting.
+be used as a fallback. See L<DateTime/Formatters And Stringification>
+for more information on date formatting.
 
 For more help with using components, see L<DBIx::Class::Manual::Component/USING>.
 
@@ -310,15 +310,13 @@ use the old way you'll see a warning - please fix your code then!
 
 =back
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-Aran Deltac <bluefeet@cpan.org>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

@@ -86,7 +86,7 @@ my ($sql, @bind) = $sa->select(
         { me => "cd" },
         [
             { "-join_type" => "LEFT", artist => "artist" },
-            { "artist.artistid" => "me.artist" },
+            { "artist.artistid" => { -ident => "me.artist" } },
         ],
     ],
     [ 'cd.cdid', 'cd.artist', 'cd.title', 'cd.year', 'artist.artistid', 'artist.name' ],
@@ -104,11 +104,11 @@ is_same_sql_bind(
         { me => "cd" },
         [
             { "-join_type" => "LEFT", track => "track" },
-            { "track.cd" => "me.cdid" },
+            { "track.cd" => { -ident => "me.cdid" } },
         ],
         [
             { artist => "artist" },
-            { "artist.artistid" => "me.artist" },
+            { "artist.artistid" => { -ident => "me.artist" } },
         ],
     ],
     [ 'track.title', 'cd.cdid', 'cd.artist', 'cd.title', 'cd.year', 'artist.artistid', 'artist.name' ],

@@ -146,8 +146,9 @@ Next, you can execute your complex query using bind parameters like this:
   );
 
 ... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
-that you cannot modify the rows it contains, e.g. cannot call L</update>,
-L</delete>, ...  on it).
+that you cannot modify the rows it contains, e.g. cannot call
+L<update|DBIx::Class::ResultSet/update> or
+L<delete|DBIx::Class::ResultSet/delete> on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
 
@@ -448,8 +449,8 @@ See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 =head2 Software Limits
 
 When your RDBMS does not have a working SQL limit mechanism (e.g. Sybase ASE)
-and L<GenericSubQ|SQL::Abstract::Limit/GenericSubQ> is either too slow or does
-not work at all, you can try the
+and L<GenericSubQ|DBIx::Class::SQLMaker::LimitDialects/GenericSubQ> is either
+too slow or does not work at all, you can try the
 L<software_limit|DBIx::Class::ResultSet/software_limit>
 L<DBIx::Class::ResultSet> attribute, which skips over records to simulate limits
 in the Perl layer.
@@ -1065,7 +1066,7 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 Sometimes you have a (set of) result objects that you want to put into a
 resultset without the need to hit the DB again. You can do that by using the
-L<set_cache|DBIx::Class::Resultset/set_cache> method:
+L<set_cache|DBIx::Class::ResultSet/set_cache> method:
 
  my @uploadable_groups;
  while (my $group = $groups->next) {
@@ -1380,9 +1381,11 @@ row.
   }
 
 In this example it might be hard to see where the rollbacks, releases and
-commits are happening, but it works just the same as for plain L<<txn_do>>: If
-the C<try>-block around C<txn_do> fails, a rollback is issued. If the C<try>
-succeeds, the transaction is committed (or the savepoint released).
+commits are happening, but it works just the same as for plain
+L<txn_do|DBIx::Class::Storage/txn_do>: If the L<try|Try::Tiny/try>-block
+around L<txn_do|DBIx::Class::Storage/txn_do> fails, a rollback is issued.
+If the L<try|Try::Tiny/try> succeeds, the transaction is committed
+(or the savepoint released).
 
 While you can get more fine-grained control using C<svp_begin>, C<svp_release>
 and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
@@ -1840,7 +1843,7 @@ See L<DBD::mysql> for further details.
 =head3 Oracle
 
 Information about Oracle support for unicode can be found in
-L<DBD::Oracle/Unicode>.
+L<DBD::Oracle/UNICODE>.
 
 =head3 PostgreSQL
 
@@ -2202,10 +2205,9 @@ classes dynamically based on the database schema then there will be a
 significant startup delay.
 
 For production use a statically defined schema (which can be generated
-using L<DBIx::Class::Schema::Loader|DBIx::Class::Schema::Loader> to dump
-the database schema once - see
+using L<DBIx::Class::Schema::Loader> to dump the database schema once - see
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> and
-L<dump_directory|DBIx::Class::Schema::Loader/dump_directory> for more
+L<dump_directory|DBIx::Class::Schema::Loader::Base/dump_directory> for more
 details on creating static schemas from a database).
 
 =head2 Move Common Startup into a Base Class
@@ -2251,10 +2253,11 @@ avoiding L<Module::Find|Module::Find>.
 
 =head2 Cached statements
 
-L<DBIx::Class> normally caches all statements with L<< prepare_cached()|DBI/prepare_cached >>.
-This is normally a good idea, but if too many statements are cached, the database may use too much
-memory and may eventually run out and fail entirely.  If you suspect this may be the case, you may want
-to examine DBI's L<< CachedKids|DBI/CachedKidsCachedKids_(hash_ref) >> hash:
+L<DBIx::Class> normally caches all statements with
+L<prepare_cached()|DBI/prepare_cached>. This is normally a good idea, but if
+too many statements are cached, the database may use too much memory and may
+eventually run out and fail entirely. If you suspect this may be the case,
+you may want to examine DBI's L<CachedKids|DBI/CachedKids> hash:
 
     # print all currently cached prepared statements
     print for keys %{$schema->storage->dbh->{CachedKids}};
@@ -2277,3 +2280,14 @@ You can accomplish this with L<Tie::Cache> or L<Tie::Cache::LRU>:
     });
 
 =cut
+
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

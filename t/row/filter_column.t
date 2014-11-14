@@ -259,4 +259,30 @@ throws_ok { DBICTest::Schema::Artist->filter_column( charfield => {} ) }
   'Correctly throws exception for empty attributes'
 ;
 
+FC_ON_PK_TEST: {
+  # there are cases in the wild that autovivify stuff deep in the
+  # colinfo guts. While this is insane, there is no alternative
+  # so at leats make sure it keeps working...
+
+  $schema->source('Artist')->column_info('artistid')->{_filter_info} ||= {};
+
+  for my $key ('', 'primary') {
+    lives_ok {
+      $schema->resultset('Artist')->find_or_create({ artistid => 42 }, { $key ? ( key => $key ) : () });
+    };
+  }
+
+
+  DBICTest::Schema::Artist->filter_column(artistid => {
+    filter_to_storage => sub { $_[1] * 100 },
+    filter_from_storage => sub { $_[1] - 100 },
+  });
+
+  for my $key ('', 'primary') {
+    throws_ok {
+      $schema->resultset('Artist')->find_or_create({ artistid => 42 }, { $key ? ( key => $key ) : () });
+    } qr/\QUnable to satisfy requested constraint 'primary', FilterColumn values not usable for column(s): 'artistid'/;
+  }
+}
+
 done_testing;

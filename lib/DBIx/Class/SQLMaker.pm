@@ -44,8 +44,16 @@ use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
 
+sub _quoting_enabled {
+  ( defined $_[0]->{quote_char} and length $_[0]->{quote_char} ) ? 1 : 0
+}
+
 # for when I need a normalized l/r pair
 sub _quote_chars {
+
+  # in case we are called in the old !!$sm->_quote_chars fashion
+  return () if !wantarray and ( ! defined $_[0]->{quote_char} or ! length $_[0]->{quote_char} );
+
   map
     { defined $_ ? $_ : '' }
     ( ref $_[0]->{quote_char} ? (@{$_[0]->{quote_char}}) : ( ($_[0]->{quote_char}) x 2 ) )
@@ -444,8 +452,6 @@ sub _join_condition {
 
   # Backcompat for the old days when a plain hashref
   # { 't1.col1' => 't2.col2' } meant ON t1.col1 = t2.col2
-  # Once things settle we should start warning here so that
-  # folks unroll their hacks
   if (
     ref $cond eq 'HASH'
       and
@@ -455,6 +461,12 @@ sub _join_condition {
       and
     ! ref ( (values %$cond)[0] )
   ) {
+    carp_unique(
+      "ResultSet {from} structures with conditions not conforming to the "
+    . "SQL::Abstract syntax are deprecated: you either need to stop abusing "
+    . "{from} altogether, or express the condition properly using the "
+    . "{ -ident => ... } operator"
+    );
     $cond = { keys %$cond => { -ident => values %$cond } }
   }
   elsif ( ref $cond eq 'ARRAY' ) {
@@ -521,14 +533,17 @@ sub _where_op_multicolumn_in {
   \[ join( ' IN ', shift @$$lhs, shift @$$rhs ), @$$lhs, @$$rhs ];
 }
 
-1;
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHORS
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-See L<DBIx::Class/CONTRIBUTORS>.
+=head1 COPYRIGHT AND LICENSE
 
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
+
+1;

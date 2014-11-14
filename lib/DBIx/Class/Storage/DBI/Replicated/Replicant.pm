@@ -38,7 +38,9 @@ when it gets too far behind the master, if it stops replicating, etc.
 
 This attribute DOES NOT reflect a replicant's internal status, i.e. if it is
 properly replicating from a master and has not fallen too many seconds behind a
-reliability threshold.  For that, use L</is_replicating>  and L</lag_behind_master>.
+reliability threshold. For that, use
+L<DBIx::Class::Storage::DBI::Replicated/is_replicating> and
+L<DBIx::Class::Storage::DBI::Replicated/lag_behind_master>.
 Since the implementation of those functions database specific (and not all DBIC
 supported DBs support replication) you should refer your database-specific
 storage driver for more information.
@@ -85,13 +87,16 @@ sub debugobj {
 L<http://en.wikipedia.org/wiki/Replicant>,
 L<DBIx::Class::Storage::DBI::Replicated>
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

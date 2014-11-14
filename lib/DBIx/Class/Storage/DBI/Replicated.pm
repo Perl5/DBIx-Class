@@ -1,9 +1,13 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
+use warnings;
+use strict;
+
 BEGIN {
-  use DBIx::Class;
-  die('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') . "\n" )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
+  require DBIx::Class::Optional::Dependencies;
+  if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('replicated') ) {
+    die "The following modules are required for Replicated storage support: $missing\n";
+  }
 }
 
 use Moose;
@@ -19,8 +23,6 @@ use Context::Preserve 'preserve_context';
 use Try::Tiny;
 
 use namespace::clean -except => 'meta';
-
-=encoding utf8
 
 =head1 NAME
 
@@ -265,7 +267,6 @@ my $method_dispatch = {
     build_datetime_parser
     last_insert_id
     insert
-    insert_bulk
     update
     delete
     dbh
@@ -315,6 +316,8 @@ my $method_dispatch = {
     _native_data_type
     _get_dbh
     sql_maker_class
+    insert_bulk
+    _insert_bulk
     _execute
     _do_query
     _dbh_execute
@@ -404,7 +407,7 @@ for my $method (@{$method_dispatch->{unimplemented}}) {
 
 =head2 read_handler
 
-Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
+Defines an object that implements the read side of L<DBIx::Class::Storage::DBI>.
 
 =cut
 
@@ -417,7 +420,7 @@ has 'read_handler' => (
 
 =head2 write_handler
 
-Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
+Defines an object that implements the write side of L<DBIx::Class::Storage::DBI>,
 as well as methods that don't write or read that can be called on only one
 storage, methods that return a C<$dbh>, and any methods that don't make sense to
 run on a replicant.
@@ -589,7 +592,8 @@ sub _build_read_handler {
 =head2 around: connect_replicants
 
 All calls to connect_replicants needs to have an existing $schema tacked onto
-top of the args, since L<DBIx::Storage::DBI> needs it, and any C<connect_info>
+top of the args, since L<DBIx::Class::Storage::DBI> needs it, and any
+L<connect_info|DBIx::Class::Storage::DBI/connect_info>
 options merged with the master, with replicant opts having higher priority.
 
 =cut
@@ -1113,18 +1117,16 @@ using the Schema clone method.
   ## $new_schema will use only the Master storage for all reads/writes while
   ## the $schema object will use replicated storage.
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-  John Napiorkowski <john.napiorkowski@takkle.com>
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-Based on code originated by:
+=head1 COPYRIGHT AND LICENSE
 
-  Norbert Csongrádi <bert@cpan.org>
-  Peter Siklósi <einon@einon.hu>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

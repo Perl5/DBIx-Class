@@ -3,6 +3,10 @@ package DBIx::Class::StartupCheck;
 use strict;
 use warnings;
 
+1;
+
+__END__
+
 =head1 NAME
 
 DBIx::Class::StartupCheck - Run environment checks on startup
@@ -30,22 +34,13 @@ warning message on startup sent to STDERR, explaining what to do about
 it and how to suppress the message. If you don't see any messages, you
 have nothing to worry about.
 
-=head1 CONTRIBUTORS
+=head1 FURTHER QUESTIONS?
 
-Nigel Metheringham
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-Brandon Black
+=head1 COPYRIGHT AND LICENSE
 
-Matt S. Trout
-
-=head1 AUTHOR
-
-Jon Schutz
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
-=cut
-
-1;
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 use lib 't/cdbi/testlib';
 use Film;
@@ -45,8 +47,8 @@ my $sj = Director->create({
   });
 
 {
-  eval { $btaste->Director($btaste) };
-  like $@, qr/Director/, "Can't set film as director";
+  throws_ok { $btaste->Director($btaste) }
+    qr/isn't a Director/, "Can't set film as director";
   is $btaste->Director->id, $pj->id, "PJ still the director";
 
   # drop from cache so that next retrieve() is from db
@@ -69,8 +71,7 @@ my $sj = Director->create({
 is $sj->id, 'Skippy Jackson', 'Create new director - Skippy';
 Film->has_a('CoDirector' => 'Director');
 {
-  eval { $btaste->CoDirector("Skippy Jackson") };
-  is $@, "", "Auto inflates";
+  lives_ok { $btaste->CoDirector("Skippy Jackson") };
   isa_ok $btaste->CoDirector, "Director";
   is $btaste->CoDirector->id, $sj->id, "To skippy";
 }
@@ -96,7 +97,8 @@ is(
   $pj = Director->retrieve('Peter Jackson');
 
   my $fail;
-  eval {
+  throws_ok {
+    local $SIG{__WARN__} = sigwarn_silencer( qr/\Qusually should inherit from the related ResultClass ('Director')/ );
     $fail = YA::Film->create({
         Title             => 'Tastes Bad',
         Director          => $sj,
@@ -104,8 +106,7 @@ is(
         Rating            => 'R',
         NumExplodingSheep => 23
       });
-  };
-  ok $@,    "Can't have film as codirector: $@";
+  } qr/isn't a Director/, "Can't have film as codirector";
   is $fail, undef, "We didn't get anything";
 
   my $tastes_bad = YA::Film->create({
@@ -226,8 +227,10 @@ SKIP: {
 }
 
 { # Broken has_a declaration
-  eval { Film->has_a(driector => "Director") };
-  like $@, qr/driector/, "Sensible error from has_a with incorrect column: $@";
+  throws_ok{ Film->has_a(driector => "Director") }
+    qr/No such column driector/,
+    "Sensible error from has_a with incorrect column"
+  ;
 }
 
 done_testing;

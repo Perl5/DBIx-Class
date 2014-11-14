@@ -242,7 +242,7 @@ To join two relations at the same level, use an arrayref instead:
 
 Or combine the two:
 
-  join => { room => [ 'chair', { table => 'leg' } ]
+  join => { room => [ 'chair', { table => 'leg' } ] }
 
 =head2 Table aliases
 
@@ -274,3 +274,13 @@ The aliases are: C<room> and C<room_2>.
 
 =cut
 
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

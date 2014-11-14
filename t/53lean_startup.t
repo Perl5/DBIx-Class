@@ -6,6 +6,9 @@ BEGIN {
   # these envvars *will* bring in more stuff than the baseline
   delete @ENV{qw(DBICTEST_SQLT_DEPLOY DBIC_TRACE)};
 
+  # make sure extras do not load even when this is set
+  $ENV{PERL_STRICTURES_EXTRA} = 1;
+
   unshift @INC, 't/lib';
   require DBICTest::Util::OverrideRequire;
 
@@ -50,7 +53,7 @@ BEGIN {
       CORE::require('Test/More.pm');
       Test::More::fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      if ($ENV{TEST_VERBOSE}) {
+      if ( $ENV{TEST_VERBOSE} or ! DBICTest::RunMode->is_plain ) {
         CORE::require('DBICTest/Util.pm');
         Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
       }
@@ -99,18 +102,17 @@ BEGIN {
     namespace::clean
     Try::Tiny
     Sub::Name
+    strictures
+    Sub::Defer
     Sub::Quote
 
     Scalar::Util
     List::Util
-    Data::Compare
+    Storable
 
     Class::Accessor::Grouped
     Class::C3::Componentised
     SQL::Abstract
-
-    Module::Runtime
-    File::Spec
   ));
 
   require DBICTest::Schema;
@@ -121,6 +123,9 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     Moo
+    Moo::Object
+    Method::Generate::Accessor
+    Method::Generate::Constructor
     Context::Preserve
   ));
 
@@ -164,6 +169,12 @@ BEGIN {
   my $s = DBICTest->init_schema;
   is ($s->resultset('Artist')->find(1)->name, 'Caterwauler McCrae');
   assert_no_missing_expected_requires();
+}
+
+# make sure we never loaded any of the strictures XS bullshit
+{
+  ok( ! exists $INC{ Module::Runtime::module_notional_filename($_) }, "$_ load never attempted" )
+    for qw(indirect multidimensional bareword::filehandles);
 }
 
 done_testing;

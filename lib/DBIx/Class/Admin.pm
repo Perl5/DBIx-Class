@@ -1,10 +1,14 @@
 package DBIx::Class::Admin;
 
+use warnings;
+use strict;
+
 # check deps
 BEGIN {
-  use DBIx::Class;
-  die('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('admin') ) {
+    die "The following extra modules are required for DBIx::Class::Admin: $missing\n";
+  }
 }
 
 use JSON::Any qw(DWIW PP JSON CPANEL XS);
@@ -582,13 +586,16 @@ sub _find_stanza {
   return $cfg;
 }
 
-=head1 AUTHOR
+=head1 FURTHER QUESTIONS?
 
-See L<DBIx::Class/CONTRIBUTORS>.
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-You may distribute this code under the same terms as Perl itself
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
 

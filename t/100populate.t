@@ -98,7 +98,7 @@ is(scalar @links, 2);
 is($links[0]->url, undef);
 is($links[1]->url, 'url42');
 
-## make sure populate -> insert_bulk honors fields/orders in void context
+## make sure populate -> _insert_bulk honors fields/orders in void context
 ## schema order
 $schema->populate('Link', [
 [ qw/id url title/ ],
@@ -191,7 +191,7 @@ is($links[2]->title, undef);
   my $rs = $schema->resultset('Link');
   $rs->delete;
 
-  # test insert_bulk with all literal sql (no binds)
+  # test populate with all literal sql (no binds)
 
   $rs->populate([
     (+{
@@ -229,7 +229,7 @@ is($links[2]->title, undef);
   my $rs = $schema->resultset('Link');
   $rs->delete;
 
-  # test insert_bulk with all literal/bind sql
+  # test populate with all literal/bind sql
   $rs->populate([
     (+{
         url => \['?', [ {} => 'cpan.org' ] ],
@@ -244,7 +244,7 @@ is($links[2]->title, undef);
 
   $rs->delete;
 
-  # test insert_bulk with mix literal and literal/bind
+  # test populate with mix literal and literal/bind
   $rs->populate([
     (+{
         url => \"'cpan.org'",
@@ -383,6 +383,7 @@ lives_ok {
 } 'literal+bind with semantically identical attrs works after normalization';
 
 # test all kinds of population with stringified objects
+# or with empty sets
 warnings_like {
   local $ENV{DBIC_RT79576_NOWARN};
 
@@ -395,79 +396,113 @@ warnings_like {
   my $rank = Math::BigInt->new(42);
 
   my $args = {
-    'stringifying objects after regular values' => [ map
-      { { name => $_, rank => $rank } }
-      (
+    'stringifying objects after regular values' => { AoA => [
+      [qw( name rank )],
+      ( map { [ $_, $rank ] } (
         'supplied before stringifying objects',
         'supplied before stringifying objects 2',
         $fn,
         $fn2,
-      )
-    ],
-    'stringifying objects before regular values' => [ map
-      { { name => $_, rank => $rank } }
-      (
+      )),
+    ]},
+
+    'stringifying objects before regular values' => { AoA => [
+      [qw( rank name )],
+      ( map { [ $rank, $_ ] } (
         $fn,
         $fn2,
         'supplied after stringifying objects',
         'supplied after stringifying objects 2',
-      )
-    ],
-    'stringifying objects between regular values' => [ map
-      { { name => $_, rank => $rank } }
-      (
+      )),
+    ]},
+
+    'stringifying objects between regular values' => { AoA => [
+      [qw( name rank )],
+      ( map { [ $_, $rank ] } (
         'supplied before stringifying objects',
         $fn,
         $fn2,
         'supplied after stringifying objects',
-      )
-    ],
-    'stringifying objects around regular values' => [ map
-      { { name => $_, rank => $rank } }
-      (
+      ))
+    ]},
+
+    'stringifying objects around regular values' => { AoA => [
+      [qw( rank name )],
+      ( map { [ $rank, $_ ] } (
         $fn,
         'supplied between stringifying objects',
         $fn2,
-      )
-    ],
+      ))
+    ]},
+
+    'single stringifying object' => { AoA => [
+      [qw( rank name )],
+      [ $rank, $fn ],
+    ]},
+
+    'empty set' => { AoA => [
+      [qw( name rank )],
+    ]},
   };
 
+  # generate the AoH equivalent based on the AoAs above
+  for my $bag (values %$args) {
+    $bag->{AoH} = [];
+    my @hdr = @{$bag->{AoA}[0]};
+    for my $v ( @{$bag->{AoA}}[1..$#{$bag->{AoA}}] ) {
+      push @{$bag->{AoH}}, my $h = {};
+      @{$h}{@hdr} = @$v;
+    }
+  }
+
   local $Storable::canonical = 1;
-  my $preimage = nfreeze([$fn, $fn2, $rank, $args]);
+  my $preimage = nfreeze($args);
+
 
   for my $tst (keys %$args) {
+    for my $type (qw(AoA AoH)) {
 
-    # test void ctx
-    $rs->delete;
-    $rs->populate($args->{$tst});
-    is_deeply(
-      $rs->all_hri,
-      $args->{$tst},
-      "Populate() $tst in void context"
-    );
+      # test void ctx
+      $rs->delete;
+      $rs->populate($args->{$tst}{$type});
+      is_deeply(
+        $rs->all_hri,
+        $args->{$tst}{AoH},
+        "Populate() $tst in void context"
+      );
 
-    # test non-void ctx
-    $rs->delete;
-    my $dummy = $rs->populate($args->{$tst});
-    is_deeply(
-      $rs->all_hri,
-      $args->{$tst},
-      "Populate() $tst in non-void context"
-    );
+      # test scalar ctx
+      $rs->delete;
+      my $dummy = $rs->populate($args->{$tst}{$type});
+      is_deeply(
+        $rs->all_hri,
+        $args->{$tst}{AoH},
+        "Populate() $tst in non-void context"
+      );
+
+      # test list ctx
+      $rs->delete;
+      my @dummy = $rs->populate($args->{$tst}{$type});
+      is_deeply(
+        $rs->all_hri,
+        $args->{$tst}{AoH},
+        "Populate() $tst in non-void context"
+      );
+    }
 
     # test create() as we have everything set up already
     $rs->delete;
-    $rs->create($_) for @{$args->{$tst}};
+    $rs->create($_) for @{$args->{$tst}{AoH}};
 
     is_deeply(
       $rs->all_hri,
-      $args->{$tst},
+      $args->{$tst}{AoH},
       "Create() $tst"
     );
   }
 
   ok (
-    ($preimage eq nfreeze( [$fn, $fn2, $rank, $args] )),
+    ($preimage eq nfreeze($args)),
     'Arguments fed to populate()/create() unchanged'
   );
 
@@ -482,7 +517,7 @@ warnings_like {
   )
     ? ()
     # one unique for populate() and create() each
-    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 2
+    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 4
 ], 'Data integrity warnings as planned';
 
 $schema->is_executed_sql_bind(

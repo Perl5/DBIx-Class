@@ -103,6 +103,9 @@ sub inflate_result {
   return $mk_hash->($_[2], $_[3], 'is_root');
 }
 
+1;
+
+__END__
 
 =head1 CAVEATS
 
@@ -131,6 +134,13 @@ The returned hash contains the raw database values.
 
 =back
 
-=cut
+=head1 FURTHER QUESTIONS?
 
-1;
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
