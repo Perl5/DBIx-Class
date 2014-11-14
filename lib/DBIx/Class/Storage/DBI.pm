@@ -2862,34 +2862,13 @@ sub create_ddl_dir {
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
 
-  $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
-  $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
-
   my $schema_version = $schema->schema_version || '1.x';
   $version ||= $schema_version;
 
-  $sqltargs = {
-    add_drop_table => 1,
-    ignore_constraint_names => 1,
-    ignore_index_names => 1,
-    %{$sqltargs || {}}
-  };
+  my ($sqlt, $sqlt_schema) = $self->_create_sqlt_obj($schema, $sqltargs);
+  my $sql = $self->_create_ddl($schema, $databases, $sqlt, $sqlt_schema);
 
-  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
-    $self->throw_exception("Can't create a ddl file without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
-  }
-
-  my $sqlt = SQL::Translator->new( $sqltargs );
-
-  $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-  my $sqlt_schema = $sqlt->translate({ data => $schema })
-    or $self->throw_exception ($sqlt->error);
-
-  foreach my $db (@$databases) {
-    $sqlt->reset();
-    $sqlt->{schema} = $sqlt_schema;
-    $sqlt->producer($db);
-
+  foreach my $db (keys %{$sql}) {
     my $file;
     my $filename = $schema->ddl_filename($db, $version, $dir);
     if (-e $filename && ($version eq $schema_version )) {
@@ -2898,16 +2877,11 @@ sub create_ddl_dir {
       unlink($filename);
     }
 
-    my $output = $sqlt->translate;
-    if(!$output) {
-      carp("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
-      next;
-    }
-    if(!open($file, ">$filename")) {
+    if(!open($file, '>', $filename)) {
       $self->throw_exception("Can't open $filename for writing ($!)");
       next;
     }
-    print $file $output;
+    print $file $sql->{$db};
     close($file);
 
     next unless ($preversion);
@@ -2970,13 +2944,62 @@ sub create_ddl_dir {
                                                   $dest_schema,   $db,
                                                   $sqltargs
                                                  );
-    if(!open $file, ">$difffile") {
+    if(!open $file, '>', $difffile) {
       $self->throw_exception("Can't write to $difffile ($!)");
       next;
     }
     print $file $diff;
     close($file);
   }
+}
+
+=head2 create_ddl
+
+=over 4
+
+=item Arguments: $schema, \@databases, \%sqlt_args
+
+=back
+
+Creates SQL DDL based on the Schema, for each of the specified
+database engines in C<\@databases>.
+(note: specify L<SQL::Translator> names, not L<DBI> driver names).
+
+In contrast to the L<create_ddl_dir> this function does not create diffs.
+It just returns the current schema.
+
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_identifiers>.
+
+If no arguments are passed, then the following default values are assumed:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=back
+
+By default, C<\%sqlt_args> will have
+
+ { add_drop_table => 1, ignore_constraint_names => 1, ignore_index_names => 1 }
+
+merged with the hash passed in. To disable any of those features, pass in a
+hashref like the following
+
+ { ignore_constraint_names => 0, # ... other options }
+
+WARNING: You are strongly advised to check all SQL files created, before applying
+them.
+
+=cut
+
+sub create_ddl {
+  my ($self, $schema, $databases, $sqltargs) = @_;
+
+  my ($sqlt, $sqlt_schema) = $self->_create_sqlt_obj($schema, $sqltargs);
+  return $self->_create_ddl($schema, $databases, $sqlt, $sqlt_schema);
 }
 
 =head2 deployment_statements
@@ -3240,6 +3263,55 @@ sub _is_binary_type {
   $data_type && ($self->_is_binary_lob_type($data_type)
     || $data_type =~ /(?:var)?(?:binary|bit|graphic)(?:\s*varying)?/i);
 }
+
+sub _create_ddl {
+  my ($self, $schema, $databases, $sqlt, $sqlt_schema) = @_;
+
+  $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
+  $databases = [$databases] if (ref($databases) ne 'ARRAY');
+
+  my $result = {};
+  foreach my $db (@$databases) {
+    $sqlt->reset();
+    $sqlt->{schema} = $sqlt_schema;
+    $sqlt->producer($db);
+
+    my $output = $sqlt->translate;
+    if (!$output) {
+      carp(
+        "Failed to translate to $db, skipping. (" . $sqlt->error . ")");
+      next;
+    }
+    $result->{$db} = $output;
+  }
+  return $result;
+}
+
+sub _create_sqlt_obj {
+  my ($self, $schema, $args) = @_;
+
+  $args = {
+    add_drop_table          => 1,
+    ignore_constraint_names => 1,
+    ignore_index_names      => 1,
+    %{ $args || {} }
+  };
+
+  unless (DBIx::Class::Optional::Dependencies->req_ok_for('deploy')) {
+    $self->throw_exception("Can't create a ddl file without "
+        . DBIx::Class::Optional::Dependencies->req_missing_for('deploy')
+    );
+  }
+
+  my $sqlt = SQL::Translator->new($args);
+  $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
+
+  my $sqlt_schema = $sqlt->translate({ data => $schema })
+    or $self->throw_exception($sqlt->error);
+
+  return ($sqlt, $sqlt_schema);
+}
+
 
 1;
 
