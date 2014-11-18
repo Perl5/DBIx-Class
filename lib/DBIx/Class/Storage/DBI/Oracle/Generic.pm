@@ -421,7 +421,7 @@ sub _dbi_attrs_for_bind {
 
   for my $i (0 .. $#$attrs) {
     if (keys %{$attrs->[$i]||{}} and my $col = $bind->[$i][0]{dbic_colname}) {
-      $attrs->[$i]{ora_field} = $col;
+      $attrs->[$i] = { %{$attrs->[$i]}, ora_field => $col };
     }
   }
 

@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Silence with_deferred_fk_checks() warning on PostgreSQL 9.4
+        - Fix updating multiple CLOB/BLOB columns on Oracle
 
     * Misc
         - Speed up skipping CDBICompat tests when dependencies are missing

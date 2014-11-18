@@ -271,7 +271,9 @@ EOF
     "id"     INT PRIMARY KEY,
     "bytea"  INT,
     "blob"   BLOB,
+    "blob2"  BLOB,
     "clob"   BLOB SUB_TYPE TEXT,
+    "clob2"  BLOB SUB_TYPE TEXT,
     "a_memo" INT
   )
   ]);

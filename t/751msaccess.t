@@ -288,7 +288,9 @@ EOF
       id     INT          NOT NULL PRIMARY KEY,
       bytea  INT          NULL,
       blob   IMAGE        NULL,
+      blob2  IMAGE        NULL,
       clob   TEXT         NULL,
+      clob2  TEXT         NULL,
       a_memo MEMO         NULL
     )
     ],{ RaiseError => 1, PrintError => 1 });

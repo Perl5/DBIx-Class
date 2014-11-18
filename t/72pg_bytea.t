@@ -41,7 +41,9 @@ my $dbh = $schema->storage->dbh;
             id              serial       NOT NULL   PRIMARY KEY,
             bytea           bytea        NULL,
             blob            bytea        NULL,
+            blob2           bytea        NULL,
             clob            text         NULL,
+            clob2           text         NULL,
             a_memo          text         NULL
         );
     ],{ RaiseError => 1, PrintError => 1 });
