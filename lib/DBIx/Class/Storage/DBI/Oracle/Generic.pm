@@ -419,11 +419,17 @@ sub _dbi_attrs_for_bind {
 
   my $attrs = $self->next::method($ident, $bind);
 
-  for my $i (0 .. $#$attrs) {
-    if (keys %{$attrs->[$i]||{}} and my $col = $bind->[$i][0]{dbic_colname}) {
-      $attrs->[$i]{ora_field} = $col;
-    }
-  }
+  # Push the column name into all bind attrs, make sure to *NOT* write into
+  # the existing $attrs->[$idx]{..} hashref, as it is cached by the call to
+  # next::method above.
+  $attrs->[$_]
+    and
+  keys %{ $attrs->[$_] }
+    and
+  $bind->[$_][0]{dbic_colname}
+    and
+  $attrs->[$_] = { %{$attrs->[$_]}, ora_field => $bind->[$_][0]{dbic_colname} }
+    for 0 .. $#$attrs;
 
   $attrs;
 }
