@@ -6,6 +6,7 @@ Revision history for DBIx::Class
           specific DateTime::Format dependencies
 
     * Fixes
+        - Fix updating multiple CLOB/BLOB columns on Oracle
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
         - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
