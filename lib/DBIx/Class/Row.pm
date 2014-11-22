@@ -723,7 +723,7 @@ sub _has_related_resultset_cached {
     ) or (
       $accessor eq 'filter'
         and
-      exists $self->{_inflated_column}{$relname}
+      exists $self->{_filter_relationship_data}{$relname}
     ) or (
       defined $self->{related_resultsets}{$relname}
         and
@@ -988,6 +988,7 @@ sub set_column {
       elsif ( $acc eq 'filter' and $rel_name eq $column) {
         delete $self->{related_resultsets}{$rel_name};
         #delete $self->{_relationship_data}{$rel_name};
+        delete $self->{_filter_relationship_data}{$rel_name};
         delete $self->{_inflated_column}{$rel_name};
       }
     }
@@ -1318,6 +1319,7 @@ sub inflate_result {
         $new->{_relationship_data}{$rel_name} = $rel_objects[0];
       }
       elsif ($relinfo->{attrs}{accessor} eq 'filter') {
+        $new->{_filter_relationship_data}{$rel_name} = $rel_objects[0];
         $new->{_inflated_column}{$rel_name} = $rel_objects[0];
       }
       else {

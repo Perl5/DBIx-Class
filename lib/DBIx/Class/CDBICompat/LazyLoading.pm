@@ -81,6 +81,7 @@ sub discard_changes {
   delete $self->{_column_data}{$_} for $self->is_changed;
   delete $self->{_dirty_columns};
   delete $self->{_relationship_data};
+  delete $self->{_filter_relationship_data};
 
   return $self;
 }

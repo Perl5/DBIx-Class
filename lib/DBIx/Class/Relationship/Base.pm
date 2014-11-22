@@ -611,9 +611,9 @@ sub related_resultset {
     elsif (
       $rel_info->{attrs}{accessor} eq 'filter'
         and
-      exists $self->{_inflated_column}{$rel}
+      exists $self->{_filter_relationship_data}{$rel}
     ) {
-      $rs->set_cache([ $self->{_inflated_column}{$rel} || () ]);
+      $rs->set_cache([ $self->{_filter_relationship_data}{$rel} || () ]);
     }
     $rs;
   };
