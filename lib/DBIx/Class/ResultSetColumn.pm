@@ -172,8 +172,7 @@ sub next {
 
 =back
 
-Returns all values of the column in the resultset (or C<undef> if
-there are none).
+Returns all values of the column in the resultset.
 
 Much like L<DBIx::Class::ResultSet/all> but returns values rather
 than result objects.
