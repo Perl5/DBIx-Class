@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           $dbh->{HandleError} (GH#101)
         - Fix parsing of DSNs containing driver arguments (GH#99)
         - Fix silencing of exceptions thrown by custom inflate_result() methods
+        - Fix complex prefetch when ordering over foreign boolean columns
+          ( Pg can't MAX(boolcol) despite being able to ORDER BY boolcol )
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)

@@ -162,6 +162,22 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
+# Pg is not able to MAX(boolean_column), sigh...
+#
+# Generally it would make more sense to have this in the SQLMaker hierarchy,
+# so that eventually { -max => ... } DTRT, but plans going forward are
+# murky at best
+#   --ribasushi
+#
+sub _minmax_operator_for_datatype {
+  #my ($self, $datatype, $want_max) = @_;
+
+  return ($_[2] ? 'BOOL_OR' : 'BOOL_AND')
+    if ($_[1] || '') =~ /\Abool(?:ean)?\z/i;
+
+  shift->next::method(@_);
+}
+
 sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
