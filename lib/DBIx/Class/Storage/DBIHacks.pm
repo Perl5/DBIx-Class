@@ -719,6 +719,8 @@ sub _group_over_selection {
       # for DESC, and group_by the root columns. The end result should be
       # exactly what we expect
       #
+
+      # both populated on the first loop over $o_idx
       $sql_maker ||= $self->sql_maker;
       $order_chunks ||= [
         map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by})
@@ -730,7 +732,7 @@ sub _group_over_selection {
       # to an ordering alias into a MIN/MAX
       $new_order_by[$o_idx] = \[
         sprintf( '%s( %s )%s',
-          ($is_desc ? 'MAX' : 'MIN'),
+          $self->_minmax_operator_for_datatype($chunk_ci->{data_type}, $is_desc),
           $chunk,
           ($is_desc ? ' DESC' : ''),
         ),
@@ -756,6 +758,12 @@ sub _group_over_selection {
     \@group_by,
     (@new_order_by ? \@new_order_by : $attrs->{order_by} ),  # same ref as original == unchanged
   );
+}
+
+sub _minmax_operator_for_datatype {
+  #my ($self, $datatype, $want_max) = @_;
+
+  $_[2] ? 'MAX' : 'MIN';
 }
 
 sub _resolve_ident_sources {

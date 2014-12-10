@@ -45,6 +45,8 @@ Revision history for DBIx::Class
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
         - Fix silencing of exceptions thrown by custom inflate_result() methods
+        - Fix complex prefetch when ordering over foreign boolean columns
+          ( Pg can't MAX(boolcol) despite being able to ORDER BY boolcol )
         - Fix incorrect data returned in a corner case of partial-select HRI
           invocation (no known manifestations of this bug in the field, see
           commit message for description of exact failure scenario)
