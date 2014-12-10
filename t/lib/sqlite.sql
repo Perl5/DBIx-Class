@@ -370,4 +370,4 @@ CREATE INDEX "fourkeys_to_twokeys_idx_f_foo_f_bar_f_hello_f_goodbye" ON "fourkey
 CREATE INDEX "fourkeys_to_twokeys_idx_t_artist_t_cd" ON "fourkeys_to_twokeys" ("t_artist", "t_cd");
 
 CREATE VIEW "year2000cds" AS
-    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";
+    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = '2000';
