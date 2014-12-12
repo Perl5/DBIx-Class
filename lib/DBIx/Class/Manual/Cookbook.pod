@@ -1737,12 +1737,11 @@ L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Row/update> family of
 methods:
 
   $resultset->create({
-    numbers => [1, 2, 3]
+    numbers => [1, 2, 3],
   });
 
   $result->update({
-    numbers => [1, 2, 3]
-    day => '2008-11-24'
+    numbers => [1, 2, 3],
   });
 
 In conditions (e.g. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
