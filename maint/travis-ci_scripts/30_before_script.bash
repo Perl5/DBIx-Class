@@ -132,10 +132,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
       # FIXME - need to get these off metacpan or something instead
       HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
 
-      # FIXME
-      # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
-      HARD_DEPS="parent $HARD_DEPS"
-
       if CPAN_supports_BUILDPL ; then
         # We will invoke a posibly MBT based BUILD-file, but we do not support
         # configure requires. So we not only need to install MBT but its prereqs
