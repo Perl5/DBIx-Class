@@ -6,7 +6,6 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use Scope::Guard ();
-use Scalar::Util 'weaken';
 use Context::Preserve 'preserve_context';
 use namespace::clean;
 
@@ -67,10 +66,10 @@ sub with_deferred_fk_checks {
 
   $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
 
-  weaken($self);
   return preserve_context {
+    my $inner_self = $self; # avoid nested closure leak on 5.8
     my $sg = Scope::Guard->new(sub {
-      $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+      $inner_self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
     });
     $sub->()
   } after => sub { $txn_scope_guard->commit };
