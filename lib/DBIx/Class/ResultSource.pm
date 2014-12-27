@@ -211,6 +211,12 @@ The length of your column, if it is a column type that can have a size
 restriction. This is currently only used to create tables from your
 schema, see L<DBIx::Class::Schema/deploy>.
 
+   { size => [ 9, 6 ] }
+
+For decimal or float values you can specify an ArrayRef in order to
+control precision, assuming your database's
+L<SQL::Translator::Producer> supports it.
+
 =item is_nullable
 
    { is_nullable => 1 }
