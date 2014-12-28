@@ -87,9 +87,6 @@ apt_install() {
   # flatten
   pkgs="$@"
 
-  # Need to do this at every step, the sources list may very well have changed
-  run_or_err "Updating APT available package list" "sudo apt-get update"
-
   run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 

@@ -44,24 +44,21 @@ export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \
 
 export CACHE_DIR="/tmp/poormanscache"
 
-# install some common tools from APT, more below unless CLEANTEST
-apt_install libapp-nopaste-perl tree
+# these will be installed no matter what, also some extras unless CLEANTEST
+common_packages="libapp-nopaste-perl tree"
 
-# The debian package is oddly broken - uses a /bin/env based shebang
-# so nothing works under a brew, fixed in libapp-nopaste-perl 0.92-3
-# http://changelogs.ubuntu.com/changelogs/pool/universe/liba/libapp-nopaste-perl/libapp-nopaste-perl_0.96-1/changelog
-#
-# Since the vm runs an old version of umbongo fix things ourselves
-sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
+if [[ "$CLEANTEST" = "true" ]]; then
 
-if [[ "$CLEANTEST" != "true" ]]; then
-### apt-get invocation - faster to grab everything at once
+  apt_install $common_packages
+
+else
+
   #
   # FIXME these debconf lines should automate the firebird config but do not :(((
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
-  apt_install libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
+  apt_install $common_packages libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
 
   run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
   run_or_err "Installing OracleXE manually from deb" "sudo dpkg -i $CACHE_DIR/apt_cache/oracle-xe_10.2.0.1-1.1_i386.deb || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
@@ -215,3 +212,10 @@ FileUsage       = 1
 
   export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
 fi
+
+# The debian package is oddly broken - uses a /bin/env based shebang
+# so nothing works under a brew, fixed in libapp-nopaste-perl 0.92-3
+# http://changelogs.ubuntu.com/changelogs/pool/universe/liba/libapp-nopaste-perl/libapp-nopaste-perl_0.96-1/changelog
+#
+# Since the vm runs an old version of umbongo fix things ourselves
+sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
