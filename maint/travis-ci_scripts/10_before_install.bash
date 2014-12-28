@@ -45,7 +45,7 @@ export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \
 export CACHE_DIR="/tmp/poormanscache"
 
 # install some common tools from APT, more below unless CLEANTEST
-apt_install libapp-nopaste-perl tree apt-transport-https
+apt_install libapp-nopaste-perl tree
 
 # FIXME - the debian package is oddly broken - uses a bin/env based shebang
 # so nothing works under a brew. Fix here until #debian-perl patches it up
@@ -58,15 +58,10 @@ if [[ "$CLEANTEST" != "true" ]]; then
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
-  # add extra APT repo for Oracle
-  # (https is critical - apt-get update can't seem to follow the 302)
-  sudo bash -c 'echo -e "\ndeb [arch=i386] https://oss.oracle.com/debian unstable main non-free" >> /etc/apt/sources.list'
+  apt_install libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
 
   run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
-
-  run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
-
-  apt_install libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
+  run_or_err "Installing OracleXE manually from deb" "sudo dpkg -i $CACHE_DIR/apt_cache/oracle-xe_10.2.0.1-1.1_i386.deb || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
