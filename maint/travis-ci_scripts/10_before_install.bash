@@ -47,8 +47,11 @@ export CACHE_DIR="/tmp/poormanscache"
 # install some common tools from APT, more below unless CLEANTEST
 apt_install libapp-nopaste-perl tree
 
-# FIXME - the debian package is oddly broken - uses a bin/env based shebang
-# so nothing works under a brew. Fix here until #debian-perl patches it up
+# The debian package is oddly broken - uses a /bin/env based shebang
+# so nothing works under a brew, fixed in libapp-nopaste-perl 0.92-3
+# http://changelogs.ubuntu.com/changelogs/pool/universe/liba/libapp-nopaste-perl/libapp-nopaste-perl_0.96-1/changelog
+#
+# Since the vm runs an old version of umbongo fix things ourselves
 sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
 
 if [[ "$CLEANTEST" != "true" ]]; then
