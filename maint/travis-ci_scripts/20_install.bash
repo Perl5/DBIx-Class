@@ -2,14 +2,11 @@
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-CPAN_MIRROR=$(echo "$PERL_CPANM_OPT" | grep -oP -- '--mirror\s+\S+' | head -n 1 | cut -d ' ' -f 2)
-if ! [[ "$CPAN_MIRROR" =~ "http://" ]] ; then
-  echo_err "Unable to extract primary cpan mirror from PERL_CPANM_OPT - something is wrong"
-  echo_err "PERL_CPANM_OPT: $PERL_CPANM_OPT"
-  CPAN_MIRROR="http://cpan.metacpan.org/"
-  PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
-  echo_err "Using $CPAN_MIRROR for the time being"
-fi
+# we need a mirror that both has the standard index and a backpan version rolled
+# into one, due to MDV testing
+CPAN_MIRROR="http://cpan.metacpan.org/"
+
+PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
 # do not set PERLBREW_CPAN_MIRROR - not all backpan-like mirrors have the perl tarballs
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
