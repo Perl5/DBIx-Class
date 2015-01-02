@@ -184,6 +184,7 @@ BEGIN {
   register_lazy_loadable_requires(qw(
     DBI
     Hash::Merge
+    Data::Dumper
   ));
 
   {

@@ -654,17 +654,15 @@ sub _stack_cond {
     (ref $_ eq 'HASH' and ! keys %$_)
   ) and $_ = undef for ($left, $right);
 
-  # either one of the two undef
-  if ( (defined $left) xor (defined $right) ) {
-    return defined $left ? $left : $right;
-  }
-  # both undef
-  elsif ( ! defined $left ) {
-    return undef
-  }
-  else {
-    return normalize_sqla_condition({ -and => [$left, $right] });
-  }
+  return(
+    # either one of the two undef
+    ( (defined $left) xor (defined $right) )  ? ( defined $left ? $left : $right )
+
+    # both undef
+  : ( ! defined $left )                       ? undef
+
+                                              : { -and => [$left, $right] }
+  );
 }
 
 =head2 search_literal
@@ -3529,6 +3527,9 @@ sub _resolved_attrs {
       if ( $attrs->{rows} =~ /[^0-9]/ or $attrs->{rows} <= 0 );
   }
 
+  # normalize where condition
+  $attrs->{where} = normalize_sqla_condition( $attrs->{where} )
+    if $attrs->{where};
 
   # default selection list
   $attrs->{columns} = [ $source->columns ]
