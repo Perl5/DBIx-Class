@@ -132,7 +132,7 @@ parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
   # one module spec per line
-  MODLIST="$(printf '%s\n' "$@")"
+  MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
   # We want to trap the output of each process and serially append them to
   # each other as opposed to just dumping a jumbled up mass-log that would

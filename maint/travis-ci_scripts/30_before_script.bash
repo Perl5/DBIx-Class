@@ -115,11 +115,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
     HARD_DEPS="$(echo $(make listalldeps))"
 
     # FIXME - temporary workaround for https://github.com/rjbs/Test-Deep/issues/22
-    HARD_DEPS="$(sed 's/Test::Deep//' <<< $HARD_DEPS)"
+    HARD_DEPS="$(sed 's/Test::Deep//' <<< $HARD_DEPS | sort -R)"
 
   else
 
-    HARD_DEPS="$(echo $(make listdeps))"
+    HARD_DEPS="$(echo $(make listdeps | sort -R))"
 
 ##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
     if ! CPAN_is_sane ; then
