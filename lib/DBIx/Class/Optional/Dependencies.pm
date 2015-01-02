@@ -634,8 +634,15 @@ my $reqs = {
 
 };
 
-our %req_availability_cache;
 
+
+### Public API
+
+# OO for (mistakenly considered) ease of extensibility, not due to any need to
+# carry state of any sort. This API is currently used outside, so leave as-is.
+# FIXME - make sure to not propagate this further if module is extracted as a
+# standalone library - keep the stupidity to a DBIC-secific shim!
+#
 sub req_list_for {
   my ($class, $group) = @_;
 
@@ -648,15 +655,17 @@ sub req_list_for {
   return { %$deps };
 }
 
+sub req_group_list {
+  return { map { $_ => { %{ $reqs->{$_}{req} || {} } } } (keys %$reqs) };
+}
 
-sub die_unless_req_ok_for {
+sub req_errorlist_for {
   my ($class, $group) = @_;
 
-  croak "die_unless_req_ok_for() expects a requirement group name"
+  croak "req_errorlist_for() expects a requirement group name"
     unless $group;
 
-  $class->_check_deps($group)->{status}
-    or die sprintf( "Required modules missing, unable to continue: %s\n", $class->_check_deps($group)->{missing} );
+  return $class->_check_deps($group)->{errorlist};
 }
 
 sub req_ok_for {
@@ -677,15 +686,21 @@ sub req_missing_for {
   return $class->_check_deps($group)->{missing};
 }
 
-sub req_errorlist_for {
+sub die_unless_req_ok_for {
   my ($class, $group) = @_;
 
-  croak "req_errorlist_for() expects a requirement group name"
+  croak "die_unless_req_ok_for() expects a requirement group name"
     unless $group;
 
-  return $class->_check_deps($group)->{errorlist};
+  $class->_check_deps($group)->{status}
+    or die sprintf( "Required modules missing, unable to continue: %s\n", $class->_check_deps($group)->{missing} );
 }
 
+
+
+### Private API
+
+our %req_availability_cache;
 sub _check_deps {
   my ($class, $group) = @_;
 
@@ -728,10 +743,6 @@ sub _check_deps {
   };
 }
 
-sub req_group_list {
-  return { map { $_ => { %{ $reqs->{$_}{req} || {} } } } (keys %$reqs) };
-}
-
 # This is to be called by the author only (automatically in Makefile.PL)
 sub _gen_pod {
   my ($class, $distver, $pod_dir) = @_;
@@ -763,7 +774,13 @@ sub _gen_pod {
   my $sqltver = $class->req_list_for ('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";
 
-  my @chunks = (
+
+  my @chunks;
+
+#@@
+#@@ HEADER
+#@@
+  push @chunks, (
     <<"EOC",
 #########################################################################
 #####################  A U T O G E N E R A T E D ########################
@@ -776,6 +793,13 @@ sub _gen_pod {
 EOC
     '=head1 NAME',
     "$class - Optional module dependency specifications (for module authors)",
+  );
+
+
+#@@
+#@@ SYNOPSIS HEADING
+#@@
+  push @chunks, (
     '=head1 SYNOPSIS',
     <<"EOS",
 Somewhere in your build-file (e.g. L<Module::Install>'s Makefile.PL):
@@ -797,6 +821,13 @@ Somewhere in your build-file (e.g. L<Module::Install>'s Makefile.PL):
 Note that there are some caveats regarding C<configure_requires()>, more info
 can be found at L<Module::Install/configure_requires>
 EOS
+  );
+
+
+#@@
+#@@ DESCRIPTION HEADING
+#@@
+  push @chunks, (
     '=head1 DESCRIPTION',
     <<'EOD',
 Some of the less-frequently used features of L<DBIx::Class> have external
@@ -808,6 +839,13 @@ its operation. This module is the central holding place for  the current list
 of such dependencies, for DBIx::Class core authors, and DBIx::Class extension
 authors alike.
 EOD
+  );
+
+
+#@@
+#@@ REQUIREMENT GROUPLIST HEADING
+#@@
+  push @chunks, (
     '=head1 CURRENT REQUIREMENT GROUPS',
     <<'EOD',
 Dependencies are organized in C<groups> and each group can list one or more
@@ -835,6 +873,10 @@ EOD
     );
   }
 
+
+#@@
+#@@ API DOCUMENTATION HEADING
+#@@
   push @chunks, (
     '=head1 METHODS',
     '=head2 req_group_list',
@@ -909,6 +951,13 @@ EOD
 Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group.
 EOD
+  );
+
+
+#@@
+#@@ FOOTER
+#@@
+  push @chunks, (
     '=head1 FURTHER QUESTIONS?',
     'Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.',
     '=head1 COPYRIGHT AND LICENSE',
@@ -920,6 +969,7 @@ L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 EOL
 
   );
+
 
   eval {
     open (my $fh, '>', $podfn) or die;
