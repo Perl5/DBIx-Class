@@ -16,10 +16,6 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
   PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
 
-  # FIXME inline-upgrade cpanm, work around https://github.com/travis-ci/travis-ci/issues/1477
-  cpanm_loc="$(which cpanm)"
-  run_or_err "Upgrading cpanm ($cpanm_loc) to latest stable" \
-    "wget -q -O $cpanm_loc cpanmin.us && chmod a+x $cpanm_loc"
 fi
 
 # Fixup CPANM_OPT to behave more like a traditional cpan client
@@ -50,7 +46,7 @@ if [[ -n "$BREWVER" ]] ; then
 # the presently installed libs
 # Idea stolen from
 # https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
-# Only works on 5.12+ (where sitlib was finally properly fixed)
+# Only works on 5.12+ (where sitelib was finally properly fixed)
 elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] && perl -M5.012 -e 1 &>/dev/null ; then
 
   echo_err "$(tstamp) Cleaning precompiled Travis-Perl"
