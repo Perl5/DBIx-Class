@@ -47,7 +47,14 @@ is_deeply (
 
   like (
     DBIx::Class::Optional::Dependencies->req_missing_for ('deploy'),
-    qr/^SQL::Translator \>\= \d/,
+    qr/
+      (?: \A|\s )
+      " SQL::Translator \~ \>\= [\d\.]+ "
+      \s
+      .*?
+      \Q(see DBIx::Class::Optional::Dependencies documentation for details)\E
+      \z
+    /x,
     'expected missing string contents',
   );
 

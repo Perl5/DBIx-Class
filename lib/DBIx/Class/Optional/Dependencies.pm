@@ -723,8 +723,8 @@ sub _check_deps {
     my $res;
 
     if (keys %errors) {
-      my $missing = join (', ', map { $deps->{$_} ? "$_ >= $deps->{$_}" : $_ } (sort keys %errors) );
-      $missing .= " (see $class for details)" if $reqs->{$group}{pod};
+      my $missing = join (', ', map { $deps->{$_} ? qq("${_}~>=$deps->{$_}") : $_ } (sort keys %errors) );
+      $missing .= " (see $class documentation for details)" if $reqs->{$group}{pod};
       $res = {
         status => 0,
         errorlist => \%errors,
@@ -926,7 +926,7 @@ be able to use a specific feature.
 For example if some of the requirements for C<deploy> are not available,
 the returned string could look like:
 
- SQL::Translator >= $sqltver (see $class for details)
+ "SQL::Translator~>=$sqltver" (see $class documentation for details)
 
 The author is expected to prepend the necessary text to this message before
 returning the actual error seen by the user.

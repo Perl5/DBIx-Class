@@ -6,6 +6,7 @@ Revision history for DBIx::Class
         - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
 
     * Misc
+        - Make the Optional::Dependencies error messages cpanm-friendly
         - Depend on newer SQL::Abstract (fixing overly-aggressive parenthesis
           opener: RT#99503)
         - Depend on newer Moo, fixing some interoperability issues:
