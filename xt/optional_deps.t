@@ -2,30 +2,26 @@ use strict;
 use warnings;
 no warnings qw/once/;
 
-use Test::More;
-use Test::Exception;
-use lib qw(t/lib);
-use Scalar::Util; # load before we break require()
-use Carp ();   # Carp is not used in the test, but we want to have it loaded for proper %INC comparison
-
-# a dummy test which lazy-loads more modules (so we can compare INC below)
-is_deeply([], []);
-
-# record contents of %INC - makes sure there are no extra deps slipping into
-# Opt::Dep.
-my $inc_before = [ keys %INC ];
-ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related is yet loaded');
-
+my ($inc_before, $inc_after);
 # DBIx::Class::Optional::Dependencies queries $ENV at compile time
 # to build the optional requirements
 BEGIN {
   $ENV{DBICTEST_PG_DSN} = '1';
   delete $ENV{DBICTEST_ORA_DSN};
+
+  require Carp;   # Carp is not used in the test, but in OptDeps, load for proper %INC comparison
+
+  $inc_before = [ keys %INC ];
+  require DBIx::Class::Optional::Dependencies;
+  $inc_after = [ keys %INC ];
 }
 
-use_ok 'DBIx::Class::Optional::Dependencies';
+use Test::More;
+use Test::Exception;
+use Scalar::Util; # load before we break require()
 
-my $inc_after = [ keys %INC ];
+ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related was loaded before inc-test')
+  unless $ENV{PERL5OPT}; # a defined PERL5OPT may inject extra deps crashing this test
 
 is_deeply (
   [ sort @$inc_after],
