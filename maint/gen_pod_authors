@@ -10,7 +10,7 @@ my @known_authors = do {
   map { chomp; ( ( ! $_ or $_ =~ /^\s*\#/ ) ? () : $_ ) } <$fh>;
 } or die "Known AUTHORS file seems empty... can't happen...";
 
-$_ =~ s!^ ( [^\:]+ ) : \s !B<$1>:!x
+$_ =~ s!^ ( [^\:]+ ) : \s !B<$1>: !x
   for @known_authors;
 
 $_ =~ s!( \b https? :// [^\s\>]+ )!L<$1|$1>!x
