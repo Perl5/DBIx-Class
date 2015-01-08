@@ -4,6 +4,9 @@ Revision history for DBIx::Class
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
         - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
+        - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
+          implementation changes due to RT#100648 made an alarm() based
+          timeout lock-prone.
 
     * Misc
         - Make the Optional::Dependencies error messages cpanm-friendly

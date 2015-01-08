@@ -407,9 +407,15 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
                 sub { die "DBICTestTimeout" },
               ));
 
-              alarm(2);
               $artist2 = $schema2->resultset('Artist')->find(1);
               $artist2->name('fooey');
+
+              # FIXME - this needs to go away in lieu of a non-retrying runner
+              # ( i.e. after solving RT#47005 )
+              local *DBIx::Class::Storage::DBI::_ping = sub { 1 }, DBIx::Class::_ENV_::OLD_MRO && Class::C3->reinitialize()
+                if DBIx::Class::_Util::modver_gt_or_eq( 'DBD::Pg' => '3.5.0' );
+
+              alarm(1);
               $artist2->update;
           };
 
