@@ -81,22 +81,33 @@ if [[ "$CLEANTEST" != "true" ]]; then
   # these APT sources do not mean anything to us anyway
   sudo rm -rf /etc/apt/sources.list.d/*
 
+  # the actual package is built for lucid, installs fine on both precise and trusty
+  sudo bash -c 'echo "deb http://archive.canonical.com/ubuntu precise partner" >> /etc/apt/sources.list'
+
   # never installed, this looks like trusty
   if [[ ! -d /var/lib/mysql ]] ; then
     sudo dpkg --add-architecture i386
-    extra_debs="postgresql mysql-server"
+    extra_debs="$extra_debs postgresql mysql-server"
+  fi
+
+  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
+  # someone needs to add a minimizing configuration akin to 9367d187
+  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
+    extra_debs="$extra_debs db2exc"
   fi
 
   run_or_err "Updating APT sources" "sudo apt-get update"
 
-  apt_install $extra_debs libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
+  apt_install $extra_debs libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
 
-  # need to stop them again
-  if [[ -n "$extra_debs" ]] ; then
-    for d in mysql postgresql ; do
-      sudo /etc/init.d/$d stop || /bin/true
-    done
-  fi
+  # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
+  # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
+  apt_install unixodbc-dev
+
+  # need to stop them again, in case we installed them above (trusty)
+  for d in mysql postgresql ; do
+    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
+  done
 
   run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poormanscache/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
   run_or_err "Installing OracleXE manually from deb" \
@@ -248,4 +259,24 @@ FileUsage       = 1
   '"
 
   export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
+
+### config db2exc
+  # we may have skipped installation due to low memory
+  if dpkg -l db2exc &>/dev/null ; then
+    # WTF is this world-writable?
+    # Strip the write bit so it doesn't trip Ubuntu's symlink-in-/tmp attack mitigation
+    sudo chmod -R o-w ~dasusr1/das
+
+    export DB2_HOME=/opt/ibm/db2/V9.7
+    export DBICTEST_DB2_DSN=dbi:DB2:DATABASE=dbictest
+    export DBICTEST_DB2_USER=db2inst1
+    export DBICTEST_DB2_PASS=abc123456
+
+    run_or_err "Set up DB2 users" \
+      "echo -e '$DBICTEST_DB2_PASS\n$DBICTEST_DB2_PASS' | sudo passwd $DBICTEST_DB2_USER"
+
+    run_or_err "Create DB2 database" \
+      "sudo -u $DBICTEST_DB2_USER -i db2 'CREATE DATABASE dbictest' && sudo -u $DBICTEST_DB2_USER -i db2 'ACTIVATE DATABASE dbictest'"
+  fi
+
 fi
