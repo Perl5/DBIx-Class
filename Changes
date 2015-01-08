@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
+          implementation changes due to RT#100648 made an alarm() based
+          timeout lock-prone.
+
     * Misc
         - Depend on newer Moo, to benefit from a safer runtime (RT#93004)
         - Fix intermittent failures in the LeakTracer on 5.18+
