@@ -654,7 +654,8 @@ sub req_group_list {
   }
 }
 
-sub req_errorlist_for {
+sub req_errorlist_for { shift->modreq_errorlist_for(@_) }  # deprecated
+sub modreq_errorlist_for {
   my $self = shift;
   $self->_errorlist_for_modreqs( $self->_groups_to_reqs(@_)->{modreqs} );
 }
@@ -1006,7 +1007,7 @@ Checks if L</req_ok_for> passes for the supplied group(s), and
 in case of failure throws an exception including the information
 from L</req_missing_for>.
 
-=head2 req_errorlist_for
+=head2 modreq_errorlist_for
 
 =over
 
@@ -1018,6 +1019,11 @@ from L</req_missing_for>.
 
 Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group(s).
+
+=head2 req_errorlist_for
+
+Deprecated method name, equivalent (via proxy) to L</modreq_errorlist_for>.
+
 EOC
 
 

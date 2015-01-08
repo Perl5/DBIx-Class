@@ -72,7 +72,7 @@ is_deeply (
     );
 
     like (
-      DBIx::Class::Optional::Dependencies->req_errorlist_for ($_)->{'SQL::Translator'},
+      DBIx::Class::Optional::Dependencies->modreq_errorlist_for ($_)->{'SQL::Translator'},
       qr/Optional Dep Test/,
       'custom exception found in errorlist',
     );
@@ -101,6 +101,7 @@ is_deeply (
     );
 
     is_deeply (
+      # use the deprecated method name
       DBIx::Class::Optional::Dependencies->req_errorlist_for ($_),
       undef,
       'expected empty errorlist',
