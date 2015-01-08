@@ -337,13 +337,6 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
 ## Test SELECT ... FOR UPDATE
 
   SKIP: {
-      if(eval { require Sys::SigAction }) {
-          Sys::SigAction->import( 'set_sig_handler' );
-      }
-      else {
-        skip "Sys::SigAction is not available", 6;
-      }
-
       my ($timed_out, $artist2);
 
       for my $t (
@@ -382,10 +375,23 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
 
           $timed_out = 0;
           eval {
-              my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
-              alarm(2);
+              # can not use %SIG assignment directly - we need sigaction below
+              # localization to a block still works however
+              local $SIG{ALRM};
+
+              POSIX::sigaction( POSIX::SIGALRM() => POSIX::SigAction->new(
+                sub { die "DBICTestTimeout" },
+              ));
+
               $artist2 = $schema2->resultset('Artist')->find(1);
               $artist2->name('fooey');
+
+              # FIXME - this needs to go away in lieu of a non-retrying runner
+              # ( i.e. after solving RT#47005 )
+              local *DBIx::Class::Storage::DBI::_ping = sub { 1 }, DBIx::Class::_ENV_::OLD_MRO && Class::C3->reinitialize()
+                if DBIx::Class::_Util::modver_gt_or_eq( 'DBD::Pg' => '3.5.0' );
+
+              alarm(1);
               $artist2->update;
               alarm(0);
           };
