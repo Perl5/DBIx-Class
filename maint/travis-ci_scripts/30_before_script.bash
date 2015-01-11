@@ -57,9 +57,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # handholding
 
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # FIXME - temporary workaround for https://github.com/rjbs/Test-Deep/issues/22
-    installdeps R/RJ/RJBS/Test-Deep-0.113.tar.gz
-
     # We are not "quite ready" for SQLA 1.99, do not consider it
     #
     installdeps 'SQL::Abstract~<1.99'
@@ -114,18 +111,12 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
     HARD_DEPS="$(echo $(make listalldeps))"
 
-    # FIXME - temporary workaround for https://github.com/rjbs/Test-Deep/issues/22
-    HARD_DEPS="$(sed 's/Test::Deep//' <<< $HARD_DEPS | sort -R)"
-
   else
 
     HARD_DEPS="$(echo $(make listdeps | sort -R))"
 
 ##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
     if ! CPAN_is_sane ; then
-
-      # FIXME - temporary workaround for https://github.com/rjbs/Test-Deep/issues/22
-      HARD_DEPS="R/RJ/RJBS/Test-Deep-0.113.tar.gz $HARD_DEPS"
 
       # DBD::SQLite reasonably wants DBI at config time
       perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
