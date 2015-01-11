@@ -56,19 +56,10 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
 
-  if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # We are not "quite ready" for SQLA 1.99, do not consider it
-    #
-    installdeps 'SQL::Abstract~<1.99'
-
-  else
-
-    if ! CPAN_is_sane ; then
-      # no configure_requires - we will need the usual suspects anyway
-      # without pre-installing these in one pass things like extract_prereqs won't work
-      installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
-    fi
-
+  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
+    # no configure_requires - we will need the usual suspects anyway
+    # without pre-installing these in one pass things like extract_prereqs won't work
+    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
   fi
 
 else
