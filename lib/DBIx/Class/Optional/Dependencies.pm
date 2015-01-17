@@ -697,7 +697,7 @@ sub die_unless_req_ok_for {
 
 
 
-### Private API
+### Private OO API
 
 our %req_availability_cache;
 sub _check_deps {
@@ -779,8 +779,7 @@ sub _gen_pod {
 #@@
 #@@ HEADER
 #@@
-  push @chunks, (
-    <<"EOC",
+  push @chunks, <<"EOC";
 #########################################################################
 #####################  A U T O G E N E R A T E D ########################
 #########################################################################
@@ -789,69 +788,85 @@ sub _gen_pod {
 # will be lost. If you need to change the generated text edit _gen_pod()
 # at the end of $modfn
 #
+
+=head1 NAME
+
+$class - Optional module dependency specifications (for module authors)
 EOC
-    '=head1 NAME',
-    "$class - Optional module dependency specifications (for module authors)",
-  );
 
 
 #@@
 #@@ SYNOPSIS HEADING
 #@@
-  push @chunks, (
-    '=head1 SYNOPSIS',
-    <<"EOS",
-Somewhere in your build-file (e.g. L<Module::Install>'s Makefile.PL):
+  push @chunks, <<"EOC";
+=head1 SYNOPSIS
+
+Somewhere in your build-file (e.g. L<ExtUtils::MakeMaker>'s F<Makefile.PL>):
 
   ...
 
-  configure_requires 'DBIx::Class' => '$distver';
-
-  require $class;
-
-  my \$deploy_deps = $class->req_list_for('deploy');
-
-  for (keys %\$deploy_deps) {
-    requires \$_ => \$deploy_deps->{\$_};
-  }
+  \$EUMM_ARGS{CONFIGURE_REQUIRES} = {
+    \%{ \$EUMM_ARGS{CONFIGURE_REQUIRES} || {} },
+    'DBIx::Class' => '$distver',
+  };
 
   ...
 
-Note that there are some caveats regarding C<configure_requires()>, more info
-can be found at L<Module::Install/configure_requires>
-EOS
-  );
+  my %DBIC_DEPLOY_DEPS = %{ eval {
+    require $class;
+    $class->req_list_for('deploy');
+  } || {} };
+
+  \$EUMM_ARGS{PREREQ_PM} = {
+    \%DBIC_DEPLOY_DEPS,
+    \%{ \$EUMM_ARGS{PREREQ_PM} || {} },
+  };
+
+  ...
+
+  ExtUtils::MakeMaker::WriteMakefile(\%EUMM_ARGS);
+
+B<Note>: The C<eval> protection within the example is due to support for
+requirements during L<the C<configure> build phase|CPAN::Meta::Spec/Phases>
+not being available on a sufficient portion of production installations of
+Perl. Robust support for such dependency requirements is available in the
+L<CPAN> installer only since version C<1.94_56> first made available for
+production with perl version C<5.12>. It is the belief of the current
+maintainer that support for requirements during the C<configure> build phase
+will not be sufficiently ubiquitous until the B<year 2020> at the earliest,
+hence the extra care demonstrated above. It should also be noted that some
+3rd party installers (e.g. L<cpanminus|App::cpanminus>) do the right thing
+with configure requirements independent from the versions of perl and CPAN
+available.
+EOC
 
 
 #@@
 #@@ DESCRIPTION HEADING
 #@@
-  push @chunks, (
-    '=head1 DESCRIPTION',
-    <<'EOD',
+  push @chunks, <<'EOC';
+=head1 DESCRIPTION
+
 Some of the less-frequently used features of L<DBIx::Class> have external
 module dependencies on their own. In order not to burden the average user
-with modules he will never use, these optional dependencies are not included
+with modules they will never use, these optional dependencies are not included
 in the base Makefile.PL. Instead an exception with a descriptive message is
-thrown when a specific feature is missing one or several modules required for
-its operation. This module is the central holding place for  the current list
+thrown when a specific feature can't find one or several modules required for
+its operation. This module is the central holding place for the current list
 of such dependencies, for DBIx::Class core authors, and DBIx::Class extension
 authors alike.
-EOD
-  );
+
+Dependencies are organized in L<groups|/CURRENT REQUIREMENT GROUPS> where each
+group can list one or more required modules, with an optional minimum version
+(or 0 for any version). The group name can be used in the
+L<public methods|/METHODS> as described below.
+EOC
 
 
 #@@
 #@@ REQUIREMENT GROUPLIST HEADING
 #@@
-  push @chunks, (
-    '=head1 CURRENT REQUIREMENT GROUPS',
-    <<'EOD',
-Dependencies are organized in C<groups> and each group can list one or more
-required modules, with an optional minimum version (or 0 for any version).
-The group name can be used in the
-EOD
-  );
+  push @chunks, '=head1 CURRENT REQUIREMENT GROUPS';
 
   for my $group (sort keys %$reqs) {
     my $p = $reqs->{$group}{pod}
@@ -876,99 +891,119 @@ EOD
 #@@
 #@@ API DOCUMENTATION HEADING
 #@@
-  push @chunks, (
-    '=head1 METHODS',
-    '=head2 req_group_list',
-    '=over',
-    '=item Arguments: none',
-    '=item Return Value: \%list_of_requirement_groups',
-    '=back',
-    <<'EOD',
+  push @chunks, <<'EOC';
+
+=head1 METHODS
+
+=head2 req_group_list
+
+=over
+
+=item Arguments: none
+
+=item Return Value: \%list_of_requirement_groups
+
+=back
+
 This method should be used by DBIx::Class packagers, to get a hashref of all
 dependencies keyed by dependency group. Each key (group name) can be supplied
 to one of the group-specific methods below.
-EOD
+The B<values> of the returned hash are currently a set of options B<without a
+well defined structure>. If you have use for any of the contents - contact the
+maintainers, instead of treating this as public (left alone stable) API.
 
-    '=head2 req_list_for',
-    '=over',
-    '=item Arguments: $group_name',
-    '=item Return Value: \%list_of_module_version_pairs',
-    '=back',
-    <<'EOD',
+=head2 req_list_for
+
+=over
+
+=item Arguments: $group_name
+
+=item Return Value: \%list_of_module_version_pairs
+
+=back
+
 This method should be used by DBIx::Class extension authors, to determine the
 version of modules a specific feature requires in the B<current> version of
-DBIx::Class. See the L</SYNOPSIS> for a real-world
-example.
-EOD
+DBIx::Class. See the L</SYNOPSIS> for a real-world example.
 
-    '=head2 req_ok_for',
-    '=over',
-    '=item Arguments: $group_name',
-    '=item Return Value: 1|0',
-    '=back',
-    <<'EOD',
+=head2 req_ok_for
+
+=over
+
+=item Arguments: $group_name
+
+=item Return Value: 1|0
+
+=back
+
 Returns true or false depending on whether all modules required by
 C<$group_name> are present on the system and loadable.
-EOD
 
-    '=head2 req_missing_for',
-    '=over',
-    '=item Arguments: $group_name',
-    '=item Return Value: $error_message_string',
-    '=back',
-    <<"EOD",
-Returns a single line string suitable for inclusion in larger error messages.
-This method would normally be used by DBIx::Class core-module author, to
-indicate to the user that he needs to install specific modules before he will
-be able to use a specific feature.
+=head2 req_missing_for
+
+=over
+
+=item Arguments: $group_name
+
+=item Return Value: $error_message_string
+
+=back
+
+This method would normally be used by DBIx::Class core-modules, to indicate to
+the user that they need to install specific modules before being able to use a
+specific feature set.
 
 For example if some of the requirements for C<deploy> are not available,
 the returned string could look like:
+EOC
 
- "SQL::Translator~>=$sqltver" (see $class documentation for details)
+  push @chunks, qq{ "SQL::Translator~>=$sqltver" (see $class documentation for details)};
 
+  push @chunks, <<'EOC';
 The author is expected to prepend the necessary text to this message before
 returning the actual error seen by the user.
-EOD
 
-    '=head2 die_unless_req_ok_for',
-    '=over',
-    '=item Arguments: $group_name',
-    '=back',
-    <<'EOD',
+=head2 die_unless_req_ok_for
+
+=over
+
+=item Arguments: $group_name
+
+=back
+
 Checks if L</req_ok_for> passes for the supplied C<$group_name>, and
 in case of failure throws an exception including the information
 from L</req_missing_for>.
-EOD
 
-    '=head2 req_errorlist_for',
-    '=over',
-    '=item Arguments: $group_name',
-    '=item Return Value: \%list_of_loaderrors_per_module',
-    '=back',
-    <<'EOD',
+=head2 req_errorlist_for
+
+=over
+
+=item Arguments: $group_name
+
+=item Return Value: \%list_of_loaderrors_per_module
+
+=back
+
 Returns a hashref containing the actual errors that occurred while attempting
 to load each module in the requirement group.
-EOD
-  );
-
+EOC
 
 #@@
 #@@ FOOTER
 #@@
-  push @chunks, (
-    '=head1 FURTHER QUESTIONS?',
-    'Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.',
-    '=head1 COPYRIGHT AND LICENSE',
-    <<'EOL',
+  push @chunks, <<'EOC';
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
 This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
 by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
 redistribute it and/or modify it under the same terms as the
 L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
-EOL
-
-  );
-
+EOC
 
   eval {
     open (my $fh, '>', $podfn) or die;
