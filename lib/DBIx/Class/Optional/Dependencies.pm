@@ -568,6 +568,42 @@ my $dbic_reqs = {
 
 ### Public API
 
+sub import {
+  my $class = shift;
+
+  if (@_) {
+
+    my $action = shift;
+
+    if ($action eq '-die_without') {
+      my $err;
+      {
+        local $@;
+        eval { $class->die_unless_req_ok_for(\@_); 1 }
+          or $err = $@;
+      }
+      die "\n$err\n" if $err;
+    }
+    elsif ($action eq '-list_missing') {
+      print $class->modreq_missing_for(\@_);
+      print "\n";
+      exit 0;
+    }
+    elsif ($action =~ /^-/) {
+      croak "Unknown import-time action '$action'";
+    }
+    else {
+      croak "$class is not an exporter, unable to import '$action'";
+    }
+  }
+
+  1;
+}
+
+sub unimport {
+  croak( __PACKAGE__ . " does not implement unimport" );
+}
+
 # OO for (mistakenly considered) ease of extensibility, not due to any need to
 # carry state of any sort. This API is currently used outside, so leave as-is.
 # FIXME - make sure to not propagate this further if module is extracted as a
@@ -972,6 +1008,38 @@ EOC
 #@@
   push @chunks, <<'EOC';
 
+=head1 IMPORT-LIKE ACTIONS
+
+Even though this module is not an L<Exporter>, it recognizes several C<actions>
+supplied to its C<import> method.
+
+=head2 -die_without
+
+=over
+
+=item Arguments: @group_names
+
+=back
+
+A convenience wrapper around L</die_unless_req_ok_for>:
+EOC
+
+  push @chunks, " use $class -die_without => qw(deploy admin);";
+
+  push @chunks, <<'EOC';
+
+=head2 -list_missing
+
+=over
+
+=item Arguments: @group_names
+
+=back
+
+A convenience wrapper around L</modreq_missing_for>:
+
+ perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,deploy,admin | cpanm
+
 =head1 METHODS
 
 =head2 req_group_list
@@ -1087,6 +1155,9 @@ EOC
   push @chunks, qq{ "SQL::Translator~>=$sqltver"};
 
   push @chunks, <<'EOC';
+
+See also L</-list_missing>.
+
 =head2 die_unless_req_ok_for
 
 =over
@@ -1097,7 +1168,7 @@ EOC
 
 Checks if L</req_ok_for> passes for the supplied group(s), and
 in case of failure throws an exception including the information
-from L</req_missing_for>.
+from L</req_missing_for>. See also L</-die_without>.
 
 =head2 modreq_errorlist_for
 
