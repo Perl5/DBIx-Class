@@ -109,9 +109,9 @@ my $test_requires = {
 if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   local @INC = ('lib', @INC);
   require DBIx::Class::Optional::Dependencies;
-  my $dep_req = DBIx::Class::Optional::Dependencies->req_list_for('deploy');
-  for (keys %$dep_req) {
-    test_requires ($_ => $dep_req->{$_})
+  my $deploy_req = DBIx::Class::Optional::Dependencies->req_list_for('deploy');
+  for (keys %$deploy_req) {
+    test_requires ($_ => $deploy_req->{$_})
   }
 }
 
