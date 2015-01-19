@@ -1,10 +1,11 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw(test_rdbms_pg binary_data);
 
 use strict;
 use warnings;
 
 use Test::More;
-use Try::Tiny;
+use DBIx::Class::_Util 'modver_gt_or_eq';
+
 use lib qw(t/lib);
 use DBICTest;
 
@@ -12,16 +13,11 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 
 my $schema = DBICTest::Schema->connect($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
 
-if ($schema->storage->_server_info->{normalized_dbms_version} >= 9.0) {
-  if (not try { DBD::Pg->VERSION('2.17.2') }) {
-    plan skip_all =>
-      'DBD::Pg < 2.17.2 does not work with Pg >= 9.0 BYTEA columns';
-  }
-}
-elsif (not try { DBD::Pg->VERSION('2.9.2') }) {
-  plan skip_all =>
-    'DBD::Pg < 2.9.2 does not work with BYTEA columns';
-}
+plan skip_all => 'DBD::Pg < 2.17.2 does not work with Pg >= 9.0 BYTEA columns' if (
+  ! modver_gt_or_eq('DBD::Pg', '2.17.2')
+    and
+  $schema->storage->_server_info->{normalized_dbms_version} >= 9.0
+);
 
 my $dbh = $schema->storage->dbh;
 

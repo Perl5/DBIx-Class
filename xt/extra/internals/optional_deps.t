@@ -137,13 +137,13 @@ is_deeply (
 
 # regular
   is_deeply(
-    DBIx::Class::Optional::Dependencies->modreq_list_for('test_rdbms_pg'),
+    DBIx::Class::Optional::Dependencies->modreq_list_for([shuffle qw( test_rdbms_pg binary_data )]),
     { 'DBD::Pg' => '2.009002' },
     'optional dependencies list for testing Postgres without envvar',
   );
 
   is_deeply(
-    DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_pg'),
+    DBIx::Class::Optional::Dependencies->req_list_for([shuffle qw( test_rdbms_pg binary_data )]),
     undef,
     'optional dependencies list for testing Postgres without envvar',
   );
@@ -168,26 +168,26 @@ is_deeply (
   );
 
   is(
-    DBIx::Class::Optional::Dependencies->req_missing_for([qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( rdbms_pg test_rdbms_pg binary_data )]),
     'DBD::Pg~2.009002 as well as the following group(s) of environment variables: DBICTEST_PG_DSN/..._USER/..._PASS',
     'optional dependencies for testing Postgres without envvar'
   );
 
   is(
-    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( test_rdbms_mysql test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( test_rdbms_mysql test_rdbms_pg binary_data)]),
     'DBD::mysql DBD::Pg~2.009002 as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS and DBICTEST_PG_DSN/..._USER/..._PASS',
     'optional dependencies for testing Postgres+MySQL without envvars'
   );
 
   $ENV{DBICTEST_PG_DSN} = 'boo';
   is_deeply (
-    DBIx::Class::Optional::Dependencies->modreq_list_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->modreq_list_for([shuffle qw( rdbms_pg test_rdbms_pg binary_data)]),
     { 'DBD::Pg' => '2.009002' },
     'optional module dependencies list for testing Postgres matches with envvar',
   );
 
   is(
-    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( rdbms_pg test_rdbms_pg binary_data )]),
     'DBD::Pg~2.009002',
     'optional dependencies error text for testing Postgres matches with evvar',
   );

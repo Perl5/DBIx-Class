@@ -235,6 +235,17 @@ my $dbic_reqs = {
     },
   },
 
+  binary_data => {
+    pod => {
+      title => 'Binary datatype support (certain RDBMS)',
+      desc =>
+        'Some RDBMS engines require specific versions of the respective DBD '
+      . 'driver for binary data support. Note that this group does not '
+      . 'require anything on its own, but instead is augmented by various '
+      . 'RDBMS-specific groups. See the documentation of each rbms_* group '
+      . 'for details',
+    },
+  },
 
   # this is just for completeness as SQLite
   # is a core dep of DBIC for testing
@@ -274,12 +285,18 @@ my $dbic_reqs = {
   rdbms_pg => {
     include => '_ic_dt_pg_base',
     req => {
-      # when changing this list make sure to adjust xt/optional_deps.t
       'DBD::Pg' => 0,
     },
     pod => {
       title => 'PostgreSQL support',
       desc => 'Modules required to connect to PostgreSQL',
+    },
+    augment => {
+      binary_data => {
+        req => {
+          'DBD::Pg' => '2.009002'
+        },
+      }
     },
   },
 
@@ -507,13 +524,6 @@ my $dbic_reqs = {
       DBICTEST_PG_USER => 0,
       DBICTEST_PG_PASS => 0,
     ],
-    req => {
-      # the order does matter because the rdbms support group might require
-      # a different version that the test group
-      #
-      # when changing this list make sure to adjust xt/optional_deps.t
-      'DBD::Pg' => '2.009002',  # specific version to test bytea
-    },
   },
 
   test_rdbms_mssql_odbc => {

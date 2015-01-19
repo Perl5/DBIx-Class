@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use DBIx::Class::Carp;
-use Try::Tiny;
+use DBIx::Class::_Util 'modver_gt_or_eq';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
@@ -168,19 +168,27 @@ sub bind_attribute_by_data_type {
   if ($self->_is_binary_lob_type($data_type)) {
     # this is a hot-ish codepath, use an escape flag to minimize
     # amount of function/method calls
-    # additionally version.pm is cock, and memleaks on multiple
-    # ->VERSION calls
     # the flag is stored in the DBD namespace, so that Class::Unload
     # will work (unlikely, but still)
-    unless ($DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__) {
-      if ($self->_server_info->{normalized_dbms_version} >= 9.0) {
-        try { DBD::Pg->VERSION('2.17.2'); 1 } or carp (
-          __PACKAGE__.': BYTEA columns are known to not work on Pg >= 9.0 with DBD::Pg < 2.17.2'
+    unless (
+      modver_gt_or_eq( 'DBD::Pg', '2.17.2' )
+        or
+      $DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__
+    ) {
+      if ( $self->_server_info->{normalized_dbms_version} >= 9.0 ) {
+        $self->throw_exception(
+          'BYTEA columns are known to not work on Pg >= 9.0 with DBD::Pg < 2.17.2'
         );
       }
-      elsif (not try { DBD::Pg->VERSION('2.9.2'); 1 } ) { carp (
-        __PACKAGE__.': DBD::Pg 2.9.2 or greater is strongly recommended for BYTEA column support'
-      )}
+      elsif (
+        my $missing = DBIx::Class::Optional::Dependencies->req_missing_for([qw( rdbms_pg binary_data )])
+      ) {
+        # FIXME - perhaps this needs to be an exception too...?
+        # too old to test sensibly...
+        carp (
+          __PACKAGE__ . ": BYTEA column support strongly recommends $missing"
+        )
+      }
 
       $DBD::Pg::__DBIC_DBD_VERSION_CHECK_DONE__ = 1;
     }
