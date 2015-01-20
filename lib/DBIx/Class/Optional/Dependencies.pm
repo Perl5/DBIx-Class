@@ -27,93 +27,9 @@ my $moose_basic = {
   'MooseX::Types::LoadableClass'  => '0.011',
 };
 
-my $replicated = {
-  %$moose_basic,
-};
-
-my $admin_basic = {
-  %$moose_basic,
-  %$min_json_any,
-  'MooseX::Types::Path::Class'    => '0.05',
-  'MooseX::Types::JSON'           => '0.02',
-};
-
-my $admin_script = {
-  %$moose_basic,
-  %$admin_basic,
-  'Getopt::Long::Descriptive' => '0.081',
-  'Text::CSV'                 => '1.16',
-};
-
-my $datetime_basic = {
-  'DateTime'                      => '0.55',
-  'DateTime::Format::Strptime'    => '1.2',
-};
-
-my $id_shortener = {
-  'Math::BigInt'                  => '1.80',
-  'Math::Base36'                  => '0.07',
-};
-
-my $rdbms_sqlite = {
-  'DBD::SQLite'                   => '0',
-};
-my $rdbms_pg = {
-  'DBD::Pg'                       => '0',
-};
-my $rdbms_mssql_odbc = {
-  'DBD::ODBC'                     => '0',
-};
-my $rdbms_mssql_sybase = {
-  'DBD::Sybase'                   => '0',
-};
-my $rdbms_mssql_ado = {
-  'DBD::ADO'                      => '0',
-};
-my $rdbms_msaccess_odbc = {
-  'DBD::ODBC'                     => '0',
-};
-my $rdbms_msaccess_ado = {
-  'DBD::ADO'                      => '0',
-};
-my $rdbms_mysql = {
-  'DBD::mysql'                    => '0',
-};
-my $rdbms_oracle = {
-  'DBD::Oracle'                   => '0',
-  %$id_shortener,
-};
-my $rdbms_ase = {
-  'DBD::Sybase'                   => '0',
-};
-my $rdbms_db2 = {
-  'DBD::DB2'                      => '0',
-};
-my $rdbms_db2_400 = {
-  'DBD::ODBC'                     => '0',
-};
-my $rdbms_informix = {
-  'DBD::Informix'                 => '0',
-};
-my $rdbms_sqlanywhere = {
-  'DBD::SQLAnywhere'              => '0',
-};
-my $rdbms_sqlanywhere_odbc = {
-  'DBD::ODBC'                     => '0',
-};
-my $rdbms_firebird = {
-  'DBD::Firebird'                 => '0',
-};
-my $rdbms_firebird_interbase = {
-  'DBD::InterBase'                => '0',
-};
-my $rdbms_firebird_odbc = {
-  'DBD::ODBC'                     => '0',
-};
-
 my $dbic_reqs = {
   replicated => {
-    req => $replicated,
+    req => $moose_basic,
     pod => {
       title => 'Storage::Replicated',
       desc => 'Modules required for L<DBIx::Class::Storage::DBI::Replicated>',
@@ -121,16 +37,18 @@ my $dbic_reqs = {
   },
 
   test_replicated => {
+    include => 'replicated',
     req => {
-      %$replicated,
-      'Test::Moose'               => '0',
+      'Test::Moose' => '0',
     },
   },
 
-
   admin => {
     req => {
-      %$admin_basic,
+      %$moose_basic,
+      %$min_json_any,
+      'MooseX::Types::Path::Class' => '0.05',
+      'MooseX::Types::JSON' => '0.02',
     },
     pod => {
       title => 'DBIx::Class::Admin',
@@ -139,8 +57,10 @@ my $dbic_reqs = {
   },
 
   admin_script => {
+    include => 'admin',
     req => {
-      %$admin_script,
+      'Getopt::Long::Descriptive' => '0.081',
+      'Text::CSV' => '1.16',
     },
     pod => {
       title => 'dbicadmin',
@@ -159,7 +79,10 @@ my $dbic_reqs = {
   },
 
   id_shortener => {
-    req => $id_shortener,
+    req => {
+      'Math::BigInt' => '1.80',
+      'Math::Base36' => '0.07',
+    },
   },
 
   test_component_accessor => {
@@ -199,8 +122,8 @@ my $dbic_reqs = {
   },
 
   test_admin_script => {
+    include => 'admin_script',
     req => {
-      %$admin_script,
       %$test_and_dist_json_any,
       'JSON' => 0,
       'JSON::PP' => 0,
@@ -223,12 +146,15 @@ my $dbic_reqs = {
   },
 
   test_dt => {
-    req => $datetime_basic,
+    req => {
+      'DateTime'                    => '0.55',
+      'DateTime::Format::Strptime'  => '1.2',
+    },
   },
 
   test_dt_sqlite => {
+    include => 'test_dt',
     req => {
-      %$datetime_basic,
       # t/36datetime.t
       # t/60core.t
       'DateTime::Format::SQLite'  => '0',
@@ -236,8 +162,8 @@ my $dbic_reqs = {
   },
 
   test_dt_mysql => {
+    include => 'test_dt',
     req => {
-      %$datetime_basic,
       # t/inflate/datetime_mysql.t
       # (doesn't need Mysql itself)
       'DateTime::Format::MySQL'   => '0',
@@ -245,8 +171,8 @@ my $dbic_reqs = {
   },
 
   test_dt_pg => {
+    include => 'test_dt',
     req => {
-      %$datetime_basic,
       # t/inflate/datetime_pg.t
       # (doesn't need PG itself)
       'DateTime::Format::Pg'      => '0.16004',
@@ -254,19 +180,31 @@ my $dbic_reqs = {
   },
 
   test_cdbicompat => {
+    include => 'test_dt',
     req => {
       'Class::DBI::Plugin::DeepAbstractSearch' => '0',
-      %$datetime_basic,
       'Time::Piece::MySQL'        => '0',
       'Date::Simple'              => '3.03',
     },
+  },
+
+  rdbms_generic_odbc => {
+    req => {
+      'DBD::ODBC' => 0,
+    }
+  },
+
+  rdbms_generic_ado => {
+    req => {
+      'DBD::ADO' => 0,
+    }
   },
 
   # this is just for completeness as SQLite
   # is a core dep of DBIC for testing
   rdbms_sqlite => {
     req => {
-      %$rdbms_sqlite,
+      'DBD::SQLite' => 0,
     },
     pod => {
       title => 'SQLite support',
@@ -277,7 +215,7 @@ my $dbic_reqs = {
   rdbms_pg => {
     req => {
       # when changing this list make sure to adjust xt/optional_deps.t
-      %$rdbms_pg,
+      'DBD::Pg' => 0,
     },
     pod => {
       title => 'PostgreSQL support',
@@ -286,9 +224,7 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_odbc => {
-    req => {
-      %$rdbms_mssql_odbc,
-    },
+    include => 'rdbms_generic_odbc',
     pod => {
       title => 'MSSQL support via DBD::ODBC',
       desc => 'Modules required to connect to MSSQL via DBD::ODBC',
@@ -297,7 +233,7 @@ my $dbic_reqs = {
 
   rdbms_mssql_sybase => {
     req => {
-      %$rdbms_mssql_sybase,
+      'DBD::Sybase' => 0,
     },
     pod => {
       title => 'MSSQL support via DBD::Sybase',
@@ -306,9 +242,7 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_ado => {
-    req => {
-      %$rdbms_mssql_ado,
-    },
+    include => 'rdbms_generic_ado',
     pod => {
       title => 'MSSQL support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MSSQL via DBD::ADO. This particular DBD is available on Windows only',
@@ -316,9 +250,7 @@ my $dbic_reqs = {
   },
 
   rdbms_msaccess_odbc => {
-    req => {
-      %$rdbms_msaccess_odbc,
-    },
+    include => 'rdbms_generic_odbc',
     pod => {
       title => 'MS Access support via DBD::ODBC',
       desc => 'Modules required to connect to MS Access via DBD::ODBC',
@@ -326,9 +258,7 @@ my $dbic_reqs = {
   },
 
   rdbms_msaccess_ado => {
-    req => {
-      %$rdbms_msaccess_ado,
-    },
+    include => 'rdbms_generic_ado',
     pod => {
       title => 'MS Access support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MS Access via DBD::ADO. This particular DBD is available on Windows only',
@@ -337,7 +267,7 @@ my $dbic_reqs = {
 
   rdbms_mysql => {
     req => {
-      %$rdbms_mysql,
+      'DBD::mysql' => 0,
     },
     pod => {
       title => 'MySQL support',
@@ -346,8 +276,9 @@ my $dbic_reqs = {
   },
 
   rdbms_oracle => {
+    include => 'id_shortener',
     req => {
-      %$rdbms_oracle,
+      'DBD::Oracle' => 0,
     },
     pod => {
       title => 'Oracle support',
@@ -357,7 +288,7 @@ my $dbic_reqs = {
 
   rdbms_ase => {
     req => {
-      %$rdbms_ase,
+      'DBD::Sybase' => 0,
     },
     pod => {
       title => 'Sybase ASE support',
@@ -367,7 +298,7 @@ my $dbic_reqs = {
 
   rdbms_db2 => {
     req => {
-      %$rdbms_db2,
+      'DBD::DB2' => 0,
     },
     pod => {
       title => 'DB2 support',
@@ -376,9 +307,7 @@ my $dbic_reqs = {
   },
 
   rdbms_db2_400 => {
-    req => {
-      %$rdbms_db2_400,
-    },
+    include => 'rdbms_generic_odbc',
     pod => {
       title => 'DB2 on AS/400 support',
       desc => 'Modules required to connect to DB2 on AS/400',
@@ -387,7 +316,7 @@ my $dbic_reqs = {
 
   rdbms_informix => {
     req => {
-      %$rdbms_informix,
+      'DBD::Informix' => 0,
     },
     pod => {
       title => 'Informix support',
@@ -397,7 +326,7 @@ my $dbic_reqs = {
 
   rdbms_sqlanywhere => {
     req => {
-      %$rdbms_sqlanywhere,
+      'DBD::SQLAnywhere' => 0,
     },
     pod => {
       title => 'SQLAnywhere support',
@@ -406,9 +335,7 @@ my $dbic_reqs = {
   },
 
   rdbms_sqlanywhere_odbc => {
-    req => {
-      %$rdbms_sqlanywhere_odbc,
-    },
+    include => 'rdbms_generic_odbc',
     pod => {
       title => 'SQLAnywhere support via DBD::ODBC',
       desc => 'Modules required to connect to SQLAnywhere via DBD::ODBC',
@@ -417,7 +344,7 @@ my $dbic_reqs = {
 
   rdbms_firebird => {
     req => {
-      %$rdbms_firebird,
+      'DBD::Firebird' => 0,
     },
     pod => {
       title => 'Firebird support',
@@ -427,7 +354,7 @@ my $dbic_reqs = {
 
   rdbms_firebird_interbase => {
     req => {
-      %$rdbms_firebird_interbase,
+      'DBD::InterBase' => 0,
     },
     pod => {
       title => 'Firebird support via DBD::InterBase',
@@ -436,9 +363,7 @@ my $dbic_reqs = {
   },
 
   rdbms_firebird_odbc => {
-    req => {
-      %$rdbms_firebird_odbc,
-    },
+    include => 'rdbms_generic_odbc',
     pod => {
       title => 'Firebird support via DBD::ODBC',
       desc => 'Modules required to connect to Firebird via DBD::ODBC',
@@ -446,6 +371,7 @@ my $dbic_reqs = {
   },
 
   test_rdbms_pg => {
+    include => 'rdbms_pg',
     env => [
       DBICTEST_PG_DSN => 1,
       DBICTEST_PG_USER => 0,
@@ -456,191 +382,162 @@ my $dbic_reqs = {
       # a different version that the test group
       #
       # when changing this list make sure to adjust xt/optional_deps.t
-      %$rdbms_pg,
       'DBD::Pg' => '2.009002',  # specific version to test bytea
     },
   },
 
   test_rdbms_mssql_odbc => {
+    include => 'rdbms_mssql_odbc',
     env => [
       DBICTEST_MSSQL_ODBC_DSN => 1,
       DBICTEST_MSSQL_ODBC_USER => 0,
       DBICTEST_MSSQL_ODBC_PASS => 0,
     ],
-    req => {
-      %$rdbms_mssql_odbc,
-    },
   },
 
   test_rdbms_mssql_ado => {
+    include => 'rdbms_mssql_ado',
     env => [
       DBICTEST_MSSQL_ADO_DSN => 1,
       DBICTEST_MSSQL_ADO_USER => 0,
       DBICTEST_MSSQL_ADO_PASS => 0,
     ],
-    req => {
-      %$rdbms_mssql_ado,
-    },
   },
 
   test_rdbms_mssql_sybase => {
+    include => 'rdbms_mssql_sybase',
     env => [
       DBICTEST_MSSQL_DSN => 1,
       DBICTEST_MSSQL_USER => 0,
       DBICTEST_MSSQL_PASS => 0,
     ],
-    req => {
-      %$rdbms_mssql_sybase,
-    },
   },
 
   test_rdbms_msaccess_odbc => {
+    include => [qw(rdbms_msaccess_odbc test_dt)],
     env => [
       DBICTEST_MSACCESS_ODBC_DSN => 1,
       DBICTEST_MSACCESS_ODBC_USER => 0,
       DBICTEST_MSACCESS_ODBC_PASS => 0,
     ],
     req => {
-      %$rdbms_msaccess_odbc,
-      %$datetime_basic,
       'Data::GUID' => '0',
     },
   },
 
   test_rdbms_msaccess_ado => {
+    include => [qw(rdbms_msaccess_ado test_dt)],
     env => [
       DBICTEST_MSACCESS_ADO_DSN => 1,
       DBICTEST_MSACCESS_ADO_USER => 0,
       DBICTEST_MSACCESS_ADO_PASS => 0,
     ],
     req => {
-      %$rdbms_msaccess_ado,
-      %$datetime_basic,
       'Data::GUID' => 0,
     },
   },
 
   test_rdbms_mysql => {
+    include => 'rdbms_mysql',
     env => [
       DBICTEST_MYSQL_DSN => 1,
       DBICTEST_MYSQL_USER => 0,
       DBICTEST_MYSQL_PASS => 0,
     ],
-    req => {
-      %$rdbms_mysql,
-    },
   },
 
   test_rdbms_oracle => {
+    include => 'rdbms_oracle',
     env => [
       DBICTEST_ORA_DSN => 1,
       DBICTEST_ORA_USER => 0,
       DBICTEST_ORA_PASS => 0,
     ],
     req => {
-      %$rdbms_oracle,
       'DateTime::Format::Oracle' => '0',
       'DBD::Oracle'              => '1.24',
     },
   },
 
   test_rdbms_ase => {
+    include => 'rdbms_ase',
     env => [
       DBICTEST_SYBASE_DSN => 1,
       DBICTEST_SYBASE_USER => 0,
       DBICTEST_SYBASE_PASS => 0,
     ],
-    req => {
-      %$rdbms_ase,
-    },
   },
 
   test_rdbms_db2 => {
+    include => 'rdbms_db2',
     env => [
       DBICTEST_DB2_DSN => 1,
       DBICTEST_DB2_USER => 0,
       DBICTEST_DB2_PASS => 0,
     ],
-    req => {
-      %$rdbms_db2,
-    },
   },
 
   test_rdbms_db2_400 => {
+    include => 'rdbms_db2_400',
     env => [
       DBICTEST_DB2_400_DSN => 1,
       DBICTEST_DB2_400_USER => 0,
       DBICTEST_DB2_400_PASS => 0,
     ],
-    req => {
-      %$rdbms_db2_400,
-    },
   },
 
   test_rdbms_informix => {
+    include => 'rdbms_informix',
     env => [
       DBICTEST_INFORMIX_DSN => 1,
       DBICTEST_INFORMIX_USER => 0,
       DBICTEST_INFORMIX_PASS => 0,
     ],
-    req => {
-      %$rdbms_informix,
-    },
   },
 
   test_rdbms_sqlanywhere => {
+    include => 'rdbms_sqlanywhere',
     env => [
       DBICTEST_SQLANYWHERE_DSN => 1,
       DBICTEST_SQLANYWHERE_USER => 0,
       DBICTEST_SQLANYWHERE_PASS => 0,
     ],
-    req => {
-      %$rdbms_sqlanywhere,
-    },
   },
 
   test_rdbms_sqlanywhere_odbc => {
+    include => 'rdbms_sqlanywhere_odbc',
     env => [
       DBICTEST_SQLANYWHERE_ODBC_DSN => 1,
       DBICTEST_SQLANYWHERE_ODBC_USER => 0,
       DBICTEST_SQLANYWHERE_ODBC_PASS => 0,
     ],
-    req => {
-      %$rdbms_sqlanywhere_odbc,
-    },
   },
 
   test_rdbms_firebird => {
+    include => 'rdbms_firebird',
     env => [
       DBICTEST_FIREBIRD_DSN => 1,
       DBICTEST_FIREBIRD_USER => 0,
       DBICTEST_FIREBIRD_PASS => 0,
     ],
-    req => {
-      %$rdbms_firebird,
-    },
   },
 
   test_rdbms_firebird_interbase => {
+    include => 'rdbms_firebird_interbase',
     env => [
       DBICTEST_FIREBIRD_INTERBASE_DSN => 1,
       DBICTEST_FIREBIRD_INTERBASE_USER => 0,
       DBICTEST_FIREBIRD_INTERBASE_PASS => 0,
     ],
-    req => {
-      %$rdbms_firebird_interbase,
-    },
   },
 
   test_rdbms_firebird_odbc => {
+    include => 'rdbms_firebird_odbc',
     env => [
       DBICTEST_FIREBIRD_ODBC_DSN => 1,
       DBICTEST_FIREBIRD_ODBC_USER => 0,
       DBICTEST_FIREBIRD_ODBC_PASS => 0,
     ],
-    req => {
-      %$rdbms_firebird_odbc,
-    },
   },
 
   test_memcached => {
@@ -665,7 +562,6 @@ my $dbic_reqs = {
       'CPAN::Uploader' => '0.103001',
     },
   },
-
 };
 
 
@@ -778,6 +674,7 @@ sub __envvar_group_desc {
 our %req_unavailability_cache;
 
 # this method is just a lister and envvar/metadata checker - it does not try to load anything
+my $processed_groups = {};
 sub _groups_to_reqs {
   my ($self, $groups) = @_;
 
@@ -792,13 +689,14 @@ sub _groups_to_reqs {
     modreqs_fully_documented => 1,
   };
 
-  for my $group ( @$groups ) {
+  for my $group ( grep { ! $processed_groups->{$_} } @$groups ) {
 
     $group =~ /\A [A-Za-z][0-9A-Z_a-z]* \z/x
       or croak "Invalid requirement group name '$group': only ascii alphanumerics and _ are allowed";
 
-    my $group_reqs = ($dbic_reqs->{$group}||{})->{req}
-      or croak "Requirement group '$group' is not defined";
+    croak "Requirement group '$group' is not defined" unless defined $dbic_reqs->{$group};
+
+    my $group_reqs = $dbic_reqs->{$group}{req};
 
     # sanity-check
     for (keys %$group_reqs) {
@@ -846,23 +744,46 @@ sub _groups_to_reqs {
       push @{$ret->{missing_envvars}}, \@group_envnames_list if $some_envs_missing;
     }
 
+    # get the reqs for includes if any
+    my $inc_reqs;
+    if (my $incs = $dbic_reqs->{$group}{include}) {
+      $incs = [ $incs ] unless ref $incs eq 'ARRAY';
+
+      croak "Malformed 'include' for group '$group': must be another existing group name or arrayref of existing group names"
+        unless @$incs;
+
+      local $processed_groups->{$group} = 1;
+
+      my $subreqs = $self->_groups_to_reqs($incs);
+
+      croak "Includes with variable effective_modreqs not yet supported"
+        if $subreqs->{effective_modreqs_differ};
+
+      $inc_reqs = $subreqs->{modreqs};
+
+    }
+
     # assemble into the final ret
     for my $type (
       'modreqs',
       $some_envs_missing ? () : 'effective_modreqs'
     ) {
-      for my $mod (keys %$group_reqs) {
+      for my $req_bag ($group_reqs, $inc_reqs||()) {
+        for my $mod (keys %$req_bag) {
 
-        $ret->{$type}{$mod} = $group_reqs->{$mod}||0 if (
+          $ret->{$type}{$mod} = $req_bag->{$mod}||0 if (
 
-          ! exists $ret->{$type}{$mod}
-            or
-          # we sanitized the version to be numeric above - we can just -gt it
-          ($group_reqs->{$mod}||0) > $ret->{$type}{$mod}
+            ! exists $ret->{$type}{$mod}
+              or
+            # we sanitized the version to be numeric above - we can just -gt it
+            ($req_bag->{$mod}||0) > $ret->{$type}{$mod}
 
-        );
+          );
+        }
       }
     }
+
+    $ret->{effective_modreqs_differ} ||= !!$some_envs_missing;
 
     $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
   }
@@ -1031,8 +952,7 @@ EOC
     my $p = $dbic_reqs->{$group}{pod}
       or next;
 
-    my $modlist = $dbic_reqs->{$group}{req}
-      or next;
+    my $modlist = $class->modreq_list_for($group);
 
     next unless keys %$modlist;
 
