@@ -7,6 +7,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
+        - Fix intermittent failures in the LeakTracer on 5.18+
 
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
