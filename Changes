@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Depend on newer Moo, to benefit from a safer runtime (RT#93004)
+        - Fix intermittent failures in the LeakTracer on 5.18+
 
 0.082810 2014-10-25 13:58 (UTC)
     * Fixes
