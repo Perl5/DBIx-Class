@@ -11,7 +11,6 @@ use Data::Dumper::Concise;
 use DBICTest::Util 'stacktrace';
 use constant {
   CV_TRACING => DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
-  SKIP_SCALAR_REFS => ( $] > 5.017 ) ? 1 : 0,
 };
 
 use base 'Exporter';
@@ -42,10 +41,6 @@ sub populate_weakregistry {
     (defined $reg->{$_}{weakref}) or delete $reg->{$_}
       for keys %$reg;
   }
-
-  # FIXME/INVESTIGATE - something fishy is going on with refs to plain
-  # strings, perhaps something to do with the CoW work etc...
-  return $target if SKIP_SCALAR_REFS and reftype($target) eq 'SCALAR';
 
   if (! defined $weak_registry->{$refaddr}{weakref}) {
     $weak_registry->{$refaddr} = {
@@ -145,7 +140,7 @@ sub visit_refs {
       elsif (CV_TRACING and $type eq 'CODE') {
         $visited_cnt += visit_refs({ %$args, refs => [ map {
           ( !isweak($_) ) ? $_ : ()
-        } scalar PadWalker::closed_over($r) ] }); # scalar due to RT#92269
+        } values %{ scalar PadWalker::closed_over($r) } ] }); # scalar due to RT#92269
       }
       1;
     } or warn "Could not descend into @{[ refdesc $r ]}: $@\n";
@@ -183,8 +178,6 @@ sub symtable_referenced_addresses {
 
   my $refs_per_pkg;
 
-  my $dummy_addresslist;
-
   my $seen_refs = {};
   visit_namespaces(
     action => sub {
@@ -200,14 +193,7 @@ sub symtable_referenced_addresses {
       $refs_per_pkg->{$pkg} += visit_refs (
         seen_refs => $seen_refs,
 
-        # FIXME FIXME FIXME
-        # This is so damn odd - if we feed a constsub {1} (or in fact almost
-        # anything other than the actionsub below, any scalarref will show
-        # up as a leak, trapped by... something...
-        # Ideally we should be able to const this to sub{1} and just return
-        # $seen_refs (in fact it is identical to the dummy list at the end of
-        # a run here). Alas this doesn't seem to work, so punt for now...
-        action => sub { ++$dummy_addresslist->{ hrefaddr $_[0] } },
+        action => sub { 1 },
 
         refs => [ map { my $sym = $_;
           # *{"$pkg$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there

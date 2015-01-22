@@ -339,9 +339,6 @@ unless (DBICTest::RunMode->is_plain) {
       ! DBICTest::RunMode->is_plain
         and
       ! $ENV{DBICTEST_IN_PERSISTENT_ENV}
-        and
-      # FIXME - investigate wtf is going on with 5.18
-      ! ( $] > 5.017 and $ENV{DBIC_TRACE_PROFILE} )
     ) {
 
       # FIXME - ideally we should be able to just populate an alternative
