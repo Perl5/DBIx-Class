@@ -536,23 +536,7 @@ $ENV{PERL5LIB} = join ($Config::Config{path_sep}, @INC);
 ($ENV{PATH}) = $ENV{PATH} =~ /(.+)/;
 
 
-my $persistence_tests = {
-  PPerl => {
-    cmd => [qw/pperl --prefork=1/, __FILE__],
-  },
-  'CGI::SpeedyCGI' => {
-    cmd => [qw/speedy -- -t5/, __FILE__],
-  },
-};
-
-# scgi is smart and will auto-reap after -t amount of seconds
-# pperl needs an actual killer :(
-$persistence_tests->{PPerl}{termcmd} = [
-  $persistence_tests->{PPerl}{cmd}[0],
-  '--kill',
-  @{$persistence_tests->{PPerl}{cmd}}[ 1 .. $#{$persistence_tests->{PPerl}{cmd}} ],
-];
-
+my $persistence_tests;
 SKIP: {
   skip 'Test already in a persistent loop', 1
     if $ENV{DBICTEST_IN_PERSISTENT_ENV};
@@ -561,6 +545,23 @@ SKIP: {
     unless $TB->is_passing;
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
+
+  $persistence_tests = {
+    PPerl => {
+      cmd => [qw/pperl --prefork=1/, __FILE__],
+    },
+    'CGI::SpeedyCGI' => {
+      cmd => [qw/speedy -- -t5/, __FILE__],
+    },
+  };
+
+  # scgi is smart and will auto-reap after -t amount of seconds
+  # pperl needs an actual killer :(
+  $persistence_tests->{PPerl}{termcmd} = [
+    $persistence_tests->{PPerl}{cmd}[0],
+    '--kill',
+    @{$persistence_tests->{PPerl}{cmd}}[ 1 .. $#{$persistence_tests->{PPerl}{cmd}} ],
+  ];
 
   require IPC::Open2;
 
@@ -610,10 +611,13 @@ done_testing;
 # just an extra precaution in case we blew away from the SKIP - since there are no
 # PID files to go by (man does pperl really suck :(
 END {
-  unless ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
-    close $_ for (*STDIN, *STDOUT, *STDERR);
+  if ($persistence_tests->{PPerl}{termcmd}) {
     local $?; # otherwise test will inherit $? of the system()
-    system (@{$persistence_tests->{PPerl}{termcmd}})
-      if $persistence_tests->{PPerl}{termcmd};
+    require IPC::Open3;
+    open my $null, ">", File::Spec->devnull;
+    waitpid(
+      IPC::Open3::open3(undef, $null, $null, @{$persistence_tests->{PPerl}{termcmd}}),
+      0,
+    );
   }
 }
