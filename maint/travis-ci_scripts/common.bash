@@ -43,7 +43,7 @@ $( (sudo netstat -an46p || netstat -an46p) | grep -Pv '\s(CLOSING|(FIN|TIME|CLOS
 $(ps fuxa)
 
 = Environment
-$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC|PATH|SHELL' | LC_ALL=C sort | cat -v)
 
 = Perl in use
 $(perl -V)
@@ -160,6 +160,8 @@ parallel_installdeps_notest() {
         'giant space monkey penises'
     "
 }
+
+export -f parallel_installdeps_notest run_or_err echo_err tstamp
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
