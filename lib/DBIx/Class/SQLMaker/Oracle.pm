@@ -9,6 +9,7 @@ BEGIN {
   if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') ) {
     die "The following extra modules are required for Oracle-based Storages: $missing\n";
   }
+  require Digest::MD5;
 }
 
 use base 'DBIx::Class::SQLMaker';
