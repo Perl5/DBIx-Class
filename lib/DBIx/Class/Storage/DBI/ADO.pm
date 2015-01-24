@@ -7,8 +7,7 @@ use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
 use Sub::Name;
-use Try::Tiny;
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq );
 use namespace::clean;
 
 =head1 NAME
@@ -45,7 +44,7 @@ sub _init {
   unless ($DBD::ADO::__DBIC_MONKEYPATCH_CHECKED__) {
     require DBD::ADO;
 
-    unless (try { DBD::ADO->VERSION('2.99'); 1 }) {
+    unless ( modver_gt_or_eq( 'DBD::ADO', '2.99' ) ) {
       no warnings 'redefine';
       my $disconnect = *DBD::ADO::db::disconnect{CODE};
 

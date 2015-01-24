@@ -9,6 +9,7 @@ use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use List::Util 'first';
+use DBIx::Class::_Util 'modver_gt_or_eq_and_lt';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -440,20 +441,11 @@ sub bind_attribute_by_data_type {
 
   if ($self->_is_lob_type($dt)) {
 
-    # this is a hot-ish codepath, store an escape-flag in the DBD namespace, so that
-    # things like Class::Unload work (unlikely but possible)
-    unless ($DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__) {
-
-      # no earlier - no later
-      if ($DBD::Oracle::VERSION eq '1.23') {
-        $self->throw_exception(
-          "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
-          "version (https://rt.cpan.org/Public/Bug/Display.html?id=46016)"
-        );
-      }
-
-      $DBD::Oracle::__DBIC_DBD_VERSION_CHECK_OK__ = 1;
-    }
+    # no earlier - no later
+    $self->throw_exception(
+      "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later "
+    . "version (https://rt.cpan.org/Public/Bug/Display.html?id=46016)"
+    ) if modver_gt_or_eq_and_lt( 'DBD::Oracle', '1.23', '1.24' );
 
     return {
       ora_type => $self->_is_text_lob_type($dt)

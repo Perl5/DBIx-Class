@@ -270,30 +270,44 @@ sub is_exception ($) {
   }
 }
 
+my $module_name_rx = qr/ \A [A-Z_a-z] [0-9A-Z_a-z]* (?: :: [0-9A-Z_a-z]+ )* \z /x;
+my $ver_rx =         qr/ \A [0-9]+ (?: \. [0-9]+ )* (?: \_ [0-9]+ )*        \z /x;
+
 sub modver_gt_or_eq ($$) {
   my ($mod, $ver) = @_;
 
   croak "Nonsensical module name supplied"
-    if ! defined $mod or ! length $mod;
+    if ! defined $mod or $mod !~ $module_name_rx;
 
   croak "Nonsensical minimum version supplied"
-    if ! defined $ver or $ver =~ /[^0-9\.\_]/;
+    if ! defined $ver or $ver !~ $ver_rx;
 
-  local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
-    if SPURIOUS_VERSION_CHECK_WARNINGS;
+  no strict 'refs';
+  my $ver_cache = ${"${mod}::__DBIC_MODULE_VERSION_CHECKS__"} ||= ( $mod->VERSION
+    ? {}
+    : croak "$mod does not seem to provide a version (perhaps it never loaded)"
+  );
 
-  croak "$mod does not seem to provide a version (perhaps it never loaded)"
-    unless $mod->VERSION;
+  ! defined $ver_cache->{$ver}
+    and
+  $ver_cache->{$ver} = do {
 
-  local $@;
-  eval { $mod->VERSION($ver) } ? 1 : 0;
+    local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
+      if SPURIOUS_VERSION_CHECK_WARNINGS;
+
+    local $@;
+    local $SIG{__DIE__};
+    eval { $mod->VERSION($ver) } ? 1 : 0;
+  };
+
+  $ver_cache->{$ver};
 }
 
 sub modver_gt_or_eq_and_lt ($$$) {
   my ($mod, $v_ge, $v_lt) = @_;
 
   croak "Nonsensical maximum version supplied"
-    if ! defined $v_lt or $v_lt =~ /[^0-9\.\_]/;
+    if ! defined $v_lt or $v_lt !~ $ver_rx;
 
   return (
     modver_gt_or_eq($mod, $v_ge)
