@@ -6,50 +6,49 @@ use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-
-use Storable 'dclone';
+use DBIx::Class::_Util 'serialize';
 
 my $schema = DBICTest->init_schema();
 
 # A search() with prefetch seems to pollute an already joined resultset
 # in a way that offsets future joins (adapted from a test case by Debolaz)
 {
-  my ($cd_rs, $attrs);
+  my ($cd_rs, $preimage);
 
   # test a real-life case - rs is obtained by an implicit m2m join
   $cd_rs = $schema->resultset ('Producer')->first->cds;
-  $attrs = dclone( $cd_rs->{attrs} );
+  $preimage = serialize $cd_rs->{attrs};
 
   $cd_rs->search ({})->all;
-  is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+  is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after a simple search');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+    is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after search with prefetch');
   }, 'first prefetching search ok');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+    is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after another search with prefetch')
   }, 'second prefetching search ok');
 
 
   # test a regular rs with an empty seen_join injected - it should still work!
   $cd_rs = $schema->resultset ('CD');
   $cd_rs->{attrs}{seen_join}  = {};
-  $attrs = dclone( $cd_rs->{attrs} );
+  $preimage = serialize $cd_rs->{attrs};
 
   $cd_rs->search ({})->all;
-  is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+  is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after a simple search');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+    is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after search with prefetch');
   }, 'first prefetching search ok');
 
   lives_ok (sub {
     $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is_deeply (dclone($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+    is ( serialize $cd_rs->{attrs}, $preimage, 'Resultset attributes preserved after another search with prefetch')
   }, 'second prefetching search ok');
 }
 

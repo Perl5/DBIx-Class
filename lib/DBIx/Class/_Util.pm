@@ -80,12 +80,15 @@ BEGIN {
 sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
 # END pre-Moo2 import block
 
+# Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
+BEGIN { *deep_clone = \&Storable::dclone }
+
 use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
-  quote_sub qsub perlstring serialize
+  quote_sub qsub perlstring serialize deep_clone
   UNRESOLVABLE_CONDITION
 );
 

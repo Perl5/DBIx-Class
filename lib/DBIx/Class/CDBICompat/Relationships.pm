@@ -162,14 +162,19 @@ sub might_have {
 
 sub _extend_meta {
     my ($class, $type, $rel, $val) = @_;
-    my %hash = %{ Clone::clone($class->__meta_info || {}) };
+
+### Explicitly not using the deep cloner as Clone exhibits specific behavior
+### wrt CODE references - it simply passes them as-is to the new structure
+### (without deparse/eval cycles). There likely is code that relies on this
+### so we just let sleeping dogs lie.
+    my $hash = Clone::clone($class->__meta_info || {});
 
     $val->{self_class} = $class;
     $val->{type}       = $type;
     $val->{accessor}   = $rel;
 
-    $hash{$type}{$rel} = DBIx::Class::CDBICompat::Relationship->new($val);
-    $class->__meta_info(\%hash);
+    $hash->{$type}{$rel} = DBIx::Class::CDBICompat::Relationship->new($val);
+    $class->__meta_info($hash);
 }
 
 

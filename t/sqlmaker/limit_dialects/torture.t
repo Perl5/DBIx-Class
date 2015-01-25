@@ -3,9 +3,9 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Storable 'dclone';
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
+use DBIx::Class::_Util 'deep_clone';
 
 my $schema = DBICTest->init_schema;
 my $native_limit_dialect = $schema->storage->sql_maker->{limit_dialect};
@@ -626,7 +626,7 @@ my $tests = {
         @where_bind,
         @group_bind,
         @having_bind,
-        @{ dclone \@order_bind },  # without this is_deeply throws a fit
+        @{ deep_clone \@order_bind },  # without this is_deeply throws a fit
       ],
     ],
     limit_offset_prefetch => [
@@ -738,7 +738,7 @@ my $tests = {
         @where_bind,
         @group_bind,
         @having_bind,
-        @{ dclone \@order_bind },  # without this is_deeply throws a fit
+        @{ deep_clone \@order_bind },  # without this is_deeply throws a fit
       ],
     ],
     limit_offset_prefetch => [
