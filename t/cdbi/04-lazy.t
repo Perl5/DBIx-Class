@@ -7,10 +7,8 @@ use Test::Warn;
 # Test lazy loading
 #----------------------------------------------------------------------
 
-INIT {
-  use lib 't/cdbi/testlib';
-  use Lazy;
-}
+use lib 't/cdbi/testlib';
+use Lazy;
 
 is_deeply [ Lazy->columns('Primary') ],        [qw/this/],      "Pri";
 is_deeply [ sort Lazy->columns('Essential') ], [qw/opop this/], "Essential";

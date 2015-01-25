@@ -2,9 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 
-INIT {
-    use lib 't/cdbi/testlib';
-}
+use lib 't/cdbi/testlib';
 
 {
     package # hide from PAUSE

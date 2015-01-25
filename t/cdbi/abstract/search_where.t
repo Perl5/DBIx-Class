@@ -3,11 +3,8 @@ use Test::More;
 use strict;
 use warnings;
 
-INIT {
-  use lib 't/cdbi/testlib';
-  use Film;
-}
-
+use lib 't/cdbi/testlib';
+use Film;
 
 Film->create({ Title => $_, Rating => "PG" }) for ("Superman", "Super Fuzz");
 Film->create({ Title => "Batman", Rating => "PG13" });

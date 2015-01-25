@@ -4,10 +4,8 @@ use Test::More;
 $| = 1;
 
 
-INIT {
-    use lib 't/cdbi/testlib';
-    use Film;
-}
+use lib 't/cdbi/testlib';
+use Film;
 
 plan skip_all => "Object cache is turned off"
     if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");

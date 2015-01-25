@@ -6,10 +6,8 @@ use Scalar::Util 'refaddr';
 use namespace::clean;
 $| = 1;
 
-INIT {
-  use lib 't/cdbi/testlib';
-  use Film;
-}
+use lib 't/cdbi/testlib';
+use Film;
 
 ok(Film->can('db_Main'), 'set_db()');
 is(Film->__driver, "SQLite", "Driver set correctly");
