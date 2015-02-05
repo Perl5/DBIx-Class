@@ -106,6 +106,12 @@ sub DESTROY {
     }
   }
 
+  # Modules like Plack::Middleware::StackTrace save a reference to the
+  # guard object when a (nested) rollback exception is thrown resulting
+  # in the destructor being called twice. Inactivating the guard protects
+  # against trying to rollback a second time.
+  $self->{inactivated} = 1;
+
   $@ = $exception;
 }
 
