@@ -17,16 +17,8 @@ sub croak {
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
-# NOTE: the rationale for 2 JSON::Any versions is that
-# we need the newer only to work around JSON::XS, which
-# itself is an optional dep
-my $min_json_any = {
-  'JSON::Any'                     => '1.23',
-};
-my $test_and_dist_json_any = {
-  'JSON::Any'                     => '1.31',
-};
-
+# *DELIBERATELY* not making a group for these - they must disappear
+# forever as optdeps in the first place
 my $moose_basic = {
   'Moose'                         => '0.98',
   'MooseX::Types'                 => '0.21',
@@ -34,6 +26,34 @@ my $moose_basic = {
 };
 
 my $dbic_reqs = {
+
+  # NOTE: the rationale for 2 JSON::Any versions is that
+  # we need the newer only to work around JSON::XS, which
+  # itself is an optional dep
+  _json_any => {
+    req => {
+      'JSON::Any' => '1.23',
+    },
+  },
+
+  _json_xs_compatible_json_any => {
+    req => {
+      'JSON::Any' => '1.31',
+    },
+  },
+
+  _rdbms_generic_odbc => {
+    req => {
+      'DBD::ODBC' => 0,
+    }
+  },
+
+  _rdbms_generic_ado => {
+    req => {
+      'DBD::ADO' => 0,
+    }
+  },
+
   replicated => {
     req => $moose_basic,
     pod => {
@@ -50,9 +70,9 @@ my $dbic_reqs = {
   },
 
   admin => {
+    include => '_json_any',
     req => {
       %$moose_basic,
-      %$min_json_any,
       'MooseX::Types::Path::Class' => '0.05',
       'MooseX::Types::JSON' => '0.02',
     },
@@ -128,13 +148,12 @@ my $dbic_reqs = {
   },
 
   test_prettydebug => {
-    req => $min_json_any,
+    include => '_json_any',
   },
 
   test_admin_script => {
-    include => 'admin_script',
+    include => [qw( admin_script _json_xs_compatible_json_any )],
     req => {
-      %$test_and_dist_json_any,
       'JSON' => 0,
       'JSON::PP' => 0,
       'Cpanel::JSON::XS' => 0,
@@ -198,18 +217,6 @@ my $dbic_reqs = {
     },
   },
 
-  rdbms_generic_odbc => {
-    req => {
-      'DBD::ODBC' => 0,
-    }
-  },
-
-  rdbms_generic_ado => {
-    req => {
-      'DBD::ADO' => 0,
-    }
-  },
-
   # this is just for completeness as SQLite
   # is a core dep of DBIC for testing
   rdbms_sqlite => {
@@ -234,7 +241,7 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_odbc => {
-    include => 'rdbms_generic_odbc',
+    include => '_rdbms_generic_odbc',
     pod => {
       title => 'MSSQL support via DBD::ODBC',
       desc => 'Modules required to connect to MSSQL via DBD::ODBC',
@@ -252,7 +259,7 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_ado => {
-    include => 'rdbms_generic_ado',
+    include => '_rdbms_generic_ado',
     pod => {
       title => 'MSSQL support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MSSQL via DBD::ADO. This particular DBD is available on Windows only',
@@ -260,7 +267,7 @@ my $dbic_reqs = {
   },
 
   rdbms_msaccess_odbc => {
-    include => 'rdbms_generic_odbc',
+    include => '_rdbms_generic_odbc',
     pod => {
       title => 'MS Access support via DBD::ODBC',
       desc => 'Modules required to connect to MS Access via DBD::ODBC',
@@ -268,7 +275,7 @@ my $dbic_reqs = {
   },
 
   rdbms_msaccess_ado => {
-    include => 'rdbms_generic_ado',
+    include => '_rdbms_generic_ado',
     pod => {
       title => 'MS Access support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MS Access via DBD::ADO. This particular DBD is available on Windows only',
@@ -317,7 +324,7 @@ my $dbic_reqs = {
   },
 
   rdbms_db2_400 => {
-    include => 'rdbms_generic_odbc',
+    include => '_rdbms_generic_odbc',
     pod => {
       title => 'DB2 on AS/400 support',
       desc => 'Modules required to connect to DB2 on AS/400',
@@ -345,7 +352,7 @@ my $dbic_reqs = {
   },
 
   rdbms_sqlanywhere_odbc => {
-    include => 'rdbms_generic_odbc',
+    include => '_rdbms_generic_odbc',
     pod => {
       title => 'SQLAnywhere support via DBD::ODBC',
       desc => 'Modules required to connect to SQLAnywhere via DBD::ODBC',
@@ -373,7 +380,7 @@ my $dbic_reqs = {
   },
 
   rdbms_firebird_odbc => {
-    include => 'rdbms_generic_odbc',
+    include => '_rdbms_generic_odbc',
     pod => {
       title => 'Firebird support via DBD::ODBC',
       desc => 'Modules required to connect to Firebird via DBD::ODBC',
@@ -573,8 +580,11 @@ my $dbic_reqs = {
   },
 
   dist_dir => {
+    # we need to run the dbicadmin so we can self-generate its POD
+    # also we do not want surprises in case JSON::XS is in the path
+    # so make sure we get an always-working JSON::Any
+    include => [qw( admin_script _json_xs_compatible_json_any )],
     req => {
-      %$test_and_dist_json_any,
       'ExtUtils::MakeMaker' => '6.64',
       'Pod::Inherit'        => '0.91',
     },
@@ -664,7 +674,7 @@ sub modreq_list_for {
 sub req_group_list {
   +{ map
     { $_ => $_[0]->_groups_to_reqs($_) }
-    keys %$dbic_reqs
+    grep { $_ !~ /^_/ } keys %$dbic_reqs
   }
 }
 
@@ -748,8 +758,6 @@ sub __envvar_group_desc {
   join '/', @res;
 }
 
-
-
 ### Private OO API
 our %req_unavailability_cache;
 
@@ -771,7 +779,7 @@ sub _groups_to_reqs {
 
   for my $group ( grep { ! $processed_groups->{$_} } @$groups ) {
 
-    $group =~ /\A [A-Za-z][0-9A-Z_a-z]* \z/x
+    $group =~ /\A [A-Z_a-z][0-9A-Z_a-z]* \z/x
       or croak "Invalid requirement group name '$group': only ascii alphanumerics and _ are allowed";
 
     croak "Requirement group '$group' is not defined" unless defined $dbic_reqs->{$group};
