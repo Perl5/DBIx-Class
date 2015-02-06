@@ -16,6 +16,7 @@ use Test::Exception;
 use Scalar::Util();
 use MRO::Compat();
 use Carp 'confess';
+use List::Util 'shuffle';
 
 ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related was loaded before inc-test')
   unless $ENV{PERL5OPT}; # a defined PERL5OPT may inject extra deps crashing this test
@@ -147,9 +148,15 @@ is_deeply (
     'optional dependencies list for using Postgres matches',
   );
 
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->req_missing_for('rdbms_pg'),
+    'DBD::Pg (see DBIx::Class::Optional::Dependencies documentation for details)',
+    'optional dependencies missing list for using Postgres matches',
+  );
+
 # test combination of different requirements on same module (pg's are relatively stable)
   is_deeply (
-    DBIx::Class::Optional::Dependencies->req_list_for([qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_list_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
     { 'DBD::Pg' => '0' },
     'optional module dependencies list for testing Postgres matches without envvar',
   );
@@ -161,22 +168,55 @@ is_deeply (
   );
 
   is(
-    DBIx::Class::Optional::Dependencies->req_missing_for([qw( test_rdbms_mysql test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( test_rdbms_mysql test_rdbms_pg )]),
     'DBD::mysql "DBD::Pg~>=2.009002" as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS and DBICTEST_PG_DSN/..._USER/..._PASS',
     'optional dependencies for testing Postgres+MySQL without envvars'
   );
 
   $ENV{DBICTEST_PG_DSN} = 'boo';
   is_deeply (
-    DBIx::Class::Optional::Dependencies->modreq_list_for([qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->modreq_list_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
     { 'DBD::Pg' => '2.009002' },
     'optional module dependencies list for testing Postgres matches with envvar',
   );
 
   is(
-    DBIx::Class::Optional::Dependencies->req_missing_for([qw( rdbms_pg test_rdbms_pg )]),
+    DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
     '"DBD::Pg~>=2.009002"',
     'optional dependencies error text for testing Postgres matches with evvar',
+  );
+
+# test multi-level include with a variable and mandatory part converging on same included dep
+  local $ENV{DBICTEST_MSACCESS_ODBC_DSN};
+  local $ENV{DBICTEST_MSSQL_ODBC_DSN} = 'foo';
+  my $msaccess_mssql = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc ) ];
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->req_missing_for($msaccess_mssql),
+    'Data::GUID DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',
+    'Correct req_missing_for on multi-level converging include',
+  );
+
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->modreq_missing_for($msaccess_mssql),
+    'Data::GUID DBD::ODBC',
+    'Correct modreq_missing_for on multi-level converging include',
+  );
+
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->req_list_for($msaccess_mssql),
+    {
+      'DBD::ODBC' => 0,
+    },
+    'Correct req_list_for on multi-level converging include',
+  );
+
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->modreq_list_for($msaccess_mssql),
+    {
+      'DBD::ODBC' => 0,
+      'Data::GUID' => 0,
+    },
+    'Correct modreq_list_for on multi-level converging include',
   );
 
 }

@@ -679,7 +679,7 @@ sub req_missing_for {
 
   my @res = $mods_missing || ();
 
-  push @res, 'the following group(s) of environment variables: ' . join ' and ', map
+  push @res, 'the following group(s) of environment variables: ' . join ' and ', sort map
     { __envvar_group_desc($_) }
     @{$reqs->{missing_envvars}}
   if $reqs->{missing_envvars};
