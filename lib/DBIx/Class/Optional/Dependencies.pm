@@ -641,11 +641,11 @@ sub unimport {
 # standalone library - keep the stupidity to a DBIC-secific shim!
 #
 sub req_list_for {
-  shift->_groups_to_reqs(@_)->{effective_modreqs};
+  shift->_groups_to_reqs(shift)->{effective_modreqs};
 }
 
 sub modreq_list_for {
-  shift->_groups_to_reqs(@_)->{modreqs};
+  shift->_groups_to_reqs(shift)->{modreqs};
 }
 
 sub req_group_list {
@@ -655,21 +655,21 @@ sub req_group_list {
   }
 }
 
-sub req_errorlist_for { shift->modreq_errorlist_for(@_) }  # deprecated
+sub req_errorlist_for { shift->modreq_errorlist_for(shift) }  # deprecated
 sub modreq_errorlist_for {
-  my $self = shift;
-  $self->_errorlist_for_modreqs( $self->_groups_to_reqs(@_)->{modreqs} );
+  my ($self, $groups) = @_;
+  $self->_errorlist_for_modreqs( $self->_groups_to_reqs($groups)->{modreqs} );
 }
 
 sub req_ok_for {
-  shift->req_missing_for(@_) ? 0 : 1;
+  shift->req_missing_for(shift) ? 0 : 1;
 }
 
 sub req_missing_for {
-  my $self = shift;
+  my ($self, $groups) = @_;
 
-  my $reqs = $self->_groups_to_reqs(@_);
-  my $mods_missing = $self->modreq_missing_for(@_);
+  my $reqs = $self->_groups_to_reqs($groups);
+  my $mods_missing = $self->modreq_missing_for($groups);
 
   return '' if
     ! $mods_missing
@@ -692,9 +692,9 @@ sub req_missing_for {
 }
 
 sub modreq_missing_for {
-  my $self = shift;
+  my ($self, $groups) = @_;
 
-  my $reqs = $self->_groups_to_reqs(@_);
+  my $reqs = $self->_groups_to_reqs($groups);
   my $modreq_errors = $self->_errorlist_for_modreqs($reqs->{modreqs})
     or return '';
 
@@ -705,7 +705,7 @@ sub modreq_missing_for {
 }
 
 sub die_unless_req_ok_for {
-  if (my $err = shift->req_missing_for(@_) ) {
+  if (my $err = shift->req_missing_for(shift) ) {
     die "Unable to continue due to missing requirements: $err\n";
   }
 }
