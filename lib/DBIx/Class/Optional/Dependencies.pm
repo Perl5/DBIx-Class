@@ -788,11 +788,105 @@ sub __envvar_group_desc {
   join '/', @res;
 }
 
+# Expand includes from a random group in a specific order:
+# nonvariable groups first, then their includes, then the variable groups,
+# then their includes.
+# This allows reliably marking the rest of the mod reqs as variable (this is
+# also why variable includes are currently not allowed)
+sub __expand_includes {
+  my ($groups, $seen) = @_;
+
+  # !! DIFFERENT !! behavior and return depending on invocation mode
+  # (easier to recurse this way)
+  my $is_toplevel = $seen
+    ? 0
+    : !! ($seen = {})
+  ;
+
+  my ($res_per_type, $missing_envvars);
+
+  # breadth-first evaluation, with non-variable includes on top
+  for my $g (@$groups) {
+
+    croak "Invalid requirement group name '$g': only ascii alphanumerics and _ are allowed"
+      if $g !~ /\A [A-Z_a-z][0-9A-Z_a-z]* \z/x;
+
+    my $r = $dbic_reqs->{$g}
+      or croak "Requirement group '$g' is not defined";
+
+    # always do this check *before* the $seen check
+    croak "Group '$g' with variable effective_modreqs can not be specified as an 'include'"
+      if ( $r->{env} and ! $is_toplevel );
+
+    next if $seen->{$g}++;
+
+    my $req_type = 'static';
+
+    if ( my @e = @{$r->{env}||[]} ) {
+
+      croak "Unexpected 'env' attribute under group '$g' (only allowed in test_* groups)"
+        unless $g =~ /^test_/;
+
+      croak "Unexpected *odd* list in 'env' under group '$g'"
+        if @e % 2;
+
+      # deconstruct the whole thing
+      my (@group_envnames_list, $some_envs_required, $some_required_missing);
+      while (@e) {
+        push @group_envnames_list, my $envname = shift @e;
+
+        # env required or not
+        next unless shift @e;
+
+        $some_envs_required ||= 1;
+
+        $some_required_missing ||= (
+          ! defined $ENV{$envname}
+            or
+          ! length $ENV{$envname}
+        );
+      }
+
+      croak "None of the envvars in group '$g' declared as required, making the requirement moot"
+        unless $some_envs_required;
+
+      if ($some_required_missing) {
+        push @{$missing_envvars->{$g}}, \@group_envnames_list;
+        $req_type = 'variable';
+      }
+    }
+
+    push @{$res_per_type->{"base_${req_type}"}}, $g;
+
+    if (my $i = $dbic_reqs->{$g}{include}) {
+      $i = [ $i ] unless ref $i eq 'ARRAY';
+
+      croak "Malformed 'include' for group '$g': must be another existing group name or arrayref of existing group names"
+        unless @$i;
+
+      push @{$res_per_type->{"incs_${req_type}"}}, @$i;
+    }
+  }
+
+  my @ret = map {
+    @{ $res_per_type->{"base_${_}"} || [] },
+    ( $res_per_type->{"incs_${_}"} ? __expand_includes( $res_per_type->{"incs_${_}"}, $seen ) : () ),
+  } qw(static variable);
+
+  return ! $is_toplevel ? @ret : do {
+    my $rv = {};
+    $rv->{$_} = {
+      idx => 1 + keys %$rv,
+      missing_envvars => $missing_envvars->{$_},
+    } for @ret;
+    $rv;
+  };
+}
+
 ### Private OO API
 our %req_unavailability_cache;
 
 # this method is just a lister and envvar/metadata checker - it does not try to load anything
-my $processed_groups = {};
 sub _groups_to_reqs {
   my ($self, $groups) = @_;
 
@@ -807,12 +901,9 @@ sub _groups_to_reqs {
     modreqs_fully_documented => 1,
   };
 
-  for my $group ( grep { ! $processed_groups->{$_} } @$groups ) {
+  my $all_groups = __expand_includes($groups);
 
-    $group =~ /\A [A-Z_a-z][0-9A-Z_a-z]* \z/x
-      or croak "Invalid requirement group name '$group': only ascii alphanumerics and _ are allowed";
-
-    croak "Requirement group '$group' is not defined" unless defined $dbic_reqs->{$group};
+  for my $group (sort { $all_groups->{$a}{idx} <=> $all_groups->{$b}{idx} } keys %$all_groups ) {
 
     my $group_reqs = $dbic_reqs->{$group}{req};
 
@@ -828,65 +919,16 @@ sub _groups_to_reqs {
         if ( ($group_reqs->{$_}||0) !~ / \A [0-9]+ (?: \. [0-9]+ )? \z /x );
     }
 
-    # check if we have all required envvars if such names are defined
-    my ($some_envs_required, $some_envs_missing);
-    if (my @e = @{$dbic_reqs->{$group}{env} || [] }) {
-
-      croak "Unexpected 'env' attribute under group '$group' (only allowed in test_* groups)"
-        unless $group =~ /^test_/;
-
-      croak "Unexpected *odd* list in 'env' under group '$group'"
-        if @e % 2;
-
-      my @group_envnames_list;
-
-      # deconstruct the whole thing
-      while (@e) {
-        push @group_envnames_list, my $envname = shift @e;
-
-        # env required or not
-        next unless shift @e;
-
-        $some_envs_required ||= 1;
-
-        $some_envs_missing ||= (
-          ! defined $ENV{$envname}
-            or
-          ! length $ENV{$envname}
-        );
-      }
-
-      croak "None of the envvars in group '$group' declared as required, making the requirement moot"
-        unless $some_envs_required;
-
-      push @{$ret->{missing_envvars}}, \@group_envnames_list if $some_envs_missing;
-    }
-
-    # get the reqs for includes if any
-    my $inc_reqs;
-    if (my $incs = $dbic_reqs->{$group}{include}) {
-      $incs = [ $incs ] unless ref $incs eq 'ARRAY';
-
-      croak "Malformed 'include' for group '$group': must be another existing group name or arrayref of existing group names"
-        unless @$incs;
-
-      local $processed_groups->{$group} = 1;
-
-      my $subreqs = $self->_groups_to_reqs($incs);
-
-      croak "Includes with variable effective_modreqs not yet supported"
-        if $subreqs->{effective_modreqs_differ};
-
-      $inc_reqs = $subreqs->{modreqs};
-
+    if (my $e = $all_groups->{$group}{missing_envvars}) {
+      push @{$ret->{missing_envvars}}, @$e;
     }
 
     # assemble into the final ret
     for my $type (
       'modreqs',
-      $some_envs_missing ? () : 'effective_modreqs'
+      ( $ret->{missing_envvars} ? () : 'effective_modreqs' ),
     ) {
-      for my $req_bag ($group_reqs, $inc_reqs||()) {
+      for my $req_bag ($group_reqs) {
         for my $mod (keys %$req_bag) {
 
           $ret->{$type}{$mod} = $req_bag->{$mod}||0 if (
@@ -900,8 +942,6 @@ sub _groups_to_reqs {
         }
       }
     }
-
-    $ret->{effective_modreqs_differ} ||= !!$some_envs_missing;
 
     $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
 
