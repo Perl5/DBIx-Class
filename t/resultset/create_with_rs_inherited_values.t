@@ -1,10 +1,9 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt';
-
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
+use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -26,9 +25,8 @@ my $cd_rs = $schema->resultset('CD');
  }
 
  {
-   my $formatter = DateTime::Format::Strptime->new(pattern => '%Y');
-   my $dt = DateTime->new(year => 2006, month => 06, day => 06,
-                          formatter => $formatter );
+   my $dt = Math::BigInt->new(2006);
+
    my $cd;
    lives_ok {
      $cd = $cd_rs->search({ year => $dt})->create

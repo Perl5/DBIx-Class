@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Math::BigInt;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -42,24 +43,18 @@ is_deeply (
   'extra columns returned by get_inflated_columns without inflatable columns',
 );
 
-SKIP: {
-  skip (
-    "+select/get_inflated_columns tests need " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt'),
-    1
-  ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
+# Test object inflation
+$schema->class('CD')->inflate_column( 'year',
+  { inflate => sub { Math::BigInt->new( shift ) },
+    deflate => sub { shift() . '' } }
+);
 
-  $schema->class('CD')->inflate_column( 'year',
-    { inflate => sub { DateTime->new( year => shift ) },
-      deflate => sub { shift->year } }
-  );
+$basecols{year} = Math::BigInt->new( $basecols{year} );
 
-  $basecols{year} = DateTime->new ( year => $basecols{year} );
-
-  is_deeply (
-    { $plus_rs->first->get_inflated_columns, %todo_rel_inflation_override },
-    { %basecols, tr_cnt => $track_cnt },
-    'extra columns returned by get_inflated_columns',
-  );
-}
+is_deeply (
+  { $plus_rs->first->get_inflated_columns, %todo_rel_inflation_override },
+  { %basecols, tr_cnt => $track_cnt },
+  'extra columns returned by get_inflated_columns',
+);
 
 done_testing;
