@@ -10,6 +10,21 @@ use DBICTest;
 
 DBICTest::Schema->load_classes('EventTZPg');
 
+{
+  my $s = DBICTest::Schema->connect('dbi:Pg:whatever');
+
+  ok (!$s->storage->_dbh, 'definitely not connected');
+
+  # Check that datetime_parser returns correctly before we explicitly connect.
+  my $store = ref $s->storage;
+  is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
+
+  my $parser = $s->storage->datetime_parser;
+  is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+
+  ok (!$s->storage->_dbh, 'still not connected');
+}
+
 my $schema = DBICTest->init_schema();
 
 warnings_are {

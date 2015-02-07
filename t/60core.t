@@ -206,41 +206,6 @@ $new = $schema->resultset("Track")->new( {
 $new->update_or_insert;
 ok($new->in_storage, 'update_or_insert insert ok');
 
-# test in update mode
-$new->title('Insert or Update - updated');
-$new->update_or_insert;
-is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
-
-SKIP: {
-    skip "Tests require " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite'), 13
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
-
-    # test get_inflated_columns with objects
-    my $event = $schema->resultset('Event')->search->first;
-    my %edata = $event->get_inflated_columns;
-    is($edata{'id'}, $event->id, 'got id');
-    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
-    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
-    is($edata{'starts_at'}, $event->starts_at, 'got start date');
-    is($edata{'created_on'}, $event->created_on, 'got created date');
-
-
-    # get_inflated_columns w/relation and accessor alias
-    isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
-    my %tdata = $new->get_inflated_columns;
-    is($tdata{'trackid'}, 100, 'got id');
-    isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
-    is($tdata{'cd'}->id, 1, 'cd object is id 1');
-    is(
-        $tdata{'position'},
-        $schema->resultset ('Track')->search ({cd => 1})->count,
-        'Ordered assigned proper position',
-    );
-    is($tdata{'title'}, 'Insert or Update - updated');
-    is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
-    isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
-}
-
 throws_ok (sub {
   $schema->class("Track")->load_components('DoesNotExist');
 }, qr!Can't locate DBIx/Class/DoesNotExist.pm!, 'exception on nonexisting component');

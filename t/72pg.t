@@ -22,28 +22,6 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 ###  pre-connect tests (keep each test separate as to make sure rebless() runs)
   {
     my $s = DBICTest::Schema->connect($dsn, $user, $pass);
-
-    ok (!$s->storage->_dbh, 'definitely not connected');
-
-    # Check that datetime_parser returns correctly before we explicitly connect.
-    SKIP: {
-        skip (
-          "Pg parser detection test needs " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg'),
-          2
-        ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
-
-        my $store = ref $s->storage;
-        is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
-
-        my $parser = $s->storage->datetime_parser;
-        is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
-    }
-
-    ok (!$s->storage->_dbh, 'still not connected');
-  }
-
-  {
-    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
     # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
     ok (!$s->storage->_dbh, 'definitely not connected');
     is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
