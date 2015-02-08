@@ -424,7 +424,7 @@ my $dbic_reqs = {
   },
 
   test_rdbms_msaccess_odbc => {
-    include => [qw(rdbms_msaccess_odbc test_dt)],
+    include => 'rdbms_msaccess_odbc',
     env => [
       DBICTEST_MSACCESS_ODBC_DSN => 1,
       DBICTEST_MSACCESS_ODBC_USER => 0,
@@ -436,7 +436,7 @@ my $dbic_reqs = {
   },
 
   test_rdbms_msaccess_ado => {
-    include => [qw(rdbms_msaccess_ado test_dt)],
+    include => 'rdbms_msaccess_ado',
     env => [
       DBICTEST_MSACCESS_ADO_DSN => 1,
       DBICTEST_MSACCESS_ADO_USER => 0,
