@@ -42,6 +42,10 @@ my $dbic_reqs = {
     },
   },
 
+  # a common placeholder for engines with IC::DT support based off DT::F::S
+  # currently unused on purpose (see next commits)
+  _icdt_strptime_based => {},
+
   _rdbms_generic_odbc => {
     req => {
       'DBD::ODBC' => 0,
@@ -240,8 +244,12 @@ my $dbic_reqs = {
     },
   },
 
+  _rdbms_mssql_common => {
+    include => '_icdt_strptime_based',
+  },
+
   rdbms_mssql_odbc => {
-    include => '_rdbms_generic_odbc',
+    include => [qw( _rdbms_generic_odbc _rdbms_mssql_common )],
     pod => {
       title => 'MSSQL support via DBD::ODBC',
       desc => 'Modules required to connect to MSSQL via DBD::ODBC',
@@ -249,6 +257,7 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_sybase => {
+    include => '_rdbms_mssql_common',
     req => {
       'DBD::Sybase' => 0,
     },
@@ -259,15 +268,19 @@ my $dbic_reqs = {
   },
 
   rdbms_mssql_ado => {
-    include => '_rdbms_generic_ado',
+    include => [qw( _rdbms_generic_ado _rdbms_mssql_common )],
     pod => {
       title => 'MSSQL support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MSSQL via DBD::ADO. This particular DBD is available on Windows only',
     },
   },
 
+  _rdbms_msaccess_common => {
+    include => '_icdt_strptime_based',
+  },
+
   rdbms_msaccess_odbc => {
-    include => '_rdbms_generic_odbc',
+    include => [qw( _rdbms_generic_odbc _rdbms_msaccess_common )],
     pod => {
       title => 'MS Access support via DBD::ODBC',
       desc => 'Modules required to connect to MS Access via DBD::ODBC',
@@ -275,7 +288,7 @@ my $dbic_reqs = {
   },
 
   rdbms_msaccess_ado => {
-    include => '_rdbms_generic_ado',
+    include => [qw( _rdbms_generic_ado _rdbms_msaccess_common )],
     pod => {
       title => 'MS Access support via DBD::ADO (Windows only)',
       desc => 'Modules required to connect to MS Access via DBD::ADO. This particular DBD is available on Windows only',
@@ -304,6 +317,7 @@ my $dbic_reqs = {
   },
 
   rdbms_ase => {
+    include => '_icdt_strptime_based',
     req => {
       'DBD::Sybase' => 0,
     },
@@ -313,7 +327,11 @@ my $dbic_reqs = {
     },
   },
 
+  _rdbms_db2_common => {
+  },
+
   rdbms_db2 => {
+    include => '_rdbms_db2_common',
     req => {
       'DBD::DB2' => 0,
     },
@@ -324,7 +342,7 @@ my $dbic_reqs = {
   },
 
   rdbms_db2_400 => {
-    include => '_rdbms_generic_odbc',
+    include => [qw( _rdbms_generic_odbc _rdbms_db2_common )],
     pod => {
       title => 'DB2 on AS/400 support',
       desc => 'Modules required to connect to DB2 on AS/400',
@@ -332,6 +350,7 @@ my $dbic_reqs = {
   },
 
   rdbms_informix => {
+    include => '_icdt_strptime_based',
     req => {
       'DBD::Informix' => 0,
     },
@@ -341,7 +360,12 @@ my $dbic_reqs = {
     },
   },
 
+  _rdbms_sqlanywhere_common => {
+    inclide => '_icdt_strptime_based',
+  },
+
   rdbms_sqlanywhere => {
+    include => '_rdbms_sqlanywhere_common',
     req => {
       'DBD::SQLAnywhere' => 0,
     },
@@ -352,14 +376,19 @@ my $dbic_reqs = {
   },
 
   rdbms_sqlanywhere_odbc => {
-    include => '_rdbms_generic_odbc',
+    include => [qw( _rdbms_generic_odbc _rdbms_sqlanywhere_common )],
     pod => {
       title => 'SQLAnywhere support via DBD::ODBC',
       desc => 'Modules required to connect to SQLAnywhere via DBD::ODBC',
     },
   },
 
+  _rdbms_firebird_common => {
+    include => '_icdt_strptime_based',
+  },
+
   rdbms_firebird => {
+    include => '_rdbms_firebird_common',
     req => {
       'DBD::Firebird' => 0,
     },
@@ -370,6 +399,7 @@ my $dbic_reqs = {
   },
 
   rdbms_firebird_interbase => {
+    include => '_rdbms_firebird_common',
     req => {
       'DBD::InterBase' => 0,
     },
@@ -380,7 +410,7 @@ my $dbic_reqs = {
   },
 
   rdbms_firebird_odbc => {
-    include => '_rdbms_generic_odbc',
+    include => [qw( _rdbms_generic_odbc _rdbms_firebird_common )],
     pod => {
       title => 'Firebird support via DBD::ODBC',
       desc => 'Modules required to connect to Firebird via DBD::ODBC',
