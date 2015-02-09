@@ -380,6 +380,19 @@ my $dbic_reqs = {
     },
   },
 
+  test_rdbms_sqlite => {
+    include => 'rdbms_sqlite',
+    req => {
+      ###
+      ### IMPORTANT - do not raise this dependency
+      ### even though many bugfixes are present in newer versions, the general DBIC
+      ### rule is to bend over backwards for available DBDs (given upgrading them is
+      ### often *not* easy or even possible)
+      ###
+      'DBD::SQLite' => '1.29',
+    },
+  },
+
   test_rdbms_pg => {
     include => 'rdbms_pg',
     env => [

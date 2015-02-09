@@ -43,6 +43,9 @@ EOW
     } keys %{DBIx::Class::Optional::Dependencies->req_group_list}
   ]);
 
+  # this one is "special" - we need it both in optdeps and as a hard dep
+  delete $opt_testdeps->{'DBD::SQLite'};
+
   print "Including all optional deps\n";
   $reqs->{test_requires} = {
     %{$reqs->{test_requires}},
