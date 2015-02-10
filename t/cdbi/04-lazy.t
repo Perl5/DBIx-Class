@@ -109,7 +109,7 @@ warning_like {
 
 # Now again for inflated values
 SKIP: {
-    skip "Requires Date::Simple 3.03", 5 unless eval "use Date::Simple 3.03; 1; ";
+    DBIx::Class::Optional::Dependencies->skip_without( 'Date::Simple>=3.03' );
     Lazy->has_a(
         orp     => 'Date::Simple',
         inflate => sub { Date::Simple->new($_[0] . '-01-01') },
