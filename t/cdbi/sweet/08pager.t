@@ -1,10 +1,12 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
 
 use Test::More;
 
-use lib 't/cdbi/testlib';
-use DBIC::Test::SQLite;
+use lib 't/lib';
+use DBICTest;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat CDBICompat::Pager/);
 

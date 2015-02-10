@@ -1,6 +1,10 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
+use Test::Exception;
 
 use lib 't/cdbi/testlib';
 use Film;
@@ -58,10 +62,10 @@ ok $fred, "Got fred";
     like $@, qr/fails.*constraint/, "Fails listref constraint";
     my $ok = eval { Film->create({ Rating => 'U' }) };
     is $@, '', "Can create with rating U";
-    SKIP: {
-        skip "No column objects", 2;
-    ok +Film->find_column('rating')->is_constrained, "Rating is constrained";
-    ok +Film->find_column('director')->is_constrained, "Director is not";
+    {
+      local $TODO = "No column objects";
+      lives_ok { Film->find_column('rating')->is_constrained || die } "Rating is constrained";
+      lives_ok { Film->find_column('director')->is_constrained || die } "Director is not";
     }
 }
 

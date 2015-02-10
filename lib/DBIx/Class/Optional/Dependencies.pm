@@ -69,9 +69,13 @@ my $dbic_reqs = {
   # this prevents the "skips due to forgotten deps" issue
   test_adhoc => {
     req => {
+      'Class::DBI::Plugin::DeepAbstractSearch' => '0',
+      'Class::DBI' => '3.000005',
       'Date::Simple' => '3.03',
       'YAML' => '0',
       'Class::Unload' => '0.07',
+      'Time::Piece' => '0',
+      'Time::Piece::MySQL' => '0',
     },
   },
 
@@ -146,6 +150,19 @@ my $dbic_reqs = {
     },
   },
 
+  cdbicompat => {
+    req => {
+      'Class::Data::Inheritable' => '0',
+      'Class::Trigger' => '0',
+      'DBIx::ContextualFetch' => '0',
+      'Clone' => '0.32',
+    },
+    pod => {
+      title => 'DBIx::Class::CDBICompat support',
+      desc => 'Modules required for L<DBIx::Class::CDBICompat>'
+    },
+  },
+
   test_pod => {
     req => {
       'Test::Pod'                 => '1.42',
@@ -203,13 +220,6 @@ my $dbic_reqs = {
     },
   },
 
-  test_cdbicompat => {
-    include => 'icdt',
-    req => {
-      'Class::DBI::Plugin::DeepAbstractSearch' => '0',
-      'Time::Piece::MySQL'        => '0',
-    },
-  },
 
   # this is just for completeness as SQLite
   # is a core dep of DBIC for testing

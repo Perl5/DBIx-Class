@@ -1,16 +1,13 @@
+# Columns in CDBI could be defined as Class::DBI::Column objects rather than
+# or as well as with __PACKAGE__->columns();
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Class::DBI>=3.000005 );
+
 use strict;
 use warnings;
 
 use Test::More;
+
 use lib 't/cdbi/testlib';
-
-# Columns in CDBI could be defined as Class::DBI::Column objects rather than
-# or as well as with __PACKAGE__->columns();
-BEGIN {
-  eval { require Class::DBI and Class::DBI->VERSION('3.0.5') }
-    or plan skip_all => 'The tested functionality is only available in Class::DBI >= 3.0.5'
-}
-
 use ColumnObject;
 
 ok(ColumnObject->can('db_Main'), 'set_db()');

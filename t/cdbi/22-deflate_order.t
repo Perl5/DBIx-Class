@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat test_rdbms_mysql Time::Piece::MySQL>=0 );
+
 $| = 1;
 use warnings;
 use strict;
@@ -5,10 +7,6 @@ use strict;
 use Test::More;
 
 use lib 't/cdbi/testlib';
-use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
-
-eval { require Time::Piece::MySQL }
-  or plan skip_all => 'Time::Piece::MySQL required for this test';
 
 use_ok ('Log');
 
