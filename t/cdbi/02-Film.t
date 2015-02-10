@@ -369,9 +369,7 @@ if (0) {
   ok !$film, "It destroys itself";
 }
 
-SKIP: {
-    skip "Caching has been removed", 5
-        if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
+{
 
   # my bad taste is your bad taste
   my $btaste  = Film->retrieve('Bad Taste');

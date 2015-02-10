@@ -7,12 +7,6 @@ $| = 1;
 use lib 't/cdbi/testlib';
 use Film;
 
-plan skip_all => "Object cache is turned off"
-    if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
-
-plan tests => 5;
-
-
 ok +Film->create({
     Title       => 'This Is Spinal Tap',
     Director    => 'Rob Reiner',
