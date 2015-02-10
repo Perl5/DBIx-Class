@@ -40,7 +40,9 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 #
 # We also divide the result by a factor, otherwise the travis VM gets
 # overloaded (the amount of available swap is just TOOOO damn small)
-export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
+if [[ -z "$NUMTHREADS" ]] ; then
+  export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
+fi
 
 export CACHE_DIR="/tmp/poormanscache"
 

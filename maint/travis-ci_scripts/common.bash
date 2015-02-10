@@ -4,7 +4,7 @@
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
-TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=16m --signal=TERM 15m"
 
 echo_err() { echo "$@" 1>&2 ; }
 

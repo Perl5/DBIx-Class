@@ -75,7 +75,7 @@ perl:
 
 env:
   - CLEANTEST=false
-  - CLEANTEST=true
+  - CLEANTEST=true NUMTHREADS=1
 
 matrix:
   fast_finish: true
