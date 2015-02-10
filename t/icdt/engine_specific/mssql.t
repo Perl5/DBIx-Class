@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt _rdbms_mssql_common );
+
 use strict;
 use warnings;
 
@@ -5,37 +7,21 @@ use Test::More;
 use Test::Exception;
 use Scope::Guard ();
 use Try::Tiny;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
+
+my @tdeps = qw( test_rdbms_mssql_odbc test_rdbms_mssql_sybase test_rdbms_mssql_ado );
+plan skip_all => 'Test needs  ' . (join '  OR  ', map
+  { "[ @{[ DBIx::Class::Optional::Dependencies->req_missing_for( $_ ) ]} ]" }
+  @tdeps
+) unless scalar grep
+  { DBIx::Class::Optional::Dependencies->req_ok_for( $_ ) }
+  @tdeps
+;
 
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSSQL_${_}" }      qw/DSN USER PASS/};
 my ($dsn3, $user3, $pass3) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" }  qw/DSN USER PASS/};
-
-plan skip_all => 'Test needs ' .
-  (join ' and ', map { $_ ? $_ : () }
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
-    (join ' or ', map { $_ ? $_ : () }
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_odbc'),
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_sybase'),
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_mssql_ado')))
-  unless
-    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
-    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_odbc')
-    or
-    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_sybase')
-    or
-    $dsn3 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_mssql_ado'))
-      or (not $dsn || $dsn2 || $dsn3);
-
-if (not ($dsn || $dsn2 || $dsn3)) {
-  plan skip_all =>
-    'Set $ENV{DBICTEST_MSSQL_ODBC_DSN} and/or $ENV{DBICTEST_MSSQL_DSN} and/or '
-    .'$ENV{DBICTEST_MSSQL_ADO_DSN} _USER and _PASS to run this test' .
-    "\nWarning: This test drops and creates tables called 'event_small_dt' and"
-    ." 'track'.";
-}
 
 DBICTest::Schema->load_classes('EventSmallDT');
 

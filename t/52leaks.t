@@ -117,7 +117,7 @@ unless (DBICTest::RunMode->is_plain) {
   # Load them and empty the registry
 
   # this loads the DT armada
-  $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
+  $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for([qw( test_rdbms_sqlite icdt )]);
 
   require Errno;
   require DBI;

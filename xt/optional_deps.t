@@ -27,7 +27,6 @@ is_deeply (
   'Nothing loaded other than DBIx::Class::OptDeps',
 ) unless $ENV{RELEASE_TESTING};
 
-
 # check the project-local groups for sanity
 lives_ok {
   DBIx::Class::Optional::Dependencies->req_group_list
@@ -130,6 +129,7 @@ is_deeply (
   local $ENV{DBICTEST_MYSQL_DSN};
   local $ENV{DBICTEST_PG_DSN};
 
+# regular
   is_deeply(
     DBIx::Class::Optional::Dependencies->modreq_list_for('test_rdbms_pg'),
     { 'DBD::Pg' => '2.009002' },
@@ -186,35 +186,66 @@ is_deeply (
     'optional dependencies error text for testing Postgres matches with evvar',
   );
 
+# ICDT augmentation
+  my $mysql_icdt = [shuffle qw( test_rdbms_mysql icdt )];
+
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->modreq_list_for($mysql_icdt),
+    {
+      'DateTime' => '0.55',
+      'DBD::mysql' => 0,
+      'DateTime::Format::MySQL' => 0,
+    },
+    'optional module dependencies list for testing ICDT MySQL without envvar',
+  );
+
+  is_deeply(
+    DBIx::Class::Optional::Dependencies->req_list_for($mysql_icdt),
+    {
+      'DateTime' => '0.55',
+    },
+    'optional dependencies list for testing ICDT MySQL without envvar',
+  );
+
+  is(
+    DBIx::Class::Optional::Dependencies->req_missing_for($mysql_icdt),
+    '"DateTime~>=0.55" DateTime::Format::MySQL DBD::mysql as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS',
+    'missing optional dependencies for testing ICDT MySQL without envvars'
+  );
+
 # test multi-level include with a variable and mandatory part converging on same included dep
   local $ENV{DBICTEST_MSACCESS_ODBC_DSN};
   local $ENV{DBICTEST_MSSQL_ODBC_DSN} = 'foo';
-  my $msaccess_mssql = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc ) ];
+  my $msaccess_mssql_icdt = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc icdt ) ];
   is_deeply(
-    DBIx::Class::Optional::Dependencies->req_missing_for($msaccess_mssql),
-    'Data::GUID DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',
+    DBIx::Class::Optional::Dependencies->req_missing_for($msaccess_mssql_icdt),
+    'Data::GUID "DateTime~>=0.55" "DateTime::Format::Strptime~>=1.2" DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',
     'Correct req_missing_for on multi-level converging include',
   );
 
   is_deeply(
-    DBIx::Class::Optional::Dependencies->modreq_missing_for($msaccess_mssql),
-    'Data::GUID DBD::ODBC',
+    DBIx::Class::Optional::Dependencies->modreq_missing_for($msaccess_mssql_icdt),
+    'Data::GUID "DateTime~>=0.55" "DateTime::Format::Strptime~>=1.2" DBD::ODBC',
     'Correct modreq_missing_for on multi-level converging include',
   );
 
   is_deeply(
-    DBIx::Class::Optional::Dependencies->req_list_for($msaccess_mssql),
+    DBIx::Class::Optional::Dependencies->req_list_for($msaccess_mssql_icdt),
     {
       'DBD::ODBC' => 0,
+      'DateTime' => '0.55',
+      'DateTime::Format::Strptime' => '1.2',
     },
     'Correct req_list_for on multi-level converging include',
   );
 
   is_deeply(
-    DBIx::Class::Optional::Dependencies->modreq_list_for($msaccess_mssql),
+    DBIx::Class::Optional::Dependencies->modreq_list_for($msaccess_mssql_icdt),
     {
       'DBD::ODBC' => 0,
       'Data::GUID' => 0,
+      'DateTime' => '0.55',
+      'DateTime::Format::Strptime' => '1.2',
     },
     'Correct modreq_list_for on multi-level converging include',
   );

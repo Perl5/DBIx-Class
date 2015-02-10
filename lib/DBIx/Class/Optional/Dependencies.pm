@@ -43,8 +43,15 @@ my $dbic_reqs = {
   },
 
   # a common placeholder for engines with IC::DT support based off DT::F::S
-  # currently unused on purpose (see next commits)
-  _icdt_strptime_based => {},
+  _icdt_strptime_based => {
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::Strptime' => '1.2',
+        },
+      },
+    }
+  },
 
   _rdbms_generic_odbc => {
     req => {
@@ -105,6 +112,20 @@ my $dbic_reqs = {
     pod => {
       title => 'Storage::DBI::deploy()',
       desc => 'Modules required for L<DBIx::Class::Storage::DBI/deployment_statements> and L<DBIx::Class::Schema/deploy>',
+    },
+  },
+
+  icdt => {
+    req => {
+      'DateTime' => '0.55',
+    },
+    pod => {
+      title => 'InflateColumn::DateTime support',
+      desc =>
+        'Modules required for L<DBIx::Class::InflateColumn::DateTime>. '
+      . 'Note that this group does not require much on its own, but '
+      . 'instead is augmented by various RDBMS-specific groups. See the '
+      . 'documentation of each C<rbms_*> group for details',
     },
   },
 
@@ -178,42 +199,8 @@ my $dbic_reqs = {
     },
   },
 
-  test_dt => {
-    req => {
-      'DateTime'                    => '0.55',
-      'DateTime::Format::Strptime'  => '1.2',
-    },
-  },
-
-  test_dt_sqlite => {
-    include => 'test_dt',
-    req => {
-      # t/36datetime.t
-      # t/60core.t
-      'DateTime::Format::SQLite'  => '0',
-    },
-  },
-
-  test_dt_mysql => {
-    include => 'test_dt',
-    req => {
-      # t/inflate/datetime_mysql.t
-      # (doesn't need Mysql itself)
-      'DateTime::Format::MySQL'   => '0',
-    },
-  },
-
-  test_dt_pg => {
-    include => 'test_dt',
-    req => {
-      # t/inflate/datetime_pg.t
-      # (doesn't need PG itself)
-      'DateTime::Format::Pg'      => '0.16004',
-    },
-  },
-
   test_cdbicompat => {
-    include => 'test_dt',
+    include => 'icdt',
     req => {
       'Class::DBI::Plugin::DeepAbstractSearch' => '0',
       'Time::Piece::MySQL'        => '0',
@@ -231,9 +218,30 @@ my $dbic_reqs = {
       title => 'SQLite support',
       desc => 'Modules required to connect to SQLite',
     },
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::SQLite' => '0',
+        },
+      },
+    },
+  },
+
+  # centralize the specification, as we have ICDT tests which can
+  # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
+  # not _-prefixed so that it will show up under req_group_list
+  icdt_pg => {
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::Pg' => '0.16004',
+        },
+      },
+    },
   },
 
   rdbms_pg => {
+    include => 'icdt_pg',
     req => {
       # when changing this list make sure to adjust xt/optional_deps.t
       'DBD::Pg' => 0,
@@ -295,7 +303,21 @@ my $dbic_reqs = {
     },
   },
 
+  # centralize the specification, as we have ICDT tests which can
+  # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
+  # not _-prefixed so that it will show up under req_group_list
+  icdt_mysql => {
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::MySQL' => '0',
+        },
+      },
+    },
+  },
+
   rdbms_mysql => {
+    include => 'icdt_mysql',
     req => {
       'DBD::mysql' => 0,
     },
@@ -314,6 +336,13 @@ my $dbic_reqs = {
       title => 'Oracle support',
       desc => 'Modules required to connect to Oracle',
     },
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::Oracle' => '0',
+        },
+      },
+    },
   },
 
   rdbms_ase => {
@@ -328,6 +357,13 @@ my $dbic_reqs = {
   },
 
   _rdbms_db2_common => {
+    augment => {
+      icdt => {
+        req => {
+          'DateTime::Format::DB2' => '0',
+        },
+      },
+    },
   },
 
   rdbms_db2 => {
@@ -514,7 +550,6 @@ my $dbic_reqs = {
       DBICTEST_ORA_PASS => 0,
     ],
     req => {
-      'DateTime::Format::Oracle' => '0',
       'DBD::Oracle'              => '1.24',
     },
   },
@@ -879,6 +914,7 @@ sub __expand_includes {
       idx => 1 + keys %$rv,
       missing_envvars => $missing_envvars->{$_},
     } for @ret;
+    $rv->{$_}{user_requested} = 1 for @$groups;
     $rv;
   };
 }
@@ -903,20 +939,59 @@ sub _groups_to_reqs {
 
   my $all_groups = __expand_includes($groups);
 
+  # pre-assemble list of augmentations, perform basic sanity checks
+  # Note that below we *DO NOT* respect the source/target reationship, but
+  # instead always default to augment the "later" group
+  # This is done so that the "stable/variable" boundary keeps working as
+  # expected
+  my $augmentations;
+  for my $requesting_group (keys %$all_groups) {
+    if (my $ag = $dbic_reqs->{$requesting_group}{augment}) {
+      for my $target_group (keys %$ag) {
+
+        croak "Group '$requesting_group' claims to augment a non-existent group '$target_group'"
+          unless $dbic_reqs->{$target_group};
+
+        croak "Augmentation combined with variable effective_modreqs currently unsupported for group '$requesting_group'"
+          if $dbic_reqs->{$requesting_group}{env};
+
+        croak "Augmentation of group '$target_group' with variable effective_modreqs unsupported (requested by '$requesting_group')"
+          if $dbic_reqs->{$target_group}{env};
+
+        if (my @foreign = grep { $_ ne 'req' } keys %{$ag->{$target_group}} ) {
+          croak "Only 'req' augmentations are currently supported (group '$requesting_group' attempts to alter '$foreign[0]' of group '$target_group'";
+        }
+
+        $ret->{augments}{$target_group} = 1;
+
+        # no augmentation for stuff that hasn't been selected
+        if ( $all_groups->{$target_group} and my $ar = $ag->{$target_group}{req} ) {
+          push @{$augmentations->{
+            ( $all_groups->{$requesting_group}{idx} < $all_groups->{$target_group}{idx} )
+              ? $target_group
+              : $requesting_group
+          }}, $ar;
+        }
+      }
+    }
+  }
+
   for my $group (sort { $all_groups->{$a}{idx} <=> $all_groups->{$b}{idx} } keys %$all_groups ) {
 
     my $group_reqs = $dbic_reqs->{$group}{req};
 
     # sanity-check
-    for (keys %$group_reqs) {
+    for my $req_bag ($group_reqs, @{ $augmentations->{$group} || [] } ) {
+      for (keys %$req_bag) {
 
-      $_ =~ /\A [A-Z_a-z][0-9A-Z_a-z]* (?:::[0-9A-Z_a-z]+)* \z /x
-        or croak "Requirement '$_' in group '$group' is not a valid module name";
+        $_ =~ /\A [A-Z_a-z][0-9A-Z_a-z]* (?:::[0-9A-Z_a-z]+)* \z /x
+          or croak "Requirement '$_' in group '$group' is not a valid module name";
 
-      # !!!DO NOT CHANGE!!!
-      # remember - version.pm may not be available on the system
-      croak "Requirement '$_' in group '$group' specifies an invalid version '$group_reqs->{$_}' (only plain non-underscored floating point decimals are supported)"
-        if ( ($group_reqs->{$_}||0) !~ / \A [0-9]+ (?: \. [0-9]+ )? \z /x );
+        # !!!DO NOT CHANGE!!!
+        # remember - version.pm may not be available on the system
+        croak "Requirement '$_' in group '$group' specifies an invalid version '$req_bag->{$_}' (only plain non-underscored floating point decimals are supported)"
+          if ( ($req_bag->{$_}||0) !~ / \A [0-9]+ (?: \. [0-9]+ )? \z /x );
+      }
     }
 
     if (my $e = $all_groups->{$group}{missing_envvars}) {
@@ -928,7 +1003,7 @@ sub _groups_to_reqs {
       'modreqs',
       ( $ret->{missing_envvars} ? () : 'effective_modreqs' ),
     ) {
-      for my $req_bag ($group_reqs) {
+      for my $req_bag ($group_reqs, @{ $augmentations->{$group} || [] } ) {
         for my $mod (keys %$req_bag) {
 
           $ret->{$type}{$mod} = $req_bag->{$mod}||0 if (
@@ -943,7 +1018,8 @@ sub _groups_to_reqs {
       }
     }
 
-    $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod};
+    $ret->{modreqs_fully_documented} &&= !!$dbic_reqs->{$group}{pod}
+      if $all_groups->{$group}{user_requested};
 
     $ret->{release_testing_mandatory} ||= !!$dbic_reqs->{$group}{release_testing_mandatory};
   }
@@ -1048,13 +1124,13 @@ Somewhere in your build-file (e.g. L<ExtUtils::MakeMaker>'s F<Makefile.PL>):
 
   ...
 
-  my %DBIC_DEPLOY_DEPS = %{ eval {
+  my %DBIC_DEPLOY_AND_ORACLE_DEPS = %{ eval {
     require $class;
-    $class->req_list_for('deploy');
+    $class->req_list_for([qw( deploy rdbms_oracle icdt )]);
   } || {} };
 
   \$EUMM_ARGS{PREREQ_PM} = {
-    \%DBIC_DEPLOY_DEPS,
+    \%DBIC_DEPLOY_AND_ORACLE_DEPS,
     \%{ \$EUMM_ARGS{PREREQ_PM} || {} },
   };
 
@@ -1108,22 +1184,63 @@ EOC
 #@@
   push @chunks, '=head1 CURRENT REQUIREMENT GROUPS';
 
+  my $standalone_info;
+
   for my $group (sort keys %$dbic_reqs) {
-    my $p = $dbic_reqs->{$group}{pod}
-      or next;
 
-    my $modlist = $class->modreq_list_for($group);
+    my $info = $standalone_info->{$group} ||= $class->_groups_to_reqs($group);
 
-    next unless keys %$modlist;
+    next unless (
+      $info->{modreqs_fully_documented}
+        and
+      ( $info->{augments} or $info->{modreqs} )
+    );
+
+    my $p = $dbic_reqs->{$group}{pod};
 
     push @chunks, (
       "=head2 $p->{title}",
-      "$p->{desc}",
+      "=head3 $group",
+      $p->{desc},
       '=over',
-      ( map { "=item * $_" . ($modlist->{$_} ? " >= $modlist->{$_}" : '') } (sort keys %$modlist) ),
-      '=back',
-      "Requirement group: B<$group>",
     );
+
+    if ( keys %{ $info->{modreqs}||{} } ) {
+      push @chunks, map
+        { "=item * $_" . ($info->{modreqs}{$_} ? " >= $info->{modreqs}{$_}" : '') }
+        ( sort keys %{ $info->{modreqs} } )
+      ;
+    }
+    else {
+      push @chunks, '=item * No standalone requirements',
+    }
+
+    push @chunks, '=back';
+
+    for my $ag ( sort keys %{ $info->{augments} || {} } ) {
+      my $ag_info = $standalone_info->{$ag} ||= $class->_groups_to_reqs($ag);
+
+      my $newreqs = $class->modreq_list_for([ $group, $ag ]);
+      for (keys %$newreqs) {
+        delete $newreqs->{$_} if (
+          ( defined $info->{modreqs}{$_}    and $info->{modreqs}{$_}    == $newreqs->{$_} )
+            or
+          ( defined $ag_info->{modreqs}{$_} and $ag_info->{modreqs}{$_} == $newreqs->{$_} )
+        );
+      }
+
+      if (keys %$newreqs) {
+        push @chunks, (
+          "Combined with L</$ag> additionally requires:",
+          '=over',
+          ( map
+            { "=item * $_" . ($newreqs->{$_} ? " >= $newreqs->{$_}" : '') }
+            ( sort keys %$newreqs )
+          ),
+          '=back',
+        );
+      }
+    }
   }
 
 

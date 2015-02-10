@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_dt';
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt _rdbms_firebird_common );
 
 use strict;
 use warnings;
@@ -14,13 +14,14 @@ my $env2optdep = {
   DBICTEST_FIREBIRD_ODBC => 'test_rdbms_firebird_odbc',
 };
 
-plan skip_all => join (' ',
-  'Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_INTERBASE_DSN}',
-  'and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},',
-  '_USER and _PASS to run these tests.',
-
-  "WARNING: This test drops and creates a table called 'event'",
-) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
+my @tdeps = values %$env2optdep;
+plan skip_all => 'Test needs  ' . (join '  OR  ', map
+  { "[ @{[ DBIx::Class::Optional::Dependencies->req_missing_for( $_ ) ]} ]" }
+  @tdeps
+) unless scalar grep
+  { DBIx::Class::Optional::Dependencies->req_ok_for( $_ ) }
+  @tdeps
+;
 
 my $schema;
 

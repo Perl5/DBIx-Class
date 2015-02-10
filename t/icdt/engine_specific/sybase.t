@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw(test_dt test_rdbms_ase);
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt test_rdbms_ase );
 
 use strict;
 use warnings;
