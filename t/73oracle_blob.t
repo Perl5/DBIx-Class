@@ -8,6 +8,21 @@ use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
+
+use DBICTest::Schema::BindType;
+BEGIN {
+  DBICTest::Schema::BindType->add_columns(
+    'blb2' => {
+      data_type => 'blob',
+      is_nullable => 1,
+    },
+    'clb2' => {
+      data_type => 'clob',
+      is_nullable => 1,
+    }
+  );
+}
+
 use DBICTest;
 
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
@@ -59,7 +74,7 @@ SKIP: {
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
   $binstr{'large'} = $binstr{'small'} x 1024;
 
-  my $maxloblen = (length $binstr{'large'}) + 6;
+  my $maxloblen = (length $binstr{'large'}) + 5;
   note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
   local $dbh->{'LongReadLen'} = $maxloblen;
 
@@ -86,7 +101,7 @@ SKIP: {
 
     my $str = $binstr{$size};
     lives_ok {
-      $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str", blob2 => "blob2:$str", clob2 => "clob2:$str" } )
+      $rs->create( { 'id' => $id, blob => "blob:$str", clob => "clob:$str", blb2 => "blb2:$str", clb2 => "clb2:$str" } )
     } "inserted $size without dying";
 
     my %kids = %{$schema->storage->_dbh->{CachedKids}};
@@ -99,8 +114,8 @@ SKIP: {
     is @objs, 1, 'One row found matching on both LOBs';
     ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
-    ok (try { $objs[0]->clob2 }||'' eq "clob2:$str", "clob2 inserted correctly");
-    ok (try { $objs[0]->blob2 }||'' eq "blob2:$str", "blob2 inserted correctly");
+    ok (try { $objs[0]->clb2 }||'' eq "clb2:$str", "clb2 inserted correctly");
+    ok (try { $objs[0]->blb2 }||'' eq "blb2:$str", "blb2 inserted correctly");
 
     {
       local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
@@ -125,15 +140,15 @@ SKIP: {
 
     lives_ok {
       $rs->search({ id => $id, blob => "blob:$str", clob => "clob:$str" })
-        ->update({ blob => 'updated blob', clob => 'updated clob', clob2 => 'updated clob2', blob2 => 'updated blob2' });
+        ->update({ blob => 'updated blob', clob => 'updated clob', clb2 => 'updated clb2', blb2 => 'updated blb2' });
     } 'blob UPDATE with blobs in WHERE clause survived';
 
     @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
     is @objs, 1, 'found updated row';
     ok (try { $objs[0]->blob }||'' eq "updated blob", 'blob updated/retrieved correctly');
     ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
-    ok (try { $objs[0]->clob2 }||'' eq "updated clob2", "clob2 updated correctly");
-    ok (try { $objs[0]->blob2 }||'' eq "updated blob2", "blob2 updated correctly");
+    ok (try { $objs[0]->clb2 }||'' eq "updated clb2", "clb2 updated correctly");
+    ok (try { $objs[0]->blb2 }||'' eq "updated blb2", "blb2 updated correctly");
 
     lives_ok {
       $rs->search({ id => $id  })
@@ -164,7 +179,7 @@ sub do_creates {
 
   do_clean($dbh);
 
-  $dbh->do("CREATE TABLE ${q}bindtype_test${q} (${q}id${q} integer NOT NULL PRIMARY KEY, ${q}bytea${q} integer NULL, ${q}blob${q} blob NULL, ${q}blob2${q} blob NULL, ${q}clob${q} clob NULL, ${q}clob2${q} clob NULL, ${q}a_memo${q} integer NULL)");
+  $dbh->do("CREATE TABLE ${q}bindtype_test${q} (${q}id${q} integer NOT NULL PRIMARY KEY, ${q}bytea${q} integer NULL, ${q}blob${q} blob NULL, ${q}blb2${q} blob NULL, ${q}clob${q} clob NULL, ${q}clb2${q} clob NULL, ${q}a_memo${q} integer NULL)");
 }
 
 # clean up our mess

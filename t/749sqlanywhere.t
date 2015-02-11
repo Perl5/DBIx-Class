@@ -150,9 +150,7 @@ EOF
     id     INT          NOT NULL PRIMARY KEY,
     bytea  INT          NULL,
     blob   LONG BINARY  NULL,
-    blob2  LONG BINARY  NULL,
     clob   LONG VARCHAR NULL,
-    clob2  LONG VARCHAR NULL,
     a_memo INT          NULL
   )
   ],{ RaiseError => 1, PrintError => 1 });

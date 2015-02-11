@@ -15,9 +15,7 @@ CREATE TABLE "bindtype_test" (
   "id" INTEGER PRIMARY KEY NOT NULL,
   "bytea" blob,
   "blob" blob,
-  "blob2" blob,
   "clob" clob,
-  "clob2" clob,
   "a_memo" memo
 );
 

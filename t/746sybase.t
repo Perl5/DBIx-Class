@@ -349,9 +349,7 @@ SQL
           id     INT   IDENTITY PRIMARY KEY,
           bytea  IMAGE NULL,
           blob   IMAGE NULL,
-          blob2  IMAGE NULL,
           clob   TEXT  NULL,
-          clob2  TEXT  NULL,
           a_memo IMAGE NULL
         )
       ],{ RaiseError => 1, PrintError => 0 });

@@ -21,15 +21,7 @@ __PACKAGE__->add_columns(
     data_type => 'blob',
     is_nullable => 1,
   },
-  'blob2' => {
-    data_type => 'blob',
-    is_nullable => 1,
-  },
   'clob' => {
-    data_type => 'clob',
-    is_nullable => 1,
-  },
-  'clob2' => {
     data_type => 'clob',
     is_nullable => 1,
   },

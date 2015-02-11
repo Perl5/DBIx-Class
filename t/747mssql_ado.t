@@ -251,9 +251,7 @@ CREATE TABLE bindtype_test
   id     INT IDENTITY NOT NULL PRIMARY KEY,
   bytea  INT NULL,
   blob   IMAGE NULL,
-  blob2  IMAGE NULL,
   clob   TEXT NULL,
-  clob2  TEXT NULL,
   a_memo NTEXT NULL
 )
 ],{ RaiseError => 1, PrintError => 1 });
