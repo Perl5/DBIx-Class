@@ -37,7 +37,6 @@ if (not ($dsn || $dsn2 || $dsn3)) {
     ." 'track'.";
 }
 
-require DBICTest::Schema;
 DBICTest::Schema->load_classes('EventSmallDT');
 
 my @connect_info = (
@@ -54,7 +53,7 @@ for my $connect_info (@connect_info) {
 
   next unless $dsn;
 
-  $schema = DBICTest->connect_schema($dsn, $user, $pass, {
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => 'datetime_setup'
   });
 

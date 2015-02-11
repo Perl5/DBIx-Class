@@ -12,7 +12,6 @@ BEGIN {
 
 use Test::Exception;
 use DBICTest;
-use DBICTest::Schema;
 use File::Temp ();
 
 plan tests => 2;

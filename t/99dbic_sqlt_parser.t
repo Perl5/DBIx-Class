@@ -19,7 +19,6 @@ BEGIN {
 
 # Test for SQLT-related leaks
 {
-  require DBICTest::Schema;
   my $s = DBICTest::Schema->clone;
 
   my @schemas = (

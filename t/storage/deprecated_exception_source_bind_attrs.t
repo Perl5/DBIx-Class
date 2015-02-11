@@ -6,7 +6,6 @@ use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::Schema;
 
 {
   package DBICTest::Legacy::Storage;

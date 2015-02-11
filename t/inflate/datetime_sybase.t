@@ -24,7 +24,6 @@ if (not ($dsn && $user)) {
     "'event_small_dt'";
 }
 
-require DBICTest::Schema;
 DBICTest::Schema->load_classes('EventSmallDT');
 
 my @storage_types = (

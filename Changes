@@ -6,8 +6,6 @@ Revision history for DBIx::Class
 
     * Misc
         - Speed up skipping CDBICompat tests when dependencies are missing
-        - Avoid loading DBICTest::Schema unnecessarily in tests that
-          are being skipped
 
 0.082801 2014-10-05 23:55 (UTC)
     * Known Issues

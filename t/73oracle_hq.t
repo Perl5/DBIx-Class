@@ -24,8 +24,8 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test.'
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('rdbms_oracle')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('rdbms_oracle');
 
-{
-  require DBICTest::Schema::Artist;
+use DBICTest::Schema::Artist;
+BEGIN {
   DBICTest::Schema::Artist->add_column('parentid');
 
   DBICTest::Schema::Artist->has_many(
@@ -40,8 +40,9 @@ plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missin
 }
 
 use DBICTest;
+use DBICTest::Schema;
 
-my $schema = DBICTest->connect_schema($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 note "Oracle Version: " . $schema->storage->_server_info->{dbms_version};
 
