@@ -422,6 +422,7 @@ sub _dbi_attrs_for_bind {
   # Push the column name into all bind attrs, make sure to *NOT* write into
   # the existing $attrs->[$idx]{..} hashref, as it is cached by the call to
   # next::method above.
+  # FIXME - this code will go away when the LobWriter refactor lands
   $attrs->[$_]
     and
   keys %{ $attrs->[$_] }

@@ -182,9 +182,11 @@ sub _dbi_attrs_for_bind {
 
   my $attrs = $self->next::method(@_);
 
-  foreach my $attr (@$attrs) {
-    $attr->{ado_size} ||= 8000 if $attr;
-  }
+  # The next::method above caches the returned hashrefs in a _dbh related
+  # structure. It is safe for us to modify it in this manner, as the default
+  # does not really change (albeit the entire logic is insane and is pending
+  # a datatype-objects rewrite)
+  $_ and $_->{ado_size} ||= 8000 for @$attrs;
 
   return $attrs;
 }

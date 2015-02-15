@@ -1773,31 +1773,28 @@ sub _query_end {
 }
 
 sub _dbi_attrs_for_bind {
-  my ($self, $ident, $bind) = @_;
+  #my ($self, $ident, $bind) = @_;
 
-  my @attrs;
+  return [ map {
 
-  for (map { $_->[0] } @$bind) {
-    push @attrs, do {
-      if (exists $_->{dbd_attrs}) {
-        $_->{dbd_attrs}
-      }
-      elsif($_->{sqlt_datatype}) {
-        # cache the result in the dbh_details hash, as it can not change unless
-        # we connect to something else
-        my $cache = $self->_dbh_details->{_datatype_map_cache} ||= {};
-        if (not exists $cache->{$_->{sqlt_datatype}}) {
-          $cache->{$_->{sqlt_datatype}} = $self->bind_attribute_by_data_type($_->{sqlt_datatype}) || undef;
-        }
-        $cache->{$_->{sqlt_datatype}};
-      }
-      else {
-        undef;  # always push something at this position
-      }
-    }
-  }
+    exists $_->{dbd_attrs}  ?  $_->{dbd_attrs}
 
-  return \@attrs;
+  : ! $_->{sqlt_datatype}   ? undef
+
+  :                           do {
+
+    # cache the result in the dbh_details hash, as it (usually) can not change
+    # unless we connect to something else
+    # FIXME: for the time being Oracle is an exception, pending a rewrite of
+    # the LOB storage
+    my $cache = $_[0]->_dbh_details->{_datatype_map_cache} ||= {};
+
+    $cache->{$_->{sqlt_datatype}} = $_[0]->bind_attribute_by_data_type($_->{sqlt_datatype})
+      if ! exists $cache->{$_->{sqlt_datatype}};
+
+    $cache->{$_->{sqlt_datatype}};
+
+  } } map { $_->[0] } @{$_[2]} ];
 }
 
 sub _execute {
