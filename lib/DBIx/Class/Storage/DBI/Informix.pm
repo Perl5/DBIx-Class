@@ -66,13 +66,11 @@ sub with_deferred_fk_checks {
 
   $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
 
-  return preserve_context {
-    my $inner_self = $self; # avoid nested closure leak on 5.8
-    my $sg = Scope::Guard->new(sub {
-      $inner_self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
-    });
-    $sub->()
-  } after => sub { $txn_scope_guard->commit };
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+  });
+
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 =head2 connect_call_datetime_setup

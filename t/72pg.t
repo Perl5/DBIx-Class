@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Warn;
 use Test::Exception;
 use Sub::Name;
 use Config;
@@ -437,7 +436,7 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
 
   $schema->source('CD')->name('dbic_t_schema.cd');
   $schema->source('Track')->name('dbic_t_schema.track');
-  lives_and { warning_is {
+  lives_ok {
     $schema->storage->with_deferred_fk_checks(sub {
       $schema->resultset('Track')->create({
         trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
@@ -446,7 +445,7 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
         artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
       });
     });
-  } undef } 'with_deferred_fk_checks code survived';
+  } 'with_deferred_fk_checks code survived';
 
   is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
      'code in with_deferred_fk_checks worked';
