@@ -1,13 +1,14 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
 use Data::Dumper;
 
-INIT {
-    use lib 't/cdbi/testlib';
-    use Film;
-    use Director;
-}
+use lib 't/cdbi/testlib';
+use Film;
+use Director;
 
 { # Cascade on delete
     Director->has_many(nasties => 'Film');

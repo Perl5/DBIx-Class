@@ -1,18 +1,17 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
 use Test::Exception;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
 @YA::Film::ISA = 'Film';
 
-#local $SIG{__WARN__} = sub { };
-
-INIT {
-  use lib 't/cdbi/testlib';
-  use Film;
-  use Director;
-}
+use lib 't/cdbi/testlib';
+use Film;
+use Director;
 
 Film->create_test_film;
 ok(my $btaste = Film->retrieve('Bad Taste'), "We have Bad Taste");

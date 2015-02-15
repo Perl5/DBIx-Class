@@ -1,9 +1,11 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
 
 use lib 't/cdbi/testlib';
-use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
 
 package Foo;
 

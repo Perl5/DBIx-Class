@@ -1,11 +1,12 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
 
-INIT {
-    use lib 't/cdbi/testlib';
-    require Film;
-}
+use lib 't/cdbi/testlib';
+INIT { require Film }
 
 sub Film::get_test {
     my $self = shift;

@@ -1753,10 +1753,10 @@ passing them as bind values:
     numbers => { -value => [1, 2, 3] },
   });
 
-Alternatively:
+Or using the more generic (and more cumbersome) literal syntax:
 
   $resultset->search({
-    numbers => \[ '= ?', [numbers => [1, 2, 3]] ]
+    numbers => \[ '= ?', [ numbers => [1, 2, 3] ] ]
   });
 
 

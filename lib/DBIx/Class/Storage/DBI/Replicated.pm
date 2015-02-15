@@ -1,9 +1,13 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
+use warnings;
+use strict;
+
 BEGIN {
-  use DBIx::Class;
-  die('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') . "\n" )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
+  require DBIx::Class::Optional::Dependencies;
+  if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('replicated') ) {
+    die "The following modules are required for Replicated storage support: $missing\n";
+  }
 }
 
 use Moose;

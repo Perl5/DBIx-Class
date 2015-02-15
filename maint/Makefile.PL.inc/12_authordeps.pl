@@ -32,12 +32,19 @@ else {
 EOW
 
   require DBIx::Class::Optional::Dependencies;
-  my %reqs_for_group = %{DBIx::Class::Optional::Dependencies->req_group_list};
 
   # exclude the rdbms_* groups which are for DBIC users
-  $opt_testdeps = {
-    map { %{$reqs_for_group{$_}} } grep { !/^rdbms_|^dist_/ } keys %reqs_for_group
-  };
+  # and the moose-related stuff iff we are under 5.8.3
+  $opt_testdeps = DBIx::Class::Optional::Dependencies->req_list_for([
+    grep {
+      !/^rdbms_|^dist_/
+        and
+      ($] > 5.008002 or !/^ (?: test_ )? (?: admin | admin_script | replicated ) $/x )
+    } keys %{DBIx::Class::Optional::Dependencies->req_group_list}
+  ]);
+
+  # this one is "special" - we need it both in optdeps and as a hard dep
+  delete $opt_testdeps->{'DBD::SQLite'};
 
   print "Including all optional deps\n";
   $reqs->{test_requires} = {

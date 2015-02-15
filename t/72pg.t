@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
+
 use strict;
 use warnings;
 
@@ -11,48 +13,13 @@ use DBICTest;
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util 'is_exception';
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => <<'EOM' unless $dsn && $user;
-Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
-( NOTE: This test drops and creates tables called 'artist', 'cd',
-'timestamp_primary_key_test', 'track', 'casecheck', 'array_test' and
-'sequence_test' as well as following sequences: 'pkid1_seq', 'pkid2_seq' and
-'nonpkid_seq'. as well as following schemas: 'dbic_t_schema',
-'dbic_t_schema_2', 'dbic_t_schema_3', 'dbic_t_schema_4', and 'dbic_t_schema_5')
-EOM
-
 ### load any test classes that are defined further down in the file via BEGIN blocks
-
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
 ###  pre-connect tests (keep each test separate as to make sure rebless() runs)
-  {
-    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
-
-    ok (!$s->storage->_dbh, 'definitely not connected');
-
-    # Check that datetime_parser returns correctly before we explicitly connect.
-    SKIP: {
-        skip (
-          "Pg parser detection test needs " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg'),
-          2
-        ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
-
-        my $store = ref $s->storage;
-        is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
-
-        my $parser = $s->storage->datetime_parser;
-        is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
-    }
-
-    ok (!$s->storage->_dbh, 'still not connected');
-  }
-
   {
     my $s = DBICTest::Schema->connect($dsn, $user, $pass);
     # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
@@ -149,6 +116,16 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   run_apk_tests($schema); #< older set of auto-pk tests
   run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
+
+######## test the pg-specific syntax from https://rt.cpan.org/Ticket/Display.html?id=99503
+  lives_ok {
+    is(
+      $schema->resultset('Artist')->search({ artistid => { -in => \ '(select 4) union (select 5)' } })->count,
+      2,
+      'Two expected artists found on subselect union within IN',
+    );
+  };
+
 ### type_info tests
 
   my $test_type_info = {
@@ -186,14 +163,19 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
   my $type_info = $schema->storage->columns_info_for('dbic_t_schema.artist');
   my $artistid_defval = delete $type_info->{artistid}->{default_value};
-  like($artistid_defval,
-       qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
-       'columns_info_for - sequence matches Pg get_autoinc_seq expectations');
-  is_deeply($type_info, $test_type_info,
+
+  # The curor info is too radically different from what is in the column_info
+  # call - just punt it (DBD::SQLite tests the codepath plenty enough)
+  unless (DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE) {
+    like(
+      $artistid_defval,
+      qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
+      'columns_info_for - sequence matches Pg get_autoinc_seq expectations'
+    );
+
+    is_deeply($type_info, $test_type_info,
             'columns_info_for - column data types');
-
-
-
+  }
 
 ####### Array tests
 
@@ -392,9 +374,15 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
                 sub { die "DBICTestTimeout" },
               ));
 
-              alarm(2);
               $artist2 = $schema2->resultset('Artist')->find(1);
               $artist2->name('fooey');
+
+              # FIXME - this needs to go away in lieu of a non-retrying runner
+              # ( i.e. after solving RT#47005 )
+              local *DBIx::Class::Storage::DBI::_ping = sub { 1 }, DBIx::Class::_ENV_::OLD_MRO && Class::C3->reinitialize()
+                if DBIx::Class::_Util::modver_gt_or_eq( 'DBD::Pg' => '3.5.0' );
+
+              alarm(1);
               $artist2->update;
           };
 

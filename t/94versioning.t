@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw(deploy test_rdbms_mysql);
+
 use strict;
 use warnings;
 
@@ -13,23 +15,7 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-my ($dsn, $user, $pass);
-
-BEGIN {
-  ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
-
-  plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
-    unless ($dsn);
-
-  require DBIx::Class;
-  plan skip_all =>
-      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy');
-
-  plan skip_all =>
-      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');
-}
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
 # this is just to grab a lock
 {

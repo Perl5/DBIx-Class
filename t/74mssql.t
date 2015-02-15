@@ -1,22 +1,15 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mssql_sybase';
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
 use Scalar::Util 'weaken';
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
-  unless ($dsn);
-
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mssql_sybase')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mssql_sybase');
-
 {
   my $srv_ver = DBICTest::Schema->connect($dsn, $user, $pass)->storage->_server_info->{dbms_version};
   ok ($srv_ver, 'Got a test server version on fresh schema: ' . ($srv_ver||'???') );

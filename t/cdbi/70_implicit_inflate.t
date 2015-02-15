@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat rdbms_sqlite icdt );
+
 use strict;
 use warnings;
 
@@ -8,12 +10,6 @@ use warnings;
 # of the "" operator.
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies;
-
-BEGIN {
-  plan skip_all => "Test needs ".DBIx::Class::Optional::Dependencies->req_missing_for('test_dt_sqlite')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for('test_dt_sqlite');
-}
 
 use lib 't/cdbi/testlib';
 use ImplicitInflate;

@@ -1,17 +1,15 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt icdt_mysql );
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use DBICTest::Schema;
 use DBIx::Class::_Util 'sigwarn_silencer';
-
-plan skip_all => 'Inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_mysql')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_mysql');
 
 {
   DBICTest::Schema->load_classes('EventTZ');

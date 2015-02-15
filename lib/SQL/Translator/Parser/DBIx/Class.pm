@@ -16,6 +16,7 @@ use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use DBIx::Class::Exception;
+use Class::C3::Componentised;
 use Scalar::Util 'blessed';
 use Try::Tiny;
 use namespace::clean;
@@ -53,8 +54,11 @@ sub parse {
     DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
 
     if (!ref $dbicschema) {
-      eval "require $dbicschema"
-        or DBIx::Class::Exception->throw("Can't load $dbicschema: $@");
+      try {
+        Class::C3::Componentised->ensure_class_loaded($dbicschema)
+      } catch {
+        DBIx::Class::Exception->throw("Can't load $dbicschema: $_");
+      }
     }
 
     if (

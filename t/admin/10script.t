@@ -1,6 +1,12 @@
-# vim: filetype=perl
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_admin_script';
+
 use strict;
 use warnings;
+
+BEGIN {
+  # just in case the user env has stuff in it
+  delete $ENV{JSON_ANY_ORDER};
+}
 
 use Test::More;
 use Config;
@@ -8,20 +14,9 @@ use File::Spec;
 use lib qw(t/lib);
 use DBICTest;
 
-BEGIN {
-  require DBIx::Class;
-  plan skip_all => 'Test needs ' .
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_admin_script')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for('test_admin_script');
-
-  # just in case the user env has stuff in it
-  delete $ENV{JSON_ANY_ORDER};
-}
-
 $ENV{PATH} = '';
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
-require JSON::Any;
 my @json_backends = qw(DWIW PP JSON CPANEL XS);
 
 # test the script is setting @INC properly

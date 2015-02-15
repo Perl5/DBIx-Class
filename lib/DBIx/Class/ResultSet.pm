@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
+use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
@@ -1382,11 +1383,7 @@ sub _construct_results {
   $self->{_result_inflator}{is_hri} = ( (
     ! $self->{_result_inflator}{is_core_row}
       and
-    $inflator_cref == (
-      require DBIx::Class::ResultClass::HashRefInflator
-        &&
-      DBIx::Class::ResultClass::HashRefInflator->can('inflate_result')
-    )
+    $inflator_cref == \&DBIx::Class::ResultClass::HashRefInflator::inflate_result
   ) ? 1 : 0 ) unless defined $self->{_result_inflator}{is_hri};
 
 
@@ -1463,6 +1460,9 @@ sub _construct_results {
         if @violating_idx;
 
       $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
+
+      utf8::upgrade($unrolled_non_null_cols_to_check)
+        if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
     }
 
     my $next_cref =
@@ -4591,19 +4591,14 @@ setting is ignored and an appropriate warning is issued.
 
 =head2 where
 
-=over 4
-
-Adds to the WHERE clause.
+Adds extra conditions to the resultset, combined with the preexisting C<WHERE>
+conditions, same as the B<first> argument to the L<search operator|/search>
 
   # only return rows WHERE deleted IS NULL for all searches
   __PACKAGE__->resultset_attributes({ where => { deleted => undef } });
 
-Can be overridden by passing C<< { where => undef } >> as an attribute
-to a resultset.
-
-For more complicated where clauses see L<SQL::Abstract/WHERE CLAUSES>.
-
-=back
+Note that the above example is
+L<strongly discouraged|DBIx::Class::ResultSource/resultset_attributes>.
 
 =head2 cache
 

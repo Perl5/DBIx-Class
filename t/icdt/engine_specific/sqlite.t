@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt test_rdbms_sqlite );
+
 use strict;
 use warnings;
 
@@ -7,13 +9,31 @@ use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
 
+# Test offline parser determination (formerly t/inflate/datetime_determine_parser.t)
+{
+  my $schema = DBICTest->init_schema(
+    no_deploy => 1, # Deploying would cause an early rebless
+  );
+
+  is(
+    ref $schema->storage, 'DBIx::Class::Storage::DBI',
+    'Starting with generic storage'
+  );
+
+  # Calling date_time_parser should cause the storage to be reblessed,
+  # so that we can pick up datetime_parser_type from subclasses
+  my $parser = $schema->storage->datetime_parser();
+
+  is($parser, 'DateTime::Format::SQLite', 'Got expected storage-set datetime_parser');
+  isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::SQLite', 'storage');
+
+  ok(! $schema->storage->connected, 'Not yet connected');
+}
+
 # so user's env doesn't screw us
 delete $ENV{DBIC_DT_SEARCH_OK};
 
 my $schema = DBICTest->init_schema();
-
-plan skip_all => 'DT inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -97,6 +117,47 @@ is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
 ## skip inflation field
 my $skip_inflation = $event->skip_inflation;
 is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
+
+# extra accessor tests with update_or_insert
+{
+  my $new = $schema->resultset("Track")->new( {
+    trackid => 100,
+    cd => 1,
+    title => 'Insert or Update',
+    last_updated_on => '1973-07-19 12:01:02'
+  } );
+  $new->update_or_insert;
+  ok($new->in_storage, 'update_or_insert insert ok');
+
+  # test in update mode
+  $new->title('Insert or Update - updated');
+  $new->update_or_insert;
+  is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
+
+  # test get_inflated_columns with objects
+  my $event = $schema->resultset('Event')->search->first;
+  my %edata = $event->get_inflated_columns;
+  is($edata{'id'}, $event->id, 'got id');
+  isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
+  isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
+  is($edata{'starts_at'}, $event->starts_at, 'got start date');
+  is($edata{'created_on'}, $event->created_on, 'got created date');
+
+  # get_inflated_columns w/relation and accessor alias
+  isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
+  my %tdata = $new->get_inflated_columns;
+  is($tdata{'trackid'}, 100, 'got id');
+  isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
+  is($tdata{'cd'}->id, 1, 'cd object is id 1');
+  is(
+    $tdata{'position'},
+    $schema->resultset ('Track')->search ({cd => 1})->count,
+    'Ordered assigned proper position',
+  );
+  is($tdata{'title'}, 'Insert or Update - updated');
+  is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
+  isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
+}
 
 # create and update with literals
 {

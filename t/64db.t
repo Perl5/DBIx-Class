@@ -62,7 +62,7 @@ is_deeply (
       'rank' => {
           'data_type' => 'integer',
           'is_nullable' => 0,
-          'default_value' => '13',
+          DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE ? () : ( 'default_value' => '13' ),
       },
       'charfield' => {
           'data_type' => 'char',

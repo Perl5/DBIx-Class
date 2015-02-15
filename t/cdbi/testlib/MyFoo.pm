@@ -6,8 +6,6 @@ use strict;
 
 use base 'MyBase';
 
-use Date::Simple 3.03;
-
 __PACKAGE__->set_table();
 __PACKAGE__->columns(All => qw/myid name val tdate/);
 __PACKAGE__->has_a(

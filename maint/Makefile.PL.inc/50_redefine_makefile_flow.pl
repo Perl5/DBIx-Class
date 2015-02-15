@@ -4,6 +4,7 @@
   package MY;
   sub distdir {
     (my $snippet = shift->SUPER::distdir(@_)) =~ s/^create_distdir :/create_distdir_copy_manifested :/;
+    no warnings 'qw';
     return <<"EOM";
 $snippet
 
@@ -23,7 +24,7 @@ clonedir_cleanup_generated_files :
 
 check_create_distdir_prereqs :
 \t\$(NOECHO) @{[
-  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->die_unless_req_ok_for(q(dist_dir))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+  $mm_proto->oneliner("1", [qw( -Ilib -MDBIx::Class::Optional::Dependencies=-die_without,dist_dir )])
 ]}
 
 EOM
@@ -37,6 +38,7 @@ EOM
 
   sub postamble {
     my $snippet = shift->SUPER::postamble(@_);
+    no warnings 'qw';
     return <<"EOM";
 $snippet
 
@@ -44,7 +46,7 @@ upload :: check_create_distdir_prereqs check_upload_dist_prereqs
 
 check_upload_dist_prereqs :
 \t\$(NOECHO) @{[
-  $mm_proto->oneliner("DBIx::Class::Optional::Dependencies->die_unless_req_ok_for(q(dist_upload))", [qw/-Ilib -MDBIx::Class::Optional::Dependencies/])
+  $mm_proto->oneliner("1", [qw( -Ilib -MDBIx::Class::Optional::Dependencies=-die_without,dist_upload )])
 ]}
 
 EOM

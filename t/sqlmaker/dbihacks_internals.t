@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
@@ -32,7 +33,7 @@ my $num = bless( \do { my $foo = 69 }, 'DBICTest::SillyInt' );
 is($num, 69, 'test overloaded object is "sane"');
 is("$num", 69, 'test overloaded object is "sane"');
 
-for my $t (
+my @tests = (
   {
     where => { artistid => 1, charfield => undef },
     cc_result => { artistid => 1, charfield => undef },
@@ -440,15 +441,179 @@ for my $t (
     },
     efcc_result => { x => { -ident => 'y' } },
   },
-) {
+);
 
+# these die as of SQLA 1.80 - make sure we do not transform them
+# into something usable instead
+for my $lhs (undef, '', { -ident => 'foo' }, { -value => 'foo' } ) {
+  no warnings 'uninitialized';
+
+  for my $w (
+    ( map { { -or => $_ }, (ref $lhs ? () : { @$_ } ) }
+      [ $lhs => "foo" ],
+      [ $lhs => { "=" => "bozz" } ],
+      [ $lhs => { "=" => \"bozz" } ],
+      [ $lhs => { -max => \"bizz" } ],
+    ),
+
+    (ref $lhs) ? () : (
+      { -or => [ -and => { $lhs => "baz" }, bizz => "buzz" ] },
+      { -or => [ foo => "bar", { $lhs => "baz" }, bizz => "buzz" ] },
+      { foo => "bar", -or => { $lhs => "baz" } },
+      { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
+    ),
+
+    { foo => "bar", -and => [ $lhs => \"baz" ], bizz => "buzz" },
+    { foo => "bar", -or => [ $lhs => \"baz" ], bizz => "buzz" },
+
+    { -or => [ foo => "bar", [ $lhs => \"baz" ], bizz => "buzz" ] },
+    { -or => [ foo => "bar", $lhs => \"baz", bizz => "buzz" ] },
+    { -or => [ foo => "bar", $lhs => \["baz"], bizz => "buzz" ] },
+    { -or => [ $lhs => \"baz" ] },
+    { -or => [ $lhs => \["baz"] ] },
+
+  ) {
+    push @tests, {
+      where => $w,
+      throw => qr/
+        \QSupplying an empty left hand side argument is not supported in \E(?:array|hash)-pairs
+          |
+        \QIllegal use of top-level '-\E(?:value|ident)'
+      /x,
+    }
+  }
+}
+
+# these are deprecated as of SQLA 1.79 - make sure we do not transform
+# them without losing the warning
+for my $lhs (undef, '') {
+  for my $rhs ( \"baz", \[ "baz" ] ) {
+    no warnings 'uninitialized';
+
+    my $expected_warning = qr/\QHash-pairs consisting of an empty string with a literal are deprecated/;
+
+    push @tests, {
+      where => { $lhs => $rhs },
+      cc_result => { -and => [ $rhs ] },
+      efcc_result => {},
+      sql => 'WHERE baz',
+      warn => $expected_warning,
+    };
+
+    for my $w (
+      { foo => "bar", -and => { $lhs => $rhs }, bizz => "buzz" },
+      { foo => "bar", $lhs => $rhs, bizz => "buzz" },
+    ) {
+      push @tests, {
+        where => $w,
+        cc_result => {
+          -and => [ $rhs ],
+          bizz => "buzz",
+          foo => "bar",
+        },
+        efcc_result => {
+          foo => "bar",
+          bizz => "buzz",
+        },
+        sql => 'WHERE baz AND bizz = ? AND foo = ?',
+        warn => $expected_warning,
+      };
+    }
+  }
+}
+
+# lots of extra silly tests with a false column
+for my $eq (
+  \"= baz",
+  \[ "= baz" ],
+  { '=' => { -ident => 'baz' } },
+  { '=' => \'baz' },
+) {
+  for my $where (
+    { foo => "bar", -and => [ 0 => $eq ], bizz => "buzz" },
+    { foo => "bar", -or => [ 0 => $eq ], bizz => "buzz" },
+    { foo => "bar", -and => { 0 => $eq }, bizz => "buzz" },
+    { foo => "bar", -or => { 0 => $eq }, bizz => "buzz" },
+    { foo => "bar", 0 => $eq, bizz => "buzz" },
+  ) {
+    push @tests, {
+      where => $where,
+      cc_result => {
+        0 => $eq,
+        foo => 'bar',
+        bizz => 'buzz',
+      },
+      efcc_result => {
+        foo => 'bar',
+        bizz => 'buzz',
+        ( ref $eq eq 'HASH' ? ( 0 => $eq->{'='} ) : () ),
+      },
+      sql => 'WHERE 0 = baz AND bizz = ? AND foo = ?',
+    };
+
+    push @tests, {
+      where => { -or => $where },
+      cc_result => { -or => [
+        "0" => $eq,
+        bizz => 'buzz',
+        foo => 'bar',
+      ]},
+      efcc_result => {},
+      sql => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
+    }
+
+  }
+
+  for my $where (
+    [ foo => "bar", -and => [ 0 => $eq ], bizz => "buzz" ],
+    [ foo => "bar", -or => [ 0 => $eq ], bizz => "buzz" ],
+    [ foo => "bar", -and => { 0 => $eq }, bizz => "buzz" ],
+    [ foo => "bar", -or => { 0 => $eq }, bizz => "buzz" ],
+    [ foo => "bar", 0 => $eq, bizz => "buzz" ],
+  ) {
+    push @tests, {
+      where => { -or => $where },
+      cc_result => { -or => [
+        "0" => $eq,
+        bizz => 'buzz',
+        foo => 'bar',
+      ]},
+      efcc_result => {},
+      sql => 'WHERE foo = ? OR 0 = baz OR bizz = ?',
+      collapsed_sql => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
+    }
+  }
+
+  for my $where (
+    [ {foo => "bar"}, -and => { 0 => "baz" }, bizz => "buzz" ],
+    [ -or => [ foo => "bar", -or => { 0 => "baz" }, bizz => "buzz" ] ],
+  ) {
+    push @tests, {
+      where => { -or => $where },
+      cc_result => { -or => [
+        "0" => 'baz',
+        bizz => 'buzz',
+        foo => 'bar',
+      ]},
+      efcc_result => {},
+      sql => 'WHERE foo = ? OR 0 = ? OR bizz = ?',
+      collapsed_sql => 'WHERE 0 = ? OR bizz = ? OR foo = ?',
+    };
+  }
+
+};
+
+for my $t (@tests) {
   for my $w (
     $t->{where},
     $t->{where},  # do it twice, make sure we didn't destory the condition
     [ -and => $t->{where} ],
     [ -AND => $t->{where} ],
     { -OR => [ -AND => $t->{where} ] },
-    ( keys %{$t->{where}} <= 1 ? [ %{$t->{where}} ] : () ),
+    ( ( keys %{$t->{where}} == 1 and length( (keys %{$t->{where}})[0] ) )
+      ? [ %{$t->{where}} ]
+      : ()
+    ),
     ( (keys %{$t->{where}} == 1 and $t->{where}{-or})
       ? ( ref $t->{where}{-or} eq 'HASH'
         ? [ map { $_ => $t->{where}{-or}{$_} } sort keys %{$t->{where}{-or}} ]
@@ -457,20 +622,25 @@ for my $t (
       : ()
     ),
   ) {
+    die unless Test::Builder->new->is_passing;
+
     my $name = do { local ($Data::Dumper::Indent, $Data::Dumper::Terse, $Data::Dumper::Sortkeys) = (0, 1, 1); Dumper $w };
 
-    my ($generated_sql) = $sm->where($w);
+    my ($collapsed_cond, $collapsed_cond_as_sql);
 
-    is_same_sql ( $generated_sql, $t->{sql}, "Expected SQL from $name" )
-      if exists $t->{sql};
+    if ($t->{throw}) {
+      throws_ok {
+        $collapsed_cond = $schema->storage->_collapse_cond($w);
+        ($collapsed_cond_as_sql) = $sm->where($collapsed_cond);
+      } $t->{throw}, "Exception on attempted collapse/render of $name"
+        and
+      next;
+    }
 
-    is_same_sql(
-      ($sm->where($t->{cc_result}))[0],
-      ( $t->{collapsed_sql} || $t->{sql} || $generated_sql ),
-      "Collapse did not alter *the semantics* of the final SQL based on $name",
-    );
-
-    my $collapsed_cond = $schema->storage->_collapse_cond($w);
+    warnings_exist {
+      $collapsed_cond = $schema->storage->_collapse_cond($w);
+      ($collapsed_cond_as_sql) = $sm->where($collapsed_cond);
+    } $t->{warn} || [], "Expected warning when collapsing/rendering $name";
 
     is_deeply(
       $collapsed_cond,
@@ -478,19 +648,37 @@ for my $t (
       "Expected collapsed condition produced on $name",
     );
 
+    my ($original_sql) = do {
+      local $SIG{__WARN__} = sub {};
+      $sm->where($w);
+    };
+
+    is_same_sql ( $original_sql, $t->{sql}, "Expected original SQL from $name" )
+      if exists $t->{sql};
+
+    is_same_sql(
+      $collapsed_cond_as_sql,
+      ( $t->{collapsed_sql} || $t->{sql} || $original_sql ),
+      "Collapse did not alter *the semantics* of the final SQL based on $name",
+    );
+
     is_deeply(
-      $schema->storage->_extract_fixed_condition_columns($w),
+      $schema->storage->_extract_fixed_condition_columns($collapsed_cond),
       $t->{efcc_result},
       "Expected fixed_condition produced on $name",
     );
 
     is_deeply(
-      $schema->storage->_extract_fixed_condition_columns($w, 'consider_nulls'),
+      $schema->storage->_extract_fixed_condition_columns($collapsed_cond, 'consider_nulls'),
       $t->{efcc_n_result},
       "Expected fixed_condition including NULLs produced on $name",
     ) if $t->{efcc_n_result};
 
-    die unless Test::Builder->new->is_passing;
+    is_deeply(
+      $collapsed_cond,
+      $t->{cc_result},
+      "Collapsed condition result unaltered by fixed condition extractor",
+    );
   }
 }
 

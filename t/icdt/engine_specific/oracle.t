@@ -1,21 +1,12 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt test_rdbms_oracle );
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
-
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_oracle')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_oracle');
-
-my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
-
-if (not ($dsn && $user && $pass)) {
-    plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
-         'Warning: This test drops and creates a table called \'event\'';
-}
 
 # DateTime::Format::Oracle needs this set
 $ENV{NLS_DATE_FORMAT} = 'DD-MON-YY';
@@ -24,6 +15,7 @@ $ENV{NLS_LANG} = 'AMERICAN_AMERICA.WE8ISO8859P1';
 $ENV{NLS_SORT} = "BINARY";
 $ENV{NLS_COMP} = "BINARY";
 
+my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 # older oracles do not support a TIMESTAMP datatype
@@ -113,7 +105,7 @@ done_testing;
 
 # clean up our mess
 END {
-  if($schema && (my $dbh = $schema->storage->dbh)) {
+  if($schema && (my $dbh = $schema->storage->_dbh)) {
     $dbh->do("DROP TABLE event");
   }
   undef $schema;

@@ -1,9 +1,10 @@
 #!/bin/bash
 
+# "autodie"
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
-TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=16m --signal=TERM 15m"
 
 echo_err() { echo "$@" 1>&2 ; }
 
@@ -13,6 +14,41 @@ if [[ "$TRAVIS" != "true" ]] ; then
 fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
+
+ci_vm_state_text() {
+  echo "
+========================== CI System information ============================
+
+= CPUinfo
+$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+
+= Meminfo
+$(free -m -t)
+
+= Diskinfo
+$(sudo df -h)
+
+$(mount | grep '^/')
+
+= Kernel info
+$(uname -a)
+
+= Network Configuration
+$(ip addr)
+
+= Network Sockets Status
+$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+
+= Processlist
+$(sudo ps fuxa)
+
+= Environment
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+
+= Perl in use
+$(perl -V)
+============================================================================="
+}
 
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
@@ -50,9 +86,6 @@ run_or_err() {
 apt_install() {
   # flatten
   pkgs="$@"
-
-  # Need to do this at every step, the sources list may very well have changed
-  run_or_err "Updating APT available package list" "sudo apt-get update"
 
   run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
@@ -99,7 +132,7 @@ parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
   # one module spec per line
-  MODLIST="$(printf '%s\n' "$@")"
+  MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
   # We want to trap the output of each process and serially append them to
   # each other as opposed to just dumping a jumbled up mass-log that would

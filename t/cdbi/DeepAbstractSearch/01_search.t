@@ -1,14 +1,12 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Class::DBI::Plugin::DeepAbstractSearch>=0 );
+
 use strict;
 use warnings;
+
 use Test::More;
 
-use lib 't/cdbi/testlib';
-use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
-
-BEGIN {
-  eval { require Class::DBI::Plugin::DeepAbstractSearch }
-    or plan skip_all => 'Class::DBI::Plugin::DeepAbstractSearch required for this test';
-}
+use lib 't/lib';
+use DBICTest;
 
 my $DB = DBICTest->_sqlite_dbname(sqlite_use_file => 1);;
 

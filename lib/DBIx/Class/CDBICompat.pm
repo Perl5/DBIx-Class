@@ -2,22 +2,15 @@ package DBIx::Class::CDBICompat;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Core DBIx::Class::DB/;
 
-# Modules CDBICompat needs that DBIx::Class does not.
-my @Extra_Modules = qw(
-    Class::Trigger
-    DBIx::ContextualFetch
-    Clone
-);
-
-my @didnt_load;
-for my $module (@Extra_Modules) {
-    push @didnt_load, $module unless eval qq{require $module};
+BEGIN {
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('cdbicompat')) {
+    die "The following extra modules are required for DBIx::Class::CDBICompat: $missing\n";
+  }
 }
-__PACKAGE__->throw_exception("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
-    if @didnt_load;
 
+use base qw/DBIx::Class::Core DBIx::Class::DB/;
 
 __PACKAGE__->load_own_components(qw/
   Constraints

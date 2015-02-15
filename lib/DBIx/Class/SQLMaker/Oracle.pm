@@ -4,13 +4,15 @@ package # Hide from PAUSE
 use warnings;
 use strict;
 
-use base qw( DBIx::Class::SQLMaker );
-
 BEGIN {
-  use DBIx::Class::Optional::Dependencies;
-  die('The following extra modules are required for Oracle-based Storages ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') . "\n" )
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener') ) {
+    die "The following extra modules are required for Oracle-based Storages: $missing\n";
+  }
+  require Digest::MD5;
 }
+
+use base 'DBIx::Class::SQLMaker';
 
 sub new {
   my $self = shift;
@@ -144,9 +146,6 @@ sub _shorten_identifier {
   @keywords = $to_shorten unless @keywords;
 
   # get a base36 md5 of the identifier
-  require Digest::MD5;
-  require Math::BigInt;
-  require Math::Base36;
   my $b36sum = Math::Base36::encode_base36(
     Math::BigInt->from_hex (
       '0x' . Digest::MD5::md5_hex ($to_shorten)

@@ -1,33 +1,25 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt _rdbms_msaccess_common );
+
 use strict;
 use warnings;
 
 use Test::More;
 use Scope::Guard ();
 use Try::Tiny;
-use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
+my @tdeps = qw( test_rdbms_msaccess_odbc test_rdbms_msaccess_ado );
+plan skip_all => 'Test needs  ' . (join '  OR  ', map
+  { "[ @{[ DBIx::Class::Optional::Dependencies->req_missing_for( $_ ) ]} ]" }
+  @tdeps
+) unless scalar grep
+  { DBIx::Class::Optional::Dependencies->req_ok_for( $_ ) }
+  @tdeps
+;
+
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSACCESS_ODBC_${_}" } qw/DSN USER PASS/};
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_MSACCESS_ADO_${_}" }  qw/DSN USER PASS/};
-
-plan skip_all => 'Test needs ' .
-  (join ' and ', map { $_ ? $_ : () }
-    DBIx::Class::Optional::Dependencies->req_missing_for('test_dt'),
-    (join ' or ', map { $_ ? $_ : () }
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_odbc'),
-      DBIx::Class::Optional::Dependencies->req_missing_for('test_rdbms_msaccess_ado')))
-  unless
-    DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt') && (
-    $dsn && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_odbc')
-    or
-    $dsn2 && DBIx::Class::Optional::Dependencies->req_ok_for('test_rdbms_msaccess_ado'))
-      or (not $dsn || $dsn2);
-
-plan skip_all => <<'EOF' unless $dsn || $dsn2;
-Set $ENV{DBICTEST_MSACCESS_ODBC_DSN} and/or $ENV{DBICTEST_MSACCESS_ADO_DSN} (and optionally _USER and _PASS) to run these tests.
-Warning: this test drops and creates the table 'track'.
-EOF
 
 my @connect_info = (
   [ $dsn,  $user  || '', $pass  || '' ],

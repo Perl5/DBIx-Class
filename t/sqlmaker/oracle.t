@@ -1,13 +1,9 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'id_shortener';
+
 use strict;
 use warnings;
+
 use Test::More;
-
-BEGIN {
-  require DBIx::Class::Optional::Dependencies;
-  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('id_shortener')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('id_shortener');
-}
-
 use Test::Exception;
 use Data::Dumper::Concise;
 use lib qw(t/lib);

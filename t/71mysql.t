@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mysql';
+
 use strict;
 use warnings;
 
@@ -12,13 +14,7 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_mysql')
-  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_mysql');
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
-
-plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { quote_names => 1 });
 
@@ -100,30 +96,35 @@ lives_ok {
   });
 } 'LOCK IN SHARE MODE select works';
 
+my ($int_type_name, @undef_default) = DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
+  ? ('integer')
+  : ( 'INT', default_value => undef )
+;
+
 my $test_type_info = {
     'artistid' => {
-        'data_type' => 'INT',
+        'data_type' => $int_type_name,
         'is_nullable' => 0,
         'size' => 11,
-        'default_value' => undef,
+        @undef_default,
     },
     'name' => {
         'data_type' => 'VARCHAR',
         'is_nullable' => 1,
         'size' => 100,
-        'default_value' => undef,
+        @undef_default,
     },
     'rank' => {
-        'data_type' => 'INT',
+        'data_type' => $int_type_name,
         'is_nullable' => 0,
         'size' => 11,
-        'default_value' => 13,
+        DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE ? () : ( 'default_value' => '13' ),
     },
     'charfield' => {
         'data_type' => 'CHAR',
         'is_nullable' => 1,
         'size' => 10,
-        'default_value' => undef,
+        @undef_default,
     },
 };
 
@@ -176,6 +177,10 @@ SKIP: {
 
     if ($norm_version < 5.000003_01) {
         $test_type_info->{charfield}->{data_type} = 'VARCHAR';
+    }
+
+    if (DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE) {
+      $_->{data_type} = lc $_->{data_type} for values %$test_type_info;
     }
 
     my $type_info = $schema->storage->columns_info_for('artist');

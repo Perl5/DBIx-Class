@@ -1,3 +1,5 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
 
@@ -6,10 +8,8 @@ use Scalar::Util 'refaddr';
 use namespace::clean;
 $| = 1;
 
-INIT {
-  use lib 't/cdbi/testlib';
-  use Film;
-}
+use lib 't/cdbi/testlib';
+use Film;
 
 ok(Film->can('db_Main'), 'set_db()');
 is(Film->__driver, "SQLite", "Driver set correctly");
@@ -371,9 +371,7 @@ if (0) {
   ok !$film, "It destroys itself";
 }
 
-SKIP: {
-    skip "Caching has been removed", 5
-        if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
+{
 
   # my bad taste is your bad taste
   my $btaste  = Film->retrieve('Bad Taste');

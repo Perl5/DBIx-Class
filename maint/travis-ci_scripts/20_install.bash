@@ -1,16 +1,12 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-CPAN_MIRROR=$(echo "$PERL_CPANM_OPT" | grep -oP -- '--mirror\s+\S+' | head -n 1 | cut -d ' ' -f 2)
-if ! [[ "$CPAN_MIRROR" =~ "http://" ]] ; then
-  echo_err "Unable to extract primary cpan mirror from PERL_CPANM_OPT - something is wrong"
-  echo_err "PERL_CPANM_OPT: $PERL_CPANM_OPT"
-  CPAN_MIRROR="http://cpan.metacpan.org/"
-  PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
-  echo_err "Using $CPAN_MIRROR for the time being"
-fi
+# we need a mirror that both has the standard index and a backpan version rolled
+# into one, due to MDV testing
+CPAN_MIRROR="http://cpan.metacpan.org/"
+
+PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
 # do not set PERLBREW_CPAN_MIRROR - not all backpan-like mirrors have the perl tarballs
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
@@ -20,10 +16,6 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
   PERL_CPANM_OPT="$PERL_CPANM_OPT --dev"
 
-  # FIXME inline-upgrade cpanm, work around https://github.com/travis-ci/travis-ci/issues/1477
-  cpanm_loc="$(which cpanm)"
-  run_or_err "Upgrading cpanm ($cpanm_loc) to latest stable" \
-    "wget -q -O $cpanm_loc cpanmin.us && chmod a+x $cpanm_loc"
 fi
 
 # Fixup CPANM_OPT to behave more like a traditional cpan client
@@ -54,10 +46,11 @@ if [[ -n "$BREWVER" ]] ; then
 # the presently installed libs
 # Idea stolen from
 # https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
-elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] ; then
+# Only works on 5.12+ (where sitelib was finally properly fixed)
+elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] && perl -M5.012 -e 1 &>/dev/null ; then
 
   echo_err "$(tstamp) Cleaning precompiled Travis-Perl"
-  perl -MConfig -MFile::Find -e '
+  perl -M5.012 -MConfig -MFile::Find -e '
     my $sitedirs = {
       map { $Config{$_} => 1 }
         grep { $_ =~ /site(lib|arch)exp$/ }
@@ -86,29 +79,47 @@ CPAN_CFG_SCRIPT="
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
 
-echo_err "
-===================== PERL CONFIGURATION COMPLETE =====================
+# poison the environment
+if [[ "$POISON_ENV" = "true" ]] ; then
 
-= CPUinfo
-$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+  # in addition to making sure tests do not rely on implicid order of
+  # returned results, look through lib, find all mentioned ENVvars and
+  # set them to true and see if anything explodes
+  for var in \
+    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
+    $( grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' )
+  do
+    if [[ -z "${!var}" ]] ; then
+      export $var=1
+      echo "POISON_ENV: setting $var to 1"
+    fi
+  done
 
-= Meminfo
-$(free -m -t)
+  # bogus nonexisting DBI_*
+  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
+  export DBI_DRIVER="ADO"
 
-= Diskinfo
-$(sudo df -h)
+  # some people do in fact set this - boggle!!!
+  # it of course won't work before 5.8.4
+  if perl -M5.008004 -e 1 &>/dev/null ; then
+    export PERL_STRICTURES_EXTRA=1
+  fi
 
-$(mount | grep '^/')
+  # emulate a local::lib-like env
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  run_or_err "Downloading latest stable DBIC from CPAN" \
+    "SHELL=/bin/true cpanm --look DBIx::Class"
 
-= Kernel info
-$(uname -a)
+  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
 
-= Network Configuration
-$(ip addr)
+  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
 
-= Network Sockets Status
-$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+fi
 
-= Processlist
-$(sudo ps fuxa)
-============================================================================="
+if [[ "$CLEANTEST" != "true" ]] ; then
+  # using SQLT if will be available
+  # not doing later because we will be running in a subshell
+  export DBICTEST_SQLT_DEPLOY=1
+
+fi

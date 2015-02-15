@@ -1,14 +1,11 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_prettydebug';
+
 use strict;
 use warnings;
+
 use lib qw(t/lib);
 use DBICTest;
 use Test::More;
-
-BEGIN {
-    require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_prettydebug')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_prettydebug');
-}
 
 BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE)} }
 

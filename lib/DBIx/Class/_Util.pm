@@ -34,6 +34,10 @@ BEGIN {
 
     ASSERT_NO_INTERNAL_INDIRECT_CALLS => $ENV{DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS} ? 1 : 0,
 
+    STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE => $ENV{DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE} ? 1 : 0,
+
+    STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE => $ENV{DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE} ? 1 : 0,
+
     IV_SIZE => $Config{ivsize},
 
     OS_NAME => $^O,
@@ -53,7 +57,9 @@ BEGIN {
 # Carp::Skip to the rescue soon
 use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
 
+use B ();
 use Carp 'croak';
+use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype);
 use List::Util qw(first);
 
@@ -74,12 +80,15 @@ BEGIN {
 sub qsub ($) { goto &quote_sub }  # no point depping on new Moo just for this
 # END pre-Moo2 import block
 
+# Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
+BEGIN { *deep_clone = \&Storable::dclone }
+
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq
+  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr is_exception
-  quote_sub qsub perlstring serialize
+  quote_sub qsub perlstring serialize deep_clone
   UNRESOLVABLE_CONDITION
 );
 
@@ -114,16 +123,14 @@ sub refdesc ($) {
 sub refcount ($) {
   croak "Expecting a reference" if ! length ref $_[0];
 
-  require B;
   # No tempvars - must operate on $_[0], otherwise the pad
   # will count as an extra ref
   B::svref_2object($_[0])->REFCNT;
 }
 
 sub serialize ($) {
-  require Storable;
   local $Storable::canonical = 1;
-  Storable::nfreeze($_[0]);
+  nfreeze($_[0]);
 }
 
 sub is_exception ($) {
@@ -195,6 +202,19 @@ sub modver_gt_or_eq ($$) {
 
   local $@;
   eval { $mod->VERSION($ver) } ? 1 : 0;
+}
+
+sub modver_gt_or_eq_and_lt ($$$) {
+  my ($mod, $v_ge, $v_lt) = @_;
+
+  croak "Nonsensical maximum version supplied"
+    if ! defined $v_lt or $v_lt =~ /[^0-9\.\_]/;
+
+  return (
+    modver_gt_or_eq($mod, $v_ge)
+      and
+    ! modver_gt_or_eq($mod, $v_lt)
+  ) ? 1 : 0;
 }
 
 {

@@ -1,19 +1,20 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
+
 use strict;
 use warnings;
+
 use Test::More;
 
+use lib 't/cdbi/testlib';
 INIT {
-    #local $SIG{__WARN__} =
-        #sub { like $_[0], qr/clashes with built-in method/, $_[0] };
-    use lib 't/cdbi/testlib';
-    require Film;
-    require Actor;
-    require Director;
+  require Film;
+  require Actor;
+  require Director;
 
-    Actor->has_a(film => 'Film');
-    Film->has_a(director => 'Director');
+  Actor->has_a(film => 'Film');
+  Film->has_a(director => 'Director');
 
-    sub Class::DBI::sheep { ok 0; }
+  sub Class::DBI::sheep { ok 0; }
 }
 
 # Install the deprecation warning intercept here for the rest of the 08 dev cycle

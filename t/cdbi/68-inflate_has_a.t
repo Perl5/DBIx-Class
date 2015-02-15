@@ -1,14 +1,11 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt cdbicompat );
+
 use strict;
 use warnings;
+
 use Test::More;
-
-use lib qw(t/cdbi/testlib);
-use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
-
-BEGIN {
-  eval { require DateTime; DateTime->VERSION(0.55) }
-    or plan skip_all => 'DateTime 0.55 required for this test';
-}
+use lib 't/lib';
+use DBICTest;
 
 my $schema = DBICTest->init_schema();
 

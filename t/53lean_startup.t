@@ -94,6 +94,7 @@ BEGIN {
     constant
     overload
 
+    if
     base
     Devel::GlobalDestruction
     mro
@@ -108,6 +109,7 @@ BEGIN {
 
     Scalar::Util
     List::Util
+    Storable
 
     Class::Accessor::Grouped
     Class::C3::Componentised

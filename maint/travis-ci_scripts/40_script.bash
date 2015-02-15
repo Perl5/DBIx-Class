@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# this file is executed in a subshell - set up the common stuff
 source maint/travis-ci_scripts/common.bash
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
+
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
 run_harness_tests() {
   local -x HARNESS_OPTIONS=c:j$NUMTHREADS
@@ -26,7 +28,7 @@ else
 fi
 TEST_T1=$SECONDS
 
-if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]] ; then
+if [[ -z "$DBIC_TRACE" ]] && [[ -z "$DBIC_MULTICREATE_DEBUG" ]] && [[ -s "$TEST_STDERR_LOG" ]] ; then
   STDERR_LOG_SIZE=$(wc -l < "$TEST_STDERR_LOG")
 
   # prepend STDERR log

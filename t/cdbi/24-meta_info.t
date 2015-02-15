@@ -1,13 +1,10 @@
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Time::Piece>=0 );
+
 use strict;
 use warnings;
+
 use Test::More;
 use Test::Warn;
-
-use lib 't/cdbi/testlib';
-use DBIC::Test::SQLite (); # this will issue the necessary SKIPs on missing reqs
-
-eval { require Time::Piece }
-  or plan skip_all => 'Time::Piece required for this test';
 
 package Temp::DBI;
 use base qw(DBIx::Class::CDBICompat);
