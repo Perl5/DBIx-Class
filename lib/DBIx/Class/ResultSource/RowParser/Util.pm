@@ -114,10 +114,7 @@ sub __visit_infmap_simple {
 sub assemble_collapsing_parser {
   my $args = shift;
 
-  # it may get unset further down
-  my $no_rowid_container = $args->{prune_null_branches};
-
-  my ($top_node_key, $top_node_key_assembler);
+  my ($top_node_key, $top_node_key_assembler, $variant_idcols);
 
   if (scalar @{$args->{collapse_map}{-identifying_columns}}) {
     $top_node_key = join ('', map
@@ -130,7 +127,7 @@ sub assemble_collapsing_parser {
     my @path_parts = map { sprintf
       "( ( defined '\xFF__VALPOS__%d__\xFF' ) && (join qq(\xFF), '', %s, '') )",
       $_->[0],  # checking just first is enough - one ID defined, all defined
-      ( join ', ', map { "'\xFF__VALPOS__${_}__\xFF'" } @$_ ),
+      ( join ', ', map { ++$variant_idcols->{$_} and "'\xFF__IDVALPOS__${_}__\xFF'" } @$_ ),
     } @variants;
 
     my $virtual_column_idx = (scalar keys %{$args->{val_index}} ) + 1;
@@ -146,8 +143,6 @@ sub assemble_collapsing_parser {
       %{$args->{collapse_map}},
       -custom_node_key => $top_node_key,
     };
-
-    $no_rowid_container = 0;
   }
   else {
     die('Unexpected collapse map contents');
@@ -155,23 +150,30 @@ sub assemble_collapsing_parser {
 
   my ($data_assemblers, $stats) = __visit_infmap_collapse ($args);
 
-  my @idcol_args = $no_rowid_container ? ('', '') : (
-    ', %cur_row_ids', # only declare the variable if we'll use it
-    join ("\n", map {
-      my $quoted_null_val = qq( "\0NULL\xFF\${rows_pos}\xFF${_}\0" );
-      qq(\$cur_row_ids{$_} = ) . (
-        # in case we prune - we will never hit these undefs
-        $args->{prune_null_branches} ? qq( \$cur_row_data->[$_]; )
-        : HAS_DOR                    ? qq( \$cur_row_data->[$_] // $quoted_null_val; )
-        :                              qq( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val; )
-      )
-    } sort { $a <=> $b } keys %{ $stats->{idcols_seen} } ),
-  );
+  # variants do not necessarily overlap with true idcols
+  my @row_ids = sort { $a <=> $b } keys %{ {
+    %{ $variant_idcols || {} },
+    %{ $stats->{idcols_seen} },
+  } };
 
-  my $parser_src = sprintf (<<'EOS', @idcol_args, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
+  my $row_id_defs = sprintf "\@cur_row_ids{( %s )} = ( \n%s \n );",
+    join (', ', @row_ids ),
+    # in case we prune - we will never hit undefs/NULLs as pigeon-hole-criteria
+    ( $args->{prune_null_branches}
+      ? sprintf( '@{$cur_row_data}[( %s )]', join ', ', @row_ids )
+      : join (",\n", map {
+        my $quoted_null_val = qq( "\0NULL\xFF\${rows_pos}\xFF${_}\0" );
+        HAS_DOR
+          ? qq! ( \$cur_row_data->[$_] // $quoted_null_val ) !
+          : qq! ( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val ) !
+      } @row_ids)
+    )
+  ;
+
+  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
 ### BEGIN LITERAL STRING EVAL
   my $rows_pos = 0;
-  my ($result_pos, @collapse_idx, $cur_row_data %1$s);
+  my ($result_pos, @collapse_idx, $cur_row_data, %%cur_row_ids );
 
   # this loop is a bit arcane - the rationale is that the passed in
   # $_[0] will either have only one row (->next) or will have all
@@ -185,27 +187,26 @@ sub assemble_collapsing_parser {
     ( $_[1] and $rows_pos = -1 and $_[1]->() )
   ) ) {
 
-    # this code exists only when we are using a cur_row_ids
-    # furthermore the undef checks may or may not be there
+    # the undef checks may or may not be there
     # depending on whether we prune or not
     #
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
     # (otherwise folding of optional 1:1s will be greatly confused
-%2$s
+%1$s
 
     # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
-%3$s
+%2$s
 
     # if we were supplied a coderef - we are collapsing lazily (the set
     # is ordered properly)
     # as long as we have a result already and the next result is new we
     # return the pre-read data and bail
-$_[1] and $result_pos and ! $collapse_idx[0]%4$s and (unshift @{$_[2]}, $cur_row_data) and last;
+$_[1] and $result_pos and ! $collapse_idx[0]%3$s and (unshift @{$_[2]}, $cur_row_data) and last;
 
     # the rel assemblers
-%5$s
+%4$s
 
   }
 
@@ -219,7 +220,7 @@ EOS
   $parser_src =~ s/
     \' \xFF__IDVALPOS__(\d+)__\xFF \'
   /
-    $no_rowid_container ? "\$cur_row_data->[$1]" : "\$cur_row_ids{$1}"
+    "\$cur_row_ids{$1}"
   /gex;
 
   __wrap_in_strictured_scope($parser_src);
