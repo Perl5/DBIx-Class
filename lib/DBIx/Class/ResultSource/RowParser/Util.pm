@@ -34,12 +34,11 @@ sub assemble_simple_parser {
   #   the data structure, then to fetch the data do:
   # push @rows, dclone($row_data_struct) while ($sth->fetchrow);
   #
-  my $parser_src = sprintf('$_ = %s for @{$_[0]}', __visit_infmap_simple($_[0]) );
 
-  # change the quoted placeholders to unquoted alias-references
-  $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$_->[$1]"/gex;
-
-  __wrap_in_strictured_scope($parser_src);
+  __wrap_in_strictured_scope( sprintf
+    '$_ = %s for @{$_[0]}',
+    __visit_infmap_simple( $_[0] )
+  );
 }
 
 # the simple non-collapsing nested structure recursor
@@ -67,7 +66,7 @@ sub __visit_infmap_simple {
     if (keys %$my_cols) {
 
       my $branch_null_checks = join ' && ', map
-        { "( ! defined '\xFF__VALPOS__${_}__\xFF' )" }
+        { "( ! defined \$_->[$_] )" }
         sort { $a <=> $b } values %{$rel_cols->{$rel}}
       ;
 
@@ -118,23 +117,23 @@ sub assemble_collapsing_parser {
 
   if (scalar @{$args->{collapse_map}{-identifying_columns}}) {
     $top_node_key = join ('', map
-      { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
+      { "{ \$cur_row_ids{$_} }" }
       @{$args->{collapse_map}{-identifying_columns}}
     );
   }
   elsif( my @variants = @{$args->{collapse_map}{-identifying_columns_variants}} ) {
 
     my @path_parts = map { sprintf
-      "( ( defined '\xFF__VALPOS__%d__\xFF' ) && (join qq(\xFF), '', %s, '') )",
+      "( ( defined \$cur_row_data->[%d] ) && (join qq(\xFF), '', %s, '') )",
       $_->[0],  # checking just first is enough - one ID defined, all defined
-      ( join ', ', map { ++$variant_idcols->{$_} and "'\xFF__IDVALPOS__${_}__\xFF'" } @$_ ),
+      ( join ', ', map { ++$variant_idcols->{$_} and " \$cur_row_ids{$_} " } @$_ ),
     } @variants;
 
     my $virtual_column_idx = (scalar keys %{$args->{val_index}} ) + 1;
 
-    $top_node_key = "{'\xFF__IDVALPOS__${virtual_column_idx}__\xFF'}";
+    $top_node_key = "{ \$cur_row_ids{$virtual_column_idx} }";
 
-    $top_node_key_assembler = sprintf "'\xFF__IDVALPOS__%d__\xFF' = (%s);",
+    $top_node_key_assembler = sprintf " \$cur_row_ids{%d} = ( %s ); ",
       $virtual_column_idx,
       "\n" . join( "\n  or\n", @path_parts, qq{"\0\$rows_pos\0"} )
     ;
@@ -214,15 +213,6 @@ $_[1] and $result_pos and ! $collapse_idx[0]%3$s and (unshift @{$_[2]}, $cur_row
 ### END LITERAL STRING EVAL
 EOS
 
-  # !!! note - different var than the one above
-  # change the quoted placeholders to unquoted alias-references
-  $parser_src =~ s/ \' \xFF__VALPOS__(\d+)__\xFF \' /"\$cur_row_data->[$1]"/gex;
-  $parser_src =~ s/
-    \' \xFF__IDVALPOS__(\d+)__\xFF \'
-  /
-    "\$cur_row_ids{$1}"
-  /gex;
-
   __wrap_in_strictured_scope($parser_src);
 }
 
@@ -249,14 +239,14 @@ sub __visit_infmap_collapse {
   }
 
   my $me_struct;
-  $me_struct = __result_struct_to_source($my_cols) if keys %$my_cols;
+  $me_struct = __result_struct_to_source($my_cols, 1) if keys %$my_cols;
 
   $me_struct = sprintf( '[ %s ]', $me_struct||'' )
     unless $args->{hri_style};
 
 
   my $node_key = $args->{collapse_map}->{-custom_node_key} || join ('', map
-    { "{'\xFF__IDVALPOS__${_}__\xFF'}" }
+    { "{ \$cur_row_ids{$_} }" }
     @{$args->{collapse_map}->{-identifying_columns}}
   );
   my $node_idx_slot = sprintf '$collapse_idx[%d]%s', $cur_node_idx, $node_key;
@@ -327,7 +317,7 @@ sub __visit_infmap_collapse {
 
         # start of wrap of the entire chain in a conditional
         splice @src, $rel_src_pos, 0, sprintf "( ! defined %s )\n  ? %s%s{%s} = %s\n  : do {",
-          "'\xFF__VALPOS__${first_distinct_child_idcol}__\xFF'",
+          "\$cur_row_data->[$first_distinct_child_idcol]",
           $node_idx_slot,
           $args->{hri_style} ? '' : '[1]',
           perlstring($rel),
@@ -340,7 +330,7 @@ sub __visit_infmap_collapse {
       else {
 
         splice @src, $rel_src_pos + 1, 0, sprintf ( '(defined %s) or bless (%s[1]{%s}, %s);',
-          "'\xFF__VALPOS__${first_distinct_child_idcol}__\xFF'",
+          "\$cur_row_data->[$first_distinct_child_idcol]",
           $node_idx_slot,
           perlstring($rel),
           perlstring($null_branch_class),
@@ -361,10 +351,19 @@ sub __visit_infmap_collapse {
 }
 
 sub __result_struct_to_source {
-  sprintf( '{ %s }', join (', ', map
-    { sprintf "%s => '\xFF__VALPOS__%d__\xFF'", perlstring($_), $_[0]{$_} }
-    sort keys %{$_[0]}
-  ));
+  my ($data, $is_collapsing) = @_;
+
+  sprintf( '{ %s }',
+    join (', ', map {
+      sprintf ( "%s => %s",
+        perlstring($_),
+        $is_collapsing
+          ? "\$cur_row_data->[$data->{$_}]"
+          : "\$_->[ $data->{$_} ]"
+      )
+    } sort keys %{$data}
+    )
+  );
 }
 
 1;
