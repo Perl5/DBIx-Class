@@ -38,26 +38,17 @@ is_deeply (
 
 my $email_re = qr/( \< [^\<\>]+ \> ) $/x;
 
-my (%known_authors, $count);
+my %known_authors;
 for (@known_authors) {
   my ($name_email) = m/ ^ (?: [^\:]+ \: \s )? (.+) /x;
   my ($email) = $name_email =~ $email_re;
 
-  if (
+  fail "Duplicate found: $name_email" if (
     $known_authors{$name_email}++
       or
     ( $email and $known_authors{$email}++ )
-  ) {
-    fail "Duplicate found: $name_email";
-  }
-  else {
-    $count++;
-  }
+  );
 }
-
-# do not announce anything under travis - we are watching for STDERR silence
-diag "\n\n$count contributors made this library what it is today\n\n"
-  unless ($ENV{TRAVIS}||'') eq 'true';
 
 # augh taint mode
 if (length $ENV{PATH}) {
