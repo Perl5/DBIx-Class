@@ -23,48 +23,29 @@ use Test::More;
 
 use lib qw(t/lib);
 use DBICTest::RunMode;
+use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
+use Scalar::Util qw(weaken blessed reftype);
+use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt);
+BEGIN {
+  plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
+    if DBIx::Class::_ENV_::PEEPEENESS;
+}
 
-plan skip_all => "Temporarily no smoke testing of Test::More 1.3xx alphas" if (
-  DBICTest::RunMode->is_smoker
-    and
-  eval { Test::More->VERSION("1.300") }
-    and
-  require ExtUtils::MakeMaker
-    and
-  MM->parse_version($INC{"Test/Builder.pm"}) =~ / ^ 1 \. 3.. ... \_ /x
-);
 
 my $TB = Test::More->builder;
 if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
-  # without this explicit close older TBs warn in END after a ->reset
-  if ($TB->VERSION < 1.005) {
-    close ($TB->$_) for (qw/output failure_output todo_output/);
-  }
+  # without this explicit close TB warns in END after a ->reset
+  close ($TB->$_) for qw(output failure_output todo_output);
 
-  # if I do not do this, I get happy sigpipes on new TB, no idea why
-  # (the above close-and-forget doesn't work - new TB does *not* reopen
-  # its handles automatically anymore)
-  else {
-    for (qw/failure_output todo_output/) {
-      close $TB->$_;
-      open ($TB->$_, '>&', *STDERR);
-    }
-
-    close $TB->output;
+  # newer TB does not auto-reopen handles
+  if ( modver_gt_or_eq( 'Test::More', '1.200' ) ) {
+    open ($TB->$_, '>&', *STDERR)
+      for qw( failure_output todo_output );
     open ($TB->output, '>&', *STDOUT);
   }
 
   # so done_testing can work on every persistent pass
   $TB->reset;
-}
-
-use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
-use Scalar::Util qw(weaken blessed reftype);
-use DBIx::Class;
-use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer);
-BEGIN {
-  plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
-    if DBIx::Class::_ENV_::PEEPEENESS;
 }
 
 # this is what holds all weakened refs to be checked for leakage
@@ -98,7 +79,7 @@ unless (DBICTest::RunMode->is_plain) {
     # Test Builder is now making a new object for every pass/fail (que bloat?)
     # and as such we can't really store any of its objects (since it will
     # re-populate the registry while checking it, ewwww!)
-    return $obj if (ref $obj) =~ /^TB2::/;
+    return $obj if (ref $obj) =~ /^TB2::|^Test::Stream/;
 
     # populate immediately to avoid weird side effects
     return populate_weakregistry ($weak_registry, $obj );
@@ -544,6 +525,9 @@ SKIP: {
 
   skip 'Main test failed - skipping persistent env tests', 1
     unless $TB->is_passing;
+
+  skip "Test::Builder\@@{[ Test::Builder->VERSION ]} known to break persistence tests", 1
+    if modver_gt_or_eq_and_lt( 'Test::More', '1.200', '1.301001_099' );
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
 
