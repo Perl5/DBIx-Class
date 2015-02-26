@@ -356,20 +356,23 @@ END {
       $tb->note("Auto checked $refs_traced references for leaks - none detected");
     }
 
-# Disable this until better times - SQLT and probably other things
-# still load strictures. Let's just wait until Moo2.0 and go from there
-=begin for tears
     # also while we are here and not in plain runmode: make sure we never
     # loaded any of the strictures XS bullshit (it's a leak in a sense)
-    unless (DBICTest::RunMode->is_plain) {
+    unless (
+      $ENV{MOO_FATAL_WARNINGS}
+        or
+      # FIXME - SQLT loads strictures explicitly, /facedesk
+      # remove this INC check when 0fb58589 and 45287c815 are rectified
+      $INC{'SQL/Translator.pm'}
+        or
+      DBICTest::RunMode->is_plain
+    ) {
       for (qw(indirect multidimensional bareword::filehandles)) {
         exists $INC{ Module::Runtime::module_notional_filename($_) }
           and
         $tb->ok(0, "$_ load should not have been attempted!!!" )
       }
     }
-=cut
-
   }
 }
 
