@@ -10,27 +10,7 @@ use Context::Preserve 'preserve_context';
 use DBIx::Class::_Util qw(is_exception qsub);
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
-
-# DO NOT edit away without talking to riba first, he will just put it back
-# BEGIN pre-Moo2 import block
-BEGIN {
-  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
-
-  local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  # load all of these now, so that lazy-loading does not escape
-  # the current PERL_STRICTURES_EXTRA setting
-  require Sub::Quote;
-  require Sub::Defer;
-  require Moo;
-  require Moo::Object;
-  require Method::Generate::Accessor;
-  require Method::Generate::Constructor;
-
-  Moo->import;
-  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
-}
-# END pre-Moo2 import block
-
+use Moo;
 use namespace::clean;
 
 =head1 NAME
