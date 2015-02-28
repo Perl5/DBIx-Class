@@ -60,6 +60,7 @@ else
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
+  run_or_err "Updating APT sources" "sudo apt-get update"
   apt_install $common_packages libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
 
   run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
