@@ -318,8 +318,6 @@ lives_ok {
 
 # test all kinds of population with stringified objects
 warnings_like {
-  local $ENV{DBIC_RT79576_NOWARN};
-
   my $rs = $schema->resultset('Artist')->search({}, { columns => [qw(name rank)], order_by => 'artistid' });
 
   # the stringification has nothing to do with the artist name
@@ -406,18 +404,7 @@ warnings_like {
   );
 
   $rs->delete;
-} [
-  # warning to be removed around Apr 1st 2015
-  # smokers start failing a month before that
-  (
-    ( DBICTest::RunMode->is_author and ( time() > 1427846400 ) )
-      or
-    ( DBICTest::RunMode->is_smoker and ( time() > 1425168000 ) )
-  )
-    ? ()
-    # one unique for populate() and create() each
-    : (qr/\QPOSSIBLE *PAST* DATA CORRUPTION detected \E.+\QTrigger condition encountered at @{[ __FILE__ ]} line\E \d/) x 2
-], 'Data integrity warnings as planned';
+} [], 'Data integrity warnings gone as planned';
 
 lives_ok {
    $schema->resultset('TwoKeys')->populate([{

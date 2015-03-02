@@ -60,14 +60,9 @@ stringifiable object.
 
 Even if you upgrade DBIx::Class (which works around the bug starting from
 version 0.08210) you may still have corrupted/incorrect data in your database.
-DBIx::Class will currently detect when this condition (more than one
-stringifiable object in one CRUD call) is encountered and will issue a warning
-pointing to this section. This warning will be removed 2 years from now,
-around April 2015, You can disable it after you've audited your data by
-setting the C<DBIC_RT79576_NOWARN> environment variable. Note - the warning
-is emitted only once per callsite per process and only when the condition in
-question is encountered. Thus it is very unlikely that your logsystem will be
-flooded as a result of this.
+DBIx::Class warned about this condition for several years, hoping to give
+anyone affected sufficient notice of the potential issues. The warning was
+removed in 2015.
 
 =back
 
@@ -308,14 +303,7 @@ sub _dbi_attrs_for_bind {
       = modver_gt_or_eq('DBD::SQLite', '1.37') ? 1 : 0;
   }
 
-  # an attempt to detect former effects of RT#79576, bug itself present between
-  # 0.08191 and 0.08209 inclusive (fixed in 0.08210 and higher)
-  my $stringifiable = 0;
-
   for my $i (0.. $#$bindattrs) {
-
-    $stringifiable++ if ( length ref $bind->[$i][1] and overload::Method($bind->[$i][1], '""') );
-
     if (
       defined $bindattrs->[$i]
         and
@@ -357,14 +345,6 @@ sub _dbi_attrs_for_bind {
       }
     }
   }
-
-  carp_unique(
-    'POSSIBLE *PAST* DATA CORRUPTION detected - see '
-  . 'DBIx::Class::Storage::DBI::SQLite/RT79576 or '
-  . 'http://v.gd/DBIC_SQLite_RT79576 for further details or set '
-  . '$ENV{DBIC_RT79576_NOWARN} to disable this warning. Trigger '
-  . 'condition encountered'
-  ) if (!$ENV{DBIC_RT79576_NOWARN} and $stringifiable > 1);
 
   return $bindattrs;
 }

@@ -5,6 +5,9 @@ Revision history for DBIx::Class
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
 
+    * Misc
+        - Remove warning about potential side effects of RT#79576 (scheduled)
+
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
         - Fix 0.08260 regression in DBD::SQLite bound int handling. Inserted
