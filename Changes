@@ -15,6 +15,7 @@ Revision history for DBIx::Class
           timeout lock-prone.
 
     * Misc
+        - Remove warning about potential side effects of RT#79576 (scheduled)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
