@@ -8,7 +8,7 @@ use Scalar::Util qw(isweak weaken blessed reftype);
 use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
 use DBIx::Class::Optional::Dependencies;
 use Data::Dumper::Concise;
-use DBICTest::Util 'stacktrace';
+use DBICTest::Util qw( stacktrace visit_namespaces );
 use constant {
   CV_TRACING => DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
 };
@@ -144,30 +144,6 @@ sub visit_refs {
   $visited_cnt;
 }
 
-sub visit_namespaces {
-  my $args = { (ref $_[0]) ? %{$_[0]} : @_ };
-
-  my $visited = 1;
-
-  $args->{package} ||= '::';
-  $args->{package} = '::' if $args->{package} eq 'main';
-
-  if ( $args->{action}->($args->{package}) ) {
-
-    my $base = $args->{package};
-    $base = '' if $base eq '::';
-
-
-    $visited += visit_namespaces({ %$args, package => $_ }) for map
-      { $_ =~ /(.+?)::$/ ? "${base}::$1" : () }
-      grep
-        { $_ =~ /(?<!^main)::$/ }
-        do {  no strict 'refs'; keys %{ $base . '::'} }
-  }
-
-  return $visited;
-}
-
 # compiles a list of addresses stored as globals (possibly even catching
 # class data in the form of method closures), so we can skip them further on
 sub symtable_referenced_addresses {
@@ -181,8 +157,6 @@ sub symtable_referenced_addresses {
       no strict 'refs';
 
       my $pkg = shift;
-      $pkg = '' if $pkg eq '::';
-      $pkg .= '::';
 
       # the unless regex at the end skips some dangerous namespaces outright
       # (but does not prevent descent)
@@ -192,23 +166,23 @@ sub symtable_referenced_addresses {
         action => sub { 1 },
 
         refs => [ map { my $sym = $_;
-          # *{"$pkg$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there
-          ( CV_TRACING ? Class::MethodCache::get_cv("${pkg}$sym") : () ),
+          # *{"${pkg}::$sym"}{CODE} won't simply work - MRO-cached CVs are invisible there
+          ( CV_TRACING ? Class::MethodCache::get_cv("${pkg}::$sym") : () ),
 
-          ( defined *{"$pkg$sym"}{SCALAR} and length ref ${"$pkg$sym"} and ! isweak( ${"$pkg$sym"} ) )
-            ? ${"$pkg$sym"} : ()
+          ( defined *{"${pkg}::$sym"}{SCALAR} and length ref ${"${pkg}::$sym"} and ! isweak( ${"${pkg}::$sym"} ) )
+            ? ${"${pkg}::$sym"} : ()
           ,
 
           ( map {
-            ( defined *{"$pkg$sym"}{$_} and ! isweak(defined *{"$pkg$sym"}{$_}) )
-              ? *{"$pkg$sym"}{$_}
+            ( defined *{"${pkg}::$sym"}{$_} and ! isweak(defined *{"${pkg}::$sym"}{$_}) )
+              ? *{"${pkg}::$sym"}{$_}
               : ()
           } qw(HASH ARRAY IO GLOB) ),
 
-        } keys %$pkg ],
-      ) unless $pkg =~ /^ :: (?:
+        } keys %{"${pkg}::"} ],
+      ) unless $pkg =~ /^ (?:
         DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
-      ) :: $/x;
+      ) $/x;
     }
   );
 
