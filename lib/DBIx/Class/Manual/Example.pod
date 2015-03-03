@@ -49,7 +49,8 @@ Save the following into a example.sql in the directory db
   CREATE TABLE cd (
     cdid INTEGER PRIMARY KEY,
     artist INTEGER NOT NULL REFERENCES artist(artistid),
-    title TEXT NOT NULL
+    title TEXT NOT NULL,
+    year TEXT
   );
 
   CREATE TABLE track (
