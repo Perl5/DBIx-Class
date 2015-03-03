@@ -252,9 +252,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{0,1,3,4,5} = (
@@ -314,9 +322,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{0, 1, 3, 4, 5} = @{$cur_row_data}[0, 1, 3, 4, 5];
@@ -433,9 +449,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{0, 1, 5, 6, 8, 10} = (
@@ -502,9 +526,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{( 0, 1, 5, 6, 8, 10 )} = @{$cur_row_data}[( 0, 1, 5, 6, 8, 10 )];
@@ -618,9 +650,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{( 0, 2, 3, 4, 8 )} = (
@@ -690,9 +730,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
-        ||
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       # do not care about nullability here
@@ -763,9 +811,17 @@ is_same_src (
     my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids );
 
     while ($cur_row_data = (
-      ( $rows_pos >= 0 and $_[0][$rows_pos++] )
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
         or
-      ( $_[1] and $rows_pos = -1 and $_[1]->() )
+      ( $_[1] and $_[1]->() )
     ) ) {
 
       @cur_row_ids{0,1} = @{$cur_row_data}[0,1];

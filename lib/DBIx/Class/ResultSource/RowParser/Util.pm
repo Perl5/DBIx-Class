@@ -181,9 +181,25 @@ sub assemble_collapsing_parser {
   # array, since the collapsed prefetch is smaller by definition.
   # At the end we cut the leftovers away and move on.
   while ($cur_row_data = (
-    ( $rows_pos >= 0 and $_[0][$rows_pos++] )
+    (
+      $rows_pos >= 0
+        and
+      (
+        $_[0][$rows_pos++]
+          or
+        # It may be tempting to drop the -1 and undef $rows_pos instead
+        # thus saving the >= comparison above as well
+        # However NULL-handlers and underdefined root markers both use
+        # $rows_pos as a last-resort-uniqueness marker (it either is
+        # monotonically increasing while we parse ->all, or is set at
+        # a steady -1 when we are dealing with a single root node). For
+        # the time being the complication of changing all callsites seems
+        # overkill, for what is going to be a very modest saving of ops
+        ( ($rows_pos = -1), undef )
+      )
+    )
       or
-    ( $_[1] and $rows_pos = -1 and $_[1]->() )
+    ( $_[1] and $_[1]->() )
   ) ) {
 
     # the undef checks may or may not be there
