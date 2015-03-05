@@ -2,7 +2,7 @@
 
 # Stop pre-started RDBMS and sync for some settle time
 run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
-run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop"
+run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop || /bin/true"
 /bin/sync
 
 # Sanity check VM before continuing
