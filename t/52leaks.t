@@ -455,6 +455,10 @@ for my $addr (keys %$weak_registry) {
     delete $weak_registry->{$addr}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
+  elsif ($names =~ /^DateTime::TimeZone::UTC/m) {
+    # DT is going through a refactor it seems - let it leak zones for now
+    delete $weak_registry->{$addr};
+  }
   elsif (
 #    # if we can look at closed over pieces - we will register it as a global
 #    !DBICTest::Util::LeakTracer::CV_TRACING
