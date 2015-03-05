@@ -13,6 +13,8 @@ Revision history for DBIx::Class
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
+        - Fix failures of t/54taint.t on Windows with spaces in the $^X
+          executable path (RT#101615)
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
