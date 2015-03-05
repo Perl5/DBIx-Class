@@ -48,7 +48,7 @@ use Test::More 'no_plan';
 use Config;
 use File::Find 'find';
 use Module::Runtime 'module_notional_filename';
-use List::Util 'max';
+use List::Util qw(max min);
 use ExtUtils::MakeMaker;
 use DBICTest::Util 'visit_namespaces';
 
@@ -68,6 +68,19 @@ sub say_err {
   print STDERR "\n", @_, "\n";
 }
 
+# needed for WeirdOS
+sub fixup_path ($) {
+  return $_[0] unless ( $^O eq 'MSWin32' and $_[0] );
+
+  # sometimes we can get a short/longname mix, normalize everything to longnames
+  my $fn = Win32::GetLongPathName($_[0]);
+
+  # Fixup (native) slashes in Config not matching (unixy) slashes in INC
+  $fn =~ s|\\|/|g;
+
+  $fn;
+}
+
 my @lib_display_order = qw(
   sitearch
   sitelib
@@ -78,7 +91,10 @@ my @lib_display_order = qw(
 );
 my $lib_paths = {
   (map
-    { $Config{$_} ? ( $_ => $Config{"${_}exp"} || $Config{$_} ) : () }
+    { $Config{$_}
+      ? ( $_ => fixup_path( $Config{"${_}exp"} || $Config{$_} ) )
+      : ()
+    }
     @lib_display_order
   ),
 
@@ -88,6 +104,10 @@ my $lib_paths = {
 
 sub describe_fn {
   my $fn = shift;
+
+  return '' if !defined $fn;
+
+  $fn = fixup_path( $fn );
 
   $lib_paths->{$_} and $fn =~ s/^\Q$lib_paths->{$_}/<<$_>>/ and last
     for @lib_display_order;
@@ -148,16 +168,16 @@ my $has_versionpm = eval { require version };
 # the *ENTIRE* symtable and build a map of versions
 my $version_list = { perl => $] };
 visit_namespaces( action => sub {
+  no strict 'refs';
   my $pkg = shift;
 
   # keep going, but nothing to see here
   return 1 if $pkg eq 'main';
 
-  # private - not interested
+  # private - not interested, including no further descent
   return 0 if $pkg =~ / (?: ^ | :: ) _ /x;
 
-  no strict 'refs';
-  # that would be some synthetic class, or a custom sub VERSION
+  # not interested in no-VERSION-containing modules, nor synthetic classes
   return 1 if (
     ! defined ${"${pkg}::VERSION"}
       or
@@ -172,29 +192,36 @@ visit_namespaces( action => sub {
     say_err
       "Calling `$pkg->VERSION` resulted in an exception, which should never "
     . "happen - please file a bug with the distribution containing $pkg. "
-    . "Follows the full text of the exception:\n\n$err\n"
+    . "Complete exception text below:\n\n$err"
     ;
   }
-  elsif( ! defined $mod_ver ) {
-    say_err
-      "Calling `$pkg->VERSION` returned 'undef', which should never "
-    . "happen - please file a bug with the distribution containing $pkg."
+  elsif( ! defined $mod_ver or ! length $mod_ver ) {
+    my $ret = defined $mod_ver
+      ? "the empty string ''"
+      : "'undef'"
     ;
 
-  }
-  elsif( ! length $mod_ver ) {
     say_err
-      "Calling `$pkg->VERSION` returned the empty string '', which should never "
-    . "happen - please file a bug with the distribution containing $pkg."
+      "Calling `$pkg->VERSION` returned $ret, even though \$${pkg}::VERSION "
+    . "is defined, which should never happen - please file a bug with the "
+    . "distribution containing $pkg."
     ;
+
     undef $mod_ver;
   }
 
   # if this is a real file - extract the version via EUMM whenever possible
   my $fn = $INC{module_notional_filename($pkg)};
 
-  my $eumm_ver = eval { MM->parse_version( $fn ) }
-    if $fn and  -f $fn and -r $fn;
+  my $eumm_ver = (
+    $fn
+      and
+    -f $fn
+      and
+    -r $fn
+      and
+    eval { MM->parse_version( $fn ) }
+  ) || undef;
 
   if (
     $has_versionpm
@@ -231,10 +258,16 @@ visit_namespaces( action => sub {
   1;
 });
 
+# In retrospect it makes little sense to omit this information - just
+# show everything at all times.
+# Nevertheless leave the dead code, in case it turns out to be a bad idea...
+my $show_all = 1;
+#my $show_all = $ENV{PERL_DESCRIBE_ALL_DEPS} || !DBICTest::RunMode->is_plain;
+
 # compress identical versions as close to the root as we can
 # unless we are dealing with a smoker - in which case we want
 # to see every MD5 there is
-unless ( $ENV{AUTOMATED_TESTING} ) {
+unless ($show_all) {
   for my $mod ( sort { length($b) <=> length($a) } keys %$version_list ) {
     my $parent = $mod;
 
@@ -262,13 +295,11 @@ MODULE:
 for my $mod ( sort { lc($a) cmp lc($b) } keys %$version_list ) {
   my $fn = $INC{module_notional_filename($mod)};
 
-  my $tuple = [
-    $mod,
-    ( ( $fn && -f $fn && -r $fn ) ? $fn : undef )
-  ];
+  my $tuple = [ $mod ];
 
+  if ( defined $fn && -f $fn && -r $fn ) {
+    push @$tuple, ( $fn = fixup_path($fn) );
 
-  if ($fn) {
     for my $lib (@lib_display_order, './lib') {
       if ( $lib_paths->{$lib} and index($fn, $lib_paths->{$lib}) == 0 ) {
         push @{$segments->{$lib}}, $tuple;
@@ -282,30 +313,45 @@ for my $mod ( sort { lc($a) cmp lc($b) } keys %$version_list ) {
 }
 
 # diag the result out
-my $max_ver_len = max map { length $_ } values %$version_list;
+my $max_ver_len = max map
+  { length $_ }
+  ( values %$version_list, 'xxx.yyyzzz_bbb' )
+;
 my $max_mod_len = max map { length $_ } keys %$version_list;
 
-my $diag = "\n\nVersions of all loadable modules within the configure/build/test/runtime dependency chains present on this system (both core and optional)\n\n";
+my $discl = <<'EOD';
+
+Versions of all loadable modules within both the core and *OPTIONAL* dependency chains present on this system
+Note that *MANY* of these modules will *NEVER* be loaded during normal operation of DBIx::Class
+EOD
+
+$discl .= "(modules with versions identical to their parent namespace were omitted - set PERL_DESCRIBE_ALL_DEPS to see them)\n"
+  unless $show_all;
+
+diag $discl;
+
+diag "\n";
+
 for my $seg ( '', @lib_display_order, './lib' ) {
   next unless $segments->{$seg};
 
-  $diag .= sprintf "=== %s ===\n\n",
+  diag sprintf "=== %s ===\n\n",
     $seg
       ? "Modules found in " . ( $Config{$seg} ? "\$Config{$seg}" : $seg )
-      : 'Misc'
+      : 'Misc versions'
   ;
 
-  $diag .= sprintf (
-    "   %*s  %*s%s\n",
+  diag sprintf (
+    "%*s  %*s%s\n",
     $max_ver_len => $version_list->{$_->[0]},
     -$max_mod_len => $_->[0],
     ($_->[1]
-      ? "  [ MD5: @{[ md5_of_fn( $_->[1] ) ]} ]"
+      ? ' ' x (80 - min(78, $max_mod_len)) . "[ MD5: @{[ md5_of_fn( $_->[1] ) ]} ]"
       : ''
     ),
   ) for @{$segments->{$seg}};
 
-  $diag .= "\n\n"
+  diag "\n\n"
 }
 
-diag $diag;
+diag "$discl\n";
