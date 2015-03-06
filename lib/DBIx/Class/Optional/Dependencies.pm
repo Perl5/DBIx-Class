@@ -770,7 +770,11 @@ sub req_missing_for {
   my ($self, $groups) = @_;
 
   my $reqs = $self->_groups_to_reqs($groups);
-  my $mods_missing = $self->modreq_missing_for($groups);
+
+  my $mods_missing = $reqs->{missing_envvars}
+    ? $self->_list_physically_missing_modules( $reqs->{modreqs} )
+    : $self->modreq_missing_for($groups)
+  ;
 
   return '' if
     ! $mods_missing
@@ -1085,7 +1089,7 @@ sub _groups_to_reqs {
 }
 
 
-# this method tries to load specified modreqs and returns a hashref of
+# this method tries to find/load specified modreqs and returns a hashref of
 # module/loaderror pairs for anything that failed
 sub _errorlist_for_modreqs {
   # args supposedly already went through _groups_to_reqs and are therefore sanitized
@@ -1108,6 +1112,36 @@ sub _errorlist_for_modreqs {
   }
 
   $ret;
+}
+
+# Unlike the above DO NOT try to load anything
+# This is executed when some needed envvars are not available
+# which in turn means a module load will never be reached anyway
+# This is important because some modules (especially DBDs) can be
+# *really* fickle when a require() is attempted, with pretty confusing
+# side-effects (especially on windows)
+sub _list_physically_missing_modules {
+  my ($self, $modreqs) = @_;
+
+  # in case there is a coderef in @INC there is nothing we can definitively prove
+  # so short circuit directly
+  return '' if grep { length ref $_ } @INC;
+
+  my @definitely_missing;
+  for my $mod (keys %$modreqs) {
+    (my $fn = $mod . '.pm') =~ s|::|/|g;
+
+    push @definitely_missing, $mod unless grep
+      # this should work on any combination of slashes
+      { $_ and -d $_ and -f "$_/$fn" and -r "$_/$fn" }
+      @INC
+    ;
+  }
+
+  join ' ', map
+    { $modreqs->{$_} ? qq("$_~>=$modreqs->{$_}") : $_ }
+    sort { lc($a) cmp lc($b) } @definitely_missing
+  ;
 }
 
 

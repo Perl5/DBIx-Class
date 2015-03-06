@@ -42,7 +42,7 @@ is_deeply (
 {
 
 # make module loading impossible, regardless of actual libpath contents
-  local @INC = (sub { confess('Optional Dep Test') } );
+  local @INC;
 
 # basic test using the deploy target
   for ('deploy', ['deploy']) {
@@ -78,8 +78,8 @@ is_deeply (
 
     like (
       DBIx::Class::Optional::Dependencies->modreq_errorlist_for ($_)->{'SQL::Translator'},
-      qr/Optional Dep Test/,
-      'custom exception found in errorlist',
+      qr|\QCan't locate SQL/Translator.pm|,
+      'correct "unable to locate"  exception found in errorlist',
     );
 
     #make it so module appears loaded

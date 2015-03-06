@@ -132,7 +132,12 @@ req_mod $_ for sort
   { ($load_weights->{$b}||0) <=> ($load_weights->{$a}||0) }
   keys %{
     DBIx::Class::Optional::Dependencies->req_list_for([
-      keys %{DBIx::Class::Optional::Dependencies->req_group_list}
+      grep
+        # some DBDs are notoriously problematic to load
+        # hence only show stuff based on test_rdbms which will
+        # take into account necessary ENVs
+        { $_ !~ /^rdbms_/ }
+        keys %{DBIx::Class::Optional::Dependencies->req_group_list}
     ])
   }
 ;
