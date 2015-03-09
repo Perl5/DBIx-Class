@@ -200,8 +200,6 @@ sub symtable_referenced_addresses {
 sub assert_empty_weakregistry {
   my ($weak_registry, $quiet) = @_;
 
-  Sub::Defer::undefer_all();
-
   # in case we hooked bless any extra object creation will wreak
   # havoc during the assert phase
   local *CORE::GLOBAL::bless;
