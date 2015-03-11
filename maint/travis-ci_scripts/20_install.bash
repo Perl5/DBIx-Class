@@ -86,6 +86,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   # returned results, look through lib, find all mentioned ENVvars and
   # set them to true and see if anything explodes
   for var in \
+    DBICTEST_RUN_ALL_TESTS \
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
     $( grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' )
   do

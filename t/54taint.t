@@ -6,6 +6,11 @@ use Config;
 # doesn't work. We don't want to have the user deal with that.
 BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
 
+  if ( $^O eq 'MSWin32' and $^X =~ /\x20/ ) {
+    print "1..0 # SKIP Running this test on Windows with spaces within the perl executable path (\$^X) is not possible due to https://rt.perl.org/Ticket/Display.html?id=123907\n";
+    exit 0;
+  }
+
   # it is possible the test itself is initially invoked in taint mode
   # and with relative paths *and* with a relative $^X and some other
   # craziness... in short: just be proactive

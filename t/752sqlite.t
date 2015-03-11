@@ -271,11 +271,6 @@ for my $bi ( qw(
     "value in database correct ($v_desc)"
   );
 
-# FIXME - temporary smoke-only escape
-SKIP: {
-  skip 'Potential for false negatives - investigation pending', 1
-    if DBICTest::RunMode->is_plain;
-
   # check if math works
   # start by adding/subtracting a 50 bit integer, and then divide by 2 for good measure
   my ($sqlop, $expect) = $bi < 0
@@ -309,8 +304,6 @@ SKIP: {
     , "simple integer math with@{[ $dtype ? '' : 'out' ]} bindtype in database correct (base $v_desc)")
       or diag sprintf '%s != %s', $row->bigint, $expect;
   }
-# end of fixme
-}
 
   is_deeply (\@w, [], "No mismatch warnings on bigint operations ($v_desc)" );
 

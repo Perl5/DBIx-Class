@@ -13,8 +13,11 @@ Revision history for DBIx::Class
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
+        - Fix failures of t/54taint.t on Windows with spaces in the $^X
+          executable path (RT#101615)
 
     * Misc
+        - Remove warning about potential side effects of RT#79576 (scheduled)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
@@ -22,7 +25,7 @@ Revision history for DBIx::Class
           Optional::Dependencies::req_group_list (no known users in the wild)
         - Depend on newer SQL::Abstract (fixing overly-aggressive parenthesis
           opener: RT#99503)
-        - Depend on newer Moo, fixing some interoperability issues:
+        - Depend on newer Moo, fixing some interoperability issues: RT#93004 and
           http://lists.scsys.co.uk/pipermail/dbix-class/2014-October/011787.html
         - Fix intermittent failures in the LeakTracer on 5.18+
 

@@ -62,7 +62,7 @@ my $runtime_requires = {
   'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0.09',
   'Hash::Merge'              => '0.12',
-  'Moo'                      => '1.006001',
+  'Moo'                      => '2.000',
   'MRO::Compat'              => '0.12',
   'Module::Find'             => '0.07',
   'namespace::clean'         => '0.24',
@@ -113,9 +113,18 @@ if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   }
 }
 
-tests_recursive (qw|
-    t
-|);
+tests_recursive (
+  't',
+  ( (
+    $Module::Install::AUTHOR
+      or
+    $ENV{DBICTEST_RUN_ALL_TESTS}
+      or
+    ( $ENV{TRAVIS}||'' ) eq 'true'
+      or
+    ( $ENV{AUTOMATED_TESTING} and ! $ENV{PERL5_CPANM_IS_RUNNING} and ! $ENV{RELEASE_TESTING} )
+  ) ? 'xt' : () ),
+);
 
 install_script (qw|
     script/dbicadmin

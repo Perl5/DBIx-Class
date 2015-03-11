@@ -103,7 +103,6 @@ BEGIN {
     namespace::clean
     Try::Tiny
     Sub::Name
-    strictures
     Sub::Defer
     Sub::Quote
 
@@ -170,12 +169,6 @@ BEGIN {
   my $s = DBICTest->init_schema;
   is ($s->resultset('Artist')->find(1)->name, 'Caterwauler McCrae');
   assert_no_missing_expected_requires();
-}
-
-# make sure we never loaded any of the strictures XS bullshit
-{
-  ok( ! exists $INC{ Module::Runtime::module_notional_filename($_) }, "$_ load never attempted" )
-    for qw(indirect multidimensional bareword::filehandles);
 }
 
 done_testing;
