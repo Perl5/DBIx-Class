@@ -2,8 +2,12 @@ package DBIx::Class::Optional::Dependencies;
 
 ### This may look crazy, but it in fact tangibly ( by 50(!)% ) shortens
 #   the skip-test time when everything requested is unavailable
-use if $ENV{RELEASE_TESTING} => 'warnings';
-use if $ENV{RELEASE_TESTING} => 'strict';
+BEGIN {
+  if ( $ENV{RELEASE_TESTING} ) {
+    require warnings and warnings->import;
+    require strict and strict->import;
+  }
+}
 
 sub croak {
   require Carp;
