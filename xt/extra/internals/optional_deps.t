@@ -18,14 +18,20 @@ use MRO::Compat();
 use Carp 'confess';
 use List::Util 'shuffle';
 
-ok ( (! grep { $_ =~ m|DBIx/Class| } @$inc_before ), 'Nothing DBIC related was loaded before inc-test')
-  unless $ENV{PERL5OPT}; # a defined PERL5OPT may inject extra deps crashing this test
-
-is_deeply (
-  [ sort @$inc_after],
-  [ sort (@$inc_before, qw( DBIx/Class/Optional/Dependencies.pm if.pm )) ],
-  'Nothing loaded other than DBIx::Class::OptDeps',
-) unless $ENV{RELEASE_TESTING};
+SKIP: {
+  skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1 if $ENV{PERL5OPT};
+  skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1 if $ENV{RELEASE_TESTING};
+  is_deeply
+    $inc_before,
+    [],
+    'Nothing was loaded before inc-test'
+  ;
+  is_deeply
+    $inc_after,
+    [ 'DBIx/Class/Optional/Dependencies.pm' ],
+    'Nothing was loaded other than DBIx::Class::OptDeps'
+  ;
+}
 
 # check the project-local groups for sanity
 lives_ok {
