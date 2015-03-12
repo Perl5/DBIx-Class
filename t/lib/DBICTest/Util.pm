@@ -39,6 +39,7 @@ BEGIN {
 use Config;
 use Carp 'confess';
 use Scalar::Util qw(blessed refaddr);
+use DBIx::Class::_Util;
 
 use base 'Exporter';
 our @EXPORT_OK = qw(local_umask stacktrace check_customcond_args visit_namespaces);
@@ -57,6 +58,8 @@ sub local_umask {
 {
   package DBICTest::Util::UmaskGuard;
   sub DESTROY {
+    &DBIx::Class::_Util::detected_reinvoked_destructor;
+
     local ($@, $!);
     eval { defined (umask ${$_[0]}) or die };
     warn ( "Unable to reset old umask ${$_[0]}: " . ($!||'Unknown error') )

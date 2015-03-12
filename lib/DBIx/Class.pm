@@ -27,6 +27,13 @@ use DBIx::Class::Exception;
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
 __PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve');
 
+# FIXME - this is not really necessary, and is in
+# fact going to slow things down a bit
+# However it is the right thing to do in order to get
+# various install bases to highlight their brokenness
+# Remove at some unknown point in the future
+sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor }
+
 sub mk_classdata {
   shift->mk_classaccessor(@_);
 }

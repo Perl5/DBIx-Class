@@ -7,6 +7,7 @@ use warnings;
 use DBICTest::Util 'local_umask';
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use DBIx::Class::_Util 'detected_reinvoked_destructor';
 use Carp;
 use Path::Class::File ();
 use File::Spec;
@@ -217,7 +218,7 @@ sub _database {
           $dbh->{Callbacks} = {
             connect => sub { $guard_cb->('connect') },
             disconnect => sub { $guard_cb->('disconnect') },
-            DESTROY => sub { $guard_cb->('DESTROY') },
+            DESTROY => sub { &detected_reinvoked_destructor; $guard_cb->('DESTROY') },
           };
         }
       },

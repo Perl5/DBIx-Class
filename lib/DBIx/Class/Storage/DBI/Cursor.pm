@@ -8,6 +8,7 @@ use base 'DBIx::Class::Cursor';
 use Try::Tiny;
 use Scalar::Util qw(refaddr weaken);
 use List::Util 'shuffle';
+use DBIx::Class::_Util 'detected_reinvoked_destructor';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -233,6 +234,8 @@ sub reset {
 
 
 sub DESTROY {
+  return if &detected_reinvoked_destructor;
+
   $_[0]->__finish_sth if $_[0]->{sth};
 }
 

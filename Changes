@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
     * Fixes
+        - Protect destructors from rare but possible double execution, and
+          loudly warn the user whenever the problem is encountered (GH#63)
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
