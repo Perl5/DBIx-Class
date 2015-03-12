@@ -60,7 +60,7 @@ use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
 use B ();
 use Carp 'croak';
 use Storable 'nfreeze';
-use Scalar::Util qw(weaken blessed reftype);
+use Scalar::Util qw(weaken blessed reftype refaddr);
 use List::Util qw(first);
 use Sub::Quote qw(qsub quote_sub);
 
@@ -71,7 +71,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr is_exception
+  refdesc refcount hrefaddr is_exception detected_reinvoked_destructor
   quote_sub qsub perlstring serialize deep_clone
   UNRESOLVABLE_CONDITION
 );
@@ -90,7 +90,7 @@ sub sigwarn_silencer ($) {
 
 sub perlstring ($) { q{"}. quotemeta( shift ). q{"} };
 
-sub hrefaddr ($) { sprintf '0x%x', &Scalar::Util::refaddr||0 }
+sub hrefaddr ($) { sprintf '0x%x', &refaddr||0 }
 
 sub refdesc ($) {
   croak "Expecting a reference" if ! length ref $_[0];
@@ -100,7 +100,7 @@ sub refdesc ($) {
   sprintf '%s%s(0x%x)',
     ( defined( $_[1] = blessed $_[0]) ? "$_[1]=" : '' ),
     reftype $_[0],
-    Scalar::Util::refaddr($_[0]),
+    refaddr($_[0]),
   ;
 }
 
@@ -167,6 +167,54 @@ sub is_exception ($) {
   }
 
   return $not_blank;
+}
+
+{
+  my $destruction_registry = {};
+
+  sub CLONE {
+    $destruction_registry = { map
+      { defined $_ ? ( refaddr($_) => $_ ) : () }
+      values %$destruction_registry
+    };
+  }
+
+  # This is almost invariably invoked from within DESTROY
+  # throwing exceptions won't work
+  sub detected_reinvoked_destructor {
+
+    # quick "garbage collection" pass - prevents the registry
+    # from slowly growing with a bunch of undef-valued keys
+    defined $destruction_registry->{$_} or delete $destruction_registry->{$_}
+      for keys %$destruction_registry;
+
+    if (! length ref $_[0]) {
+      printf STDERR '%s() expects a blessed reference %s',
+        (caller(0))[3],
+        Carp::longmess,
+      ;
+      return undef; # don't know wtf to do
+    }
+    elsif (! defined $destruction_registry->{ my $addr = refaddr($_[0]) } ) {
+      weaken( $destruction_registry->{$addr} = $_[0] );
+      return 0;
+    }
+    else {
+      carp_unique ( sprintf (
+        'Preventing *MULTIPLE* DESTROY() invocations on %s - an *EXTREMELY '
+      . 'DANGEROUS* condition which is *ALMOST CERTAINLY GLOBAL* within your '
+      . 'application, affecting *ALL* classes without active protection against '
+      . 'this. Diagnose and fix the root cause ASAP!!!%s',
+      refdesc $_[0],
+        ( ( $INC{'Devel/StackTrace.pm'} and ! do { local $@; eval { Devel::StackTrace->VERSION(2) } } )
+          ? " (likely culprit Devel::StackTrace\@@{[ Devel::StackTrace->VERSION ]} found in %INC, http://is.gd/D_ST_refcap)"
+          : ''
+        )
+      ));
+
+      return 1;
+    }
+  }
 }
 
 sub modver_gt_or_eq ($$) {

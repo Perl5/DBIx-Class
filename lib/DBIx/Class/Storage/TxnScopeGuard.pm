@@ -3,9 +3,9 @@ package DBIx::Class::Storage::TxnScopeGuard;
 use strict;
 use warnings;
 use Try::Tiny;
-use Scalar::Util qw/weaken blessed refaddr/;
+use Scalar::Util qw(weaken blessed refaddr);
 use DBIx::Class;
-use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::_Util qw(is_exception detected_reinvoked_destructor);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -50,6 +50,8 @@ sub commit {
 }
 
 sub DESTROY {
+  return if &detected_reinvoked_destructor;
+
   my $self = shift;
 
   return if $self->{inactivated};

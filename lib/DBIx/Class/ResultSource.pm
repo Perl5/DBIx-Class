@@ -2306,6 +2306,9 @@ sub handle {
 
 my $global_phase_destroy;
 sub DESTROY {
+  ### NO detected_reinvoked_destructor check
+  ### This code very much relies on being called multuple times
+
   return if $global_phase_destroy ||= in_global_destruction;
 
 ######
