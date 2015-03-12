@@ -94,7 +94,6 @@ BEGIN {
     constant
     overload
 
-    if
     base
     Devel::GlobalDestruction
     mro
