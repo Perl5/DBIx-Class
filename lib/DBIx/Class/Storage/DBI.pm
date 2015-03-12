@@ -13,7 +13,7 @@ use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring serialize);
+use DBIx::Class::_Util qw(quote_sub perlstring serialize detect_reinvoked_destructor);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -253,6 +253,8 @@ sub new {
 }
 
 sub DESTROY {
+  return if &detect_reinvoked_destructor;
+
   $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
   # some databases spew warnings on implicit disconnect
   local $SIG{__WARN__} = sub {};

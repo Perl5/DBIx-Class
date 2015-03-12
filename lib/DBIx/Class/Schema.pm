@@ -1385,6 +1385,9 @@ sub _register_source {
 
 my $global_phase_destroy;
 sub DESTROY {
+  ### NO detect_reinvoked_destructor check
+  ### This code very much relies on being called multuple times
+
   return if $global_phase_destroy ||= in_global_destruction;
 
   my $self = shift;
