@@ -8,6 +8,9 @@ Revision history for DBIx::Class
     * Fixes
         - Protect destructors from rare but possible double execution, and
           loudly warn the user whenever the problem is encountered (GH#63)
+        - Relax the 'self_result_object' argument check in the relationship
+          resolution codepath, restoring exotic uses of inflate_result
+          http://lists.scsys.co.uk/pipermail/dbix-class/2015-January/011876.html
         - Fix updating multiple CLOB/BLOB columns on Oracle
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
