@@ -2219,7 +2219,7 @@ sub _insert_bulk {
   # scope guard
   my $guard = $self->txn_scope_guard;
 
-  $self->_query_start( $sql, @$proto_bind ? [[undef => '__BULK_INSERT__' ]] : () );
+  $self->_query_start( $sql, @$proto_bind ? [[ {} => '__BULK_INSERT__' ]] : () );
   my $sth = $self->_prepare_sth($self->_dbh, $sql);
   my $rv = do {
     if (@$proto_bind) {
@@ -2233,7 +2233,7 @@ sub _insert_bulk {
     }
   };
 
-  $self->_query_end( $sql, @$proto_bind ? [[ undef => '__BULK_INSERT__' ]] : () );
+  $self->_query_end( $sql, @$proto_bind ? [[ {} => '__BULK_INSERT__' ]] : () );
 
   $guard->commit;
 
