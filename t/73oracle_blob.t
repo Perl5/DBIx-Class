@@ -126,7 +126,7 @@ SKIP: {
       { blob => "blob:$str", clob => "clob:$str" },
       {
         from => \ "(SELECT * FROM ${q}bindtype_test${q} WHERE ${q}id${q} != ?) ${q}me${q}",
-        bind => [ [ undef => 12345678 ] ],
+        bind => [ [ {} => 12345678 ] ],
       }
     )->get_column('id')->as_query);
 
