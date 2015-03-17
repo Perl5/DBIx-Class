@@ -17,10 +17,15 @@ use DBICTest;
 
   my $storage = $schema->storage;
 
-  is(
-    ref $storage, 'DBIx::Class::Storage::DBI',
-    'Starting with generic storage'
-  );
+  if ($ENV{DBICTEST_VIA_REPLICATED}) {
+    $storage = $storage->master;
+  }
+  else {
+    is(
+      ref $storage, 'DBIx::Class::Storage::DBI',
+      'Starting with generic storage'
+    );
+  }
 
   # Calling date_time_parser should cause the storage to be reblessed,
   # so that we can pick up datetime_parser_type from subclasses

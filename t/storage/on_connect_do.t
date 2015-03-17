@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 
+BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+
 # !!! do not replace this with done_testing - tests reside in the callbacks
 # !!! number of calls is important
 use Test::More tests => 13;

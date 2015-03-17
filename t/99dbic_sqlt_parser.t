@@ -3,6 +3,8 @@ use DBIx::Class::Optional::Dependencies -skip_all_without => 'deploy';
 use strict;
 use warnings;
 
+BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+
 use Test::More;
 use Test::Warn;
 use Test::Exception;
