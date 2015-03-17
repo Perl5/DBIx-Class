@@ -3,6 +3,9 @@ use warnings;
 
 use Test::More;
 
+# Fixed properly in mainline
+BEGIN { delete $ENV{DBICTEST_SQLITE_USE_FILE} }
+
 use lib qw(t/lib);
 use DBICTest;
 use DBICTest::Schema;

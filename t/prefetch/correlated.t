@@ -138,6 +138,8 @@ is_same_sql_bind(
   'Expected SQL on correlated realiased subquery'
 );
 
+$schema->storage->disconnect;
+
 # test for subselect identifier leakage
 # NOTE - the hodge-podge mix of literal and regular identifuers is *deliberate*
 for my $quote_names (0,1) {
