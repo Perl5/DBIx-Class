@@ -320,10 +320,12 @@ sub init_schema {
 
     my $schema;
 
+    my @dsn = $self->_database(%args);
+
     if ($args{compose_connection}) {
       $need_global_cleanup = 1;
       $schema = DBICTest::Schema->compose_connection(
-                  'DBICTest', $self->_database(%args)
+                  'DBICTest', @dsn
                 );
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
@@ -334,7 +336,7 @@ sub init_schema {
     }
 
     if ( !$args{no_connect} ) {
-      $schema = $schema->connect($self->_database(%args));
+      $schema->connection(@dsn);
     }
 
     if ( !$args{no_deploy} ) {

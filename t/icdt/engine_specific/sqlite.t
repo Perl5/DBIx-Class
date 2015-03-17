@@ -15,19 +15,21 @@ use DBICTest;
     no_deploy => 1, # Deploying would cause an early rebless
   );
 
+  my $storage = $schema->storage;
+
   is(
-    ref $schema->storage, 'DBIx::Class::Storage::DBI',
+    ref $storage, 'DBIx::Class::Storage::DBI',
     'Starting with generic storage'
   );
 
   # Calling date_time_parser should cause the storage to be reblessed,
   # so that we can pick up datetime_parser_type from subclasses
-  my $parser = $schema->storage->datetime_parser();
+  my $parser = $storage->datetime_parser();
 
   is($parser, 'DateTime::Format::SQLite', 'Got expected storage-set datetime_parser');
-  isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::SQLite', 'storage');
+  isa_ok($storage, 'DBIx::Class::Storage::DBI::SQLite', 'storage');
 
-  ok(! $schema->storage->connected, 'Not yet connected');
+  ok(! $storage->connected, 'Not yet connected');
 }
 
 # so user's env doesn't screw us

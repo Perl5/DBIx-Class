@@ -43,7 +43,7 @@ is_deeply (
 
 # test nested aliasing
 my $res = 'original';
-$storage->dbh_do (sub {
+$schema->storage->dbh_do (sub {
   shift->dbh_do(sub { $_[3] = 'changed' }, @_)
 }, $res);
 

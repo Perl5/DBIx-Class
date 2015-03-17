@@ -144,7 +144,7 @@ cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
-$cd = $schema->resultset('Artist')->first->create_related('cds',
+$cd = $schema->resultset('Artist')->search({ artistid => 1 })->first->create_related('cds',
     {
     title   => 'Unproduced Single',
     year    => 2007

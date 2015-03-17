@@ -7,6 +7,7 @@ use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
 use Time::HiRes 'sleep';
+use Scope::Guard ();
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util 'local_umask';
 use namespace::clean;
@@ -23,10 +24,20 @@ sub capture_executed_sql_bind {
   local *DBIx::Class::Storage::DBI::_format_for_trace = sub { $_[1] };
   Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
+  # can not use local() due to an unknown number of storages
+  # (think replicated)
+  my $orig_states = { map
+    { $_ => $self->storage->$_ }
+    qw(debugcb debugobj debug)
+  };
 
-  local $self->storage->{debugcb};
-  local $self->storage->{debugobj} = my $tracer_obj = DBICTest::SQLTracerObj->new;
-  local $self->storage->{debug} = 1;
+  my $sg = Scope::Guard->new(sub {
+    $self->storage->$_ ( $orig_states->{$_} ) for keys %$orig_states;
+  });
+
+  $self->storage->debugcb(undef);
+  $self->storage->debugobj( my $tracer_obj = DBICTest::SQLTracerObj->new );
+  $self->storage->debug(1);
 
   local $Test::Builder::Level = $Test::Builder::Level + 2;
   $cref->();

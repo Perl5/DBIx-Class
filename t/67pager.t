@@ -69,12 +69,14 @@ $it = $rs->search(
   { order_by => 'title',
     rows => 3 }
 );
-my $page = $it->page(2);
 
-is( $page->count, 2, "standard resultset paged rs count ok" );
+{
+  my $page = $it->page(2);
 
-is( $page->next->title, "Generic Manufactured Singles", "second page of standard resultset ok" );
+  is( $page->count, 2, "standard resultset paged rs count ok" );
 
+  is( $page->next->title, "Generic Manufactured Singles", "second page of standard resultset ok" );
+}
 
 # test software-based limit paging
 $it = $rs->search(

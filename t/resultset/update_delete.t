@@ -140,7 +140,13 @@ $schema->is_executed_sql_bind( sub {
 
 # try the same sql with forced multicolumn in
 $schema->is_executed_sql_bind( sub {
-  local $schema->storage->{_use_multicolumn_in} = 1;
+
+  my $orig_umi = $schema->storage->_use_multicolumn_in;
+  my $sg = Scope::Guard->new(sub {
+    $schema->storage->_use_multicolumn_in($orig_umi);
+  });
+
+  $schema->storage->_use_multicolumn_in(1);
 
   # this can't actually execute on sqlite
   eval { $fks_multi->update ({ read_count => \ 'read_count + 1' }) };
