@@ -307,6 +307,7 @@ my $method_dispatch = {
     _parse_connect_do
     savepoints
     _sql_maker_opts
+    _use_multicolumn_in
     _conn_pid
     _dbh_autocommit
     _native_data_type
@@ -363,7 +364,7 @@ my $method_dispatch = {
     # the capability framework
     # not sure if CMOP->initialize does evil things to DBIC::S::DBI, fix if a problem
     grep
-      { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x }
+      { $_ =~ /^ _ (?: use | supports | determine_supports ) _ /x and $_ ne '_use_multicolumn_in' }
       ( Class::MOP::Class->initialize('DBIx::Class::Storage::DBI')->get_all_method_names )
   )],
 };

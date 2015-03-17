@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - Protect destructors from rare but possible double execution, and
           loudly warn the user whenever the problem is encountered (GH#63)
         - Fix updating multiple CLOB/BLOB columns on Oracle
+        - Fix exception on complex update/delete under a replicated setup
+          http://lists.scsys.co.uk/pipermail/dbix-class/2015-January/011903.html
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
