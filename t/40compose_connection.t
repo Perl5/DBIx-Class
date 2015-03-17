@@ -16,7 +16,4 @@ warnings_exist { DBICTest->init_schema( compose_connection => 1, sqlite_use_file
 
 cmp_ok(DBICTest->resultset('Artist')->count, '>', 0, 'count is valid');
 
-# cleanup globaly cached handle so we do not trigger the leaktest
-DBICTest->schema->storage->disconnect;
-
 done_testing;

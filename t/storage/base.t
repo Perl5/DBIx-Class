@@ -146,6 +146,8 @@ for my $type (keys %$invocations) {
   );
 }
 
+$schema->storage->_dbh->disconnect;
+
 # make sure connection-less storages do not throw on _determine_driver
 # but work with ENV at the same time
 SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
