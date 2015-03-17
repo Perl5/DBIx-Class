@@ -2,6 +2,8 @@ use strict;
 use warnings;
 no warnings 'once';
 
+BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+
 use Test::More;
 use Test::Exception;
 use Try::Tiny;

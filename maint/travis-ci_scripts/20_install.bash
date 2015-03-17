@@ -101,6 +101,12 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
   export DBI_DRIVER="ADO"
 
+  # if we have Moose - try to run everything under replicated
+  # FIXME - when switching to Moo kill this
+  if [[ "$CLEANTEST" != "true" ]] && perl -M5.008003 -e 1 &>/dev/null ; then
+    export DBICTEST_VIA_REPLICATED=1
+  fi
+
   # some people do in fact set this - boggle!!!
   # it of course won't work before 5.8.4
   if perl -M5.008004 -e 1 &>/dev/null ; then

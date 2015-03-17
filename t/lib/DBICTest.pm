@@ -219,7 +219,7 @@ sub _database {
         # set a *DBI* disconnect callback, to make sure the physical SQLite
         # file is still there (i.e. the test does not attempt to delete
         # an open database, which fails on Win32)
-        if (my $guard_cb = __mk_disconnect_guard($db_file)) {
+        if (! $storage->{master} and my $guard_cb = __mk_disconnect_guard($db_file)) {
           $dbh->{Callbacks} = {
             connect => sub { $guard_cb->('connect') },
             disconnect => sub { $guard_cb->('disconnect') },
@@ -320,6 +320,14 @@ sub init_schema {
 
     my $schema;
 
+    if (
+      $ENV{DBICTEST_VIA_REPLICATED} &&=
+        ( !$args{storage_type} && !defined $args{sqlite_use_file} )
+    ) {
+      $args{storage_type} = ['::DBI::Replicated', { balancer_type => '::Random' }];
+      $args{sqlite_use_file} = 1;
+    }
+
     my @dsn = $self->_database(%args);
 
     if ($args{compose_connection}) {
@@ -337,6 +345,9 @@ sub init_schema {
 
     if ( !$args{no_connect} ) {
       $schema->connection(@dsn);
+
+      $schema->storage->connect_replicants(\@dsn)
+        if $ENV{DBICTEST_VIA_REPLICATED};
     }
 
     if ( !$args{no_deploy} ) {

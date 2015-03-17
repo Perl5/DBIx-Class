@@ -55,7 +55,8 @@ my $weak_registry = {};
 my $has_dt;
 
 # Skip the heavy-duty leak tracing when just doing an install
-unless (DBICTest::RunMode->is_plain) {
+# or when having Moose crap all over everything
+if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
 
   # redefine the bless override so that we can catch each and every object created
   no warnings qw/redefine once/;

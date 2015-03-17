@@ -9,6 +9,10 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 my $storage = $schema->storage;
 
+$storage = $storage->master
+  if $ENV{DBICTEST_VIA_REPLICATED};
+
+
 # test (re)connection
 for my $disconnect (0, 1) {
   $schema->storage->_dbh->disconnect if $disconnect;

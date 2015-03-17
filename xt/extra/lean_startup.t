@@ -83,6 +83,8 @@ BEGIN {
   }
 }
 
+BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+
 #######
 ### This is where the test starts
 #######
