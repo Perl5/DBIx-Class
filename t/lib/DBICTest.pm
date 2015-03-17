@@ -143,6 +143,7 @@ END {
 
 $SIG{INT} = sub { _cleanup_dbfile(); exit 1 };
 
+my $need_global_cleanup;
 sub _cleanup_dbfile {
     # cleanup if this is us
     if (
@@ -152,6 +153,10 @@ sub _cleanup_dbfile {
         or
       $ENV{DBICTEST_LOCK_HOLDER} == $$
     ) {
+        if ($need_global_cleanup and my $dbh = DBICTest->schema->storage->_dbh) {
+          $dbh->disconnect;
+        }
+
         my $db_file = _sqlite_dbfilename();
         unlink $_ for ($db_file, "${db_file}-journal");
     }
@@ -316,6 +321,7 @@ sub init_schema {
     my $schema;
 
     if ($args{compose_connection}) {
+      $need_global_cleanup = 1;
       $schema = DBICTest::Schema->compose_connection(
                   'DBICTest', $self->_database(%args)
                 );
