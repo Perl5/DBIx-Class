@@ -5,7 +5,7 @@ use warnings;
 use Try::Tiny;
 use Scalar::Util qw(weaken blessed refaddr);
 use DBIx::Class;
-use DBIx::Class::_Util qw(is_exception detect_reinvoked_destructor);
+use DBIx::Class::_Util qw(is_exception detected_reinvoked_destructor);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -50,7 +50,7 @@ sub commit {
 }
 
 sub DESTROY {
-  return if &detect_reinvoked_destructor;
+  return if &detected_reinvoked_destructor;
 
   my $self = shift;
 

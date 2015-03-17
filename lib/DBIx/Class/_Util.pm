@@ -71,7 +71,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr is_exception detect_reinvoked_destructor
+  refdesc refcount hrefaddr is_exception detected_reinvoked_destructor
   quote_sub qsub perlstring serialize deep_clone
   UNRESOLVABLE_CONDITION
 );
@@ -181,22 +181,21 @@ sub is_exception ($) {
 
   # This is almost invariably invoked from within DESTROY
   # throwing exceptions won't work
-  sub detect_reinvoked_destructor {
+  sub detected_reinvoked_destructor {
 
     # quick "garbage collection" pass - prevents the registry
     # from slowly growing with a bunch of undef-valued keys
     defined $destruction_registry->{$_} or delete $destruction_registry->{$_}
       for keys %$destruction_registry;
 
-    unless (length ref $_[0]) {
-      printf STDERR '%s() expects a reference %s',
+    if (! length ref $_[0]) {
+      printf STDERR '%s() expects a blessed reference %s',
         (caller(0))[3],
         Carp::longmess,
       ;
       return undef; # don't know wtf to do
     }
-
-    if (! defined $destruction_registry->{ my $addr = refaddr($_[0]) } ) {
+    elsif (! defined $destruction_registry->{ my $addr = refaddr($_[0]) } ) {
       weaken( $destruction_registry->{$addr} = $_[0] );
       return 0;
     }

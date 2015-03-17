@@ -3,11 +3,11 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use DBIx::Class::_Util 'detect_reinvoked_destructor';
+use DBIx::Class::_Util 'detected_reinvoked_destructor';
 use namespace::clean;
 
 sub DESTROY {
-  return if &detect_reinvoked_destructor;
+  return if &detected_reinvoked_destructor;
 
   my ($self) = @_;
   my $class = ref $self;
