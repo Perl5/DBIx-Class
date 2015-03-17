@@ -12,6 +12,8 @@ Revision history for DBIx::Class
           resolution codepath, restoring exotic uses of inflate_result
           http://lists.scsys.co.uk/pipermail/dbix-class/2015-January/011876.html
         - Fix updating multiple CLOB/BLOB columns on Oracle
+        - Fix exception on complex update/delete under a replicated setup
+          http://lists.scsys.co.uk/pipermail/dbix-class/2015-January/011903.html
         - Fix incorrect collapsing-parser source being generated in the
           presence of unicode data among the collapse-points
         - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
