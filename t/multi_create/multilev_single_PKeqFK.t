@@ -59,7 +59,7 @@ for my $type (qw/has_one might_have/) {
   my $cd_title = "Test $type cd";
   my $artist_names = [ map { "Artist via $type $_" } (1, 2) ];
 
-  my $someartist = $artist_rs->next;
+  my $someartist = $artist_rs->search({}, { rows => 1 })->next;
 
   lives_ok (sub {
     my $cd = $schema->resultset('CD')->create ({

@@ -69,8 +69,17 @@ for ('', keys %$env2optdep) { SKIP: {
 
   note "Testing $prefix";
 
-  local $schema->storage->{debugobj} = my $stats = DBICTest::SVPTracerObj->new;
-  local $schema->storage->{debug} = 1;
+  # can not use local() due to an unknown number of storages
+  # (think replicated)
+  my $orig_states = { map
+    { $_ => $schema->storage->$_ }
+    qw(debugcb debugobj debug)
+  };
+  my $sg = Scope::Guard->new(sub {
+    $schema->storage->$_ ( $orig_states->{$_} ) for keys %$orig_states;
+  });
+  $schema->storage->debugobj (my $stats = DBICTest::SVPTracerObj->new);
+  $schema->storage->debug (1);
 
   $schema->resultset('Artist')->create({ name => 'foo' });
 
@@ -229,12 +238,12 @@ for ('', keys %$env2optdep) { SKIP: {
     'rollback from inner transaction';
 
 ### cleanupz
-  $schema->storage->dbh->do ("DROP TABLE artist");
+  $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") });
 }}
 
 done_testing;
 
 END {
-  eval { $schema->storage->dbh->do ("DROP TABLE artist") } if defined $schema;
+  eval { $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") }) } if defined $schema;
   undef $schema;
 }

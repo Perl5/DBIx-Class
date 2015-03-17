@@ -46,14 +46,16 @@ is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
 
-my $rso_year = $rs->search({}, { order_by => 'cdid' })->get_column('year');
-is($rso_year->next, 1999, "reset okay");
+{
+  my $rso_year = $rs->search({}, { order_by => 'cdid' })->get_column('year');
+  is($rso_year->next, 1999, "reset okay");
 
-is($rso_year->first, 1999, "first okay");
+  is($rso_year->first, 1999, "first okay");
 
-warnings_exist (sub {
-  is($rso_year->single, 1999, "single okay");
-}, qr/Query returned more than one row/, 'single warned');
+  warnings_exist (sub {
+    is($rso_year->single, 1999, "single okay");
+  }, qr/Query returned more than one row/, 'single warned');
+}
 
 
 # test distinct propagation

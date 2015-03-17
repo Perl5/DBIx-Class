@@ -49,7 +49,7 @@ close $db_file;
   # Catch the DBI connection error
   local $SIG{__WARN__} = sub {};
   throws_ok {
-    my @art_three = $schema->resultset("Artist")->search( {}, { order_by => { -desc => 'name' } } );
+    $schema->resultset("Artist")->create({ name => 'not gonna happen' });
   }  qr/not a database/, 'The operation failed';
 }
 

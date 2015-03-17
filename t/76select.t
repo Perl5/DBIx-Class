@@ -60,6 +60,7 @@ my $subsel = $cds->search ({}, {
 is ($subsel->count, 2, 'Subselect correctly limited the rs to 2 cds');
 is ($subsel->next->title, $cds->next->title, 'First CD title match');
 is ($subsel->next->title, $cds->next->title, 'Second CD title match');
+$cds->reset;
 
 is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');
 

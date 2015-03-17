@@ -116,8 +116,6 @@ unless (DBICTest::RunMode->is_plain) {
   my $rs = $schema->resultset ('Artist');
   my $storage = $schema->storage;
 
-  ok ($storage->connected, 'we are connected');
-
   my $row_obj = $rs->search({}, { rows => 1})->next;  # so that commits/rollbacks work
   ok ($row_obj, 'row from db');
 

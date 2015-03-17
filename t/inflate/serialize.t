@@ -95,7 +95,7 @@ is_deeply (
 );
 
 #===== make sure make_column_dirty interacts reasonably with inflation
-$object = $rs->first;
+$object = $rs->search({}, { rows => 1 })->next;
 $object->update ({serialized => { x => 'y'}});
 
 $object->serialized->{x} = 'z'; # change state without notifying $object

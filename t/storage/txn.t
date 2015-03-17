@@ -36,7 +36,7 @@ my $code = sub {
 for my $want (0,1) {
   my $schema = DBICTest->init_schema;
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+  is( $schema->storage->transaction_depth, 0, 'txn depth starts at 0');
 
   my @titles = map {'txn_do test CD ' . $_} (1..5);
   my $artist = $schema->resultset('Artist')->find(1);
@@ -56,7 +56,7 @@ for my $want (0,1) {
     title => "txn_do test CD $_",
   })->first->year, 2006, "new CD $_ year correct") for (1..5);
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
+  is( $schema->storage->transaction_depth, 0, 'txn depth has been reset');
 }
 
 # Test txn_do() @_ aliasing support
@@ -72,7 +72,7 @@ for my $want (0,1) {
 {
   my $schema = DBICTest->init_schema;
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+  is( $schema->storage->transaction_depth, 0, 'txn depth starts at 0');
 
   my $nested_code = sub {
     my ($schema, $artist, $code) = @_;
@@ -96,7 +96,7 @@ for my $want (0,1) {
   })->first->year, 2006, qq{nested txn_do CD$_ year ok}) for (1..10);
   is($artist->cds->count, $count_before+10, 'nested txn_do added all CDs');
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
+  is( $schema->storage->transaction_depth, 0, 'txn depth has been reset');
 }
 
 # test nested txn_begin on fresh connection
@@ -260,7 +260,7 @@ my $fail_code = sub {
   # Test failed txn_do()
   for my $pass (1,2) {
 
-    is( $schema->storage->{transaction_depth}, 0, "txn depth starts at 0 (pass $pass)");
+    is( $schema->storage->transaction_depth, 0, "txn depth starts at 0 (pass $pass)");
 
     my $artist = $schema->resultset('Artist')->find(3);
 
@@ -274,13 +274,13 @@ my $fail_code = sub {
     })->first;
     ok(!defined($cd), qq{failed txn_do didn't change the cds table (pass $pass)});
 
-    is( $schema->storage->{transaction_depth}, 0, "txn depth has been reset (pass $pass)");
+    is( $schema->storage->transaction_depth, 0, "txn depth has been reset (pass $pass)");
   }
 
 
   # Test failed txn_do() with failed rollback
   {
-    is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+    is( $schema->storage->transaction_depth, 0, 'txn depth starts at 0');
 
     my $artist = $schema->resultset('Artist')->find(3);
 
@@ -322,7 +322,7 @@ my $fail_code = sub {
 {
   my $schema = DBICTest->init_schema();
 
-  is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
+  is( $schema->storage->transaction_depth, 0, 'txn depth starts at 0');
 
   my $nested_fail_code = sub {
     my ($schema, $artist, $code1, $code2) = @_;
