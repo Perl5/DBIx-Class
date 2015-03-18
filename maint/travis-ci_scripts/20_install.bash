@@ -82,14 +82,29 @@ run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
 # poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
 
-  # in addition to making sure tests do not rely on implicid order of
-  # returned results, look through lib, find all mentioned ENVvars and
-  # set them to true and see if anything explodes
-  for var in \
+  # look through lib, find all mentioned DBIC* ENVvars and set them to true and see if anything explodes
+  toggle_booleans=( $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$') )
+
+  # some extra pollutants
+  toggle_booleans+=( \
     DBICTEST_SQLITE_USE_FILE \
     DBICTEST_RUN_ALL_TESTS \
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
-    $( grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' )
+  )
+
+  # if we have Moose - try to run everything under replicated
+  # FIXME - when switching to Moo kill this
+  if [[ "$CLEANTEST" != "true" ]] && perl -M5.008003 -e 1 &>/dev/null ; then
+    toggle_booleans+=( DBICTEST_VIA_REPLICATED )
+  fi
+
+  # some people do in fact set this - boggle!!!
+  # it of course won't work before 5.8.4
+  if perl -M5.008004 -e 1 &>/dev/null ; then
+    toggle_booleans+=( PERL_STRICTURES_EXTRA )
+  fi
+
+  for var in "${toggle_booleans[@]}"
   do
     if [[ -z "${!var}" ]] ; then
       export $var=1
@@ -100,18 +115,6 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   # bogus nonexisting DBI_*
   export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
   export DBI_DRIVER="ADO"
-
-  # if we have Moose - try to run everything under replicated
-  # FIXME - when switching to Moo kill this
-  if [[ "$CLEANTEST" != "true" ]] && perl -M5.008003 -e 1 &>/dev/null ; then
-    export DBICTEST_VIA_REPLICATED=1
-  fi
-
-  # some people do in fact set this - boggle!!!
-  # it of course won't work before 5.8.4
-  if perl -M5.008004 -e 1 &>/dev/null ; then
-    export PERL_STRICTURES_EXTRA=1
-  fi
 
   # emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack
