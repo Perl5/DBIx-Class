@@ -74,7 +74,6 @@ else
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest R/RE/REHSACK/List-MoreUtils-0.406.tar.gz
   parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
