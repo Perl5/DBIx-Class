@@ -100,11 +100,6 @@ my $dbic_reqs = {
 
   admin => {
     include => '_json_any',
-    req => {
-      %$moose_basic,
-      'MooseX::Types::Path::Class' => '0.05',
-      'MooseX::Types::JSON' => '0.02',
-    },
     pod => {
       title => 'DBIx::Class::Admin',
       desc => 'Modules required for the DBIx::Class administrative library',

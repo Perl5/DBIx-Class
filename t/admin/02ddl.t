@@ -13,7 +13,13 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
+
 use DBIx::Class::Admin;
+{
+  # no questions
+  no warnings 'redefine';
+  *DBIx::Class::Admin::_confirm = sub { 1 };
+}
 
 # lock early
 DBICTest->init_schema(no_deploy => 1, no_populate => 1);
@@ -96,7 +102,6 @@ clean_dir($ddl_dir);
 my $admin = DBIx::Class::Admin->new(
   schema_class  => 'DBICVersion::Schema',
   sql_dir      => $ddl_dir,
-  _confirm    => 1,
   connect_info  => \@connect_info,
 );
 

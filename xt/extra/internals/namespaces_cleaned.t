@@ -70,7 +70,6 @@ my $skip_idx = { map { $_ => 1 } (
 
   # not sure how to handle type libraries
   'DBIx::Class::Storage::DBI::Replicated::Types',
-  'DBIx::Class::Admin::Types',
 
   # G::L::D is unclean, but we never inherit from it
   'DBIx::Class::Admin::Descriptive',
@@ -84,6 +83,7 @@ my $skip_idx = { map { $_ => 1 } (
   'DBIx::Class::Optional::Dependencies',
   'DBIx::Class::ResultSource::RowParser::Util',
   'DBIx::Class::_Util',
+  'DBIx::Class::_Types',
 ) };
 
 my $has_moose = eval { require Moose::Util };
