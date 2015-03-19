@@ -14,6 +14,11 @@ use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
 use DBIx::Class::Admin;
+BEGIN {
+  no warnings 'redefine';
+  # no questions asked
+  sub DBIx::Class::Admin::_confirm { 1 };
+}
 
 # lock early
 DBICTest->init_schema(no_deploy => 1, no_populate => 1);
@@ -96,7 +101,6 @@ clean_dir($ddl_dir);
 my $admin = DBIx::Class::Admin->new(
   schema_class  => 'DBICVersion::Schema',
   sql_dir      => $ddl_dir,
-  _confirm    => 1,
   connect_info  => \@connect_info,
 );
 

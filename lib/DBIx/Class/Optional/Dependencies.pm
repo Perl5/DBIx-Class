@@ -21,14 +21,6 @@ sub croak {
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
-# *DELIBERATELY* not making a group for these - they must disappear
-# forever as optdeps in the first place
-my $moose_basic = {
-  'Moose'                         => '0.98',
-  'MooseX::Types'                 => '0.21',
-  'MooseX::Types::LoadableClass'  => '0.011',
-};
-
 my $dbic_reqs = {
 
   # NOTE: the rationale for 2 JSON::Any versions is that
@@ -105,12 +97,7 @@ my $dbic_reqs = {
   },
 
   admin => {
-    include => '_json_any',
-    req => {
-      %$moose_basic,
-      'MooseX::Types::Path::Class' => '0.05',
-      'MooseX::Types::JSON' => '0.02',
-    },
+    include => [qw(_json_any _types_common)],
     pod => {
       title => 'DBIx::Class::Admin',
       desc => 'Modules required for the DBIx::Class administrative library',

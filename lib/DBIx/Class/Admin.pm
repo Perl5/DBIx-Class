@@ -12,12 +12,11 @@ BEGIN {
 }
 
 use JSON::Any qw(DWIW PP JSON CPANEL XS);
-use Moose;
-use MooseX::Types::Moose qw/Int Str Any Bool/;
-use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
-use MooseX::Types::JSON qw(JSON);
-use MooseX::Types::Path::Class qw(Dir File);
-use MooseX::Types::LoadableClass qw(LoadableClass);
+use Moo;
+use Type::Utils qw(class_type);
+use Types::Standard qw(Int Str Any Bool);
+use DBIx::Class::Admin::Types qw(Dir File DBICConnectInfo DBICHashRef);
+use Types::LoadableClass qw(LoadableClass);
 use Try::Tiny;
 use namespace::clean;
 
@@ -85,8 +84,11 @@ A pre-connected schema object can be provided for manipulation
 
 has 'schema' => (
   is          => 'ro',
-  isa         => 'DBIx::Class::Schema',
-  lazy_build  => 1,
+  isa         => class_type('DBIx::Class::Schema'),
+  lazy        => 1,
+  builder     => 1,
+  predicate   => 1,
+  clearer     => 1,
 );
 
 sub _build_schema {
@@ -156,7 +158,10 @@ connect_info the arguments to provide to the connect call of the schema_class
 has 'connect_info' => (
   is          => 'ro',
   isa         => DBICConnectInfo,
-  lazy_build  => 1,
+  lazy        => 1,
+  builder     => 1,
+  predicate   => 1,
+  clearer     => 1,
   coerce      => 1,
 );
 
@@ -204,7 +209,10 @@ config_stanza will still be required.
 has config => (
   is          => 'ro',
   isa         => DBICHashRef,
-  lazy_build  => 1,
+  lazy        => 1,
+  builder     => 1,
+  predicate   => 1,
+  clearer     => 1,
 );
 
 sub _build_config {
@@ -291,12 +299,6 @@ has quiet => (
   is  => 'rw',
   isa => Bool,
 );
-
-has '_confirm' => (
-  is  => 'bare',
-  isa => Bool,
-);
-
 
 =head2 trace
 
@@ -561,9 +563,6 @@ sub select {
 
 sub _confirm {
   my ($self) = @_;
-
-  # mainly here for testing
-  return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
 
   print "Are you sure you want to do this? (type YES to confirm) \n";
   my $response = <STDIN>;

@@ -10,6 +10,11 @@ use lib 't/lib';
 use DBICTest;
 
 use DBIx::Class::Admin;
+BEGIN {
+  no warnings 'redefine';
+  # no questions asked
+  sub DBIx::Class::Admin::_confirm { 1 };
+}
 
 { # test data maniplulation functions
 

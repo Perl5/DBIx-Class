@@ -103,6 +103,9 @@ my $exceptions = {
     'DBIx::Class::Admin'        => {
         ignore => [ qw/
             BUILD
+            has_config
+            has_connect_info
+            has_schema
         /]
      },
 
