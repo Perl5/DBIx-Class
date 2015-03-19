@@ -1,11 +1,13 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer;
 
-use Moose::Role;
+use Moo::Role;
 requires 'next_storage';
-use MooseX::Types::Moose qw/Int/;
+
+use DBIx::Class::_Types qw(PositiveInteger DBICStorageDBI DBICStorageDBIReplicatedPool);
 use DBIx::Class::Storage::DBI::Replicated::Pool;
-use DBIx::Class::Storage::DBI::Replicated::Types qw/DBICStorageDBI/;
-use namespace::clean -except => 'meta';
+use Scalar::Util qw(blessed);
+
+use namespace::clean;
 
 =head1 NAME
 
@@ -36,7 +38,7 @@ will end up validating every query.
 
 has 'auto_validate_every' => (
   is=>'rw',
-  isa=>Int,
+  isa=>PositiveInteger,
   predicate=>'has_auto_validate_every',
 );
 
@@ -63,7 +65,7 @@ balance.
 
 has 'pool' => (
   is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+  isa=>DBICStorageDBIReplicatedPool,
   required=>1,
 );
 
@@ -83,7 +85,8 @@ via its balancer object.
 has 'current_replicant' => (
   is=> 'rw',
   isa=>DBICStorageDBI,
-  lazy_build=>1,
+  lazy=>1,
+  builder=>1,
   handles=>[qw/
     select
     select_single

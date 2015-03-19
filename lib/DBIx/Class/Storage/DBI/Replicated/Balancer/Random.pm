@@ -1,9 +1,10 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
 
-use Moose;
+use Moo;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
-use DBIx::Class::Storage::DBI::Replicated::Types 'Weight';
-use namespace::clean -except => 'meta';
+use DBIx::Class::_Types qw(PositiveNumber);
+
+use namespace::clean;
 
 =head1 NAME
 
@@ -43,7 +44,7 @@ any single replicant, if for example you have a very powerful master.
 
 =cut
 
-has master_read_weight => (is => 'rw', isa => Weight, default => sub { 0 });
+has master_read_weight => (is => 'rw', isa => PositiveNumber, default => sub { 0 });
 
 =head1 METHODS
 
@@ -90,7 +91,5 @@ redistribute it and/or modify it under the same terms as the
 L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;

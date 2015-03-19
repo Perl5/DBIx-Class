@@ -21,14 +21,6 @@ sub croak {
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
-# *DELIBERATELY* not making a group for these - they must disappear
-# forever as optdeps in the first place
-my $moose_basic = {
-  'Moose'                         => '0.98',
-  'MooseX::Types'                 => '0.21',
-  'MooseX::Types::LoadableClass'  => '0.011',
-};
-
 my $dbic_reqs = {
 
   # NOTE: the rationale for 2 JSON::Any versions is that
@@ -84,7 +76,9 @@ my $dbic_reqs = {
   },
 
   replicated => {
-    req => $moose_basic,
+    req => {
+      'Class::Load' => '0.20',
+    },
     pod => {
       title => 'Storage::Replicated',
       desc => 'Modules required for L<DBIx::Class::Storage::DBI::Replicated>',
@@ -93,9 +87,6 @@ my $dbic_reqs = {
 
   test_replicated => {
     include => 'replicated',
-    req => {
-      'Test::Moose' => '0',
-    },
   },
 
   admin => {

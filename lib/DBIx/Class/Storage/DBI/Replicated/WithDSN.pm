@@ -1,11 +1,12 @@
 package DBIx::Class::Storage::DBI::Replicated::WithDSN;
 
-use Moose::Role;
+use Moo::Role;
 use Scalar::Util 'reftype';
 requires qw/_query_start/;
 
 use Try::Tiny;
-use namespace::clean -except => 'meta';
+
+use namespace::clean;
 
 =head1 NAME
 

@@ -168,5 +168,14 @@ sub DoesDBICStorageReplicatedBalancer {
     unless(Object(@_) && $_[0]->does('DBIx::Class::Storage::DBI::Replicated::Balancer') );
 }
 
+sub BalancerClassNamePart {
+  LoadableClass(@_);
+}
+
+sub coerce_BalancerClassNamePart {
+  (my $name = $_[0] || '') =~ s/\A::/DBIx::Class::Storage::DBI::Replicated::Balancer::/;
+  $name;
+}
+
 1;
 

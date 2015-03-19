@@ -1,12 +1,11 @@
 package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
-use Moose::Role;
+use Moo::Role;
 requires qw/_query_start/;
 with 'DBIx::Class::Storage::DBI::Replicated::WithDSN';
-use MooseX::Types::Moose qw/Bool Str/;
-use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
+use DBIx::Class::_Types qw(Bool Str DBICStorageDBI);
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 =head1 NAME
 

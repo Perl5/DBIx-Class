@@ -12,8 +12,6 @@ export HARNESS_OPTIONS="j$VCPU_USE"
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
   # FIXME - these really need to be installed *with* testing under "allowed failures"
-  # Change when Moose goes away
-  parallel_installdeps_notest Moose
   parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
   run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
@@ -39,10 +37,8 @@ if [[ -n "$tarball_assembled" ]] ; then
 
 
   # undo some of the pollution (if any) affecting the plain install deps
-  # FIXME - this will go away once we move off Moose, and a new SQLT
-  # with much less recommends ships
+  # FIXME - this will go away once a new SQLT with much less recommends ships
   export DBICTEST_SQLT_DEPLOY=""
-  export DBICTEST_VIA_REPLICATED=""
 
 
   # make sure we are retrying with newest CPAN possible

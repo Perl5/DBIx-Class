@@ -93,7 +93,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
+  parallel_installdeps_notest SQL::Abstract Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):

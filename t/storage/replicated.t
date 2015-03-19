@@ -4,26 +4,15 @@ use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::_Util 'modver_gt_or_eq_and_lt';
 use lib qw(t/lib);
 use DBICTest;
-
-BEGIN {
-  plan skip_all => "A trial version of Moose detected known to break replication - skipping test known to fail" if (
-    DBICTest::RunMode->is_smoker
-      and
-    modver_gt_or_eq_and_lt( 'Moose', '1.99', '1.9903' )
-  )
-}
-
-use Test::Moose;
 use Test::Exception;
 use List::Util 'first';
 use Scalar::Util 'reftype';
+use Class::Inspector;
 use File::Spec;
-use Moose();
-use MooseX::Types();
-note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
+use Moo::Role ();
+use IO::Handle;
 
 my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
 
@@ -32,9 +21,7 @@ use DBIx::Class::Storage::DBI::Replicated;
 {
     package DBIx::Class::Storage::DBI::Replicated;
 
-    use Moose;
-
-    __PACKAGE__->meta->make_mutable;
+    use Moo;
 
     around connect_info => sub {
       my ($next, $self, $info) = @_;
@@ -42,12 +29,14 @@ use DBIx::Class::Storage::DBI::Replicated;
       $self->$next($info);
     };
 
-    __PACKAGE__->meta->make_immutable;
-
-    no Moose;
 }
 
-
+sub does_ok ($$;$) {
+  my ($thing, $role, $desc) = @_;
+  $desc ||= "The object does $role";
+  local $Test::Builder::Level = $Test::Builder::Level + 1;
+  ok Moo::Role::does_role($thing, $role), $desc;
+}
 
 =head1 HOW TO USE
 
@@ -270,11 +259,9 @@ for my $method (qw/by_connect_info by_storage_type/) {
 
 ### check that all Storage::DBI methods are handled by ::Replicated
 {
-  my @storage_dbi_methods = Class::MOP::Class
-    ->initialize('DBIx::Class::Storage::DBI')->get_all_method_names;
+  my @storage_dbi_methods = @{Class::Inspector->methods('DBIx::Class::Storage::DBI')};
 
-  my @replicated_methods  = DBIx::Class::Storage::DBI::Replicated->meta
-    ->get_all_method_names;
+  my @replicated_methods  = @{Class::Inspector->methods('DBIx::Class::Storage::DBI::Replicated')};
 
 # remove constants and OTHER_CRAP
   @storage_dbi_methods = grep !/^[A-Z_]+\z/, @storage_dbi_methods;
@@ -283,8 +270,7 @@ for my $method (qw/by_connect_info by_storage_type/) {
   @storage_dbi_methods = grep !/_accessor\z/, @storage_dbi_methods;
 
 # remove DBIx::Class (the root parent, with CAG and stuff) methods
-  my @root_methods = Class::MOP::Class->initialize('DBIx::Class')
-    ->get_all_method_names;
+  my @root_methods = @{Class::Inspector->methods('DBIx::Class')};
   my %count;
   $count{$_}++ for (@storage_dbi_methods, @root_methods);
 
@@ -317,9 +303,6 @@ for my $method (qw/by_connect_info by_storage_type/) {
       . "@unimplemented";
   }
 }
-
-ok $replicated->schema->storage->meta
-    => 'has a meta object';
 
 isa_ok $replicated->schema->storage->master
     => 'DBIx::Class::Storage::DBI';
