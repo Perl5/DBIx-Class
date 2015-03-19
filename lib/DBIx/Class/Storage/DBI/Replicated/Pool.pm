@@ -1,11 +1,11 @@
 package DBIx::Class::Storage::DBI::Replicated::Pool;
 
-use Moose;
+use Moo;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
 use DBI ();
-use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
+use Types::Standard qw/Num Int ClassName HashRef Object/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 use Try::Tiny;
 
@@ -44,7 +44,6 @@ return a number of seconds that the replicating database is lagging.
 has 'maximum_lag' => (
   is=>'rw',
   isa=>Num,
-  required=>1,
   lazy=>1,
   default=>0,
 );
@@ -125,33 +124,27 @@ Removes the replicant under $key from the pool
 
 has 'replicants' => (
   is=>'rw',
-  traits => ['Hash'],
-  isa=>HashRef['Object'],
+  isa=>HashRef[Object],
   default=>sub {{}},
-  handles  => {
-    'set_replicant' => 'set',
-    'get_replicant' => 'get',
-    'has_replicants' => 'is_empty',
-    'num_replicants' => 'count',
-    'delete_replicant' => 'delete',
-    'all_replicant_storages' => 'values',
-  },
 );
 
-around has_replicants => sub {
-    my ($orig, $self) = @_;
-    return !$self->$orig;
-};
+sub set_replicant { $_[0]->replicants->{$_[1]} = $_[2] }
+sub get_replicant { $_[0]->replicants->{$_[1]} }
+sub has_replicants { !!keys %{$_[0]->replicants} }
+sub num_replicants { 0+keys %{$_[0]->replicants} }
+sub delete_replicant { delete $_[0]->replicants->{$_[1]} }
+sub all_replicant_storages { values %{$_[0]->replicants} }
 
 has next_unknown_replicant_id => (
   is => 'rw',
-  traits => ['Counter'],
   isa => Int,
   default => 1,
-  handles => {
-    'inc_unknown_replicant_id' => 'inc',
-  },
 );
+
+sub inc_unknown_replicant_id {
+  my ($self) = @_;
+  $self->next_unknown_replicant_id($self->next_unknown_replicant_id + 1);
+}
 
 =head2 master
 
@@ -252,9 +245,10 @@ sub connect_replicant {
     $replicant->_determine_driver
   });
 
-  Moose::Meta::Class->initialize(ref $replicant);
-
-  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+  Moo::Role->apply_roles_to_object(
+    $replicant,
+    'DBIx::Class::Storage::DBI::Replicated::Replicant',
+  );
 
   # link back to master
   $replicant->master($self->master);
@@ -422,7 +416,5 @@ redistribute it and/or modify it under the same terms as the
 L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;

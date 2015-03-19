@@ -46,6 +46,15 @@ my $dbic_reqs = {
     },
   },
 
+  _types_common => {
+    req => {
+      'Type::Utils' => '0',
+      'Type::Library' => '0',
+      'Types::Standard' => '0',
+      'Types::LoadableClass' => '0',
+    },
+  },
+
   # a common placeholder for engines with IC::DT support based off DT::F::S
   _icdt_strptime_based => {
     augment => {
@@ -84,7 +93,7 @@ my $dbic_reqs = {
   },
 
   replicated => {
-    req => $moose_basic,
+    include => '_types_common',
     pod => {
       title => 'Storage::Replicated',
       desc => 'Modules required for L<DBIx::Class::Storage::DBI::Replicated>',
@@ -93,9 +102,6 @@ my $dbic_reqs = {
 
   test_replicated => {
     include => 'replicated',
-    req => {
-      'Test::Moose' => '0',
-    },
   },
 
   admin => {
@@ -192,7 +198,7 @@ my $dbic_reqs = {
 
   test_strictures => {
     req => {
-      'Test::Strict'              => '0.20',
+      'Test::Strict'              => '0.24',
     },
     release_testing_mandatory => 1,
   },

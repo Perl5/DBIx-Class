@@ -1,9 +1,9 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
 
-use Moose;
+use Moo;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use DBIx::Class::Storage::DBI::Replicated::Types 'Weight';
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 =head1 NAME
 
@@ -90,7 +90,5 @@ redistribute it and/or modify it under the same terms as the
 L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.
 
 =cut
-
-__PACKAGE__->meta->make_immutable;
 
 1;
