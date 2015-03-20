@@ -82,8 +82,8 @@ L<table|DBIx::Class::ResultSourceProxy::Table/table> call. Eg:
 
   __PACKAGE__->table('mydb.mytablename');
 
-And load all the Result classes for both / all databases using one
-L<DBIx::Class::Schema/load_namespaces> call.
+And load all the Result classes for both / all databases by calling
+L<DBIx::Class::Schema/load_namespaces>.
 
 =item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
 
@@ -262,6 +262,39 @@ alter session statements on database connection establishment:
  ->on_connect_do("ALTER SESSION SET NLS_SORT = 'BINARY_CI'");
  ->on_connect_do("ALTER SESSION SET NLS_SORT = 'GERMAN_CI'");
 
+=item .. format a DateTime object for searching?
+
+L<search|DBIx::Class::ResultSet/search> and L<find|DBIx::Class::ResultSet/find>
+do not take L<DBIx::Class::InflateColumn> into account, and so your L<DateTime>
+object will not be correctly deflated into a format your RDBMS expects.
+
+The L<datetime_parser|DBIx::Class::Storage::DBI/datetime_parser> method on your
+storage object can be used to return the object that would normally do this, so
+it's easy to do it manually:
+
+  my $dtf = $schema->storage->datetime_parser;
+  my $rs = $schema->resultset('users')->search(
+    {
+      signup_date => {
+        -between => [
+          $dtf->format_datetime($dt_start),
+          $dtf->format_datetime($dt_end),
+        ],
+      }
+    },
+  );
+
+With in a Result Class method, you can get this from the
+L<C<result_source>|DBIx::Class::Row/result_source>.
+
+  my $dtf = $self->result_source->storage->datetime_parser;
+
+This kludge is necessary only for conditions passed to
+L<search|DBIx::Class::ResultSet/search> and L<DBIx::Class::ResultSet/find>,
+whereas L<create|DBIx::Class::ResultSet/create> and L<DBIx::Class::Row/update>
+(but not L<DBIx::Class::ResultSet/update>) are
+L<DBIx::Class::InflateColumn>-aware and will do the right thing when supplied
+an inflated L<DateTime> object.
 
 =back
 

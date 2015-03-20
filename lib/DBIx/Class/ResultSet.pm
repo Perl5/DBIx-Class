@@ -3323,6 +3323,9 @@ source alias of the current result set:
     });
   }
 
+The alias of L<newly created resultsets|/search> can be altered by the
+L<alias attribute|/alias>.
+
 =cut
 
 sub current_source_alias {
@@ -4086,13 +4089,13 @@ is the same as
     as     => [qw(some_column dbic_slot)]
 
 If you want to individually retrieve related columns (in essence perform
-manual prefetch) you have to make sure to specify the correct inflation slot
+manual L</prefetch>) you have to make sure to specify the correct inflation slot
 chain such that it matches existing relationships:
 
     my $rs = $schema->resultset('Artist')->search({}, {
         # required to tell DBIC to collapse has_many relationships
         collapse => 1,
-        join     => { cds => 'tracks'},
+        join     => { cds => 'tracks' },
         '+columns'  => {
           'cds.cdid'         => 'cds.cdid',
           'cds.tracks.title' => 'tracks.title',

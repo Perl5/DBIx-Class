@@ -18,6 +18,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
+        - Various doc improvements (GH#35, GH#62, GH#66, GH#70, GH#71, GH#72)
         - Depend on newer Moo, to benefit from a safer runtime (RT#93004)
         - Fix intermittent failures in the LeakTracer on 5.18+
         - Fix failures of t/54taint.t on Windows with spaces in the $^X

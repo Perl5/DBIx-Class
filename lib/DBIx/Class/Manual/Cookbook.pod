@@ -1770,11 +1770,11 @@ C<< [column_name => value] >>.
 =head2 Formatting DateTime objects in queries
 
 To ensure C<WHERE> conditions containing L<DateTime> arguments are properly
-formatted to be understood by your RDBMS, you must use the C<DateTime>
+formatted to be understood by your RDBMS, you must use the L<DateTime>
 formatter returned by L<DBIx::Class::Storage::DBI/datetime_parser> to format
 any L<DateTime> objects you pass to L<search|DBIx::Class::ResultSet/search>
 conditions. Any L<Storage|DBIx::Class::Storage> object attached to your
-L<Schema|DBIx::Class::Schema> provides a correct C<DateTime> formatter, so
+L<Schema|DBIx::Class::Schema> provides a correct L<DateTime> formatter, so
 all you have to do is:
 
   my $dtf = $schema->storage->datetime_parser;
@@ -1793,12 +1793,11 @@ Without doing this the query will contain the simple stringification of the
 C<DateTime> object, which almost never matches the RDBMS expectations.
 
 This kludge is necessary only for conditions passed to
-L<DBIx::Class::ResultSet/search>, whereas
-L<create|DBIx::Class::ResultSet/create>,
-L<find|DBIx::Class::ResultSet/find>,
-L<DBIx::Class::Row/update> (but not L<DBIx::Class::ResultSet/update>) are all
+L<search|DBIx::Class::ResultSet/search> and L<DBIx::Class::ResultSet/find>,
+whereas L<create|DBIx::Class::ResultSet/create> and
+L<DBIx::Class::Row/update> (but not L<DBIx::Class::ResultSet/update>) are
 L<DBIx::Class::InflateColumn>-aware and will do the right thing when supplied
-an inflated C<DateTime> object.
+an inflated L<DateTime> object.
 
 =head2 Using Unicode
 
