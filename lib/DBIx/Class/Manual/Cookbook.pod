@@ -1793,12 +1793,10 @@ Without doing this the query will contain the simple stringification of the
 C<DateTime> object, which almost never matches the RDBMS expectations.
 
 This kludge is necessary only for conditions passed to
-L<DBIx::Class::ResultSet/search>, whereas
-L<create|DBIx::Class::ResultSet/create>,
-L<find|DBIx::Class::ResultSet/find>,
-L<DBIx::Class::Row/update> (but not L<DBIx::Class::ResultSet/update>) are all
-L<DBIx::Class::InflateColumn>-aware and will do the right thing when supplied
-an inflated C<DateTime> object.
+L<DBIx::Class::ResultSet/search> and L<find|DBIx::Class::ResultSet/find>,
+whereas L<create|DBIx::Class::ResultSet/create>, L<DBIx::Class::Row/update> (but
+not L<DBIx::Class::ResultSet/update>) are L<DBIx::Class::InflateColumn>-aware
+and will do the right thing when supplied an inflated C<DateTime> object.
 
 =head2 Using Unicode
 
