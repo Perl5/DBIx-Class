@@ -106,10 +106,23 @@ my $exceptions = {
         /]
      },
 
-    'DBIx::Class::Storage::DBI::Replicated*'        => {
+    'DBIx::Class::Storage::DBI::Replicated' => {
         ignore => [ qw/
             connect_call_do_sql
             disconnect_call_do_sql
+            get_dbms_capability
+            get_use_dbms_capability
+            set_dbms_capability
+            set_use_dbms_capability
+            sql_limit_dialect
+            sql_name_sep
+            sql_quote_char
+        /]
+    },
+
+    'DBIx::Class::Storage::DBI::Replicated::Balanced' => {
+        ignore => [ qw/
+            has_auto_validate_every
         /]
     },
 
@@ -132,6 +145,7 @@ my $exceptions = {
 
 # internals
     'DBIx::Class::_Util'                            => { skip => 1 },
+    'DBIx::Class::_Types'                           => { skip => 1 },
     'DBIx::Class::SQLMaker*'                        => { skip => 1 },
     'DBIx::Class::SQLAHacks*'                       => { skip => 1 },
     'DBIx::Class::Storage::DBI*'                    => { skip => 1 },
