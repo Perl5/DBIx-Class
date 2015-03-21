@@ -193,7 +193,7 @@ my $dbic_reqs = {
 
   test_strictures => {
     req => {
-      'Test::Strict'              => '0.20',
+      'Test::Strict'              => '0.24',
     },
     release_testing_mandatory => 1,
   },
