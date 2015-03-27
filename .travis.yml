@@ -77,6 +77,8 @@ env:
   - CLEANTEST=false
   - CLEANTEST=true VCPU_USE=1
 
+sudo: true
+
 matrix:
   fast_finish: true
   include:
