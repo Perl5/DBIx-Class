@@ -26,7 +26,7 @@ $(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
 $(free -m -t)
 
 = Diskinfo
-$(sudo df -h)
+$(df -h)
 
 $(mount | grep '^/')
 
@@ -37,13 +37,13 @@ $(uname -a)
 $(ip addr)
 
 = Network Sockets Status
-$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+$( (sudo netstat -an46p || netstat -an46p) | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
 
 = Processlist
-$(sudo ps fuxa)
+$(ps fuxa)
 
 = Environment
-$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC|PATH|SHELL' | LC_ALL=C sort | cat -v)
 
 = Perl in use
 $(perl -V)
@@ -75,6 +75,10 @@ run_or_err() {
       echo_err "$LASTCMD"
       echo_err "STDOUT+STDERR:"
       echo_err "$LASTOUT"
+      if [[ "$(dmesg)" =~ $( echo "\\bOOM\\b" ) ]] ; then
+        echo_err "=== dmesg ringbuffer"
+        echo_err "$(dmesg)"
+      fi
     fi
 
     return $LASTEXIT
@@ -155,11 +159,13 @@ parallel_installdeps_notest() {
   run_or_err "Installing (without testing) $(echo $MODLIST)" \
     "echo \\
 \"$MODLIST\" \\
-      | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
+      | xargs -d '\\n' -n 1 -P $VCPU_USE bash -c \\
         'OUT=\$(maint/getstatus $TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
+
+export -f parallel_installdeps_notest run_or_err echo_err tstamp
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
@@ -168,10 +174,10 @@ installdeps() {
 
   local -x HARNESS_OPTIONS
 
-  HARNESS_OPTIONS="j$NUMTHREADS"
+  HARNESS_OPTIONS="j$VCPU_USE"
 
   if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
-    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
+    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/perl /usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
     echo "$errlog"
 
     POSTMORTEM="$POSTMORTEM$(
@@ -190,24 +196,60 @@ _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
-    $LASTCMD 2>&1
+    $LASTCMD 2>&1 || return 1
   else
     LASTCMD="$TIMEOUT_CMD cpan $@"
-    $LASTCMD 2>&1
+    $LASTCMD 2>&1 || return 1
 
     # older perls do not have a CPAN which can exit with error on failed install
     for m in "$@"; do
       if ! perl -e '
 
+$ARGV[0] =~ s/-TRIAL\.//;
+
 my $mod = (
-  $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
+  # abuse backtrack
+  $ARGV[0] =~ m{ / .*? ( [^/]+ ) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
 );
 
-$mod = q{List::Util} if $mod eq q{Scalar::List::Utils};
+# map some install-names to a module/version combo
+# serves both as a grandfathered title-less tarball, and
+# as a minimum version check for upgraded core modules
+my $eval_map = {
 
-eval qq{require($mod)} or ( print $@ and exit 1)
+  # this is temporary, will need something more robust down the road
+  # (perhaps by then Module::CoreList will be dep-free)
+  "Module::Build" => { ver => "0.4214" },
+  "podlators" => { mod => "Pod::Man", ver => "2.17" },
+
+  "File::Spec" => { ver => "3.47" },
+  "Cwd" => { ver => "3.47" },
+
+  "List::Util" => { ver => "1.42" },
+  "Scalar::Util" => { ver => "1.42" },
+  "Scalar::List::Utils" => { mod => "List::Util", ver => "1.42" },
+};
+
+my $m = $eval_map->{$mod}{mod} || $mod;
+
+eval(
+  "require $m"
+
+  .
+
+  ($eval_map->{$mod}{ver}
+    ? "; $m->VERSION(\$eval_map->{\$mod}{ver}) "
+    : ""
+  )
+
+  .
+
+  "; 1"
+)
+  or
+( print $@ and exit 1)
 
       ' "$m" 2> /dev/null ; then
         echo -e "$m installation seems to have failed"
@@ -217,6 +259,77 @@ eval qq{require($mod)} or ( print $@ and exit 1)
   fi
 }
 
+# Idea stolen from
+# https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
+# Only works on 5.12+ (where sitelib was finally properly fixed)
+purge_sitelib() {
+  echo_err "$(tstamp) Sterilizing the Perl installation (cleaning up sitelib)"
+
+  if perl -M5.012 -e1 &>/dev/null ; then
+
+    perl -M5.012 -MConfig -MFile::Find -e '
+      my $sitedirs = {
+        map { $Config{$_} => 1 }
+          grep { $_ =~ /site(lib|arch)exp$/ }
+            keys %Config
+      };
+      find({ bydepth => 1, no_chdir => 1, follow_fast => 1, wanted => sub {
+        ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
+      } }, keys %$sitedirs )
+    '
+  else
+
+    cl_fn="/tmp/${TRAVIS_BUILD_ID}_Module_CoreList.pm";
+
+    [[ -s "$cl_fn" ]] || run_or_err \
+      "Downloading latest Module::CoreList" \
+      "curl -s --compress -o '$cl_fn' https://api.metacpan.org/source/Module::CoreList"
+
+    perl -0777 -Ilib -MDBIx::Class::Optional::Dependencies -e '
+
+      # this is horrible, but really all we want is "has this ever been used"
+      # so a grep without a load is quite legit (and horrible)
+      my $mcl_source = <>;
+
+      my %reqs_for_group = %{DBIx::Class::Optional::Dependencies->req_group_list};
+
+      my @all_possible_never_been_core_modpaths = map
+        { (my $mp = $_ . ".pm" ) =~ s|::|/|g; $mp }
+        grep
+          { $mcl_source !~ / ^ \s+ \x27 $_ \x27 \s* \=\> /mx }
+          (
+            qw(
+              Module::Build::Tiny
+            ),
+            (map
+              { keys %{$reqs_for_group{$_}} }
+              grep
+                { !/^rdbms_|^dist_/ }
+                keys %reqs_for_group
+            ),
+          )
+      ;
+
+      # now that we have the list we can go ahead and destroy every single one
+      # of these modules without being concerned about breaking the base ability
+      # to install things
+      for my $mp ( sort { lc($a) cmp lc($b) } @all_possible_never_been_core_modpaths ) {
+        for my $incdir (@INC) {
+          -e "$incdir/$mp"
+            and
+          unlink "$incdir/$mp"
+            and
+          print "Nuking $incdir/$mp\n"
+        }
+      }
+    ' "$cl_fn"
+
+  fi
+}
+
+
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }

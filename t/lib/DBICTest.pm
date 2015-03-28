@@ -13,6 +13,7 @@ use Path::Class::File ();
 use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
+use Scope::Guard ();
 
 =head1 NAME
 
@@ -386,8 +387,11 @@ sub deploy_schema {
     my $schema = shift;
     my $args = shift || {};
 
-    local $schema->storage->{debug}
-      if ($ENV{TRAVIS}||'') eq 'true';
+    my $guard;
+    if ( ($ENV{TRAVIS}||'') eq 'true' and my $old_dbg = $schema->storage->debug ) {
+      $guard = Scope::Guard->new(sub { $schema->storage->debug($old_dbg) });
+      $schema->storage->debug(0);
+    }
 
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
         $schema->deploy($args);
@@ -417,8 +421,11 @@ sub populate_schema {
     my $self = shift;
     my $schema = shift;
 
-    local $schema->storage->{debug}
-      if ($ENV{TRAVIS}||'') eq 'true';
+    my $guard;
+    if ( ($ENV{TRAVIS}||'') eq 'true' and my $old_dbg = $schema->storage->debug ) {
+      $guard = Scope::Guard->new(sub { $schema->storage->debug($old_dbg) });
+      $schema->storage->debug(0);
+    }
 
     $schema->populate('Genre', [
       [qw/genreid name/],

@@ -89,7 +89,9 @@ my %dbs = (
 );
 
 # lie that we already locked stuff - the tests below do not touch anything
-$ENV{DBICTEST_LOCK_HOLDER} = -1;
+# unless we are under travis, where the OOM killers reign and things are rough
+$ENV{DBICTEST_LOCK_HOLDER} = -1
+  unless DBICTest::RunMode->is_ci;
 
 # Make sure oracle is tried last - some clients (e.g. 10.2) have symbol
 # clashes with libssl, and will segfault everything coming after them

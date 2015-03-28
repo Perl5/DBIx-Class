@@ -5,13 +5,20 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
+# The prereq-install stage will not work with both POISON and DEVREL
+# DEVREL wins
+if [[ "$DEVREL_DEPS" = "true" ]] ; then
+  export POISON_ENV=""
+fi
+
 # FIXME - this is a kludge in place of proper MDV testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
 if [[ "$POISON_ENV" = "true" ]] ; then
 
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
-  if perl -M5.013003 -e1 &>/dev/null ; then
+  if [[ "$CLEANTEST" != "true" ]] || perl -M5.013003 -e1 &>/dev/null ; then
+    # the fulltest may re-upgrade DBI, be conservative only on cleantests
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
   else
@@ -19,12 +26,29 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite
+  # reverse the logic from above for this (low on full, higher on clean)
   if [[ "$CLEANTEST" = "true" ]]; then
     parallel_installdeps_notest DBD::SQLite@1.37
   else
     parallel_installdeps_notest DBD::SQLite@1.29
   fi
 
+  # also try minimal tested installs *without* a compiler
+  if [[ "$CLEANTEST" = "true" ]]; then
+
+    # Clone and P::S::XS are both bugs
+    # File::Spec can go away as soon as I dump Path::Class
+    # File::Path is there because of RT#107392 (sigh)
+    # List::Util can be excised after that as well (need to make my own max() routine for older perls)
+
+    installdeps Sub::Name Clone Package::Stash::XS \
+                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
+                $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
+
+    mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
+    run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
+               "ln -s /bin/false $HOME/bin/cc"
+  fi
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
@@ -48,10 +72,13 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
 
-  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
+  if [[ "$DEVREL_DEPS" = "true" ]] ; then
+    # FIXME - work around RT#110882, sigh...
+    perl -Mversion\ 0.87 -e 1 &>/dev/null || installdeps version@0.9912
+  elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
-    # without pre-installing these in one pass things like extract_prereqs won't work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+    # without pre-installing these in one pass things won't yet work
+    installdeps Module::Build
   fi
 
 else
@@ -62,24 +89,29 @@ else
   # (e.g. once Carp is upgraded there's no more Carp::Heavy,
   # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
-  parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
+  parallel_installdeps_notest File::Spec Module::Runtime
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/dbsrgits/perl-pperl.git
 
+  # the official version is very much outdated and does not compile on 5.14+
+  # use this rather updated source tree (needs to go to PAUSE):
+  # https://github.com/pilcrow/perl-dbd-interbase
   if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
-    # the official version is very much outdated and does not compile on 5.14+
-    # use this rather updated source tree (needs to go to PAUSE):
-    # https://github.com/pilcrow/perl-dbd-interbase
     parallel_installdeps_notest git://github.com/dbsrgits/perl-dbd-interbase.git
   fi
 
+  # SCGI does not install under < 5.8.8 perls nor under parallel make
+  # FIXME: The 5.8.8 thing is likely fixable, something to do with
+  # #define speedy_new(s,n,t) Newx(s,n,t)
+  if perl -M5.008008 -e 1 &>/dev/null ; then
+    MAKEFLAGS="" bash -c "parallel_installdeps_notest git://github.com/dbsrgits/cgi-speedycgi.git"
+  fi
 fi
 
 # generate the makefile which will have different deps depending on
@@ -88,94 +120,38 @@ run_or_err "Configure on current branch" "perl Makefile.PL"
 
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
-  # we may need to prepend some stuff to that list
-  HARD_DEPS="$(echo $(make listdeps))"
 
-##### TEMPORARY WORKAROUNDS needed in case we will be using CPAN.pm
-  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
-    # combat dzillirium on harness-wide level, otherwise breakage happens weekly
-    echo_err "$(tstamp) Ancient CPAN.pm: engaging TAP::Harness::IgnoreNonessentialDzilAutogeneratedTests during dep install"
-    perl -MTAP::Harness\ 3.18 -e1 &>/dev/null || run_or_err "Upgrading TAP::Harness for HARNESS_SUBCLASS support" "cpan TAP::Harness"
-    export PERL5LIB="$(pwd)/maint/travis-ci_scripts/lib:$PERL5LIB"
-    export HARNESS_SUBCLASS="TAP::Harness::IgnoreNonessentialDzilAutogeneratedTests"
-    # sanity check, T::H does not report sensible errors when the subclass fails to load
-    perl -MTAP::Harness::IgnoreNonessentialDzilAutogeneratedTests -e1
+  # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    # DBD::SQLite reasonably wants DBI at config time
-    perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+    HARD_DEPS="$(make listalldeps | sort -R)"
 
-    # this is a fucked CPAN - won't understand configure_requires of
-    # various pieces we may run into
-    # FIXME - need to get these off metacpan or something instead
-    HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
+  else
 
-    # FIXME
-    # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
-    HARD_DEPS="parent $HARD_DEPS"
+    HARD_DEPS="$(make listdeps | sort -R)"
 
-    if CPAN_supports_BUILDPL ; then
-      # We will invoke a posibly MBT based BUILD-file, but we do not support
-      # configure requires. So we not only need to install MBT but its prereqs
-      # FIXME This is madness
-      HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
-    else
-      # FIXME
-      # work around Params::Validate not having a Makefile.PL so really old
-      # toolchains can not figure out what the prereqs are ;(
-      # Need to do more research before filing a bug requesting Makefile inclusion
-      HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
+##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
+    if ! CPAN_is_sane ; then
+
+      # DBD::SQLite reasonably wants DBI at config time
+      perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+
     fi
-  fi
+
 ##### END TEMPORARY WORKAROUNDS
+  fi
 
   installdeps $HARD_DEPS
 
-### FIXME in case we set it earlier in a workaround
-  if [[ -n "$HARNESS_SUBCLASS" ]] ; then
-
-    INSTALLDEPS_SKIPPED_TESTLIST=$(perl -0777 -e '
-my $curmod_re = qr{
-^
-  (?:
-    \QBuilding and testing\E
-      |
-    [\x20\t]* CPAN\.pm: [^\n]*? (?i:build)\S*
-  )
-
-  [\x20\t]+ (\S+)
-$}mx;
-
-my $curskip_re = qr{^ === \x20 \QSkipping nonessential autogenerated tests: \E([^\n]+) }mx;
-
-my (undef, @chunks) = (split qr/$curmod_re/, <>);
-while (@chunks) {
-  my ($mod, $log) = splice @chunks, 0, 2;
-  print "!!! Skipped nonessential tests while installing $mod:\n\t$1\n"
-    if $log =~ $curskip_re;
-}
-' <<< "$LASTOUT")
-
-    if [[ -n "$INSTALLDEPS_SKIPPED_TESTLIST" ]] ; then
-      POSTMORTEM="$POSTMORTEM$(
-        echo
-        echo "The following non-essential tests were skipped during deps installation"
-        echo "============================================================="
-        echo "$INSTALLDEPS_SKIPPED_TESTLIST"
-        echo "============================================================="
-        echo
-      )"
-    fi
-
-    unset HARNESS_SUBCLASS
-  fi
-
 else
-  parallel_installdeps_notest "$(make listdeps)"
+
+  parallel_installdeps_notest "$(make listdeps | sort -R)"
+
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
-# this will display list of available versions
-perl Makefile.PL
+
+run_or_err "Re-configure" "perl Makefile.PL"
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
@@ -193,6 +169,10 @@ if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\
   exit 1
 fi
 
+if [[ "$CLEANTEST" = "true" ]] && perl -MModule::Build::Tiny -e1 &>/dev/null ; then
+  echo_err "Module::Build::Tiny pulled in during the basic depchain install - this must not happen"
+  exit 1
+fi
 
 # announce what are we running
 echo_err "

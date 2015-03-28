@@ -216,6 +216,14 @@ sub is_smoker {
   ;
 }
 
+sub is_ci {
+  return (
+    ($ENV{TRAVIS}||'') eq 'true'
+      and
+    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
+  )
+}
+
 sub is_plain {
   return (! __PACKAGE__->is_smoker && ! __PACKAGE__->is_author && ! $ENV{RELEASE_TESTING} )
 }

@@ -5,8 +5,7 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
-echo_err "
-$(ci_vm_state_text)
-
-=== dmesg ringbuffer
-$(sudo dmesg)"
+if [[ "$(dmesg)" =~ $( echo "\\bOOM\\b" ) ]] ; then
+  echo_err "=== dmesg ringbuffer"
+  echo_err "$(dmesg)"
+fi

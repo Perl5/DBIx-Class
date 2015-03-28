@@ -58,16 +58,29 @@ if (length $ENV{PATH}) {
   ) =~ /\A(.+)\z/;
 }
 
-# this may fail - not every system has git
-if (my @git_authors = map
-  { my ($gitname) = m/^ \s* \d+ \s* (.+?) \s* $/mx; utf8::decode($gitname); $gitname }
-  qx( git shortlog -e -s )
+# no git-check when smoking a PR
+if (
+  (
+    ! $ENV{TRAVIS_PULL_REQUEST}
+      or
+    $ENV{TRAVIS_PULL_REQUEST} eq "false"
+  )
+    and
+  -d '.git'
 ) {
-  for (@git_authors) {
+
+  binmode (Test::More->builder->$_, ':utf8') for qw/output failure_output todo_output/;
+
+  # this may fail - not every system has git
+  for (
+    map
+      { my ($gitname) = m/^ \s* \d+ \s* (.+?) \s* $/mx; utf8::decode($gitname); $gitname }
+      qx( git shortlog -e -s )
+  ) {
     my ($eml) = $_ =~ $email_re;
 
-    fail "Commit author '$_' (from git) not reflected in AUTHORS, perhaps a missing .mailmap entry?"
-      unless $known_authors{$eml};
+    ok $known_authors{$eml},
+      "Commit author '$_' (from .mailmap-aware `git shortlog -e -s`) reflected in ./AUTHORS";
   }
 }
 

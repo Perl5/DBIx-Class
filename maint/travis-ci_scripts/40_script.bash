@@ -6,7 +6,16 @@ source maint/travis-ci_scripts/common.bash
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
 run_harness_tests() {
-  local -x HARNESS_OPTIONS=c:j$NUMTHREADS
+  local -x HARNESS_OPTIONS=c:j$VCPU_USE
+  # if we run under docker (! have_sudo) the logic below won't work
+  # it seems as if ulimit acts globally, across the entire OS
+  # and is thus not served properly by a localised `ps xH`
+  if [[ "$VCPU_USE" == 1 ]] && have_sudo ; then
+    ulim=$(( ( $(ps xH | wc -l) - 3 ) + 4 )) # (real count excluding header + ps + wc) + space for ( make + tee + harness + <actual test> )
+    echo_err "$(tstamp) Setting process/thread limit to $ulim"
+    ulimit -u $ulim
+    sleep 10 # needed to settle things down a bit
+  fi
   make test 2> >(tee "$TEST_STDERR_LOG")
 }
 
@@ -16,7 +25,7 @@ if [[ "$CLEANTEST" = "true" ]] ; then
   run_or_err "Prepare blib" "make pure_all"
   run_harness_tests
 else
-  PROVECMD="prove -lrswj$NUMTHREADS xt t"
+  PROVECMD="prove -lrswj$VCPU_USE xt t"
 
   # FIXME - temporary, until Package::Stash is fixed
   if perl -M5.010 -e 1 &>/dev/null ; then
@@ -28,7 +37,12 @@ else
 fi
 TEST_T1=$SECONDS
 
-if [[ -z "$DBICTRACE" ]] && [[ -z "$POISON_ENV" ]] && [[ -s "$TEST_STDERR_LOG" ]] ; then
+if \
+   [[ -z "$DBIC_TRACE" ]] \
+&& [[ -z "$DBIC_MULTICREATE_DEBUG" ]] \
+&& [[ -z "$DBICTEST_DEBUG_CONCURRENCY_LOCKS" ]] \
+&& [[ -z "$DBICTEST_VERSION_WARNS_INDISCRIMINATELY" ]] \
+&& [[ -s "$TEST_STDERR_LOG" ]] ; then
   STDERR_LOG_SIZE=$(wc -l < "$TEST_STDERR_LOG")
 
   # prepend STDERR log
@@ -49,6 +63,6 @@ echo "${POSTMORTEM:- \o/ No notable smoke run issues \o/ }"
 echo
 echo "$(tstamp) Testing took a total of $(( $TEST_T1 - $TEST_T0 ))s"
 if [[ -n "$INSTALLDEPS_OUT" ]] ; then
-  echo "$(tstamp) Full dep install log at $(/usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
+  echo "$(tstamp) Full dep install log at $(/usr/bin/perl /usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
 fi
 echo
