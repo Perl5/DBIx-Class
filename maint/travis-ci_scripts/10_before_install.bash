@@ -60,6 +60,9 @@ else
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
+  # these APT sources do not mean anything to us anyway
+  sudo rm -rf /etc/apt/sources.list.d/*
+
   run_or_err "Updating APT sources" "sudo apt-get update"
   apt_install $common_packages libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
 
