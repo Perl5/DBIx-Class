@@ -36,7 +36,11 @@ plan skip_all => join (' ',
 
 my $schema;
 
-for my $prefix (keys %$env2optdep) { SKIP: {
+my @test_order = map { "DBICTEST_FIREBIRD$_" }
+    ('', '_INTERBASE', '_ODBC')   # Least likely to fail
+;
+
+for my $prefix (@test_order) { SKIP: {
 
   my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
@@ -46,6 +50,10 @@ for my $prefix (keys %$env2optdep) { SKIP: {
 
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+
+  skip ("DBD::InterBase crashes if Firebird or ODBC are also loaded", 1)
+    if $prefix eq 'DBICTEST_FIREBIRD_INTERBASE' and
+      ($ENV{DBICTEST_FIREBIRD_DSN} or $ENV{DBICTEST_FIREBIRD_ODBC_DSN});
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     auto_savepoint  => 1,
@@ -101,7 +109,12 @@ EOF
 
 # test primary key handling
   my $new = $ars->create({ name => 'foo' });
-  ok($new->artistid, "Auto-PK worked");
+
+  {
+    local $TODO = "Fails on older perls, fixed in mainline"
+      if "$]" < 5.012;
+    ok($new->artistid, "Auto-PK worked");
+  }
 
 # test auto increment using generators WITHOUT triggers
   for (1..5) {
@@ -239,10 +252,15 @@ EOF
   }
 
 # test empty insert
+{
+  local $TODO = "Fails on older perls, fixed in mainline"
+    if "$]" < 5.012;
+
   lives_and {
     my $row = $ars->create({});
     ok $row->artistid;
   } 'empty insert works';
+}
 
 # test inferring the generator from the trigger source and using it with
 # auto_nextval
@@ -259,6 +277,9 @@ EOF
   # (finish() was called everywhere, either explicitly via
   # reset() or on DESTROY)
   for (keys %{$schema->storage->dbh->{CachedKids}}) {
+    local $TODO = "Fails on older perls, fixed in mainline"
+      if "$]" < 5.012;
+
     fail("Unreachable cached statement still active: $_")
       if $schema->storage->dbh->{CachedKids}{$_}->FETCH('Active');
   }
