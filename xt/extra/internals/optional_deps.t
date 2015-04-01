@@ -65,7 +65,7 @@ is_deeply (
       DBIx::Class::Optional::Dependencies->modreq_missing_for ($_),
       qr/
         \A
-        " SQL::Translator \~ \>\= [\d\.]+ "
+        SQL::Translator \~ [\d\.]+
         \z
       /x,
       'expected modreq missing string contents',
@@ -75,7 +75,7 @@ is_deeply (
       DBIx::Class::Optional::Dependencies->req_missing_for ($_),
       qr/
         \A
-        " SQL::Translator \~ \>\= [\d\.]+ "
+        SQL::Translator \~ [\d\.]+
         \Q (see DBIx::Class::Optional::Dependencies documentation for details)\E
         \z
       /x,
@@ -169,13 +169,13 @@ is_deeply (
 
   is(
     DBIx::Class::Optional::Dependencies->req_missing_for([qw( rdbms_pg test_rdbms_pg )]),
-    '"DBD::Pg~>=2.009002" as well as the following group(s) of environment variables: DBICTEST_PG_DSN/..._USER/..._PASS',
+    'DBD::Pg~2.009002 as well as the following group(s) of environment variables: DBICTEST_PG_DSN/..._USER/..._PASS',
     'optional dependencies for testing Postgres without envvar'
   );
 
   is(
     DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( test_rdbms_mysql test_rdbms_pg )]),
-    'DBD::mysql "DBD::Pg~>=2.009002" as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS and DBICTEST_PG_DSN/..._USER/..._PASS',
+    'DBD::mysql DBD::Pg~2.009002 as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS and DBICTEST_PG_DSN/..._USER/..._PASS',
     'optional dependencies for testing Postgres+MySQL without envvars'
   );
 
@@ -188,7 +188,7 @@ is_deeply (
 
   is(
     DBIx::Class::Optional::Dependencies->req_missing_for([shuffle qw( rdbms_pg test_rdbms_pg )]),
-    '"DBD::Pg~>=2.009002"',
+    'DBD::Pg~2.009002',
     'optional dependencies error text for testing Postgres matches with evvar',
   );
 
@@ -215,7 +215,7 @@ is_deeply (
 
   is(
     DBIx::Class::Optional::Dependencies->req_missing_for($mysql_icdt),
-    '"DateTime~>=0.55" DateTime::Format::MySQL DBD::mysql as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS',
+    'DateTime~0.55 DateTime::Format::MySQL DBD::mysql as well as the following group(s) of environment variables: DBICTEST_MYSQL_DSN/..._USER/..._PASS',
     'missing optional dependencies for testing ICDT MySQL without envvars'
   );
 
@@ -225,13 +225,13 @@ is_deeply (
   my $msaccess_mssql_icdt = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc icdt ) ];
   is_deeply(
     DBIx::Class::Optional::Dependencies->req_missing_for($msaccess_mssql_icdt),
-    'Data::GUID "DateTime~>=0.55" "DateTime::Format::Strptime~>=1.2" DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',
+    'Data::GUID DateTime~0.55 DateTime::Format::Strptime~1.2 DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',
     'Correct req_missing_for on multi-level converging include',
   );
 
   is_deeply(
     DBIx::Class::Optional::Dependencies->modreq_missing_for($msaccess_mssql_icdt),
-    'Data::GUID "DateTime~>=0.55" "DateTime::Format::Strptime~>=1.2" DBD::ODBC',
+    'Data::GUID DateTime~0.55 DateTime::Format::Strptime~1.2 DBD::ODBC',
     'Correct modreq_missing_for on multi-level converging include',
   );
 

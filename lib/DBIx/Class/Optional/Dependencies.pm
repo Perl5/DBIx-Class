@@ -808,7 +808,7 @@ sub modreq_missing_for {
     or return '';
 
   join ' ', map
-    { $reqs->{modreqs}{$_} ? qq("$_~>=$reqs->{modreqs}{$_}") : $_ }
+    { $reqs->{modreqs}{$_} ? "$_~$reqs->{modreqs}{$_}" : $_ }
     sort { lc($a) cmp lc($b) } keys %$modreq_errors
   ;
 }
@@ -1143,7 +1143,7 @@ sub _list_physically_missing_modules {
   }
 
   join ' ', map
-    { $modreqs->{$_} ? qq("$_~>=$modreqs->{$_}") : $_ }
+    { $modreqs->{$_} ? "$_~$modreqs->{$_}" : $_ }
     sort { lc($a) cmp lc($b) } @definitely_missing
   ;
 }
@@ -1495,7 +1495,7 @@ For example if some of the requirements for C<deploy> are not available,
 the returned string could look like:
 EOC
 
-  push @chunks, qq{ "SQL::Translator~>=$sqltver" (see $class documentation for details)};
+  push @chunks, qq{ "SQL::Translator~$sqltver" (see $class documentation for details)};
 
   push @chunks, <<'EOC';
 The author is expected to prepend the necessary text to this message before
@@ -1520,7 +1520,7 @@ For instance if some of the requirements for C<deploy> are not available,
 the returned string could look like:
 EOC
 
-  push @chunks, qq{ "SQL::Translator~>=$sqltver"};
+  push @chunks, qq{ "SQL::Translator~$sqltver"};
 
   push @chunks, <<'EOC';
 
