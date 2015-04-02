@@ -217,6 +217,31 @@ eval qq{require($mod)} or ( print $@ and exit 1)
   fi
 }
 
+# Idea stolen from
+# https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
+# Only works on 5.12+ (where sitelib was finally properly fixed)
+purge_sitelib() {
+
+  if perl -M5.012 -e1 &>/dev/null ; then
+
+    echo_err "$(tstamp) Cleaning up Perl installation"
+    perl -M5.012 -MConfig -MFile::Find -e '
+      my $sitedirs = {
+        map { $Config{$_} => 1 }
+          grep { $_ =~ /site(lib|arch)exp$/ }
+            keys %Config
+      };
+      find({ bydepth => 1, no_chdir => 1, follow_fast => 1, wanted => sub {
+        ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
+      } }, keys %$sitedirs )
+    '
+    echo_err "Post-cleanup contents of sitelib:"
+    echo_err "$(tree $(perl -MConfig -e 'print $Config{sitelib_stem}'))"
+    echo_err
+  fi
+}
+
+
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }

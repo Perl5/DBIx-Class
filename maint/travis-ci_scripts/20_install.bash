@@ -44,26 +44,8 @@ if [[ -n "$BREWVER" ]] ; then
 
 # no brewver - this means a travis perl, which means we want to clean up
 # the presently installed libs
-# Idea stolen from
-# https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
-# Only works on 5.12+ (where sitelib was finally properly fixed)
-elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] && perl -M5.012 -e 1 &>/dev/null ; then
-
-  echo_err "$(tstamp) Cleaning precompiled Travis-Perl"
-  perl -M5.012 -MConfig -MFile::Find -e '
-    my $sitedirs = {
-      map { $Config{$_} => 1 }
-        grep { $_ =~ /site(lib|arch)exp$/ }
-          keys %Config
-    };
-    find({ bydepth => 1, no_chdir => 1, follow_fast => 1, wanted => sub {
-      ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
-    } }, keys %$sitedirs )
-  '
-
-  echo_err "Post-cleanup contents of sitelib of the pre-compiled Travis-Perl $TRAVIS_PERL_VERSION:"
-  echo_err "$(tree $(perl -MConfig -e 'print $Config{sitelib_stem}'))"
-  echo_err
+elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] ; then
+  purge_sitelib
 fi
 
 # configure CPAN.pm - older versions go into an endless loop
