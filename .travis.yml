@@ -275,6 +275,11 @@ script:
   #
   - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
+###
+### Set -e back, work around https://github.com/travis-ci/travis-ci/issues/3533
+###
+  - set -e
+
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #

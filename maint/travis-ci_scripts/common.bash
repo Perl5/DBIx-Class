@@ -190,10 +190,10 @@ _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
-    $LASTCMD 2>&1
+    $LASTCMD 2>&1 || return 1
   else
     LASTCMD="$TIMEOUT_CMD cpan $@"
-    $LASTCMD 2>&1
+    $LASTCMD 2>&1 || return 1
 
     # older perls do not have a CPAN which can exit with error on failed install
     for m in "$@"; do
