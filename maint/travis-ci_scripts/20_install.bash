@@ -9,7 +9,7 @@ CPAN_MIRROR="http://cpan.metacpan.org/"
 PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
 # do not set PERLBREW_CPAN_MIRROR - not all backpan-like mirrors have the perl tarballs
-export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$NUMTHREADS"
+export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$VCPU_USE"
 
 # try CPAN's latest offering if requested
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
@@ -25,7 +25,7 @@ if [[ -n "$BREWVER" ]] ; then
   # since perl 5.14 a perl can safely be built concurrently with -j$large
   # (according to brute force testing and my power bill)
   if [[ "$BREWVER" == "blead" ]] || perl -Mversion -e "exit !!(version->new(q($BREWVER)) < 5.014)" ; then
-    perlbrew_jopt="$NUMTHREADS"
+    perlbrew_jopt="$VCPU_USE"
   fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \

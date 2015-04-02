@@ -155,7 +155,7 @@ parallel_installdeps_notest() {
   run_or_err "Installing (without testing) $(echo $MODLIST)" \
     "echo \\
 \"$MODLIST\" \\
-      | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
+      | xargs -d '\\n' -n 1 -P $VCPU_USE bash -c \\
         'OUT=\$(maint/getstatus $TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
@@ -168,7 +168,7 @@ installdeps() {
 
   local -x HARNESS_OPTIONS
 
-  HARNESS_OPTIONS="j$NUMTHREADS"
+  HARNESS_OPTIONS="j$VCPU_USE"
 
   if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
     local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
