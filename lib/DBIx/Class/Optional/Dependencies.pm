@@ -665,9 +665,19 @@ my $dbic_reqs = {
     # we need to run the dbicadmin so we can self-generate its POD
     # also we do not want surprises in case JSON::XS is in the path
     # so make sure we get an always-working JSON::Any
-    include => [qw( admin_script _json_xs_compatible_json_any )],
+    include => [qw(
+      admin_script
+      _json_xs_compatible_json_any
+      id_shortener
+      deploy
+      test_pod
+      test_podcoverage
+      test_whitespace
+      test_strictures
+    )],
     req => {
       'ExtUtils::MakeMaker' => '6.64',
+      'Module::Install'     => '1.06',
       'Pod::Inherit'        => '0.91',
     },
   },
