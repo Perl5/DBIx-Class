@@ -58,8 +58,8 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
   if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
-    # without pre-installing these in one pass things like extract_prereqs won't work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+    # without pre-installing these in one pass things won't yet work
+    installdeps Module::Build
   fi
 
 else
@@ -70,16 +70,15 @@ else
   # (e.g. once Carp is upgraded there's no more Carp::Heavy,
   # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
-  parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
+  parallel_installdeps_notest File::Spec Module::Runtime
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
@@ -100,35 +99,17 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    HARD_DEPS="$(echo $(make listalldeps))"
+    HARD_DEPS="$(make listalldeps | sort -R)"
 
   else
 
-    HARD_DEPS="$(echo $(make listdeps | sort -R))"
+    HARD_DEPS="$(make listdeps | sort -R)"
 
 ##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
     if ! CPAN_is_sane ; then
 
       # DBD::SQLite reasonably wants DBI at config time
       perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
-
-      # this is a fucked CPAN - won't understand configure_requires of
-      # various pieces we may run into
-      # FIXME - need to get these off metacpan or something instead
-      HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
-
-      if CPAN_supports_BUILDPL ; then
-        # We will invoke a posibly MBT based BUILD-file, but we do not support
-        # configure requires. So we not only need to install MBT but its prereqs
-        # FIXME This is madness
-        HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
-      else
-        # FIXME
-        # work around Params::Validate not having a Makefile.PL so really old
-        # toolchains can not figure out what the prereqs are ;(
-        # Need to do more research before filing a bug requesting Makefile inclusion
-        HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
-      fi
 
     fi
 
@@ -139,7 +120,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 else
 
-  parallel_installdeps_notest "$(make listdeps)"
+  parallel_installdeps_notest "$(make listdeps | sort -R)"
 
 fi
 
@@ -163,6 +144,10 @@ if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\
   exit 1
 fi
 
+if [[ "$CLEANTEST" = "true" ]] && perl -MModule::Build::Tiny -e1 &>/dev/null ; then
+  echo_err "Module::Build::Tiny pulled in during the basic depchain install - this must not happen"
+  exit 1
+fi
 
 # announce what are we running
 echo_err "

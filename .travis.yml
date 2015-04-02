@@ -18,7 +18,7 @@
 #   possible set of deps *without testing them*. This ensures we stay within
 #   a reasonable build-time and still run as many of our tests as possible
 #
-# * The perl builds and the DBIC tests run under NUMTHREADS number of threads.
+# * The perl builds and the DBIC tests run under VCPU_USE number of threads.
 # The testing of dependencies under CLEANTEST runs single-threaded, at least
 # until we fix our entire dep-chain to safely pass under -j
 #
@@ -75,7 +75,7 @@ perl:
 
 env:
   - CLEANTEST=false
-  - CLEANTEST=true NUMTHREADS=1
+  - CLEANTEST=true VCPU_USE=1
 
 matrix:
   fast_finish: true
@@ -274,6 +274,11 @@ script:
   # Run actual tests
   #
   - maint/getstatus maint/travis-ci_scripts/40_script.bash
+
+###
+### Set -e back, work around https://github.com/travis-ci/travis-ci/issues/3533
+###
+  - set -e
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export SHORT_CIRCUIT_SMOKE
+
 # Stop pre-started RDBMS and sync for some settle time
 run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
 run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop || /bin/true"
@@ -25,6 +27,17 @@ Under Travis this state usually results in a failed build.
 Short-circuiting buildjob to avoid false negatives, please restart it manually.
 
 ============================================================================="
+
+# pull requests are always scrutinized after the fact anyway - run a
+# a simpler matrix
+elif [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+  if [[ -n "$BREWVER" ]]; then
+    # just don't brew anything
+    SHORT_CIRCUIT_SMOKE=1
+  else
+    # running PRs with 1 thread is non-sensical
+    VCPU_USE=""
+  fi
 fi
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
@@ -40,14 +53,16 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 #
 # We also divide the result by a factor, otherwise the travis VM gets
 # overloaded (the amount of available swap is just TOOOO damn small)
-if [[ -z "$NUMTHREADS" ]] ; then
-  export NUMTHREADS="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
+export VCPU_AVAILABLE="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
+
+if [[ -z "$VCPU_USE" ]] ; then
+  export VCPU_USE="$VCPU_AVAILABLE"
 fi
 
 export CACHE_DIR="/tmp/poormanscache"
 
 # these will be installed no matter what, also some extras unless CLEANTEST
-common_packages="libapp-nopaste-perl tree"
+common_packages="libapp-nopaste-perl"
 
 if [[ "$CLEANTEST" = "true" ]]; then
 
@@ -59,6 +74,9 @@ else
   # FIXME these debconf lines should automate the firebird config but do not :(((
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
+
+  # these APT sources do not mean anything to us anyway
+  sudo rm -rf /etc/apt/sources.list.d/*
 
   run_or_err "Updating APT sources" "sudo apt-get update"
   apt_install $common_packages libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
@@ -118,6 +136,24 @@ else
       "echo \"CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';\" | sudo isql-fb -u sysdba -p 123"
     then
 
+      run_or_err "Fetching and building Firebird ODBC driver" '
+        cd "$(mktemp -d)"
+        wget -qO- http://sourceforge.net/projects/firebird/files/firebird-ODBC-driver/2.0.2-Release/OdbcFb-Source-2.0.2.153.gz/download | tar -zx
+        cd Builds/Gcc.lin
+        perl -p -i -e "s|/usr/lib64|/usr/lib/x86_64-linux-gnu|g" ../makefile.environ
+        make -f makefile.linux
+        sudo make -f makefile.linux install
+      '
+
+      sudo bash -c 'cat >> /etc/odbcinst.ini' <<< "
+[Firebird]
+Description     = InterBase/Firebird ODBC Driver
+Driver          = /usr/lib/x86_64-linux-gnu/libOdbcFb.so
+Setup           = /usr/lib/x86_64-linux-gnu/libOdbcFb.so
+Threading       = 1
+FileUsage       = 1
+"
+
       export DBICTEST_FIREBIRD_DSN=dbi:Firebird:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
       export DBICTEST_FIREBIRD_USER=SYSDBA
       export DBICTEST_FIREBIRD_PASS=123
@@ -125,6 +161,10 @@ else
       export DBICTEST_FIREBIRD_INTERBASE_DSN=dbi:InterBase:dbname=/var/lib/firebird/2.5/data/dbic_test.fdb
       export DBICTEST_FIREBIRD_INTERBASE_USER=SYSDBA
       export DBICTEST_FIREBIRD_INTERBASE_PASS=123
+
+      export DBICTEST_FIREBIRD_ODBC_DSN="dbi:ODBC:Driver=Firebird;Dbname=/var/lib/firebird/2.5/data/dbic_test.fdb"
+      export DBICTEST_FIREBIRD_ODBC_USER=SYSDBA
+      export DBICTEST_FIREBIRD_ODBC_PASS=123
 
       break
     fi
