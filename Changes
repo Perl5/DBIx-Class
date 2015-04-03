@@ -5,6 +5,14 @@ Revision history for DBIx::Class
           ->req_list_for([qw( rdbms_oracle ic_dt )]) bringing in the Oracle
           specific DateTime::Format dependencies
 
+    * Misc
+        - Skip tests in a way more intelligent and speedy manner when optional
+          dependencies are missing
+        - Make the Optional::Dependencies error messages cpanm-friendly
+        - Incompatibly change values (not keys) of the hash returned by
+          Optional::Dependencies::req_group_list (no known users in the wild)
+
+0.082820 2015-03-20 20:35 (UTC)
     * Fixes
         - Protect destructors from rare but possible double execution, and
           loudly warn the user whenever the problem is encountered (GH#63)
@@ -14,31 +22,32 @@ Revision history for DBIx::Class
         - Fix updating multiple CLOB/BLOB columns on Oracle
         - Fix exception on complex update/delete under a replicated setup
           http://lists.scsys.co.uk/pipermail/dbix-class/2015-January/011903.html
-        - Fix incorrect collapsing-parser source being generated in the
-          presence of unicode data among the collapse-points
         - Fix uninitialized warnings on empty hashes passed to join/prefetch
           https://github.com/vanstyn/RapidApp/commit/6f41f6e48 and
           http://lists.scsys.co.uk/pipermail/dbix-class/2015-February/011921.html
-        - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
-        - Fix failures of t/54taint.t on Windows with spaces in the $^X
-          executable path (RT#101615)
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)
         - Various doc improvements (GH#35, GH#62, GH#66, GH#70, GH#71, GH#72)
-        - Skip tests in a way more intelligent and speedy manner when optional
-          dependencies are missing
-        - Make the Optional::Dependencies error messages cpanm-friendly
-        - Incompatibly change values (not keys) of the hash returned by
-          Optional::Dependencies::req_group_list (no known users in the wild)
+        - Depend on newer Moo, to benefit from a safer runtime (RT#93004)
+        - Fix intermittent failures in the LeakTracer on 5.18+
+        - Fix failures of t/54taint.t on Windows with spaces in the $^X
+          executable path (RT#101615)
+
+0.082810 2014-10-25 13:58 (UTC)
+    * Fixes
+        - Fix incorrect collapsing-parser source being generated in the
+          presence of unicode data among the collapse-points
+        - Fix endless loop on BareSourcelessResultClass->throw_exception(...)
+
+    * Misc
         - Depend on newer SQL::Abstract (fixing overly-aggressive parenthesis
           opener: RT#99503)
-        - Depend on newer Moo, fixing some interoperability issues: RT#93004 and
+        - Depend on newer Moo, fixing some interoperability issues:
           http://lists.scsys.co.uk/pipermail/dbix-class/2014-October/011787.html
-        - Fix intermittent failures in the LeakTracer on 5.18+
 
 0.082801 2014-10-05 23:55 (UTC)
     * Known Issues
