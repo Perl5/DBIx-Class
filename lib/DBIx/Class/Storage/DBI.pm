@@ -1110,10 +1110,12 @@ sub get_dbms_capability {
 sub _server_info {
   my $self = shift;
 
-  my $info;
-  unless ($info = $self->_dbh_details->{info}) {
+  # FIXME - ideally this needs to be an ||= assignment, and the final
+  # assignment at the end of this do{} should be gone entirely. However
+  # this confuses CXSA: https://rt.cpan.org/Ticket/Display.html?id=103296
+  $self->_dbh_details->{info} || do {
 
-    $info = {};
+    my $info = {};
 
     my $server_version = try {
       $self->_get_server_version
@@ -1150,9 +1152,7 @@ sub _server_info {
     }
 
     $self->_dbh_details->{info} = $info;
-  }
-
-  return $info;
+  };
 }
 
 sub _get_server_version {
@@ -1371,24 +1371,26 @@ sub _warn_undetermined_driver {
 }
 
 sub _do_connection_actions {
-  my $self          = shift;
-  my $method_prefix = shift;
-  my $call          = shift;
+  my ($self, $method_prefix, $call, @args) = @_;
 
-  if (not ref($call)) {
-    my $method = $method_prefix . $call;
-    $self->$method(@_);
-  } elsif (ref($call) eq 'CODE') {
-    $self->$call(@_);
-  } elsif (ref($call) eq 'ARRAY') {
-    if (ref($call->[0]) ne 'ARRAY') {
-      $self->_do_connection_actions($method_prefix, $_) for @$call;
-    } else {
-      $self->_do_connection_actions($method_prefix, @$_) for @$call;
+    if (not ref($call)) {
+      my $method = $method_prefix . $call;
+      $self->$method(@args);
     }
-  } else {
-    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
-  }
+    elsif (ref($call) eq 'CODE') {
+      $self->$call(@args);
+    }
+    elsif (ref($call) eq 'ARRAY') {
+      if (ref($call->[0]) ne 'ARRAY') {
+        $self->_do_connection_actions($method_prefix, $_) for @$call;
+      }
+      else {
+        $self->_do_connection_actions($method_prefix, @$_) for @$call;
+      }
+    }
+    else {
+      $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
+    }
 
   return $self;
 }
