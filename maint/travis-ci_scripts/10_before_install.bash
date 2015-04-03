@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export SHORT_CIRCUIT_SMOKE
+
 # Stop pre-started RDBMS and sync for some settle time
 run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
 run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop || /bin/true"
@@ -25,6 +27,17 @@ Under Travis this state usually results in a failed build.
 Short-circuiting buildjob to avoid false negatives, please restart it manually.
 
 ============================================================================="
+
+# pull requests are always scrutinized after the fact anyway - run a
+# a simpler matrix
+elif [[ -n "$TRAVIS_PULL_REQUEST" ]]; then
+  if [[ -n "$BREWVER" ]]; then
+    # just don't brew anything
+    SHORT_CIRCUIT_SMOKE=1
+  else
+    # running PRs with 1 thread is non-sensical
+    VCPU_USE=""
+  fi
 fi
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
