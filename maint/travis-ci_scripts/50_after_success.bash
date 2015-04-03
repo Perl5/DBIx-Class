@@ -7,9 +7,13 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] || [[ "$TRAVIS_PULL_REQUEST" != "false" ]] ; 
 
 # this part needs to run in parallel unconditionally
 export VCPU_USE="$VCPU_AVAILABLE"
+export HARNESS_OPTIONS="j$VCPU_USE"
 
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
+  # FIXME - these really need to be installed *with* testing under "allowed failures"
+  # Change when Moose goes away
+  parallel_installdeps_notest Moose
   parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
   run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
@@ -32,6 +36,14 @@ if [[ -n "$tarball_assembled" ]] ; then
 
   # kill as much as possible with fire
   purge_sitelib
+
+
+  # undo some of the pollution (if any) affecting the plain install deps
+  # FIXME - this will go away once we move off Moose, and a new SQLT
+  # with much less recommends ships
+  export DBICTEST_SQLT_DEPLOY=""
+  export DBICTEST_VIA_REPLICATED=""
+
 
   # make sure we are retrying with newest CPAN possible
   #
@@ -56,6 +68,8 @@ if [[ -n "$tarball_assembled" ]] ; then
 
   cd "$(find DBIx-Class-* -maxdepth 0 -type d | head -n 1)"
 
+  # only run a full test cycle on devrel_deps, as they are all marked
+  # as "allow fails" in the travis matrix
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
     for e in $( env | grep 'DBICTEST.*DSN' | cut -f 1 -d '=' ) ; do
