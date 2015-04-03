@@ -3,7 +3,7 @@
 # this file is executed in a subshell - set up the common stuff
 source maint/travis-ci_scripts/common.bash
 
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] || [[ -n "$TRAVIS_PULL_REQUEST" ]] ; then exit 0 ; fi
 
 # this part needs to run in parallel unconditionally
 export VCPU_USE="$VCPU_AVAILABLE"
