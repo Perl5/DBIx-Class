@@ -3,6 +3,8 @@ Revision history for DBIx::Class
     * Fixes
         - Another relatively invasive set of ::FilterColumn changes, covering
           potential data loss (RT#111567). Please run your regression tests!
+        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
+          notably on_connect* failures now properly abort the entire connect
         - Fix use of ::Schema::Versioned combined with a user-supplied
           $dbh->{HandleError} (GH#101)
         - Fix parsing of DSNs containing driver arguments (GH#99)

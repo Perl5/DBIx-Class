@@ -1114,6 +1114,9 @@ sub _server_info {
   unless ($info = $self->_dbh_details->{info}) {
 
     $info = {};
+    # this guarantees that problematic conninfo won't be hidden
+    # by the try{} below
+    $self->ensure_connected;
 
     my $server_version = try {
       $self->_get_server_version
@@ -1380,24 +1383,40 @@ sub _warn_undetermined_driver {
 }
 
 sub _do_connection_actions {
-  my $self          = shift;
-  my $method_prefix = shift;
-  my $call          = shift;
+  my ($self, $method_prefix, $call, @args) = @_;
 
-  if (not ref($call)) {
-    my $method = $method_prefix . $call;
-    $self->$method(@_);
-  } elsif (ref($call) eq 'CODE') {
-    $self->$call(@_);
-  } elsif (ref($call) eq 'ARRAY') {
-    if (ref($call->[0]) ne 'ARRAY') {
-      $self->_do_connection_actions($method_prefix, $_) for @$call;
-    } else {
-      $self->_do_connection_actions($method_prefix, @$_) for @$call;
+  try {
+    if (not ref($call)) {
+      my $method = $method_prefix . $call;
+      $self->$method(@args);
     }
-  } else {
-    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
+    elsif (ref($call) eq 'CODE') {
+      $self->$call(@args);
+    }
+    elsif (ref($call) eq 'ARRAY') {
+      if (ref($call->[0]) ne 'ARRAY') {
+        $self->_do_connection_actions($method_prefix, $_) for @$call;
+      }
+      else {
+        $self->_do_connection_actions($method_prefix, @$_) for @$call;
+      }
+    }
+    else {
+      $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
+    }
   }
+  catch {
+    if ( $method_prefix =~ /^connect/ ) {
+      # this is an on_connect cycle - we can't just throw while leaving
+      # a handle in an undefined state in our storage object
+      # kill it with fire and rethrow
+      $self->_dbh(undef);
+      $self->throw_exception( $_[0] );
+    }
+    else {
+      carp "Disconnect action failed: $_[0]";
+    }
+  };
 
   return $self;
 }
