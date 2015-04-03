@@ -5,6 +5,10 @@ Revision history for DBIx::Class
           ->req_list_for([qw( rdbms_oracle icdt )]) bringing in the Oracle
           specific DateTime::Format dependencies
 
+    * Fixes
+        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
+          notably on_connect* failures now properly abort the entire connect
+
     * Misc
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
