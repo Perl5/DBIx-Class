@@ -96,20 +96,24 @@ my $test_requires = {
   %{ DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_sqlite') },
 };
 
-# if the user has this env var set and no SQLT installed, tests will fail
-# Note - this is added as test_requires *directly*, so it gets properly
+# if the user has some of these env vars set and the deps are not available,
+# tests will fail
+# Note - these are added as test_requires *directly*, so they get properly
 # excluded on META.yml cleansing (even though no dist can be created from this)
-# we force this req regarless of author_deps, worst case scenario it will
+# we force these reqs regarless of author_deps, worst case scenario they will
 # be specified twice
 #
-# also note that we *do* set dynamic_config => 0, as this is the only thing
-# that we determine dynamically, and in all fairness if someone sets the
-# envvar *and* is not running a full Makefile/make/maketest cycle - they get
+# also note that we *do* set dynamic_config => 0, as these are the only things
+# that we determine dynamically, and in all fairness if someone sets these
+# envvars *and* is not running a full Makefile/make/maketest cycle - they get
 # to keep the pieces
-if ($ENV{DBICTEST_SQLT_DEPLOY}) {
-  my $deploy_req = DBIx::Class::Optional::Dependencies->req_list_for('deploy');
-  for (keys %$deploy_req) {
-    test_requires ($_ => $deploy_req->{$_})
+if ( my @optdeps = (
+  $ENV{DBICTEST_SQLT_DEPLOY} ? 'deploy' : (),
+  $ENV{DBICTEST_VIA_REPLICATED} ? 'replicated' : (),
+)) {
+  my $extra_deps = DBIx::Class::Optional::Dependencies->req_list_for(\@optdeps);
+  for (keys %$extra_deps) {
+    test_requires ($_ => $extra_deps->{$_})
   }
 }
 
