@@ -10,6 +10,9 @@ run_harness_tests() {
   make test 2> >(tee "$TEST_STDERR_LOG")
 }
 
+# announce everything we have on this box
+TRAVIS="" perl -Ilib t/00describe_environment.t >/dev/null
+
 TEST_T0=$SECONDS
 if [[ "$CLEANTEST" = "true" ]] ; then
   echo_err "$(tstamp) Running tests with plain \`make test\`"
