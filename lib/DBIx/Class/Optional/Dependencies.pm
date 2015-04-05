@@ -136,6 +136,7 @@ my $dbic_reqs = {
   icdt => {
     req => {
       'DateTime' => '0.55',
+      'DateTime::TimeZone::OlsonDB' => 0,
     },
     pod => {
       title => 'InflateColumn::DateTime support',
