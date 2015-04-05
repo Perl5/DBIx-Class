@@ -3,7 +3,6 @@
 ### It certainly can be rewritten to degrade well on 5.6
 ###
 
-
 BEGIN {
   if ($] < 5.010) {
 
@@ -56,73 +55,67 @@ use DBICTest::Util 'visit_namespaces';
 use DBICTest;
 use DBICTest::Schema;
 
-# do !!!NOT!!! use Module::Runtime's require_module - it breaks CORE::require
-sub req_mod ($) {
-  # trap deprecation warnings and whatnot
-  local $SIG{__WARN__} = sub {};
-  local $@;
-  eval "require $_[0]";
-}
 
-sub say_err {
-  print STDERR "\n", @_, "\n";
-}
-
-# needed for WeirdOS
-sub fixup_path ($) {
-  return $_[0] unless ( $^O eq 'MSWin32' and $_[0] );
-
-  # sometimes we can get a short/longname mix, normalize everything to longnames
-  my $fn = Win32::GetLongPathName($_[0]);
-
-  # Fixup (native) slashes in Config not matching (unixy) slashes in INC
-  $fn =~ s|\\|/|g;
-
-  $fn;
-}
-
-my @lib_display_order = qw(
-  sitearch
-  sitelib
-  vendorarch
-  vendorlib
-  archlib
-  privlib
-);
-my $lib_paths = {
-  (map
-    { $Config{$_}
-      ? ( $_ => fixup_path( $Config{"${_}exp"} || $Config{$_} ) )
-      : ()
-    }
-    @lib_display_order
-  ),
-
-  # synthetic, for display
-  './lib' => 'lib',
+my $known_libpaths = {
+  SA => {
+    config_key => 'sitearch',
+  },
+  SL => {
+    config_key => 'sitelib',
+  },
+  VA => {
+    config_key => 'vendorarch',
+  },
+  VL => {
+    config_key => 'vendorlib',
+  },
+  PA => {
+    config_key => 'archlib',
+  },
+  PL => {
+    config_key => 'privlib',
+  },
+  INC => {
+    relpath => './inc',
+  },
+  LIB => {
+    relpath => './lib',
+  },
+  HOME => {
+    relpath => '~',
+    full_path => full_path (
+      eval { require File::HomeDir and File::HomeDir->my_home }
+        ||
+      $ENV{HOME}
+        ||
+      glob('~')
+    ),
+  },
 };
 
-sub describe_fn {
-  my $fn = shift;
+for my $k (keys %$known_libpaths) {
+  my $v = $known_libpaths->{$k};
 
-  return '' if !defined $fn;
+  # never use home as a found-in-dir marker - it is too broad
+  # HOME is only used by the shortener
+  $v->{abbrev} = $k unless $k eq 'HOME';
 
-  $fn = fixup_path( $fn );
+  unless ( $v->{full_path} ) {
+    if ( $v->{relpath} ) {
+      $v->{full_path} = full_path( $v->{relpath} );
+    }
+    elsif ( $Config{ $v->{config_key} || '' } ) {
+      $v->{full_path} = full_path (
+        $Config{"$v->{config_key}exp"} || $Config{$v->{config_key}}
+      );
+    }
+  }
 
-  $lib_paths->{$_} and $fn =~ s/^\Q$lib_paths->{$_}/<<$_>>/ and last
-    for @lib_display_order;
-
-  $fn;
+  delete $known_libpaths->{$k} unless $v->{full_path} and -d $v->{full_path};
 }
 
-sub md5_of_fn {
-  # we already checked for -r/-f, just bail if can't open
-  open my $fh, '<:raw', $_[0] or return '';
-  require Digest::MD5;
-  Digest::MD5->new->addfile($fh)->hexdigest;
-}
 
-# first run through lib and *try* to load anything we can find
+# first run through lib/ and *try* to load anything we can find
 # within our own project
 find({
   wanted => sub {
@@ -133,10 +126,12 @@ find({
     my ($mod) = $_ =~ /^ lib [\/\\] (.+) \.pm $/x
       or return;
 
-    req_mod join ('::', File::Spec->splitdir($mod));
+    try_module_require(join ('::', File::Spec->splitdir($mod)) )
   },
   no_chdir => 1,
 }, 'lib' );
+
+
 
 # now run through OptDeps and attempt loading everything else
 #
@@ -148,7 +143,7 @@ my $load_weights = {
   # clashes with libssl, and will segfault everything coming after them
   "DBD::Oracle" => -999,
 };
-req_mod $_ for sort
+try_module_require($_) for sort
   { ($load_weights->{$b}||0) <=> ($load_weights->{$a}||0) }
   keys %{
     DBIx::Class::Optional::Dependencies->req_list_for([
@@ -156,17 +151,20 @@ req_mod $_ for sort
         # some DBDs are notoriously problematic to load
         # hence only show stuff based on test_rdbms which will
         # take into account necessary ENVs
-        { $_ !~ /^rdbms_/ }
+        { $_ !~ /^ (?: rdbms | dist )_ /x }
         keys %{DBIx::Class::Optional::Dependencies->req_group_list}
     ])
   }
 ;
 
-my $has_versionpm = eval { require version };
 
 # at this point we've loaded everything we ever could, let's drill through
 # the *ENTIRE* symtable and build a map of versions
-my $version_list = { perl => $] };
+my $has_versionpm = eval { require version };
+my $versioned_modules = {
+  perl => { version => $], full_path => $^X }
+};
+my $seen_known_libs;
 visit_namespaces( action => sub {
   no strict 'refs';
   my $pkg = shift;
@@ -189,11 +187,11 @@ visit_namespaces( action => sub {
   my $mod_ver = eval { $pkg->VERSION };
   if (my $err = $@) {
     $err =~ s/^/  /mg;
-    say_err
+    say_err (
       "Calling `$pkg->VERSION` resulted in an exception, which should never "
     . "happen - please file a bug with the distribution containing $pkg. "
     . "Complete exception text below:\n\n$err"
-    ;
+    );
   }
   elsif( ! defined $mod_ver or ! length $mod_ver ) {
     my $ret = defined $mod_ver
@@ -201,11 +199,11 @@ visit_namespaces( action => sub {
       : "'undef'"
     ;
 
-    say_err
+    say_err (
       "Calling `$pkg->VERSION` returned $ret, even though \$${pkg}::VERSION "
     . "is defined, which should never happen - please file a bug with the "
     . "distribution containing $pkg."
-    ;
+    );
 
     undef $mod_ver;
   }
@@ -213,12 +211,16 @@ visit_namespaces( action => sub {
   # if this is a real file - extract the version via EUMM whenever possible
   my $fn = $INC{module_notional_filename($pkg)};
 
+  my $full_path;
+
   my $eumm_ver = (
     $fn
       and
     -f $fn
       and
     -r $fn
+      and
+    $full_path = full_path($fn)
       and
     eval { MM->parse_version( $fn ) }
   ) || undef;
@@ -238,120 +240,172 @@ visit_namespaces( action => sub {
       ( eval { version->parse( do { (my $v = $mod_ver) =~ s/_//g; $v } ) } || 0 )
     )
   ) {
-    say_err
+    say_err (
       "Mismatch of versions '$mod_ver' and '$eumm_ver', obtained respectively "
-    . "via `$pkg->VERSION` and parsing the version out of @{[ describe_fn $fn ]} "
+    . "via `$pkg->VERSION` and parsing the version out of @{[ shorten_fn( $full_path ) ]} "
     . "with ExtUtils::MakeMaker\@@{[ ExtUtils::MakeMaker->VERSION ]}. "
     . "This should never happen - please check whether this is still present "
     . "in the latest version, and then file a bug with the distribution "
     . "containing $pkg."
-    ;
+    );
   }
 
   if( defined $eumm_ver ) {
-    $version_list->{$pkg} = $eumm_ver;
+    $versioned_modules->{$pkg} = { version => $eumm_ver };
   }
   elsif( defined $mod_ver ) {
-    $version_list->{$pkg} = $mod_ver;
+    $versioned_modules->{$pkg} = { version => $mod_ver };
+  }
+
+  # add the path and a "where-from" marker if any
+  if ( $full_path and my $slot = $versioned_modules->{$pkg} ) {
+    $slot->{full_path} = $full_path;
+
+    if ( my $abbr = ( matching_known_lib( $full_path ) || {} )->{abbrev} ) {
+      $slot->{from_known_lib} = $abbr;
+      $seen_known_libs->{$abbr} = 1;
+    }
   }
 
   1;
 });
 
-# In retrospect it makes little sense to omit this information - just
-# show everything at all times.
-# Nevertheless leave the dead code, in case it turns out to be a bad idea...
-my $show_all = 1;
-#my $show_all = $ENV{PERL_DESCRIBE_ALL_DEPS} || !DBICTest::RunMode->is_plain;
+# compress identical versions sourced from ./lib as close to the root as we can
+for my $mod ( sort { length($b) <=> length($a) } keys %$versioned_modules ) {
+  ($versioned_modules->{$mod}{from_known_lib}||'') eq 'LIB'
+    or next;
 
-# compress identical versions as close to the root as we can
-# unless we are dealing with a smoker - in which case we want
-# to see every MD5 there is
-unless ($show_all) {
-  for my $mod ( sort { length($b) <=> length($a) } keys %$version_list ) {
-    my $parent = $mod;
+  my $parent = $mod;
 
-    while ( $parent =~ s/ :: (?: . (?! :: ) )+ $ //x ) {
-      $version_list->{$parent}
-        and
-      $version_list->{$parent} eq $version_list->{$mod}
-        and
-      ( ( delete $version_list->{$mod} ) or 1 )
-        and
-      last
-    }
+  while ( $parent =~ s/ :: (?: . (?! :: ) )+ $ //x ) {
+    $versioned_modules->{$parent}
+      and
+    $versioned_modules->{$parent}{version} eq $versioned_modules->{$mod}{version}
+      and
+    ($versioned_modules->{$parent}{from_known_lib}||'') eq 'LIB'
+      and
+    delete $versioned_modules->{$mod}
+      and
+    last
   }
 }
 
-ok 1, (scalar keys %$version_list) . " distinctly versioned modules";
+ok 1, (scalar keys %$versioned_modules) . " distinctly versioned modules found";
 
 # do not announce anything under ci - we are watching for STDERR silence
 exit if DBICTest::RunMode->is_ci;
 
-# sort stuff into @INC segments
-my $segments;
-
-MODULE:
-for my $mod ( sort { lc($a) cmp lc($b) } keys %$version_list ) {
-  my $fn = $INC{module_notional_filename($mod)};
-
-  my $tuple = [ $mod ];
-
-  if ( defined $fn && -f $fn && -r $fn ) {
-    push @$tuple, ( $fn = fixup_path($fn) );
-
-    for my $lib (@lib_display_order, './lib') {
-      if ( $lib_paths->{$lib} and index($fn, $lib_paths->{$lib}) == 0 ) {
-        push @{$segments->{$lib}}, $tuple;
-        next MODULE;
-      }
-    }
-  }
-
-  # fallthrough for anything without a physical filename, or unknown lib
-  push @{$segments->{''}}, $tuple;
-}
 
 # diag the result out
 my $max_ver_len = max map
-  { length $_ }
-  ( values %$version_list, 'xxx.yyyzzz_bbb' )
+  { length "$_" }
+  ( 'xxx.yyyzzz_bbb', map { $_->{version} } values %$versioned_modules )
 ;
-my $max_mod_len = max map { length $_ } keys %$version_list;
+my $max_mod_len = max map { length $_ } keys %$versioned_modules;
+my $max_marker_len = max map { length $_ } keys %{ $seen_known_libs || {} };
 
 my $discl = <<'EOD';
 
-Versions of all loadable modules within both the core and *OPTIONAL* dependency chains present on this system
+List of loadable modules specifying a version within both the core and *OPTIONAL* dependency chains present on this system
 Note that *MANY* of these modules will *NEVER* be loaded during normal operation of DBIx::Class
+(modules sourced from ./lib with versions identical to their parent namespace were omitted for brevity)
 EOD
 
-$discl .= "(modules with versions identical to their parent namespace were omitted - set PERL_DESCRIBE_ALL_DEPS to see them)\n"
-  unless $show_all;
+diag "\n$discl\n";
 
-diag $discl;
+if ($seen_known_libs) {
+  diag "Sourcing markers:\n";
 
-diag "\n";
-
-for my $seg ( '', @lib_display_order, './lib' ) {
-  next unless $segments->{$seg};
-
-  diag sprintf "=== %s ===\n\n",
-    $seg
-      ? "Modules found in " . ( $Config{$seg} ? "\$Config{$seg}" : $seg )
-      : 'Misc versions'
+  diag $_ for
+    map
+      {
+        sprintf "  %*s: %s",
+          $max_marker_len => $_->{abbrev},
+          ($_->{config_key} ? "\$Config{$_->{config_key}}" : $_->{relpath} )
+      }
+      @{$known_libpaths}{ sort keys %$seen_known_libs }
   ;
 
-  diag sprintf (
-    "%*s  %*s%s\n",
-    $max_ver_len => $version_list->{$_->[0]},
-    -$max_mod_len => $_->[0],
-    ($_->[1]
-      ? ' ' x (80 - min(78, $max_mod_len)) . "[ MD5: @{[ md5_of_fn( $_->[1] ) ]} ]"
-      : ''
-    ),
-  ) for @{$segments->{$seg}};
-
-  diag "\n\n"
+  diag "\n";
 }
 
-diag "$discl\n";
+diag "=============================\n";
+
+diag sprintf (
+  "%*s  %*s  %*s%s\n",
+  $max_marker_len+2 => $versioned_modules->{$_}{from_known_lib} || '',
+  $max_ver_len => $versioned_modules->{$_}{version},
+  -$max_mod_len => $_,
+  ($versioned_modules->{$_}{full_path}
+    ? ' ' x (80 - min(78, $max_mod_len)) . "[ MD5: @{[ get_md5( $versioned_modules->{$_}{full_path} ) ]} ]"
+    : ''
+  ),
+) for sort { lc($a) cmp lc($b) } keys %$versioned_modules;
+
+diag "=============================\n$discl\n";
+
+exit 0;
+
+
+
+sub say_err { print STDERR "\n", @_, "\n" };
+
+# do !!!NOT!!! use Module::Runtime's require_module - it breaks CORE::require
+sub try_module_require {
+  # trap deprecation warnings and whatnot
+  local $SIG{__WARN__} = sub {};
+  local $@;
+  eval "require $_[0]";
+}
+
+sub full_path {
+  return '' unless ( defined $_[0] and -e $_[0] );
+
+  my $fn = Cwd::abs_path($_[0]);
+
+  if ( $^O eq 'MSWin32' and $fn ) {
+
+    # sometimes we can get a short/longname mix, normalize everything to longnames
+    $fn = Win32::GetLongPathName($fn);
+
+    # Fixup (native) slashes in Config not matching (unixy) slashes in INC
+    $fn =~ s|\\|/|g;
+  }
+
+  $fn;
+}
+
+sub shorten_fn {
+  my $fn = shift;
+
+  my $l = matching_known_lib( $fn )
+    or return $fn;
+
+  if ($l->{relpath}) {
+    $fn =~ s/\Q$l->{full_path}\E/$l->{relpath}/;
+  }
+  elsif ($l->{config_key}) {
+    $fn =~ s/\Q$l->{full_path}\E/<<$l->{config_key}>>/;
+  }
+
+  $fn;
+}
+
+sub matching_known_lib {
+  my $fn = full_path( $_[0] )
+    or return '';
+
+  for my $l (
+    sort { length( $b->{full_path} ) <=> length( $a->{full_path} ) }
+    values %$known_libpaths
+  ) {
+    return { %$l } if 0 == index( $fn, $l->{full_path} );
+  }
+}
+
+sub get_md5 {
+  # we already checked for -r/-f, just bail if can't open
+  open my $fh, '<:raw', $_[0] or return '';
+  require Digest::MD5;
+  Digest::MD5->new->addfile($fh)->hexdigest;
+}

@@ -144,8 +144,8 @@ else
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
-# this will display list of available versions
-perl Makefile.PL
+
+run_or_err "Re-configure" "perl Makefile.PL"
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
