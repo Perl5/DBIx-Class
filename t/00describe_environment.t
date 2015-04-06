@@ -52,7 +52,7 @@ use Config;
 use File::Find 'find';
 use Digest::MD5 ();
 use Cwd 'abs_path';
-use List::Util qw(max min);
+use List::Util 'max';
 use ExtUtils::MakeMaker;
 use DBICTest::Util 'visit_namespaces';
 
@@ -357,7 +357,6 @@ my $max_ver_len = max map
   { length "$_" }
   ( 'xxx.yyyzzz_bbb', map { $_->{version} || '' } values %$interesting_modules )
 ;
-my $max_mod_len = max map { length $_ } keys %$interesting_modules;
 my $max_marker_len = max map { length $_ } ( '$INC[99]', keys %{ $seen_known_markers || {} } );
 
 my $discl = <<'EOD';
@@ -395,16 +394,16 @@ $final_out .= "=============================\n";
 
 $final_out .= join "\n", (map
   { sprintf (
-    "%*s  %*s  %s%s",
+    "%*s  %*s  %*s%s",
     $max_marker_len => $interesting_modules->{$_}{source_marker} || '',
     $max_ver_len => ( defined $interesting_modules->{$_}{version}
       ? $interesting_modules->{$_}{version}
       : ''
     ),
-    $_,
+    -76 => $_,
     ($interesting_modules->{$_}{full_path}
-      ? ' ' x (80 - min( 78, length($_) )) . "[ MD5: @{[ get_md5( $interesting_modules->{$_}{full_path} ) ]} ]"
-      : ''
+      ? "    [ MD5: @{[ get_md5( $interesting_modules->{$_}{full_path} ) ]} ]"
+      : "not -f \$INC{'@{[ module_notional_filename($_) ]}'}"
     ),
   ) }
   sort { lc($a) cmp lc($b) } keys %$interesting_modules
