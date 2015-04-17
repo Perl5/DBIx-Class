@@ -136,6 +136,15 @@ DBIx::Class::Storage::TxnScopeGuard - Scope-based transaction handling
 An object that behaves much like L<Scope::Guard>, but hardcoded to do the
 right thing with transactions in DBIx::Class.
 
+If you get the urge to call a C<rollback> method on the guard object, you're
+advised to instead wrap your scoped transaction using C<< L<eval BLOCK|perlfunc/eval> >>
+or L<Try::Tiny> and throw an exception with C<< L<die()|perlfunc/die> >>.
+Explicit rollbacks don't compose (or nest) nicely without unwinding the scope
+via an exception.
+
+A warning is emitted if the guard goes out of scope without being first
+inactivated by L</commit> or an exception.
+
 =head1 METHODS
 
 =head2 new
