@@ -49,6 +49,11 @@ sub commit {
   $self->{inactivated} = 1;
 }
 
+sub force_inactivate {
+  my $self = shift;
+  $self->{inactivated} = 1;
+}
+
 sub DESTROY {
   return if &detected_reinvoked_destructor;
 
@@ -158,6 +163,12 @@ L<DBIx::Class::Storage> object as its only argument.
 Commit the transaction, and stop guarding the scope. If this method is not
 called and this object goes out of scope (e.g. an exception is thrown) then
 the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
+
+=head2 force_inactivate
+
+Forcibly inactivate the guard, causing it to stop guarding the scope without
+committing.  You're advised not to use this and to throw an exception if you
+want to abort the transaction.  See the L</DESCRIPTION>.
 
 =cut
 

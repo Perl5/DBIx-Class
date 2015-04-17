@@ -242,4 +242,19 @@ for my $post_poison (0,1) {
   ;
 }
 
+# force_inactivate actually inactivates and doesn't emit a warning
+{
+  my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
+
+  my @warnings;
+  local $SIG{__WARN__} = sub {
+      push @warnings, @_;
+  };
+  {
+    my $g = $s->txn_scope_guard;
+    $g->force_inactivate;
+  }
+  is scalar @warnings, 0, "no warning";
+}
+
 done_testing;
