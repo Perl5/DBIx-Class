@@ -58,7 +58,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
   if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
-    # without pre-installing these in one pass things like extract_prereqs won't work
+    # without pre-installing these in one pass things won't yet work
     installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
   fi
 
@@ -116,20 +116,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
       # various pieces we may run into
       # FIXME - need to get these off metacpan or something instead
       HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
-
-      if CPAN_supports_BUILDPL ; then
-        # We will invoke a posibly MBT based BUILD-file, but we do not support
-        # configure requires. So we not only need to install MBT but its prereqs
-        # FIXME This is madness
-        HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
-      else
-        # FIXME
-        # work around Params::Validate not having a Makefile.PL so really old
-        # toolchains can not figure out what the prereqs are ;(
-        # Need to do more research before filing a bug requesting Makefile inclusion
-        HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
-      fi
-
     fi
 
 ##### END TEMPORARY WORKAROUNDS
