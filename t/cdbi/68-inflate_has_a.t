@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt cdbicompat );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt cdbicompat );
 
 use strict;
 use warnings;

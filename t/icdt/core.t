@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( test_rdbms_sqlite icdt );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( test_rdbms_sqlite ic_dt );
 
 use strict;
 use warnings;

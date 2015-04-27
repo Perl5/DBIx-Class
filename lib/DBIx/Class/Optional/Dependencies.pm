@@ -47,9 +47,9 @@ my $dbic_reqs = {
   },
 
   # a common placeholder for engines with IC::DT support based off DT::F::S
-  _icdt_strptime_based => {
+  _ic_dt_strptime_based => {
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::Strptime' => '1.2',
         },
@@ -133,7 +133,7 @@ my $dbic_reqs = {
     },
   },
 
-  icdt => {
+  ic_dt => {
     req => {
       'DateTime' => '0.55',
     },
@@ -236,7 +236,7 @@ my $dbic_reqs = {
       desc => 'Modules required to connect to SQLite',
     },
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::SQLite' => '0',
         },
@@ -246,9 +246,9 @@ my $dbic_reqs = {
 
   # centralize the specification, as we have ICDT tests which can
   # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
-  _icdt_pg_base => {
+  _ic_dt_pg_base => {
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::Pg' => '0.16004',
         },
@@ -256,12 +256,12 @@ my $dbic_reqs = {
     },
   },
 
-  icdt_pg => {
-    include => [qw( icdt _icdt_pg_base )],
+  ic_dt_pg => {
+    include => [qw( ic_dt _ic_dt_pg_base )],
   },
 
   rdbms_pg => {
-    include => '_icdt_pg_base',
+    include => '_ic_dt_pg_base',
     req => {
       # when changing this list make sure to adjust xt/optional_deps.t
       'DBD::Pg' => 0,
@@ -273,7 +273,7 @@ my $dbic_reqs = {
   },
 
   _rdbms_mssql_common => {
-    include => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
   },
 
   rdbms_mssql_odbc => {
@@ -304,7 +304,7 @@ my $dbic_reqs = {
   },
 
   _rdbms_msaccess_common => {
-    include => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
   },
 
   rdbms_msaccess_odbc => {
@@ -325,9 +325,9 @@ my $dbic_reqs = {
 
   # centralize the specification, as we have ICDT tests which can
   # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
-  _icdt_mysql_base => {
+  _ic_dt_mysql_base => {
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::MySQL' => '0',
         },
@@ -335,12 +335,12 @@ my $dbic_reqs = {
     },
   },
 
-  icdt_mysql => {
-    include => [qw( icdt _icdt_mysql_base )],
+  ic_dt_mysql => {
+    include => [qw( ic_dt _ic_dt_mysql_base )],
   },
 
   rdbms_mysql => {
-    include => '_icdt_mysql_base',
+    include => '_ic_dt_mysql_base',
     req => {
       'DBD::mysql' => 0,
     },
@@ -360,7 +360,7 @@ my $dbic_reqs = {
       desc => 'Modules required to connect to Oracle',
     },
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::Oracle' => '0',
         },
@@ -369,7 +369,7 @@ my $dbic_reqs = {
   },
 
   rdbms_ase => {
-    include => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
     req => {
       'DBD::Sybase' => 0,
     },
@@ -381,7 +381,7 @@ my $dbic_reqs = {
 
   _rdbms_db2_common => {
     augment => {
-      icdt => {
+      ic_dt => {
         req => {
           'DateTime::Format::DB2' => '0',
         },
@@ -409,7 +409,7 @@ my $dbic_reqs = {
   },
 
   rdbms_informix => {
-    include => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
     req => {
       'DBD::Informix' => 0,
     },
@@ -420,7 +420,7 @@ my $dbic_reqs = {
   },
 
   _rdbms_sqlanywhere_common => {
-    inclide => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
   },
 
   rdbms_sqlanywhere => {
@@ -443,7 +443,7 @@ my $dbic_reqs = {
   },
 
   _rdbms_firebird_common => {
-    include => '_icdt_strptime_based',
+    include => '_ic_dt_strptime_based',
   },
 
   rdbms_firebird => {
@@ -1227,7 +1227,7 @@ Somewhere in your build-file (e.g. L<ExtUtils::MakeMaker>'s F<Makefile.PL>):
 
   my %DBIC_DEPLOY_AND_ORACLE_DEPS = %{ eval {
     require $class;
-    $class->req_list_for([qw( deploy rdbms_oracle icdt )]);
+    $class->req_list_for([qw( deploy rdbms_oracle ic_dt )]);
   } || {} };
 
   \$EUMM_ARGS{PREREQ_PM} = {

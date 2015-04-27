@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt test_rdbms_oracle );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt test_rdbms_oracle );
 
 use strict;
 use warnings;

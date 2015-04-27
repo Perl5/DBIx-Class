@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt _rdbms_msaccess_common );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt _rdbms_msaccess_common );
 
 use strict;
 use warnings;
