@@ -247,8 +247,7 @@ my $dbic_reqs = {
 
   # centralize the specification, as we have ICDT tests which can
   # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
-  # not _-prefixed so that it will show up under req_group_list
-  icdt_pg => {
+  _icdt_pg_base => {
     augment => {
       icdt => {
         req => {
@@ -258,8 +257,12 @@ my $dbic_reqs = {
     },
   },
 
+  icdt_pg => {
+    include => [qw( icdt _icdt_pg_base )],
+  },
+
   rdbms_pg => {
-    include => 'icdt_pg',
+    include => '_icdt_pg_base',
     req => {
       # when changing this list make sure to adjust xt/optional_deps.t
       'DBD::Pg' => 0,
@@ -323,8 +326,7 @@ my $dbic_reqs = {
 
   # centralize the specification, as we have ICDT tests which can
   # test the full behavior of RDBMS-specific ICDT on top of bare SQLite
-  # not _-prefixed so that it will show up under req_group_list
-  icdt_mysql => {
+  _icdt_mysql_base => {
     augment => {
       icdt => {
         req => {
@@ -334,8 +336,12 @@ my $dbic_reqs = {
     },
   },
 
+  icdt_mysql => {
+    include => [qw( icdt _icdt_mysql_base )],
+  },
+
   rdbms_mysql => {
-    include => 'icdt_mysql',
+    include => '_icdt_mysql_base',
     req => {
       'DBD::mysql' => 0,
     },
