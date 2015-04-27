@@ -7,9 +7,22 @@ use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util qw(sigwarn_silencer serialize);
-use Path::Class::File ();
 use Math::BigInt;
 use List::Util qw/shuffle/;
+
+{
+  package DBICTest::StringifiesOnly;
+  use overload
+    '""' => sub { $_[0]->[0] },
+    fallback => 0,
+  ;
+}
+{
+  package DBICTest::StringifiesViaFallback;
+  use overload
+    'bool' => sub { $_[0]->[0] },
+  ;
+}
 
 my $schema = DBICTest->init_schema();
 
@@ -388,8 +401,8 @@ warnings_like {
 
   # the stringification has nothing to do with the artist name
   # this is solely for testing consistency
-  my $fn = Path::Class::File->new ('somedir/somefilename.tmp');
-  my $fn2 = Path::Class::File->new ('somedir/someotherfilename.tmp');
+  my $fn = bless [ 'somedir/somefilename.tmp' ], 'DBICTest::StringifiesOnly';
+  my $fn2 = bless [ 'somedir/someotherfilename.tmp' ], 'DBICTest::StringifiesViaFallback';
   my $rank = Math::BigInt->new(42);
 
   my $args = {
@@ -443,12 +456,17 @@ warnings_like {
   };
 
   # generate the AoH equivalent based on the AoAs above
+  # also generate the expected HRI output ( is_deeply is too smart for its own good )
   for my $bag (values %$args) {
     $bag->{AoH} = [];
+    $bag->{Expected} = [];
     my @hdr = @{$bag->{AoA}[0]};
     for my $v ( @{$bag->{AoA}}[1..$#{$bag->{AoA}}] ) {
       push @{$bag->{AoH}}, my $h = {};
       @{$h}{@hdr} = @$v;
+
+      push @{$bag->{Expected}}, my $hs = {};
+      @{$hs}{@hdr} = map { "$_" } @$v;
     }
   }
 
@@ -464,7 +482,7 @@ warnings_like {
       $rs->populate($args->{$tst}{$type});
       is_deeply(
         $rs->all_hri,
-        $args->{$tst}{AoH},
+        $args->{$tst}{Expected},
         "Populate() $tst in void context"
       );
 
@@ -473,7 +491,7 @@ warnings_like {
       my $dummy = $rs->populate($args->{$tst}{$type});
       is_deeply(
         $rs->all_hri,
-        $args->{$tst}{AoH},
+        $args->{$tst}{Expected},
         "Populate() $tst in non-void context"
       );
 
@@ -482,7 +500,7 @@ warnings_like {
       my @dummy = $rs->populate($args->{$tst}{$type});
       is_deeply(
         $rs->all_hri,
-        $args->{$tst}{AoH},
+        $args->{$tst}{Expected},
         "Populate() $tst in non-void context"
       );
     }
@@ -493,7 +511,7 @@ warnings_like {
 
     is_deeply(
       $rs->all_hri,
-      $args->{$tst}{AoH},
+      $args->{$tst}{Expected},
       "Create() $tst"
     );
   }

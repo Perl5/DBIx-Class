@@ -5,6 +5,10 @@ Revision history for DBIx::Class
           ->req_list_for([qw( rdbms_oracle ic_dt )]) bringing in the Oracle
           specific DateTime::Format dependencies
 
+    * Fixes
+        - Fix corner case of stringify-only overloaded objects being used in
+          create()/populate()
+
     * Misc
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
