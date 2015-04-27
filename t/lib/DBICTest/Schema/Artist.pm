@@ -180,7 +180,7 @@ sub sqlt_deploy_hook {
 
 sub store_column {
   my ($self, $name, $value) = @_;
-  $value = 'X '.$value if ($name eq 'name' && $value && $value =~ /(X )?store_column test/);
+  $value = 'X '.$value if ($name eq 'name' && defined $value && $value =~ /(X )?store_column test/);
   $self->next::method($name, $value);
 }
 

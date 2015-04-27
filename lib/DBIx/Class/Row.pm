@@ -9,7 +9,7 @@ use Scalar::Util 'blessed';
 use List::Util 'first';
 use Try::Tiny;
 use DBIx::Class::Carp;
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract qw( is_literal_value is_plain_value );
 
 ###
 ### Internal method
@@ -1215,7 +1215,13 @@ sub store_column {
     unless exists $self->{_column_data}{$column} || $self->result_source->has_column($column);
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
-  return $self->{_column_data}{$column} = $value;
+
+  # stringify all refs explicitly, guards against overloaded objects
+  # with defined stringification AND fallback => 0 (ugh!)
+  $self->{_column_data}{$column} = ( length ref $value and is_plain_value( $value ) )
+    ? "$value"
+    : $value
+  ;
 }
 
 =head2 inflate_result
