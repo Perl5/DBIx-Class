@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt icdt_pg );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt_pg );
 
 use strict;
 use warnings;
