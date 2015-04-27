@@ -195,7 +195,7 @@ is_deeply (
 # ICDT augmentation
   my %expected_icdt_base = ( DateTime => '0.55', 'DateTime::TimeZone::OlsonDB' => 0 );
 
-  my $mysql_icdt = [shuffle qw( test_rdbms_mysql icdt )];
+  my $mysql_icdt = [shuffle qw( test_rdbms_mysql ic_dt )];
 
   is_deeply(
     DBIx::Class::Optional::Dependencies->modreq_list_for($mysql_icdt),
@@ -222,7 +222,7 @@ is_deeply (
 # test multi-level include with a variable and mandatory part converging on same included dep
   local $ENV{DBICTEST_MSACCESS_ODBC_DSN};
   local $ENV{DBICTEST_MSSQL_ODBC_DSN} = 'foo';
-  my $msaccess_mssql_icdt = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc icdt ) ];
+  my $msaccess_mssql_icdt = [ shuffle qw( test_rdbms_msaccess_odbc test_rdbms_mssql_odbc ic_dt ) ];
   is_deeply(
     DBIx::Class::Optional::Dependencies->req_missing_for($msaccess_mssql_icdt),
     'Data::GUID DateTime~0.55 DateTime::Format::Strptime~1.2 DateTime::TimeZone::OlsonDB DBD::ODBC as well as the following group(s) of environment variables: DBICTEST_MSACCESS_ODBC_DSN/..._USER/..._PASS',

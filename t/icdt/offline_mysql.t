@@ -1,4 +1,4 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => qw( icdt_mysql );
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt_mysql );
 
 use strict;
 use warnings;

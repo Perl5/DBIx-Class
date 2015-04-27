@@ -2,7 +2,7 @@ Revision history for DBIx::Class
     * New Features
         - DBIx::Class::Optional::Dependencies now properly understands
           combinations of requirements and does the right thing with e.g.
-          ->req_list_for([qw( rdbms_oracle icdt )]) bringing in the Oracle
+          ->req_list_for([qw( rdbms_oracle ic_dt )]) bringing in the Oracle
           specific DateTime::Format dependencies
 
     * Fixes
