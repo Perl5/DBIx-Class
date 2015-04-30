@@ -343,8 +343,6 @@ sub create {
   $sqlt_type ||= $self->sql_type();
 
   my $schema = $self->schema();
-  # create the dir if does not exist
-  $self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
 
   $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
 }
