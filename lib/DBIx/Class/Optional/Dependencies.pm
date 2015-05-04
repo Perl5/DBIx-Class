@@ -878,7 +878,7 @@ sub __envvar_group_desc {
   join '/', @res;
 }
 
-my $groupname_re = qr/ [A-Z_a-z][0-9A-Z_a-z]* /x;
+my $groupname_re = qr/ [a-z_] [0-9_a-z]* /x;
 my $modname_re = qr/ [A-Z_a-z] [0-9A-Z_a-z]* (?:::[0-9A-Z_a-z]+)* /x;
 my $modver_re = qr/ [0-9]+ (?: \. [0-9]+ )? /x;
 
