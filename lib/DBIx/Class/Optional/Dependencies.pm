@@ -98,8 +98,18 @@ my $dbic_reqs = {
     },
   },
 
+  config_file_reader => {
+    pod => {
+      title => 'Generic config reader',
+      desc => 'Modules required for generic config file parsing, currently Config::Any (rarely used at runtime)',
+    },
+    req => {
+      'Config::Any' => '0.20',
+    },
+  },
+
   admin => {
-    include => '_json_any',
+    include => [qw( _json_any config_file_reader )],
     req => {
       %$moose_basic,
       'MooseX::Types::Path::Class' => '0.05',

@@ -57,6 +57,8 @@ Revision history for DBIx::Class
         - Work around rare test deadlock under heavy parallelism (RT#108390)
         - Stop using bare $] throughout - protects the codebase from issues
           similar (but likely not limited to) P5#72210
+        - Config::Any is no longer a core dep, but instead is migrated to a new
+          optdep group 'config_file_reader'
 
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes

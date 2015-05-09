@@ -24,7 +24,9 @@ BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE)} }
    is($schema->storage->debugobj->_sqlat->indent_string, ' ', 'indent string set correctly from console profile');
 }
 
-{
+SKIP:{
+   DBIx::Class::Optional::Dependencies->skip_without('config_file_reader' );
+
    local $ENV{DBIC_TRACE_PROFILE} = './t/lib/awesome.json';
 
    my $schema = DBICTest->init_schema;

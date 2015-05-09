@@ -572,7 +572,10 @@ sub debugobj {
       my @pp_args;
 
       if ($profile =~ /^\.?\//) {
-        require Config::Any;
+
+        if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('config_file_reader') ) {
+          $self->throw_exception("Unable to parse TRACE_PROFILE config file '$profile' without $missing");
+        }
 
         my $cfg = try {
           Config::Any->load_files({ files => [$profile], use_ext => 1 });

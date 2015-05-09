@@ -18,7 +18,6 @@ use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use MooseX::Types::LoadableClass qw(LoadableClass);
-use Try::Tiny;
 use namespace::clean;
 
 =head1 NAME
@@ -209,9 +208,6 @@ has config => (
 
 sub _build_config {
   my ($self) = @_;
-
-  try { require Config::Any }
-    catch { die ("Config::Any is required to parse the config file.\n") };
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
