@@ -30,13 +30,13 @@ use constant {
 use Config;
 use Carp qw(cluck confess croak);
 use Fcntl qw( :DEFAULT :flock );
-use Scalar::Util qw(blessed refaddr);
+use Scalar::Util qw( blessed refaddr openhandle );
 use DBIx::Class::_Util qw( scope_guard parent_dir mkdir_p );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace
-  local_umask tmpdir find_co_root
+  local_umask slurp_bytes tmpdir find_co_root rm_rf
   visit_namespaces PEEPEENESS
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
@@ -102,7 +102,7 @@ sub local_umask ($) {
     if ! defined wantarray;
 
   my $old_umask = umask($_[0]);
-  die "Setting umask failed: $!" unless defined $old_umask;
+  croak "Setting umask failed: $!" unless defined $old_umask;
 
   scope_guard(sub {
     local ($@, $!, $?);
@@ -243,6 +243,62 @@ EOE
 
     $dir;
   };
+}
+
+
+sub slurp_bytes ($) {
+  croak "Expecting a file name, not a filehandle" if openhandle $_[0];
+  croak "'$_[0]' is not a readable filename" unless -f $_[0] && -r $_[0];
+  open my $fh, '<:raw', $_[0] or croak "Unable to open '$_[0]': $!";
+  local $/ unless wantarray;
+  <$fh>;
+}
+
+
+sub rm_rf ($) {
+  croak "No valid argument supplied to rm_rf()" unless length "$_[0]";
+
+  return unless -e $_[0];
+
+### I do not trust myself - check for subsuming ( the right way )
+### Avoid things like https://rt.cpan.org/Ticket/Display.html?id=111637
+  require Cwd;
+
+  my ($target, $tmp, $co_tmp) = map {
+
+    my $abs_fn = Cwd::abs_path("$_");
+
+    if ( $^O eq 'MSWin32' and length $abs_fn ) {
+
+      # sometimes we can get a short/longname mix, normalize everything to longnames
+      $abs_fn = Win32::GetLongPathName($abs_fn);
+
+      # Fixup for unixy (as opposed to native) slashes
+      $abs_fn =~ s|\\|/|g;
+    }
+
+    $abs_fn =~ s| (?<! / ) $ |/|x
+      if -d $abs_fn;
+
+    ( $abs_fn =~ /(.+)/s )[0]
+
+  } ( $_[0], tmpdir, find_co_root . 't/var' );
+
+  croak(
+    "Path supplied to rm_rf() '$target' is neither within the local nor the "
+  . "global scratch dirs ( '$co_tmp' and '$tmp' ): REFUSING TO `rm -rf` "
+  . 'at random'
+  ) unless (
+    ( index($target, $co_tmp) == 0 and $target ne $co_tmp )
+      or
+    ( index($target, $tmp) == 0    and $target ne $tmp )
+  );
+###
+
+  require File::Path;
+
+  # do not ask for a recent version, use 1.x API calls
+  File::Path::rmtree([ $target ]);
 }
 
 

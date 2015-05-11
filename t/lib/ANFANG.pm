@@ -123,6 +123,13 @@ BEGIN {
 
 use lib 't/lib';
 
+# everything expects this to be there
+! -d 't/var' and (
+  mkdir 't/var'
+    or
+  die "Unable to create 't/var': $!\n"
+);
+
 # Back in ab340f7f ribasushi stupidly introduced a "did you check your deps"
 # verification tied very tightly to Module::Install. The check went away, and
 # so eventually will M::I, but bisecting can bring all of this back from the

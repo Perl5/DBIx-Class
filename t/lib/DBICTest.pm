@@ -27,14 +27,13 @@ BEGIN {
 
 
 use DBICTest::Util qw(
-  local_umask tmpdir await_flock
+  local_umask slurp_bytes tmpdir await_flock
   dbg DEBUG_TEST_CONCURRENCY_LOCKS PEEPEENESS
 );
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBICTest::Schema;
 use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
 use Carp;
-use Path::Class::File ();
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
 
@@ -152,36 +151,21 @@ sub import {
 }
 
 END {
-    # referencing here delays destruction even more
-    if ($global_lock_fh) {
-      DEBUG_TEST_CONCURRENCY_LOCKS > 1
-        and dbg "Release @{[ $global_exclusive_lock ? 'EXCLUSIVE' : 'SHARED' ]} global lock (END)";
-      1;
-    }
+  # referencing here delays destruction even more
+  if ($global_lock_fh) {
+    DEBUG_TEST_CONCURRENCY_LOCKS > 1
+      and dbg "Release @{[ $global_exclusive_lock ? 'EXCLUSIVE' : 'SHARED' ]} global lock (END)";
+    1;
+  }
+
+  _cleanup_dbfile();
 }
 
-{
-    my $dir = Path::Class::File->new(__FILE__)->dir->parent->subdir('var');
-    $dir->mkpath unless -d "$dir";
-    $dir = "$dir";
+sub _sqlite_dbfilename {
+  my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
+  $holder = $$ if $holder == -1;
 
-    sub _sqlite_dbfilename {
-        my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
-        $holder = $$ if $holder == -1;
-
-        # useful for missing cleanup debugging
-        #if ( $holder == $$) {
-        #  my $x = $0;
-        #  $x =~ s/\//#/g;
-        #  $holder .= "-$x";
-        #}
-
-        return "$dir/DBIxClass-$holder.db";
-    }
-
-    END {
-        _cleanup_dbfile();
-    }
+  return "t/var/DBIxClass-$holder.db";
 }
 
 $SIG{INT} = sub { _cleanup_dbfile(); exit 1 };
@@ -439,9 +423,7 @@ sub deploy_schema {
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
         $schema->deploy($args);
     } else {
-        my $filename = Path::Class::File->new(__FILE__)->dir
-          ->file('sqlite.sql')->stringify;
-        my $sql = do { local (@ARGV, $/) = $filename ; <> };
+        my $sql = slurp_bytes( 't/lib/sqlite.sql' );
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
             $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";

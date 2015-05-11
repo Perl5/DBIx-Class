@@ -6,6 +6,7 @@ use warnings;
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
+use IO::Handle ();
 use DBIx::Class::_Util 'scope_guard';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );

@@ -103,10 +103,8 @@ if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
   # this loads the DT armada
   $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for([qw( test_rdbms_sqlite ic_dt )]);
 
-  require Errno;
   require DBI;
   require DBD::SQLite;
-  require FileHandle;
   require Moo;
 
   %$weak_registry = ();
@@ -443,8 +441,8 @@ for my $addr (keys %$weak_registry) {
     # T::B 2.0 has result objects and other fancyness
     delete $weak_registry->{$addr};
   }
-  elsif ($names =~ /^Class::Struct/m) {
-    # remove this when Path::Class is gone, what a crock of shit
+  # remove this when IO::Dir is gone from SQLT
+  elsif ($INC{"IO/Dir.pm"} and $names =~ /^Class::Struct::Tie_ISA/m) {
     delete $weak_registry->{$addr};
   }
   elsif ($names =~ /^Hash::Merge/m) {

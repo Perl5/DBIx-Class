@@ -2,9 +2,17 @@ package DBIx::Class::InflateColumn::File;
 
 use strict;
 use warnings;
+
+# check deps
+BEGIN {
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('ic_file') ) {
+    die "The following extra modules are required for DBIx::Class::InflateColumn::File: $missing\n";
+  }
+}
+
 use base 'DBIx::Class';
 use File::Copy;
-use Path::Class;
 use DBIx::Class::Carp;
 use namespace::clean;
 

@@ -8,11 +8,9 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
-use Path::Class;
-
-
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
+use DBICTest::Util 'rm_rf';
 
 use DBIx::Class::Admin;
 
@@ -26,7 +24,7 @@ my @connect_info = (
   undef,
   { on_connect_do => 'PRAGMA synchronous = OFF' },
 );
-my $ddl_dir = dir(qw/t var/, "admin_ddl-$$");
+my $ddl_dir = "t/var/admin_ddl-$$";
 
 { # create the schema
 
@@ -116,8 +114,7 @@ is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 }
 
 sub cleanup {
-  my ($dir) = @_;
-  $ddl_dir->rmtree if -d $ddl_dir;
+  rm_rf $ddl_dir if -d $ddl_dir;
   unlink $db_fn;
 }
 

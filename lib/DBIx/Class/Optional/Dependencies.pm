@@ -144,6 +144,16 @@ my $dbic_reqs = {
     },
   },
 
+  ic_file => {
+    req => {
+      'Path::Class' => '0.18',
+    },
+    pod => {
+      title => 'DBIx::Class::InflateColumn::File (Deprecated)',
+      desc => 'Modules required for the deprecated L<DBIx::Class::InflateColumn::File>',
+    },
+  },
+
   ic_dt => {
     req => {
       'DateTime' => '0.55',
@@ -1206,16 +1216,12 @@ sub _gen_pod {
 "\n\n---------------------------------------------------------------------\n"
   ;
 
-  # do not ask for a recent version, use 1.x API calls
-  # this *may* execute on a smoker with old perl or whatnot
-  require File::Path;
-
   (my $modfn = __PACKAGE__ . '.pm') =~ s|::|/|g;
 
   (my $podfn = "$pod_dir/$modfn") =~ s/\.pm$/\.pod/;
-  (my $dir = $podfn) =~ s|/[^/]+$||;
 
-  File::Path::mkpath([$dir]);
+  require DBIx::Class::_Util;
+  DBIx::Class::_Util::mkdir_p( DBIx::Class::_Util::parent_dir( $podfn ) );
 
   my $sqltver = $class->req_list_for('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";

@@ -65,7 +65,6 @@ my $runtime_requires = {
   'MRO::Compat'              => '0.12',
   'Module::Find'             => '0.07',
   'namespace::clean'         => '0.24',
-  'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.81',
   'Try::Tiny'                => '0.07',

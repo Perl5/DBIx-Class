@@ -71,21 +71,21 @@ if(defined (my $fn = $opts->{documentation_as_pod}) ) {
   $usage->synopsis($synopsis_text);
   $usage->short_description($short_description);
 
+  my $fh;
   if ($fn) {
-    require File::Spec;
-    require File::Path;
-    my $dir = File::Spec->catpath( (File::Spec->splitpath($fn))[0,1] );
-    File::Path::mkpath([$dir]);
+    require DBIx::Class::_Util;
+    DBIx::Class::_Util::mkdir_p( DBIx::Class::_Util::parent_dir( $fn ) );
+    open( $fh, '>', $fn ) or die "Unable to open $fn: $!\n";
+  }
+  else {
+    $fh = \*STDOUT;
   }
 
-  local *STDOUT if $fn;
-  open (STDOUT, '>', $fn) or die "Unable to open $fn: $!\n" if $fn;
+  print $fh "\n";
+  print $fh $usage->pod;
+  print $fh "\n";
 
-  print STDOUT "\n";
-  print STDOUT $usage->pod;
-  print STDOUT "\n";
-
-  close STDOUT if $fn;
+  close $fh if $fn;
   exit 0;
 }
 

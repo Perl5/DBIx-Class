@@ -37,12 +37,9 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   if [[ "$CLEANTEST" = "true" ]]; then
 
     # Clone and P::S::XS are both bugs
-    # File::Spec can go away as soon as I dump Path::Class
-    # File::Path is there because of RT#107392 (sigh)
     # List::Util can be excised after that as well (need to make my own max() routine for older perls)
 
     installdeps Sub::Name Clone Package::Stash::XS \
-                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
                 $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
 
     mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
@@ -86,14 +83,11 @@ else
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
-  # (e.g. once Carp is upgraded there's no more Carp::Heavy,
-  # while a File::Path upgrade may cause a parallel EUMM run to fail)
+  # (e.g. once Carp is upgraded there's no more Carp::Heavy)
   #
-  parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Module::Runtime
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant

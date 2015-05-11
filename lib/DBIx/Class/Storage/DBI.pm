@@ -17,6 +17,7 @@ use DBIx::Class::_Util qw(
   quote_sub perlstring serialize
   dbic_internal_try
   detected_reinvoked_destructor scope_guard
+  mkdir_p
 );
 use namespace::clean;
 
@@ -2937,20 +2938,13 @@ them.
 sub create_ddl_dir {
   my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
-  unless ($dir) {
+  if (!$dir) {
     carp "No directory given, using ./\n";
     $dir = './';
-  } else {
-      -d $dir
-        or
-      (require File::Path and File::Path::mkpath (["$dir"]))  # mkpath does not like objects (i.e. Path::Class::Dir)
-        or
-      $self->throw_exception(
-        "Failed to create '$dir': " . ($! || $@ || 'error unknown')
-      );
   }
-
-  $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
+  else {
+    mkdir_p( $dir ) unless -d $dir;
+  }
 
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
   $databases = [ $databases ] if(ref($databases) ne 'ARRAY');

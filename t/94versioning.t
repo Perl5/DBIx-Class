@@ -8,13 +8,11 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use Path::Class;
-use File::Copy;
 use Time::HiRes qw/time sleep/;
 
-
 use DBICTest;
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw( sigwarn_silencer mkdir_p );
+use DBICTest::Util 'rm_rf';
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -31,15 +29,15 @@ use_ok('DBICVersion_v1');
 my $version_table_name = 'dbix_class_schema_versions';
 my $old_table_name = 'SchemaVersions';
 
-my $ddl_dir = dir(qw/t var/, "versioning_ddl-$$");
-$ddl_dir->mkpath unless -d $ddl_dir;
+my $ddl_dir = "t/var/versioning_ddl-$$";
+mkdir_p $ddl_dir unless -d $ddl_dir;
 
 my $fn = {
-    v1 => $ddl_dir->file ('DBICVersion-Schema-1.0-MySQL.sql'),
-    v2 => $ddl_dir->file ('DBICVersion-Schema-2.0-MySQL.sql'),
-    v3 => $ddl_dir->file ('DBICVersion-Schema-3.0-MySQL.sql'),
-    trans_v12 => $ddl_dir->file ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
-    trans_v23 => $ddl_dir->file ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
+    v1 => "$ddl_dir/DBICVersion-Schema-1.0-MySQL.sql",
+    v2 => "$ddl_dir/DBICVersion-Schema-2.0-MySQL.sql",
+    v3 => "$ddl_dir/DBICVersion-Schema-3.0-MySQL.sql",
+    trans_v12 => "$ddl_dir/DBICVersion-Schema-1.0-2.0-MySQL.sql",
+    trans_v23 => "$ddl_dir/DBICVersion-Schema-2.0-3.0-MySQL.sql",
 };
 
 my $schema_v1 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
@@ -284,9 +282,7 @@ is
 ;
 
 END {
-  unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
-    $ddl_dir->rmtree;
-  }
+  rm_rf $ddl_dir unless $ENV{DBICTEST_KEEP_VERSIONING_DDL};
 }
 
 done_testing;

@@ -17,6 +17,7 @@ use threads;
 use strict;
 use warnings;
 use Test::More;
+use Errno ();
 use DBIx::Class::_Util 'sigwarn_silencer';
 
 use DBICTest;

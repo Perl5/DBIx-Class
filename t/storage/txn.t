@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
+use Errno ();
 
 use DBICTest;
 
@@ -215,7 +216,6 @@ sub _test_forking_action {
 
     my $pid = fork();
     if( ! defined $pid ) {
-
       skip "EAGAIN encountered, your system is likely bogged down: skipping forking test", 1
         if $! == Errno::EAGAIN();
 
