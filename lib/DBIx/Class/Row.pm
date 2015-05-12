@@ -1228,13 +1228,7 @@ sub store_column {
     unless exists $self->{_column_data}{$column} || $self->result_source->has_column($column);
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
-
-  # stringify all refs explicitly, guards against overloaded objects
-  # with defined stringification AND fallback => 0 (ugh!)
-  $self->{_column_data}{$column} = ( length ref $value and is_plain_value( $value ) )
-    ? "$value"
-    : $value
-  ;
+  return $self->{_column_data}{$column} = $value;
 }
 
 =head2 inflate_result
