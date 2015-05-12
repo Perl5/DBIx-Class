@@ -176,6 +176,29 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   return 0;
 }
 
+use Data::Dump qw/ pp /;
+my $create_related_row =  sub {
+  my( $new, $key, $others ) =  @_;
+  my $total = @$others;
+  my @objects;
+  foreach my $idx (0 .. $#$others) {
+    my $rel_obj = $others->[$idx];
+    if(!blessed $rel_obj) {
+      $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
+    }
+
+    if ($rel_obj->in_storage) {
+      $rel_obj->throw_exception ('A multi relationship can not be pre-existing when doing multicreate. Something went wrong');
+    } else {
+      MULTICREATE_DEBUG and
+        print STDERR "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
+    }
+    push(@objects, $rel_obj);
+  }
+
+  return @objects;
+};
+
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
@@ -198,7 +221,6 @@ sub new {
     }
 
     my ($related,$inflated);
-
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
         ## Can we extract this lot to use with update(_or .. ) ?
@@ -223,24 +245,9 @@ sub new {
           next;
         }
         elsif ($acc_type eq 'multi' && ref $attrs->{$key} eq 'ARRAY' ) {
-          my $others = delete $attrs->{$key};
-          my $total = @$others;
-          my @objects;
-          foreach my $idx (0 .. $#$others) {
-            my $rel_obj = $others->[$idx];
-            if(!blessed $rel_obj) {
-              $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
-            }
-
-            if ($rel_obj->in_storage) {
-              $rel_obj->throw_exception ('A multi relationship can not be pre-existing when doing multicreate. Something went wrong');
-            } else {
-              MULTICREATE_DEBUG and
-                print STDERR "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
-            }
-            push(@objects, $rel_obj);
-          }
-          $related->{$key} = \@objects;
+          # We can add related (children) row *ONLY AFTER* main (parent) row is created!!!
+          # So we postpone creation (see below)
+          $related->{$key} =  delete $attrs->{$key};
           next;
         }
         elsif ($acc_type eq 'filter') {
@@ -268,6 +275,12 @@ sub new {
         }
       }
       $new->store_column($key => $attrs->{$key});
+    }
+    # After main (master) row's columns are stored (new row is created)
+    # we can add related (children) rows
+    #die pp $new;
+    foreach my $key ( keys %$related ) {
+      $related->{$key} =  [ $create_related_row->( $new, $key, $related->{$key} ) ];
     }
 
     $new->{_relationship_data} = $related if $related;
@@ -1215,13 +1228,7 @@ sub store_column {
     unless exists $self->{_column_data}{$column} || $self->result_source->has_column($column);
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
-
-  # stringify all refs explicitly, guards against overloaded objects
-  # with defined stringification AND fallback => 0 (ugh!)
-  $self->{_column_data}{$column} = ( length ref $value and is_plain_value( $value ) )
-    ? "$value"
-    : $value
-  ;
+  return $self->{_column_data}{$column} = $value;
 }
 
 =head2 inflate_result
