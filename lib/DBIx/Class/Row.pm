@@ -176,7 +176,6 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   return 0;
 }
 
-use Data::Dump qw/ pp /;
 my $create_related_row =  sub {
   my( $new, $key, $others ) =  @_;
   my $total = @$others;
@@ -278,7 +277,6 @@ sub new {
     }
     # After main (master) row's columns are stored (new row is created)
     # we can add related (children) rows
-    #die pp $new;
     foreach my $key ( keys %$related ) {
       $related->{$key} =  [ $create_related_row->( $new, $key, $related->{$key} ) ];
     }
