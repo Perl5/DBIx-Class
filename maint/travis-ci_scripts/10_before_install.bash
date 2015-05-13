@@ -62,7 +62,7 @@ fi
 export CACHE_DIR="/tmp/poormanscache"
 
 # these will be installed no matter what, also some extras unless CLEANTEST
-common_packages="libapp-nopaste-perl tree"
+common_packages="libapp-nopaste-perl"
 
 if [[ "$CLEANTEST" = "true" ]]; then
 

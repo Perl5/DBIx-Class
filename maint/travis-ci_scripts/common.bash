@@ -221,10 +221,10 @@ eval qq{require($mod)} or ( print $@ and exit 1)
 # https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
 # Only works on 5.12+ (where sitelib was finally properly fixed)
 purge_sitelib() {
+  echo_err "$(tstamp) Sterilizing the Perl installation (cleaning up sitelib)"
 
   if perl -M5.012 -e1 &>/dev/null ; then
 
-    echo_err "$(tstamp) Cleaning up Perl installation"
     perl -M5.012 -MConfig -MFile::Find -e '
       my $sitedirs = {
         map { $Config{$_} => 1 }
@@ -235,9 +235,43 @@ purge_sitelib() {
         ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
       } }, keys %$sitedirs )
     '
-    echo_err "Post-cleanup contents of sitelib:"
-    echo_err "$(tree $(perl -MConfig -e 'print $Config{sitelib_stem}'))"
-    echo_err
+  else
+
+    cl_fn="/tmp/${TRAVIS_BUILD_ID}_Module_CoreList.pm";
+
+    [[ -s "$cl_fn" ]] || run_or_err \
+      "Downloading latest Module::CoreList" \
+      "curl -s --compress -o '$cl_fn' https://api.metacpan.org/source/Module::CoreList"
+
+    perl -0777 -Ilib -MDBIx::Class::Optional::Dependencies -e '
+
+      # this is horrible, but really all we want is "has this ever been used"
+      # so a grep without a load is quite legit (and horrible)
+      my $mcl_source = <>;
+
+      my @all_possible_never_been_core_modpaths = map
+        { (my $mp = $_ . ".pm" ) =~ s|::|/|g; $mp }
+        grep
+          { $mcl_source !~ / ^ \s+ \x27 $_ \x27 \s* \=\> /mx }
+          keys %{ DBIx::Class::Optional::Dependencies->modreq_list_for([
+            keys %{ DBIx::Class::Optional::Dependencies->req_group_list }
+          ])}
+      ;
+
+      # now that we have the list we can go ahead and destroy every single one
+      # of these modules without being concerned about breaking the base ability
+      # to install things
+      for my $mp ( sort { lc($a) cmp lc($b) } @all_possible_never_been_core_modpaths ) {
+        for my $incdir (@INC) {
+          -e "$incdir/$mp"
+            and
+          unlink "$incdir/$mp"
+            and
+          print "Nuking $incdir/$mp\n"
+        }
+      }
+    ' "$cl_fn"
+
   fi
 }
 
