@@ -236,12 +236,14 @@ sub new {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
     }
 
+
+    $new->throw_exception("Can't do multi-create without result source")
+      unless $rsrc;
+
     my( $postponed, $inflated );
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
         ## Can we extract this lot to use with update(_or .. ) ?
-        $new->throw_exception("Can't do multi-create without result source")
-          unless $rsrc;
         my $info = $rsrc->relationship_info($key);
         my $acc_type = $info->{attrs}{accessor} || '';
         if(   $acc_type eq 'single'
