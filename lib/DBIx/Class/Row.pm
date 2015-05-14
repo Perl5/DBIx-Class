@@ -244,18 +244,13 @@ sub new {
           unless $rsrc;
         my $info = $rsrc->relationship_info($key);
         my $acc_type = $info->{attrs}{accessor} || '';
-        if ($acc_type eq 'single') {
-          $postponed->{$key} =  [ $acc_type, delete $attrs->{$key} ];
-          next;
-        }
-        elsif ($acc_type eq 'multi' && ref $attrs->{$key} eq 'ARRAY' ) {
+        if(   $acc_type eq 'single'
+          ||  $acc_type eq 'multi'  &&  ref $attrs->{$key} eq 'ARRAY'
+          ||  $acc_type eq 'filter'
+        ) {
           # We can add related (children) row *ONLY AFTER* main (parent) row is created!!!
           # So we postpone creation (see below)
           $postponed->{$key} =  [ $acc_type, delete $attrs->{$key} ];
-          next;
-        }
-        elsif ($acc_type eq 'filter') {
-          $postponed->{$key} = [ $acc_type, delete $attrs->{$key} ];
           next;
         }
         elsif (
