@@ -447,6 +447,14 @@ for my $addr (keys %$weak_registry) {
     delete $weak_registry->{$addr}
       unless $cleared->{hash_merge_singleton}{$weak_registry->{$addr}{weakref}{behavior}}++;
   }
+  elsif ($names =~ /^B::Hooks::EndOfScope::PP::_TieHintHashFieldHash/m) {
+    # there is one tied lexical which stays alive until GC time
+    # https://metacpan.org/source/ETHER/B-Hooks-EndOfScope-0.15/lib/B/Hooks/EndOfScope/PP/FieldHash.pm#L24
+    # simply ignore it here, instead of teaching the leaktracer to examine ties
+    # the latter is possible yet terrible: https://github.com/dbsrgits/dbix-class/blob/v0.082820/t/lib/DBICTest/Util/LeakTracer.pm#L113-L117
+    delete $weak_registry->{$addr}
+      unless $cleared->{bheos_pptiehinthashfieldhash}++;
+  }
   elsif ($names =~ /^DateTime::TimeZone::UTC/m) {
     # DT is going through a refactor it seems - let it leak zones for now
     delete $weak_registry->{$addr};
