@@ -59,7 +59,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
     # without pre-installing these in one pass things won't yet work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
+    installdeps Module::Build
   fi
 
 else
@@ -70,16 +70,15 @@ else
   # (e.g. once Carp is upgraded there's no more Carp::Heavy,
   # while a File::Path upgrade may cause a parallel EUMM run to fail)
   #
-  parallel_installdeps_notest ExtUtils::MakeMaker
   parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
+  parallel_installdeps_notest File::Spec Module::Runtime
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
@@ -112,10 +111,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
       # DBD::SQLite reasonably wants DBI at config time
       perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
 
-      # this is a fucked CPAN - won't understand configure_requires of
-      # various pieces we may run into
-      # FIXME - need to get these off metacpan or something instead
-      HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
     fi
 
 ##### END TEMPORARY WORKAROUNDS
