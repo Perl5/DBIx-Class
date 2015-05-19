@@ -33,6 +33,21 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     parallel_installdeps_notest DBD::SQLite@1.29
   fi
 
+  # also try minimal tested installs *without* a compiler
+  if [[ "$CLEANTEST" = "true" ]]; then
+
+    # Clone and P::S::XS are both bugs
+    # File::Spec can go away as soon as I dump Path::Class
+    # List::Util can be excised after that as well (need to make my own max() routine for older perls)
+
+    installdeps Sub::Name Clone Package::Stash::XS \
+                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Spec" ) \
+                $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
+
+    mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
+    run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
+               "ln -s /bin/false $HOME/bin/cc"
+  fi
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
