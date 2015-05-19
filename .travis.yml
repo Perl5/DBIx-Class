@@ -84,6 +84,7 @@ matrix:
     - perl: 5.8.3_nt_mb
       env:
         - CLEANTEST=true
+        - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console_monochrome
         - BREWVER=5.8.3
         - BREWOPTS="-Dusemorebits"
@@ -119,10 +120,11 @@ matrix:
         - BREWVER=5.8.8
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    # CLEANTEST: this is the perl suse ships
+    # CLEANTEST: this is the perl suse ships, with env poisoning
     - perl: 5.10.0_thr_dbg
       env:
         - CLEANTEST=true
+        - POISON_ENV=true
         - BREWVER=5.10.0
         - BREWOPTS="-DDEBUGGING -Duseithreads"
 
@@ -139,10 +141,10 @@ matrix:
     - perl: 5.12.3_thr
       env:
         - CLEANTEST=true
+        - POISON_ENV=true
         - DBIC_TRACE=1
         - DBIC_MULTICREATE_DEBUG=1
         - DBIC_STORAGE_RETRY_DEBUG=1
-        - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console
         - BREWVER=5.12.3
         - BREWOPTS="-Duseithreads"
@@ -150,38 +152,45 @@ matrix:
     - perl: 5.16.3_thr_mb
       env:
         - CLEANTEST=false
-        - DBIC_TRACE=1
         - POISON_ENV=true
+        - DBIC_TRACE=1
         - BREWVER=5.16.3
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     - perl: 5.18-extras
       env:
         - CLEANTEST=false
-        - DBIC_TRACE=1
         - POISON_ENV=true
+        - DBIC_TRACE=1
         - DBIC_TRACE_PROFILE=console_monochrome
         - DBICTEST_VIA_REPLICATED=0
 
     ###
     # Start of the allow_failures block
 
-    # threaded oldest possible with blead CPAN with non-tracing poisoning
+    # threaded oldest possible with blead CPAN
     - perl: devcpan_5.8.1_thr_mb
+      env:
+        - CLEANTEST=true
+        - DEVREL_DEPS=true
+        - BREWVER=5.8.1
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+
+    # oldest possible with blead CPAN with poisoning
+    - perl: devcpan_5.8.1
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
         - POISON_ENV=true
         - BREWVER=5.8.1
-        - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    # 5.8.4 threaded with blead CPAN with non-tracing poisoning
-    - perl: devcpan_5.8.4_thr
+    # 5.8.7 threaded with blead CPAN with non-tracing poisoning
+    - perl: devcpan_5.8.7_thr
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
         - POISON_ENV=true
-        - BREWVER=5.8.4
+        - BREWVER=5.8.7
         - BREWOPTS="-Duseithreads"
 
     # 5.10.0 threaded with blead CPAN
@@ -207,12 +216,11 @@ matrix:
         - POISON_ENV=true
         - BREWVER=blead
 
-    # bleadperl with blead CPAN with non-tracing poisoning
+    # bleadperl with blead CPAN
     - perl: devcpan_bleadperl_thr_mb
       env:
         - CLEANTEST=false
         - DEVREL_DEPS=true
-        - POISON_ENV=true
         - BREWVER=blead
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
@@ -222,7 +230,8 @@ matrix:
 
     # these run with various dev snapshots - allowed to fail
     - perl: devcpan_5.8.1_thr_mb
-    - perl: devcpan_5.8.4_thr
+    - perl: devcpan_5.8.1
+    - perl: devcpan_5.8.7_thr
     - perl: devcpan_5.10.0_thr_mb
     - perl: devcpan_5.12.1_thr
     - perl: bleadperl
