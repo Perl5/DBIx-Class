@@ -133,7 +133,7 @@ sub assemble_collapsing_parser {
 
     $top_node_key = "{ \$cur_row_ids{$virtual_column_idx} }";
 
-    $top_node_key_assembler = sprintf " \$cur_row_ids{%d} = ( %s ); ",
+    $top_node_key_assembler = sprintf "( \$cur_row_ids{%d} = (%s) ),",
       $virtual_column_idx,
       "\n" . join( "\n  or\n", @path_parts, qq{"\0\$rows_pos\0"} )
     ;
@@ -155,16 +155,16 @@ sub assemble_collapsing_parser {
     %{ $stats->{idcols_seen} },
   } };
 
-  my $row_id_defs = sprintf "\@cur_row_ids{( %s )} = ( \n%s \n );",
+  my $row_id_defs = sprintf "( \@cur_row_ids{( %s )} = (\n%s\n ) ),",
     join (', ', @row_ids ),
     # in case we prune - we will never hit undefs/NULLs as pigeon-hole-criteria
     ( $args->{prune_null_branches}
       ? sprintf( '@{$cur_row_data}[( %s )]', join ', ', @row_ids )
       : join (",\n", map {
-        my $quoted_null_val = qq( "\0NULL\xFF\${rows_pos}\xFF${_}\0" );
+        my $quoted_null_val = qq("\0NULL\xFF\${rows_pos}\xFF${_}\0");
         HAS_DOR
-          ? qq! ( \$cur_row_data->[$_] // $quoted_null_val ) !
-          : qq! ( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val ) !
+          ? qq!( \$cur_row_data->[$_] // $quoted_null_val )!
+          : qq!( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val )!
       } @row_ids)
     )
   ;
@@ -218,7 +218,7 @@ sub assemble_collapsing_parser {
     # is ordered properly)
     # as long as we have a result already and the next result is new we
     # return the pre-read data and bail
-$_[1] and $result_pos and ! $collapse_idx[0]%3$s and (unshift @{$_[2]}, $cur_row_data) and last;
+( $_[1] and $result_pos and ! $collapse_idx[0]%3$s and (unshift @{$_[2]}, $cur_row_data) and last ),
 
     # the rel assemblers
 %4$s
@@ -271,7 +271,7 @@ sub __visit_infmap_collapse {
   my @src;
 
   if ($cur_node_idx == 0) {
-    push @src, sprintf( '%s %s $_[0][$result_pos++] = %s;',
+    push @src, sprintf( '( %s %s $_[0][$result_pos++] = %s ),',
       $node_idx_slot,
       (HAS_DOR ? '//=' : '||='),
       $me_struct || '{}',
@@ -285,7 +285,7 @@ sub __visit_infmap_collapse {
     );
 
     if ($args->{collapse_map}->{-is_single}) {
-      push @src, sprintf ( '%s %s %s%s;',
+      push @src, sprintf ( '( %s %s %s%s ),',
         $parent_attach_slot,
         (HAS_DOR ? '//=' : '||='),
         $node_idx_slot,
@@ -293,7 +293,7 @@ sub __visit_infmap_collapse {
       );
     }
     else {
-      push @src, sprintf('(! %s) and push @{%s}, %s%s;',
+      push @src, sprintf('( (! %s) and push @{%s}, %s%s ),',
         $node_idx_slot,
         $parent_attach_slot,
         $node_idx_slot,
@@ -332,7 +332,7 @@ sub __visit_infmap_collapse {
       if ($args->{prune_null_branches}) {
 
         # start of wrap of the entire chain in a conditional
-        splice @src, $rel_src_pos, 0, sprintf "( ! defined %s )\n  ? %s%s{%s} = %s\n  : do {",
+        splice @src, $rel_src_pos, 0, sprintf "( ( ! defined %s )\n  ? %s%s{%s} = %s\n  : do {",
           "\$cur_row_data->[$first_distinct_child_idcol]",
           $node_idx_slot,
           $args->{hri_style} ? '' : '[1]',
@@ -341,11 +341,11 @@ sub __visit_infmap_collapse {
         ;
 
         # end of wrap
-        push @src, '};'
+        push @src, '} ),'
       }
       else {
 
-        splice @src, $rel_src_pos + 1, 0, sprintf ( '(defined %s) or bless (%s[1]{%s}, %s);',
+        splice @src, $rel_src_pos + 1, 0, sprintf ( '( (defined %s) or bless (%s[1]{%s}, %s) ),',
           "\$cur_row_data->[$first_distinct_child_idcol]",
           $node_idx_slot,
           perlstring($rel),
