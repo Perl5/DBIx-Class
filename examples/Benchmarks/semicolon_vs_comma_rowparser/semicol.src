@@ -1,0 +1,83 @@
+### BEGIN LITERAL STRING EVAL
+  my $rows_pos = 0;
+  my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids );
+
+  # this loop is a bit arcane - the rationale is that the passed in
+  # $_[0] will either have only one row (->next) or will have all
+  # rows already pulled in (->all and/or unordered). Given that the
+  # result can be rather large - we reuse the same already allocated
+  # array, since the collapsed prefetch is smaller by definition.
+  # At the end we cut the leftovers away and move on.
+  while ($cur_row_data = (
+    (
+      $rows_pos >= 0
+        and
+      (
+        $_[0][$rows_pos++]
+          or
+        # It may be tempting to drop the -1 and undef $rows_pos instead
+        # thus saving the >= comparison above as well
+        # However NULL-handlers and underdefined root markers both use
+        # $rows_pos as a last-resort-uniqueness marker (it either is
+        # monotonically increasing while we parse ->all, or is set at
+        # a steady -1 when we are dealing with a single root node). For
+        # the time being the complication of changing all callsites seems
+        # overkill, for what is going to be a very modest saving of ops
+        ( ($rows_pos = -1), undef )
+      )
+    )
+      or
+    ( $_[1] and $_[1]->() )
+  ) ) {
+
+    # the undef checks may or may not be there
+    # depending on whether we prune or not
+    #
+    # due to left joins some of the ids may be NULL/undef, and
+    # won't play well when used as hash lookups
+    # we also need to differentiate NULLs on per-row/per-col basis
+    # (otherwise folding of optional 1:1s will be greatly confused
+@cur_row_ids{( 0, 1, 5, 6, 8, 10 )} = (
+@{$cur_row_data}[( 0, 1, 5, 6, 8, 10 )]
+ );
+
+    # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
+
+
+    # if we were supplied a coderef - we are collapsing lazily (the set
+    # is ordered properly)
+    # as long as we have a result already and the next result is new we
+    # return the pre-read data and bail
+$_[1] and $result_pos and ! $collapse_idx[0]{ $cur_row_ids{1} } and (unshift @{$_[2]}, $cur_row_data) and last;
+
+    # the rel assemblers
+$collapse_idx[0]{ $cur_row_ids{1} } //= $_[0][$result_pos++] = [ { "genreid" => $cur_row_data->[4], "latest_cd" => $cur_row_data->[7], "year" => $cur_row_data->[3] } ];
+$collapse_idx[0]{ $cur_row_ids{1} }[1]{"existing_single_track"} //= $collapse_idx[1]{ $cur_row_ids{1} } = [  ];
+$collapse_idx[1]{ $cur_row_ids{1} }[1]{"cd"} //= $collapse_idx[2]{ $cur_row_ids{1} } = [  ];
+$collapse_idx[2]{ $cur_row_ids{1} }[1]{"artist"} //= $collapse_idx[3]{ $cur_row_ids{1} } = [ { "artistid" => $cur_row_data->[1] } ];
+( ! defined $cur_row_data->[6] )
+  ? $collapse_idx[3]{ $cur_row_ids{1} }[1]{"cds"} = []
+  : do {
+(! $collapse_idx[4]{ $cur_row_ids{1} }{ $cur_row_ids{6} }) and push @{$collapse_idx[3]{ $cur_row_ids{1} }[1]{"cds"}}, $collapse_idx[4]{ $cur_row_ids{1} }{ $cur_row_ids{6} } = [ { "cdid" => $cur_row_data->[6], "genreid" => $cur_row_data->[9], "year" => $cur_row_data->[2] } ];
+( ! defined $cur_row_data->[8] )
+  ? $collapse_idx[4]{ $cur_row_ids{1} }{ $cur_row_ids{6} }[1]{"tracks"} = []
+  : do {
+(! $collapse_idx[5]{ $cur_row_ids{1} }{ $cur_row_ids{6} }{ $cur_row_ids{8} }) and push @{$collapse_idx[4]{ $cur_row_ids{1} }{ $cur_row_ids{6} }[1]{"tracks"}}, $collapse_idx[5]{ $cur_row_ids{1} }{ $cur_row_ids{6} }{ $cur_row_ids{8} } = [ { "title" => $cur_row_data->[8] } ];
+};
+};
+( ! defined $cur_row_data->[5] )
+  ? $collapse_idx[0]{ $cur_row_ids{1} }[1]{"tracks"} = []
+  : do {
+(! $collapse_idx[6]{ $cur_row_ids{1} }{ $cur_row_ids{5} }) and push @{$collapse_idx[0]{ $cur_row_ids{1} }[1]{"tracks"}}, $collapse_idx[6]{ $cur_row_ids{1} }{ $cur_row_ids{5} } = [ { "title" => $cur_row_data->[5] } ];
+( ! defined $cur_row_data->[10] )
+  ? $collapse_idx[6]{ $cur_row_ids{1} }{ $cur_row_ids{5} }[1]{"lyrics"} = []
+  : do {
+$collapse_idx[6]{ $cur_row_ids{1} }{ $cur_row_ids{5} }[1]{"lyrics"} //= $collapse_idx[7]{ $cur_row_ids{1} }{ $cur_row_ids{5} }{ $cur_row_ids{10} } = [  ];
+(! $collapse_idx[8]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{5} }{ $cur_row_ids{10} }) and push @{$collapse_idx[7]{ $cur_row_ids{1} }{ $cur_row_ids{5} }{ $cur_row_ids{10} }[1]{"existing_lyric_versions"}}, $collapse_idx[8]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{5} }{ $cur_row_ids{10} } = [ { "lyric_id" => $cur_row_data->[10], "text" => $cur_row_data->[0] } ];
+};
+};
+
+  }
+
+  $#{$_[0]} = $result_pos - 1; # truncate the passed in array to where we filled it with results
+### END LITERAL STRING EVAL
