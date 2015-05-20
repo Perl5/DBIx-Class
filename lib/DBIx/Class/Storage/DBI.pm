@@ -2286,10 +2286,12 @@ sub _dbh_execute_for_fetch {
 
       # FIXME SUBOPTIMAL - DBI needs fixing to always stringify regardless of DBD
       # For the time being forcibly stringify whatever is stringifiable
-      (length ref $v and is_plain_value $v)
-        ? "$v"
-        : $v
-      ;
+      my $vref;
+
+      ( !length ref $v or ! ($vref = is_plain_value $v) )   ? $v
+    : defined blessed( $$vref )                             ? "$$vref"
+                                                            : $$vref
+    ;
     } map { $_->[0] } @$proto_bind ];
   };
 

@@ -287,6 +287,49 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       $row->discard_changes;
       is_deeply ($row->arrayfield, [3,4], 'Array value made it to storage');
     }
+
+    my $arr = [ 1..10 ];
+    # exercise the creation-logic even more (akin to t/100populate.t)
+    for my $insert_value (
+      $arr,
+      { -value => $arr },
+      \[ '?', $arr ],
+    ) {
+      $arr_rs->delete;
+
+      my @objs = (
+        $arr_rs->create({ arrayfield => $insert_value }),
+        $arr_rs->populate([ { arrayfield => $insert_value } ]),
+        $arr_rs->populate([ ['arrayfield'], [ $insert_value ] ]),
+      );
+
+      my $loose_obj = $arr_rs->new({ arrayfield => $insert_value });
+
+      unless (is_literal_value $insert_value) {
+        is_deeply( $_->arrayfield, $arr, 'array value preserved during set_columns' )
+          for ($loose_obj, @objs)
+      }
+
+      push @objs, $loose_obj->insert;
+
+      $_->discard_changes for @objs;
+      is_deeply( $_->arrayfield, $arr, 'array value correct after discard_changes' )
+        for (@objs);
+
+      # insert couple more in void ctx
+      $arr_rs->populate([ { arrayfield => $insert_value } ]);
+      $arr_rs->populate([ ['arrayfield'], [ $insert_value ] ]);
+
+      # should have a total of 6 now, all pristine
+      my @retrieved_objs = $arr_rs->search({
+        arrayfield => ref $insert_value eq 'ARRAY'
+          ? { -value => $insert_value }
+          : { '=' => $insert_value }
+      })->all;
+      is scalar @retrieved_objs, 6, 'Correct count of inserted rows';
+      is_deeply( $_->arrayfield, $arr, 'array value correct after storage retrieval' )
+        for (@retrieved_objs);
+    }
   }
 
 ########## Case check
