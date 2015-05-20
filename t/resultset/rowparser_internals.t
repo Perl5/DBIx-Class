@@ -871,9 +871,10 @@ is_same_src (
       ( $collapse_idx[0]{$cur_row_ids{3}} //= $_[0][$result_pos++] = [] ),
 
       ( ( ! defined $cur_row_data->[0] ) ? $collapse_idx[0]{$cur_row_ids{3}}[1]{"books"} = [] : do {
+        ( ! $collapse_idx[1]{$cur_row_ids{0}} )
+          and
         push @{$collapse_idx[0]{$cur_row_ids{3}}[1]{books}},
           $collapse_idx[1]{$cur_row_ids{0}} = [ { owner => $cur_row_data->[1], title => $cur_row_data->[0] } ]
-        unless $collapse_idx[1]{$cur_row_ids{0}}
       } ),
     }
 
