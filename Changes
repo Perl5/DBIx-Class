@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
+        - Fix t/storage/quote_names.t failures on systems with specified Oracle
+          test credentials while missing the optional Math::Base36
 
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes
