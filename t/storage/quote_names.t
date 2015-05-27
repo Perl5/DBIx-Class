@@ -104,12 +104,12 @@ for my $db (sort {
 
   my $schema;
 
-  try {
+  my $sql_maker = try {
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
       quote_names => 1
     });
     $schema->storage->ensure_connected;
-    1;
+    $schema->storage->sql_maker;
   } || next;
 
   my ($exp_quote_char, $exp_name_sep) =
@@ -118,19 +118,19 @@ for my $db (sort {
   my ($quote_char_text, $name_sep_text) = map { dumper($_) }
     ($exp_quote_char, $exp_name_sep);
 
-  is_deeply $schema->storage->sql_maker->quote_char,
+  is_deeply $sql_maker->quote_char,
     $exp_quote_char,
     "$db quote_char with quote_names => 1 is $quote_char_text";
 
 
-  is $schema->storage->sql_maker->name_sep,
+  is $sql_maker->name_sep,
     $exp_name_sep,
     "$db name_sep with quote_names => 1 is $name_sep_text";
 
   # if something was produced - it better be quoted
   if ( my $ddl = try { $schema->deployment_statements } ) {
 
-    my $quoted_artist = $schema->storage->sql_maker->_quote('artist');
+    my $quoted_artist = $sql_maker->_quote('artist');
 
     like ($ddl, qr/^CREATE\s+TABLE\s+\Q$quoted_artist/msi, "$db DDL contains expected quoted table name");
   }
