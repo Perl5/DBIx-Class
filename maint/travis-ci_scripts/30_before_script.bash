@@ -114,11 +114,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    HARD_DEPS="$(echo $(make listalldeps))"
+    HARD_DEPS="$(make listalldeps | sort -R)"
 
   else
 
-    HARD_DEPS="$(echo $(make listdeps | sort -R))"
+    HARD_DEPS="$(make listdeps | sort -R)"
 
 ##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
     if ! CPAN_is_sane ; then
@@ -135,7 +135,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
 else
 
-  parallel_installdeps_notest "$(make listdeps)"
+  parallel_installdeps_notest "$(make listdeps | sort -R)"
 
 fi
 
