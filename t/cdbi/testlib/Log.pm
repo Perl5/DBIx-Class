@@ -7,7 +7,7 @@ use strict;
 use base 'MyBase';
 
 use Time::Piece::MySQL;
-use POSIX;
+use POSIX ();
 
 __PACKAGE__->set_table();
 __PACKAGE__->columns(All => qw/id message datetime_stamp/);
