@@ -22,14 +22,21 @@ fi
 export PERL_CPANM_OPT="--verbose --no-interactive --no-man-pages $( echo $PERL_CPANM_OPT | sed 's/--skip-satisfied//' )"
 
 if [[ -n "$BREWVER" ]] ; then
+
   # since perl 5.14 a perl can safely be built concurrently with -j$large
   # (according to brute force testing and my power bill)
-  if [[ "$BREWVER" == "blead" ]] || perl -Mversion -e "exit !!(version->new(q($BREWVER)) < 5.014)" ; then
+  if [[ "$BREWVER" =~ [A-Za-z] ]] || perl -Mversion -e "exit !!(version->new(q($BREWVER)) < 5.014)" ; then
     perlbrew_jopt="$VCPU_USE"
   fi
 
+  BREWSRC="$BREWVER"
+
+  if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
+    BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
+  fi
+
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWVER"
+    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
 
   # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
   # furthermore `perlbrew use` returns 0 regardless of whether the perl is
