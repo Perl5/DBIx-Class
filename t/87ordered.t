@@ -6,7 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-use POSIX qw(ceil);
+use POSIX ();
 
 my $schema = DBICTest->init_schema();
 
@@ -156,7 +156,9 @@ $to_pos = undef;
     $to_pos++;
     $to_group = ($to_group % 3) + 1;
     $to_group_2_base++;
-    $to_group_2 = (ceil($to_group_2_base/3.0) %3) +1
+    $to_group_2 = (
+      POSIX::ceil( $to_group_2_base / 3.0 ) % 3
+    ) + 1;
   }
 }
 foreach my $group_id_2 (1..4) {

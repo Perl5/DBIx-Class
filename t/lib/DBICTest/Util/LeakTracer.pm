@@ -293,7 +293,7 @@ sub assert_empty_weakregistry {
 #      Devel::MAT::Dumper::dumpfh( $fh );
 #      close ($fh) or die $!;
 #
-#      use POSIX;
+#      require POSIX;
 #      POSIX::_exit(1);
 #    }
   }
