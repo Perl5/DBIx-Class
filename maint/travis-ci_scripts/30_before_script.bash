@@ -159,6 +159,10 @@ if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\
   exit 1
 fi
 
+if [[ "$CLEANTEST" = "true" ]] && perl -MModule::Build::Tiny -e1 &>/dev/null ; then
+  echo_err "Module::Build::Tiny pulled in during the basic depchain install - this must not happen"
+  exit 1
+fi
 
 # announce what are we running
 echo_err "

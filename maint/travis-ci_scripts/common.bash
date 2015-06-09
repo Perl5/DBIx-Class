@@ -253,9 +253,14 @@ purge_sitelib() {
         { (my $mp = $_ . ".pm" ) =~ s|::|/|g; $mp }
         grep
           { $mcl_source !~ / ^ \s+ \x27 $_ \x27 \s* \=\> /mx }
-          keys %{ DBIx::Class::Optional::Dependencies->modreq_list_for([
-            keys %{ DBIx::Class::Optional::Dependencies->req_group_list }
-          ])}
+          (
+            qw(
+              Module::Build::Tiny
+            ),
+            keys %{ DBIx::Class::Optional::Dependencies->modreq_list_for([
+              keys %{ DBIx::Class::Optional::Dependencies->req_group_list }
+            ])}
+          )
       ;
 
       # now that we have the list we can go ahead and destroy every single one
