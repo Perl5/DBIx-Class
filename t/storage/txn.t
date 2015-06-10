@@ -107,6 +107,7 @@ for my $want (0,1) {
   is ($schema->storage->transaction_depth, 0, 'Start outside txn');
 
   my @pids;
+  SKIP:
   for my $action (
     sub {
       my $s = shift;
@@ -129,8 +130,13 @@ for my $want (0,1) {
     },
   ) {
     my $pid = fork();
-    die "Unable to fork: $!\n"
-      if ! defined $pid;
+
+    if( ! defined $pid ) {
+      skip "EAGAIN encountered, your system is likely bogged down: skipping forking test", 1
+        if $! == Errno::EAGAIN();
+
+      die "Unable to fork: $!"
+    }
 
     if ($pid) {
       push @pids, $pid;
@@ -206,8 +212,13 @@ sub _test_forking_action {
       if $^O eq 'MSWin32';
 
     my $pid = fork();
-    die "Unable to fork: $!\n"
-      if ! defined $pid;
+    if( ! defined $pid ) {
+
+      skip "EAGAIN encountered, your system is likely bogged down: skipping forking test", 1
+        if $! == Errno::EAGAIN();
+
+      die "Unable to fork: $!"
+    }
 
     if ($pid) {
       push @pids, $pid;
