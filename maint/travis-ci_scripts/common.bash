@@ -199,8 +199,11 @@ _dep_inst_with_test() {
     for m in "$@"; do
       if ! perl -e '
 
+$ARGV[0] =~ s/-TRIAL\.//;
+
 my $mod = (
-  $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
+  # abuse backtrack
+  $ARGV[0] =~ m{ / .*? ( [^/]+ ) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
 );
