@@ -15,6 +15,7 @@ use threads;
 use strict;
 use warnings;
 use Test::More;
+use DBIx::Class::_Util 'sigwarn_silencer';
 
 use lib qw(t/lib);
 use DBICTest;
@@ -36,14 +37,27 @@ my $schema = DBICTest->init_schema(no_deploy => 1);
 isa_ok ($schema, 'DBICTest::Schema');
 
 my @threads;
-push @threads, threads->create(sub {
-  my $rsrc = $schema->source('Artist');
-  undef $schema;
-  isa_ok ($rsrc->schema, 'DBICTest::Schema');
-  my $s2 = $rsrc->schema->clone;
+SKIP: {
 
-  sleep 1;  # without this many tasty crashes
-}) for (1.. $num_children);
+  local $SIG{__WARN__} = sigwarn_silencer( qr/Thread creation failed/i );
+
+  for (1.. $num_children) {
+    push @threads, threads->create(sub {
+      my $rsrc = $schema->source('Artist');
+      undef $schema;
+      isa_ok ($rsrc->schema, 'DBICTest::Schema');
+      my $s2 = $rsrc->schema->clone;
+
+      sleep 1;  # without this many tasty crashes
+    }) || do {
+      skip "EAGAIN encountered, your system is likely bogged down: skipping rest of test", 1
+        if $! == Errno::EAGAIN();
+
+      die "Unable to start thread: $!";
+    };
+  }
+}
+
 ok(1, "past spawning");
 
 $_->join for @threads;
