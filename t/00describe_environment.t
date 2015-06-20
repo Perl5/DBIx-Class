@@ -118,6 +118,10 @@ my $known_paths = {
     rel_path => './t',
     skip_unversioned_modules => 1,
   },
+  XT => {
+    rel_path => './xt',
+    skip_unversioned_modules => 1,
+  },
   CWD => {
     rel_path => '.',
   },
@@ -240,12 +244,12 @@ my $interesting_modules = {
   # pseudo module
   $perl => {
     version => $],
-    abs_unix_path => $^X,
+    abs_unix_path => abs_unix_path($^X),
   }
 };
 
 
-# drill through the *ENTIRE* symtable and build a map of intereseting modules
+# drill through the *ENTIRE* symtable and build a map of interesting modules
 visit_namespaces( action => sub {
   no strict 'refs';
   my $pkg = shift;
@@ -339,7 +343,8 @@ visit_namespaces( action => sub {
       $interesting_modules->{$pkg}{version} = $mod_ver;
     }
   }
-  elsif ( $abs_unix_path = $known_failed_loads->{$pkg} ) {
+  elsif ( $known_failed_loads->{$pkg} ) {
+    $abs_unix_path = $known_failed_loads->{$pkg};
     $interesting_modules->{$pkg}{version} = '!! LOAD FAIL !!';
   }
 
@@ -386,8 +391,8 @@ visit_namespaces( action => sub {
   1;
 });
 
-# compress identical versions sourced from ./blib, ./lib and ./t as close to the root
-# of a namespace as we can
+# compress identical versions sourced from ./blib, ./lib, ./t and ./xt
+# as close to the root of a namespace as we can
 purge_identically_versioned_submodules_with_markers([ map {
   ( $_->{skip_unversioned_modules} && $_->{marker} ) || ()
 } values %$known_paths ]);
@@ -407,8 +412,8 @@ my $max_marker_len = max map { length $_ } ( '$INC[999]', keys %$seen_markers );
 
 my $discl = <<'EOD';
 
-List of loadable modules within both the core and *OPTIONAL* dependency
-chains present on this system (modules sourced from ./blib, ./lib and ./t
+List of loadable modules within both the core and *OPTIONAL* dependency chains
+present on this system (modules sourced from ./blib, ./lib, ./t, and ./xt
 with versions identical to their parent namespace were omitted for brevity)
 
     *** Note that *MANY* of these modules will *NEVER* be loaded ***
@@ -424,9 +429,9 @@ $final_out .= "\@INC at startup (does not reflect manipulation at runtime):\n";
 my $in_inc_skip;
 for (0.. $#initial_INC) {
 
-  my $path = shorten_fn( $initial_INC[$_] );
+  my $shortname = shorten_fn( $initial_INC[$_] );
 
-  # when *to* print
+  # when *to* print a line of INC
   if (
     ! $ENV{AUTOMATED_TESTING}
       or
@@ -434,14 +439,14 @@ for (0.. $#initial_INC) {
       or
     $seen_markers->{"\$INC[$_]"}
       or
-    ! -e $path
+    ! -e $shortname
       or
-    ! File::Spec->file_name_is_absolute($path)
+    ! File::Spec->file_name_is_absolute($shortname)
   ) {
     $in_inc_skip = 0;
     $final_out .= sprintf ( "% 3s: %s\n",
       $_,
-      $path
+      $shortname
     );
   }
   elsif(! $in_inc_skip++) {
@@ -554,10 +559,14 @@ sub shorten_fn {
 
   # we got so far - not a known path
   # return the unixified version it if was absolute, leave as-is otherwise
-  return ( $abs_fn and File::Spec->file_name_is_absolute( $fn ) )
+  my $rv = ( $abs_fn and File::Spec->file_name_is_absolute( $fn ) )
     ? $abs_fn
     : $fn
   ;
+
+  $rv = "( ! -e ) $rv" unless -e $rv;
+
+  return $rv;
 }
 
 sub subpath_of_known_path {
