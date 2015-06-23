@@ -3617,6 +3617,7 @@ sub _resolved_attrs {
       ];
   }
 
+
   for my $attr (qw(order_by group_by)) {
 
     if ( defined $attrs->{$attr} ) {
@@ -3630,48 +3631,20 @@ sub _resolved_attrs {
     }
   }
 
-  # generate selections based on the prefetch helper
-  my ($prefetch, @prefetch_select, @prefetch_as);
-  $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} )
-    if defined $attrs->{prefetch};
 
-  if ($prefetch) {
-
-    $self->throw_exception("Unable to prefetch, resultset contains an unnamed selector $attrs->{_dark_selector}{string}")
-      if $attrs->{_dark_selector};
-
+  # set collapse default based on presence of prefetch
+  my $prefetch;
+  if (
+    defined $attrs->{prefetch}
+      and
+    $prefetch = $self->_merge_joinpref_attr( {}, delete $attrs->{prefetch} )
+  ) {
     $self->throw_exception("Specifying prefetch in conjunction with an explicit collapse => 0 is unsupported")
       if defined $attrs->{collapse} and ! $attrs->{collapse};
 
     $attrs->{collapse} = 1;
-
-    # this is a separate structure (we don't look in {from} directly)
-    # as the resolver needs to shift things off the lists to work
-    # properly (identical-prefetches on different branches)
-    my $join_map = {};
-    if (ref $attrs->{from} eq 'ARRAY') {
-
-      my $start_depth = $attrs->{seen_join}{-relation_chain_depth} || 0;
-
-      for my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
-        next unless $j->[0]{-alias};
-        next unless $j->[0]{-join_path};
-        next if ($j->[0]{-relation_chain_depth} || 0) < $start_depth;
-
-        my @jpath = map { keys %$_ } @{$j->[0]{-join_path}};
-
-        my $p = $join_map;
-        $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries
-        push @{$p->{-join_aliases} }, $j->[0]{-alias};
-      }
-    }
-
-    my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map );
-
-    # save these for after distinct resolution
-    @prefetch_select = map { $_->[0] } @prefetch;
-    @prefetch_as = map { $_->[1] } @prefetch;
   }
+
 
   # run through the resulting joinstructure (starting from our current slot)
   # and unset collapse if proven unnecessary
@@ -3722,6 +3695,7 @@ sub _resolved_attrs {
     }
   }
 
+
   # generate the distinct induced group_by before injecting the prefetched select/as parts
   if (delete $attrs->{distinct}) {
     if ($attrs->{group_by}) {
@@ -3741,15 +3715,45 @@ sub _resolved_attrs {
     }
   }
 
-  # inject prefetch-bound selection (if any)
-  push @{$attrs->{select}}, @prefetch_select;
-  push @{$attrs->{as}}, @prefetch_as;
+
+  # generate selections based on the prefetch helper
+  if ($prefetch) {
+
+    $self->throw_exception("Unable to prefetch, resultset contains an unnamed selector $attrs->{_dark_selector}{string}")
+      if $attrs->{_dark_selector};
+
+    # this is a separate structure (we don't look in {from} directly)
+    # as the resolver needs to shift things off the lists to work
+    # properly (identical-prefetches on different branches)
+    my $join_map = {};
+    if (ref $attrs->{from} eq 'ARRAY') {
+
+      my $start_depth = $attrs->{seen_join}{-relation_chain_depth} || 0;
+
+      for my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
+        next unless $j->[0]{-alias};
+        next unless $j->[0]{-join_path};
+        next if ($j->[0]{-relation_chain_depth} || 0) < $start_depth;
+
+        my @jpath = map { keys %$_ } @{$j->[0]{-join_path}};
+
+        my $p = $join_map;
+        $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries
+        push @{$p->{-join_aliases} }, $j->[0]{-alias};
+      }
+    }
+
+    ( push @{$attrs->{select}}, $_->[0] ) and ( push @{$attrs->{as}}, $_->[1] )
+      for $source->_resolve_prefetch( $prefetch, $alias, $join_map );
+  }
+
 
   $attrs->{_simple_passthrough_construction} = !(
     $attrs->{collapse}
       or
     grep { $_ =~ /\./ } @{$attrs->{as}}
   );
+
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
