@@ -3725,7 +3725,7 @@ sub _resolved_attrs {
     # this is a separate structure (we don't look in {from} directly)
     # as the resolver needs to shift things off the lists to work
     # properly (identical-prefetches on different branches)
-    my $join_map = {};
+    my $joined_node_aliases_map = {};
     if (ref $attrs->{from} eq 'ARRAY') {
 
       my $start_depth = $attrs->{seen_join}{-relation_chain_depth} || 0;
@@ -3737,14 +3737,14 @@ sub _resolved_attrs {
 
         my @jpath = map { keys %$_ } @{$j->[0]{-join_path}};
 
-        my $p = $join_map;
+        my $p = $joined_node_aliases_map;
         $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries
         push @{$p->{-join_aliases} }, $j->[0]{-alias};
       }
     }
 
     ( push @{$attrs->{select}}, $_->[0] ) and ( push @{$attrs->{as}}, $_->[1] )
-      for $source->_resolve_prefetch( $prefetch, $alias, $join_map );
+      for $source->_resolve_selection_from_prefetch( $prefetch, $joined_node_aliases_map );
   }
 
 

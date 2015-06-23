@@ -14,32 +14,32 @@ use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_collapsing_parser
 );
 
+use DBIx::Class::Carp;
+
 use namespace::clean;
 
-# Accepts one or more relationships for the current source and returns an
-# array of column names for each of those relationships. Column names are
-# prefixed relative to the current source, in accordance with where they appear
-# in the supplied relationships.
-sub _resolve_prefetch {
-  my ($self, $pre, $alias, $alias_map, $order, $pref_path) = @_;
+# Accepts a prefetch map (one or more relationships for the current source),
+# returns a set of select/as pairs for each of those relationships. Columns
+# are fully qualified inflation_slot names
+sub _resolve_selection_from_prefetch {
+  my ($self, $pre, $alias_map, $pref_path) = @_;
+
+  # internal recursion marker
   $pref_path ||= [];
 
   if (not defined $pre or not length $pre) {
     return ();
   }
   elsif( ref $pre eq 'ARRAY' ) {
-    return
-      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, [ @$pref_path ] ) }
-        @$pre;
+    map { $self->_resolve_selection_from_prefetch( $_, $alias_map, [ @$pref_path ] ) }
+      @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
-    my @ret =
     map {
-      $self->_resolve_prefetch($_, $alias, $alias_map, $order, [ @$pref_path ] ),
-      $self->related_source($_)->_resolve_prefetch(
-         $pre->{$_}, "${alias}.$_", $alias_map, $order, [ @$pref_path, $_] )
+      $self->_resolve_selection_from_prefetch($_, $alias_map, [ @$pref_path ] ),
+      $self->related_source($_)->_resolve_selection_from_prefetch(
+         $pre->{$_}, $alias_map, [ @$pref_path, $_] )
     } keys %$pre;
-    return @ret;
   }
   elsif( ref $pre ) {
     $self->throw_exception(
@@ -47,25 +47,39 @@ sub _resolve_prefetch {
   }
   else {
     my $p = $alias_map;
-    $p = $p->{$_} for (@$pref_path, $pre);
+    $p = $p->{$_} for @$pref_path, $pre;
 
     $self->throw_exception (
       "Unable to resolve prefetch '$pre' - join alias map does not contain an entry for path: "
       . join (' -> ', @$pref_path, $pre)
     ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
 
-    my $as = shift @{$p->{-join_aliases}};
+    # this shift() is critical - it is what allows prefetch => [ (foo) x 2 ] to work
+    my $src_alias = shift @{$p->{-join_aliases}};
 
-    my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->source_name . " has no such relationship '$pre'" )
-      unless $rel_info;
-
-    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
-
-    return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $self->related_source($pre)->columns;
+    # ordered [select => as] pairs
+    map { [
+      "${src_alias}.$_" => join ( '.',
+        @$pref_path,
+        $pre,
+        $_,
+      )
+    ] } $self->related_source($pre)->columns;
   }
 }
+
+sub _resolve_prefetch {
+  carp_unique(
+    'There is no good reason to call this internal deprecated method - '
+  . 'please open a ticket detailing your usage, so that a better plan can '
+  . 'be devised for your case. In either case _resolve_prefetch() is '
+  . 'deprecated in favor of _resolve_selection_from_prefetch(), which has '
+  . 'a greatly simplified arglist.'
+  );
+
+  $_[0]->_resolve_selection_from_prefetch( $_[1], $_[3] );
+}
+
 
 # Takes an arrayref of {as} dbic column aliases and the collapse and select
 # attributes from the same $rs (the selector requirement is a temporary
