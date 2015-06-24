@@ -523,15 +523,7 @@ sub related_resultset {
       if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    # condition resolution may fail if an incomplete master-object prefetch
-    # is encountered - that is ok during prefetch construction (not yet in_storage)
-    my ($cond, $is_crosstable) = try {
-      $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel )
-    }
-    catch {
-      $self->throw_exception ($_) if $self->in_storage;
-      UNRESOLVABLE_CONDITION;  # RV, no return()
-    };
+    my ($cond, $is_crosstable) = $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel );
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
     if ($is_crosstable and ref $rel_info->{cond} eq 'CODE') {
