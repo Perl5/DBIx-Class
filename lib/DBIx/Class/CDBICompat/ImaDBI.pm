@@ -14,55 +14,7 @@ __PACKAGE__->mk_classdata('sql_transformer_class' =>
 __PACKAGE__->mk_classdata('_transform_sql_handler_order'
                             => [ qw/TABLE ESSENTIAL JOIN IDENTIFIER/ ] );
 
-__PACKAGE__->mk_classdata('_transform_sql_handlers' =>
-  {
-    'TABLE' =>
-      sub {
-        my ($self, $class, $data) = @_;
-        return $class->result_source_instance->name unless $data;
-        my ($f_class, $alias) = split(/=/, $data);
-        $f_class ||= $class;
-        $self->{_classes}{$alias} = $f_class;
-        return $f_class->result_source_instance->name." ${alias}";
-      },
-    'ESSENTIAL' =>
-      sub {
-        my ($self, $class, $data) = @_;
-        $class = $data ? $self->{_classes}{$data} : $class;
-        return join(', ', $class->columns('Essential'));
-      },
-    'IDENTIFIER' =>
-      sub {
-        my ($self, $class, $data) = @_;
-        $class = $data ? $self->{_classes}{$data} : $class;
-        return join ' AND ', map  "$_ = ?", $class->primary_columns;
-      },
-    'JOIN' =>
-      sub {
-        my ($self, $class, $data) = @_;
-        my ($from, $to) = split(/ /, $data);
-        my ($from_class, $to_class) = @{$self->{_classes}}{$from, $to};
-        my ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                          map { $from_class->relationship_info($_) }
-                            $from_class->relationships;
-        unless ($rel_obj) {
-          ($from, $to) = ($to, $from);
-          ($from_class, $to_class) = ($to_class, $from_class);
-          ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                          map { $from_class->relationship_info($_) }
-                            $from_class->relationships;
-        }
-        $self->throw_exception( "No relationship to JOIN from ${from_class} to ${to_class}" )
-          unless $rel_obj;
-        my $join = $from_class->storage->sql_maker->_join_condition(
-          scalar $from_class->result_source_instance->_resolve_condition(
-            $rel_obj->{cond}, $to, $from
-          )
-        );
-        return $join;
-      }
-
-  } );
+__PACKAGE__->mk_classdata('_transform_sql_handlers' => {} );
 
 sub db_Main {
   return $_[0]->storage->dbh;
