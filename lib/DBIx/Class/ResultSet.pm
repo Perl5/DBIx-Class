@@ -3220,10 +3220,16 @@ Returns a related resultset for the supplied relationship name.
 =cut
 
 sub related_resultset {
-  my ($self, $rel) = @_;
+  $_[0]->throw_exception(
+    'Extra arguments to $rs->related_resultset() were always quietly '
+  . 'discarded without consideration, you need to switch to '
+  . '...->related_resultset( $relname )->search_rs( $search, $args ) instead.'
+  ) if @_ > 2;
 
-  return $self->{related_resultsets}{$rel}
-    if defined $self->{related_resultsets}{$rel};
+  return $_[0]->{related_resultsets}{$_[1]}
+    if defined $_[0]->{related_resultsets}{$_[1]};
+
+  my ($self, $rel) = @_;
 
   return $self->{related_resultsets}{$rel} = do {
     my $rsrc = $self->result_source;
