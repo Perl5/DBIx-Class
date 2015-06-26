@@ -3236,22 +3236,25 @@ sub related_resultset {
 
     my $attrs = $self->_chain_relationship($rel);
 
-    my $join_count = $attrs->{seen_join}{$rel};
+    my $storage = $rsrc->schema->storage;
 
-    my $alias = $self->result_source->storage
-        ->relname_to_table_alias($rel, $join_count);
+    # Previously this atribute was deleted (instead of being set as it is now)
+    # Doing so seems to be harmless in all available test permutations
+    # See also 01d59a6a6 and mst's comment below
+    #
+    $attrs->{alias} = $storage->relname_to_table_alias(
+      $rel,
+      $attrs->{seen_join}{$rel}
+    );
 
     # since this is search_related, and we already slid the select window inwards
     # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
     # read the comment on top of the actual function to see what this does
-    $attrs->{from} = $rsrc->schema->storage->_inner_join_to_node ($attrs->{from}, $alias);
-
+    $attrs->{from} = $storage->_inner_join_to_node( $attrs->{from}, $attrs->{alias} );
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
-    delete @{$attrs}{qw(result_class alias)};
-
-    my $rel_source = $rsrc->related_source($rel);
+    delete $attrs->{result_class};
 
     my $new = do {
 
@@ -3260,16 +3263,19 @@ sub related_resultset {
       # source you need to know what alias it's -going- to have for things
       # to work sanely (e.g. RestrictWithObject wants to be able to add
       # extra query restrictions, and these may need to be $alias.)
+      #                                       -- mst ~ 2007 (01d59a6a6)
+      #
+      # FIXME - this seems to be no longer neccessary (perhaps due to the
+      # advances in relcond resolution. Testing DBIC::S::RWO and its only
+      # dependent (as of Jun 2015 ) does not yield any difference with or
+      # without this line. Nevertheless keep it as is for now, to minimize
+      # churn, there is enough potential for breakage in 0.0829xx as it is
+      #                                       -- ribasushi Jun 2015
+      #
+      my $rel_source = $rsrc->related_source($rel);
+      local $rel_source->resultset_attributes->{alias} = $attrs->{alias};
 
-      my $rel_attrs = $rel_source->resultset_attributes;
-      local $rel_attrs->{alias} = $alias;
-
-      $rel_source->resultset
-                 ->search_rs(
-                     undef, {
-                       %$attrs,
-                       where => $attrs->{where},
-                   });
+      $rel_source->resultset->search_rs( undef, $attrs );
     };
 
     if (my $cache = $self->get_cache) {
