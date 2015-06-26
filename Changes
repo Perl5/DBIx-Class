@@ -1,4 +1,11 @@
 Revision history for DBIx::Class
+
+    * Notable Changes and Deprecations
+        - $result->related_resultset() no longer passes extra arguments to
+          an underlying search_rs(), as by design these arguments would be
+          used only on the first call to ->related_resultset(), and ignored
+          afterwards. Instead an exception (detailing the fix) is thrown.
+
     * New Features
         - DBIx::Class::Optional::Dependencies now properly understands
           combinations of requirements and does the right thing with e.g.

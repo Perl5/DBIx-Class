@@ -499,15 +499,20 @@ this instance (like in the case of C<might_have> relationships).
 =cut
 
 sub related_resultset {
-  my $self = shift;
+  $_[0]->throw_exception(
+    '$result->related_resultset() no longer accepts extra search arguments, '
+  . 'you need to switch to ...->related_resultset($relname)->search_rs(...) '
+  . 'instead (it was never documented and more importantly could never work '
+  . 'reliably due to the heavy caching involved)'
+  ) if @_ > 2;
 
-  $self->throw_exception("Can't call *_related as class methods")
-    unless ref $self;
+  $_[0]->throw_exception("Can't call *_related as class methods")
+    unless ref $_[0];
 
-  my $rel = shift;
+  return $_[0]->{related_resultsets}{$_[1]}
+    if defined $_[0]->{related_resultsets}{$_[1]};
 
-  return $self->{related_resultsets}{$rel}
-    if defined $self->{related_resultsets}{$rel};
+  my ($self, $rel) = @_;
 
   return $self->{related_resultsets}{$rel} = do {
 
@@ -515,13 +520,6 @@ sub related_resultset {
 
     my $rel_info = $rsrc->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
-
-    my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
-    $attrs = { %{$rel_info->{attrs} || {}}, %$attrs };
-
-    $self->throw_exception( "Invalid query: @_" )
-      if (@_ > 1 && (@_ % 2 == 1));
-    my $query = ((@_ > 1) ? {@_} : shift);
 
     my ($cond, $is_crosstable) = $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel );
 
@@ -550,9 +548,11 @@ sub related_resultset {
       $rsrc->resultset->search(
         $self->ident_condition($obj_table_alias),
         { alias => $obj_table_alias },
-      )->search_related('me', $query, $attrs)
+      )->search_related('me', undef, $rel_info->{attrs})
     }
     else {
+      my $attrs = { %{ $rel_info->{attrs} } };
+
       # FIXME - this conditional doesn't seem correct - got to figure out
       # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
       # business seems shady - we could simply not query *at all*
@@ -586,10 +586,7 @@ sub related_resultset {
         }
       }
 
-      $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-      $rsrc->related_source($rel)->resultset->search(
-        $query, $attrs
-      );
+      $rsrc->related_source($rel)->resultset->search( $cond, $attrs );
     }
   };
 }
