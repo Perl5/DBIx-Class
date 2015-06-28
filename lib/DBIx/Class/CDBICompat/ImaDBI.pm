@@ -11,11 +11,6 @@ use base qw(Class::Data::Inheritable);
 __PACKAGE__->mk_classdata('sql_transformer_class' =>
                           'DBIx::Class::CDBICompat::SQLTransformer');
 
-__PACKAGE__->mk_classdata('_transform_sql_handler_order'
-                            => [ qw/TABLE ESSENTIAL JOIN IDENTIFIER/ ] );
-
-__PACKAGE__->mk_classdata('_transform_sql_handlers' => {} );
-
 sub db_Main {
   return $_[0]->storage->dbh;
 }
