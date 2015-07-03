@@ -1810,8 +1810,6 @@ sub _resolve_condition {
   }
 
   my $args = {
-    condition => $cond,
-
     # where-is-waldo block guesses relname, then further down we override it if available
     (
       $is_objlike[1] ? ( rel_name => $res_args[0], self_alias => $res_args[0], foreign_alias => 'me',         self_result_object  => $res_args[1] )
@@ -1821,6 +1819,12 @@ sub _resolve_condition {
 
     ( $rel_name ? ( rel_name => $rel_name ) : () ),
   };
+
+  # Allowing passing relconds different than the relationshup itself is cute,
+  # but likely dangerous. Remove that from the (still unofficial) API of
+  # _resolve_relationship_condition, and instead make it "hard on purpose"
+  local $self->relationship_info( $args->{rel_name} )->{cond} = $cond if defined $cond;
+
 #######################
 
   # now it's fucking easy isn't it?!
@@ -1864,7 +1868,6 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 # self_result_object    => (either not supplied or a result object)
 # require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
 # infer_values_based_on => (either not supplied or a hashref, implies require_join_free_condition)
-# condition             => (sqla cond struct, optional, defeaults to from $self->rel_info(rel_name)->{cond})
 #
 ## returns a hash
 # condition           => (a valid *likely fully qualified* sqla cond structure)
@@ -1907,8 +1910,6 @@ sub _resolve_relationship_condition {
     if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
 
   $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
-
-  $args->{condition} ||= $rel_info->{cond};
 
   $self->throw_exception( "Argument 'self_result_object' must be an object inheriting from DBIx::Class::Row" )
     if (
@@ -1955,7 +1956,7 @@ sub _resolve_relationship_condition {
 
   my $ret;
 
-  if (ref $args->{condition} eq 'CODE') {
+  if (ref $rel_info->{cond} eq 'CODE') {
 
     my $cref_args = {
       rel_name => $args->{rel_name},
@@ -1974,7 +1975,7 @@ sub _resolve_relationship_condition {
     $cref_args->{self_rowobj} = $cref_args->{self_result_object}
       if exists $cref_args->{self_result_object};
 
-    ($ret->{condition}, $ret->{join_free_condition}, my @extra) = $args->{condition}->($cref_args);
+    ($ret->{condition}, $ret->{join_free_condition}, my @extra) = $rel_info->{cond}->($cref_args);
 
     # sanity check
     $self->throw_exception("A custom condition coderef can return at most 2 conditions, but $exception_rel_id returned extra values: @extra")
@@ -2031,14 +2032,14 @@ sub _resolve_relationship_condition {
 
     }
   }
-  elsif (ref $args->{condition} eq 'HASH') {
+  elsif (ref $rel_info->{cond} eq 'HASH') {
 
     # the condition is static - use parallel arrays
     # for a "pivot" depending on which side of the
     # rel did we get as an object
     my (@f_cols, @l_cols);
-    for my $fc (keys %{$args->{condition}}) {
-      my $lc = $args->{condition}{$fc};
+    for my $fc (keys %{ $rel_info->{cond} }) {
+      my $lc = $rel_info->{cond}{$fc};
 
       # FIXME STRICTMODE should probably check these are valid columns
       $fc =~ s/^foreign\.// ||
@@ -2086,35 +2087,36 @@ sub _resolve_relationship_condition {
       }
     }
   }
-  elsif (ref $args->{condition} eq 'ARRAY') {
-    if (@{$args->{condition}} == 0) {
+  elsif (ref $rel_info->{cond} eq 'ARRAY') {
+    if (@{ $rel_info->{cond} } == 0) {
       $ret = {
         condition => UNRESOLVABLE_CONDITION,
         join_free_condition => UNRESOLVABLE_CONDITION,
       };
     }
-    elsif (@{$args->{condition}} == 1) {
-      $ret = $self->_resolve_relationship_condition({
-        %$args,
-        condition => $args->{condition}[0],
-      });
-    }
     else {
-      # we are discarding inferred values here... likely incorrect...
-      # then again - the entire thing is an OR, so we *can't* use them anyway
-      for my $subcond ( map
-        { $self->_resolve_relationship_condition({ %$args, condition => $_ }) }
-        @{$args->{condition}}
-      ) {
-        $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
-          if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
+      my @subconds = map {
+        local $rel_info->{cond} = $_;
+        $self->_resolve_relationship_condition( $args );
+      } @{ $rel_info->{cond} };
 
-        $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
+      if( @{ $rel_info->{cond} } == 1 ) {
+        $ret = $subconds[0];
+      }
+      else {
+        # we are discarding inferred values here... likely incorrect...
+        # then again - the entire thing is an OR, so we *can't* use them anyway
+        for my $subcond ( @subconds ) {
+          $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
+            if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
+
+          $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
+        }
       }
     }
   }
   else {
-    $self->throw_exception ("Can't handle condition $args->{condition} for $exception_rel_id yet :(");
+    $self->throw_exception ("Can't handle condition $rel_info->{cond} for $exception_rel_id yet :(");
   }
 
   $self->throw_exception(ucfirst "$exception_rel_id does not resolve to a join-free condition fragment") if (
