@@ -521,10 +521,27 @@ sub related_resultset {
     my $rel_info = $rsrc->relationship_info($rel)
       or $self->throw_exception( "No such relationship '$rel'" );
 
-    my ($cond, $is_crosstable) = $rsrc->_resolve_condition( $rel_info->{cond}, $rel, $self, $rel );
+    my $cond_res = $rsrc->_resolve_relationship_condition(
+      rel_name => $rel,
+      self_result_object => $self,
+
+      # this may look weird, but remember that we are making a resultset
+      # out of an existing object, with the new source being at the head
+      # of the FROM chain. Having a 'me' alias is nothing but expected there
+      foreign_alias => 'me',
+
+      self_alias => "!!!\xFF()!!!_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFF!!!",
+
+      # not strictly necessary, but shouldn't hurt either
+      require_join_free_condition => !!(ref $rel_info->{cond} ne 'CODE'),
+    );
 
     # keep in mind that the following if() block is part of a do{} - no return()s!!!
-    if ($is_crosstable and ref $rel_info->{cond} eq 'CODE') {
+    if (
+      ! $cond_res->{join_free_condition}
+        and
+      ref $rel_info->{cond} eq 'CODE'
+    ) {
 
       # A WHOREIFFIC hack to reinvoke the entire condition resolution
       # with the correct alias. Another way of doing this involves a
@@ -551,12 +568,13 @@ sub related_resultset {
       )->search_related('me', undef, $rel_info->{attrs})
     }
     else {
-      my $attrs = { %{ $rel_info->{attrs} } };
 
       # FIXME - this conditional doesn't seem correct - got to figure out
       # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
       # business seems shady - we could simply not query *at all*
-      if ($cond eq UNRESOLVABLE_CONDITION) {
+      my $attrs;
+      if ( $cond_res->{join_free_condition} eq UNRESOLVABLE_CONDITION ) {
+        $attrs = { %{$rel_info->{attrs}} };
         my $reverse = $rsrc->reverse_relationship_info($rel);
         foreach my $rev_rel (keys %$reverse) {
           if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
@@ -566,27 +584,11 @@ sub related_resultset {
           }
         }
       }
-      elsif (ref $cond eq 'ARRAY') {
-        $cond = [ map {
-          if (ref $_ eq 'HASH') {
-            my $hash;
-            foreach my $key (keys %$_) {
-              my $newkey = $key !~ /\./ ? "me.$key" : $key;
-              $hash->{$newkey} = $_->{$key};
-            }
-            $hash;
-          } else {
-            $_;
-          }
-        } @$cond ];
-      }
-      elsif (ref $cond eq 'HASH') {
-       foreach my $key (grep { ! /\./ } keys %$cond) {
-          $cond->{"me.$key"} = delete $cond->{$key};
-        }
-      }
 
-      $rsrc->related_source($rel)->resultset->search( $cond, $attrs );
+      $rsrc->related_source($rel)->resultset->search(
+        $cond_res->{join_free_condition},
+        $attrs || $rel_info->{attrs},
+      );
     }
   };
 }

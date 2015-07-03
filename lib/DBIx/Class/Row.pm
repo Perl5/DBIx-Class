@@ -1174,16 +1174,21 @@ sub copy {
 
     next unless $rel_info->{attrs}{cascade_copy};
 
-    my $resolved = $rsrc->_resolve_condition(
-      $rel_info->{cond}, $rel_name, $new, $rel_name
-    );
-
+    my $foreign_vals;
     my $copied = $rel_names_copied->{ $rel_info->{source} } ||= {};
-    foreach my $related ($self->search_related($rel_name)->all) {
-      $related->copy($resolved)
-        unless $copied->{$related->ID}++;
-    }
 
+    $copied->{$_->ID}++ or $_->copy(
+
+      $foreign_vals ||= $rsrc->_resolve_relationship_condition(
+        infer_values_based_on => {},
+        rel_name => $rel_name,
+        self_result_object => $new,
+
+        self_alias => "\xFE", # irrelevant
+        foreign_alias => "\xFF", # irrelevant,
+      )->{inferred_values}
+
+    ) for $self->search_related($rel_name)->all;
   }
   return $new;
 }

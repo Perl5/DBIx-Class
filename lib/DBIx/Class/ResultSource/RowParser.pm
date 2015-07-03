@@ -197,26 +197,12 @@ sub _resolve_collapse {
       is_single => ( $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi' ),
       is_inner => ( ( $inf->{attrs}{join_type} || '' ) !~ /^left/i),
       rsrc => $self->related_source($rel),
+      fk_map => $self->_resolve_relationship_condition(
+        rel_name => $rel,
+        self_alias => "\xFE", # irrelevant
+        foreign_alias => "\xFF", # irrelevant
+      )->{identity_map},
     };
-
-    # FIME - need to use _resolve_cond here instead
-    my $cond = $inf->{cond};
-
-    if (
-      ref $cond eq 'HASH'
-        and
-      keys %$cond
-        and
-      ! defined first { $_ !~ /^foreign\./ } (keys %$cond)
-        and
-      ! defined first { $_ !~ /^self\./ } (values %$cond)
-    ) {
-      for my $f (keys %$cond) {
-        my $s = $cond->{$f};
-        $_ =~ s/^ (?: foreign | self ) \.//x for ($f, $s);
-        $relinfo->{$rel}{fk_map}{$s} = $f;
-      }
-    }
   }
 
   # inject non-left fk-bridges from *INNER-JOINED* children (if any)
