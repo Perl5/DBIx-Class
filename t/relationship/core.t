@@ -262,6 +262,22 @@ is_same_sql_bind (
 $undir_maps = $schema->resultset("Artist")->find(2)->artist_undirected_maps;
 is($undir_maps->count, 1, 'found 1 undirected map for artist 2');
 
+{
+  my $artist_to_mangle = $schema->resultset('Artist')->find(2);
+
+  $artist_to_mangle->set_from_related( artist_undirected_maps => { id1 => 42 } );
+
+  ok( ! $artist_to_mangle->is_changed, 'Unresolvable set_from_related did not alter object' );
+
+  $artist_to_mangle->set_from_related( artist_undirected_maps => {} );
+  ok( $artist_to_mangle->is_changed, 'Definitive set_from_related did alter object' );
+  is (
+    $artist_to_mangle->id,
+    undef,
+    'Correctly unset id on definitive outcome of OR condition',
+  );
+}
+
 my $mapped_rs = $undir_maps->search_related('mapped_artists');
 
 my @art = $mapped_rs->all;

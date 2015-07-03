@@ -2127,7 +2127,13 @@ sub _resolve_relationship_condition {
 
   # we got something back - sanity check and infer values if we can
   my @nonvalues;
-  if ( my $jfc = $ret->{join_free_condition} and $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION ) {
+  if (
+    $ret->{join_free_condition}
+      and
+    $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION
+      and
+    my $jfc = $storage->_collapse_cond( $ret->{join_free_condition} )
+  ) {
 
     my $jfc_eqs = $storage->_extract_fixed_condition_columns($jfc, 'consider_nulls');
 
