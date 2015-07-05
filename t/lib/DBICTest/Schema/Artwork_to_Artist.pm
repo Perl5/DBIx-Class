@@ -33,10 +33,13 @@ __PACKAGE__->belongs_to('artist_limited_rank', 'DBICTest::Schema::Artist',
       { "$args->{foreign_alias}.artistid" => { -ident => "$args->{self_alias}.artist_id" },
         "$args->{foreign_alias}.rank"     => { '<' => 10 },
       },
-      $args->{self_result_object} && {
+      !$args->{self_result_object} ? () : {
         "$args->{foreign_alias}.artistid" => $args->{self_result_object}->artist_id,
         "$args->{foreign_alias}.rank"   => { '<' => 10 },
-      }
+      },
+      !$args->{foreign_values} ? () : {
+        "$args->{self_alias}.artist_id" => $args->{foreign_values}{artistid},
+      },
     );
   }
 );

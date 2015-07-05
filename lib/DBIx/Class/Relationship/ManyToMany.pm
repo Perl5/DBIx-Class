@@ -84,7 +84,7 @@ EOW
         "${add_meth} needs an object or hashref"
       );
 
-      my $link = $self->search_related_rs($rel)->new_result(
+      my $link = $self->new_related( $rel,
         ( @_ > 1 && ref $_[-1] eq 'HASH' )
           ? pop
           : {}
@@ -100,6 +100,7 @@ EOW
       ;
 
       $link->set_from_related($f_rel, $far_obj);
+
       $link->insert();
 
       return $far_obj;
@@ -111,37 +112,36 @@ EOW
       @_ > 0 or $self->throw_exception(
         "{$set_meth} needs a list of objects or hashrefs"
       );
-      my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
+
+      my $guard = $self->result_source->schema->storage->txn_scope_guard;
+
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
+
       if ($rel_attrs && $rel_attrs->{where}) {
         $self->search_related( $rel, $rel_attrs->{where},{join => $f_rel})->delete;
       } else {
         $self->search_related( $rel, {} )->delete;
       }
       # add in the set rel objects
-      $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
+      $self->$add_meth($_, ref($_[1]) ? $_[1] : {})
+        for ( ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_ );
+
+      $guard->commit;
     };
 
     my $remove_meth_name = join '::', $class, $remove_meth;
     *$remove_meth_name = subname $remove_meth_name, sub {
       my ($self, $obj) = @_;
+
       $self->throw_exception("${remove_meth} needs an object")
         unless blessed ($obj);
-      my $rel_source = $self->search_related($rel)->result_source;
-      my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my ($link_cond, $crosstable) = $rel_source->_resolve_condition(
-        $cond, $obj, $f_rel, $f_rel
-      );
 
-      $self->throw_exception(
-        "Relationship '$rel' does not resolve to a join-free condition, "
-       ."unable to use with the ManyToMany helper '$f_rel'"
-      ) if $crosstable;
-
-      $self->search_related($rel, $link_cond)->delete;
+      $self->search_related_rs($rel)->search_rs(
+        $obj->ident_condition( $f_rel ),
+        { join => $f_rel },
+      )->delete;
     };
-
   }
 }
 

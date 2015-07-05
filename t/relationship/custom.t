@@ -219,7 +219,7 @@ is_deeply (
 
 
 my $artwork = $schema->resultset('Artwork')->search({},{ order_by => 'cd_id' })->first;
-my @artists = $artwork->artists->all;
+my @artists = $artwork->artists->search({}, { order_by => 'artistid' } );
 is(scalar @artists, 2, 'the two artists are associated');
 
 my @artwork_artists = $artwork->artwork_to_artist->all;
@@ -264,6 +264,62 @@ for (qw( artist_limited_rank artist_limited_rank_opaque )) {
     scalar $artwork->$_->all,
     1,
     'Expected one m2m associated artist object via opaque custom cond + conditional far cond'
+  );
+
+  cmp_ok(
+    $artwork->${\"remove_from_$_"} ( $artists[1] ),
+    '==',
+    0,
+    'deletion action reports 0'
+  );
+
+  is (
+    scalar $artwork->all_artists_via_opaque_customcond->all,
+    2,
+    'Indeed nothing was removed'
+  );
+
+  cmp_ok(
+    $artwork->${\"remove_from_$_"} ( $artists[0] ),
+    '==',
+    1,
+    'Removal reports correct count'
+  );
+
+  is (
+    scalar $artwork->all_artists_via_opaque_customcond->all,
+    1,
+    'Indeed removed the matching artist'
+  );
+
+  $artwork->${\"set_$_"}([]);
+
+  is (
+    scalar $artwork->all_artists_via_opaque_customcond->all,
+    0,
+    'Everything removed via limited far cond'
+  );
+
+  # can't use the opaque one - need set_from_related to work
+  $artwork->set_artist_limited_rank( @artists );
+
+  {
+    local $TODO = 'Taking into account the relationship bridge condition is not likely to ever work... unless we get DQ hooked somehow';
+
+    is (
+      scalar $artwork->all_artists_via_opaque_customcond->all,
+      1,
+      'Re-Addition passed through only one of the artists'
+    );
+  }
+
+  throws_ok { $artwork->set_all_artists_via_opaque_customcond( \@artists ) }
+    qr/\QRelationship 'artwork_to_artist_via_opaque_customcond' on source 'Artwork' does not resolve to a join-free condition fragment/;
+
+  is (
+    scalar $artwork->all_artists_via_opaque_customcond->all,
+    2,
+    'Everything still there as expected'
   );
 }
 
