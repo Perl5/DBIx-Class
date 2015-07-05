@@ -225,28 +225,28 @@ my @artwork_artists = $artwork->artwork_to_artist->all;
 foreach (@artwork_artists) {
   lives_ok {
     my $artista = $_->artist;
-    my $artistb = $_->artist_test_m2m;
+    my $artistb = $_->artist_limited_rank;
     ok($artista->rank < 10 ? $artistb : 1, 'belongs_to with custom rel works.');
-    my $artistc = $_->artist_test_m2m_noopt;
+    my $artistc = $_->artist_limited_rank_opaque;
     ok($artista->rank < 10 ? $artistc : 1, 'belongs_to with custom rel works even in non-simplified.');
   } 'belongs_to works with custom rels';
 }
 
 @artists = ();
 lives_ok {
-  @artists = $artwork->artists_test_m2m2->all;
+  @artists = $artwork->artists_via_customcond->all;
 } 'manytomany with extended rels in the has many works';
 is(scalar @artists, 2, 'two artists');
 
 @artists = ();
 lives_ok {
-  @artists = $artwork->artists_test_m2m->all;
+  @artists = $artwork->artist_limited_rank->all;
 } 'can fetch many to many with optimized version';
 is(scalar @artists, 1, 'only one artist is associated');
 
 @artists = ();
 lives_ok {
-  @artists = $artwork->artists_test_m2m_noopt->all;
+  @artists = $artwork->artist_limited_rank_opaque->all;
 } 'can fetch many to many with non-optimized version';
 is(scalar @artists, 1, 'only one artist is associated');
 

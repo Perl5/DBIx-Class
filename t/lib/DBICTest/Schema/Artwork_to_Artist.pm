@@ -22,7 +22,7 @@ __PACKAGE__->set_primary_key(qw/artwork_cd_id artist_id/);
 __PACKAGE__->belongs_to('artwork', 'DBICTest::Schema::Artwork', 'artwork_cd_id');
 __PACKAGE__->belongs_to('artist', 'DBICTest::Schema::Artist', 'artist_id');
 
-__PACKAGE__->belongs_to('artist_test_m2m', 'DBICTest::Schema::Artist',
+__PACKAGE__->belongs_to('artist_limited_rank', 'DBICTest::Schema::Artist',
   sub {
     # This is for test purposes only. A regular user does not
     # need to sanity check the passed-in arguments, this is what
@@ -41,7 +41,7 @@ __PACKAGE__->belongs_to('artist_test_m2m', 'DBICTest::Schema::Artist',
   }
 );
 
-__PACKAGE__->belongs_to('artist_test_m2m_noopt', 'DBICTest::Schema::Artist',
+__PACKAGE__->belongs_to('artist_limited_rank_opaque', 'DBICTest::Schema::Artist',
   sub {
     # This is for test purposes only. A regular user does not
     # need to sanity check the passed-in arguments, this is what
