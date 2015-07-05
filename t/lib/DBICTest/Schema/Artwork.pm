@@ -22,11 +22,12 @@ __PACKAGE__->has_many('artwork_to_artist', 'DBICTest::Schema::Artwork_to_Artist'
 __PACKAGE__->many_to_many('artists', 'artwork_to_artist', 'artist');
 
 # both to test manytomany with custom rel
-__PACKAGE__->many_to_many('artists_test_m2m', 'artwork_to_artist', 'artist_test_m2m');
-__PACKAGE__->many_to_many('artists_test_m2m_noopt', 'artwork_to_artist', 'artist_test_m2m_noopt');
+# (deliberate misnamed accessor clash)
+__PACKAGE__->many_to_many('artist_limited_rank', 'artwork_to_artist', 'artist_limited_rank');
+__PACKAGE__->many_to_many('artist_limited_rank_opaque', 'artwork_to_artist', 'artist_limited_rank_opaque');
 
 # other test to manytomany
-__PACKAGE__->has_many('artwork_to_artist_test_m2m', 'DBICTest::Schema::Artwork_to_Artist',
+__PACKAGE__->has_many('artwork_to_artist_via_customcond', 'DBICTest::Schema::Artwork_to_Artist',
   sub {
     # This is for test purposes only. A regular user does not
     # need to sanity check the passed-in arguments, this is what
@@ -42,6 +43,7 @@ __PACKAGE__->has_many('artwork_to_artist_test_m2m', 'DBICTest::Schema::Artwork_t
     );
   }
 );
-__PACKAGE__->many_to_many('artists_test_m2m2', 'artwork_to_artist_test_m2m', 'artist');
+__PACKAGE__->many_to_many('artists_via_customcond', 'artwork_to_artist_via_customcond', 'artist');
+
 
 1;
