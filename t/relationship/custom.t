@@ -217,6 +217,7 @@ is_deeply (
   'last_track via insane subquery condition works, even without prefetch',
 );
 
+
 my $artwork = $schema->resultset('Artwork')->search({},{ order_by => 'cd_id' })->first;
 my @artists = $artwork->artists->all;
 is(scalar @artists, 2, 'the two artists are associated');
@@ -232,23 +233,39 @@ foreach (@artwork_artists) {
   } 'belongs_to works with custom rels';
 }
 
-@artists = ();
-lives_ok {
-  @artists = $artwork->artists_via_customcond->all;
-} 'manytomany with extended rels in the has many works';
-is(scalar @artists, 2, 'two artists');
+is(
+  $schema->resultset('Artwork')
+          ->related_resultset( 'artwork_to_artist_via_opaque_customcond' )
+           ->related_resultset( 'artist' )
+            ->search({}, { collapse => 1 })
+             ->count,
+  2,
+  'Custom rel works correctly',
+);
 
-@artists = ();
-lives_ok {
-  @artists = $artwork->artist_limited_rank->all;
-} 'can fetch many to many with optimized version';
-is(scalar @artists, 1, 'only one artist is associated');
+is (
+  scalar $artwork->all_artists_via_opaque_customcond->all,
+  2,
+  'Expected two m2m associated artist objects via opaque costom cond'
+);
 
-@artists = ();
-lives_ok {
-  @artists = $artwork->artist_limited_rank_opaque->all;
-} 'can fetch many to many with non-optimized version';
-is(scalar @artists, 1, 'only one artist is associated');
+for (qw( artist_limited_rank artist_limited_rank_opaque )) {
+  is(
+    $schema->resultset('Artwork')
+            ->related_resultset( 'artwork_to_artist_via_opaque_customcond' )
+             ->related_resultset( $_ )
+              ->search({}, { collapse => 1 })
+               ->count,
+    1,
+    'Condition over double custom rel works correctly',
+  );
+
+  is (
+    scalar $artwork->$_->all,
+    1,
+    'Expected one m2m associated artist object via opaque custom cond + conditional far cond'
+  );
+}
 
 
 # Make a single for each last_track
