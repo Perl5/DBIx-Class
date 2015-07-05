@@ -80,32 +80,29 @@ EOW
     my $add_meth_name = join '::', $class, $add_meth;
     *$add_meth_name = subname $add_meth_name, sub {
       my $self = shift;
-      @_ > 0 or $self->throw_exception(
+      @_ or $self->throw_exception(
         "${add_meth} needs an object or hashref"
       );
-      my $source = $self->result_source;
-      my $schema = $source->schema;
-      my $rel_source_name = $source->relationship_info($rel)->{source};
-      my $rel_source = $schema->resultset($rel_source_name)->result_source;
-      my $f_rel_source_name = $rel_source->relationship_info($f_rel)->{source};
-      my $f_rel_rs = $schema->resultset($f_rel_source_name)->search({}, $rel_attrs||{});
 
-      my $obj;
-      if (ref $_[0]) {
-        if (ref $_[0] eq 'HASH') {
-          $obj = $f_rel_rs->find_or_create($_[0]);
-        } else {
-          $obj = $_[0];
-        }
-      } else {
-        $obj = $f_rel_rs->find_or_create({@_});
-      }
+      my $link = $self->search_related_rs($rel)->new_result(
+        ( @_ > 1 && ref $_[-1] eq 'HASH' )
+          ? pop
+          : {}
+      );
 
-      my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
-      my $link = $self->search_related($rel)->new_result($link_vals);
-      $link->set_from_related($f_rel, $obj);
+      my $far_obj = defined blessed $_[0]
+        ? $_[0]
+        : $self->result_source
+                ->related_source( $rel )
+                 ->related_source( $f_rel )
+                  ->resultset->search_rs( {}, $rel_attrs||{} )
+                   ->find_or_create( ref $_[0] eq 'HASH' ? $_[0] : {@_} )
+      ;
+
+      $link->set_from_related($f_rel, $far_obj);
       $link->insert();
-      return $obj;
+
+      return $far_obj;
     };
 
     my $set_meth_name = join '::', $class, $set_meth;
