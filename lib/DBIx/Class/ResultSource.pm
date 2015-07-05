@@ -1924,10 +1924,15 @@ sub _resolve_relationship_condition {
   ;
 
   my $rel_rsrc = $self->related_source($args->{rel_name});
+  my $storage = $self->schema->storage;
 
   if (exists $args->{foreign_values}) {
 
-    if (defined blessed $args->{foreign_values}) {
+    if (! defined $args->{foreign_values} ) {
+      # fallback: undef => {}
+      $args->{foreign_values} = {};
+    }
+    elsif (defined blessed $args->{foreign_values}) {
 
       $self->throw_exception( "Objects supplied as 'foreign_values' ($args->{foreign_values}) must inherit from DBIx::Class::Row" )
         unless $args->{foreign_values}->isa('DBIx::Class::Row');
@@ -1940,12 +1945,41 @@ sub _resolve_relationship_condition {
 
       $args->{foreign_values} = { $args->{foreign_values}->get_columns };
     }
-    elsif (! defined $args->{foreign_values} or ref $args->{foreign_values} eq 'HASH') {
-      my $ri = { map { $_ => 1 } $rel_rsrc->relationships };
-      my $ci = $rel_rsrc->columns_info;
-      ! exists $ci->{$_} and ! exists $ri->{$_} and $self->throw_exception(
-        "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'"
-      ) for keys %{ $args->{foreign_values} ||= {} };
+    elsif ( ref $args->{foreign_values} eq 'HASH' ) {
+
+      # re-build {foreign_values} excluding identically named rels
+      if( keys %{$args->{foreign_values}} ) {
+
+        my ($col_idx, $rel_idx) = map
+          { { map { $_ => 1 } $rel_rsrc->$_ } }
+          qw( columns relationships )
+        ;
+
+        my $equivalencies = $storage->_extract_fixed_condition_columns(
+          $args->{foreign_values},
+          'consider nulls',
+        );
+
+        $args->{foreign_values} = { map {
+          # skip if relationship *and* a non-literal ref
+          # this means a multicreate stub was passed in
+          (
+            $rel_idx->{$_}
+              and
+            length ref $args->{foreign_values}{$_}
+              and
+            ! is_literal_value($args->{foreign_values}{$_})
+          )
+            ? ()
+            : ( $_ => (
+                ! $col_idx->{$_}
+                  ? $self->throw_exception( "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'" )
+              : ( !exists $equivalencies->{$_} or ($equivalencies->{$_}||'') eq UNRESOLVABLE_CONDITION )
+                  ? $self->throw_exception( "Value supplied for '...{foreign_values}{$_}' is not a direct equivalence expression" )
+              : $args->{foreign_values}{$_}
+            ))
+        } keys %{$args->{foreign_values}} };
+      }
     }
     else {
       $self->throw_exception(
@@ -2011,7 +2045,7 @@ sub _resolve_relationship_condition {
       exists $fq_col_list->{$_} or $self->throw_exception (
         "The join-free condition returned for $exception_rel_id may only "
       . 'contain keys that are fully qualified column names of the corresponding source '
-      . "(it returned '$_')"
+      . "'$joinfree_alias' (instead it returned '$_')"
       ) for keys %$jfc;
 
       (
@@ -2117,13 +2151,18 @@ sub _resolve_relationship_condition {
     $self->throw_exception ("Can't handle condition $rel_info->{cond} for $exception_rel_id yet :(");
   }
 
-  $self->throw_exception(ucfirst "$exception_rel_id does not resolve to a join-free condition fragment") if (
+  if (
     $args->{require_join_free_condition}
       and
     ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
-  );
-
-  my $storage = $self->schema->storage;
+  ) {
+    $self->throw_exception(
+      ucfirst sprintf "$exception_rel_id does not resolve to a %sjoin-free condition fragment",
+        exists $args->{foreign_values}
+          ? "'foreign_values'-based reversed-"
+          : ''
+    );
+  }
 
   # we got something back - sanity check and infer values if we can
   my @nonvalues;
