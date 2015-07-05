@@ -1923,12 +1923,9 @@ sub _resolve_relationship_condition {
     )
   ;
 
-#TEMP
-  my $rel_rsrc;# = $self->related_source($args->{rel_name});
+  my $rel_rsrc = $self->related_source($args->{rel_name});
 
   if (exists $args->{foreign_values}) {
-# TEMP
-    $rel_rsrc ||= $self->related_source($args->{rel_name});
 
     if (defined blessed $args->{foreign_values}) {
 
@@ -1990,9 +1987,6 @@ sub _resolve_relationship_condition {
       $self->throw_exception (
         "The join-free condition returned for $exception_rel_id must be a hash reference"
       ) unless ref $jfc eq 'HASH';
-
-# TEMP
-      $rel_rsrc ||= $self->related_source($args->{rel_name});
 
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_result_object}) {
@@ -2187,9 +2181,6 @@ sub _resolve_relationship_condition {
     for my $lhs (keys %$col_eqs) {
 
       next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
-
-# TEMP
-      $rel_rsrc ||= $self->related_source($args->{rel_name});
 
       # there is no way to know who is right and who is left in a cref
       # therefore a full blown resolution call, and figure out the
