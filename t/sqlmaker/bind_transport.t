@@ -18,6 +18,17 @@ my ($ROWS, $OFFSET) = (
 
 my $schema = DBICTest->init_schema();
 
+$schema->is_executed_sql_bind(
+  sub { $schema->resultset('Artist')->find( Math::BigInt->new(42) ) },
+  [
+    [
+      'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE me.artistid = ?',
+      [ { dbic_colname => "me.artistid", sqlt_datatype => "integer" }
+        => Math::BigInt->new(42) ],
+    ]
+  ]
+);
+
 my $rs = $schema->resultset('CD')->search({ -and => [
   'me.artist' => { '!=', '666' },
   'me.artist' => { '!=', \[ '?', [ _ne => 'bar' ] ] },

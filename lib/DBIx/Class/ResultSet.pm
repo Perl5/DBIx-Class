@@ -9,6 +9,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw( blessed reftype );
+use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
   dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
@@ -777,7 +778,6 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
 
-  my $rsrc = $self->result_source;
 
   my $constraint_name;
   if (exists $attrs->{key}) {
@@ -789,6 +789,8 @@ sub find {
 
   # Parse out the condition from input
   my $call_cond;
+
+  my $rsrc = $self->result_source;
 
   if (ref $_[0] eq 'HASH') {
     $call_cond = { %{$_[0]} };
@@ -812,25 +814,34 @@ sub find {
   }
 
   # process relationship data if any
+  my $rel_list;
+
   for my $key (keys %$call_cond) {
     if (
       length ref($call_cond->{$key})
         and
-      my $relinfo = $rsrc->relationship_info($key)
+      ( $rel_list ||= { map { $_ => 1 } $rsrc->relationships } )
+        ->{$key}
         and
-      # implicitly skip has_many's (likely MC)
+      ! is_literal_value( $call_cond->{$key} )
+        and
+      # implicitly skip has_many's (likely MC), via the delete()
       ( ref( my $val = delete $call_cond->{$key} ) ne 'ARRAY' )
     ) {
-      my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
-        $relinfo->{cond}, $val, $key, $key
-      );
 
-      $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
-         if $crosstable or ref($rel_cond) ne 'HASH';
+      # FIXME: it seems wrong that relationship conditions take precedence...?
+      $call_cond = {
+        %$call_cond,
 
-      # supplement condition
-      # relationship conditions take precedence (?)
-      @{$call_cond}{keys %$rel_cond} = values %$rel_cond;
+        %{ $rsrc->_resolve_relationship_condition(
+          rel_name => $key,
+          foreign_values => $val,
+          infer_values_based_on => {},
+
+          self_alias => "\xFE", # irrelevant
+          foreign_alias => "\xFF", # irrelevant
+        )->{inferred_values} },
+      };
     }
   }
 
