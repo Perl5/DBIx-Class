@@ -119,12 +119,16 @@ for my $meth (keys %$storage_accessor_idx, qw(
   my $orig = __PACKAGE__->can ($meth)
     or die "$meth is not a ::Storage::DBI method!";
 
-  my $is_getter = $storage_accessor_idx->{$meth} ? 0 : 1;
+  my $possibly_a_setter = $storage_accessor_idx->{$meth} ? 1 : 0;
 
   quote_sub
-    __PACKAGE__ ."::$meth", sprintf( <<'EOC', $is_getter, perlstring $meth ), { '$orig' => \$orig };
+    __PACKAGE__ ."::$meth", sprintf( <<'EOC', $possibly_a_setter, perlstring $meth ), { '$orig' => \$orig };
 
     if (
+      # if this is an actual *setter* - just set it, no need to connect
+      # and determine the driver
+      !( %1$s and @_ > 1 )
+        and
       # only fire when invoked on an instance, a valid class-based invocation
       # would e.g. be setting a default for an inherited accessor
       ref $_[0]
@@ -132,10 +136,6 @@ for my $meth (keys %$storage_accessor_idx, qw(
       ! $_[0]->{_driver_determined}
         and
       ! $_[0]->{_in_determine_driver}
-        and
-      # if this is a known *setter* - just set it, no need to connect
-      # and determine the driver
-      ( %1$s or @_ <= 1 )
         and
       # Only try to determine stuff if we have *something* that either is or can
       # provide a DSN. Allows for bare $schema's generated with a plain ->connect()
