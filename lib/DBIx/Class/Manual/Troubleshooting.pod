@@ -54,6 +54,14 @@ in this error message.  In particular make sure that the package
 declaration is correct. For example, for a schema C< MySchema >
 you need to specify a fully qualified namespace: C< package MySchema::MyTable; >.
 
+=head2 the generated SQL contains an ambiguous column reference
+
+In your ResultSet are two columns named the same in different Tables and
+DBIx::Class does not know how to properly address theme.
+
+To avoid those errors you can make use of L<DBIx::Class::ResultSet/current_source_alias>
+in your ResultSet methods to address the columns properly.
+
 =head2 syntax error at or near "<something>" ...
 
 This can happen if you have a relation whose name is a word reserved by your
