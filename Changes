@@ -25,6 +25,8 @@ Revision history for DBIx::Class
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
         - Fix t/storage/quote_names.t failures on systems with specified Oracle
           test credentials while missing the optional Math::Base36
+        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
+          autoinc value when inserting rows containing blobs (GH#82)
         - Fix test failures when DBICTEST_SYBASE_DSN is set (unnoticed change
           in error message wording during 0.082800 and a bogus test)
 
