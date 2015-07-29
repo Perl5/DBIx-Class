@@ -791,6 +791,11 @@ sub _insert_blobs {
   $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
     if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
 
+  # if we are 2-phase inserting a blob - there is nothing to retrieve anymore,
+  # regardless of the previous state of the flag
+  local $self->{_perform_autoinc_retrieval}
+    if $self->_perform_autoinc_retrieval;
+
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
 

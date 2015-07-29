@@ -23,6 +23,8 @@ Revision history for DBIx::Class
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
+        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
+          autoinc value when inserting rows containing blobs (GH#82)
         - Remove spurious exception warping in ::Replicated::execute_reliably
           (RT#113339)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
