@@ -490,6 +490,14 @@ SQL
       $rs->update({ blob => undef });
       is((grep !defined($_->blob), $rs->all), 2);
     } 'blob update to NULL';
+
+    lives_ok {
+        $schema->txn_do(sub {
+              my $created = $rs->create( { clob => "some text" } );
+          });
+    } 'insert blob field in transaction';
+    $ping_count-- if $@; # dbh_do calls ->connected
+
   }
 
 # test MONEY column support (and some other misc. stuff)
