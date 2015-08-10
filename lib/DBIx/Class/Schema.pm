@@ -8,7 +8,7 @@ use base 'DBIx::Class';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util qw(refcount quote_sub);
+use DBIx::Class::_Util qw(refcount quote_sub is_exception);
 use Devel::GlobalDestruction;
 use namespace::clean;
 
@@ -1055,26 +1055,37 @@ default behavior will provide a detailed stack trace.
 =cut
 
 sub throw_exception {
-  my $self = shift;
+  my ($self, @args) = @_;
 
   if (my $act = $self->exception_action) {
-    if ($act->(@_)) {
-      DBIx::Class::Exception->throw(
+    try {
+      # if it throws - good, we'll go down to the catch
+      # if it doesn't - do different things depending on RV truthiness
+      if( $act->(@args) ) {
+        $args[0] = (
           "Invocation of the exception_action handler installed on $self did *not*"
         .' result in an exception. DBIx::Class is unable to function without a reliable'
         .' exception mechanism, ensure that exception_action does not hide exceptions'
-        ." (original error: $_[0])"
-      );
-    }
+        ." (original error: $args[0])"
+        );
+      }
+      else {
+        carp_unique (
+          "The exception_action handler installed on $self returned false instead"
+        .' of throwing an exception. This behavior has been deprecated, adjust your'
+        .' handler to always rethrow the supplied error.'
+        );
+      }
+    } catch {
+      # We call this to get the necessary warnings emitted and disregard the RV
+      # as it's definitely an exception if we got as far as catch{}
+      is_exception($_);
 
-    carp_unique (
-      "The exception_action handler installed on $self returned false instead"
-    .' of throwing an exception. This behavior has been deprecated, adjust your'
-    .' handler to always rethrow the supplied error.'
-    );
+      die $_;
+    };
   }
 
-  DBIx::Class::Exception->throw($_[0], $self->stacktrace);
+  DBIx::Class::Exception->throw( $args[0], $self->stacktrace );
 }
 
 =head2 deploy

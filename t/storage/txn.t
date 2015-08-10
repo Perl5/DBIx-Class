@@ -453,6 +453,17 @@ warnings_are {
   } qr/\QTransaction aborted: $broken_exception. Rollback failed: lost connection to storage at @{[__FILE__]} line $ln\E\n/;  # FIXME wtf - ...\E$/m doesn't work here
 
   is @w, 1, 'One matching warning only';
+
+  # try the same broken exception object, but have exception_action inject it
+  $s->exception_action(sub { die $broken_exception });
+  eval {
+    $s->txn_do( sub {
+      die "some string masked away";
+    });
+  };
+  isa_ok $@, 'DBICTest::BrokenOverload', 'Deficient exception properly propagated';
+
+  is @w, 2, 'The warning was emitted a second time';
 }
 
 done_testing;
