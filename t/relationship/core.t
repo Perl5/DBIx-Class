@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 
@@ -190,11 +191,18 @@ is( $prod_rs->first->name, 'Testy McProducer',
     'many_to_many add_to_$rel($hash) ok' );
 $cd->add_to_producers({ name => 'Jack Black' });
 is( $prod_rs->count(), 2, 'many_to_many add_to_$rel($hash) count ok' );
-$cd->set_producers($schema->resultset('Producer')->all);
-is( $cd->producers->count(), $prod_before_count+2,
-    'many_to_many set_$rel(@objs) count ok' );
-$cd->set_producers($schema->resultset('Producer')->find(1));
-is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
+
+warnings_like {
+  $cd->set_producers($schema->resultset('Producer')->all);
+  is( $cd->producers->count(), $prod_before_count+2,
+      'many_to_many set_$rel(@objs) count ok' );
+
+  $cd->set_producers($schema->resultset('Producer')->find(1));
+  is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
+} [
+  ( qr/\QCalling 'set_producers' with a list of items to link to is deprecated, use an arrayref instead/ ) x 2
+], 'Warnings on deprecated invocation of set_* found';
+
 $cd->set_producers([$schema->resultset('Producer')->all]);
 is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
