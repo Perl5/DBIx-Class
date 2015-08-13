@@ -108,9 +108,28 @@ EOW
 
     my $set_meth_name = join '::', $class, $set_meth;
     *$set_meth_name = subname $set_meth_name, sub {
+
       my $self = shift;
-      @_ > 0 or $self->throw_exception(
-        "{$set_meth} needs a list of objects or hashrefs"
+
+      my $set_to = ( ref $_[0] eq 'ARRAY' )
+        ? ( shift @_ )
+        : do {
+          carp_unique(
+            "Calling '$set_meth' with a list of items to link to is deprecated, use an arrayref instead"
+          );
+
+          # gobble up everything from @_ into a new arrayref
+          [ splice @_ ]
+        }
+      ;
+
+      # make sure folks are not invoking a bizarre mix of deprecated and curent syntax
+      $self->throw_exception(
+        "'$set_meth' expects an arrayref of objects or hashrefs to link to, and an optional hashref of link data"
+      ) if (
+        @_ > 1
+          or
+        ( @_ and ref $_[0] ne 'HASH' )
       );
 
       my $guard = $self->result_source->schema->storage->txn_scope_guard;
@@ -124,8 +143,10 @@ EOW
         $self->search_related( $rel, {} )->delete;
       }
       # add in the set rel objects
-      $self->$add_meth($_, ref($_[1]) ? $_[1] : {})
-        for ( ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_ );
+      $self->$add_meth(
+        $_,
+        @_, # at this point @_ is either empty or contains a lone link-data hash
+      ) for @$set_to;
 
       $guard->commit;
     };

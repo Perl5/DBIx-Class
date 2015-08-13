@@ -301,7 +301,7 @@ for (qw( artist_limited_rank artist_limited_rank_opaque )) {
   );
 
   # can't use the opaque one - need set_from_related to work
-  $artwork->set_artist_limited_rank( @artists );
+  $artwork->set_artist_limited_rank( \@artists );
 
   {
     local $TODO = 'Taking into account the relationship bridge condition is not likely to ever work... unless we get DQ hooked somehow';
