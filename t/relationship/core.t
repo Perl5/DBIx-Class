@@ -203,6 +203,12 @@ warnings_like {
   ( qr/\QCalling 'set_producers' with a list of items to link to is deprecated, use an arrayref instead/ ) x 2
 ], 'Warnings on deprecated invocation of set_* found';
 
+warnings_like {
+  is( $cd->producers( producerid => '666' )->count, 0 );
+} [
+  qr/\Qsearch( %condition ) is deprecated/
+], 'Warning properly bubbled from search()';
+
 $cd->set_producers([$schema->resultset('Producer')->all]);
 is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
@@ -211,11 +217,11 @@ is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
 
 throws_ok {
   $cd->remove_from_producers({ fake => 'hash' })
-} qr/needs an object/, 'remove_from_$rel($hash) dies correctly';
+} qr/expects an object/, 'remove_from_$rel($hash) dies correctly';
 
 throws_ok {
   $cd->add_to_producers()
-} qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly';
+} qr/expects an object or hashref/, 'add_to_$rel(undef) dies correctly';
 
 # many_to_many stresstest
 my $twokey = $schema->resultset('TwoKeys')->find(1,1);

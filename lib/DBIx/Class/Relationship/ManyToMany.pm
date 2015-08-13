@@ -59,52 +59,81 @@ EOW
 
     $rel_attrs->{alias} ||= $f_rel;
 
+
     my $rs_meth_name = join '::', $class, $rs_meth;
     *$rs_meth_name = subname $rs_meth_name, sub {
-      my $self = shift;
-      my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
-      my $rs = $self->search_related($rel)->search_related(
-        $f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs }
-      );
-      return $rs;
+
+      # this little horror is there replicating a deprecation from
+      # within search_rs() itself
+      shift->search_related_rs($rel)
+            ->search_related_rs(
+              $f_rel,
+              undef,
+              ( @_ > 1 and ref $_[-1] eq 'HASH' )
+                ? { %$rel_attrs, %{ pop @_ } }
+                : $rel_attrs
+            )->search_rs(@_)
+      ;
+
     };
+
 
     my $meth_name = join '::', $class, $meth;
     *$meth_name = subname $meth_name, sub {
+
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-      my $self = shift;
-      my $rs = $self->$rs_meth( @_ );
-      return (wantarray ? $rs->all : $rs);
+
+      my $rs = shift->$rs_meth( @_ );
+
+      wantarray ? $rs->all : $rs;
+
     };
+
 
     my $add_meth_name = join '::', $class, $add_meth;
     *$add_meth_name = subname $add_meth_name, sub {
-      my $self = shift;
-      @_ or $self->throw_exception(
-        "${add_meth} needs an object or hashref"
+
+      ( @_ >= 2 and @_ <= 3 ) or $_[0]->throw_exception(
+        "'$add_meth' expects an object or hashref to link to, and an optional hashref of link data"
       );
 
-      my $link = $self->new_related( $rel,
-        ( @_ > 1 && ref $_[-1] eq 'HASH' )
-          ? pop
-          : {}
+      $_[0]->throw_exception(
+        "The optional link data supplied to '$add_meth' is not a hashref (it was previously ignored)"
+      ) if $_[2] and ref $_[2] ne 'HASH';
+
+      my( $self, $far_obj ) = @_;
+
+      my $guard;
+
+      # the API needs is always expected to return the far object, possibly
+      # creating it in the process
+      if( not defined blessed $far_obj ) {
+
+        $guard = $self->result_source->schema->storage->txn_scope_guard;
+
+        # reify the hash into an actual object
+        $far_obj = $self->result_source
+                         ->related_source( $rel )
+                          ->related_source( $f_rel )
+                           ->resultset
+                            ->search_rs( undef, $rel_attrs )
+                             ->find_or_create( $far_obj );
+      }
+
+      my $link = $self->new_related(
+        $rel,
+        $_[2] || {},
       );
 
-      my $far_obj = defined blessed $_[0]
-        ? $_[0]
-        : $self->result_source
-                ->related_source( $rel )
-                 ->related_source( $f_rel )
-                  ->resultset->search_rs( {}, $rel_attrs||{} )
-                   ->find_or_create( ref $_[0] eq 'HASH' ? $_[0] : {@_} )
-      ;
-
-      $link->set_from_related($f_rel, $far_obj);
+      $link->set_from_related( $f_rel, $far_obj );
 
       $link->insert();
 
-      return $far_obj;
+      $guard->commit if $guard;
+
+      $far_obj;
     };
+
 
     my $set_meth_name = join '::', $class, $set_meth;
     *$set_meth_name = subname $set_meth_name, sub {
@@ -132,37 +161,43 @@ EOW
         ( @_ and ref $_[0] ne 'HASH' )
       );
 
-      my $guard = $self->result_source->schema->storage->txn_scope_guard;
+      my $guard;
+
+      # there will only be a single delete() op, unless we have what to set to
+      $guard = $self->result_source->schema->storage->txn_scope_guard
+        if @$set_to;
 
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
+      $self->search_related(
+        $rel,
+        ( $rel_attrs->{where}
+          ? ( $rel_attrs->{where}, { join => $f_rel } )
+          : ()
+        )
+      )->delete;
 
-      if ($rel_attrs && $rel_attrs->{where}) {
-        $self->search_related( $rel, $rel_attrs->{where},{join => $f_rel})->delete;
-      } else {
-        $self->search_related( $rel, {} )->delete;
-      }
       # add in the set rel objects
       $self->$add_meth(
         $_,
         @_, # at this point @_ is either empty or contains a lone link-data hash
       ) for @$set_to;
 
-      $guard->commit;
+      $guard->commit if $guard;
     };
+
 
     my $remove_meth_name = join '::', $class, $remove_meth;
     *$remove_meth_name = subname $remove_meth_name, sub {
-      my ($self, $obj) = @_;
 
-      $self->throw_exception("${remove_meth} needs an object")
-        unless blessed ($obj);
+      $_[0]->throw_exception("'$remove_meth' expects an object")
+        unless defined blessed $_[1];
 
-      $self->search_related_rs($rel)->search_rs(
-        $obj->ident_condition( $f_rel ),
-        { join => $f_rel },
-      )->delete;
+      $_[0]->search_related_rs( $rel )
+            ->search_rs( $_[1]->ident_condition( $f_rel ), { join => $f_rel } )
+             ->delete;
     };
+
   }
 }
 
