@@ -6,6 +6,8 @@ no warnings 'uninitialized';
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::_Util 'sigwarn_silencer';
+
 use lib qw(t/lib);
 use DBICTest;
 
@@ -202,6 +204,10 @@ SQL
       unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
+
+      local $SIG{__WARN__} = sigwarn_silencer(qr/Sybase bulk API operation failed due to character set incompatibility/)
+        unless $ENV{DBICTEST_SYBASE_SUBTEST_RERUN};
+
       $schema->resultset('Artist')->populate([
         {
           name => 'bulk artist 1',
@@ -266,6 +272,9 @@ SQL
 # test invalid _insert_bulk (missing required column)
 #
   throws_ok {
+    local $SIG{__WARN__} = sigwarn_silencer(qr/Sybase bulk API operation failed due to character set incompatibility/)
+      unless $ENV{DBICTEST_SYBASE_SUBTEST_RERUN};
+
     $schema->resultset('Artist')->populate([
       {
         charfield => 'foo',
@@ -602,12 +611,13 @@ SQL
 
 is $ping_count, 0, 'no pings';
 
-# if tests passed and did so under a non-C lang - let's rerun the test
-if (Test::Builder->new->is_passing and $ENV{LANG} and $ENV{LANG} ne 'C') {
-  my $oldlang = $ENV{LANG};
-  local $ENV{LANG} = 'C';
+# if tests passed and did so under a non-C LC_ALL - let's rerun the test
+if (Test::Builder->new->is_passing and $ENV{LC_ALL} and $ENV{LC_ALL} ne 'C') {
 
-  pass ("Your lang is set to $oldlang - retesting with C");
+  pass ("Your LC_ALL is set to $ENV{LC_ALL} - retesting with C");
+
+  local $ENV{LC_ALL} = 'C';
+  local $ENV{DBICTEST_SYBASE_SUBTEST_RERUN} = 1;
 
   local $ENV{PATH};
   my @cmd = map { $_ =~ /(.+)/ } ($^X, __FILE__);

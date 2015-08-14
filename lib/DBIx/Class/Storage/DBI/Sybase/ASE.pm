@@ -678,7 +678,7 @@ sub _insert_bulk {
 
   if ($exception =~ /-Y option/) {
     my $w = 'Sybase bulk API operation failed due to character set incompatibility, '
-          . 'reverting to regular array inserts. Try unsetting the LANG environment variable'
+          . 'reverting to regular array inserts. Try unsetting the LC_ALL environment variable'
     ;
     $w .= "\n$exception" if $self->debug;
     carp $w;
@@ -1130,7 +1130,7 @@ L<populate|DBIx::Class::ResultSet/populate> call, eg.:
 
 B<NOTE:> the L<add_columns|DBIx::Class::ResultSource/add_columns>
 calls in your C<Result> classes B<must> list columns in database order for this
-to work. Also, you may have to unset the C<LANG> environment variable before
+to work. Also, you may have to unset the C<LC_ALL> environment variable before
 loading your app, as C<BCP -Y> is not yet supported in DBD::Sybase .
 
 When inserting IMAGE columns using this method, you'll need to use
