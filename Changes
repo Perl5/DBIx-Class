@@ -62,6 +62,8 @@ Revision history for DBIx::Class
           autoinc value when inserting rows containing blobs (GH#82)
 
     * Misc
+        - Add explicit test for pathological example of asymmetric IC::DT setup
+          working with copy() in t/icdt/engine_specific/sybase.t (GH#84)
         - Fix invalid variable names in ResultSource::View examples
         - Typo fixes from downstream debian packagers (RT#112007)
         - Skip tests in a way more intelligent and speedy manner when optional
