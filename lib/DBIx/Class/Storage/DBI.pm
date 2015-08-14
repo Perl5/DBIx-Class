@@ -1335,7 +1335,7 @@ sub _extract_driver_from_connect_info {
 sub _determine_connector_driver {
   my ($self, $conn) = @_;
 
-  my $dbtype = $self->_dbh_get_info('SQL_DBMS_NAME');
+  my $dbtype = $self->_get_rdbms_name;
 
   if (not $dbtype) {
     $self->_warn_undetermined_driver(
@@ -1361,6 +1361,8 @@ sub _determine_connector_driver {
     );
   }
 }
+
+sub _get_rdbms_name { shift->_dbh_get_info('SQL_DBMS_NAME') }
 
 sub _warn_undetermined_driver {
   my ($self, $msg) = @_;

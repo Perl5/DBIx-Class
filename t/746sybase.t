@@ -13,11 +13,8 @@ my @storage_types = (
   'DBI::Sybase::ASE',
   'DBI::Sybase::ASE::NoBindVars',
 );
-eval "require DBIx::Class::Storage::$_;" or die $@
-  for @storage_types;
 
 my $schema;
-my $storage_idx = -1;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
@@ -31,6 +28,7 @@ sub get_schema {
 
 my $ping_count = 0;
 {
+  require DBIx::Class::Storage::DBI::Sybase::ASE;
   my $ping = DBIx::Class::Storage::DBI::Sybase::ASE->can('_ping');
   *DBIx::Class::Storage::DBI::Sybase::ASE::_ping = sub {
     $ping_count++;
@@ -39,7 +37,6 @@ my $ping_count = 0;
 }
 
 for my $storage_type (@storage_types) {
-  $storage_idx++;
 
   unless ($storage_type eq 'DBI::Sybase::ASE') { # autodetect
     DBICTest::Schema->storage_type("::$storage_type");
@@ -49,12 +46,12 @@ for my $storage_type (@storage_types) {
 
   $schema->storage->ensure_connected;
 
-  if ($storage_idx == 0 &&
-      $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars')) {
-      # no placeholders in this version of Sybase or DBD::Sybase (or using FreeTDS)
-      skip "Skipping entire test for $storage_type - no placeholder support", 1;
-      next;
-  }
+  # we are going to explicitly test this anyway, just loop through
+  next if
+    $storage_type ne 'DBI::Sybase::ASE::NoBindVars'
+      and
+    $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars')
+  ;
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
 

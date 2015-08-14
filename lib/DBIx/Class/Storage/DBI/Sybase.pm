@@ -21,28 +21,25 @@ L<DBD::Sybase>
 
 =cut
 
-sub _rebless {
+sub _rebless { shift->_determine_connector_driver('Sybase') }
+
+sub _get_rdbms_name {
   my $self = shift;
 
-  my $dbtype;
   try {
-    $dbtype = @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+    my $name = $self->_get_dbh->selectrow_arrayref('sp_server_info @attribute_id=1')->[2];
+
+    if ($name) {
+      $name =~ s/\W/_/gi;
+
+      # saner class name
+      $name = 'ASE' if $name eq 'SQL_Server';
+    }
+
+    $name;  # RV
   } catch {
     $self->throw_exception("Unable to establish connection to determine database type: $_")
   };
-
-  if ($dbtype) {
-    $dbtype =~ s/\W/_/gi;
-
-    # saner class name
-    $dbtype = 'ASE' if $dbtype eq 'SQL_Server';
-
-    my $subclass = __PACKAGE__ . "::$dbtype";
-    if ($self->load_optional_class($subclass)) {
-      bless $self, $subclass;
-      $self->_rebless;
-    }
-  }
 }
 
 sub _init {

@@ -340,6 +340,7 @@ my $method_dispatch = {
     set_dbms_capability
     _dbh_details
     _dbh_get_info
+    _get_rdbms_name
 
     _determine_connector_driver
     _extract_driver_from_connect_info
