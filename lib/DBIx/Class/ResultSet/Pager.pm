@@ -4,6 +4,9 @@ package # hide from pause
 use warnings;
 use strict;
 
+# temporary, to load MRO::Compat, will be soon entirely rewritten anyway
+use DBIx::Class::_Util;
+
 use base 'Data::Page';
 use mro 'c3';
 
