@@ -268,18 +268,23 @@ SQL
 
 # test invalid _insert_bulk (missing required column)
 #
-# There should be a rollback, reconnect and the next valid _insert_bulk should
-# succeed.
   throws_ok {
     $schema->resultset('Artist')->populate([
       {
         charfield => 'foo',
       }
     ]);
-  } qr/no value or default|does not allow null|placeholders/i,
+  }
 # The second pattern is the error from fallback to regular array insert on
 # incompatible charset.
 # The third is for ::NoBindVars with no syb_has_blk.
+  qr/
+    \Qno value or default\E
+      |
+    \Qdoes not allow null\E
+      |
+    \QUnable to invoke fast-path insert without storage placeholder support\E
+  /xi,
   '_insert_bulk with missing required column throws error';
 
 # now test _insert_bulk with IDENTITY_INSERT
