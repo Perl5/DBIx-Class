@@ -128,8 +128,12 @@ for my $db (sort {
     "$db name_sep with quote_names => 1 is $name_sep_text";
 
   # if something was produced - it better be quoted
-  if ( my $ddl = try { $schema->deployment_statements } ) {
-
+  if (
+    # the SQLT producer has no idea what quotes are :/
+    $db ne 'SYBASE'
+      and
+    my $ddl = try { $schema->deployment_statements }
+  ) {
     my $quoted_artist = $sql_maker->_quote('artist');
 
     like ($ddl, qr/^CREATE\s+TABLE\s+\Q$quoted_artist/msi, "$db DDL contains expected quoted table name");
