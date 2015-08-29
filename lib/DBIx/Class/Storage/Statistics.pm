@@ -45,20 +45,11 @@ already set).
 
 =cut
 
-# FIXME - there ought to be a way to fold this into _debugfh itself
-# having the undef re-trigger the builder (or better yet a default
-# which can be folded in as a qsub)
-sub debugfh {
-  my $self = shift;
-
-  return $self->_debugfh(@_) if @_;
-  $self->_debugfh || $self->_build_debugfh;
-}
-
-has _debugfh => (
+has debugfh => (
   is => 'rw',
   lazy => 1,
-  trigger => qsub '$_[0]->_defaulted_to_stderr(undef)',
+  trigger => qsub '$_[0]->_defaulted_to_stderr(undef); $_[0]->_clear_debugfh unless $_[1];',
+  clearer => '_clear_debugfh',
   builder => '_build_debugfh',
 );
 
