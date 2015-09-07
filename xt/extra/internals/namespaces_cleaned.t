@@ -193,7 +193,7 @@ sub find_modules {
       push @modules, join ('::', File::Spec->splitdir($_));
     },
     no_chdir => 1,
-  }, (-e 'blib' ? 'blib' : 'lib') );
+  }, qw( lib blib ) );  # find them in both lib and blib, @INC is preadjusted for us by the harness
 
   return sort @modules;
 }
