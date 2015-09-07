@@ -190,7 +190,7 @@ for my $mod (@modules) {
 sub find_modules {
   my @modules;
 
-  find({
+  find( {
     wanted => sub {
       -f $_ or return;
       s/\.pm$// or return;
@@ -198,7 +198,12 @@ sub find_modules {
       push @modules, join ('::', File::Spec->splitdir($_));
     },
     no_chdir => 1,
-  }, (-e 'blib' ? 'blib' : 'lib') );
+  }, (
+    # find them in both lib and blib, duplicates are fine, since
+    # @INC is preadjusted for us by the harness
+    'lib',
+    ( -e 'blib' ? 'blib' : () ),
+  ));
 
   return sort @modules;
 }
