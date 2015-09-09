@@ -208,9 +208,43 @@ my $mod = (
     : $ARGV[0]
 );
 
-$mod = q{List::Util} if $mod eq q{Scalar::List::Utils};
+# map some install-names to a module/version combo
+# serves both as a grandfathered title-less tarball, and
+# as a minimum version check for upgraded core modules
+my $eval_map = {
 
-eval qq{require($mod)} or ( print $@ and exit 1)
+  # this is temporary, will need something more robust down the road
+  # (perhaps by then Module::CoreList will be dep-free)
+  "Module::Build" => { ver => "0.4214" },
+
+  "File::Spec" => { ver => "3.47" },
+  "Cwd" => { ver => "3.47" },
+
+  "List::Util" => { ver => "1.42" },
+  "Scalar::Util" => { ver => "1.42" },
+  "Scalar::List::Utils" => { mod => "List::Util", ver => "1.42" },
+};
+
+eval(
+  "require "
+
+  .
+
+  ( $eval_map->{$mod}{mod} || $mod )
+
+  .
+
+  ($eval_map->{$mod}{ver}
+    ? "; $mod->VERSION(\$eval_map->{\$mod}{ver}) "
+    : ""
+  )
+
+  .
+
+  "; 1"
+)
+  or
+( print $@ and exit 1)
 
       ' "$m" 2> /dev/null ; then
         echo -e "$m installation seems to have failed"
