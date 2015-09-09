@@ -791,6 +791,9 @@ sub _insert_blobs {
   $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
     if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
 
+  # do not perform identity retrieval on blob inserts
+  local $self->{_perform_autoinc_retrieval} = undef;
+
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
 
