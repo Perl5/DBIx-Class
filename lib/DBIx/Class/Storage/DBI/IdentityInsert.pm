@@ -41,6 +41,11 @@ sub _prep_for_execute {
   my $table = $self->sql_maker->_quote($ident->name);
   $op = uc $op;
 
+  DBIx::Class::Exception->throw(
+    "Unexpected _autoinc_supplied_for_op flag in callstack - please file a bug including the stacktrace ( @{[ DBIx::Class::_ENV_::HELP_URL() ]} ):\n\n STACKTRACE STARTS",
+    'stacktrace'
+  ) if $op ne 'INSERT' and $op ne 'UPDATE';
+
   my ($sql, $bind) = $self->next::method(@_);
 
   return (<<EOS, $bind);
