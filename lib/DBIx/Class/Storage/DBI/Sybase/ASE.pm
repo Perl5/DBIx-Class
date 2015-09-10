@@ -376,47 +376,27 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-  # do we need the horrific SELECT MAX(COL) hack?
-  my $need_dumb_last_insert_id = (
-    $self->_perform_autoinc_retrieval
-      and
-    ( ($self->_identity_method||'') ne '@@IDENTITY' )
-  );
-
-  my $next = $self->next::can;
-
-  # we are already in a transaction, or there are no blobs
-  # and we don't need the PK - just (try to) do it
+  # if a new txn is needed - it must happen on the _writer/new connection (for now)
+  my $guard;
   if (
-    ( !$blob_cols and !$need_dumb_last_insert_id )
-      or
-    $self->transaction_depth
+    ! $self->transaction_depth
+      and
+    (
+      $blob_cols
+        or
+      # do we need the horrific SELECT MAX(COL) hack?
+      (
+        $self->_perform_autoinc_retrieval
+          and
+        ( ($self->_identity_method||'') ne '@@IDENTITY' )
+      )
+    )
   ) {
-    $self->_insert (
-      $next, $source, $to_insert, $blob_cols, $identity_col
-    );
+    $self = $self->_writer_storage;
+    $guard = $self->txn_scope_guard;
   }
-  # otherwise use the _writer_storage to do the insert+transaction on another
-  # connection
-  else {
-    my $guard = $self->_writer_storage->txn_scope_guard;
 
-    my $updated_cols = $self->_writer_storage->_insert (
-      $next, $source, $to_insert, $blob_cols, $identity_col
-    );
-
-    $self->_identity($self->_writer_storage->_identity);
-
-    $guard->commit;
-
-    $updated_cols;
-  }
-}
-
-sub _insert {
-  my ($self, $next, $source, $to_insert, $blob_cols, $identity_col) = @_;
-
-  my $updated_cols = $self->$next ($source, $to_insert);
+  my $updated_cols = $self->next::method ($source, $to_insert);
 
   $self->_insert_blobs (
     $source,
@@ -430,6 +410,8 @@ sub _insert {
       %$updated_cols,
     },
   ) if $blob_cols;
+
+  $guard->commit if $guard;
 
   return $updated_cols;
 }
