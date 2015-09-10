@@ -256,23 +256,6 @@ sub _is_lob_column {
 sub _prep_for_execute {
   my ($self, $op, $ident, $args) = @_;
 
-  #
-### This is commented out because all tests pass. However I am leaving it
-### here as it may prove necessary (can't think through all combinations)
-### BTW it doesn't currently work exactly - need better sensitivity to
-  # currently set value
-  #
-  #my ($op, $ident) = @_;
-  #
-  # inherit these from the parent for the duration of _prep_for_execute
-  # Don't know how to make a localizing loop with if's, otherwise I would
-  #local $self->{_autoinc_supplied_for_op}
-  #  = $self->_parent_storage->_autoinc_supplied_for_op
-  #if ($op eq 'insert' or $op eq 'update') and $self->_parent_storage;
-  #local $self->{_perform_autoinc_retrieval}
-  #  = $self->_parent_storage->_perform_autoinc_retrieval
-  #if ($op eq 'insert' or $op eq 'update') and $self->_parent_storage;
-
   my $limit;  # extract and use shortcut on limit without offset
   if ($op eq 'select' and ! $args->[4] and $limit = $args->[3]) {
     $args = [ @$args ];
@@ -353,10 +336,12 @@ sub insert {
 
   my $columns_info = $source->columns_info;
 
-  my $identity_col =
-    (first { $columns_info->{$_}{is_auto_increment} }
-      keys %$columns_info )
-    || '';
+  my ($identity_col) = grep
+    { $columns_info->{$_}{is_auto_increment} }
+    keys %$columns_info
+  ;
+
+  $identity_col = '' if ! defined $identity_col;
 
   # FIXME - this is duplication from DBI.pm. When refactored towards
   # the LobWriter this can be folded back where it belongs.
@@ -364,10 +349,10 @@ sub insert {
     ? 1
     : 0
   ;
-  local $self->{_perform_autoinc_retrieval} =
-    ($identity_col and ! exists $to_insert->{$identity_col})
-      ? $identity_col
-      : undef
+
+  local $self->{_perform_autoinc_retrieval} = $self->{_autoinc_supplied_for_op}
+    ? undef
+    : $identity_col
   ;
 
   # check for empty insert
@@ -394,35 +379,38 @@ sub insert {
   # do we need the horrific SELECT MAX(COL) hack?
   my $need_dumb_last_insert_id = (
     $self->_perform_autoinc_retrieval
-      &&
-    ($self->_identity_method||'') ne '@@IDENTITY'
+      and
+    ( ($self->_identity_method||'') ne '@@IDENTITY' )
   );
 
   my $next = $self->next::can;
 
   # we are already in a transaction, or there are no blobs
   # and we don't need the PK - just (try to) do it
-  if ($self->{transaction_depth}
-        || (!$blob_cols && !$need_dumb_last_insert_id)
+  if (
+    ( !$blob_cols and !$need_dumb_last_insert_id )
+      or
+    $self->transaction_depth
   ) {
-    return $self->_insert (
+    $self->_insert (
       $next, $source, $to_insert, $blob_cols, $identity_col
     );
   }
-
   # otherwise use the _writer_storage to do the insert+transaction on another
   # connection
-  my $guard = $self->_writer_storage->txn_scope_guard;
+  else {
+    my $guard = $self->_writer_storage->txn_scope_guard;
 
-  my $updated_cols = $self->_writer_storage->_insert (
-    $next, $source, $to_insert, $blob_cols, $identity_col
-  );
+    my $updated_cols = $self->_writer_storage->_insert (
+      $next, $source, $to_insert, $blob_cols, $identity_col
+    );
 
-  $self->_identity($self->_writer_storage->_identity);
+    $self->_identity($self->_writer_storage->_identity);
 
-  $guard->commit;
+    $guard->commit;
 
-  return $updated_cols;
+    $updated_cols;
+  }
 }
 
 sub _insert {
@@ -430,14 +418,18 @@ sub _insert {
 
   my $updated_cols = $self->$next ($source, $to_insert);
 
-  my $final_row = {
-    ($identity_col ?
-      ($identity_col => $self->last_insert_id($source, $identity_col)) : ()),
-    %$to_insert,
-    %$updated_cols,
-  };
-
-  $self->_insert_blobs ($source, $blob_cols, $final_row) if $blob_cols;
+  $self->_insert_blobs (
+    $source,
+    $blob_cols,
+    {
+      ( $identity_col
+        ? ( $identity_col => $self->last_insert_id($source, $identity_col) )
+        : ()
+      ),
+      %$to_insert,
+      %$updated_cols,
+    },
+  ) if $blob_cols;
 
   return $updated_cols;
 }
@@ -535,10 +527,10 @@ sub _insert_bulk {
 
 # next::method uses a txn anyway, but it ends too early in case we need to
 # select max(col) to get the identity for inserting blobs.
-    ($self, my $guard) = $self->{transaction_depth} == 0 ?
-      ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
-      :
-      ($self, undef);
+    ($self, my $guard) = $self->transaction_depth
+      ? ($self, undef)
+      : ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
+    ;
 
     $self->next::method(@_);
 
@@ -757,7 +749,7 @@ sub _update_blobs {
   if (
     ref $where eq 'HASH'
       and
-    @primary_cols == grep { defined $where->{$_} } @primary_cols
+    ! grep { ! defined $where->{$_} } @primary_cols
   ) {
     my %row_to_update;
     @row_to_update{@primary_cols} = @{$where}{@primary_cols};
@@ -776,12 +768,10 @@ sub _update_blobs {
 }
 
 sub _insert_blobs {
-  my ($self, $source, $blob_cols, $row) = @_;
-  my $dbh = $self->_get_dbh;
+  my ($self, $source, $blob_cols, $row_data) = @_;
 
   my $table = $source->name;
 
-  my %row = %$row;
   my @primary_cols = try
     { $source->_pri_cols_or_die }
     catch {
@@ -789,12 +779,12 @@ sub _insert_blobs {
     };
 
   $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
-    if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
+    if grep { ! defined $row_data->{$_} } @primary_cols;
+
+  my %where = map {( $_ => $row_data->{$_} )} @primary_cols;
 
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
-
-    my %where = map { ($_, $row{$_}) } @primary_cols;
 
     my $cursor = $self->select ($source, [$col], \%where, {});
     $cursor->next;
