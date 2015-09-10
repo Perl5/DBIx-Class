@@ -186,6 +186,14 @@ matrix:
         - POISON_ENV=true
         - BREWVER=5.8.1
 
+    # 5.8.3 with blead CPAN
+    - perl: devcpan_5.8.3_mb
+      env:
+        - CLEANTEST=false
+        - DEVREL_DEPS=true
+        - BREWVER=5.8.3
+        - BREWOPTS="-Dusemorebits"
+
     # 5.8.7 threaded with blead CPAN with non-tracing poisoning
     - perl: devcpan_5.8.7_thr
       env:
@@ -240,6 +248,7 @@ matrix:
     # these run with various dev snapshots - allowed to fail
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
+    - perl: devcpan_5.8.3_mb
     - perl: devcpan_5.8.7_thr
     - perl: devcpan_5.10.0_thr_mb
     - perl: devcpan_5.12.1_thr
