@@ -102,7 +102,7 @@ See the chapter L</"Introspecting the schema classes"> below to find out where
 the non-obvious source name strings such as C<Artist> and accessors such as
 C<cds> and C<tracks> come from.
 
-Set the environment variable C<DBI_TRACE='1|SQL'> to see the generated queries.
+Set the environment variable C<DBIC_TRACE=1> to see the generated queries.
 
 =head3 Retrieving data
 
