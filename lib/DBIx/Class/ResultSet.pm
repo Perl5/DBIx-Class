@@ -716,6 +716,14 @@ sub search_literal {
 
 =item Arguments: \%columns_values | @pk_values, { key => $unique_constraint, L<%attrs|/ATTRIBUTES> }?
 
+e.g.:
+
+find( $value ), find( $value, { key => $cstr } ), find( $value, { key => $cstr, L<%attrs|/ATTRIBUTES> } )
+
+find( @values ), find( @values, { key => $cstr } ), find( @values, { key => $cstr, L<%attrs|/ATTRIBUTES> } )
+
+find( \%cols_vals ), find( \%cols_vals, { key => $cstr } ), find( \%cols_vals, { key => $cstr, L<%attrs|/ATTRIBUTES> } )
+
 =item Return Value: L<$result|DBIx::Class::Manual::ResultClass> | undef
 
 =back
