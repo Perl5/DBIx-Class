@@ -31,6 +31,7 @@ Revision history for DBIx::Class
           in error message wording during 0.082800 and a bogus test)
 
     * Misc
+        - Fix invalid variable names in ResultSource::View examples
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly

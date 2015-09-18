@@ -66,12 +66,12 @@ case replaces the view name in a FROM clause in a subselect.
 Having created the MyApp::Schema::Year2000CDs schema as shown in the SYNOPSIS
 above, you can then:
 
-  $2000_cds = $schema->resultset('Year2000CDs')
-                     ->search()
-                     ->all();
-  $count    = $schema->resultset('Year2000CDs')
-                     ->search()
-                     ->count();
+  $y2000_cds = $schema->resultset('Year2000CDs')
+                      ->search()
+                      ->all();
+  $count     = $schema->resultset('Year2000CDs')
+                      ->search()
+                      ->count();
 
 If you modified the schema to include a placeholder
 
@@ -85,12 +85,12 @@ and ensuring you have is_virtual set to true:
 
 You could now say:
 
-  $2001_cds = $schema->resultset('Year2000CDs')
-                     ->search({}, { bind => [2001] })
-                     ->all();
-  $count    = $schema->resultset('Year2000CDs')
-                     ->search({}, { bind => [2001] })
-                     ->count();
+  $y2001_cds = $schema->resultset('Year2000CDs')
+                      ->search({}, { bind => [2001] })
+                      ->all();
+  $count     = $schema->resultset('Year2000CDs')
+                      ->search({}, { bind => [2001] })
+                      ->count();
 
 =head1 SQL EXAMPLES
 
