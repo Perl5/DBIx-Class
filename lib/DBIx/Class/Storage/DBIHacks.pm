@@ -430,46 +430,40 @@ sub _resolve_aliastypes_from_select_args {
       ),
     ],
     selecting => [
-      map { ($sql_maker->_recurse_fields($_))[0] } @{$attrs->{select}},
+      # kill all selectors which look like a proper subquery
+      # this is a sucky heuristic *BUT* - if we get it wrong the query will simply
+      # fail to run, so we are relatively safe
+      grep
+        { $_ !~ / \A \s* \( \s* SELECT \s+ .+? \s+ FROM \s+ .+? \) \s* \z /xsi }
+        map
+          { ($sql_maker->_recurse_fields($_))[0] }
+          @{$attrs->{select}}
     ],
     ordering => [
       map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
     ],
   };
 
-  # throw away empty chunks and all 2-value arrayrefs: the thinking is that these are
-  # bind value specs left in by the sloppy renderer above. It is ok to do this
-  # at this point, since we are going to end up rewriting this crap anyway
-  for my $v (values %$to_scan) {
-    my @nv;
-    for (@$v) {
-      next if (
-        ! defined $_
-          or
-        (
-          ref $_ eq 'ARRAY'
-            and
-          ( @$_ == 0 or @$_ == 2 )
-        )
-      );
+  # throw away empty-string chunks, and make sure no binds snuck in
+  # note that we operate over @{$to_scan->{$type}}, hence the
+  # semi-mindbending ... map ... for values ...
+  ( $_ = [ map {
 
-      if (ref $_) {
-        require Data::Dumper::Concise;
-        $self->throw_exception("Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($v) );
-      }
+      (not $_)        ? ()
+    : (length ref $_) ? (require Data::Dumper::Concise && $self->throw_exception(
+                          "Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($_)
+                        ))
+    :                   $_
 
-      push @nv, $_;
-    }
+  } @$_ ] ) for values %$to_scan;
 
-    $v = \@nv;
-  }
+  # throw away empty to-scan's
+  (
+    @{$to_scan->{$_}}
+      or
+    delete $to_scan->{$_}
+  ) for keys %$to_scan;
 
-  # kill all selectors which look like a proper subquery
-  # this is a sucky heuristic *BUT* - if we get it wrong the query will simply
-  # fail to run, so we are relatively safe
-  $to_scan->{selecting} = [ grep {
-    $_ !~ / \A \s* \( \s* SELECT \s+ .+? \s+ FROM \s+ .+? \) \s* \z /xsi
-  } @{ $to_scan->{selecting} || [] } ];
 
   # first see if we have any exact matches (qualified or unqualified)
   for my $type (keys %$to_scan) {
