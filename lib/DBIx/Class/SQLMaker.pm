@@ -299,21 +299,28 @@ sub _parse_rs_attrs {
   my ($self, $arg) = @_;
 
   my $sql = '';
+  my @sqlbind;
 
-  if ($arg->{group_by}) {
-    if ( my ($group_sql, @group_bind) = $self->_recurse_fields($arg->{group_by}) ) {
-      $sql .= $self->_sqlcase(' group by ') . $group_sql;
-      push @{$self->{group_bind}}, @group_bind;
-    }
+  if (
+    $arg->{group_by}
+      and
+    @sqlbind = $self->_recurse_fields($arg->{group_by})
+  ) {
+    $sql .= $self->_sqlcase(' group by ') . shift @sqlbind;
+    push @{$self->{group_bind}}, @sqlbind;
   }
 
-  if (defined $arg->{having}) {
-    my ($frag, @bind) = $self->_recurse_where($arg->{having});
-    push(@{$self->{having_bind}}, @bind);
-    $sql .= $self->_sqlcase(' having ') . $frag;
+  if (
+    $arg->{having}
+      and
+    @sqlbind = $self->_recurse_where($arg->{having})
+  ) {
+    $sql .= $self->_sqlcase(' having ') . shift @sqlbind;
+    push(@{$self->{having_bind}}, @sqlbind);
   }
 
-  if (defined $arg->{order_by}) {
+  if ($arg->{order_by}) {
+    # unlike the 2 above, _order_by injects into @{...bind...} for us
     $sql .= $self->_order_by ($arg->{order_by});
   }
 
@@ -324,14 +331,18 @@ sub _order_by {
   my ($self, $arg) = @_;
 
   # check that we are not called in legacy mode (order_by as 4th argument)
-  if (ref $arg eq 'HASH' and not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg ) {
-    return $self->_parse_rs_attrs ($arg);
-  }
-  else {
-    my ($sql, @bind) = $self->next::method($arg);
-    push @{$self->{order_bind}}, @bind;
-    return $sql;
-  }
+  (
+    ref $arg eq 'HASH'
+      and
+    not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg
+  )
+    ? $self->_parse_rs_attrs ($arg)
+    : do {
+      my ($sql, @bind) = $self->next::method($arg);
+      push @{$self->{order_bind}}, @bind;
+      $sql; # RV
+    }
+  ;
 }
 
 sub _split_order_chunk {
