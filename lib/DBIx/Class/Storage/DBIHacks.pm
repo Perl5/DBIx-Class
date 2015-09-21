@@ -439,8 +439,12 @@ sub _resolve_aliastypes_from_select_args {
           { ($sql_maker->_recurse_fields($_))[0] }
           @{$attrs->{select}}
     ],
-    ordering => [
-      map { $_->[0] } $self->_extract_order_criteria ($attrs->{order_by}, $sql_maker),
+    ordering => [ map
+      {
+        ( my $sql = (ref $_ ? $_->[0] : $_) ) =~ s/ \s+ (?: ASC | DESC ) \s* \z //xi;
+        $sql;
+      }
+      $sql_maker->_order_by_chunks( $attrs->{order_by} ),
     ],
   };
 
