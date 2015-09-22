@@ -469,26 +469,26 @@ sub _resolve_aliastypes_from_select_args {
   ) for keys %$to_scan;
 
 
-  # first see if we have any exact matches (qualified or unqualified)
+  # the actual scan, per type
   for my $type (keys %$to_scan) {
+
+    # first see if we have any exact matches (qualified or unqualified)
     for my $piece (@{$to_scan->{$type}}) {
       if ($colinfo->{$piece} and my $alias = $colinfo->{$piece}{-source_alias}) {
         $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
         $aliases_by_type->{$type}{$alias}{-seen_columns}{$colinfo->{$piece}{-fq_colname}} = $piece;
       }
     }
-  }
 
-  # now loop through all fully qualified columns and get the corresponding
-  # alias (should work even if they are in scalarrefs)
-  for my $alias (keys %$alias_list) {
-    my $al_re = qr/
-      $lquote $alias $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
-        |
-      \b $alias \. ([^\s\)\($rquote]+)?
-    /x;
+    # now loop through all fully qualified columns and get the corresponding
+    # alias (should work even if they are in scalarrefs)
+    for my $alias (keys %$alias_list) {
+      my $al_re = qr/
+        $lquote $alias $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
+          |
+        \b $alias \. ([^\s\)\($rquote]+)?
+      /x;
 
-    for my $type (keys %$to_scan) {
       for my $piece (@{$to_scan->{$type}}) {
         if (my @matches = $piece =~ /$al_re/g) {
           $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
@@ -497,16 +497,14 @@ sub _resolve_aliastypes_from_select_args {
         }
       }
     }
-  }
 
-  # now loop through unqualified column names, and try to locate them within
-  # the chunks
-  for my $col (keys %$colinfo) {
-    next if $col =~ / \. /x;   # if column is qualified it was caught by the above
+    # now loop through unqualified column names, and try to locate them within
+    # the chunks
+    for my $col (keys %$colinfo) {
+      next if $col =~ / \. /x;   # if column is qualified it was caught by the above
 
-    my $col_re = qr/ $lquote ($col) $rquote /x;
+      my $col_re = qr/ $lquote ($col) $rquote /x;
 
-    for my $type (keys %$to_scan) {
       for my $piece (@{$to_scan->{$type}}) {
         if ( my @matches = $piece =~ /$col_re/g) {
           my $alias = $colinfo->{$col}{-source_alias};
@@ -519,20 +517,28 @@ sub _resolve_aliastypes_from_select_args {
   }
 
   # Add any non-left joins to the restriction list (such joins are indeed restrictions)
-  for my $j (values %$alias_list) {
-    my $alias = $j->{-alias} or next;
-    $aliases_by_type->{restricting}{$alias} ||= { -parents => $j->{-join_path}||[] } if (
-      (not $j->{-join_type})
+  (
+    $_->{-alias}
+      and
+    ! $aliases_by_type->{restricting}{ $_->{-alias} }
+      and
+    (
+      not $_->{-join_type}
         or
-      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
-    );
-  }
+      $_->{-join_type} !~ /^left (?: \s+ outer)? $/xi
+    )
+      and
+    $aliases_by_type->{restricting}{ $_->{-alias} } = { -parents => $_->{-join_path}||[] }
+  ) for values %$alias_list;
 
-  for (keys %$aliases_by_type) {
-    delete $aliases_by_type->{$_} unless keys %{$aliases_by_type->{$_}};
-  }
+  # final cleanup
+  (
+    keys %{$aliases_by_type->{$_}}
+      or
+    delete $aliases_by_type->{$_}
+  ) for keys %$aliases_by_type;
 
-  return $aliases_by_type;
+  $aliases_by_type;
 }
 
 # This is the engine behind { distinct => 1 } and the general
