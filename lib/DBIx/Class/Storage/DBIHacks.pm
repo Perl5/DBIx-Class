@@ -469,6 +469,28 @@ sub _resolve_aliastypes_from_select_args {
   ) for keys %$to_scan;
 
 
+  # these will be used for matching in the loop below
+  my $all_aliases = join ' | ', map { quotemeta $_ } keys %$alias_list;
+  my $fq_col_re = qr/
+    $lquote ( $all_aliases ) $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
+         |
+    \b ( $all_aliases ) \. ( [^\s\)\($rquote]+ )?
+  /x;
+
+  my $all_unq_columns = join ' | ',
+    map
+      { quotemeta $_ }
+      grep
+        # using a regex here shows up on profiles, boggle
+        { index( $_, '.') < 0 }
+        keys %$colinfo
+  ;
+  my $unq_col_re = $all_unq_columns
+    ? qr/ $lquote ( $all_unq_columns ) $rquote /x
+    : undef
+  ;
+
+
   # the actual scan, per type
   for my $type (keys %$to_scan) {
 
@@ -480,41 +502,46 @@ sub _resolve_aliastypes_from_select_args {
       }
     }
 
+
     # we will be bulk-scanning anyway - pieces will not matter in that case
     # (unlike in the direct-equivalence above)
     my $scan_string = join ' ', @{$to_scan->{$type}};
 
+
     # now loop through all fully qualified columns and get the corresponding
     # alias (should work even if they are in scalarrefs)
-    for my $alias (keys %$alias_list) {
-      my $al_re = qr/
-        $lquote $alias $rquote $sep (?: $lquote ([^$rquote]+) $rquote )?
-          |
-        \b $alias \. ([^\s\)\($rquote]+)?
-      /x;
+    #
+    # The regex matches in multiples of 4, with one of the two pairs being
+    # undef. There may be a *lot* of matches, hence the convoluted loop
+    my @matches = $scan_string =~ /$fq_col_re/g;
+    my $i = 0;
+    while( $i < $#matches ) {
 
-      if (my @matches = $scan_string =~ /$al_re/g) {
-        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
-        $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = "$alias.$_"
-          for grep { defined $_ } @matches;
+      if (
+        defined $matches[$i]
+      ) {
+        $aliases_by_type->{$type}{$matches[$i]} ||= { -parents => $alias_list->{$matches[$i]}{-join_path}||[] };
+
+        $aliases_by_type->{$type}{$matches[$i]}{-seen_columns}{"$matches[$i].$matches[$i+1]"} = "$matches[$i].$matches[$i+1]"
+          if defined $matches[$i+1];
+
+        $i += 2;
       }
+
+      $i += 2;
     }
+
 
     # now loop through unqualified column names, and try to locate them within
-    # the chunks
-    for my $col (keys %$colinfo) {
-      next if $col =~ / \. /x;   # if column is qualified it was caught by the above
-
-      my $col_re = qr/ $lquote ($col) $rquote /x;
-
-      if ( my @matches = $scan_string =~ /$col_re/g) {
-        my $alias = $colinfo->{$col}{-source_alias};
-        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
-        $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
-          for grep { defined $_ } @matches;
-      }
+    # the chunks, if there are any unqualified columns in the 1st place
+    next unless $unq_col_re;
+    for ( $scan_string =~ /$unq_col_re/g ) {
+      my $alias = $colinfo->{$_}{-source_alias} or next;
+      $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
+      $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
     }
   }
+
 
   # Add any non-left joins to the restriction list (such joins are indeed restrictions)
   (
@@ -531,12 +558,14 @@ sub _resolve_aliastypes_from_select_args {
     $aliases_by_type->{restricting}{ $_->{-alias} } = { -parents => $_->{-join_path}||[] }
   ) for values %$alias_list;
 
+
   # final cleanup
   (
     keys %{$aliases_by_type->{$_}}
       or
     delete $aliases_by_type->{$_}
   ) for keys %$aliases_by_type;
+
 
   $aliases_by_type;
 }
