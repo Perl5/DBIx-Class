@@ -480,6 +480,10 @@ sub _resolve_aliastypes_from_select_args {
       }
     }
 
+    # we will be bulk-scanning anyway - pieces will not matter in that case
+    # (unlike in the direct-equivalence above)
+    my $scan_string = join ' ', @{$to_scan->{$type}};
+
     # now loop through all fully qualified columns and get the corresponding
     # alias (should work even if they are in scalarrefs)
     for my $alias (keys %$alias_list) {
@@ -489,12 +493,10 @@ sub _resolve_aliastypes_from_select_args {
         \b $alias \. ([^\s\)\($rquote]+)?
       /x;
 
-      for my $piece (@{$to_scan->{$type}}) {
-        if (my @matches = $piece =~ /$al_re/g) {
-          $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
-          $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = "$alias.$_"
-            for grep { defined $_ } @matches;
-        }
+      if (my @matches = $scan_string =~ /$al_re/g) {
+        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
+        $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = "$alias.$_"
+          for grep { defined $_ } @matches;
       }
     }
 
@@ -505,13 +507,11 @@ sub _resolve_aliastypes_from_select_args {
 
       my $col_re = qr/ $lquote ($col) $rquote /x;
 
-      for my $piece (@{$to_scan->{$type}}) {
-        if ( my @matches = $piece =~ /$col_re/g) {
-          my $alias = $colinfo->{$col}{-source_alias};
-          $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
-          $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
-            for grep { defined $_ } @matches;
-        }
+      if ( my @matches = $scan_string =~ /$col_re/g) {
+        my $alias = $colinfo->{$col}{-source_alias};
+        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
+        $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
+          for grep { defined $_ } @matches;
       }
     }
   }
