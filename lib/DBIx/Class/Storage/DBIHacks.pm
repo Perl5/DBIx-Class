@@ -464,25 +464,29 @@ sub _resolve_aliastypes_from_select_args {
     ],
   };
 
+  # we will be bulk-scanning anyway - pieces will not matter in that case,
+  # thus join everything up
   # throw away empty-string chunks, and make sure no binds snuck in
   # note that we operate over @{$to_scan->{$type}}, hence the
   # semi-mindbending ... map ... for values ...
-  ( $_ = [ map {
+  ( $_ = join ' ', map {
 
-      (not $_)        ? ()
-    : (length ref $_) ? (require Data::Dumper::Concise && $self->throw_exception(
+    ( ! defined $_ )  ? ()
+  : ( length ref $_ ) ? (require Data::Dumper::Concise && $self->throw_exception(
                           "Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($_)
                         ))
-    :                   $_
+  : ( $_ =~ /^\s*$/ ) ? ()
+                      : $_
 
-  } @$_ ] ) for values %$to_scan;
+  } @$_ ) for values %$to_scan;
 
   # throw away empty to-scan's
   (
-    @{$to_scan->{$_}}
+    length $to_scan->{$_}
       or
     delete $to_scan->{$_}
   ) for keys %$to_scan;
+
 
 
   # these will be used for matching in the loop below
@@ -493,6 +497,7 @@ sub _resolve_aliastypes_from_select_args {
     \b ( $all_aliases ) \. ( [^\s\)\($rquote]+ )?
   /x;
 
+
   my $all_unq_columns = join ' | ',
     map
       { quotemeta $_ }
@@ -502,7 +507,11 @@ sub _resolve_aliastypes_from_select_args {
         keys %$colinfo
   ;
   my $unq_col_re = $all_unq_columns
-    ? qr/ $lquote ( $all_unq_columns ) $rquote /x
+    ? qr/
+      $lquote ( $all_unq_columns ) $rquote
+        |
+      (?: \A | \s ) ( $all_unq_columns ) (?: \s | \z )
+    /x
     : undef
   ;
 
@@ -510,26 +519,13 @@ sub _resolve_aliastypes_from_select_args {
   # the actual scan, per type
   for my $type (keys %$to_scan) {
 
-    # first see if we have any exact matches (qualified or unqualified)
-    for my $piece (@{$to_scan->{$type}}) {
-      if ($colinfo->{$piece} and my $alias = $colinfo->{$piece}{-source_alias}) {
-        $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
-        $aliases_by_type->{$type}{$alias}{-seen_columns}{$colinfo->{$piece}{-fq_colname}} = $piece;
-      }
-    }
-
-
-    # we will be bulk-scanning anyway - pieces will not matter in that case
-    # (unlike in the direct-equivalence above)
-    my $scan_string = join ' ', @{$to_scan->{$type}};
-
 
     # now loop through all fully qualified columns and get the corresponding
     # alias (should work even if they are in scalarrefs)
     #
-    # The regex matches in multiples of 4, with one of the two pairs being
+    # The regex captures in multiples of 4, with one of the two pairs being
     # undef. There may be a *lot* of matches, hence the convoluted loop
-    my @matches = $scan_string =~ /$fq_col_re/g;
+    my @matches = $to_scan->{$type} =~ /$fq_col_re/g;
     my $i = 0;
     while( $i < $#matches ) {
 
@@ -551,7 +547,10 @@ sub _resolve_aliastypes_from_select_args {
     # now loop through unqualified column names, and try to locate them within
     # the chunks, if there are any unqualified columns in the 1st place
     next unless $unq_col_re;
-    for ( $scan_string =~ /$unq_col_re/g ) {
+
+    # The regex captures in multiples of 2, one of the two being undef
+    for ( $to_scan->{$type} =~ /$unq_col_re/g ) {
+      defined $_ or next;
       my $alias = $colinfo->{$_}{-source_alias} or next;
       $aliases_by_type->{$type}{$alias} ||= { -parents => $alias_list->{$alias}{-join_path}||[] };
       $aliases_by_type->{$type}{$alias}{-seen_columns}{"$alias.$_"} = $_
