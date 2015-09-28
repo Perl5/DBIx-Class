@@ -40,7 +40,11 @@ sub _prune_unused_joins {
     $self->_use_join_optimizer
   );
 
-  my $orig_aliastypes = $self->_resolve_aliastypes_from_select_args($attrs);
+  my $orig_aliastypes =
+    $attrs->{_precalculated_aliastypes}
+      ||
+    $self->_resolve_aliastypes_from_select_args($attrs)
+  ;
 
   my $new_aliastypes = { %$orig_aliastypes };
 
@@ -170,18 +174,27 @@ sub _adjust_select_args_for_complex_prefetch {
     push @{$inner_attrs->{as}}, $attrs->{as}[$i];
   }
 
-  # We will need to fetch all native columns in the inner subquery, which may
+  my $inner_aliastypes = $self->_resolve_aliastypes_from_select_args($inner_attrs);
+
+  # In the inner subq we will need to fetch *only* native columns which may
   # be a part of an *outer* join condition, or an order_by (which needs to be
   # preserved outside), or wheres. In other words everything but the inner
   # selector
   # We can not just fetch everything because a potential has_many restricting
   # join collapse *will not work* on heavy data types.
-  my $connecting_aliastypes = $self->_resolve_aliastypes_from_select_args({
-    %$inner_attrs,
-    select => [],
-  });
 
-  for (sort map { keys %{$_->{-seen_columns}||{}} } map { values %$_ } values %$connecting_aliastypes) {
+  # essentially a map of all non-selecting seen columns
+  # the sort is there for a nicer select list
+  for (
+    sort
+      map
+        { keys %{$_->{-seen_columns}||{}} }
+        map
+          { values %{$inner_aliastypes->{$_}} }
+          grep
+            { $_ ne 'selecting' }
+            keys %$inner_aliastypes
+  ) {
     my $ci = $colinfo->{$_} or next;
     if (
       $ci->{-source_alias} eq $root_alias
@@ -204,8 +217,11 @@ sub _adjust_select_args_for_complex_prefetch {
     local $self->{_use_join_optimizer} = 1;
 
     # throw away multijoins since we def. do not care about those inside the subquery
-    ($inner_attrs->{from}, my $inner_aliastypes) = $self->_prune_unused_joins ({
-      %$inner_attrs, _force_prune_multiplying_joins => 1
+    # $inner_aliastypes *will* be redefined at this point
+    ($inner_attrs->{from}, $inner_aliastypes ) = $self->_prune_unused_joins ({
+      %$inner_attrs,
+      _force_prune_multiplying_joins => 1,
+      _precalculated_aliastypes => $inner_aliastypes,
     });
 
     # uh-oh a multiplier (which is not us) left in, this is a problem for limits
