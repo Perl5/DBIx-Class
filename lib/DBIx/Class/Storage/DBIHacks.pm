@@ -719,53 +719,63 @@ sub _resolve_column_info {
 
   return {} if $colnames and ! @$colnames;
 
-  my $alias2src = $self->_resolve_ident_sources($ident);
+  my $sources = $self->_resolve_ident_sources($ident);
+
+  $_ = { rsrc => $_, colinfos => $_->columns_info }
+    for values %$sources;
 
   my (%seen_cols, @auto_colnames);
 
   # compile a global list of column names, to be able to properly
   # disambiguate unqualified column names (if at all possible)
-  for my $alias (keys %$alias2src) {
-    my $rsrc = $alias2src->{$alias};
-    for my $colname ($rsrc->columns) {
-      push @{$seen_cols{$colname}}, $alias;
-      push @auto_colnames, "$alias.$colname" unless $colnames;
-    }
+  for my $alias (keys %$sources) {
+    (
+      ++$seen_cols{$_}{$alias}
+        and
+      ! $colnames
+        and
+      push @auto_colnames, "$alias.$_"
+    ) for keys %{ $sources->{$alias}{colinfos} };
   }
 
   $colnames ||= [
     @auto_colnames,
-    grep { @{$seen_cols{$_}} == 1 } (keys %seen_cols),
+    ( grep { keys %{$seen_cols{$_}} == 1 } keys %seen_cols ),
   ];
 
-  my (%return, $colinfos);
-  foreach my $col (@$colnames) {
-    my ($source_alias, $colname) = $col =~ m/^ (?: ([^\.]+) \. )? (.+) $/x;
+  my %return;
+  for (@$colnames) {
+    my ($colname, $source_alias) = reverse split /\./, $_;
 
-    # if the column was seen exactly once - we know which rsrc it came from
-    $source_alias ||= $seen_cols{$colname}[0]
-      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1);
+    my $assumed_alias =
+      $source_alias
+        ||
+      # if the column was seen exactly once - we know which rsrc it came from
+      (
+        $seen_cols{$colname}
+          and
+        keys %{$seen_cols{$colname}} == 1
+          and
+        ( %{$seen_cols{$colname}} )[0]
+      )
+        ||
+      next
+    ;
 
-    next unless $source_alias;
+    $self->throw_exception(
+      "No such column '$colname' on source " . $sources->{$assumed_alias}{rsrc}->source_name
+    ) unless $seen_cols{$colname}{$assumed_alias};
 
-    my $rsrc = $alias2src->{$source_alias}
-      or next;
-
-    $return{$col} = {
-      %{
-          ( $colinfos->{$source_alias} ||= $rsrc->columns_info )->{$colname}
-            ||
-          $self->throw_exception(
-            "No such column '$colname' on source " . $rsrc->source_name
-          );
-      },
-      -result_source => $rsrc,
-      -source_alias => $source_alias,
-      -fq_colname => $col eq $colname ? "$source_alias.$col" : $col,
+    $return{$_} = {
+      %{ $sources->{$assumed_alias}{colinfos}{$colname} },
+      -result_source => $sources->{$assumed_alias}{rsrc},
+      -source_alias => $assumed_alias,
+      -fq_colname => "$assumed_alias.$colname",
       -colname => $colname,
     };
 
-    $return{"$source_alias.$colname"} = $return{$col} if $col eq $colname;
+    $return{"$assumed_alias.$colname"} = $return{$_}
+      unless $source_alias;
   }
 
   return \%return;
