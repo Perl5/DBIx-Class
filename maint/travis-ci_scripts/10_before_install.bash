@@ -96,7 +96,12 @@ else
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
-  run_or_err "Installing minimizing MySQL config" "sudo cp maint/travis-ci_scripts/configs/minimal_mysql_travis.cnf /etc/mysql/conf.d/ && sudo chmod 644 /etc/mysql/conf.d/*.cnf"
+  run_or_err "Installing minimizing MySQL config" "\
+     sudo bash -c 'rm /var/lib/mysql/ib*' \
+  && sudo cp maint/travis-ci_scripts/configs/minimal_mysql_travis.cnf /etc/mysql/conf.d/ \
+  && sudo chmod 644 /etc/mysql/conf.d/*.cnf \
+  "
+
   run_or_err "Starting MySQL" "sudo /etc/init.d/mysql start"
   run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
