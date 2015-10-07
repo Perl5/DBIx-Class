@@ -167,28 +167,28 @@ sub connection {
     ($_[0]||'') !~ /^ (?i:dbi) \: SQLite \: (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
   ) {
 
-    my $locktype = do {
+    my $locktype;
+
+    {
       # guard against infinite recursion
       local $ENV{DBICTEST_LOCK_HOLDER} = -1;
 
-      # we need to connect a forced fresh clone so that we do not upset any state
+      # we need to work with a forced fresh clone so that we do not upset any state
       # of the main $schema (some tests examine it quite closely)
       local $SIG{__WARN__} = sub {};
       local $@;
-      my $storage = eval {
-        my $st = ref($self)->connect(@{$self->storage->connect_info})->storage;
-        $st->ensure_connected;  # do connect here, to catch a possible throw
-        $st;
+
+      # this will either give us an undef $locktype or will determine things
+      # properly with a default ( possibly connecting in the process )
+      eval {
+        my $s = ref($self)->connect(@{$self->storage->connect_info})->storage;
+
+        $locktype = $s->sqlt_type || 'generic';
+
+        # in case sqlt_type did connect, doesn't matter if it fails or something
+        $s->disconnect;
       };
-      $storage
-        ? do {
-          my $t = $storage->sqlt_type || 'generic';
-          eval { $storage->disconnect };
-          $t;
-        }
-        : undef
-      ;
-    };
+    }
 
     # Never hold more than one lock. This solves the "lock in order" issues
     # unrelated tests may have
