@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use DBICTest::Util 'local_umask';
+use DBICTest::Util qw( local_umask dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBIx::Class::_Util 'detected_reinvoked_destructor';
@@ -90,7 +90,14 @@ sub import {
 
     for my $exp (@_) {
         if ($exp eq ':GlobalLock') {
+            DEBUG_TEST_CONCURRENCY_LOCKS > 1
+              and dbg "Waiting for EXCLUSIVE global lock...";
+
             flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
+
+            DEBUG_TEST_CONCURRENCY_LOCKS > 1
+              and dbg "Got EXCLUSIVE global lock";
+
             $global_exclusive_lock = 1;
         }
         elsif ($exp eq ':DiffSQL') {
@@ -107,13 +114,22 @@ sub import {
     }
 
     unless ($global_exclusive_lock) {
+        DEBUG_TEST_CONCURRENCY_LOCKS > 1
+          and dbg "Waiting for SHARED global lock...";
+
         flock ($global_lock_fh, LOCK_SH) or die "Unable to lock $lockpath: $!";
+
+        DEBUG_TEST_CONCURRENCY_LOCKS > 1
+          and dbg "Got SHARED global lock";
     }
 }
 
 END {
+    # referencing here delays destruction even more
     if ($global_lock_fh) {
-        # delay destruction even more
+      DEBUG_TEST_CONCURRENCY_LOCKS > 1
+        and dbg "Release @{[ $global_exclusive_lock ? 'EXCLUSIVE' : 'SHARED' ]} global lock (END)";
+      1;
     }
 }
 

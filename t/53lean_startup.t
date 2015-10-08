@@ -83,6 +83,12 @@ BEGIN {
   }
 }
 
+BEGIN {
+  delete $ENV{$_} for qw(
+    DBICTEST_DEBUG_CONCURRENCY_LOCKS
+  );
+}
+
 #######
 ### This is where the test starts
 #######

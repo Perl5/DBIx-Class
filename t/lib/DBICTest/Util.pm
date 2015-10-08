@@ -17,13 +17,45 @@ BEGIN {
   }
 }
 
+use constant DEBUG_TEST_CONCURRENCY_LOCKS =>
+  ( ($ENV{DBICTEST_DEBUG_CONCURRENCY_LOCKS}||'') =~ /^(\d+)$/ )[0]
+    ||
+  0
+;
+
 use Config;
 use Carp 'confess';
 use Scalar::Util qw(blessed refaddr);
 use DBIx::Class::_Util;
 
 use base 'Exporter';
-our @EXPORT_OK = qw(local_umask stacktrace check_customcond_args visit_namespaces);
+our @EXPORT_OK = qw(
+  dbg stacktrace
+  local_umask
+  visit_namespaces
+  check_customcond_args
+  DEBUG_TEST_CONCURRENCY_LOCKS
+);
+
+if (DEBUG_TEST_CONCURRENCY_LOCKS) {
+  require DBI;
+  my $oc = DBI->can('connect');
+  no warnings 'redefine';
+  *DBI::connect = sub {
+    DBICTest::Util::dbg("Connecting to $_[1]");
+    goto $oc;
+  }
+}
+
+sub dbg ($) {
+  require Time::HiRes;
+  printf STDERR "\n%.06f  %5s %-78s %s\n",
+    scalar Time::HiRes::time(),
+    $$,
+    $_[0],
+    $0,
+  ;
+}
 
 sub local_umask {
   return unless defined $Config{d_umask};
