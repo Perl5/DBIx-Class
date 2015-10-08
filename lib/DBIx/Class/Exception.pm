@@ -61,7 +61,7 @@ sub throw {
         # skip all frames that match the original caller, or any of
         # the dbic-wide classdata patterns
         my ($ln, $calling) = DBIx::Class::Carp::__find_caller(
-          '^' . caller() . '$',
+          '^' . CORE::caller() . '$',
           'DBIx::Class',
         );
 

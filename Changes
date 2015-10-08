@@ -37,6 +37,8 @@ Revision history for DBIx::Class
         - Make the Optional::Dependencies error messages cpanm-friendly
         - Incompatibly change values (not keys) of the hash returned by
           Optional::Dependencies::req_group_list (no known users in the wild)
+        - Protect tests and codebase from incomplete caller() overrides, like
+          e.g. RT#32640
 
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes

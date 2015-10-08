@@ -227,7 +227,7 @@ for my $post_poison (0,1) {
     local $SIG{__WARN__} = sub {
       package DB;
       my $frnum;
-      while (my @f = caller(++$frnum) ) {
+      while (my @f = CORE::caller(++$frnum) ) {
         push @arg_capture, @DB::args;
       }
     };

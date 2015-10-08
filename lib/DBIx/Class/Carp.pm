@@ -21,7 +21,7 @@ sub __find_caller {
   my $fr_num = 1; # skip us and the calling carp*
 
   my (@f, $origin);
-  while (@f = caller($fr_num++)) {
+  while (@f = CORE::caller($fr_num++)) {
 
     next if
       ( $f[3] eq '(eval)' or $f[3] =~ /::__ANON__$/ );
@@ -33,7 +33,7 @@ sub __find_caller {
         and
 #############################
 # Need a way to parameterize this for Carp::Skip
-      $1 !~ /^(?: DBIx::Class::Storage::BlockRunner | Context::Preserve | Try::Tiny | Class::Accessor::Grouped | Class::C3::Componentised | Module::Runtime )$/x
+      $1 !~ /^(?: DBIx::Class::Storage::BlockRunner | Context::Preserve | Try::Tiny | Class::Accessor::Grouped | Class::C3::Componentised | Module::Runtime | Sub::Uplevel )$/x
         and
       $2 !~ /^(?: throw_exception | carp | carp_unique | carp_once | dbh_do | txn_do | with_deferred_fk_checks)$/x
 #############################
@@ -54,11 +54,15 @@ sub __find_caller {
     ? "at $f[1] line $f[2]"
     : Carp::longmess()
   ;
-  $origin ||= '{UNKNOWN}';
 
   return (
     $site,
-    $origin =~ /::/ ? "$origin(): " : "$origin: ", # cargo-cult from Carp::Clan
+    (
+      # cargo-cult from Carp::Clan
+      ! defined $origin   ? ''
+    : $origin =~ /::/     ? "$origin(): "
+                          : "$origin: "
+    ),
   );
 };
 

@@ -207,7 +207,7 @@ sub assert_empty_weakregistry {
   # in case we hooked bless any extra object creation will wreak
   # havoc during the assert phase
   local *CORE::GLOBAL::bless;
-  *CORE::GLOBAL::bless = sub { CORE::bless( $_[0], (@_ > 1) ? $_[1] : caller() ) };
+  *CORE::GLOBAL::bless = sub { CORE::bless( $_[0], (@_ > 1) ? $_[1] : CORE::caller() ) };
 
   croak 'Expecting a registry hashref' unless ref $weak_registry eq 'HASH';
 
@@ -299,7 +299,7 @@ sub assert_empty_weakregistry {
   }
 
   if (! $quiet and !$leaks_found and ! $tb->in_todo) {
-    $tb->ok(1, sprintf "No leaks found at %s line %d", (caller())[1,2] );
+    $tb->ok(1, sprintf "No leaks found at %s line %d", (CORE::caller())[1,2] );
   }
 }
 

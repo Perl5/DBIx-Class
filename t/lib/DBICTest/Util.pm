@@ -53,7 +53,7 @@ sub stacktrace {
   $frame++;
   my (@stack, @frame);
 
-  while (@frame = caller($frame++)) {
+  while (@frame = CORE::caller($frame++)) {
     push @stack, [@frame[3,1,2]];
   }
 

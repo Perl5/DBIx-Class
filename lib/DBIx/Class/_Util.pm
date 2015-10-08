@@ -281,7 +281,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
     }
 
     my $cf = 1;
-    while ( ( (caller($cf+1))[3] || '' ) =~ / :: (?:
+    while ( ( (CORE::caller($cf+1))[3] || '' ) =~ / :: (?:
 
       # these are public API parts that alter behavior on wantarray
       search | search_related | slice | search_literal
@@ -299,8 +299,8 @@ sub modver_gt_or_eq_and_lt ($$$) {
     my ($fr, $want, $argdesc);
     {
       package DB;
-      $fr = [ caller($cf) ];
-      $want = ( caller($cf-1) )[5];
+      $fr = [ CORE::caller($cf) ];
+      $want = ( CORE::caller($cf-1) )[5];
       $argdesc = ref $DB::args[0]
         ? DBIx::Class::_Util::refdesc($DB::args[0])
         : 'non '
@@ -326,7 +326,7 @@ sub fail_on_internal_call {
   my ($fr, $argdesc);
   {
     package DB;
-    $fr = [ caller(1) ];
+    $fr = [ CORE::caller(1) ];
     $argdesc = ref $DB::args[0]
       ? DBIx::Class::_Util::refdesc($DB::args[0])
       : undef
