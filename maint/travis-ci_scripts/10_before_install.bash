@@ -2,10 +2,17 @@
 
 export SHORT_CIRCUIT_SMOKE
 
-# Stop pre-started RDBMS and sync for some settle time
+# Stop pre-started RDBMS, move their data back to disk (save RAM)
+# sync for some settle time
 run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
 run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop || /bin/true"
 /bin/sync
+
+for d in mysql postgresql ; do
+  sudo rm -rf /var/lib/$d
+  sudo mv /var/ramfs/$d /var/lib/
+  sudo ln -s /var/lib/$d /var/ramfs/$d
+done
 
 # Sanity check VM before continuing
 echo "
