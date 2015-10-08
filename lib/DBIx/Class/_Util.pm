@@ -21,8 +21,7 @@ BEGIN {
 
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
-    # ::Runmode would only be loaded by DBICTest, which in turn implies t/
-    DBICTEST => eval { DBICTest::RunMode->is_author } ? 1 : 0,
+    DBICTEST => $INC{"DBICTest/Util.pm"} ? 1 : 0,
 
     # During 5.13 dev cycle HELEMs started to leak on copy
     # add an escape for these perls ON SMOKERS - a user will still get death
