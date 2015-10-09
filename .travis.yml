@@ -116,11 +116,11 @@ matrix:
         - BREWVER=5.8.4
 
     # CLEANTEST: this particular perl is quite widespread
-    - perl: 5.8.8_thr_mb
+    - perl: 5.8.8_thr
       env:
         - CLEANTEST=true
         - BREWVER=5.8.8
-        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - BREWOPTS="-Duseithreads"
 
     # CLEANTEST: this is the perl suse ships, with env poisoning
     - perl: 5.10.0_thr_dbg
@@ -203,6 +203,14 @@ matrix:
         - BREWVER=5.8.7
         - BREWOPTS="-Duseithreads"
 
+    # 5.8.8 threaded MB (exercises P5#72210)
+    - perl: devcpan_5.8.8_thr_mb
+      env:
+        - CLEANTEST=true
+        - DEVREL_DEPS=true
+        - BREWVER=5.8.8
+        - BREWOPTS="-Duseithreads -Dusemorebits"
+
     # 5.10.0 threaded with blead CPAN
     - perl: devcpan_5.10.0_thr_mb
       env:
@@ -250,6 +258,7 @@ matrix:
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb
     - perl: devcpan_5.8.7_thr
+    - perl: devcpan_5.8.8_thr_mb
     - perl: devcpan_5.10.0_thr_mb
     - perl: devcpan_5.12.1_thr
     - perl: bleadperl
