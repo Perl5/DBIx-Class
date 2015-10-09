@@ -11,10 +11,21 @@ export HARNESS_OPTIONS="j$VCPU_USE"
 
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
-  # FIXME - these really need to be installed *with* testing under "allowed failures"
-  # Change when Moose goes away
-  parallel_installdeps_notest Moose
-  parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
+  # FIXME - Devel::Cover (brought by Test::Strict, but soon needed anyway)
+  # does not test cleanly on 5.8.7 - just get it directly
+  if perl -M5.008007 -e1 &>/dev/null && ! perl -M5.008008 -e1 &>/dev/null; then
+    parallel_installdeps_notest Devel::Cover
+  fi
+
+  # FIXME - workaround for YAML/RT#81120 and L::SRH/RT#107681
+  # We don't actually need these modules, only there because of SQLT (which will be fixed)
+  # does not test cleanly on 5.8.7 - just get them directly
+  if ! perl -M5.008008 -e1 &>/dev/null; then
+    parallel_installdeps_notest YAML Lexical::SealRequireHints
+  fi
+
+  # FIXME Change when Moose goes away
+  installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
   run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
   tarball_assembled=1
