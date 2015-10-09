@@ -99,7 +99,7 @@ SKIP: {
     }
 
     sub _possibly_has_bad_overload_performance {
-        return $] < 5.008009 && !_has_bug_34925();
+        return( "$]" < 5.008009 and !_has_bug_34925() );
     }
 
     # If this next one fails then you almost certainly have a RH derived

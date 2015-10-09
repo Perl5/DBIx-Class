@@ -72,7 +72,7 @@ BEGIN {
     if $ENV{PERL5OPT};
 
   plan skip_all => 'Dependency load patterns are radically different before perl 5.10'
-    if $] < 5.010;
+    if "$]" < 5.010;
 
   # add what we loaded so far
   for (keys %INC) {

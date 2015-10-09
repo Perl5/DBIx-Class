@@ -106,7 +106,7 @@ use DBICTest;
     #$schema->storage->_dbh( $schema->storage->_dbh->clone );
 
     die 'Deliberate exception';
-  }, ($] >= 5.013008 )
+  }, ( "$]" >= 5.013008 )
     ? qr/Deliberate exception/s # temporary until we get the generic exception wrapper rolling
     : qr/Deliberate exception.+Rollback failed/s
   );
@@ -179,7 +179,7 @@ for my $post_poison (0,1) {
       ! $pre_poison
         or
       # I do not understand why but on <= 5.8.8 and on 5.10.0 "$pre_poison && $post_poison" passes...
-      ($] > 5.008008 and $] < 5.010000 ) or $] > 5.010000
+      ( "$]" > 5.008008 and "$]" < 5.010000 ) or "$]" > 5.010000
     ));
 
   is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );

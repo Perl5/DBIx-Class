@@ -67,7 +67,7 @@ is (
   'Correct method picked'
 );
 
-if ($] >= 5.010) {
+if ( "$]" >= 5.010 ) {
   ok (! $INC{'Class/C3.pm'}, 'No Class::C3 loaded on perl 5.10+');
 
   # Class::C3::Componentised loads MRO::Compat unconditionally to satisfy

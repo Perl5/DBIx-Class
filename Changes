@@ -39,6 +39,8 @@ Revision history for DBIx::Class
           Optional::Dependencies::req_group_list (no known users in the wild)
         - Protect tests and codebase from incomplete caller() overrides, like
           e.g. RT#32640
+        - Stop using bare $] throughout - protects the codebase from issues
+          similar (but likely not limited to) P5#72210
 
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes

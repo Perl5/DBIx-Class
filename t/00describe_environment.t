@@ -14,7 +14,7 @@ BEGIN {
 BEGIN {
   unshift @INC, 't/lib';
 
-  if ($] < 5.010) {
+  if ( "$]" < 5.010) {
 
     # Pre-5.10 perls pollute %INC on unsuccesfull module
     # require, making it appear as if the module is already

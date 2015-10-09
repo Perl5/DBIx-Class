@@ -897,7 +897,7 @@ sub is_same_src { SKIP: {
   my ($got, $expect) = @_;
 
   skip "Not testing equality of source containing defined-or operator on this perl $]", 1
-    if ($] < 5.010 and$expect =~ m!\Q//=!);
+    if ( "$]" < 5.010 and $expect =~ m!\Q//=! );
 
   $expect =~ s/__NBC__/perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
 

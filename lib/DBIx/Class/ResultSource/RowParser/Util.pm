@@ -7,7 +7,7 @@ use warnings;
 use List::Util 'first';
 use DBIx::Class::_Util 'perlstring';
 
-use constant HAS_DOR => ( $] < 5.010 ? 0 : 1 );
+use constant HAS_DOR => ( "$]" < 5.010 ? 0 : 1 );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(

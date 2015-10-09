@@ -39,7 +39,7 @@ EOW
     grep {
       !/^rdbms_|^dist_/
         and
-      ($] > 5.008002 or !/^ (?: test_ )? (?: admin | admin_script | replicated ) $/x )
+      ( "$]" > 5.008002 or !/^ (?: test_ )? (?: admin | admin_script | replicated ) $/x )
     } keys %{DBIx::Class::Optional::Dependencies->req_group_list}
   ]);
 

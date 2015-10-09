@@ -21,7 +21,7 @@ use Test::More;
 use Test::Exception;
 
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
-  if $] < '5.008005';
+  if "$]" < 5.008005;
 
 use lib qw(t/lib);
 use DBICTest;

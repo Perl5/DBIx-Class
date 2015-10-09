@@ -4,7 +4,7 @@ package # hide from PAUSE
 use warnings;
 use strict;
 
-use constant SPURIOUS_VERSION_CHECK_WARNINGS => ($] < 5.010 ? 1 : 0);
+use constant SPURIOUS_VERSION_CHECK_WARNINGS => ( "$]" < 5.010 ? 1 : 0);
 
 BEGIN {
   package # hide from pause
@@ -17,7 +17,7 @@ BEGIN {
     # but of course
     BROKEN_FORK => ($^O eq 'MSWin32') ? 1 : 0,
 
-    BROKEN_GOTO => ($] < '5.008003') ? 1 : 0,
+    BROKEN_GOTO => ( "$]" < 5.008003 ) ? 1 : 0,
 
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
@@ -25,7 +25,7 @@ BEGIN {
 
     # During 5.13 dev cycle HELEMs started to leak on copy
     # add an escape for these perls ON SMOKERS - a user will still get death
-    PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ($] >= 5.013005 and $] <= 5.013006) ),
+    PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ( "$]" >= 5.013005 and "$]" <= 5.013006) ),
 
     SHUFFLE_UNORDERED_RESULTSETS => $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} ? 1 : 0,
 
@@ -42,7 +42,7 @@ BEGIN {
     OS_NAME => $^O,
   };
 
-  if ($] < 5.009_005) {
+  if ( "$]" < 5.009_005) {
     require MRO::Compat;
     constant->import( OLD_MRO => 1 );
   }
