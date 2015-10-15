@@ -2,9 +2,24 @@ package   #hide from PAUSE
   DBIx::Class::Storage::DBIHacks;
 
 #
-# This module contains code that should never have seen the light of day,
-# does not belong in the Storage, or is otherwise unfit for public
-# display. The arrival of SQLA2 should immediately obsolete 90% of this
+# This module contains code supporting a battery of special cases and tests for
+# many corner cases pushing the envelope of what DBIC can do. When work on
+# these utilities began in mid 2009 (51a296b402c) it wasn't immediately obvious
+# that these pieces, despite their misleading on-first-sighe-flakiness, will
+# become part of the generic query rewriting machinery of DBIC, allowing it to
+# both generate and process queries representing incredibly complex sets with
+# reasonable efficiency.
+#
+# Now (end of 2015), more than 6 years later the routines in this class have
+# stabilized enough, and are meticulously covered with tests, to a point where
+# an effort to formalize them into user-facing APIs might be worthwhile.
+#
+# An implementor working on publicizing and/or replacing the routines with a
+# more modern SQL generation framework should keep in mind that pretty much all
+# existing tests are constructed on the basis of real-world code used in
+# production somewhere.
+#
+# Please hack on this responsibly ;)
 #
 
 use strict;
@@ -346,27 +361,53 @@ sub _adjust_select_args_for_complex_prefetch {
     });
   }
 
-  # This is totally horrific - the {where} ends up in both the inner and outer query
-  # Unfortunately not much can be done until SQLA2 introspection arrives, and even
-  # then if where conditions apply to the *right* side of the prefetch, you may have
-  # to both filter the inner select (e.g. to apply a limit) and then have to re-filter
-  # the outer select to exclude joins you didn't want in the first place
+  # FIXME: The {where} ends up in both the inner and outer query, i.e. *twice*
+  #
+  # This is rather horrific, and while we currently *do* have enough
+  # introspection tooling available to attempt a stab at properly deciding
+  # whether or not to include the where condition on the outside, the
+  # machinery is still too slow to apply it here.
+  # Thus for the time being we do not attempt any sanitation of the where
+  # clause and just pass it through on both sides of the subquery. This *will*
+  # be addressed at a later stage, most likely after folding the SQL generator
+  # into SQLMaker proper
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
+  #
   return $outer_attrs;
 }
 
+# This is probably the ickiest, yet most relied upon part of the codebase:
+# this is the place where we take arbitrary SQL input and break it into its
+# constituent parts, making sure we know which *sources* are used in what
+# *capacity* ( selecting / restricting / grouping / ordering / joining, etc )
+# Although the method is pretty horrific, the worst thing that can happen is
+# for a classification failure, which in turn will result in a vocal exception,
+# and will lead to a relatively prompt fix.
+# The code has been slowly improving and is covered with a formiddable battery
+# of tests, so can be considered "reliably stable" at this point (Oct 2015).
 #
-# I KNOW THIS SUCKS! GET SQLA2 OUT THE DOOR SO THIS CAN DIE!
+# A note to implementors attempting to "replace" this - keep in mind that while
+# there are multiple optimization avenues, the actual "scan literal elements"
+# part *MAY NEVER BE REMOVED*, even if it is limited only ot the (future) AST
+# nodes that are deemed opaque (i.e. contain literal expressions). The use of
+# blackbox literals is at this point firmly a user-facing API, and is one of
+# *the* reasons DBIC remains as flexible as it is. In other words, when working
+# on this keep in mind that the following is widespread and *encouraged* way
+# of using DBIC in the wild when push comes to shove:
 #
-# Due to a lack of SQLA2 we fall back to crude scans of all the
-# select/where/order/group attributes, in order to determine what
-# aliases are needed to fulfill the query. This information is used
-# throughout the code to prune unnecessary JOINs from the queries
-# in an attempt to reduce the execution time.
-# Although the method is pretty horrific, the worst thing that can
-# happen is for it to fail due to some scalar SQL, which in turn will
-# result in a vocal exception.
+# $rs->search( {}, {
+#   select => \[ $random, @stuff],
+#   from => \[ $random, @stuff ],
+#   where => \[ $random, @stuff ],
+#   group_by => \[ $random, @stuff ],
+#   order_by => \[ $random, @stuff ],
+# } )
+#
+# Various incarnations of the above are reflected in many of the tests. If one
+# gets to fail, you get to fix it. A "this is crazy, nobody does that" is not
+# acceptable going forward.
+#
 sub _resolve_aliastypes_from_select_args {
   my ( $self, $attrs ) = @_;
 
@@ -678,12 +719,7 @@ sub _group_over_selection {
       # of the external order and convert them to MIN(X) for ASC or MAX(X)
       # for DESC, and group_by the root columns. The end result should be
       # exactly what we expect
-
-      # FIXME - this code is a joke, will need to be completely rewritten in
-      # the DQ branch. But I need to push a POC here, otherwise the
-      # pesky tests won't pass
-      # wrap any part of the order_by that "responds" to an ordering alias
-      # into a MIN/MAX
+      #
       $sql_maker ||= $self->sql_maker;
       $order_chunks ||= [
         map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by})
@@ -691,6 +727,8 @@ sub _group_over_selection {
 
       my ($chunk, $is_desc) = $sql_maker->_split_order_chunk($order_chunks->[$o_idx][0]);
 
+      # we reached that far - wrap any part of the order_by that "responded"
+      # to an ordering alias into a MIN/MAX
       $new_order_by[$o_idx] = \[
         sprintf( '%s( %s )%s',
           ($is_desc ? 'MAX' : 'MIN'),
@@ -1041,7 +1079,9 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
 # resultset {where} stacks
 #
 # FIXME - while relatively robust, this is still imperfect, one of the first
-# things to tackle with DQ
+# things to tackle when we get access to a formalized AST. Note that this code
+# is covered by a *ridiculous* amount of tests, so starting with porting this
+# code would be a rather good exercise
 sub _collapse_cond {
   my ($self, $where, $where_is_anded_array) = @_;
 

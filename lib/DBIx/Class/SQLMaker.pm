@@ -9,13 +9,13 @@ DBIx::Class::SQLMaker - An SQL::Abstract-based SQL maker class
 
 =head1 DESCRIPTION
 
-This module is a subclass of L<SQL::Abstract> and includes a number of
-DBIC-specific workarounds, not yet suitable for inclusion into the
+This module is currently a subclass of L<SQL::Abstract> and includes a number of
+DBIC-specific extensions/workarounds, not suitable for inclusion into the
 L<SQL::Abstract> core. It also provides all (and more than) the functionality
 of L<SQL::Abstract::Limit>, see L<DBIx::Class::SQLMaker::LimitDialects> for
 more info.
 
-Currently the enhancements to L<SQL::Abstract> are:
+Currently the enhancements over L<SQL::Abstract> are:
 
 =over
 
@@ -25,9 +25,101 @@ Currently the enhancements to L<SQL::Abstract> are:
 
 =item * C<GROUP BY>/C<HAVING> support (via extensions to the order_by parameter)
 
+=item * A rudimentary multicolumn IN operator
+
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
 =back
+
+=head1 ROADMAP
+
+Some maintainer musings on the current state of SQL generation within DBIC as
+of Oct 2015
+
+=head2 Folding of most (or all) of L<SQL::Abstract (SQLA)|SQL::Abstract> into DBIC
+
+The rise of complex prefetch use, and the general streamlining of result
+parsing within DBIC ended up pushing the actual SQL generation to the forefront
+of many casual performance profiles. While the idea behind SQLA's API is sound,
+the actual implementation is terribly inefficient (once again bumping into the
+ridiculously high overhead of perl function calls).
+
+Given that SQLA has a B<very> distinct life on its own, and is used within an
+order of magnitude more projects compared to DBIC, it is prudent to B<not>
+disturb the current call chains within SQLA itself. Instead in the near future
+an effort will be undertaken to seek a more thorough decoupling of DBIC SQL
+generation from reliance on SQLA, possibly to a point where B<DBIC will no
+longer depend on SQLA> at all.
+
+B<The L<SQL::Abstract> library itself will continue being maintained> although
+it is not likely to gain many extra features, notably dialect support, at least
+not within the base C<SQL::Abstract> namespace.
+
+This work (if undertaken) will take into consideration the following
+constraints:
+
+=over
+
+=item Main API compatibility
+
+The object returned by C<< $schema->storage->sqlmaker >> needs to be able to
+satisfy most of the basic tests found in the current-at-the-time SQLA dist.
+While things like L<case|SQL::Abstract/case> or L<logic|SQL::Abstract/logic>
+or even worse L<convert|SQL::Abstract/convert> will definitely remain
+unsupported, the rest of the tests should pass (within reason).
+
+=item Ability to plug back an SQL::Abstract (or derivative)
+
+During the initial work on L<Data::Query> the test suite of DBIC turned out to
+be an invaluable asset to iron out hard-to-reason-about corner cases. In
+addition the test suite is much more vast and intricate than the tests of SQLA
+itself. This state of affairs is way too valuable to sacrifice in order to gain
+faster SQL generation. Thus a compile-time-ENV-check will be introduced along
+with an extra CI configuration to ensure that DBIC is used with an off-the-CPAN
+SQLA and that it continues to flawlessly run its entire test suite. While this
+will undoubtedly complicate the implementation of the better performing SQL
+generator, it will preserve both the usability of the test suite for external
+projects and will keep L<SQL::Abstract> from regressions in the future.
+
+=back
+
+Aside from these constraints it is becoming more and more practical to simply
+stop using SQLA in day-to-day production deployments of DBIC. The flexibility
+of the internals is simply not worth the performance cost.
+
+=head2 Relationship to L<Data::Query (DQ)|Data::Query>
+
+When initial work on DQ was taking place, the tools in L<::Storage::DBIHacks
+|http://github.com/dbsrgits/dbix-class/blob/current/blead/lib/DBIx/Class/Storage/DBIHacks.pm>
+were only beginning to take shape, and it wasn't clear how important they will
+become further down the road. In fact the I<regexing all over the place> was
+considered an ugly stop-gap, and even a couple of highly entertaining talks
+were given to that effect. As the use-cases of DBIC were progressing, and
+evidence for the importance of supporting arbitrary SQL was mounting, it became
+clearer that DBIC itself would not really benefit in any way from an
+integration with DQ, but on the contrary is likely to lose functionality while
+the corners of the brand new DQ codebase are sanded off.
+
+The current status of DBIC/DQ integration is that the only benefit is for DQ by
+having access to the very extensive "early adopter" test suite, in the same
+manner as early DBIC benefitted tremendously from usurping the Class::DBI test
+suite. As far as the DBIC user-base - there are no immediate practical upsides
+to DQ integration, neither in terms of API nor in performance.
+
+So (as described higher up) the DBIC development effort will in the foreseable
+future ignore the existence of DQ, and will continue optimizing the preexisting
+SQLA-based solution, potentially "organically growing" its own compatible
+implementation. Also (again, as described higher up) the ability to plug a
+separate SQLA-compatible class providing the necessary surface API will remain
+possible, and will be protected at all costs in order to continue providing DQ
+access to the test cases of DBIC.
+
+In the short term, after one more pass over the ResultSet internals is
+undertaken I<real soon now (tm)>, and before the SQLA/SQLMaker integration
+takes place, the preexisting DQ-based branches will be pulled/modified/rebased
+to get up-to-date with the current state of the codebase, which changed very
+substantially since the last migration effort, especially in the SQL
+classification meta-parsing codepath.
 
 =cut
 
@@ -146,8 +238,9 @@ sub select {
     if( $limiter = $self->can ('emulate_limit') ) {
       carp_unique(
         'Support for the legacy emulate_limit() mechanism inherited from '
-      . 'SQL::Abstract::Limit has been deprecated, and will be removed when '
-      . 'DBIC transitions to Data::Query. If your code uses this type of '
+      . 'SQL::Abstract::Limit has been deprecated, and will be removed at '
+      . 'some future point, as it gets in the way of architectural and/or '
+      . 'performance advances within DBIC. If your code uses this type of '
       . 'limit specification please file an RT and provide the source of '
       . 'your emulate_limit() implementation, so an acceptable upgrade-path '
       . 'can be devised'
@@ -211,9 +304,9 @@ sub insert {
 # optimized due to hotttnesss
 #  my ($self, $table, $data, $options) = @_;
 
-  # SQLA will emit INSERT INTO $table ( ) VALUES ( )
+  # FIXME SQLA will emit INSERT INTO $table ( ) VALUES ( )
   # which is sadly understood only by MySQL. Change default behavior here,
-  # until SQLA2 comes with proper dialect support
+  # until we fold the extra pieces into SQLMaker properly
   if (! $_[2] or (ref $_[2] eq 'HASH' and !keys %{$_[2]} ) ) {
     my @bind;
     my $sql = sprintf(
@@ -294,7 +387,10 @@ sub _recurse_fields {
 # things in the SQLA space need to have more info about the $rs they
 # create SQL for. The alternative would be to keep expanding the
 # signature of _select with more and more positional parameters, which
-# is just gross. All hail SQLA2!
+# is just gross.
+#
+# FIXME - this will have to transition out to a subclass when the effort
+# of folding the SQLA machinery into SQLMaker takes place
 sub _parse_rs_attrs {
   my ($self, $arg) = @_;
 
@@ -495,9 +591,14 @@ sub _join_condition {
   return $self->_recurse_where($cond);
 }
 
-# This is hideously ugly, but SQLA does not understand multicol IN expressions
-# FIXME TEMPORARY - DQ should have native syntax for this
-# moved here to raise API questions
+# !!! EXPERIMENTAL API !!! WILL CHANGE !!!
+#
+# This is rather odd, but vanilla SQLA does not have support for multicolumn IN
+# expressions
+# Currently has only one callsite in ResultSet, body moved into this subclass
+# of SQLA to raise API questions like:
+# - how do we convey a list of idents...?
+# - can binds reside on lhs?
 #
 # !!! EXPERIMENTAL API !!! WILL CHANGE !!!
 sub _where_op_multicolumn_in {

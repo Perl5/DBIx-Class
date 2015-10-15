@@ -44,13 +44,19 @@ sub _prep_for_execute {
   return $self->next::method(@_) if ( $_[0] eq 'select' or $_[0] eq 'insert' );
 
 
-  # FIXME FIXME FIXME - this is a terrible, gross, incomplete hack
-  # it should be trivial for mst to port this to DQ (and a good
-  # exercise as well, since we do not yet have such wide tree walking
-  # in place). For the time being this will work in limited cases,
-  # mainly complex update/delete, which is really all we want it for
-  # currently (allows us to fix some bugs without breaking MySQL in
-  # the process, and is also crucial for Shadow to be usable)
+  # FIXME FIXME FIXME - this is a terrible, gross, incomplete, MySQL-specific
+  # hack but it works rather well for the limited amount of actual use cases
+  # which can not be done in any other way on MySQL. This allows us to fix
+  # some bugs without breaking MySQL support in the process and is also
+  # crucial for more complex things like Shadow to be usable
+  #
+  # This code is just a pre-analyzer, working in tandem with ::SQLMaker::MySQL,
+  # where the possibly-set value of {_modification_target_referenced_re} is
+  # used to demarcate which part of the final SQL to double-wrap in a subquery.
+  #
+  # This is covered extensively by "offline" tests, so when the DQ work
+  # resumes, this will get flagged. Afaik there are no AST-visitor code of that
+  # magnitude yet (Oct 2015) within DQ, so a good exercise overall.
 
   # extract the source name, construct modification indicator re
   my $sm = $self->sql_maker;

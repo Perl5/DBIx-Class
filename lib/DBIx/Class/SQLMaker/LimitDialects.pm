@@ -273,8 +273,8 @@ EOS
   # method, and the slower BETWEEN query is used instead
   #
   # FIXME - this is quite expensive, and does not perform caching of any sort
-  # as soon as some of the DQ work becomes viable consider switching this
-  # over
+  # as soon as some of the SQLA-inlining work becomes viable consider adding
+  # some rudimentary caching support
   if (
     $rs_attrs->{order_by}
       and
