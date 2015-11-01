@@ -13,6 +13,18 @@ BEGIN {
 
     die __PACKAGE__ . " must be loaded before DBIx::Class (or modules using DBIx::Class) at $frame[1] line $frame[2]\n";
   }
+
+  if ( $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} ) {
+    my $ov = UNIVERSAL->can("VERSION");
+
+    require Carp;
+
+    no warnings 'redefine';
+    *UNIVERSAL::VERSION = sub {
+      Carp::carp( 'Argument "blah bleh bloh" isn\'t numeric in subroutine entry' );
+      &$ov;
+    };
+  }
 }
 
 use Path::Class qw/file dir/;

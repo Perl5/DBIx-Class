@@ -11,6 +11,10 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt );
 
+# make one deploy() round before we load anything else - need this in order
+# to prime SQLT if we are using it (deep depchain is deep)
+DBICTest->init_schema( no_populate => 1 );
+
 # check that we work somewhat OK with braindead SQLite transaction handling
 #
 # As per https://metacpan.org/source/ADAMK/DBD-SQLite-1.37/lib/DBD/SQLite.pm#L921
@@ -18,8 +22,6 @@ use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_
 #
 # However DBD::SQLite 1.38_02 seems to fix this, with an accompanying test:
 # https://metacpan.org/source/ADAMK/DBD-SQLite-1.38_02/t/54_literal_txn.t
-
-require DBD::SQLite;
 my $lit_txn_todo = modver_gt_or_eq('DBD::SQLite', '1.38_02')
   ? undef
   : "DBD::SQLite before 1.38_02 is retarded wrt detecting literal BEGIN/COMMIT statements"

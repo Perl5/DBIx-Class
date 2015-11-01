@@ -37,7 +37,12 @@ else
 fi
 TEST_T1=$SECONDS
 
-if [[ -z "$DBIC_TRACE" ]] && [[ -z "$DBIC_MULTICREATE_DEBUG" ]] && [[ -s "$TEST_STDERR_LOG" ]] ; then
+if \
+   [[ -z "$DBIC_TRACE" ]] \
+&& [[ -z "$DBIC_MULTICREATE_DEBUG" ]] \
+&& [[ -z "$DBICTEST_DEBUG_CONCURRENCY_LOCKS" ]] \
+&& [[ -z "$DBICTEST_VERSION_WARNS_INDISCRIMINATELY" ]] \
+&& [[ -s "$TEST_STDERR_LOG" ]] ; then
   STDERR_LOG_SIZE=$(wc -l < "$TEST_STDERR_LOG")
 
   # prepend STDERR log
