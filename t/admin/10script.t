@@ -2,6 +2,12 @@
 use strict;
 use warnings;
 
+BEGIN {
+  # just in case the user env has stuff in it
+  delete $ENV{JSON_ANY_ORDER};
+  delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY};
+}
+
 use Test::More;
 use Config;
 use File::Spec;

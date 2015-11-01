@@ -4,7 +4,11 @@ package # hide from PAUSE
 use warnings;
 use strict;
 
-use constant SPURIOUS_VERSION_CHECK_WARNINGS => ($] < 5.010 ? 1 : 0);
+use constant SPURIOUS_VERSION_CHECK_WARNINGS => (
+  ( $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} or $] < 5.010 )
+    ? 1
+    : 0
+);
 
 BEGIN {
   package # hide from pause

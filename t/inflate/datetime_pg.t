@@ -14,6 +14,10 @@ DBICTest::Schema->load_classes('EventTZPg');
 
 my $schema = DBICTest->init_schema();
 
+# this may generate warnings under certain CI flags, hence do it outside of
+# the warnings_are below
+my $dt = DateTime->new( year => 2000, time_zone => "America/Chicago" );
+
 warnings_are {
   my $event = $schema->resultset("EventTZPg")->find(1);
   $event->update({created_on => '2009-01-15 17:00:00+00'});

@@ -1,6 +1,8 @@
 use warnings;
 use strict;
 
+BEGIN { delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} }
+
 use DBIx::Class::_Util 'sigwarn_silencer';
 use if DBIx::Class::_ENV_::BROKEN_FORK, 'threads';
 
