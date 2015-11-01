@@ -179,7 +179,6 @@ for my $bi ( qw(
   1
   2
 
-  -9223372036854775808
   -9223372036854775807
   -8694837494948124658
   -6848440844435891639
@@ -214,6 +213,15 @@ for my $bi ( qw(
   $sqlite_broken_bigint
     ? ()
     : ( '2147483648', '2147483649' )
+  ,
+
+  # with newer compilers ( gcc 4.9+ ) older DBD::SQLite does not
+  # play well with the "Most Negative Number"
+  modver_gt_or_eq( 'DBD::SQLite', '1.33' )
+    ? ( '-9223372036854775808' )
+    : ()
+  ,
+
 ) {
   # unsigned 32 bit ints have a range of −2,147,483,648 to 2,147,483,647
   # alternatively expressed as the hexadecimal numbers below
@@ -245,7 +253,7 @@ for my $bi ( qw(
   eval {
     $row = $schema->resultset('BigIntArtist')->create({ bigint => $bi });
   } or do {
-    fail("Exception on inserting $v_desc") unless $sqlite_broken_bigint;
+    fail("Exception on inserting $v_desc: $@") unless $sqlite_broken_bigint;
     next;
   };
 
