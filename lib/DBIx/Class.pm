@@ -32,7 +32,12 @@ __PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Cla
 # However it is the right thing to do in order to get
 # various install bases to highlight their brokenness
 # Remove at some unknown point in the future
-sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor }
+#
+# The oddball BEGIN is there for... reason unknown
+# It does make non-segfaulty difference on pre-5.8.5 perls, so shrug
+BEGIN {
+  sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor };
+}
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);
