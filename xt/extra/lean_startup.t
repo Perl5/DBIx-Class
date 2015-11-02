@@ -83,7 +83,12 @@ BEGIN {
   }
 }
 
-BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+BEGIN {
+  delete $ENV{$_} for qw(
+    DBICTEST_VIA_REPLICATED
+    DBICTEST_DEBUG_CONCURRENCY_LOCKS
+  );
+}
 
 #######
 ### This is where the test starts
