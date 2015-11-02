@@ -9,7 +9,7 @@ use Fcntl qw(:DEFAULT :seek :flock);
 use Time::HiRes 'sleep';
 use Scope::Guard ();
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
-use DBICTest::Util qw( local_umask dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use namespace::clean;
 
 sub capture_executed_sql_bind {
@@ -151,13 +151,6 @@ sub connection {
   # an envvar, we can not detect when a user invokes prove -jN. Hence
   # perform the locking at all times, it shouldn't hurt.
   # the lock fh *should* inherit across forks/subprocesses
-  #
-  # File locking is hard. Really hard. By far the best lock implementation
-  # I've seen is part of the guts of File::Temp. However it is sadly not
-  # reusable. Since I am not aware of folks doing NFS parallel testing,
-  # nor are we known to work on VMS, I am just going to punt this and
-  # use the portable-ish flock() provided by perl itself. If this does
-  # not work for you - patches more than welcome.
   if (
     ! $DBICTest::global_exclusive_lock
       and
@@ -215,7 +208,7 @@ sub connection {
         sysopen ($lock_fh, $lockpath, O_RDWR|O_CREAT) or die "Unable to open $lockpath: $!";
       }
 
-      flock ($lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
+      await_flock ($lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
 
       DEBUG_TEST_CONCURRENCY_LOCKS
         and dbg "Got $locktype LOCK: $lockpath";

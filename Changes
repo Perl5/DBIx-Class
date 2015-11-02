@@ -39,6 +39,7 @@ Revision history for DBIx::Class
           Optional::Dependencies::req_group_list (no known users in the wild)
         - Protect tests and codebase from incomplete caller() overrides, like
           e.g. RT#32640
+        - Work around rare test deadlock under heavy parallelism (RT#108390)
         - Stop using bare $] throughout - protects the codebase from issues
           similar (but likely not limited to) P5#72210
 
