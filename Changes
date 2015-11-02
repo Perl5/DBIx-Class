@@ -7,6 +7,9 @@ Revision history for DBIx::Class
         - Fix test failures when DBICTEST_SYBASE_DSN is set (unnoticed change
           in error message wording during 0.082800 and a bogus test)
 
+    * Misc
+        - Work around rare test deadlock under heavy parallelism (RT#108390)
+
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes
         - Protect destructors from rare but possible double execution, and

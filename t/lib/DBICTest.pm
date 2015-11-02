@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use DBICTest::Util qw( local_umask dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBIx::Class::_Util 'detected_reinvoked_destructor';
@@ -93,7 +93,7 @@ sub import {
             DEBUG_TEST_CONCURRENCY_LOCKS > 1
               and dbg "Waiting for EXCLUSIVE global lock...";
 
-            flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
+            await_flock ($global_lock_fh, LOCK_EX) or die "Unable to lock $lockpath: $!";
 
             DEBUG_TEST_CONCURRENCY_LOCKS > 1
               and dbg "Got EXCLUSIVE global lock";
@@ -117,7 +117,7 @@ sub import {
         DEBUG_TEST_CONCURRENCY_LOCKS > 1
           and dbg "Waiting for SHARED global lock...";
 
-        flock ($global_lock_fh, LOCK_SH) or die "Unable to lock $lockpath: $!";
+        await_flock ($global_lock_fh, LOCK_SH) or die "Unable to lock $lockpath: $!";
 
         DEBUG_TEST_CONCURRENCY_LOCKS > 1
           and dbg "Got SHARED global lock";
