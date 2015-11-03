@@ -91,11 +91,12 @@ matrix:
         - BREWVER=5.8.3
         - BREWOPTS="-Dusemorebits"
 
-    # Full Test of minimum supported without threads with non-tracing poisoning
+    # Full Test of minimum supported without threads with plain poisoned trace
     - perl: 5.8.3_nt
       env:
         - CLEANTEST=false
         - POISON_ENV=true
+        - DBIC_TRACE=1
         - BREWVER=5.8.3
 
     # Full Test of minimum supported with threads with non-tracing poisoning
@@ -178,12 +179,13 @@ matrix:
         - BREWVER=5.8.1
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    # oldest possible with blead CPAN with poisoning
+    # oldest possible with blead CPAN with poisoning and plain trace
     - perl: devcpan_5.8.1
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
         - POISON_ENV=true
+        - DBIC_TRACE=1
         - BREWVER=5.8.1
 
     # 5.8.3 with blead CPAN
