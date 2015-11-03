@@ -24,6 +24,9 @@ Revision history for DBIx::Class
           and warned about (GH#15)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
+        - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
+          of a transaction with deferred FK checks: a guard is now inactivated
+          immediately before the commit is attempted (RT#107159)
         - Fix several corner cases with Many2Many over custom relationships
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
         - Fix t/storage/quote_names.t failures on systems with specified Oracle

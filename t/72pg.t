@@ -5,6 +5,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use Sub::Name;
 use Config;
 use DBIx::Class::Optional::Dependencies ();
@@ -485,7 +486,24 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
     $schema->resultset('Track')->create({
       trackid => 1, cd => 9999, position => 1, title => 'Track1'
     });
-  } qr/constraint/i, 'with_deferred_fk_checks is off';
+  } qr/violates foreign key constraint/i, 'with_deferred_fk_checks is off outside of TXN';
+
+  # rerun the same under with_deferred_fk_checks
+  # it is expected to fail, hence the eval
+  # but it also should not warn
+  warnings_like {
+    eval {
+      $schema->storage->with_deferred_fk_checks(sub {
+        $schema->resultset('Track')->create({
+          trackid => 1, cd => 9999, position => 1, title => 'Track1'
+        });
+      } )
+    };
+
+    like $@, qr/violates foreign key constraint/i,
+      "Still expected exception on deferred failure at commit time";
+
+  } [], 'No warnings on deferred rollback';
 }
 
 done_testing;
