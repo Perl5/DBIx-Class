@@ -18,7 +18,8 @@ use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   source_name name source_info
-  _ordered_columns _columns _primaries _unique_constraints
+  _ordered_columns _columns _primaries 
+  _unique_constraints _unique_constraints_extra
   _relationships resultset_attributes
   column_info_from_storage
 /);
@@ -683,7 +684,7 @@ sub sequence {
 
 =over 4
 
-=item Arguments: $name?, \@colnames
+=item Arguments: $name?, \@colnames, \%options?
 
 =item Return Value: not defined
 
@@ -694,7 +695,8 @@ constraint.
 
   # For UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(
-    constraint_name => [ qw/column1 column2/ ],
+    constraint_name => [ qw/column1 column2/ ], 
+    { deferrable => 1 }
   );
 
 Alternatively, you can specify only the columns:
@@ -704,6 +706,11 @@ Alternatively, you can specify only the columns:
 This will result in a unique constraint named
 C<table_column1_column2>, where C<table> is replaced with the table
 name.
+
+The options hashref will be passed to
+L<SQL::Translator::Schema::Constraint/new>; the intention being to
+allow the C<deferrable> flag to be set, but you may find others 
+useful. Note that C<name>, C<type>, and C<fields> will be ignored.
 
 Unique constraints are used, for example, when you pass the constraint
 name as the C<key> attribute to L<DBIx::Class::ResultSet/find>. Then
@@ -717,14 +724,20 @@ the result source.
 sub add_unique_constraint {
   my $self = shift;
 
-  if (@_ > 2) {
+  if ((grep {ref $_ eq 'ARRAY'} @_) > 1) {
     $self->throw_exception(
         'add_unique_constraint() does not accept multiple constraints, use '
       . 'add_unique_constraints() instead'
     );
   }
 
+  my $opts;
   my $cols = pop @_;
+  if (ref $cols eq 'HASH') {
+    $opts = $cols;
+    $cols = pop @_;
+  }
+
   if (ref $cols ne 'ARRAY') {
     $self->throw_exception (
       'Expecting an arrayref of constraint columns, got ' . ($cols||'NOTHING')
@@ -741,8 +754,11 @@ sub add_unique_constraint {
   }
 
   my %unique_constraints = $self->unique_constraints;
+  my %unique_constraints_extra = $self->unique_constraints_extra;
   $unique_constraints{$name} = $cols;
+  $unique_constraints_extra{$name} = $opts;
   $self->_unique_constraints(\%unique_constraints);
+  $self->_unique_constraints_extra(\%unique_constraints_extra);
 }
 
 =head2 add_unique_constraints
@@ -855,6 +871,30 @@ column names as values.
 
 sub unique_constraints {
   return %{shift->_unique_constraints||{}};
+}
+
+=head2 unique_constraints_extra
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: Hash of unique constraint \%options
+
+=back
+
+  my %uq_extras = $source->unique_constraints_extra();
+
+Read-only accessor which returns a hash of the options provided to
+unique constraints.
+
+The hash is keyed by constraint name, and the values are the options
+hashrefs as provided to L</add_unique_constraint>.
+
+=cut
+
+sub unique_constraints_extra {
+  return %{shift->_unique_constraints_extra||{}};
 }
 
 =head2 unique_constraint_names
