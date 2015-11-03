@@ -2,17 +2,11 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
+use File::Temp ();
 
 use lib 't/lib';
-BEGIN {
-  require DBICTest::RunMode;
-  plan( skip_all => "Skipping test on plain module install" )
-    if DBICTest::RunMode->is_plain;
-}
-
-use Test::Exception;
 use DBICTest;
-use File::Temp ();
 
 plan tests => 2;
 my $wait_for = 120;  # how many seconds to wait

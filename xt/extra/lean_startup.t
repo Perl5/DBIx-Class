@@ -53,10 +53,8 @@ BEGIN {
       CORE::require('Test/More.pm');
       Test::More::fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      if ( $ENV{TEST_VERBOSE} or ! DBICTest::RunMode->is_plain ) {
-        CORE::require('DBICTest/Util.pm');
-        Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
-      }
+      CORE::require('DBICTest/Util.pm');
+      Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
     }
 
     return $res;
@@ -199,16 +197,11 @@ sub assert_no_missing_expected_requires {
   my $nl;
   for my $mod (keys %$expected_dbic_deps) {
     (my $modfn = "$mod.pm") =~ s/::/\//g;
-    unless ($INC{$modfn}) {
-      my $err = sprintf "Expected DBIC core dependency '%s' never loaded - %s needs adjustment", $mod, __FILE__;
-      if (DBICTest::RunMode->is_smoker or DBICTest::RunMode->is_author) {
-        fail ($err)
-      }
-      else {
-        diag "\n" unless $nl->{$mod}++;
-        diag $err;
-      }
-    }
+    fail sprintf (
+      "Expected DBIC core dependency '%s' never loaded - %s needs adjustment",
+      $mod,
+      __FILE__
+    ) unless $INC{$modfn};
   }
   pass(sprintf 'All modules expected at %s line %s loaded by DBIC: %s',
     __FILE__,

@@ -5,6 +5,7 @@ use strict;
 
 use Test::More;
 use List::Util 'first';
+use Module::Runtime 'require_module';
 use lib qw(t/lib maint/.Generated_Pod/lib);
 use DBICTest;
 use namespace::clean;
@@ -171,6 +172,8 @@ foreach my $module (@modules) {
     my $ex = $ex_lookup->{$match} if $match;
 
     skip ("$module exempt", 1) if ($ex->{skip});
+
+    skip ("$module not loadable", 1) unless eval { require_module($module) };
 
     # build parms up from ignore list
     my $parms = {};

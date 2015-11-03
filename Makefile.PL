@@ -117,17 +117,15 @@ if ( my @optdeps = (
   }
 }
 
-tests_recursive (
-  't',
-  ( (
-    $Module::Install::AUTHOR
-      or
-    $ENV{DBICTEST_RUN_ALL_TESTS}
-      or
-    ( $ENV{TRAVIS}||'' ) eq 'true'
-      or
-    ( $ENV{AUTOMATED_TESTING} and ! $ENV{PERL5_CPANM_IS_RUNNING} and ! $ENV{RELEASE_TESTING} )
-  ) ? 'xt' : () ),
+tests_recursive ('t');
+tests_recursive ('xt') if (
+  $Module::Install::AUTHOR
+    or
+  $ENV{DBICTEST_RUN_ALL_TESTS}
+    or
+  ( $ENV{TRAVIS}||'' ) eq 'true'
+    or
+  ( $ENV{AUTOMATED_TESTING} and ! $ENV{PERL5_CPANM_IS_RUNNING} and ! $ENV{RELEASE_TESTING} )
 );
 
 install_script (qw|
