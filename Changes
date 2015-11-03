@@ -1,6 +1,9 @@
 Revision history for DBIx::Class
 
     * Fixes
+        - Fix t/105view_deps.t failing with libsqlite >= 3.009, where view
+          definitions are lazily-checked for correctness only at DML-time as
+          opposed to DDL-time (RT#1546088)
         - Fix hang in t/72pg.t when run against DBD::Pg 3.5.0. The ping()
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.

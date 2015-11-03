@@ -73,10 +73,16 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
     = ViewDepsBad->connect( DBICTest->_database ( quote_char => '"') );
   ok( $schema2, 'Connected to ViewDepsBad schema OK' );
 
+  my $lazy_view_validity = !(
+    $schema2->storage->_server_info->{normalized_dbms_version}
+      <
+    3.009
+  );
+
 #################### DEPLOY2
 
   warnings_exist { $schema2->deploy }
-    [qr/no such table: main.aba_name_artists/],
+    [ $lazy_view_validity ? () : qr/no such table: main.aba_name_artists/ ],
     "Deploying the bad schema produces a warning: aba_name_artists was not created.";
 
 #################### DOES ORDERING WORK 2?
@@ -106,9 +112,15 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
     } grep { !/AbaNameArtistsAnd2010CDsWithManyTracks/ }
     @{ [ $schema2->sources ] };
 
+  $schema2->storage->dbh->do(q( DROP VIEW "aba_name_artists" ))
+    if $lazy_view_validity;
+
   throws_ok { $schema2->resultset('AbaNameArtistsAnd2010CDsWithManyTracks')->next }
-    qr/no such table: aba_name_artists_and_2010_cds_with_many_tracks/,
-    "Query on AbaNameArtistsAnd2010CDsWithManyTracks throws, because the table does not exist"
+    qr/no such table: (?:main\.)?aba_name_artists/,
+    sprintf(
+      "Query on AbaNameArtistsAnd2010CDsWithManyTracks throws, because the%s view does not exist",
+      $lazy_view_validity ? ' underlying' : ''
+    )
   ;
 }
 
