@@ -103,45 +103,30 @@ shorthand_check(
   'stringifyable $object === [ {}, $object ]',
 );
 
-throws_ok {
-  shorthand_check(
+shorthand_check(
     [ 2 ],
-    [],
-  )
-} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Q[ 2 ]!,
-  'exception on bare array bindvalue';
-
-throws_ok {
-  shorthand_check(
     [ {} => [ 2 ] ],
-    [],
-  )
-} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Q[ 2 ]!,
-  'exception on untyped array bindvalue';
+);
 
-throws_ok {
-  shorthand_check(
+shorthand_check(
+    [ {} => [ 2 ] ],
+    [ {} => [ 2 ] ],
+);
+
+shorthand_check(
     [ {}, 2, 3 ],
-    [],
-  )
-} qr !You must supply a datatype/bindtype .+ for non-scalar value  \[ 'HASH\(\w+\)', 2, 3 \]!,
-  'exception on bare multielement array bindvalue';
+    [ {} => [ {}, 2, 3 ] ],
+);
 
-throws_ok {
-  shorthand_check(
+shorthand_check(
     bless( {}, 'Foo'),
-    [],
-  )
-} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Qbless( {}, 'Foo' )!,
-  'exception on bare object';
+    [ {} => bless( {}, 'Foo') ],
+);
 
-throws_ok {
-  shorthand_check(
+shorthand_check(
     [ {}, bless( {}, 'Foo') ],
-    [],
-  )
-} qr !You must supply a datatype/bindtype .+ for non-scalar value  \Qbless( {}, 'Foo' )!,
-  'exception on untyped object';
+    [ {}, bless( {}, 'Foo') ],
+);
 
 
 sub shorthand_check {

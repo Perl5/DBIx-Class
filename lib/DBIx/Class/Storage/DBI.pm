@@ -1722,7 +1722,6 @@ sub _resolve_bindattrs {
   };
 
   return [ map {
-    my $resolved =
       ( ref $_ ne 'ARRAY' or @$_ != 2 ) ? [ {}, $_ ]
     : ( ! defined $_->[0] )             ? [ {}, $_->[1] ]
     : (ref $_->[0] eq 'HASH')           ? [(
@@ -1739,31 +1738,6 @@ sub _resolve_bindattrs {
     :                                     [ $resolve_bindinfo->(
                                               { dbic_colname => $_->[0] }
                                             ), $_->[1] ]
-    ;
-
-    if (
-      ! exists $resolved->[0]{dbd_attrs}
-        and
-      ! $resolved->[0]{sqlt_datatype}
-        and
-      length ref $resolved->[1]
-        and
-      ! is_plain_value $resolved->[1]
-    ) {
-      require Data::Dumper;
-      local $Data::Dumper::Maxdepth = 1;
-      local $Data::Dumper::Terse = 1;
-      local $Data::Dumper::Useqq = 1;
-      local $Data::Dumper::Indent = 0;
-      local $Data::Dumper::Pad = ' ';
-      $self->throw_exception(
-        'You must supply a datatype/bindtype (see DBIx::Class::ResultSet/DBIC BIND VALUES) '
-      . 'for non-scalar value '. Data::Dumper::Dumper ($resolved->[1])
-      );
-    }
-
-    $resolved;
-
   } @$bind ];
 }
 

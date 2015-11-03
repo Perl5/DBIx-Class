@@ -274,7 +274,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     # test inferred condition for creation
     for my $cond (
       { -value => [3,4] },
-      \[ '= ?' => [arrayfield => [3, 4]] ],
+      \[ '= ?' => [3, 4] ],
     ) {
       local $TODO = 'No introspection of complex literal conditions :('
         if is_literal_value $cond;
