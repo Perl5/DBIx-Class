@@ -69,11 +69,12 @@ my $exception = try {
   open(STDERR, '>&STDERRCOPY');
 };
 
-like $exception, qr/
+ok $exception =~ /
   \QDuplication of STDERR for debug output failed (perhaps your STDERR is closed?)\E
     .+
   \Qat @{[__FILE__]} line $exception_line_number\E$
-/xms;
+/xms
+  or diag "Unexpected exception text:\n\n$exception\n";
 
 my @warnings;
 $exception = try {
