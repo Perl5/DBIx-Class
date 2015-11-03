@@ -116,6 +116,7 @@ my $exceptions = {
     },
 
     'DBIx::Class::Admin::*'                         => { skip => 1 },
+    'DBIx::Class::Optional::Dependencies'           => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
     'DBIx::Class::AccessorGroup'                    => { skip => 1 },
@@ -173,6 +174,8 @@ foreach my $module (@modules) {
     my $ex = $ex_lookup->{$match} if $match;
 
     skip ("$module exempt", 1) if ($ex->{skip});
+
+    skip ("$module not loadable", 1) unless eval "require $module";
 
     # build parms up from ignore list
     my $parms = {};

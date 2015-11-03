@@ -343,10 +343,11 @@ END {
         or
       DBICTest::RunMode->is_plain
     ) {
-      for (qw(indirect multidimensional bareword::filehandles)) {
-        exists $INC{ Module::Runtime::module_notional_filename($_) }
-          and
-        $tb->ok(0, "$_ load should not have been attempted!!!" )
+      for my $mod (qw(indirect multidimensional bareword::filehandles)) {
+        ( my $fn = "$mod.pm" ) =~ s|::|/|g;
+
+        $tb->ok(0, "Load of '$mod' should not have been attempted!!!" )
+          if exists $INC{$fn};
       }
     }
   }

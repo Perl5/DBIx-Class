@@ -115,9 +115,20 @@ if ($ENV{DBICTEST_SQLT_DEPLOY}) {
   }
 }
 
-tests_recursive (qw|
-    t
-|);
+tests_recursive ('t');
+tests_recursive ('xt') if (
+  $Module::Install::AUTHOR
+    or
+  $ENV{DBICTEST_RUN_ALL_TESTS}
+    or
+  (
+    ( $ENV{TRAVIS}||'' ) eq 'true'
+      and
+    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
+  )
+    or
+  ( $ENV{AUTOMATED_TESTING} and ! $ENV{PERL5_CPANM_IS_RUNNING} and ! $ENV{RELEASE_TESTING} )
+);
 
 install_script (qw|
     script/dbicadmin
