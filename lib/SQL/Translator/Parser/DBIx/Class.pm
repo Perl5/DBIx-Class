@@ -150,10 +150,10 @@ sub parse {
         foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
+                            %{ $unique_constraints_extra{$uniq} // {} },
                             type             => 'unique',
                             name             => $uniq,
                             fields           => $unique_constraints{$uniq},
-                            %{ $unique_constraints_extra{$uniq} // {} },
                 );
             }
         }
