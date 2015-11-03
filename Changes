@@ -29,6 +29,9 @@ Revision history for DBIx::Class
           immediately before the commit is attempted (RT#107159)
         - Fix several corner cases with Many2Many over custom relationships
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
+        - Fix t/105view_deps.t failing with libsqlite >= 3.009, where view
+          definitions are lazily-checked for correctness only at DML-time as
+          opposed to DDL-time (RT#1546088)
         - Fix t/storage/quote_names.t failures on systems with specified Oracle
           test credentials while missing the optional Math::Base36
         - Fix the Sybase ASE storage incorrectly attempting to retrieve an
