@@ -728,8 +728,8 @@ name.
 
 The options hashref will be passed to
 L<SQL::Translator::Schema::Constraint/new>; the intention being to
-allow the C<deferrable> flag to be set. You should avoid putting 
-C<name>, C<fields>, or C<type> in here.
+allow the C<deferrable> flag to be set, but you may find others 
+useful. Note that C<name>, C<type>, and C<fields> will be ignored.
 
 Unique constraints are used, for example, when you pass the constraint
 name as the C<key> attribute to L<DBIx::Class::ResultSet/find>. Then
