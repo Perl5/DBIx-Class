@@ -153,13 +153,14 @@ sub parse {
 
         $table->primary_key(@primary) if @primary;
 
-        my %unique_constraints = $source->unique_constraints;
-        foreach my $uniq (sort keys %unique_constraints) {
+        my $unique_constraints = $source->unique_constraints_info;
+        foreach my $uniq (sort keys %$unique_constraints) {
             $table->add_constraint(
+                %{ $unique_constraints->{$uniq}->{sqlt_extra} || {} },
                 type             => 'unique',
                 name             => $uniq,
-                fields           => $unique_constraints{$uniq}
-            ) unless bag_eq( \@primary, $unique_constraints{$uniq} );
+                fields           => $unique_constraints->{$uniq}->{columns}
+            ) unless bag_eq( \@primary, $unique_constraints->{$uniq}->{columns} );
         }
 
         my @rels = $source->relationships();

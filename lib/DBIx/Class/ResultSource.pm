@@ -1063,7 +1063,7 @@ sub sequence {
 
 =over 4
 
-=item Arguments: $name?, \@colnames
+=item Arguments: $name?, \%uq_info | \@colnames
 
 =item Return Value: not defined
 
@@ -1072,14 +1072,45 @@ sub sequence {
 Declare a unique constraint on this source. Call once for each unique
 constraint.
 
+The C<columns> key to the C<\%uq_info> hashref will be an arrayref
+containing the columns to affect.
+
   # For UNIQUE (column1, column2)
+  __PACKAGE__->add_unique_constraint(
+    constraint_name => {
+      columns => [ qw/column1 column2/ ],
+    }
+  );
+
+Currently, the key C<sqlt_extra> is also supported, which will be
+passed to L<SQL::Translator::Schema::Constraint/new>.
+
+  __PACKAGE__->add_unique_constraint(
+    constraint_name => {
+      columns => [ qw/column1 column2/ ],
+      sqlt_extra => { deferrable => 1 },
+    }
+  );
+
+Alternatively, you can use the columns arrayref directly, although
+this form is discouraged.
+
   __PACKAGE__->add_unique_constraint(
     constraint_name => [ qw/column1 column2/ ],
   );
 
-Alternatively, you can specify only the columns:
+Finally, you can also omit the constraint name; but this is also discouraged.
 
-  __PACKAGE__->add_unique_constraint([ qw/column1 column2/ ]);
+  __PACKAGE__->add_unique_constraint(
+    [ qw/column1 column2/ ],
+  );
+
+  __PACKAGE__->add_unique_constraint(
+    {
+      columns => [ qw/column1 column2/ ],
+      sqlt_extra => { deferrable => 1 },
+    }
+  );
 
 This will result in a unique constraint named
 C<table_column1_column2>, where C<table> is replaced with the table
@@ -1091,6 +1122,10 @@ only columns in the constraint are searched.
 
 Throws an error if any of the given column names do not yet exist on
 the result source.
+
+Note also that the keys C<table>, C<name>, and C<fields> in
+C<sqlt_extra> will be ignored. See
+L<SQL::Translator::Schema::Constraint/new> for other valid keys.
 
 =cut
 
@@ -1107,25 +1142,37 @@ sub add_unique_constraint {
     );
   }
 
-  my $cols = pop @_;
-  if (ref $cols ne 'ARRAY') {
+  my $constraint = pop @_;
+
+  if (ref $constraint eq 'ARRAY') {
+    $constraint = {
+      columns => $constraint
+    };
+  }
+  elsif (ref $constraint ne 'HASH') {
     $self->throw_exception (
-      'Expecting an arrayref of constraint columns, got ' . ($cols||'NOTHING')
+      'Expecting a hashref of constraint info, got ' . ($constraint||'NOTHING')
+    );
+  }
+
+  if (! $constraint->{columns}) {
+    $self->throw_exception (
+      'Expecting "columns" key in hashref, but it was not present'
     );
   }
 
   my $name = shift @_;
 
-  $name ||= $self->name_unique_constraint($cols);
+  $name ||= $self->name_unique_constraint($constraint->{columns});
 
-  foreach my $col (@$cols) {
+  foreach my $col (@{$constraint->{columns}}) {
     $self->throw_exception("No such column $col on table " . $self->name)
       unless $self->has_column($col);
   }
 
-  my %unique_constraints = $self->unique_constraints;
-  $unique_constraints{$name} = $cols;
-  $self->_unique_constraints(\%unique_constraints);
+  my $unique_constraints = $self->_unique_constraints;
+  $unique_constraints->{$name} = $constraint;
+  $self->_unique_constraints($unique_constraints);
 }
 
 =head2 add_unique_constraints
@@ -1141,24 +1188,20 @@ sub add_unique_constraint {
 Declare multiple unique constraints on this source.
 
   __PACKAGE__->add_unique_constraints(
-    constraint_name1 => [ qw/column1 column2/ ],
-    constraint_name2 => [ qw/column2 column3/ ],
+    constraint_name1 => {
+      columns => [ qw/column1 column2/ ]
+    },
+    constraint_name2 => {
+      columns => [ qw/column2 column3/ ]
+    },
   );
 
-Alternatively, you can specify only the columns:
-
-  __PACKAGE__->add_unique_constraints(
-    [ qw/column1 column2/ ],
-    [ qw/column3 column4/ ]
-  );
-
-This will result in unique constraints named C<table_column1_column2> and
-C<table_column3_column4>, where C<table> is replaced with the table name.
+Works exactly like L</add_unique_constraint>, inasmuch as you can
+omit the column names, or use just the arrayrefs; but the form shown
+above is preferred.
 
 Throws an error if any of the given column names do not yet exist on
 the result source.
-
-See also L</add_unique_constraint>.
 
 =cut
 
@@ -1240,7 +1283,37 @@ column names as values.
 =cut
 
 sub unique_constraints {
-  return %{shift->_unique_constraints||{}};
+  my $uniques = shift->_unique_constraints || {};
+
+  return map { $_ => $uniques->{$_}->{columns} } keys %$uniques;
+}
+
+=head2 unique_constraints_info
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: Hashref of unique constraint data
+
+=back
+
+  my $unique_info = $source->unique_constraints_info();
+
+Read-only accessor returning all information about unique constraints.
+
+The hashref is keyed by the constraint name, and the values are the
+hashrefs originally provided to L</add_unique_constraint> (or
+L</add_unique_constraints>). See L</add_unique_constraint> for the
+structure of these hashrefs.
+
+B<Note> that while similar functions return flattened hashes as a
+list, this one returns a single hashref; just like L</columns_info>.
+
+=cut
+
+sub unique_constraints_info {
+  return shift->_unique_constraints;
 }
 
 =head2 unique_constraint_names
