@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * New Features
+        - When using non-scalars (e.g. arrays) as literal bind values it is no
+          longer necessary to explicitly specify a bindtype (this turned out
+          to be a mostly useless overprotection)
+
     * Fixes
         - Another relatively invasive set of ::FilterColumn changes, covering
           potential data loss (RT#111567). Please run your regression tests!
