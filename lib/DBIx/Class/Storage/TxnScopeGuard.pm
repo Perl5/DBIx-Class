@@ -45,8 +45,13 @@ sub commit {
   $self->{storage}->throw_exception("Refusing to execute multiple commits on scope guard $self")
     if $self->{inactivated};
 
-  $self->{storage}->txn_commit;
+  # FIXME - this assumption may be premature: a commit may fail and a rollback
+  # *still* be necessary. Currently I am not aware of such scenarious, but I
+  # also know the deferred constraint handling is *severely* undertested.
+  # Making the change of "fire txn and never come back to this" in order to
+  # address RT#107159, but this *MUST* be reevaluated later.
   $self->{inactivated} = 1;
+  $self->{storage}->txn_commit;
 }
 
 sub DESTROY {
