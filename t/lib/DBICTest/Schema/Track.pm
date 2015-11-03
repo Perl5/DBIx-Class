@@ -44,7 +44,10 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('trackid');
 
-__PACKAGE__->add_unique_constraint([ qw/cd position/ ]);
+__PACKAGE__->add_unique_constraint({
+        columns => [ qw/cd position/ ],
+        sqlt_extra => { deferrable => 1 }
+});
 __PACKAGE__->add_unique_constraint([ qw/cd title/ ]);
 
 __PACKAGE__->position_column ('position');

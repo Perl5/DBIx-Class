@@ -125,6 +125,15 @@ my $idx_exceptions = {
         my $idx_test = join("\x00", $index->fields);
         isnt ( $pk_test, $idx_test, "no additional index for the primary columns exists in $source_name");
     }
+
+    my $deferrables = grep {
+            $_->name eq 'track_cd_position'
+        and $_->type eq 'UNIQUE'
+        and $_->deferrable == 1
+      }
+      get_table($sqlt_schema, $schema, 'Track')->get_constraints;
+
+    is ($deferrables, 1, "a deferrable unique constraint called track_cd_position exists on Track");
   }
 }
 
