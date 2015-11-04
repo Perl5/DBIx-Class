@@ -214,13 +214,13 @@ sub select {
 
   if (defined $offset) {
     $self->throw_exception('A supplied offset must be a non-negative integer')
-      if ( $offset =~ /\D/ or $offset < 0 );
+      if ( $offset =~ /[^0-9]/ or $offset < 0 );
   }
   $offset ||= 0;
 
   if (defined $limit) {
     $self->throw_exception('A supplied limit must be a positive integer')
-      if ( $limit =~ /\D/ or $limit <= 0 );
+      if ( $limit =~ /[^0-9]/ or $limit <= 0 );
   }
   elsif ($offset) {
     $limit = $self->__max_int;

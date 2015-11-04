@@ -99,7 +99,7 @@ sub interpolate_unquoted {
       and
     $_[1]
       and
-    $_[2] !~ /\D/
+    $_[2] !~ /[^0-9]/
       and
     $_[1] =~ /int(?:eger)? | (?:tiny|small|medium|big)int/ix
   );

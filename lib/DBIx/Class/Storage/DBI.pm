@@ -2431,12 +2431,12 @@ sub _select_args {
   # in case of a software_limit we'll never reach there)
   if (defined $attrs->{offset}) {
     $self->throw_exception('A supplied offset attribute must be a non-negative integer')
-      if ( $attrs->{offset} =~ /\D/ or $attrs->{offset} < 0 );
+      if ( $attrs->{offset} =~ /[^0-9]/ or $attrs->{offset} < 0 );
   }
 
   if (defined $attrs->{rows}) {
     $self->throw_exception("The rows attribute must be a positive integer if present")
-      if ( $attrs->{rows} =~ /\D/ or $attrs->{rows} <= 0 );
+      if ( $attrs->{rows} =~ /[^0-9]/ or $attrs->{rows} <= 0 );
   }
   elsif ($attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
