@@ -31,6 +31,8 @@ Revision history for DBIx::Class
     * New Features
         - InflateColumn::DateTime now accepts the ecosystem-standard option
           'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
+        - Massively optimised literal SQL snippet scanner - fixes all known
+          slowdowns ( in some cases 50x ) of very complex prefetch/selects
         - DBIx::Class::Optional::Dependencies now properly understands
           combinations of requirements and does the right thing with e.g.
           ->req_list_for([qw( rdbms_oracle ic_dt )]) bringing in the Oracle
