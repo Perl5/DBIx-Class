@@ -286,6 +286,10 @@ cmp_ok ($tkfk_cnt, '>', 1, 'More than 1 row left');
 $tkfks->search ({}, { rows => 1 })->delete;
 is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
 
+throws_ok {
+  $tkfks->search ({}, { rows => 0 })->delete
+} qr/rows attribute must be a positive integer/;
+is ($tkfks->count, $tkfk_cnt, 'Nothing deleted');
 
 # check with sql-equality, as sqlite will accept most bad sql just fine
 {

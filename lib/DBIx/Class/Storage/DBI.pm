@@ -2427,21 +2427,9 @@ sub _select_args {
     where => $where,
   };
 
-  # Sanity check the attributes (SQLMaker does it too, but
-  # in case of a software_limit we'll never reach there)
-  if (defined $attrs->{offset}) {
-    $self->throw_exception('A supplied offset attribute must be a non-negative integer')
-      if ( $attrs->{offset} =~ /[^0-9]/ or $attrs->{offset} < 0 );
-  }
-
-  if (defined $attrs->{rows}) {
-    $self->throw_exception("The rows attribute must be a positive integer if present")
-      if ( $attrs->{rows} =~ /[^0-9]/ or $attrs->{rows} <= 0 );
-  }
-  elsif ($attrs->{offset}) {
-    # MySQL actually recommends this approach.  I cringe.
-    $attrs->{rows} = $sql_maker->__max_int;
-  }
+  # MySQL actually recommends this approach.  I cringe.
+  $attrs->{rows} ||= $sql_maker->__max_int
+    if $attrs->{offset};
 
   # see if we will need to tear the prefetch apart to satisfy group_by == select
   # this is *extremely tricky* to get right, I am still not sure I did

@@ -3531,6 +3531,19 @@ sub _resolved_attrs {
   $self->throw_exception("Specifying distinct => 1 in conjunction with collapse => 1 is unsupported")
     if $attrs->{collapse} and $attrs->{distinct};
 
+
+  # Sanity check the paging attributes
+  # SQLMaker does it too, but in case of a software_limit we'll never get there
+  if (defined $attrs->{offset}) {
+    $self->throw_exception('A supplied offset attribute must be a non-negative integer')
+      if ( $attrs->{offset} =~ /[^0-9]/ or $attrs->{offset} < 0 );
+  }
+  if (defined $attrs->{rows}) {
+    $self->throw_exception("The rows attribute must be a positive integer if present")
+      if ( $attrs->{rows} =~ /[^0-9]/ or $attrs->{rows} <= 0 );
+  }
+
+
   # default selection list
   $attrs->{columns} = [ $source->columns ]
     unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;

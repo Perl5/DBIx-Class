@@ -20,6 +20,8 @@ Revision history for DBIx::Class
     * Fixes
         - Ensure failing on_connect* / on_disconnect* are dealt with properly,
           notably on_connect* failures now properly abort the entire connect
+        - Fix incorrect SQL generated with invalid {rows} on complex resultset
+          operations, generally more robust handling of rows/offset attrs
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
         - Fix corner case of stringify-only overloaded objects being used in
