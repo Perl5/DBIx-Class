@@ -461,6 +461,15 @@ for my $addr (keys %$weak_registry) {
     delete $weak_registry->{$addr}
       unless $cleared->{bheos_pptiehinthashfieldhash}++;
   }
+  elsif (
+    $names =~ /^Data::Dumper/m
+      and
+    $weak_registry->{$addr}{stacktrace} =~ /\bDBIx::Class::SQLMaker::Util::lax_serialize\b/
+  ) {
+    # only clear one object of a specific behavior - more would indicate trouble
+    delete $weak_registry->{$addr}
+      unless $cleared->{dd_lax_serializer}++;
+  }
   elsif ($names =~ /^DateTime::TimeZone::UTC/m) {
     # DT is going through a refactor it seems - let it leak zones for now
     delete $weak_registry->{$addr};

@@ -34,6 +34,9 @@ my $num = bless( \do { my $foo = 69 }, 'DBICTest::SillyInt' );
 is($num, 69, 'test overloaded object is "sane"');
 is("$num", 69, 'test overloaded object is "sane"');
 
+my $AttUQoLtUaE = 42;
+my $PVIVmaker = $AttUQoLtUaE . '';
+
 my @tests = (
   {
     where => { artistid => 1, charfield => undef },
@@ -89,9 +92,9 @@ my @tests = (
   },
   {
     where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'}, \'buzz=bozz' ] },
-    normalized => { -and => [ \'foo=bar', \'buzz=bozz' ], name => 'Caterwauler McCrae', artistid => $num },
+    normalized => { -and => [ \'buzz=bozz', \'foo=bar' ], name => 'Caterwauler McCrae', artistid => $num },
     sql =>            'WHERE foo=bar AND artistid = ? AND name = ? AND buzz=bozz',
-    normalized_sql => 'WHERE foo=bar AND buzz=bozz AND artistid = ? AND name = ?',
+    normalized_sql => 'WHERE buzz=bozz AND foo=bar AND artistid = ? AND name = ?',
     equality_extract => { name => 'Caterwauler McCrae', artistid => $num },
   },
   {
@@ -110,9 +113,8 @@ my @tests = (
   },
   {
     where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [ -AND => \'1', \['?',2] ] }, rank => { '=' => [ -OR => $num, $num ] } },
-    normalized => { artistid => 1, charfield => [-and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
+    normalized => { artistid => 1, charfield => [-and => { '=' => \'1' }, { '=' => \['?',2] } ], rank => { '=' => [$num, $num] } },
     sql =>            'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
-    normalized_sql => 'WHERE artistid = ? AND charfield = ? AND charfield = 1 AND ( rank = ? OR rank = ? )',
     equality_extract => { artistid => 1, charfield => UNRESOLVABLE_CONDITION },
   },
   {
@@ -135,10 +137,10 @@ my @tests = (
   (map { {
     where => $_,
     sql =>            'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
-    normalized_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
+    normalized_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank != 42) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
     normalized => { -and => [
-      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
       { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
+      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
     ] },
     equality_extract => {},
     equality_considering_nulls_extract => {},
@@ -146,7 +148,7 @@ my @tests = (
 
     { -and => [
       -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
-      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \42 } },
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '!=' => \$AttUQoLtUaE } },
     ] },
 
     {
@@ -182,17 +184,31 @@ my @tests = (
   },
   {
     where => { -and => [
-      -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
-      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '=' => \13 } },
+      -or => [ rank => { '=' => \$AttUQoLtUaE }, charfield => { '=' => undef }, artistid => 1 ],
+      -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '=' => \42 } },
     ] },
-    normalized => { -and => [
-      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
-      { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
-    ] },
-    sql =>            'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
-    normalized_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
+    normalized => {
+      -or => [ artistid => 1, charfield => undef, rank => { '=' => \42 } ],
+    },
+    sql =>            'WHERE (rank = 42 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank = 42)',
+    normalized_sql => 'WHERE artistid = ? OR charfield IS NULL OR rank = 42',
     equality_extract => {},
     equality_considering_nulls_extract => {},
+  },
+  {
+    where => { -and => [
+      { -or => [ \42 ] },
+      { -and => [
+        { -or => [ \$AttUQoLtUaE ] },
+        { -or => [ \13 ] },
+      ] },
+    ] },
+    normalized => {
+      -and => [ \13, \42 ],
+    },
+    sql             => 'WHERE 42 AND 42 AND 13',
+    normalized_sql  => 'WHERE 13 AND 42',
+    equality_extract => {},
   },
   {
     where => { -and => [
@@ -218,12 +234,12 @@ my @tests = (
       AND NOT foo = ?
     ',
     normalized_sql => 'WHERE
-          ( artistid = ? OR charfield IS NULL OR rank = 13 )
-      AND ( artistid = ? OR charfield IS NULL OR rank != 42 )
-      AND (EXISTS (SELECT 1))
+          (EXISTS (SELECT 1))
       AND (EXISTS (SELECT 2))
       AND NOT foo = ?
       AND NOT foo = ?
+      AND ( artistid = ? OR charfield IS NULL OR rank != 42 )
+      AND ( artistid = ? OR charfield IS NULL OR rank = 13 )
       AND bar = 4
       AND bar = ?
       AND foo = 1
@@ -231,12 +247,12 @@ my @tests = (
     ',
     normalized => {
       -and => [
-        { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
-        { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
         { -exists => \'(SELECT 1)' },
         { -exists => \'(SELECT 2)' },
-        { -not => { foo => 69 } },
         { -not => { foo => 42 } },
+        { -not => { foo => 69 } },
+        { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
+        { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
       ],
       foo => [ -and => { '=' => \1 }, 3 ],
       bar => [ -and => { '=' => \4 }, 2 ],
@@ -418,13 +434,14 @@ my @tests = (
         \'baz = ber',
       ],
     },
-    sql => 'WHERE foo = bar AND baz = ber',
     normalized => {
       -and => [
-        \'foo = bar',
         \'baz = ber',
+        \'foo = bar',
       ],
     },
+    sql            => 'WHERE foo = bar AND baz = ber',
+    normalized_sql => 'WHERE baz = ber AND foo = bar',
     equality_extract => {},
   },
   {
@@ -435,14 +452,15 @@ my @tests = (
         x => { -ident => 'y' },
       ],
     },
-    sql => 'WHERE foo = bar AND baz = ber AND x = y',
     normalized => {
       -and => [
-        \'foo = bar',
         \'baz = ber',
+        \'foo = bar',
       ],
       x => { '=' => { -ident => 'y' } }
     },
+    sql            => 'WHERE foo = bar AND baz = ber AND x = y',
+    normalized_sql => 'WHERE baz = ber AND foo = bar AND x = y',
     equality_extract => { x => { -ident => 'y' } },
   },
 );

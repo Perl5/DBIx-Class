@@ -72,9 +72,7 @@ for my $c (
       SELECT me.title
         FROM cd me
       WHERE
-        ( genreid != 42 OR genreid IS NULL )
-          AND
-        ( genreid != 42 OR genreid IS NULL )
+        ( genreid IS NULL OR genreid != 42 )
           AND
         title != bar
           AND
@@ -85,7 +83,7 @@ for my $c (
         year $c->{sql}
     )",
     \@bind,
-    'Double condition correctly collapsed for steps' . dump_value \@query_steps,
+    'Double condition correctly collapsed for steps:' . join( '', map { "\n\t" . dump_value($_) } @query_steps ),
   );
 }
 

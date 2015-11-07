@@ -352,7 +352,19 @@ sub set_subname ($$) {
 }
 
 sub serialize ($) {
+  # stable hash order
   local $Storable::canonical = 1;
+
+  # explicitly false - there is nothing sensible that can come out of
+  # an attempt at CODE serialization
+  local $Storable::Deparse;
+
+  # take no chances
+  local $Storable::forgive_me;
+
+  # FIXME
+  # A number of codepaths *expect* this to be Storable.pm-based so that
+  # the STORABLE_freeze hooks in the metadata subtree get executed properly
   nfreeze($_[0]);
 }
 
@@ -388,9 +400,20 @@ sub dump_value ($) {
         ->Deparse(1)
       ;
 
-      $d->Sparseseen(1) if modver_gt_or_eq (
-        'Data::Dumper', '2.136'
-      );
+      # FIXME - this is kinda ridiculous - there ought to be a
+      # Data::Dumper->new_with_defaults or somesuch...
+      #
+      if( modver_gt_or_eq ( 'Data::Dumper', '2.136' ) ) {
+        $d->Sparseseen(1);
+
+        if( modver_gt_or_eq ( 'Data::Dumper', '2.153' ) ) {
+          $d->Maxrecurse(1000);
+
+          if( modver_gt_or_eq ( 'Data::Dumper', '2.160' ) ) {
+            $d->Trailingcomma(1);
+          }
+        }
+      }
 
       $d;
     }
@@ -723,11 +746,10 @@ sub modver_gt_or_eq ($$) {
   croak "Nonsensical minimum version supplied"
     if ! defined $ver or $ver !~ $ver_rx;
 
-  no strict 'refs';
-  my $ver_cache = ${"${mod}::__DBIC_MODULE_VERSION_CHECKS__"} ||= ( $mod->VERSION
-    ? {}
-    : croak "$mod does not seem to provide a version (perhaps it never loaded)"
-  );
+  my $ver_cache = do {
+    no strict 'refs';
+    ${"${mod}::__DBIC_MODULE_VERSION_CHECKS__"} ||= {}
+  };
 
   ! defined $ver_cache->{$ver}
     and
@@ -735,6 +757,18 @@ sub modver_gt_or_eq ($$) {
 
     local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
       if SPURIOUS_VERSION_CHECK_WARNINGS;
+
+    # prevent captures by potential __WARN__ hooks or the like:
+    # there is nothing of value that can be happening here, and
+    # leaving a hook in-place can only serve to fail some test
+    local $SIG{__WARN__} if (
+      ! SPURIOUS_VERSION_CHECK_WARNINGS
+        and
+      $SIG{__WARN__}
+    );
+
+    croak "$mod does not seem to provide a version (perhaps it never loaded)"
+      unless $mod->VERSION;
 
     local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;

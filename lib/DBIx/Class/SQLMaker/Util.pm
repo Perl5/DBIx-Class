@@ -13,7 +13,71 @@ our @EXPORT_OK = qw(
 use DBIx::Class::Carp;
 use Carp 'croak';
 use SQL::Abstract qw( is_literal_value is_plain_value );
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION serialize dump_value );
+use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dump_value modver_gt_or_eq );
+
+# Can not use DBIx::Class::_Util::serialize as it is based on
+# Storable and leaks through differences between PVIV and an identical IV
+# Since SQLA itself is lossy in this regard (it does not make proper copies
+# for efficiency) one could end up in a situation where semantically
+# identical values aren't treated as such
+my $dd_obj;
+sub lax_serialize ($) {
+  my $dump_str = (
+    $dd_obj
+      ||=
+    do {
+      require Data::Dumper;
+
+      # Warnings without this on early loads under -w
+      # Why? Because fuck me, that's why :/
+      local $Data::Dumper::Indent = 0
+        unless defined $Data::Dumper::Indent;
+
+      # Make sure each option is spelled out with a value, so that
+      # global environment changes can not override any of these
+      # between two serialization calls
+      #
+      my $d = Data::Dumper->new([])
+        ->Indent('0')
+        ->Purity(0)
+        ->Pad('')
+        ->Useqq(0)
+        ->Terse(1)
+        ->Freezer('')
+        ->Toaster('')
+        ->Deepcopy(0)
+        ->Quotekeys(0)
+        ->Bless('bless')
+        ->Pair(' => ')
+        ->Maxdepth(0)
+        ->Useperl(0)
+        ->Sortkeys(1)
+        ->Deparse(0)
+      ;
+
+      # FIXME - this is kinda ridiculous - there ought to be a
+      # Data::Dumper->new_with_defaults or somesuch...
+      #
+      if( modver_gt_or_eq ( 'Data::Dumper', '2.136' ) ) {
+        $d->Sparseseen(1);
+
+        if( modver_gt_or_eq ( 'Data::Dumper', '2.153' ) ) {
+          $d->Maxrecurse(1000);
+
+          if( modver_gt_or_eq ( 'Data::Dumper', '2.160' ) ) {
+            $d->Trailingcomma(0);
+          }
+        }
+      }
+
+      $d;
+    }
+  )->Values([$_[0]])->Dump;
+
+  $dd_obj->Reset->Values([]);
+
+  $dump_str;
+}
 
 
 # Attempts to flatten a passed in SQLA condition as much as possible towards
@@ -81,7 +145,7 @@ sub normalize_sqla_condition {
         push @{$fin->{-and}}, $c;
       }
       else {
-        for my $col (sort keys %$c) {
+        for my $col (keys %$c) {
 
           # consolidate all -and nodes
           if ($col =~ /^\-and$/i) {
@@ -108,6 +172,17 @@ sub normalize_sqla_condition {
         }
       }
     }
+
+    # a deduplication (and sort) pass on all individual -and/-or members
+    for my $op (qw( -and -or )) {
+      if( @{ $fin->{$op} || [] } > 1 ) {
+        my $seen_chunks = { map {
+          lax_serialize($_) => $_
+        } @{$fin->{$op}} };
+
+        $fin->{$op} = [ @{$seen_chunks}{ sort keys %$seen_chunks } ];
+      }
+    }
   }
   elsif (ref $where eq 'ARRAY') {
     # we are always at top-level here, it is safe to dump empty *standalone* pieces
@@ -132,21 +207,21 @@ sub normalize_sqla_condition {
 
         my @keys = keys %$sub_elt;
         if ( @keys == 1 and $keys[0] !~ /^\-/ ) {
-          $fin_idx->{ "COL_$keys[0]_" . serialize $sub_elt } = $sub_elt;
+          $fin_idx->{ "COL_$keys[0]_" . lax_serialize $sub_elt } = $sub_elt;
         }
         else {
-          $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
+          $fin_idx->{ "SER_" . lax_serialize $sub_elt } = $sub_elt;
         }
       }
       elsif (! length ref $where->[$i] ) {
         my $sub_elt = normalize_sqla_condition({ @{$where}[$i, $i+1] })
           or next;
 
-        $fin_idx->{ "COL_$where->[$i]_" . serialize $sub_elt } = $sub_elt;
+        $fin_idx->{ "COL_$where->[$i]_" . lax_serialize $sub_elt } = $sub_elt;
         $i++;
       }
       else {
-        $fin_idx->{ "SER_" . serialize $where->[$i] } = normalize_sqla_condition( $where->[$i] ) || next;
+        $fin_idx->{ "SER_" . lax_serialize $where->[$i] } = normalize_sqla_condition( $where->[$i] ) || next;
       }
     }
 
@@ -234,7 +309,7 @@ sub normalize_sqla_condition {
     my $val_bag = { map {
       (! defined $_ )                          ? ( UNDEF => undef )
     : ( ! length ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
-    : ( ( 'SER_' . serialize $_ ) => $_ )
+    : ( ( 'SER_' . lax_serialize $_ ) => $_ )
     } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
 
     if (keys %$val_bag == 1 ) {
@@ -414,7 +489,7 @@ sub extract_equality_conditions {
           is_literal_value($v->{'='})
         )
        ) {
-        $vals->{ 'SER_' . serialize $v->{'='} } = $v->{'='};
+        $vals->{ 'SER_' . lax_serialize $v->{'='} } = $v->{'='};
       }
     }
     elsif (
@@ -431,7 +506,7 @@ sub extract_equality_conditions {
         $vals->{
           ! defined $subval->{$c}                                        ? 'UNDEF'
         : ( ! length ref $subval->{$c} or is_plain_value $subval->{$c} ) ? "VAL_$subval->{$c}"
-        : ( 'SER_' . serialize $subval->{$c} )
+        : ( 'SER_' . lax_serialize $subval->{$c} )
         } = $subval->{$c};
       }
     }
