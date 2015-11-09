@@ -58,7 +58,7 @@ L<DBIx::Class::Manual::Cookbook>.
 
 =item .. store/retrieve Unicode data in my database?
 
-Make sure you database supports Unicode and set the connect
+Make sure your database supports Unicode and set the connect
 attributes appropriately - see
 L<DBIx::Class::Manual::Cookbook/Using Unicode>
 
