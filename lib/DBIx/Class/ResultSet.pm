@@ -4645,7 +4645,7 @@ revisit rows in your ResultSet:
     ... do stuff ...
   }
 
-  $rs->first; # without cache, this would issue a query
+  $resultset->first; # without cache, this would issue a query
 
 By default, searches are not cached.
 
