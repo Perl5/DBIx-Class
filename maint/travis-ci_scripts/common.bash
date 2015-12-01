@@ -216,6 +216,7 @@ my $eval_map = {
   # this is temporary, will need something more robust down the road
   # (perhaps by then Module::CoreList will be dep-free)
   "Module::Build" => { ver => "0.4214" },
+  "podlators" => { mod => "Pod::Man", ver => "2.17" },
 
   "File::Spec" => { ver => "3.47" },
   "Cwd" => { ver => "3.47" },
@@ -225,17 +226,15 @@ my $eval_map = {
   "Scalar::List::Utils" => { mod => "List::Util", ver => "1.42" },
 };
 
+my $m = $eval_map->{$mod}{mod} || $mod;
+
 eval(
-  "require "
-
-  .
-
-  ( $eval_map->{$mod}{mod} || $mod )
+  "require $m"
 
   .
 
   ($eval_map->{$mod}{ver}
-    ? "; $mod->VERSION(\$eval_map->{\$mod}{ver}) "
+    ? "; $m->VERSION(\$eval_map->{\$mod}{ver}) "
     : ""
   )
 
