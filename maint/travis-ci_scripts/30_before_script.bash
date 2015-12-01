@@ -38,10 +38,11 @@ if [[ "$POISON_ENV" = "true" ]] ; then
 
     # Clone and P::S::XS are both bugs
     # File::Spec can go away as soon as I dump Path::Class
+    # File::Path is there because of RT#107392 (sigh)
     # List::Util can be excised after that as well (need to make my own max() routine for older perls)
 
     installdeps Sub::Name Clone Package::Stash::XS \
-                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Spec" ) \
+                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
                 $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
 
     mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
