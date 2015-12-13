@@ -207,6 +207,7 @@ for my $post_poison (0,1) {
   lives_ok {
     # this is what poisons $@
     Text::Balanced::extract_bracketed( '(foo', '()' );
+    DBIx::Class::_Util::is_exception($@);
 
     my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
     my $g = $s->txn_scope_guard;

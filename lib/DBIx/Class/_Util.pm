@@ -148,6 +148,7 @@ sub scope_guard (&) {
 sub is_exception ($) {
   my $e = $_[0];
 
+  # FIXME
   # this is not strictly correct - an eval setting $@ to undef
   # is *not* the same as an eval setting $@ to ''
   # but for the sake of simplicity assume the following for
@@ -210,7 +211,7 @@ sub is_exception ($) {
     . 'does) result in silent discarding of errors. DBIx::Class tries to '
     . 'work around this as much as possible, but other parts of your '
     . 'software stack may not be even aware of the problem. Please submit '
-    . 'a bugreport against the distribution containing %s.',
+    . 'a bugreport against the distribution containing %s',
 
       ($class) x 2,
     ));

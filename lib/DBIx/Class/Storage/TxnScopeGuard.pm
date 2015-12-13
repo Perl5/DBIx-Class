@@ -24,7 +24,10 @@ sub new {
   # FIXME FRAGILE - any eval that fails but *does not* rethrow between here
   # and the unwind will trample over $@ and invalidate the entire mechanism
   # There got to be a saner way of doing this...
-  if (is_exception $@) {
+  #
+  # Deliberately *NOT* using is_exception - if someone left a misbehaving
+  # antipattern value in $@, it's not our business to whine about it
+  if( defined $@ and length $@ ) {
     weaken(
       $guard->{existing_exception_ref} = (length ref $@) ? $@ : \$@
     );

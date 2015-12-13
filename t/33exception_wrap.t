@@ -38,6 +38,15 @@ for my $ap (qw(
     isa_ok $@, $ap;
   } qr/\QObjects of external exception class '$ap' stringify to '' (the empty string)/,
     'Proper warning on encountered antipattern';
+
+  warnings_are {
+    $@ = $ap->new;
+    $schema->txn_do (sub { 1 });
+
+    $@ = $ap->new;
+    $schema->txn_scope_guard->commit;
+  } [], 'No spurious PSA warnings on pre-existing antipatterns in $@';
+
 }
 
 done_testing;
