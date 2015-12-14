@@ -4,6 +4,10 @@ use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
+
+use List::Util 'shuffle';
+use DBIx::Class::_Util 'sigwarn_silencer';
+
 use lib qw(t/lib);
 use DBICTest;
 
@@ -115,15 +119,9 @@ use DBICTest;
 
 # make sure it warns *big* on failed rollbacks
 # test with and without a poisoned $@
-for my $pre_poison (0,1) {
-for my $post_poison (0,1) {
-
-  my $schema = DBICTest->init_schema(no_populate => 1);
-
-  no warnings 'redefine';
-  local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
-  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
-
+require DBICTest::AntiPattern::TrueZeroLen;
+require DBICTest::AntiPattern::NullObject;
+{
   my @want = (
     qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
     qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
@@ -139,30 +137,70 @@ for my $post_poison (0,1) {
     }
   };
 
-  {
-    eval { die 'pre-GIFT!' if $pre_poison };
-    my $guard = $schema->txn_scope_guard;
-    eval { die 'post-GIFT!' if $post_poison };
-    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+  no warnings 'redefine';
+  local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
+  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
+  my @poisons = shuffle (
+    undef,
+    DBICTest::AntiPattern::TrueZeroLen->new,
+    DBICTest::AntiPattern::NullObject->new,
+    'GIFT!',
+  );
+
+  for my $pre_poison (@poisons) {
+    for my $post_poison (@poisons) {
+
+      @w = ();
+
+      my $schema = DBICTest->init_schema(no_populate => 1);
+
+      # the actual scope where the guard is created/freed
+      {
+        # in this particular case these are not the warnings we are looking for
+        local $SIG{__WARN__} = sigwarn_silencer qr/implementing the so called null-object-pattern/;
+
+        # if is inside the eval, to clear $@ in the undef case
+        eval { die $pre_poison if defined $pre_poison };
+
+        my $guard = $schema->txn_scope_guard;
+
+        eval { die $post_poison if defined $post_poison };
+
+        $schema->resultset ('Artist')->create ({ name => "bohhoo, too bad we'll roll you back"});
+      }
+
+      local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
+        if ( defined $post_poison and (
+          # take no chances on installation
+          DBICTest::RunMode->is_plain
+            or
+          # I do not understand why but on <= 5.8.8 and on 5.10.0
+          # "$pre_poison == $post_poison == string" passes...
+          # so todoify 5.8.9 and 5.10.1+, and deal with the rest below
+          ( ( "$]" > 5.008008 and "$]" < 5.010000 ) or "$]" > 5.010000 )
+            or
+          ! defined $pre_poison
+            or
+          length ref $pre_poison
+            or
+          length ref $post_poison
+        ));
+
+      is (@w, 2, sprintf 'Both expected warnings found - $@ poisonstate:   pre-poison:%s   post-poison:%s',
+        map {
+          ! defined $_      ? 'UNDEF'
+        : ! length ref $_   ? $_
+                            : ref $_
+
+        } ($pre_poison, $post_poison)
+      );
+
+      # just to mask off warning since we could not disconnect above
+      $schema->storage->_dbh->disconnect;
+    }
   }
-
-  local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
-    if ( $post_poison and (
-      # take no chances on installation
-      DBICTest::RunMode->is_plain
-        or
-      # this always fails
-      ! $pre_poison
-        or
-      # I do not understand why but on <= 5.8.8 and on 5.10.0 "$pre_poison && $post_poison" passes...
-      ( "$]" > 5.008008 and "$]" < 5.010000 ) or "$]" > 5.010000
-    ));
-
-  is (@w, 2, "Both expected warnings found - \$\@ pre-poison: $pre_poison, post-poison: $post_poison" );
-
-  # just to mask off warning since we could not disconnect above
-  $schema->storage->_dbh->disconnect;
-}}
+}
 
 # add a TODO to catch when Text::Balanced is finally fixed
 # https://rt.cpan.org/Public/Bug/Display.html?id=74994
