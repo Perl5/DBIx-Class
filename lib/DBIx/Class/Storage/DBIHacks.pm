@@ -1102,7 +1102,7 @@ sub _collapse_cond {
         for (sort keys %$chunk) {
 
           # Match SQLA 1.79 behavior
-          if ($_ eq '') {
+          unless( length $_ ) {
             is_literal_value($chunk->{$_})
               ? carp 'Hash-pairs consisting of an empty string with a literal are deprecated, use -and => [ $literal ] instead'
               : $self->throw_exception("Supplying an empty left hand side argument is not supported in hash-pairs")
@@ -1120,7 +1120,7 @@ sub _collapse_cond {
 
         # Match SQLA 1.79 behavior
         $self->throw_exception("Supplying an empty left hand side argument is not supported in array-pairs")
-          if $where_is_anded_array and (! defined $chunk or $chunk eq '');
+          if $where_is_anded_array and (! defined $chunk or ! length $chunk);
 
         push @pairs, $chunk, shift @pieces;
       }
@@ -1315,7 +1315,7 @@ sub _collapse_cond_unroll_pairs {
   while (@$pairs) {
     my ($lhs, $rhs) = splice @$pairs, 0, 2;
 
-    if ($lhs eq '') {
+    if (! length $lhs) {
       push @conds, $self->_collapse_cond($rhs);
     }
     elsif ( $lhs =~ /^\-and$/i ) {

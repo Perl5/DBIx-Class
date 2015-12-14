@@ -26,7 +26,7 @@ sub new {
   # There got to be a saner way of doing this...
   if (is_exception $@) {
     weaken(
-      $guard->{existing_exception_ref} = (ref($@) eq '') ? \$@ : $@
+      $guard->{existing_exception_ref} = (length ref $@) ? $@ : \$@
     );
   }
 
@@ -71,7 +71,7 @@ sub DESTROY {
     (
       ! defined $self->{existing_exception_ref}
         or
-      refaddr( ref($@) eq '' ? \$@ : $@ ) != refaddr($self->{existing_exception_ref})
+      refaddr( (length ref $@) ? $@ : \$@ ) != refaddr($self->{existing_exception_ref})
     )
   );
 

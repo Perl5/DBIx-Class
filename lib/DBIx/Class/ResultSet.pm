@@ -442,7 +442,7 @@ sub search_rs {
     $call_cond = shift;
   }
   # fish out attrs in the ($condref, $attr) case
-  elsif (@_ == 2 and ( ! defined $_[0] or (ref $_[0]) ne '') ) {
+  elsif (@_ == 2 and ( ! defined $_[0] or length ref $_[0] ) ) {
     ($call_cond, $call_attrs) = @_;
   }
   elsif (@_ % 2) {
@@ -456,7 +456,7 @@ sub search_rs {
     for my $i (0 .. $#_) {
       next if $i % 2;
       $self->throw_exception ('All keys in condition key/value pairs must be plain scalars')
-        if (! defined $_[$i] or ref $_[$i] ne '');
+        if (! defined $_[$i] or length ref $_[$i] );
     }
 
     $call_cond = { @_ };

@@ -158,7 +158,10 @@ sub is_exception ($) {
   {
     local $@;
     eval {
-      $not_blank = ($e ne '') ? 1 : 0;
+      # The ne() here is deliberate - a plain length($e), or worse "$e" ne
+      # will entirely obviate the need for the encolsing eval{}, as the
+      # condition we guard against is a missing fallback overload
+      $not_blank = ( $e ne '' );
       1;
     } or $suberror = $@;
   }
@@ -185,7 +188,7 @@ sub is_exception ($) {
       ));
 
       # workaround, keeps spice flowing
-      $not_blank = ("$e" ne '') ? 1 : 0;
+      $not_blank = !!( length $e );
     }
     else {
       # not blessed yet failed the 'ne'... this makes 0 sense...

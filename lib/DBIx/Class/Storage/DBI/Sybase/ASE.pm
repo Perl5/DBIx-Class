@@ -683,7 +683,8 @@ sub _remove_blob_cols {
       }
       else {
         $fields->{$col} = \"''";
-        $blob_cols{$col} = $blob_val unless $blob_val eq '';
+        $blob_cols{$col} = $blob_val
+          if length $blob_val;
       }
     }
   }
@@ -709,7 +710,7 @@ sub _remove_blob_cols_array {
         else {
           $data->[$j][$i] = \"''";
           $blob_cols[$j][$i] = $blob_val
-            unless $blob_val eq '';
+            if length $blob_val;
         }
       }
     }
