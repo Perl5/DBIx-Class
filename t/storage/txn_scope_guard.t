@@ -90,10 +90,8 @@ use DBICTest;
 {
   my $schema = DBICTest->init_schema;
 
-  no strict 'refs';
   no warnings 'redefine';
-
-  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
   throws_ok (sub {
@@ -122,32 +120,10 @@ for my $post_poison (0,1) {
 
   my $schema = DBICTest->init_schema(no_populate => 1);
 
-  no strict 'refs';
   no warnings 'redefine';
-  local *{DBIx::Class::Storage::DBI::txn_rollback} = sub { die 'die die my darling' };
+  local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
 
-#The warn from within a DESTROY callback freaks out Test::Warn, do it old-school
-=begin
-  warnings_exist (
-    sub {
-      my $guard = $schema->txn_scope_guard;
-      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
-
-      # this should freak out the guard rollback
-      # but it won't work because DBD::SQLite is buggy
-      # instead just install a toxic rollback above
-      #$schema->storage->_dbh( $schema->storage->_dbh->clone );
-    },
-    [
-      qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
-      qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
-    ],
-    'proper warnings generated on out-of-scope+rollback failure'
-  );
-=cut
-
-# delete this once the above works properly (same test)
   my @want = (
     qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
     qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
