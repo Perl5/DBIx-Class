@@ -865,25 +865,6 @@ will produce the output
 
 =cut
 
-# this might be oversimplified
-# sub compose_namespace {
-#   my ($self, $target, $base) = @_;
-
-#   my $schema = $self->clone;
-#   foreach my $source_name ($schema->sources) {
-#     my $source = $schema->source($source_name);
-#     my $target_class = "${target}::${source_name}";
-#     $self->inject_base(
-#       $target_class => $source->result_class, ($base ? $base : ())
-#     );
-#     $source->result_class($target_class);
-#     $target_class->result_source_instance($source)
-#       if $target_class->can('result_source_instance');
-#     $schema->register_source($source_name, $source);
-#   }
-#   return $schema;
-# }
-
 sub compose_namespace {
   my ($self, $target, $base) = @_;
 
