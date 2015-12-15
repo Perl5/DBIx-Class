@@ -68,11 +68,26 @@ CPAN_CFG_SCRIPT="
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
 
+
+# These envvars are always set, more *maybe* below
+export DBIC_SHUFFLE_UNORDERED_RESULTSETS=1
+
+# bogus nonexisting DBI_*
+export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
+export DBI_DRIVER="ADO"
+
+# some people do in fact set this - boggle!!!
+# it of course won't work before 5.8.4
+if perl -M5.008004 -e 1 &>/dev/null ; then
+  export PERL_STRICTURES_EXTRA=1
+fi
+
+
 # poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
 
   # look through lib, find all mentioned DBIC* ENVvars and set them to true and see if anything explodes
-  toggle_booleans=( $(grep -P '\$ENV\{' -r lib/ --exclude-dir Optional | grep -oP '\bDBIC\w+' | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$') )
+  toggle_booleans=( $( grep -ohP '\bDBIC_[0-9_A-Z]+' -r lib/ --exclude-dir Optional | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' ) )
 
   # some extra pollutants
   toggle_booleans+=( \
@@ -87,12 +102,6 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     toggle_booleans+=( DBICTEST_VIA_REPLICATED )
   fi
 
-  # some people do in fact set this - boggle!!!
-  # it of course won't work before 5.8.4
-  if perl -M5.008004 -e 1 &>/dev/null ; then
-    toggle_booleans+=( PERL_STRICTURES_EXTRA )
-  fi
-
   for var in "${toggle_booleans[@]}"
   do
     if [[ -z "${!var}" ]] ; then
@@ -100,10 +109,6 @@ if [[ "$POISON_ENV" = "true" ]] ; then
       echo "POISON_ENV: setting $var to 1"
     fi
   done
-
-  # bogus nonexisting DBI_*
-  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
-  export DBI_DRIVER="ADO"
 
   # emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack

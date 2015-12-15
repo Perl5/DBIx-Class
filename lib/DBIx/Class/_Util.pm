@@ -29,15 +29,21 @@ BEGIN {
     # add an escape for these perls ON SMOKERS - a user will still get death
     PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ( "$]" >= 5.013005 and "$]" <= 5.013006) ),
 
-    SHUFFLE_UNORDERED_RESULTSETS => $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} ? 1 : 0,
-
-    ASSERT_NO_INTERNAL_WANTARRAY => $ENV{DBIC_ASSERT_NO_INTERNAL_WANTARRAY} ? 1 : 0,
-
-    ASSERT_NO_INTERNAL_INDIRECT_CALLS => $ENV{DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS} ? 1 : 0,
-
-    STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE => $ENV{DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE} ? 1 : 0,
-
-    STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE => $ENV{DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE} ? 1 : 0,
+    ( map
+      #
+      # the "DBIC_" prefix below is crucial - this is what makes CI pick up
+      # all envvars without further adjusting its scripts
+      # DO NOT CHANGE to the more logical { $_ => !!( $ENV{"DBIC_$_"} ) }
+      #
+      { substr($_, 5) => !!( $ENV{$_} ) }
+      qw(
+        DBIC_SHUFFLE_UNORDERED_RESULTSETS
+        DBIC_ASSERT_NO_INTERNAL_WANTARRAY
+        DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
+        DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE
+        DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
+      )
+    ),
 
     IV_SIZE => $Config{ivsize},
 

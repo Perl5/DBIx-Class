@@ -3,6 +3,9 @@ use warnings;
 
 use Test::More;
 
+# so we can see the retry exceptions (if any)
+BEGIN { $ENV{DBIC_STORAGE_RETRY_DEBUG} = 1 }
+
 use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
@@ -34,9 +37,6 @@ for my $type (qw/PG MYSQL SQLite/) {
     # emulate a singleton-factory, just cache the object *somewhere in a different package*
     # to induce out-of-order destruction
     $DBICTest::FakeSchemaFactory::schema = $schema;
-
-    # so we can see the retry exceptions (if any)
-    $ENV{DBIC_DBIRETRY_DEBUG} = 1;
 
     ok (!$schema->storage->connected, "$type: start disconnected");
 

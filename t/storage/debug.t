@@ -2,7 +2,14 @@ use strict;
 use warnings;
 no warnings 'once';
 
-BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+BEGIN {
+  delete @ENV{qw(
+    DBIC_TRACE
+    DBIC_TRACE_PROFILE
+    DBICTEST_SQLITE_USE_FILE
+    DBICTEST_VIA_REPLICATED
+  )};
+}
 
 use Test::More;
 use Test::Exception;
@@ -11,8 +18,6 @@ use File::Spec;
 use lib qw(t/lib);
 use DBICTest;
 use Path::Class qw/file/;
-
-BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
 
 my $schema = DBICTest->init_schema();
 
