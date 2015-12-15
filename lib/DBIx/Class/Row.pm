@@ -372,8 +372,7 @@ sub insert {
       my $existing;
 
       # if there are no keys - nothing to search for
-      if (keys %$them and $existing = $self->result_source
-                                           ->related_source($rel_name)
+      if (keys %$them and $existing = $rsrc->related_source($rel_name)
                                            ->resultset
                                            ->find($them)
       ) {
@@ -891,15 +890,18 @@ sub get_inflated_columns {
 sub _is_column_numeric {
     my ($self, $column) = @_;
 
-    return undef unless $self->result_source->has_column($column);
+    my $rsrc;
 
-    my $colinfo = $self->result_source->column_info ($column);
+    return undef
+      unless ( $rsrc = $self->result_source )->has_column($column);
+
+    my $colinfo = $rsrc->column_info ($column);
 
     # cache for speed (the object may *not* have a resultsource instance)
     if (
       ! defined $colinfo->{is_numeric}
         and
-      my $storage = dbic_internal_try { $self->result_source->schema->storage }
+      my $storage = dbic_internal_try { $rsrc->schema->storage }
     ) {
       $colinfo->{is_numeric} =
         $storage->is_datatype_numeric ($colinfo->{data_type})

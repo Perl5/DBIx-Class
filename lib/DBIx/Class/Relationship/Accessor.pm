@@ -35,7 +35,9 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{%1$s};
       }
       else {
-        my $relcond = $self->result_source->_resolve_relationship_condition(
+        my $rsrc = $self->result_source;
+
+        my $relcond = $rsrc->_resolve_relationship_condition(
           rel_name => %1$s,
           foreign_alias => %1$s,
           self_alias => 'me',
@@ -49,7 +51,7 @@ sub add_relationship_accessor {
             and
           scalar grep { not defined $_ } values %%{ $relcond->{join_free_condition} || {} }
             and
-          $self->result_source->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
+          $rsrc->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
         );
 
         my $val = $self->search_related( %1$s )->single;

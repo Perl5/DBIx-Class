@@ -838,7 +838,7 @@ sub find {
   if (defined $constraint_name) {
     $final_cond = $self->_qualify_cond_columns (
 
-      $self->result_source->_minimal_valueset_satisfying_constraint(
+      $rsrc->_minimal_valueset_satisfying_constraint(
         constraint_name => $constraint_name,
         values => ($self->_merge_with_rscond($call_cond))[0],
         carp_on_nulls => 1,
@@ -875,10 +875,10 @@ sub find {
 
       dbic_internal_try {
         push @unique_queries, $self->_qualify_cond_columns(
-          $self->result_source->_minimal_valueset_satisfying_constraint(
+          $rsrc->_minimal_valueset_satisfying_constraint(
             constraint_name => $c_name,
             values => ($self->_merge_with_rscond($call_cond))[0],
-            columns_info => ($ci ||= $self->result_source->columns_info),
+            columns_info => ($ci ||= $rsrc->columns_info),
           ),
           $alias
         );
@@ -2215,6 +2215,8 @@ sub populate {
   # FIXME - no cref handling
   # At this point assume either hashes or arrays
 
+  my $rsrc = $self->result_source;
+
   if(defined wantarray) {
     my (@results, $guard);
 
@@ -2222,7 +2224,7 @@ sub populate {
       # column names only, nothing to do
       return if @$data == 1;
 
-      $guard = $self->result_source->schema->storage->txn_scope_guard
+      $guard = $rsrc->schema->storage->txn_scope_guard
         if @$data > 2;
 
       @results = map
@@ -2232,7 +2234,7 @@ sub populate {
     }
     else {
 
-      $guard = $self->result_source->schema->storage->txn_scope_guard
+      $guard = $rsrc->schema->storage->txn_scope_guard
         if @$data > 1;
 
       @results = map { $self->new_result($_)->insert } @$data;
@@ -2246,7 +2248,6 @@ sub populate {
   # this means we have to walk the data structure twice
   # whether we want this or not
   # jnap, I hate you ;)
-  my $rsrc = $self->result_source;
   my $rel_info = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
 
   my ($colinfo, $colnames, $slices_with_rels);

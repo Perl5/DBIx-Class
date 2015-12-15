@@ -364,8 +364,10 @@ sub move_to {
 
     my $position_column = $self->position_column;
 
+    my $rsrc = $self->result_source;
+
     my $is_txn;
-    if ($is_txn = $self->result_source->schema->storage->transaction_depth) {
+    if ($is_txn = $rsrc->schema->storage->transaction_depth) {
       # Reload position state from storage
       # The thinking here is that if we are in a transaction, it is
       # *more likely* the object went out of sync due to resultset
@@ -375,8 +377,7 @@ sub move_to {
 
       $self->store_column(
         $position_column,
-        ( $self->result_source
-                ->resultset
+        (  $rsrc->resultset
                  ->search($self->_storage_ident_condition, { rows => 1, columns => $position_column })
                   ->cursor
                    ->next
@@ -400,7 +401,7 @@ sub move_to {
       return 0;
     }
 
-    my $guard = $is_txn ? undef : $self->result_source->schema->txn_scope_guard;
+    my $guard = $is_txn ? undef : $rsrc->schema->txn_scope_guard;
 
     my ($direction, @between);
     if ( $from_position < $to_position ) {
@@ -415,7 +416,7 @@ sub move_to {
     my $new_pos_val = $self->_position_value ($to_position);  # record this before the shift
 
     # we need to null-position the moved row if the position column is part of a constraint
-    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $self->result_source->unique_constraints }} ) ) ) {
+    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
       $self->_ordered_internal_update({ $position_column => $self->null_position_value });
     }
 
