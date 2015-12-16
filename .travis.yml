@@ -6,27 +6,8 @@
 #
 # * Minimum perl officially supported by DBIC is 5.8.3. This *includes* the
 # basic depchain. On failure either attempt to fix it or bring it to the
-# attention of ribasushi. *DO NOT* disable 5.8 testing - it is here for a
-# reason
-#
-# * The matrix is built from two main modes - CLEANTEST = [true|false].
-# - In the first case we test with minimal deps available, and skip everything
-#   listed in DBIC::OptDesps. The modules are installed with classic CPAN
-#   invocations and are *fully tested*. In other words we simulate what would
-#   happen if a user tried to install on a just-compiled virgin perl
-# - Without CLEANTEST we bring the armada of RDBMS and install the maximum
-#   possible set of deps *without testing them*. This ensures we stay within
-#   a reasonable build-time and still run as many of our tests as possible
-#
-# * The perl builds and the DBIC tests run under VCPU_USE number of threads.
-# The testing of dependencies under CLEANTEST runs single-threaded, at least
-# until we fix our entire dep-chain to safely pass under -j
-#
-# * The way .travis.yml is fed to the command controller is idiotic - it
-# makes using multiline `bash -c` statements impossible. Therefore to
-# aid readability (our travis logic is rather complex), the bulk of
-# functionality is moved to scripts. More about the problem (and the
-# WONTFIX "explanation") here: https://github.com/travis-ci/travis-ci/issues/497
+# attention of the maintainer. *DO NOT* disable 5.8 testing - it is here for
+# a very good reason
 #
 # the entire run times out after 50 minutes, or after 5 minutes without
 # console output
@@ -55,36 +36,61 @@ notifications:
   email:
     recipients:
       - ribasushi@cpan.org
-      # Temporary - if it proves to be too noisy, we'll shut it off
-      #- dbix-class-devel@lists.scsys.co.uk
     on_success: change
     on_failure: always
 
-# FIXME - This stuff is not yet available for free OSS accounts, sadpanda
-# First paragrah on http://about.travis-ci.org/docs/user/caching/
-#cache:
-#  apt: true
-#  directories:
-#    - /var/cache/apt/archives
+addons:
+  apt:
+    packages:
+      - libapp-nopaste-perl
+      - net-tools
 
+# This is probably a net-loss for setup etc - a bare 'C' will likely fare much better
 language: perl
+
+# Currently not trying osx: https://github.com/travis-ci/travis-ci/issues/2314
+os: linux
+
+# The defaults run under the more rapid container infra. The hardware is
+# actually *much* slower, but the jobs start much faster, for more info see
+# https://docs.travis-ci.com/user/ci-environment/#Virtualization-environments
+# Combined with 'fast_finish' this will result in an "uh-oh" email as early
+# as possible
+dist: precise
+sudo: false
+env: CLEANTEST=true
 
 perl:
   - "5.8"
-  - "5.20-extras"
-
-env:
-  - CLEANTEST=false
-  - CLEANTEST=true VCPU_USE=1
-
-sudo: true
+  - "5.22-extras"
 
 matrix:
   fast_finish: true
+
   include:
-    # CLEANTEST of minimum supported with non-tracing poisoning
-    - perl: 5.8.3_nt_mb
+
+    # Same as the "master matrix" above, frozen under older dist/infrastructure
+    # In genereal it is strongly recommended to keep things on the older
+    # version indefinitely - there is little value in-depth smoking on
+    # more recent software stacks
+    - perl: "5.8"
+      sudo: required
+      dist: precise
       env:
+        - CLEANTEST=false
+
+    - perl: "5.22-extras"
+      sudo: required
+      dist: precise
+      env:
+        - CLEANTEST=false
+
+    # CLEANTEST of minimum supported with non-tracing poisoning, single thread (hence the sudo)
+    - perl: "5.8.3_nt_mb"
+      sudo: required
+      dist: precise
+      env:
+        - VCPU_USE=1
         - CLEANTEST=true
         - POISON_ENV=true
         - DBIC_TRACE_PROFILE=console_monochrome
@@ -92,7 +98,11 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # Full Test of minimum supported without threads with plain poisoned trace
-    - perl: 5.8.3_nt
+    - perl: "5.8.3_nt"
+      sudo: required
+      dist: precise
+      # run these under legacy - great simulation of low memory env
+      group: legacy
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -100,7 +110,11 @@ matrix:
         - BREWVER=5.8.3
 
     # Full Test of minimum supported with threads with non-tracing poisoning
-    - perl: 5.8.5_thr
+    - perl: "5.8.5_thr"
+      sudo: required
+      dist: precise
+      # run these under legacy - great simulation of low memory env
+      group: legacy
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -109,7 +123,9 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST of solaris-like perl with non-tracing poisoning
-    - perl: 5.8.4_nt
+    - perl: "5.8.4_nt"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - POISON_ENV=true
@@ -117,23 +133,30 @@ matrix:
         - BREWVER=5.8.4
 
     # CLEANTEST: this particular perl is quite widespread
-    - perl: 5.8.8_thr
+    - perl: "5.8.8_thr"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - BREWVER=5.8.8
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST: this is the perl suse ships, with env poisoning
-    - perl: 5.10.0_thr_dbg
+    - perl: "5.10.0_thr_dbg"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - POISON_ENV=true
         - BREWVER=5.10.0
         - BREWOPTS="-DDEBUGGING -Duseithreads"
 
-    # CLEANTEST: this one is in a number of debian-based LTS (test a sane CPAN.pm)
-    - perl: 5.14.2_thr_mb
+    # CLEANTEST: this one is in a number of debian-based LTS (test a sane CPAN.pm, single thread)
+    - perl: "5.14.2_thr_mb"
+      sudo: required
+      dist: precise
       env:
+        - VCPU_USE=1
         - CLEANTEST=true
         - BREWVER=5.14.2
         - BREWOPTS="-Duseithreads -Dusemorebits"
@@ -141,7 +164,9 @@ matrix:
     ###
     # some permutations of tracing and envvar poisoning
 
-    - perl: 5.12.3_thr
+    - perl: "5.12.3_thr"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - POISON_ENV=true
@@ -152,7 +177,9 @@ matrix:
         - BREWVER=5.12.3
         - BREWOPTS="-Duseithreads"
 
-    - perl: 5.16.3_thr_mb
+    - perl: "5.16.3_thr_mb"
+      sudo: required
+      dist: precise
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -160,7 +187,10 @@ matrix:
         - BREWVER=5.16.3
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    - perl: 5.18-extras
+    - perl: "5.18-extras"
+      sudo: required
+      # explicit new infra spec preparing for a future forced upgrade
+      dist: trusty
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -173,7 +203,9 @@ matrix:
     # Start of the allow_failures block
 
     # threaded oldest possible with blead CPAN
-    - perl: devcpan_5.8.1_thr_mb
+    - perl: "devcpan_5.8.1_thr_mb"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
@@ -181,7 +213,9 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # oldest possible with blead CPAN with poisoning and plain trace
-    - perl: devcpan_5.8.1
+    - perl: "devcpan_5.8.1"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
@@ -191,7 +225,10 @@ matrix:
         - BREWVER=5.8.1
 
     # 5.8.3 with blead CPAN
-    - perl: devcpan_5.8.3_mb
+    - perl: "devcpan_5.8.3_mb"
+      sudo: required
+      # explicit new infra spec preparing for a future forced upgrade
+      dist: trusty
       env:
         - CLEANTEST=false
         - DEVREL_DEPS=true
@@ -199,7 +236,9 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # 5.8.7 threaded with blead CPAN with non-tracing poisoning
-    - perl: devcpan_5.8.7_thr
+    - perl: "devcpan_5.8.7_thr"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
@@ -208,7 +247,9 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # 5.8.8 threaded MB (exercises P5#72210)
-    - perl: devcpan_5.8.8_thr_mb
+    - perl: "devcpan_5.8.8_thr_mb"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
@@ -217,7 +258,9 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.10.0 threaded with blead CPAN
-    - perl: devcpan_5.10.0_thr_mb
+    - perl: "devcpan_5.10.0_thr_mb"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
@@ -225,22 +268,29 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.12.1 with blead CPAN
-    - perl: devcpan_5.12.1_thr
+    - perl: "devcpan_5.12.1_thr"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
         - BREWVER=5.12.1
         - BREWOPTS="-Duseithreads"
 
-    # bleadperl with stock CPAN, full depchain test with non-tracing poisoning
-    - perl: bleadperl
+    # bleadperl with stock CPAN, full depchain test with non-tracing poisoning, single thread
+    - perl: "bleadperl"
+      sudo: required
+      dist: precise
       env:
+        - VCPU_USE=1
         - CLEANTEST=true
         - POISON_ENV=true
         - BREWVER=blead
 
     # bleadperl with blead CPAN
-    - perl: devcpan_bleadperl_thr_mb
+    - perl: "devcpan_bleadperl_thr_mb"
+      sudo: required
+      # explicitly do not specify dist - see what the default does
       env:
         - CLEANTEST=false
         - DEVREL_DEPS=true
@@ -248,7 +298,9 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # CLEANTEST of http://schplog.schmorp.de/2015-06-06-a-stable-perl.html with non-tracing poisoning
-    - perl: schmorp_stableperl_thr_mb
+    - perl: "schmorp_stableperl_thr_mb"
+      sudo: false
+      dist: precise
       env:
         - CLEANTEST=true
         - POISON_ENV=true

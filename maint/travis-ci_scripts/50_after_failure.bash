@@ -8,5 +8,4 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 echo_err "
 $(ci_vm_state_text)
 
-=== dmesg ringbuffer
-$(sudo dmesg)"
+$( [[ "$(dmesg)" =~ $( echo "\\bOOM\\b" ) ]] && echo "=== dmesg ringbuffer" && dmesg )"

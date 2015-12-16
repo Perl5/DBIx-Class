@@ -2,17 +2,23 @@
 
 export SHORT_CIRCUIT_SMOKE
 
-# Stop pre-started RDBMS, move their data back to disk (save RAM)
-# sync for some settle time
-run_or_err "Stopping MySQL"       "sudo /etc/init.d/mysql stop"
-run_or_err "Stopping PostgreSQL"  "sudo /etc/init.d/postgresql stop || /bin/true"
-/bin/sync
+if have_sudo ; then
 
-for d in mysql postgresql ; do
-  sudo rm -rf /var/lib/$d
-  sudo mv /var/ramfs/$d /var/lib/
-  sudo ln -s /var/lib/$d /var/ramfs/$d
-done
+  # Stop pre-started RDBMS, move their data back to disk (save RAM)
+  # sync for some settle time (not available on all platforms)
+  for d in mysql postgresql ; do
+    # maybe not even running
+    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
+
+    # no longer available on newer build systems
+    if [[ -d /var/ramfs/$d ]] ; then
+      sudo rm -rf /var/lib/$d
+      sudo mv /var/ramfs/$d /var/lib/
+      sudo ln -s /var/lib/$d /var/ramfs/$d
+    fi
+  done
+  /bin/sync
+fi
 
 # Sanity check VM before continuing
 echo "
@@ -49,33 +55,23 @@ fi
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# Different boxes we run on may have different amount of hw threads
-# Hence why we need to query
-# Originally we used to read /sys/devices/system/cpu/online
-# but it is not available these days (odd). Thus we fall to
-# the alwas-present /proc/cpuinfo
-# The oneliner is a tad convoluted - basicaly what we do is
-# slurp the entire file and get the index off the last
-# `processor    : XX` line
-#
-# We also divide the result by a factor, otherwise the travis VM gets
-# overloaded (the amount of available swap is just TOOOO damn small)
-export VCPU_AVAILABLE="$(( ( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ) / 3 ))"
+# Previously we were going off the OpenVZ vcpu count and dividing by 3
+# With the new infrastructure, somply go with "something high"
+export VCPU_AVAILABLE=10
 
 if [[ -z "$VCPU_USE" ]] ; then
   export VCPU_USE="$VCPU_AVAILABLE"
 fi
 
-export CACHE_DIR="/tmp/poormanscache"
 
-# these will be installed no matter what, also some extras unless CLEANTEST
-common_packages="libapp-nopaste-perl"
+if [[ "$CLEANTEST" != "true" ]]; then
 
-if [[ "$CLEANTEST" = "true" ]]; then
+  if [[ -z "$(tail -n +2 /proc/swaps)" ]] ; then
+    run_or_err "Configuring swap (for Oracle)" \
+      "sudo bash -c 'dd if=/dev/zero of=/swap.img bs=256M count=5 && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
+  fi
 
-  apt_install $common_packages
-
-else
+  export CACHE_DIR="/tmp/poormanscache"
 
   #
   # FIXME these debconf lines should automate the firebird config but do not :(((
@@ -85,11 +81,26 @@ else
   # these APT sources do not mean anything to us anyway
   sudo rm -rf /etc/apt/sources.list.d/*
 
-  run_or_err "Updating APT sources" "sudo apt-get update"
-  apt_install $common_packages libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
+  # never installed, this looks like trusty
+  if [[ ! -d /var/lib/mysql ]] ; then
+    sudo dpkg --add-architecture i386
+    extra_debs="postgresql mysql-server"
+  fi
 
-  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poortravis/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
-  run_or_err "Installing OracleXE manually from deb" "sudo dpkg -i $CACHE_DIR/apt_cache/oracle-xe_10.2.0.1-1.1_i386.deb || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
+  run_or_err "Updating APT sources" "sudo apt-get update"
+
+  apt_install $extra_debs libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect
+
+  # need to stop them again
+  if [[ -n "$extra_debs" ]] ; then
+    for d in mysql postgresql ; do
+      sudo /etc/init.d/$d stop || /bin/true
+    done
+  fi
+
+  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poormanscache/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
+  run_or_err "Installing OracleXE manually from deb" \
+    "sudo dpkg -i $CACHE_DIR/apt_cache/bc-multiarch-travis_1.0_all.deb $CACHE_DIR/apt_cache/oracle-xe_10.2.0.1-1.1_i386.deb || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
@@ -103,7 +114,7 @@ else
   "
 
   run_or_err "Starting MySQL" "sudo /etc/init.d/mysql start"
-  run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
+  run_or_err "Creating MySQL TestDB" "mysql -u root -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
@@ -246,10 +257,3 @@ FileUsage       = 1
 
   export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
 fi
-
-# The debian package is oddly broken - uses a /bin/env based shebang
-# so nothing works under a brew, fixed in libapp-nopaste-perl 0.92-3
-# http://changelogs.ubuntu.com/changelogs/pool/universe/liba/libapp-nopaste-perl/libapp-nopaste-perl_0.96-1/changelog
-#
-# Since the vm runs an old version of umbongo fix things ourselves
-sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)

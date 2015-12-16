@@ -26,7 +26,7 @@ $(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
 $(free -m -t)
 
 = Diskinfo
-$(sudo df -h)
+$(df -h)
 
 $(mount | grep '^/')
 
@@ -37,10 +37,10 @@ $(uname -a)
 $(ip addr)
 
 = Network Sockets Status
-$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+$( (sudo netstat -an46p || netstat -an46p) | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
 
 = Processlist
-$(sudo ps fuxa)
+$(ps fuxa)
 
 = Environment
 $(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
@@ -171,7 +171,7 @@ installdeps() {
   HARNESS_OPTIONS="j$VCPU_USE"
 
   if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
-    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
+    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/perl /usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
     echo "$errlog"
 
     POSTMORTEM="$POSTMORTEM$(
@@ -320,3 +320,5 @@ purge_sitelib() {
 CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }

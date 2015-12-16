@@ -7,11 +7,14 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
 run_harness_tests() {
   local -x HARNESS_OPTIONS=c:j$VCPU_USE
-  if [[ "$VCPU_USE" == 1 ]]; then
+  # if we run under docker (! have_sudo) the logic below won't work
+  # it seems as if ulimit acts globally, across the entire OS
+  # and is thus not served properly by a localised `ps xH`
+  if [[ "$VCPU_USE" == 1 ]] && have_sudo ; then
     ulim=$(( ( $(ps xH | wc -l) - 3 ) + 4 )) # (real count excluding header + ps + wc) + space for ( make + tee + harness + <actual test> )
     echo_err "$(tstamp) Setting process/thread limit to $ulim"
     ulimit -u $ulim
-    sleep 10 # needed to settle things down a bit
+    sleep 5 # needed to settle things down a bit
   fi
   make test 2> >(tee "$TEST_STDERR_LOG")
 }
@@ -63,6 +66,6 @@ echo "${POSTMORTEM:- \o/ No notable smoke run issues \o/ }"
 echo
 echo "$(tstamp) Testing took a total of $(( $TEST_T1 - $TEST_T0 ))s"
 if [[ -n "$INSTALLDEPS_OUT" ]] ; then
-  echo "$(tstamp) Full dep install log at $(/usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
+  echo "$(tstamp) Full dep install log at $(/usr/bin/perl /usr/bin/nopaste -q -s Shadowcat -d DepInstall <<< "$INSTALLDEPS_OUT")"
 fi
 echo
