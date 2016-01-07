@@ -72,7 +72,10 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
 
-  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
+  if [[ "$DEVREL_DEPS" = "true" ]] ; then
+    # FIXME - work around RT#110882, sigh...
+    perl -Mversion\ 0.87 -e 1 &>/dev/null || installdeps version@0.9912
+  elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
     # without pre-installing these in one pass things won't yet work
     installdeps Module::Build
