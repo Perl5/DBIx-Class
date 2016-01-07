@@ -1975,12 +1975,30 @@ sub insert {
 
   my %returned_cols = %$to_insert;
   if (my $retlist = $sqla_opts->{returning}) {  # if IR is supported - we will get everything in one set
-    @ir_container = try {
-      local $SIG{__WARN__} = sub {};
-      my @r = $sth->fetchrow_array;
-      $sth->finish;
-      @r;
-    } unless @ir_container;
+
+    unless( @ir_container ) {
+      try {
+
+        # FIXME - need to investigate why Caelum silenced this in 4d4dc518
+        local $SIG{__WARN__} = sub {};
+
+        @ir_container = $sth->fetchrow_array;
+        $sth->finish;
+
+      } catch {
+        # Evict the $sth from the cache in case we got here, since the finish()
+        # is crucial, at least on older Firebirds, possibly on other engines too
+        #
+        # It would be too complex to make this a proper subclass override,
+        # and besides we already take the try{} penalty, adding a catch that
+        # triggers infrequently is a no-brainer
+        #
+        if( my $kids = $self->_dbh->{CachedKids} ) {
+          $kids->{$_} == $sth and delete $kids->{$_}
+            for keys %$kids
+        }
+      };
+    }
 
     @returned_cols{@$retlist} = @ir_container if @ir_container;
   }
