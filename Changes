@@ -29,6 +29,8 @@ Revision history for DBIx::Class
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)
+        - Work around unreliable $sth->finish() on INSERT ... RETURNING within
+          DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix several corner cases with Many2Many over custom relationships
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
         - Fix t/105view_deps.t failing with libsqlite >= 3.009, where view

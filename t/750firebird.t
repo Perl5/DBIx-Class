@@ -43,18 +43,16 @@ my @test_order = map { "DBICTEST_FIREBIRD$_" }
 
 for my $prefix (@test_order) { SKIP: {
 
-  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
-  next unless $dsn;
-
-  note "Testing with ${prefix}_DSN";
-
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
   skip ("DBD::InterBase crashes if Firebird or ODBC are also loaded", 1)
     if $prefix eq 'DBICTEST_FIREBIRD_INTERBASE' and
       ($ENV{DBICTEST_FIREBIRD_DSN} or $ENV{DBICTEST_FIREBIRD_ODBC_DSN});
+
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
+
+  note "Testing with ${prefix}_DSN";
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     auto_savepoint  => 1,
