@@ -132,27 +132,19 @@ if [[ "$CLEANTEST" != "true" ]]; then
     send "\177\177\177\177yes\r"
     expect "Password for SYSDBA"
     send "123\r"
-    sleep 1
+    sleep 2
     expect eof
   '
   # creating testdb
   # FIXME - this step still fails from time to time >:(((
   # has to do with the FB reconfiguration I suppose
   # for now if it fails twice - simply skip FB testing
-  for i in 1 2 ; do
+  for i in 1 2 3 ; do
 
     run_or_err "Re-configuring Firebird" "
       sync
+      sleep 5
       DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
-      sleep 1
-      sync
-      # restart the server for good measure
-      sudo /etc/init.d/firebird2.5-super stop || true
-      sleep 1
-      sync
-      sudo /etc/init.d/firebird2.5-super start
-      sleep 1
-      sync
     "
 
     if run_or_err "Creating Firebird TestDB" \

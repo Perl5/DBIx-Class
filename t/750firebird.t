@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use DBIx::Class::Optional::Dependencies ();
 use Scope::Guard ();
+use List::Util 'shuffle';
 use Try::Tiny;
 use lib qw(t/lib);
 use DBICTest;
@@ -36,19 +37,10 @@ plan skip_all => join (' ',
 
 my $schema;
 
-my @test_order = map { "DBICTEST_FIREBIRD$_" }
-  DBICTest::RunMode->is_plain
-    ? ('', '_INTERBASE', '_ODBC')   # Least likely to fail
-    : ('_ODBC', '_INTERBASE' , ''); # Most likely to fail
-
-for my $prefix (@test_order) { SKIP: {
+for my $prefix (shuffle keys %$env2optdep) { SKIP: {
 
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
-
-  skip ("DBD::InterBase crashes if Firebird or ODBC are also loaded", 1)
-    if $prefix eq 'DBICTEST_FIREBIRD_INTERBASE' and
-      ($ENV{DBICTEST_FIREBIRD_DSN} or $ENV{DBICTEST_FIREBIRD_ODBC_DSN});
 
   my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
