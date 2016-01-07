@@ -123,3 +123,7 @@ if [[ "$CLEANTEST" != "true" ]] ; then
   export DBICTEST_SQLT_DEPLOY=1
 
 fi
+
+# FIXME - work around https://github.com/miyagawa/cpanminus/issues/462
+# seriously...
+perl -p -i -e 's/\blocal\$self->\{notest\}=1;//' $(which cpanm)
