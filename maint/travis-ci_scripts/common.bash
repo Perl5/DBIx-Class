@@ -75,6 +75,10 @@ run_or_err() {
       echo_err "$LASTCMD"
       echo_err "STDOUT+STDERR:"
       echo_err "$LASTOUT"
+      if [[ "$(dmesg)" =~ $( echo "\\bOOM\\b" ) ]] ; then
+        echo_err "=== dmesg ringbuffer"
+        echo_err "$(dmesg)"
+      fi
     fi
 
     return $LASTEXIT
