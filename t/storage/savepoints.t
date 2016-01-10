@@ -37,13 +37,10 @@ for ('', keys %$env2optdep) { SKIP: {
   my $prefix;
 
   if ($prefix = $_) {
+
+    DBIx::Class::Optional::Dependencies->skip_without($env2optdep->{$prefix});
+
     my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
-    skip ("Skipping tests with $prefix: set \$ENV{${prefix}_DSN} _USER and _PASS", 1)
-      unless $dsn;
-
-    skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
-      unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
     $schema = DBICTest::Schema->connect ($dsn,$user,$pass,{ auto_savepoint => 1 });
 
@@ -231,7 +228,7 @@ for ('', keys %$env2optdep) { SKIP: {
   is_deeply( $schema->storage->savepoints, [], 'All savepoints forgotten' );
 
 SKIP: {
-  skip "Reading inexplicably fails on very old replicated DBD::SQLite<1.33", 1 if (
+  skip "FIXME: Reading inexplicably fails on very old replicated DBD::SQLite<1.33", 1 if (
     $ENV{DBICTEST_VIA_REPLICATED}
       and
     $prefix eq 'SQLite Internal DB'

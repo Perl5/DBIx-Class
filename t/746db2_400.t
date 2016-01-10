@@ -5,7 +5,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies ();
 
 use DBICTest;
 

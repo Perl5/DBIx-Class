@@ -28,8 +28,6 @@ plan skip_all => join (' ',
   'and "nonpkid_seq" and the trigger "artist_bi".',
 ) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
 
-# tests stolen from 749sybase_asa.t
-
 # Example DSNs:
 # dbi:Firebird:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
 # dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
@@ -41,11 +39,9 @@ my $schema;
 
 for my $prefix (shuffle keys %$env2optdep) { SKIP: {
 
-  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
-    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+  DBIx::Class::Optional::Dependencies->skip_without( $env2optdep->{$prefix} );
 
   my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
   note "Testing with ${prefix}_DSN";
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {

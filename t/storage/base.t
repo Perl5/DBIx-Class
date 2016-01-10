@@ -181,7 +181,8 @@ for my $type (keys %$invocations) {
 # make sure connection-less storages do not throw on _determine_driver
 # but work with ENV at the same time
 SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
-  skip 'Subtest relies on being connected to SQLite', 1
+
+  skip 'This set of tests relies on being connected to SQLite', 1
     if $env_dsn and $env_dsn !~ /\:SQLite\:/;
 
   local $ENV{DBI_DSN} = $env_dsn || '';

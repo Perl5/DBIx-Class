@@ -473,7 +473,7 @@ sub _run_tests {
     #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
     # Oracle Database Reference 10g Release 2 (10.2)
     #   http://download.oracle.com/docs/cd/B19306_01/server.102/b14237/statviews_2107.htm#sthref1297
-    todo_skip "On Oracle8i all_triggers view is empty, i don't yet know why...", 1
+    todo_skip "FIXME: On Oracle8i all_triggers view is empty, i don't yet know why...", 1
       if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
     my $schema2 = $schema->connect($dsn2, $user2, $pass2, $opt);

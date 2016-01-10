@@ -52,8 +52,11 @@ my %expected = (
 );
 
 for my $class (keys %expected) { SKIP: {
-  eval "require ${class}"
-    or skip "Skipping test of quotes for $class due to missing dependencies", 1;
+
+  eval "require ${class}" or do {
+    note "Failed load of $class:\n\n$@\n\n";
+    skip "Skipping test of quotes for $class due to missing compile-time dependencies", 1;
+  };
 
   my $mapping = $expected{$class};
   my ($quote_char, $name_sep) = @$mapping{qw/quote_char name_sep/};

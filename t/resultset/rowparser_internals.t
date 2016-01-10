@@ -890,7 +890,7 @@ done_testing;
 my $deparser;
 sub is_same_src { SKIP: {
 
-  skip "Skipping comparison of unicode-posioned source", 1
+  skip "Skipping comparison of unicode-poisoned source", 1
     if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
 
   $deparser ||= B::Deparse->new;

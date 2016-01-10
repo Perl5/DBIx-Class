@@ -211,7 +211,7 @@ sub _test_forking_action {
 
   SKIP: for my $count (1 .. 5) {
 
-    skip 'Weird DBI General Protection Faults, skip forking tests (RT#63104)', 5
+    skip 'FIXME: Weird DBI General Protection Faults, skip forking tests (RT#63104)', 5
       if $^O eq 'MSWin32';
 
     my $pid = fork();

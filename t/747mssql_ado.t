@@ -7,7 +7,6 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Try::Tiny;
-use DBIx::Class::Optional::Dependencies ();
 
 use DBICTest;
 

@@ -11,7 +11,6 @@ use Test::Warn;
 use Test::Exception;
 use Scalar::Util ();
 
-
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 

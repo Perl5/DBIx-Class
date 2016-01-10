@@ -28,14 +28,11 @@ my $schema;
 
 for my $prefix (keys %$env2optdep) { SKIP: {
 
-  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
-  next unless $dsn;
+  DBIx::Class::Optional::Dependencies->skip_without( $env2optdep->{$prefix} );
 
   note "Testing with ${prefix}_DSN";
 
-  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
-    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     quote_char => '"',
