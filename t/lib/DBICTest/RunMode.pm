@@ -209,11 +209,11 @@ sub is_author {
 }
 
 sub is_smoker {
-  return
-    __PACKAGE__->is_ci
-      ||
+  return (
     ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
-  ;
+      or
+    __PACKAGE__->is_ci
+  );
 }
 
 sub is_ci {
@@ -225,7 +225,15 @@ sub is_ci {
 }
 
 sub is_plain {
-  return (! __PACKAGE__->is_smoker && ! __PACKAGE__->is_author && ! $ENV{RELEASE_TESTING} )
+  return (
+    ! $ENV{RELEASE_TESTING}
+      and
+    ! $ENV{DBICTEST_RUN_ALL_TESTS}
+      and
+    ! __PACKAGE__->is_smoker
+      and
+    ! __PACKAGE__->is_author
+  )
 }
 
 # Try to determine the root of a checkout/untar if possible

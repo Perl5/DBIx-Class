@@ -173,7 +173,7 @@ for my $post_poison (0,1) {
   local $TODO = 'Do not know how to deal with trapped exceptions occuring after guard instantiation...'
     if ( $post_poison and (
       # take no chances on installation
-      ( DBICTest::RunMode->is_plain and ($ENV{TRAVIS}||'') ne 'true' )
+      DBICTest::RunMode->is_plain
         or
       # this always fails
       ! $pre_poison
