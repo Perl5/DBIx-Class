@@ -2550,6 +2550,8 @@ Returns a resultset for the $page_number page of the resultset on which page
 is called, where each page contains a number of rows equal to the 'rows'
 attribute set on the resultset (10 by default).
 
+$page_number starts at C<1> for the first page of data.
+
 =cut
 
 sub page {
