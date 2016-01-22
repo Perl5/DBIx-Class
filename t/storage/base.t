@@ -25,6 +25,34 @@ throws_ok {
 } qr/prepare_cached failed/, 'exception via DBI->HandleError, etc';
 
 
+# make sure repeated disconnection works
+{
+  my $fn = DBICTest->_sqlite_dbfilename;
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    my $dbh = $schema->storage->dbh;
+    $schema->storage->disconnect for 1,2;
+    unlink $fn;
+    $dbh->disconnect;
+  };
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    $schema->storage->disconnect for 1,2;
+    unlink $fn;
+    $schema->storage->disconnect for 1,2;
+  };
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    $schema->storage->_dbh->disconnect;
+    unlink $fn;
+    $schema->storage->disconnect for 1,2;
+  };
+}
+
+
 # testing various invocations of connect_info ([ ... ])
 
 my $coderef = sub { 42 };
