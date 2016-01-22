@@ -27,6 +27,34 @@ throws_ok {
 } qr/prepare_cached failed/, 'exception via DBI->HandleError, etc';
 
 
+# make sure repeated disconnection works
+{
+  my $fn = DBICTest->_sqlite_dbfilename;
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    my $dbh = $schema->storage->dbh;
+    $schema->storage->disconnect for 1,2;
+    unlink $fn;
+    $dbh->disconnect;
+  };
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    $schema->storage->disconnect for 1,2;
+    unlink $fn;
+    $schema->storage->disconnect for 1,2;
+  };
+
+  lives_ok {
+    $schema->storage->ensure_connected;
+    $schema->storage->_dbh->disconnect;
+    unlink $fn;
+    $schema->storage->disconnect for 1,2;
+  };
+}
+
+
 # testing various invocations of connect_info ([ ... ])
 
 my $coderef = sub { 42 };
@@ -147,8 +175,6 @@ for my $type (keys %$invocations) {
     "$type correctly parsed DBIC specific on_[dis]connect_do",
   );
 }
-
-$schema->storage->_dbh->disconnect;
 
 # make sure connection-less storages do not throw on _determine_driver
 # but work with ENV at the same time
