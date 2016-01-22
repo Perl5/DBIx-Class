@@ -51,7 +51,6 @@ sub new {
   $self = ref $self if ref $self;
 
   my $new = bless( {
-    transaction_depth => 0,
     savepoints => [],
   }, $self);
 

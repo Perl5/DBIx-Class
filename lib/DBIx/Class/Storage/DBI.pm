@@ -13,7 +13,7 @@ use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor);
+use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor scope_guard);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -224,13 +224,17 @@ sub new {
   }
 
   END {
-    local $?; # just in case the DBI destructor changes it somehow
 
-    # destroy just the object if not native to this process
-    $_->_verify_pid for (grep
-      { defined $_ }
-      values %seek_and_destroy
-    );
+    if(
+      ! DBIx::Class::_ENV_::BROKEN_FORK
+        and
+      my @instances = grep { defined $_ } values %seek_and_destroy
+    ) {
+      local $?; # just in case the DBI destructor changes it somehow
+
+      # disarm the handle if not native to this process (see comment on top)
+      $_->_verify_pid for @instances;
+    }
   }
 
   sub CLONE {
@@ -242,9 +246,7 @@ sub new {
 
     for (@instances) {
       $_->_dbh(undef);
-
-      $_->transaction_depth(0);
-      $_->savepoints([]);
+      $_->disconnect;
 
       # properly renumber existing refs
       $_->_arm_global_destructor
@@ -256,9 +258,13 @@ sub DESTROY {
   return if &detected_reinvoked_destructor;
 
   $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+
   # some databases spew warnings on implicit disconnect
+  return unless defined $_[0]->_dbh;
+
   local $SIG{__WARN__} = sub {};
   $_[0]->_dbh(undef);
+  # not calling ->disconnect here - we are being destroyed - nothing to reset
 
   # this op is necessary, since the very last perl runtime statement
   # triggers a global destruction shootout, and the $SIG localization
@@ -275,8 +281,7 @@ sub _verify_pid {
   if( defined $pid and $pid != $$ and my $dbh = $_[0]->_dbh ) {
     $dbh->{InactiveDestroy} = 1;
     $_[0]->_dbh(undef);
-    $_[0]->transaction_depth(0);
-    $_[0]->savepoints([]);
+    $_[0]->disconnect;
   }
 
   return;
@@ -870,20 +875,35 @@ database is not in C<AutoCommit> mode.
 =cut
 
 sub disconnect {
+  my $self = shift;
 
-  if( my $dbh = $_[0]->_dbh ) {
+  # this physical disconnect below might very well throw
+  # in order to unambiguously reset the state - do the cleanup in guard
 
-    $_[0]->_do_connection_actions(disconnect_call_ => $_) for (
-      ( $_[0]->on_disconnect_call || () ),
-      $_[0]->_parse_connect_do ('on_disconnect_do')
+  my $g = scope_guard {
+    $self->_dbh(undef);
+    $self->_dbh_details({});
+    $self->transaction_depth(undef);
+    $self->_dbh_autocommit(undef);
+    $self->savepoints([]);
+
+    # FIXME - this needs reenabling with the proper "no reset on same DSN" check
+    #$self->_sql_maker(undef); # this may also end up being different
+  };
+
+  if( my $dbh = $self->_dbh ) {
+
+    $self->_do_connection_actions(disconnect_call_ => $_) for (
+      ( $self->on_disconnect_call || () ),
+      $self->_parse_connect_do ('on_disconnect_do')
     );
 
     # stops the "implicit rollback on disconnect" warning
-    $_[0]->_exec_txn_rollback unless $_[0]->_dbh_autocommit;
+    $self->_exec_txn_rollback unless $self->_dbh_autocommit;
 
     %{ $dbh->{CachedKids} } = ();
+
     $dbh->disconnect;
-    $_[0]->_dbh(undef);
   }
 }
 
@@ -1038,12 +1058,9 @@ sub _init {}
 
 sub _populate_dbh {
 
-  $_[0]->_dbh(undef); # in case ->connected failed we might get sent here
-
-  $_[0]->_dbh_details({}); # reset everything we know
-
-  # FIXME - this needs reenabling with the proper "no reset on same DSN" check
-  #$_[0]->_sql_maker(undef); # this may also end up being different
+  # reset internal states
+  # also in case ->connected failed we might get sent here
+  $_[0]->disconnect;
 
   $_[0]->_dbh($_[0]->_connect);
 
@@ -1053,7 +1070,7 @@ sub _populate_dbh {
 
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
-  $_[0]->{transaction_depth} = $_[0]->_dbh_autocommit ? 0 : 1;
+  $_[0]->transaction_depth( $_[0]->_dbh_autocommit ? 0 : 1 );
 
   $_[0]->_run_connection_actions unless $_[0]->{_in_determine_driver};
 
@@ -1405,6 +1422,7 @@ sub _do_connection_actions {
       # a handle in an undefined state in our storage object
       # kill it with fire and rethrow
       $self->_dbh(undef);
+      $self->disconnect;  # the $dbh is gone, but we still need to reset the rest
       $self->throw_exception( $_[0] );
     }
     else {
