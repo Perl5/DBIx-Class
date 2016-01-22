@@ -284,6 +284,7 @@ sub __mk_disconnect_guard {
       return;
     }
     elsif ($event eq 'disconnect') {
+      return unless $connected; # we already disconnected earlier
       $connected = 0;
     }
     elsif ($event eq 'DESTROY' and ! $connected ) {
