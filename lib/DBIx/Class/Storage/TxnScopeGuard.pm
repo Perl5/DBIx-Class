@@ -61,10 +61,8 @@ sub DESTROY {
 
   return if $_[0]->{inactivated};
 
-  # if our dbh is not ours anymore, the $dbh weakref will go undef
-  $_[0]->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
-  return unless $_[0]->{dbh};
 
+  # grab it before we've done volatile stuff below
   my $current_exception = (
     is_exception $@
       and
@@ -78,47 +76,35 @@ sub DESTROY {
     : undef
   ;
 
-  {
-    local $@;
 
-    carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
-      unless defined $current_exception;
+  # if our dbh is not ours anymore, the $dbh weakref will go undef
+  $_[0]->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+  return unless defined $_[0]->{dbh};
 
-    my $rollback_exception;
-    # do minimal connectivity check due to weird shit like
-    # https://rt.cpan.org/Public/Bug/Display.html?id=62370
-    eval {
-      $_[0]->{storage}->_seems_connected && $_[0]->{storage}->txn_rollback;
-      1;
-    } or $rollback_exception = $@;
 
-    if ( $rollback_exception and (
-      ! defined blessed $rollback_exception
-          or
-      ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
-    ) ) {
-      # append our text - THIS IS A TEMPORARY FIXUP!
-      # a real stackable exception object is in the works
-      if (ref $current_exception eq 'DBIx::Class::Exception') {
-        $current_exception->{msg} = "Transaction aborted: $current_exception->{msg} "
-          ."Rollback failed: ${rollback_exception}";
-      }
-      elsif ($current_exception) {
-        $current_exception = "Transaction aborted: ${current_exception} "
-          ."Rollback failed: ${rollback_exception}";
-      }
-      else {
-        carp (join ' ',
-          "********************* ROLLBACK FAILED!!! ********************",
-          "\nA rollback operation failed after the guard went out of scope.",
-          'This is potentially a disastrous situation, check your data for',
-          "consistency: $rollback_exception"
-        );
-      }
-    }
+  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
+    unless defined $current_exception;
+
+
+  if (
+    my $rollback_exception = $_[0]->{storage}->__delicate_rollback(
+      defined $current_exception
+        ? \$current_exception
+        : ()
+    )
+      and
+    ! defined $current_exception
+  ) {
+    carp (join ' ',
+      "********************* ROLLBACK FAILED!!! ********************",
+      "\nA rollback operation failed after the guard went out of scope.",
+      'This is potentially a disastrous situation, check your data for',
+      "consistency: $rollback_exception"
+    );
   }
 
-  $@ = $current_exception;
+  $@ = $current_exception
+    if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
 }
 
 1;

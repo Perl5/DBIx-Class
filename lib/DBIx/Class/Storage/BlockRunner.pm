@@ -158,22 +158,10 @@ sub _run {
     # something above threw an error (could be the begin, the code or the commit)
     if ( is_exception $run_err ) {
 
-      # attempt a rollback if we did begin in the first place
-      if ($txn_begin_ok) {
-        # some DBDs go crazy if there is nothing to roll back on, perform a soft-check
-        my $rollback_exception = $storage->_seems_connected
-          ? (! eval { $storage->txn_rollback; 1 }) ? $@ : ''
-          : 'lost connection to storage'
-        ;
-
-        if ( $rollback_exception and (
-          ! defined blessed $rollback_exception
-            or
-          ! $rollback_exception->isa('DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION')
-        ) ) {
-          $run_err = "Transaction aborted: $run_err. Rollback failed: $rollback_exception";
-        }
-      }
+      # Attempt a rollback if we did begin in the first place
+      # Will append rollback error if possible
+      $storage->__delicate_rollback( \$run_err )
+        if $txn_begin_ok;
 
       push @{ $self->exception_stack }, $run_err;
 

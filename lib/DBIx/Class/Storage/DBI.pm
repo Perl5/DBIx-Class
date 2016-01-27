@@ -1636,7 +1636,9 @@ sub _exec_txn_commit {
 sub txn_rollback {
   my $self = shift;
 
-  $self->throw_exception("Unable to txn_rollback() on a disconnected storage")
+  # do a minimal connectivity check due to weird shit like
+  # https://rt.cpan.org/Public/Bug/Display.html?id=62370
+  $self->throw_exception("lost connection to storage")
     unless $self->_seems_connected;
 
   # esoteric case for folks using external $dbh handles

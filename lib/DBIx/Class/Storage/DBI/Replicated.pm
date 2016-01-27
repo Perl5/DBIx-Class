@@ -333,6 +333,7 @@ my $method_dispatch = {
   unimplemented => [qw/
     _arm_global_destructor
     _verify_pid
+    __delicate_rollback
 
     get_use_dbms_capability
     set_use_dbms_capability

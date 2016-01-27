@@ -272,6 +272,95 @@ sub txn_rollback {
   }
 }
 
+# to be called by several internal stacked transaction handler codepaths
+# not for external consumption
+# *DOES NOT* throw exceptions, instead:
+#  - returns false on success
+#  - returns the exception on failed rollback
+sub __delicate_rollback {
+  my $self = shift;
+
+  if (
+    $self->transaction_depth > 1
+      and
+    # FIXME - the autosvp check here shouldn't be happening, it should be a role-ish thing
+    # The entire concept needs to be rethought with the storage layer... or something
+    ! $self->auto_savepoint
+      and
+    # the handle seems healthy, and there is nothing for us to do with it
+    # just go ahead and bow out, without triggering the txn_rollback() "nested exception"
+    # the unwind will eventually fail somewhere higher up if at all
+    # FIXME: a ::Storage::DBI-specific method, not a generic ::Storage one
+    $self->_seems_connected
+  ) {
+    # all above checks out - there is nothing to do on the $dbh itself
+    # just a plain soft-decrease of depth
+    $self->{transaction_depth}--;
+    return;
+  }
+
+  my $rbe;
+
+  local $@; # taking no chances
+  unless( eval { $self->txn_rollback; 1 } ) {
+
+    $rbe = $@;
+
+    # we were passed an existing exception to augment (think DESTROY stacks etc)
+    if (@_) {
+      my $exception = shift;
+
+      # append our text - THIS IS A TEMPORARY FIXUP!
+      #
+      # If the passed in exception is a reference, or an object we don't know
+      # how to augment - flattening it is just damn rude
+      if (
+        # FIXME - a better way, not liable to destroy an existing exception needs
+        # to be created. For the time being perpetuating the sin below in order
+        # to break the deadlock of which yak is being shaved first
+        0
+          and
+        length ref $$exception
+          and
+        (
+          ! defined blessed $$exception
+            or
+          ! $$exception->isa( 'DBIx::Class::Exception' )
+        )
+      ) {
+
+        ##################
+        ### FIXME - TODO
+        ##################
+
+      }
+      else {
+
+        # SUCH HIDEOUS, MUCH AUGH! (and double WOW on the s/// at the end below)
+        $rbe =~ s/ at .+? line \d+$//;
+
+        (
+          (
+            defined blessed $$exception
+              and
+            $$exception->isa( 'DBIx::Class::Exception' )
+          )
+            ? (
+              $$exception->{msg} =
+                "Transaction aborted: $$exception->{msg}. Rollback failed: $rbe"
+            )
+            : (
+              $$exception =
+                "Transaction aborted: $$exception. Rollback failed: $rbe"
+            )
+        ) =~ s/Transaction aborted: (?=Transaction aborted:)//;
+      }
+    }
+  }
+
+  return $rbe;
+}
+
 =head2 svp_begin
 
 Arguments: $savepoint_name?

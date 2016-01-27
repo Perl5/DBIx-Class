@@ -450,7 +450,7 @@ warnings_are {
         die $broken_exception
       });
     })
-  } qr/\QTransaction aborted: $broken_exception. Rollback failed: lost connection to storage at @{[__FILE__]} line $ln\E\n/;  # FIXME wtf - ...\E$/m doesn't work here
+  } qr/\QTransaction aborted: $broken_exception. Rollback failed: DBIx::Class::Storage::DBI::txn_rollback(): lost connection to storage at @{[__FILE__]} line $ln\E\n/;  # FIXME wtf - ...\E$/m doesn't work here
 
   is @w, 1, 'One matching warning only';
 

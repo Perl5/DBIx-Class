@@ -35,7 +35,7 @@ sub __find_caller {
 # Need a way to parameterize this for Carp::Skip
       $1 !~ /^(?: DBIx::Class::Storage::BlockRunner | Context::Preserve | Try::Tiny | Class::Accessor::Grouped | Class::C3::Componentised | Module::Runtime | Sub::Uplevel )$/x
         and
-      $2 !~ /^(?: throw_exception | carp | carp_unique | carp_once | dbh_do | txn_do | with_deferred_fk_checks)$/x
+      $2 !~ /^(?: throw_exception | carp | carp_unique | carp_once | dbh_do | txn_do | with_deferred_fk_checks | __delicate_rollback )$/x
 #############################
     ) ? $f[3] : undef;
 
