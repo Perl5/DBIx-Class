@@ -7,9 +7,9 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
+use B::Deparse;
 use DBI::Const::GetInfoType;
 use Scalar::Util qw/weaken/;
-use DBIx::Class::Optional::Dependencies ();
 
 use lib qw(t/lib);
 use DBICTest;
@@ -450,6 +450,58 @@ ZEROINSEARCH: {
   ok(!$?, 'Child subtests passed');
 
   ok ($rs->find({ name => "Hardcore Forker $pid" }), 'Expected row created');
+}
+
+# Ensure disappearing RDBMS does not leave the storage in an inconsistent state
+# Unlike the test in storage/reconnect.t we test live RDBMS-side disconnection
+for my $cref (
+  sub {
+    my $schema = shift;
+
+    my $g = $schema->txn_scope_guard;
+
+    is( $schema->storage->transaction_depth, 1, "Expected txn depth" );
+
+    $schema->storage->_dbh->do("SELECT SLEEP(2)");
+  },
+  sub {
+    my $schema = shift;
+    $schema->txn_do(sub {
+      is( $schema->storage->transaction_depth, 1, "Expected txn depth" );
+      $schema->storage->_dbh->do("SELECT SLEEP(2)")
+    } );
+  },
+  sub {
+    my $schema = shift;
+
+    my $g = $schema->txn_scope_guard;
+
+    $schema->txn_do(sub {
+      is( $schema->storage->transaction_depth, 2, "Expected txn depth" );
+      $schema->storage->_dbh->do("SELECT SLEEP(2)")
+    } );
+  },
+) {
+
+  note( "Testing with " . B::Deparse->new->coderef2text($cref) );
+
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+    mysql_read_timeout => 1,
+  });
+
+  ok( !$schema->storage->connected, 'Not connected' );
+
+  is( $schema->storage->transaction_depth, undef, "Start with unknown txn depth" );
+
+  throws_ok {
+    $cref->($schema)
+  } qr/Rollback failed/;
+
+  ok( !$schema->storage->connected, 'Not connected as a result of failed rollback' );
+
+  is( $schema->storage->transaction_depth, undef, "Depth expectedly unknown after failed rollbacks" );
+
+  ok( $schema->resultset('Artist')->count, 'query works after the fact' );
 }
 
 done_testing;

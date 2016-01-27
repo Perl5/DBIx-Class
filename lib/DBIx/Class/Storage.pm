@@ -250,8 +250,19 @@ sub txn_rollback {
 
   if ($self->transaction_depth == 1) {
     $self->debugobj->txn_rollback() if $self->debug;
-    $self->_exec_txn_rollback;
     $self->{transaction_depth}--;
+
+    # in case things get really hairy - just disconnect
+    eval { $self->_exec_txn_rollback; 1 } or do {
+      my $rollback_error = $@;
+
+      # whatever happens, too low down the stack to care
+      # FIXME - revisit if stackable exceptions become a thing
+      eval { $self->disconnect };
+
+      die $rollback_error;
+    };
+
     $self->savepoints([]);
   }
   elsif ($self->transaction_depth > 1) {
@@ -281,7 +292,7 @@ sub __delicate_rollback {
   my $self = shift;
 
   if (
-    $self->transaction_depth > 1
+    ( $self->transaction_depth || 0 ) > 1
       and
     # FIXME - the autosvp check here shouldn't be happening, it should be a role-ish thing
     # The entire concept needs to be rethought with the storage layer... or something

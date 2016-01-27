@@ -2,7 +2,9 @@ use strict;
 use warnings;
 
 use FindBin;
+use B::Deparse;
 use File::Copy 'move';
+use Scalar::Util 'weaken';
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
@@ -105,5 +107,66 @@ for my $ctx (keys %$ctx_map) {
     }, @$args) });
   }
 };
+
+# make sure RT#110429 does not recur on manual DBI-side disconnect
+for my $cref (
+  sub {
+    my $schema = shift;
+
+    my $g = $schema->txn_scope_guard;
+
+    is( $schema->storage->transaction_depth, 1, "Expected txn depth" );
+
+    $schema->storage->_dbh->disconnect;
+
+    $schema->storage->dbh_do(sub { $_[1]->do('SELECT 1') } );
+  },
+  sub {
+    my $schema = shift;
+    $schema->txn_do(sub {
+      $schema->storage->_dbh->disconnect
+    } );
+  },
+  sub {
+    my $schema = shift;
+    $schema->txn_do(sub {
+      $schema->storage->disconnect;
+      die "VIOLENCE";
+    } );
+  },
+) {
+
+  note( "Testing with " . B::Deparse->new->coderef2text($cref) );
+
+  $schema->storage->disconnect;
+
+  ok( !$schema->storage->connected, 'Not connected' );
+
+  is( $schema->storage->transaction_depth, undef, "Start with unknown txn depth" );
+
+  # messages vary depending on version and whether txn or do, whatever
+  dies_ok {
+    $cref->($schema)
+  } 'Threw *something*';
+
+  ok( !$schema->storage->connected, 'Not connected as a result of failed rollback' );
+
+  is( $schema->storage->transaction_depth, undef, "Depth expectedly unknown after failed rollbacks" );
+}
+
+# check that things aren't crazy with a non-violent disconnect
+{
+  my $schema = DBICTest->init_schema( sqlite_use_file => 0, no_deploy => 1 );
+  weaken( my $ws = $schema );
+
+  $schema->is_executed_sql_bind( sub {
+    $ws->txn_do(sub { $ws->storage->disconnect } );
+  }, [ [ 'BEGIN' ] ], 'Only one BEGIN statement' );
+
+  $schema->is_executed_sql_bind( sub {
+    my $g = $ws->txn_scope_guard;
+    $ws->storage->disconnect;
+  }, [ [ 'BEGIN' ] ], 'Only one BEGIN statement' );
+}
 
 done_testing;

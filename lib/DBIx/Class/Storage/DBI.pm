@@ -956,7 +956,15 @@ sub connected {
 sub _seems_connected {
   $_[0]->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
 
-  ($_[0]->_dbh || return 0)->FETCH('Active');
+  $_[0]->_dbh
+    and
+  $_[0]->_dbh->FETCH('Active')
+    and
+  return 1;
+
+  # explicitly reset all state
+  $_[0]->disconnect;
+  return 0;
 }
 
 sub _ping {
