@@ -2,7 +2,6 @@ package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
-use Try::Tiny;
 use Scalar::Util qw(weaken blessed refaddr);
 use DBIx::Class;
 use DBIx::Class::_Util qw(is_exception detected_reinvoked_destructor);
@@ -60,35 +59,38 @@ sub commit {
 sub DESTROY {
   return if &detected_reinvoked_destructor;
 
-  my $self = shift;
-
-  return if $self->{inactivated};
+  return if $_[0]->{inactivated};
 
   # if our dbh is not ours anymore, the $dbh weakref will go undef
-  $self->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
-  return unless $self->{dbh};
+  $_[0]->{storage}->_verify_pid unless DBIx::Class::_ENV_::BROKEN_FORK;
+  return unless $_[0]->{dbh};
 
-  my $exception = $@ if (
+  my $current_exception = (
     is_exception $@
       and
     (
-      ! defined $self->{existing_exception_ref}
+      ! defined $_[0]->{existing_exception_ref}
         or
-      refaddr( (length ref $@) ? $@ : \$@ ) != refaddr($self->{existing_exception_ref})
+      refaddr( (length ref $@) ? $@ : \$@ ) != refaddr($_[0]->{existing_exception_ref})
     )
-  );
+  )
+    ? $@
+    : undef
+  ;
 
   {
     local $@;
 
     carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
-      unless defined $exception;
+      unless defined $current_exception;
 
     my $rollback_exception;
     # do minimal connectivity check due to weird shit like
     # https://rt.cpan.org/Public/Bug/Display.html?id=62370
-    try { $self->{storage}->_seems_connected && $self->{storage}->txn_rollback }
-    catch { $rollback_exception = shift };
+    eval {
+      $_[0]->{storage}->_seems_connected && $_[0]->{storage}->txn_rollback;
+      1;
+    } or $rollback_exception = $@;
 
     if ( $rollback_exception and (
       ! defined blessed $rollback_exception
@@ -97,12 +99,12 @@ sub DESTROY {
     ) ) {
       # append our text - THIS IS A TEMPORARY FIXUP!
       # a real stackable exception object is in the works
-      if (ref $exception eq 'DBIx::Class::Exception') {
-        $exception->{msg} = "Transaction aborted: $exception->{msg} "
+      if (ref $current_exception eq 'DBIx::Class::Exception') {
+        $current_exception->{msg} = "Transaction aborted: $current_exception->{msg} "
           ."Rollback failed: ${rollback_exception}";
       }
-      elsif ($exception) {
-        $exception = "Transaction aborted: ${exception} "
+      elsif ($current_exception) {
+        $current_exception = "Transaction aborted: ${current_exception} "
           ."Rollback failed: ${rollback_exception}";
       }
       else {
@@ -116,7 +118,7 @@ sub DESTROY {
     }
   }
 
-  $@ = $exception;
+  $@ = $current_exception;
 }
 
 1;
