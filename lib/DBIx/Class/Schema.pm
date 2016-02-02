@@ -8,7 +8,7 @@ use base 'DBIx::Class';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util qw(refcount quote_sub is_exception);
+use DBIx::Class::_Util qw(refcount quote_sub is_exception scope_guard);
 use Devel::GlobalDestruction;
 use namespace::clean;
 
@@ -1058,8 +1058,31 @@ sub throw_exception {
   my ($self, @args) = @_;
 
   if (my $act = $self->exception_action) {
-    try {
-      # if it throws - good, we'll go down to the catch
+
+    my $guard_disarmed;
+
+    my $guard = scope_guard {
+      return if $guard_disarmed;
+      local $SIG{__WARN__};
+      Carp::cluck("
+                    !!! DBIx::Class INTERNAL PANIC !!!
+
+The exception_action() handler installed on '$self'
+aborted the stacktrace below via a longjmp (either via Return::Multilevel or
+plain goto, or Scope::Upper or something equally nefarious). There currently
+is nothing safe DBIx::Class can do, aside from displaying this error. A future
+version ( 0.082900, when available ) will reduce the cases in which the
+handler is invoked, but this is neither a complete solution, nor can it do
+anything for other software that might be affected by a similar problem.
+
+                      !!! FIX YOUR ERROR HANDLING !!!
+
+This guard was activated beginning"
+      );
+    };
+
+    eval {
+      # if it throws - good, we'll go down to the do{} below
       # if it doesn't - do different things depending on RV truthiness
       if( $act->(@args) ) {
         $args[0] = (
@@ -1073,15 +1096,22 @@ sub throw_exception {
         carp_unique (
           "The exception_action handler installed on $self returned false instead"
         .' of throwing an exception. This behavior has been deprecated, adjust your'
-        .' handler to always rethrow the supplied error.'
+        .' handler to always rethrow the supplied error'
         );
       }
-    } catch {
-      # We call this to get the necessary warnings emitted and disregard the RV
-      # as it's definitely an exception if we got as far as catch{}
-      is_exception($_);
 
-      die $_;
+      $guard_disarmed = 1;
+    }
+
+      or
+
+    do {
+      # We call this to get the necessary warnings emitted and disregard the RV
+      # as it's definitely an exception if we got as far as this do{} block
+      is_exception($@);
+
+      $guard_disarmed = 1;
+      $args[0] = $@;
     };
   }
 

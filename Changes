@@ -24,6 +24,8 @@ Revision history for DBIx::Class
           operations, generally more robust handling of rows/offset attrs
         - Fix incorrect $storage state on unexpected RDBMS disconnects and
           other failure events, preventing clean reconnection (RT#110429)
+        - Ensure leaving an exception stack via Return::MultiLevel or something
+          similar produces a large warning
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
         - Fix corner case of stringify-only overloaded objects being used in
