@@ -25,6 +25,8 @@ BEGIN {
 
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
+    UNSTABLE_DOLLARAT => ( "$]" < 5.013002 ) ? 1 : 0,
+
     DBICTEST => $INC{"DBICTest/Util.pm"} ? 1 : 0,
 
     # During 5.13 dev cycle HELEMs started to leak on copy
@@ -69,7 +71,8 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr is_exception detected_reinvoked_destructor
+  refdesc refcount hrefaddr
+  scope_guard is_exception detected_reinvoked_destructor
   quote_sub qsub perlstring serialize
   UNRESOLVABLE_CONDITION
 );
@@ -113,6 +116,31 @@ sub refcount ($) {
 sub serialize ($) {
   local $Storable::canonical = 1;
   nfreeze($_[0]);
+}
+
+sub scope_guard (&) {
+  croak 'Calling scope_guard() in void context makes no sense'
+    if ! defined wantarray;
+
+  # no direct blessing of coderefs - DESTROY is buggy on those
+  bless [ $_[0] ], 'DBIx::Class::_Util::ScopeGuard';
+}
+{
+  package #
+    DBIx::Class::_Util::ScopeGuard;
+
+  sub DESTROY {
+    &DBIx::Class::_Util::detected_reinvoked_destructor;
+
+    local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
+
+    eval {
+      $_[0]->[0]->();
+      1;
+    } or do {
+      Carp::cluck "Execution of scope guard $_[0] resulted in the non-trappable exception:\n\n$@";
+    };
+  }
 }
 
 sub is_exception ($) {

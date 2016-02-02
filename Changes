@@ -6,6 +6,8 @@ Revision history for DBIx::Class
           to be a mostly useless overprotection)
 
     * Fixes
+        - Ensure leaving an exception stack via Return::MultiLevel or something
+          similar produces a large warning
         - Another relatively invasive set of ::FilterColumn changes, covering
           potential data loss (RT#111567). Please run your regression tests!
         - Ensure failing on_connect* / on_disconnect* are dealt with properly,
