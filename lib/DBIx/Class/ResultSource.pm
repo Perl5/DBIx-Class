@@ -1359,29 +1359,6 @@ sub add_relationship {
   $self->_relationships(\%rels);
 
   return $self;
-
-# XXX disabled. doesn't work properly currently. skip in tests.
-
-  my $f_source = $self->schema->source($f_source_name);
-  unless ($f_source) {
-    $self->ensure_class_loaded($f_source_name);
-    $f_source = $f_source_name->result_source;
-    #my $s_class = ref($self->schema);
-    #$f_source_name =~ m/^${s_class}::(.*)$/;
-    #$self->schema->register_class(($1 || $f_source_name), $f_source_name);
-    #$f_source = $self->schema->source($f_source_name);
-  }
-  return unless $f_source; # Can't test rel without f_source
-
-  try { $self->_resolve_join($rel, 'me', {}, []) }
-  catch {
-    # If the resolve failed, back out and re-throw the error
-    delete $rels{$rel};
-    $self->_relationships(\%rels);
-    $self->throw_exception("Error creating relationship $rel: $_");
-  };
-
-  1;
 }
 
 =head2 relationships
