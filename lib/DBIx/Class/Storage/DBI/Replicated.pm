@@ -21,6 +21,7 @@ use Hash::Merge;
 use List::Util qw/min max reduce/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 
 use namespace::clean -except => 'meta';
 
@@ -699,7 +700,7 @@ sub execute_reliably {
   local $self->{read_handler} = $self->master;
 
   my $args = \@_;
-  return try {
+  return dbic_internal_try {
     $coderef->(@$args);
   } catch {
     $self->throw_exception("coderef returned an error: $_");

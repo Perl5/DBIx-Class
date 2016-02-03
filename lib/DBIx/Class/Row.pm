@@ -7,7 +7,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
 use List::Util 'first';
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use DBIx::Class::Carp;
 use SQL::Abstract qw( is_literal_value is_plain_value );
 
@@ -621,7 +621,7 @@ sub delete {
     $self->in_storage(0);
   }
   else {
-    my $rsrc = try { $self->result_source_instance }
+    my $rsrc = dbic_internal_try { $self->result_source_instance }
       or $self->throw_exception("Can't do class delete without a ResultSource instance");
 
     my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
@@ -900,7 +900,7 @@ sub _is_column_numeric {
     if (
       ! defined $colinfo->{is_numeric}
         and
-      my $storage = try { $self->result_source->schema->storage }
+      my $storage = dbic_internal_try { $self->result_source->schema->storage }
     ) {
       $colinfo->{is_numeric} =
         $storage->is_datatype_numeric ($colinfo->{data_type})
@@ -1580,7 +1580,11 @@ See L<DBIx::Class::Schema/throw_exception>.
 sub throw_exception {
   my $self=shift;
 
-  if (ref $self && ref (my $rsrc = try { $self->result_source_instance } ) ) {
+  if (
+    ref $self
+      and
+    my $rsrc = dbic_internal_try { $self->result_source_instance }
+  ) {
     $rsrc->throw_exception(@_)
   }
   else {

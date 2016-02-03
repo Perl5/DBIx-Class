@@ -25,6 +25,41 @@ BEGIN {
       &$ov;
     };
   }
+
+  if (
+    $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION}
+      or
+    # keep it always on during CI
+    (
+      ($ENV{TRAVIS}||'') eq 'true'
+        and
+      ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
+    )
+  ) {
+    require Try::Tiny;
+    my $orig = \&Try::Tiny::try;
+
+    no warnings 'redefine';
+    *Try::Tiny::try = sub (&;@) {
+      my ($fr, $first_pkg) = 0;
+      while( $first_pkg = caller($fr++) ) {
+        last if $first_pkg !~ /^
+          __ANON__
+            |
+          \Q(eval)\E
+        $/x;
+      }
+
+      if ($first_pkg =~ /DBIx::Class/) {
+        require Test::Builder;
+        Test::Builder->new->ok(0,
+          'Using try{} within DBIC internals is a mistake - use dbic_internal_try{} instead'
+        );
+      }
+
+      goto $orig;
+    };
+  }
 }
 
 use Path::Class qw/file dir/;

@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use DBIx::Class::Carp;
 use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -34,7 +35,7 @@ sub _has_one {
       # at this point we need to load the foreigner, expensive or not
       $class->ensure_class_loaded($f_class);
 
-      $f_rsrc = try {
+      $f_rsrc = dbic_internal_try {
         my $r = $f_class->result_source_instance;
         die "There got to be some columns by now... (exception caught and rewritten by catch below)"
           unless $r->columns;
@@ -60,7 +61,7 @@ sub _has_one {
 # FIXME - this check needs to be moved to schema-composition time...
 #    # only perform checks if the far side was not preloaded above *AND*
 #    # appears to have been loaded by something else (has a rsrc_instance)
-#    if (! $f_rsrc and $f_rsrc = try { $f_class->result_source_instance }) {
+#    if (! $f_rsrc and $f_rsrc = dbic_internal_try { $f_class->result_source_instance }) {
 #      $class->throw_exception(
 #        "No such column '$f_key' on foreign class ${f_class} ($guess)"
 #      ) if !$f_rsrc->has_column($f_key);

@@ -8,7 +8,10 @@ use base 'DBIx::Class';
 use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util qw(refcount quote_sub is_exception scope_guard);
+use DBIx::Class::_Util qw(
+  refcount quote_sub scope_guard
+  is_exception dbic_internal_try
+);
 use Devel::GlobalDestruction;
 use namespace::clean;
 
@@ -191,7 +194,7 @@ sub _ns_get_rsrc_instance {
   my $me = shift;
   my $rs_class = ref ($_[0]) || $_[0];
 
-  return try {
+  return dbic_internal_try {
     $rs_class->result_source_instance
   } catch {
     $me->throw_exception (
@@ -803,7 +806,7 @@ sub connection {
 
   $storage_class =~ s/^::/DBIx::Class::Storage::/;
 
-  try {
+  dbic_internal_try {
     $self->ensure_class_loaded ($storage_class);
   }
   catch {
@@ -1057,7 +1060,11 @@ default behavior will provide a detailed stack trace.
 sub throw_exception {
   my ($self, @args) = @_;
 
-  if (my $act = $self->exception_action) {
+  if (
+    ! DBIx::Class::_Util::in_internal_try()
+      and
+    my $act = $self->exception_action
+  ) {
 
     my $guard_disarmed;
 
@@ -1401,7 +1408,7 @@ sub _register_source {
   return $source if $params->{extra};
 
   my $rs_class = $source->result_class;
-  if ($rs_class and my $rsrc = try { $rs_class->result_source_instance } ) {
+  if ($rs_class and my $rsrc = dbic_internal_try { $rs_class->result_source_instance } ) {
     my %map = %{$self->class_mappings};
     if (
       exists $map{$rs_class}
@@ -1511,7 +1518,7 @@ sub compose_connection {
   carp_once "compose_connection deprecated as of 0.08000"
     unless $INC{"DBIx/Class/CDBICompat.pm"};
 
-  try {
+  dbic_internal_try {
     require DBIx::Class::ResultSetProxy;
   }
   catch {

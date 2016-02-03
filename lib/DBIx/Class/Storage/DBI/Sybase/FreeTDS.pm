@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::Sybase/;
 use mro 'c3';
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 =head1 NAME
@@ -67,7 +67,7 @@ sub set_textsize {
   my $text_size =
     shift
       ||
-    try { $self->_dbic_cinnect_attributes->{LongReadLen} }
+    dbic_internal_try { $self->_dbic_connect_attributes->{LongReadLen} }
       ||
     32768; # the DBD::Sybase default
 

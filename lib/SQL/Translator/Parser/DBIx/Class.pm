@@ -15,6 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
+use DBIx::Class::_Util 'dbic_internal_try';
 use DBIx::Class::Exception;
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
@@ -54,7 +55,7 @@ sub parse {
     DBIx::Class::Exception->throw('No DBIx::Class::Schema') unless ($dbicschema);
 
     if (!ref $dbicschema) {
-      try {
+      dbic_internal_try {
         Class::C3::Componentised->ensure_class_loaded($dbicschema)
       } catch {
         DBIx::Class::Exception->throw("Can't load $dbicschema: $_");
@@ -175,7 +176,7 @@ sub parse {
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $relsource = try { $source->related_source($rel) };
+            my $relsource = dbic_internal_try { $source->related_source($rel) };
             unless ($relsource) {
               carp "Ignoring relationship '$rel' on '$moniker' - related resultsource '$rel_info->{class}' is not registered with this schema\n";
               next;

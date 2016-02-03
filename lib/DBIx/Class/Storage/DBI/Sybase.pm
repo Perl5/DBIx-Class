@@ -2,6 +2,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
+use DBIx::Class::_Util 'dbic_internal_try';
 use Try::Tiny;
 use namespace::clean;
 
@@ -26,7 +27,7 @@ sub _rebless { shift->_determine_connector_driver('Sybase') }
 sub _get_rdbms_name {
   my $self = shift;
 
-  try {
+  dbic_internal_try {
     my $name = $self->_get_dbh->selectrow_arrayref('sp_server_info @attribute_id=1')->[2];
 
     if ($name) {
@@ -77,9 +78,9 @@ sub _ping {
 
 # FIXME if the main connection goes stale, does opening another for this statement
 # really determine anything?
-
+# FIXME (2) THIS MAKES 0 SENSE!!! Need to test later
   if ($dbh->{syb_no_child_con}) {
-    return try {
+    return dbic_internal_try {
       $self->_connect->do('select 1');
       1;
     }
@@ -88,13 +89,14 @@ sub _ping {
     };
   }
 
-  return try {
-    $dbh->do('select 1');
-    1;
-  }
-  catch {
-    0;
-  };
+  return (
+    (dbic_internal_try {
+      $dbh->do('select 1');
+      1;
+    })
+      ? 1
+      : 0
+  );
 }
 
 sub _set_max_connect {

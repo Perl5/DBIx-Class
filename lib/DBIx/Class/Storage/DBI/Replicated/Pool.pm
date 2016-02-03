@@ -7,6 +7,7 @@ use Scalar::Util 'reftype';
 use DBI ();
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
+use DBIx::Class::_Util 'dbic_internal_try';
 use Try::Tiny;
 
 use namespace::clean -except => 'meta';
@@ -293,7 +294,7 @@ Returns 1 on success and undef on failure.
 sub _safely {
   my ($self, $replicant, $name, $code) = @_;
 
-  return try {
+  return dbic_internal_try {
     $code->();
     1;
   } catch {

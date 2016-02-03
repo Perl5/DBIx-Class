@@ -202,8 +202,8 @@ use warnings;
 use base 'DBIx::Class::Schema';
 
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'dbic_internal_try';
 use Time::HiRes qw/gettimeofday/;
-use Try::Tiny;
 use Scalar::Util 'weaken';
 use namespace::clean;
 
@@ -527,7 +527,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = try {
+    my $version = dbic_internal_try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
@@ -746,14 +746,15 @@ sub _read_sql_file {
 
 sub _source_exists
 {
-    my ($self, $rs) = @_;
+  my ($self, $rs) = @_;
 
-    return try {
-      $rs->search(\'1=0')->cursor->next;
-      1;
-    } catch {
-      0;
-    };
+  ( dbic_internal_try {
+    $rs->search(\'1=0')->cursor->next;
+    1;
+  } )
+    ? 1
+    : 0
+  ;
 }
 
 =head1 FURTHER QUESTIONS?

@@ -53,7 +53,11 @@ for my $key ('', 'primary') {
 }
 
 # collapsing and non-collapsing are separate codepaths, thus the separate tests
-
+my $ea_count = 0;
+$schema->exception_action(sub {
+  $ea_count++;
+  die @_;
+});
 
 $artist_rs = $schema->resultset("Artist");
 
@@ -78,6 +82,10 @@ for (1, 0) {
     'One warning on NULL conditions for constraint'
   ;
 }
+
+is( $ea_count, 1, "exception action invoked the expected amount of times (just the exception)" );
+
+$schema->exception_action(undef);
 
 
 $artist_rs = $schema->resultset("Artist")->search({}, { prefetch => 'cds' });

@@ -5,10 +5,9 @@ use warnings;
 
 use base 'DBIx::Class::Cursor';
 
-use Try::Tiny;
 use Scalar::Util qw(refaddr weaken);
 use List::Util 'shuffle';
-use DBIx::Class::_Util 'detected_reinvoked_destructor';
+use DBIx::Class::_Util qw( detected_reinvoked_destructor dbic_internal_try );
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -251,8 +250,17 @@ sub __finish_sth {
   my $self = shift;
 
   # No need to care about failures here
-  try { local $SIG{__WARN__} = sub {}; $self->{sth}->finish } if (
-    $self->{sth} and ! try { ! $self->{sth}->FETCH('Active') }
+  dbic_internal_try {
+    local $SIG{__WARN__} = sub {};
+    $self->{sth}->finish
+  } if (
+    $self->{sth}
+      and
+    # weird double-negative to catch the case of ->FETCH throwing
+    # and attempt a finish *anyway*
+    ! dbic_internal_try {
+      ! $self->{sth}->FETCH('Active')
+    }
   );
 }
 

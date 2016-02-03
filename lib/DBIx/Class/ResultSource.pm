@@ -9,10 +9,9 @@ use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try );
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
-use Try::Tiny;
 use Scalar::Util qw/blessed weaken isweak/;
 
 use namespace::clean;
@@ -403,12 +402,12 @@ sub column_info {
   if ( ! $self->_columns->{$column}{data_type}
        and ! $self->{_columns_info_loaded}
        and $self->column_info_from_storage
-       and my $stor = try { $self->storage } )
+       and my $stor = dbic_internal_try { $self->storage } )
   {
     $self->{_columns_info_loaded}++;
 
     # try for the case of storage without table
-    try {
+    dbic_internal_try {
       my $info = $stor->columns_info_for( $self->from );
       my $lc_info = { map
         { (lc $_) => $info->{$_} }
@@ -481,12 +480,12 @@ sub columns_info {
       and
     grep { ! $_->{data_type} } values %$colinfo
       and
-    my $stor = try { $self->storage }
+    my $stor = dbic_internal_try { $self->storage }
   ) {
     $self->{_columns_info_loaded}++;
 
     # try for the case of storage without table
-    try {
+    dbic_internal_try {
       my $info = $stor->columns_info_for( $self->from );
       my $lc_info = { map
         { (lc $_) => $info->{$_} }
@@ -1130,7 +1129,7 @@ sub resultset {
   $self->resultset_class->new(
     $self,
     {
-      try { %{$self->schema->default_resultset_attributes} },
+      ( dbic_internal_try { %{$self->schema->default_resultset_attributes} } ),
       %{$self->{resultset_attributes}},
     },
   );
@@ -1471,7 +1470,7 @@ sub reverse_relationship_info {
     # to use the source_names, otherwise we will use the actual classes
 
     # the schema may be partial
-    my $roundtrip_rsrc = try { $other_rsrc->related_source($other_rel) }
+    my $roundtrip_rsrc = dbic_internal_try { $other_rsrc->related_source($other_rel) }
       or next;
 
     if ($registered_source_name) {
@@ -2269,7 +2268,7 @@ sub related_source {
   # if we are not registered with a schema - just use the prototype
   # however if we do have a schema - ask for the source by name (and
   # throw in the process if all fails)
-  if (my $schema = try { $self->schema }) {
+  if (my $schema = dbic_internal_try { $self->schema }) {
     $schema->source($self->relationship_info($rel)->{source});
   }
   else {

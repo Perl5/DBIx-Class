@@ -12,6 +12,52 @@ use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistr
 use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use namespace::clean;
 
+if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
+  __PACKAGE__->exception_action( sub {
+
+    my ( $fr_num, $disarmed, $throw_exception_fr_num );
+    while( ! $disarmed and my @fr = caller(++$fr_num) ) {
+
+      $throw_exception_fr_num ||= (
+        $fr[3] eq 'DBIx::Class::ResultSource::throw_exception'
+          and
+        $fr_num
+      );
+
+      $disarmed = !! (
+        $fr[1] =~ / \A (?: \. [\/\\] )? x?t [\/\\] .+ \.t \z /x
+          and
+        (
+          $fr[3] =~ /\A (?:
+            Test::Exception::throws_ok
+              |
+            Test::Exception::dies_ok
+              |
+            Try::Tiny::try
+              |
+            \Q(eval)\E
+          ) \z /x
+            or
+          (
+            $fr[3] eq 'Test::Exception::lives_ok'
+              and
+            ( $::TODO or Test::Builder->new->in_todo )
+          )
+        )
+      );
+    }
+
+    Test::Builder->new->ok(0, join "\n",
+      'Unexpected &exception_action invocation',
+      '',
+      '  You almost certainly used eval/try instead of dbic_internal_try()',
+      "  Adjust *one* of the eval-ish constructs in the callstack starting" . DBICTest::Util::stacktrace($throw_exception_fr_num||())
+    ) unless $disarmed;
+
+    DBIx::Class::Exception->throw( $_[0] );
+  })
+}
+
 sub capture_executed_sql_bind {
   my ($self, $cref) = @_;
 

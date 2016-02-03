@@ -105,7 +105,7 @@ for my $ap (qw(
     isa_ok $@, $ap;
   } $exp_warn, 'proper warning on antipattern encountered within exception_action';
 
-  # and make sure that the retrhow works
+  # and make sure that the rethrow works
   $schema->exception_action(sub { die @_ });
   warnings_like {
     eval {

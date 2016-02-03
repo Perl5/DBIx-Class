@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use List::Util 'first';
+use DBIx::Class::_Util 'dbic_internal_try';
 use Try::Tiny;
 use namespace::clean;
 
@@ -76,7 +77,7 @@ sub _prefetch_autovalues {
     my $table_name = $source->from;
     $table_name    = $$table_name if ref $table_name;
 
-    my ($identity) = try {
+    my ($identity) = dbic_internal_try {
       $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')")
     };
 
@@ -139,7 +140,7 @@ sub select_single {
 
 sub build_datetime_parser {
   my $self = shift;
-  try {
+  dbic_internal_try {
     require DateTime::Format::Strptime;
   }
   catch {

@@ -9,7 +9,7 @@ use base qw/
 /;
 use mro 'c3';
 
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use List::Util 'first';
 use namespace::clean;
 
@@ -81,7 +81,7 @@ sub _execute {
 
     # we didn't even try on ftds
     unless ($self->_no_scope_identity_query) {
-      ($identity) = try { $sth->fetchrow_array };
+      ($identity) = dbic_internal_try { $sth->fetchrow_array };
       $sth->finish;
     }
 
@@ -161,7 +161,7 @@ sub sql_limit_dialect {
     # stored procedures like xp_msver, or version detection failed for some
     # other reason.
     # So, we use a query to check if RNO is implemented.
-    try {
+    dbic_internal_try {
       $self->_get_dbh->selectrow_array('SELECT row_number() OVER (ORDER BY rand())');
       $supports_rno = 1;
     };
@@ -178,12 +178,13 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  return try {
+  (dbic_internal_try {
     $dbh->do('select 1');
     1;
-  } catch {
-    0;
-  };
+  })
+    ? 1
+    : 0
+  ;
 }
 
 package # hide from PAUSE

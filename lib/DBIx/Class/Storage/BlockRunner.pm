@@ -7,7 +7,7 @@ use strict;
 use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw(is_exception qsub);
+use DBIx::Class::_Util qw( is_exception qsub dbic_internal_try );
 use Scalar::Util qw(weaken blessed reftype);
 use Try::Tiny;
 use Moo;
@@ -122,7 +122,7 @@ sub _run {
   my $run_err = '';
 
   return preserve_context {
-    try {
+    dbic_internal_try {
       if (defined $txn_init_depth) {
         $self->storage->txn_begin;
         $txn_begin_ok = 1;
@@ -156,7 +156,13 @@ sub _run {
         ) unless $delta_txn == 1 and $cur_depth == 0;
       }
       else {
-        $run_err = eval { $storage->txn_commit; 1 } ? '' : $@;
+        dbic_internal_try {
+          $storage->txn_commit;
+          1;
+        }
+        catch {
+          $run_err = $_;
+        };
       }
     }
 

@@ -16,6 +16,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::Storage::BlockRunner;
 use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
+use DBIx::Class::_Util 'dbic_internal_try';
 use Try::Tiny;
 use namespace::clean;
 
@@ -253,12 +254,12 @@ sub txn_rollback {
     $self->{transaction_depth}--;
 
     # in case things get really hairy - just disconnect
-    eval { $self->_exec_txn_rollback; 1 } or do {
+    dbic_internal_try { $self->_exec_txn_rollback; 1 } or do {
       my $rollback_error = $@;
 
       # whatever happens, too low down the stack to care
       # FIXME - revisit if stackable exceptions become a thing
-      eval { $self->disconnect };
+      dbic_internal_try { $self->disconnect };
 
       die $rollback_error;
     };
@@ -310,16 +311,19 @@ sub __delicate_rollback {
     return;
   }
 
+  my @args = @_;
   my $rbe;
 
-  local $@; # taking no chances
-  unless( eval { $self->txn_rollback; 1 } ) {
+  dbic_internal_try {
+    $self->txn_rollback; 1
+  }
+  catch {
 
-    $rbe = $@;
+    $rbe = $_;
 
     # we were passed an existing exception to augment (think DESTROY stacks etc)
-    if (@_) {
-      my $exception = shift;
+    if (@args) {
+      my ($exception) = @args;
 
       # append our text - THIS IS A TEMPORARY FIXUP!
       #
@@ -367,7 +371,7 @@ sub __delicate_rollback {
         ) =~ s/Transaction aborted: (?=Transaction aborted:)//;
       }
     }
-  }
+  };
 
   return $rbe;
 }
@@ -577,7 +581,7 @@ sub debugobj {
           $self->throw_exception("Unable to parse TRACE_PROFILE config file '$profile' without $missing");
         }
 
-        my $cfg = try {
+        my $cfg = dbic_internal_try {
           Config::Any->load_files({ files => [$profile], use_ext => 1 });
         } catch {
           # sanitize the error message a bit
@@ -603,7 +607,7 @@ sub debugobj {
       #
       # Yes I am aware this is fragile and TxnScopeGuard needs
       # a better fix. This is another yak to shave... :(
-      try {
+      dbic_internal_try {
         DBIx::Class::Storage::Debug::PrettyPrint->new(@pp_args);
       } catch {
         $self->throw_exception($_);

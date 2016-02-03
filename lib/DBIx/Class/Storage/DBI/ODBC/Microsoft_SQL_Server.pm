@@ -9,6 +9,7 @@ use base qw/
 use mro 'c3';
 use Scalar::Util 'reftype';
 use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -227,7 +228,7 @@ sub _run_connection_actions {
     !!$self->_using_dynamic_cursors
   ) {
     if ($use_dyncursors) {
-      try {
+      dbic_internal_try {
         my $dbh = $self->_dbh;
         local $dbh->{RaiseError} = 1;
         local $dbh->{PrintError} = 0;

@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::Firebird::Common/;
 use mro 'c3';
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 =head1 NAME
@@ -38,12 +38,13 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  return try {
+  (dbic_internal_try {
     $dbh->do('select 1 from rdb$database');
     1;
-  } catch {
-    0;
-  };
+  })
+    ? 1
+    : 0
+  ;
 }
 
 # We want dialect 3 for new features and quoting to work, DBD::InterBase uses

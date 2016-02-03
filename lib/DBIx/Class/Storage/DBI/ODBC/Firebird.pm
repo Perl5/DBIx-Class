@@ -8,6 +8,7 @@ use base qw/
 /;
 use mro 'c3';
 use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 =head1 NAME
@@ -48,7 +49,7 @@ sub _exec_svp_release { 1 }
 sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
-  try {
+  dbic_internal_try {
     $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
   }
   catch {

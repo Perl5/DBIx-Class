@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'dbic_internal_try';
 use Try::Tiny;
 use namespace::clean;
 
@@ -197,7 +198,7 @@ sub _flate_or_fallback
   my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
   my $method = $parser->can($preferred_method) || sprintf($method_fmt, 'datetime');
 
-  return try {
+  return dbic_internal_try {
     $parser->$method($value);
   }
   catch {

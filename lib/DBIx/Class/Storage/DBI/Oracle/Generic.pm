@@ -7,9 +7,8 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
-use Try::Tiny;
 use List::Util 'first';
-use DBIx::Class::_Util 'modver_gt_or_eq_and_lt';
+use DBIx::Class::_Util qw( modver_gt_or_eq_and_lt dbic_internal_try );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -273,12 +272,13 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  return try {
+  ( dbic_internal_try {
     $dbh->do('select 1 from dual');
     1;
-  } catch {
-    0;
-  };
+  })
+    ? 1
+    : 0
+  ;
 }
 
 sub _dbh_execute {

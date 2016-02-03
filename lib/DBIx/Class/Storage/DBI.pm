@@ -13,7 +13,11 @@ use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor scope_guard);
+use DBIx::Class::_Util qw(
+  quote_sub perlstring serialize
+  dbic_internal_try
+  detected_reinvoked_destructor scope_guard
+);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -1146,7 +1150,7 @@ sub _server_info {
 
     my $info = {};
 
-    my $server_version = try {
+    my $server_version = dbic_internal_try {
       $self->_get_server_version
     } catch {
       # driver determination *may* use this codepath
@@ -1207,7 +1211,7 @@ sub _describe_connection {
   my $self = shift;
 
   my $drv;
-  try {
+  dbic_internal_try {
     $drv = $self->_extract_driver_from_connect_info;
     $self->ensure_connected;
   };
@@ -1221,7 +1225,7 @@ sub _describe_connection {
     DBIC_DRIVER => ref $self,
     $drv ? (
       DBD => $drv,
-      DBD_VER => try { $drv->VERSION },
+      DBD_VER => dbic_internal_try { $drv->VERSION },
     ) : (),
   };
 
@@ -1262,7 +1266,7 @@ sub _describe_connection {
   ) {
     # some drivers barf on things they do not know about instead
     # of returning undef
-    my $v = try { $self->_dbh_get_info($inf) };
+    my $v = dbic_internal_try { $self->_dbh_get_info($inf) };
     next unless defined $v;
 
     #my $key = sprintf( '%s(%s)', $inf, $DBI::Const::GetInfoType::GetInfoType{$inf} );
@@ -1404,7 +1408,7 @@ sub _warn_undetermined_driver {
 sub _do_connection_actions {
   my ($self, $method_prefix, $call, @args) = @_;
 
-  try {
+  dbic_internal_try {
     if (not ref($call)) {
       my $method = $method_prefix . $call;
       $self->$method(@args);
@@ -1528,7 +1532,7 @@ sub _connect {
     }, '__DBIC__DBH__ERROR__HANDLER__';
   };
 
-  try {
+  dbic_internal_try {
     if(ref $info->[0] eq 'CODE') {
       $dbh = $info->[0]->();
     }
@@ -1998,7 +2002,7 @@ sub insert {
   if (my $retlist = $sqla_opts->{returning}) {  # if IR is supported - we will get everything in one set
 
     unless( @ir_container ) {
-      try {
+      dbic_internal_try {
 
         # FIXME - need to investigate why Caelum silenced this in 4d4dc518
         local $SIG{__WARN__} = sub {};
@@ -2343,7 +2347,7 @@ sub _dbh_execute_for_fetch {
 
   my $tuple_status = [];
   my ($rv, $err);
-  try {
+  dbic_internal_try {
     $rv = $sth->execute_for_fetch(
       $fetch_tuple,
       $tuple_status,
@@ -2362,7 +2366,7 @@ sub _dbh_execute_for_fetch {
   );
 
   # Statement must finish even if there was an exception.
-  try {
+  dbic_internal_try {
     $sth->finish
   }
   catch {
@@ -2390,7 +2394,7 @@ sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
 
   my $err;
-  try {
+  dbic_internal_try {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
@@ -2402,7 +2406,7 @@ sub _dbh_execute_inserts_with_no_binds {
   };
 
   # Make sure statement is finished even if there was an exception.
-  try {
+  dbic_internal_try {
     $sth->finish
   }
   catch {
@@ -2501,7 +2505,7 @@ sub _select_args {
       and
     @{$attrs->{group_by}}
       and
-    my $grp_aliases = try { # try{} because $attrs->{from} may be unreadable
+    my $grp_aliases = dbic_internal_try { # internal_try{} because $attrs->{from} may be unreadable
       $self->_resolve_aliastypes_from_select_args({ from => $attrs->{from}, group_by => $attrs->{group_by} })
     }
   ) {
@@ -2618,7 +2622,7 @@ sub _dbh_columns_info_for {
   my %result;
 
   if (! DBIx::Class::_ENV_::STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE and $dbh->can('column_info')) {
-    try {
+    dbic_internal_try {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
@@ -2722,7 +2726,7 @@ Return the row id of the last insert.
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
 
-    my $id = try { $dbh->last_insert_id (undef, undef, $source->name, $col) };
+    my $id = dbic_internal_try { $dbh->last_insert_id (undef, undef, $source->name, $col) };
 
     return $id if defined $id;
 
@@ -2773,15 +2777,15 @@ sub _determine_supports_placeholders {
 
   # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
   # but it is inaccurate more often than not
-  return try {
+  ( dbic_internal_try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     $dbh->do('select ?', {}, 1);
     1;
-  }
-  catch {
-    0;
-  };
+  } )
+    ? 1
+    : 0
+  ;
 }
 
 # Check if placeholders bound to non-string types throw exceptions
@@ -2790,16 +2794,16 @@ sub _determine_supports_typeless_placeholders {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  return try {
+  ( dbic_internal_try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     # this specifically tests a bind that is NOT a string
     $dbh->do('select 1 where 1 = ?', {}, 1);
     1;
-  }
-  catch {
-    0;
-  };
+  } )
+    ? 1
+    : 0
+  ;
 }
 
 =head2 sqlt_type
@@ -3135,7 +3139,7 @@ sub deploy {
     return if($line =~ /^COMMIT/m);
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
-    try {
+    dbic_internal_try {
       # do a dbh_do cycle here, as we need some error checking in
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });

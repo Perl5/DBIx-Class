@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -30,7 +30,7 @@ sub has_many {
 
 # FIXME - this check needs to be moved to schema-composition time...
 #    # only perform checks if the far side appears already loaded
-#    if (my $f_rsrc = try { $f_class->result_source_instance } ) {
+#    if (my $f_rsrc = dbic_internal_try { $f_class->result_source_instance } ) {
 #      $class->throw_exception(
 #        "No such column '$f_key' on foreign class ${f_class} ($guess)"
 #      ) if !$f_rsrc->has_column($f_key);

@@ -7,6 +7,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -41,7 +42,7 @@ sub belongs_to {
     )  unless $class->has_column($f_key);
 
     $class->ensure_class_loaded($f_class);
-    my $f_rsrc = try {
+    my $f_rsrc = dbic_internal_try {
       $f_class->result_source_instance;
     }
     catch {

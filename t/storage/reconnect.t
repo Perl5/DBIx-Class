@@ -16,6 +16,12 @@ my $db_tmp  = "$db_orig.tmp";
 # Set up the "usual" sqlite for DBICTest
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
+my $exception_action_count;
+$schema->exception_action(sub {
+  $exception_action_count++;
+  die @_;
+});
+
 # Make sure we're connected by doing something
 my @art = $schema->resultset("Artist")->search({ }, { order_by => { -desc => 'name' }});
 cmp_ok(@art, '==', 3, "Three artists returned");
@@ -92,6 +98,8 @@ for my $ctx (keys %$ctx_map) {
 
   # start disconnected and then connected
   $schema->storage->disconnect;
+  $exception_action_count = 0;
+
   for (1, 2) {
     my $disarmed;
 
@@ -106,6 +114,8 @@ for my $ctx (keys %$ctx_map) {
       isa_ok ($schema->resultset('Artist')->next, 'DBICTest::Artist');
     }, @$args) });
   }
+
+  is( $exception_action_count, 0, 'exception_action never called' );
 };
 
 # make sure RT#110429 does not recur on manual DBI-side disconnect
@@ -139,6 +149,7 @@ for my $cref (
   note( "Testing with " . B::Deparse->new->coderef2text($cref) );
 
   $schema->storage->disconnect;
+  $exception_action_count = 0;
 
   ok( !$schema->storage->connected, 'Not connected' );
 
@@ -152,6 +163,22 @@ for my $cref (
   ok( !$schema->storage->connected, 'Not connected as a result of failed rollback' );
 
   is( $schema->storage->transaction_depth, undef, "Depth expectedly unknown after failed rollbacks" );
+
+  is( $exception_action_count, 1, "exception_action called only once" );
+}
+
+# check exception_action under tenacious disconnect
+{
+  $schema->storage->disconnect;
+  $exception_action_count = 0;
+
+  throws_ok { $schema->txn_do(sub {
+    $schema->storage->_dbh->disconnect;
+
+    $schema->resultset('Artist')->next;
+  })} qr/prepare on inactive database handle/;
+
+  is( $exception_action_count, 1, "exception_action called only once" );
 }
 
 # check that things aren't crazy with a non-violent disconnect

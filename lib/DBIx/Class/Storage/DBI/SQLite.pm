@@ -7,7 +7,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use SQL::Abstract 'is_plain_value';
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
+use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer dbic_internal_try);
 use DBIx::Class::Carp;
 use Try::Tiny;
 use namespace::clean;
@@ -168,26 +168,29 @@ sub _ping {
   unless ($DBD::SQLite::__DBIC_TXN_SYNC_SANE__) {
     # since we do not have access to sqlite3_get_autocommit(), do a trick
     # to attempt to *safely* determine what state are we *actually* in.
-    # FIXME
-    # also using T::T here leads to bizarre leaks - will figure it out later
-    my $really_not_in_txn = do {
-      local $@;
+
+    my $really_not_in_txn;
+
+    # not assigning RV directly to env above, because this causes a bizarre
+    # leak of the catch{} cref on older perls... wtf
+    dbic_internal_try {
 
       # older versions of DBD::SQLite do not properly detect multiline BEGIN/COMMIT
       # statements to adjust their {AutoCommit} state. Hence use such a statement
       # pair here as well, in order to escape from poking {AutoCommit} needlessly
       # https://rt.cpan.org/Public/Bug/Display.html?id=80087
-      eval {
-        # will fail instantly if already in a txn
-        $dbh->do("-- multiline\nBEGIN");
-        $dbh->do("-- multiline\nCOMMIT");
-        1;
-      } or do {
-        ($@ =~ /transaction within a transaction/)
-          ? 0
-          : undef
-        ;
-      };
+      #
+      # will fail instantly if already in a txn
+      $dbh->do("-- multiline\nBEGIN");
+      $dbh->do("-- multiline\nCOMMIT");
+
+      $really_not_in_txn = 1;
+    }
+    catch {
+      $really_not_in_txn = ( $_[0] =~ qr/transaction within a transaction/
+        ? 0
+        : undef
+      );
     };
 
     # if we were unable to determine this - we may very well be dead
@@ -212,7 +215,7 @@ sub _ping {
   }
 
   # do the actual test and return on no failure
-  ( $ping_fail ||= ! try { $dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 } )
+  ( $ping_fail ||= ! dbic_internal_try { $dbh->do('SELECT * FROM sqlite_master LIMIT 1'); 1 } )
     or return 1; # the actual RV of _ping()
 
   # ping failed (or so it seems) - need to do some cleanup
@@ -221,8 +224,7 @@ sub _ping {
   # keeps the actual file handle open. We don't really want this to happen,
   # so force-close the handle via DBI itself
   #
-  local $@; # so that we do not clobber the real error as set above
-  eval { $dbh->disconnect }; # if it fails - it fails
+  dbic_internal_try { $dbh->disconnect }; # if it fails - it fails
   undef; # the actual RV of _ping()
 }
 

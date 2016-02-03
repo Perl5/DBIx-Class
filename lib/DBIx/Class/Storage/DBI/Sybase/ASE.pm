@@ -16,7 +16,7 @@ use Sub::Name();
 use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -596,7 +596,7 @@ sub _insert_bulk {
   });
 
   my $exception = '';
-  try {
+  dbic_internal_try {
     my $bulk = $self->_bulk_storage;
 
     my $guard = $bulk->txn_scope_guard;
@@ -722,7 +722,7 @@ sub _remove_blob_cols_array {
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
-  my @primary_cols = try
+  my @primary_cols = dbic_internal_try
     { $source->_pri_cols_or_die }
     catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
@@ -755,7 +755,7 @@ sub _insert_blobs {
 
   my $table = $source->name;
 
-  my @primary_cols = try
+  my @primary_cols = dbic_internal_try
     { $source->_pri_cols_or_die }
     catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
@@ -785,7 +785,7 @@ sub _insert_blobs {
       );
     }
 
-    try {
+    dbic_internal_try {
       do {
         $sth->func('CS_GET', 1, 'ct_data_info') or die $sth->errstr;
       } while $sth->fetch;

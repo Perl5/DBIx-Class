@@ -4,6 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -28,7 +29,7 @@ sub delete {
     my $ret = $self->next::method(@rest);
 
     foreach my $rel (@cascade) {
-      if( my $rel_rs = eval{ $self->search_related($rel) } ) {
+      if( my $rel_rs = dbic_internal_try { $self->search_related($rel) } ) {
         $rel_rs->delete_all;
       } else {
         carp "Skipping cascade delete on relationship '$rel' - related resultsource '$rels{$rel}{class}' is not registered with this schema";

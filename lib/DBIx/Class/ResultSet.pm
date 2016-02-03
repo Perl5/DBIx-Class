@@ -8,6 +8,7 @@ use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
+  dbic_internal_try
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
@@ -878,7 +879,7 @@ sub find {
         join "\x00", sort $rsrc->unique_constraint_columns($c_name)
       }++;
 
-      try {
+      dbic_internal_try {
         push @unique_queries, $self->_qualify_cond_columns(
           $self->result_source->_minimal_valueset_satisfying_constraint(
             constraint_name => $c_name,

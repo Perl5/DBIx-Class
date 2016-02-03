@@ -5,7 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-use Try::Tiny;
+use DBIx::Class::_Util 'dbic_internal_try';
 use namespace::clean;
 
 use overload
@@ -112,7 +112,7 @@ sub STORABLE_thaw {
   }
   elsif( my $rs = $from_class->result_source_instance ) {
     # in the off-chance we are using CDBI-compat and have leaked $schema already
-    if( my $s = try { $rs->schema } ) {
+    if( my $s = dbic_internal_try { $rs->schema } ) {
       $self->schema( $s );
     }
     else {

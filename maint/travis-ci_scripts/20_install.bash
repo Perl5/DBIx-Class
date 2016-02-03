@@ -91,6 +91,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
 
   # some extra pollutants
   toggle_booleans+=( \
+    DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION \
     DBICTEST_SQLITE_USE_FILE \
     DBICTEST_RUN_ALL_TESTS \
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \

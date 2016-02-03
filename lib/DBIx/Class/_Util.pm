@@ -79,7 +79,8 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr
-  scope_guard is_exception detected_reinvoked_destructor
+  scope_guard detected_reinvoked_destructor
+  is_exception dbic_internal_try
   quote_sub qsub perlstring serialize deep_clone
   UNRESOLVABLE_CONDITION
 );
@@ -226,6 +227,85 @@ sub is_exception ($) {
   }
 
   return $not_blank;
+}
+
+{
+  my $callstack_state;
+
+  # Recreate the logic of try(), while reusing the catch()/finally() as-is
+  #
+  # FIXME: We need to move away from Try::Tiny entirely (way too heavy and
+  # yes, shows up ON TOP of profiles) but this is a batle for another maint
+  sub dbic_internal_try (&;@) {
+
+    my $try_cref = shift;
+    my $catch_cref = undef;  # apparently this is a thing... https://rt.perl.org/Public/Bug/Display.html?id=119311
+
+    for my $arg (@_) {
+
+      if( ref($arg) eq 'Try::Tiny::Catch' ) {
+
+        croak 'dbic_internal_try() may not be followed by multiple catch() blocks'
+          if $catch_cref;
+
+        $catch_cref = $$arg;
+      }
+      elsif ( ref($arg) eq 'Try::Tiny::Finally' ) {
+        croak 'dbic_internal_try() does not support finally{}';
+      }
+      else {
+        croak(
+          'dbic_internal_try() encountered an unexpected argument '
+        . "'@{[ defined $arg ? $arg : 'UNDEF' ]}' - perhaps "
+        . 'a missing semi-colon before or ' # trailing space important
+        );
+      }
+    }
+
+    my $wantarray = wantarray;
+    my $preexisting_exception = $@;
+
+    my @ret;
+    my $all_good = eval {
+      $@ = $preexisting_exception;
+
+      local $callstack_state->{in_internal_try} = 1
+        unless $callstack_state->{in_internal_try};
+
+      # always unset - someone may have snuck it in
+      local $SIG{__DIE__}
+        if $SIG{__DIE__};
+
+
+      if( $wantarray ) {
+        @ret = $try_cref->();
+      }
+      elsif( defined $wantarray ) {
+        $ret[0] = $try_cref->();
+      }
+      else {
+        $try_cref->();
+      }
+
+      1;
+    };
+
+    my $exception = $@;
+    $@ = $preexisting_exception;
+
+    if ( $all_good ) {
+      return $wantarray ? @ret : $ret[0]
+    }
+    elsif ( $catch_cref ) {
+      for ( $exception ) {
+        return $catch_cref->($exception);
+      }
+    }
+
+    return;
+  }
+
+  sub in_internal_try { !! $callstack_state->{in_internal_try} }
 }
 
 {
