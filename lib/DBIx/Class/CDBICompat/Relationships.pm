@@ -7,6 +7,7 @@ use base 'Class::Data::Inheritable';
 
 use Clone;
 use DBIx::Class::CDBICompat::Relationship;
+use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(quote_sub perlstring);
 
 __PACKAGE__->mk_classdata('__meta_info' => {});
@@ -200,8 +201,11 @@ sub search {
                   : undef());
   if (ref $where eq 'HASH') {
     foreach my $key (keys %$where) { # has_a deflation hack
-      $where->{$key} = ''.$where->{$key}
-        if eval { $where->{$key}->isa('DBIx::Class') };
+      $where->{$key} = ''.$where->{$key} if (
+        defined blessed $where->{$key}
+          and
+        $where->{$key}->isa('DBIx::Class')
+      );
     }
   }
   $self->next::method($where, $attrs);
