@@ -80,6 +80,7 @@ my $dbic_reqs = {
       'Class::Unload' => '0.07',
       'Time::Piece' => '0',
       'Time::Piece::MySQL' => '0',
+      'DBD::mysql' => '4.023',
     },
   },
 

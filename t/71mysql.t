@@ -454,6 +454,7 @@ ZEROINSEARCH: {
 
 # Ensure disappearing RDBMS does not leave the storage in an inconsistent state
 # Unlike the test in storage/reconnect.t we test live RDBMS-side disconnection
+SKIP:
 for my $cref (
   sub {
     my $schema = shift;
@@ -482,6 +483,8 @@ for my $cref (
     } );
   },
 ) {
+  # version needed for the "read_timeout" feature
+  DBIx::Class::Optional::Dependencies->skip_without( 'DBD::mysql>=4.023' );
 
   note( "Testing with " . B::Deparse->new->coderef2text($cref) );
 
