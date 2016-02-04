@@ -885,6 +885,12 @@ sub disconnect {
   # in order to unambiguously reset the state - do the cleanup in guard
 
   my $g = scope_guard {
+
+    {
+      local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
+      eval { $self->_dbh->disconnect };
+    }
+
     $self->_dbh(undef);
     $self->_dbh_details({});
     $self->transaction_depth(undef);
@@ -895,7 +901,7 @@ sub disconnect {
     #$self->_sql_maker(undef); # this may also end up being different
   };
 
-  if( my $dbh = $self->_dbh ) {
+  if( $self->_dbh ) {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for (
       ( $self->on_disconnect_call || () ),
@@ -904,8 +910,6 @@ sub disconnect {
 
     # stops the "implicit rollback on disconnect" warning
     $self->_exec_txn_rollback unless $self->_dbh_autocommit;
-
-    $dbh->disconnect;
   }
 }
 
