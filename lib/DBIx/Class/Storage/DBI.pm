@@ -901,7 +901,24 @@ sub disconnect {
     #$self->_sql_maker(undef); # this may also end up being different
   };
 
-  if( $self->_dbh ) {
+  # FIXME FIXME FIXME
+  # Something is wrong with CAG - it seems to delay GC in PP mode
+  # If the below if() is changed to:
+  #
+  #   if( $self->_dbh ) {
+  #
+  # The the following will reproducibly warn as the weakref in a $txn_guard
+  # is *NOT* deallocated by the time the $txn_guard destructor runs at
+  # https://github.com/dbsrgits/dbix-class/blob/84efb6d7/lib/DBIx/Class/Storage/TxnScopeGuard.pm#L82
+  #
+  # perl -Ilib -e '
+  #   BEGIN { warn $ENV{CAG_USE_XS} = ( time % 2 ) };
+  #   use DBIx::Class::Schema;
+  #   my $s = DBIx::Class::Schema->connect("dbi:SQLite::memory:");
+  #   my $g = $s->txn_scope_guard;
+  #   $s->storage->disconnect
+  # '
+  if( $self->{_dbh} ) { # do not use accessor - see above
 
     $self->_do_connection_actions(disconnect_call_ => $_) for (
       ( $self->on_disconnect_call || () ),
