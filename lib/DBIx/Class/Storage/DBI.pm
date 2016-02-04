@@ -905,8 +905,6 @@ sub disconnect {
     # stops the "implicit rollback on disconnect" warning
     $self->_exec_txn_rollback unless $self->_dbh_autocommit;
 
-    %{ $dbh->{CachedKids} } = ();
-
     $dbh->disconnect;
   }
 }
