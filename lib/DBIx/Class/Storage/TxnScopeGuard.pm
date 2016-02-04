@@ -82,7 +82,7 @@ sub DESTROY {
   return unless defined $_[0]->{dbh};
 
 
-  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
+  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back'
     unless defined $current_exception;
 
 

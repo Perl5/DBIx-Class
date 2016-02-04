@@ -145,9 +145,11 @@ sub scope_guard (&) {
     eval {
       $_[0]->[0]->();
       1;
-    } or do {
-      Carp::cluck "Execution of scope guard $_[0] resulted in the non-trappable exception:\n\n$@";
-    };
+    }
+      or
+    Carp::cluck(
+      "Execution of scope guard $_[0] resulted in the non-trappable exception:\n\n$@"
+    );
   }
 }
 

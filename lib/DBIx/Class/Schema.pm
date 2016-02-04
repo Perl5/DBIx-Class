@@ -1089,13 +1089,13 @@ This guard was activated beginning"
     };
 
     eval {
-      # if it throws - good, we'll go down to the do{} below
+      # if it throws - good, we'll assign to @args in the end
       # if it doesn't - do different things depending on RV truthiness
       if( $act->(@args) ) {
         $args[0] = (
           "Invocation of the exception_action handler installed on $self did *not*"
         .' result in an exception. DBIx::Class is unable to function without a reliable'
-        .' exception mechanism, ensure that exception_action does not hide exceptions'
+        .' exception mechanism, ensure your exception_action does not hide exceptions'
         ." (original error: $args[0])"
         );
       }
@@ -1107,19 +1107,19 @@ This guard was activated beginning"
         );
       }
 
-      $guard_disarmed = 1;
+      1;
     }
 
       or
 
-    do {
-      # We call this to get the necessary warnings emitted and disregard the RV
-      # as it's definitely an exception if we got as far as this do{} block
-      is_exception($@);
+    # We call this to get the necessary warnings emitted and disregard the RV
+    # as it's definitely an exception if we got as far as this do{} block
+    is_exception(
+      $args[0] = $@
+    );
 
-      $guard_disarmed = 1;
-      $args[0] = $@;
-    };
+    # Done guarding against https://github.com/PerlDancer/Dancer2/issues/1125
+    $guard_disarmed = 1;
   }
 
   DBIx::Class::Exception->throw( $args[0], $self->stacktrace );
