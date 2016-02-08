@@ -225,6 +225,11 @@ sub new {
     weaken (
       $seek_and_destroy{ refaddr($_[0]) } = $_[0]
     );
+
+    # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+    # collected before leaving this scope. Depending on the code above, this
+    # may very well be just a preventive measure guarding future modifications
+    undef;
   }
 
   END {
@@ -239,6 +244,11 @@ sub new {
       # disarm the handle if not native to this process (see comment on top)
       $_->_verify_pid for @instances;
     }
+
+    # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+    # collected before leaving this scope. Depending on the code above, this
+    # may very well be just a preventive measure guarding future modifications
+    undef;
   }
 
   sub CLONE {
@@ -255,6 +265,11 @@ sub new {
       # properly renumber existing refs
       $_->_arm_global_destructor
     }
+
+    # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+    # collected before leaving this scope. Depending on the code above, this
+    # may very well be just a preventive measure guarding future modifications
+    undef;
   }
 }
 
@@ -270,11 +285,10 @@ sub DESTROY {
   $_[0]->_dbh(undef);
   # not calling ->disconnect here - we are being destroyed - nothing to reset
 
-  # this op is necessary, since the very last perl runtime statement
-  # triggers a global destruction shootout, and the $SIG localization
-  # may very well be destroyed before perl actually gets to do the
-  # $dbh undef
-  1;
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 # handle pid changes correctly - do not destroy parent's connection
@@ -288,7 +302,10 @@ sub _verify_pid {
     $_[0]->disconnect;
   }
 
-  return;
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 =head2 connect_info
@@ -901,24 +918,7 @@ sub disconnect {
     #$self->_sql_maker(undef); # this may also end up being different
   };
 
-  # FIXME FIXME FIXME
-  # Something is wrong with CAG - it seems to delay GC in PP mode
-  # If the below if() is changed to:
-  #
-  #   if( $self->_dbh ) {
-  #
-  # The the following will reproducibly warn as the weakref in a $txn_guard
-  # is *NOT* deallocated by the time the $txn_guard destructor runs at
-  # https://github.com/dbsrgits/dbix-class/blob/84efb6d7/lib/DBIx/Class/Storage/TxnScopeGuard.pm#L82
-  #
-  # perl -Ilib -e '
-  #   BEGIN { warn $ENV{CAG_USE_XS} = ( time % 2 ) };
-  #   use DBIx::Class::Schema;
-  #   my $s = DBIx::Class::Schema->connect("dbi:SQLite::memory:");
-  #   my $g = $s->txn_scope_guard;
-  #   $s->storage->disconnect
-  # '
-  if( $self->{_dbh} ) { # do not use accessor - see above
+  if( $self->_dbh ) {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for (
       ( $self->on_disconnect_call || () ),
@@ -928,6 +928,11 @@ sub disconnect {
     # stops the "implicit rollback on disconnect" warning
     $self->_exec_txn_rollback unless $self->_dbh_autocommit;
   }
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 =head2 with_deferred_fk_checks

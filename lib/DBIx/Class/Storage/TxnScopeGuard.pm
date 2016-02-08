@@ -105,6 +105,11 @@ sub DESTROY {
 
   $@ = $current_exception
     if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 1;

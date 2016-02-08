@@ -318,6 +318,11 @@ sub is_exception ($) {
       { defined $_ ? ( refaddr($_) => $_ ) : () }
       values %$destruction_registry
     };
+
+    # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+    # collected before leaving this scope. Depending on the code above, this
+    # may very well be just a preventive measure guarding future modifications
+    undef;
   }
 
   # This is almost invariably invoked from within DESTROY

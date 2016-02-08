@@ -83,6 +83,11 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
 
       $self->{_intra_thread} = 1;
     }
+
+    # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+    # collected before leaving this scope. Depending on the code above, this
+    # may very well be just a preventive measure guarding future modifications
+    undef;
   }
 }
 
@@ -229,6 +234,11 @@ Resets the cursor to the beginning of the L<DBIx::Class::ResultSet>.
 sub reset {
   $_[0]->__finish_sth if $_[0]->{sth};
   $_[0]->sth(undef);
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 
@@ -236,6 +246,11 @@ sub DESTROY {
   return if &detected_reinvoked_destructor;
 
   $_[0]->__finish_sth if $_[0]->{sth};
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 sub __finish_sth {
@@ -262,6 +277,11 @@ sub __finish_sth {
       ! $self->{sth}->FETCH('Active')
     }
   );
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 =head1 FURTHER QUESTIONS?

@@ -90,6 +90,11 @@ sub CLONE {
       $reg->{$new_addr} = $slot_info;
     }
   }
+
+  # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
+  # collected before leaving this scope. Depending on the code above, this
+  # may very well be just a preventive measure guarding future modifications
+  undef;
 }
 
 sub visit_refs {
