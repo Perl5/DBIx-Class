@@ -6,6 +6,18 @@ author 'ribasushi: Peter Rabbitson <ribasushi@cpan.org> (present day maintenance
 # pause sanity
 Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
 
+# !!!experimental!!!
+#
+# <ribasushi> am wondering if an x_parallel_test => 1 and x_parallel_depchain_test => 1 would be of use in meta
+# <ribasushi> to signify "project keeps tabs on itself and depchain to be in good health wrt running tests in parallel"
+# <ribasushi> and having cpan(m) tack a -j6 automatically for that
+# <ribasushi> it basically allows you to first consider any "high level intermediate dist" advertising "all my stuff works" so that larger swaths of CPAN get installed first under parallel
+# <ribasushi> note - this is not "spur of the moment" - I first started testing my depchain in parallel 3 years ago
+# <ribasushi> and have had it stable ( religiously tested on travis on any commit ) for about 2 years now
+#
+Meta->{values}{x_parallel_test_certified} = 1;
+Meta->{values}{x_dependencies_parallel_test_certified} = 1;
+
 # populate x_contributors
 # a direct dump of the sort is ok - xt/authors.t guarantees source sanity
 Meta->{values}{x_contributors} = [ do {
