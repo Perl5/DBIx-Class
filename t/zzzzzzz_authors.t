@@ -11,7 +11,18 @@ my $authorcount = scalar do {
 } or die "Known AUTHORS file seems empty... can't happen...";
 
 # do not announce anything under ci - we are watching for STDERR silence
-diag "\n\n$authorcount contributors made this library what it is today\n\n"
-  unless DBICTest::RunMode->is_ci;
+diag <<EOD unless DBICTest::RunMode->is_ci;
 
+
+
+$authorcount contributors made this library what it is today
+
+
+Distinguished patrons:
+  * ( 2014 ~ 2015 ) Henry Van Styn, creator of http://p3rl.org/RapidApp
+
+
+EOD
+
+# looks funny if we do it before stuff
 ok 1;
