@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.082821 2016-02-11 17:58 (UTC)
     * Fixes
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
         - Fix t/storage/quote_names.t failures on systems with specified Oracle
