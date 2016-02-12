@@ -1088,7 +1088,7 @@ This guard was activated beginning"
       );
     };
 
-    eval {
+    dbic_internal_try {
       # if it throws - good, we'll assign to @args in the end
       # if it doesn't - do different things depending on RV truthiness
       if( $act->(@args) ) {
@@ -1109,14 +1109,13 @@ This guard was activated beginning"
 
       1;
     }
-
-      or
-
-    # We call this to get the necessary warnings emitted and disregard the RV
-    # as it's definitely an exception if we got as far as this do{} block
-    is_exception(
-      $args[0] = $@
-    );
+    catch {
+      # We call this to get the necessary warnings emitted and disregard the RV
+      # as it's definitely an exception if we got as far as this catch{} block
+      is_exception(
+        $args[0] = $_
+      );
+    };
 
     # Done guarding against https://github.com/PerlDancer/Dancer2/issues/1125
     $guard_disarmed = 1;

@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
+use Scalar::Util 'weaken';
 
 use DBICTest;
 
@@ -116,6 +117,21 @@ for my $ap (qw(
 
     isa_ok $@, $ap;
   } $exp_warn, 'Proper warning on encountered antipattern';
+}
+
+# ensure we do not get into an infloop
+{
+  weaken( my $s = $schema );
+
+  $schema->exception_action(sub{
+    $s->throw_exception(@_)
+  });
+
+  throws_ok {
+    $schema->storage->dbh_do(sub {
+      $_[1]->do('wgwfwfwghawhjsejsethjwetjesjesjsejsetjes')
+    } )
+  } qr/syntax error/i;
 }
 
 done_testing;
