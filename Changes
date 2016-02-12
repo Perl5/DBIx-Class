@@ -6,6 +6,7 @@ Revision history for DBIx::Class
           insulated from changes in control flow, as the handlers are only
           invoked when an error is leaving the DBIC internals to be handled by
           the caller (n.b. https://github.com/PerlDancer/Dancer2/issues/1125)
+          (also fixes the previously rejected RT#63874)
         - $result->related_resultset() no longer passes extra arguments to
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored

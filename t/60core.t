@@ -125,18 +125,7 @@ warnings_exist {
   $schema->resultset('Artist')->search_rs(id => 4)
 } qr/\Qsearch( %condition ) is deprecated/, 'Deprecation warning on ->search( %condition )';
 
-# this has been warning for 4 years, killing
-throws_ok {
-  $schema->resultset('Artist')->find(artistid => 4);
-} qr|expects either a column/value hashref, or a list of values corresponding to the columns of the specified unique constraint|;
-
 is($schema->resultset("Artist")->count, 4, 'count ok');
-
-# test find on an unresolvable condition
-is(
-  $schema->resultset('Artist')->find({ artistid => [ -and => 1, 2 ]}),
-  undef
-);
 
 
 # test find_or_new
