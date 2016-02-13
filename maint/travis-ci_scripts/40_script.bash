@@ -35,6 +35,11 @@ else
     PROVECMD="$PROVECMD -T"
   fi
 
+  # List every single SKIP/TODO when they are visible
+  if [[ "$VCPU_USE" == 1 ]] ; then
+    PROVECMD="$PROVECMD --directives"
+  fi
+
   echo_err "$(tstamp) running tests with \`$PROVECMD\`"
   $PROVECMD 2> >(tee "$TEST_STDERR_LOG")
 fi
