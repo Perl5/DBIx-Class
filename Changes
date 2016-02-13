@@ -41,16 +41,8 @@ Revision history for DBIx::Class
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix several corner cases with Many2Many over custom relationships
-        - Fix t/52leaks.t failures on compilerless systems (RT#104429)
-        - Fix t/105view_deps.t failing with libsqlite >= 3.009, where view
-          definitions are lazily-checked for correctness only at DML-time as
-          opposed to DDL-time (RT#1546088)
-        - Fix t/storage/quote_names.t failures on systems with specified Oracle
-          test credentials while missing the optional Math::Base36
         - Fix the Sybase ASE storage incorrectly attempting to retrieve an
           autoinc value when inserting rows containing blobs (GH#82)
-        - Fix test failures when DBICTEST_SYBASE_DSN is set (unnoticed change
-          in error message wording during 0.082800 and a bogus test)
 
     * Misc
         - Fix invalid variable names in ResultSource::View examples
@@ -61,11 +53,22 @@ Revision history for DBIx::Class
           Optional::Dependencies::req_group_list (no known users in the wild)
         - Protect tests and codebase from incomplete caller() overrides, like
           e.g. RT#32640
-        - Work around rare test deadlock under heavy parallelism (RT#108390)
         - Stop using bare $] throughout - protects the codebase from issues
           similar (but likely not limited to) P5#72210
         - Config::Any is no longer a core dep, but instead is migrated to a new
           optdep group 'config_file_reader'
+
+0.082821 2016-02-11 17:58 (UTC)
+    * Fixes
+        - Fix t/52leaks.t failures on compilerless systems (RT#104429)
+        - Fix t/storage/quote_names.t failures on systems with specified Oracle
+          test credentials while missing the optional Math::Base36
+        - Fix test failures when DBICTEST_SYBASE_DSN is set (unnoticed change
+          in error message wording during 0.082800 and a bogus test)
+        - Remove largely obsolete test of SQLite view deployment (RT#111916)
+
+    * Misc
+        - Work around rare test deadlock under heavy parallelism (RT#108390)
 
 0.082820 2015-03-20 20:35 (UTC)
     * Fixes
