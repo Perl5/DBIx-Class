@@ -122,7 +122,7 @@ Linux system (as well as their derivative distributions such as Centos,
 White Box and Scientific Linux).
 
 Distributions affected include Fedora 5 through to Fedora 8 and RHEL5
-upto and including RHEL5 Update 2. Fedora 9 (which uses perl 5.10) has
+up to and including RHEL5 Update 2. Fedora 9 (which uses perl 5.10) has
 never been affected - this is purely a perl 5.8.8 issue.
 
 As of September 2008 the following packages are known to be fixed and so

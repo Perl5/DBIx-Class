@@ -46,6 +46,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Fix invalid variable names in ResultSource::View examples
+        - Typo fixes from downstream debian packagers (RT#112007)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly

@@ -157,7 +157,7 @@ sub _rno_default_order {
 
  SELECT SKIP $offset FIRST $limit * FROM ...
 
-Suported by B<Informix>, almost like LimitOffset. According to
+Supported by B<Informix>, almost like LimitOffset. According to
 L<SQL::Abstract::Limit> C<... SKIP $offset LIMIT $limit ...> is also supported.
 
 =cut

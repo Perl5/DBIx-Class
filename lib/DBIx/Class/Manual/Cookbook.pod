@@ -1342,7 +1342,7 @@ row.
 
           # Abort the whole job
           if ($_ =~ /horrible_problem/) {
-            print "something horrible happend, aborting job!";
+            print "something horrible happened, aborting job!";
             die $_;                # rethrow error
           }
 

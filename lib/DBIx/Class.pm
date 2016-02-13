@@ -214,7 +214,7 @@ Then you can use these classes in your application's code:
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no 2nd query
 
-  # new() makes a Result object but doesnt insert it into the DB.
+  # new() makes a Result object but doesn't insert it into the DB.
   # create() is the same as new() then insert().
   my $new_cd = $schema->resultset('CD')->new({ title => 'Spoon' });
   $new_cd->artist($cd->artist);
