@@ -83,7 +83,7 @@ sub tmpdir {
     my $reason_dir_unusable;
 
     my @parts = File::Spec->splitdir($dir);
-    if (@parts == 2 and $parts[1] =~ /^ [ \\ \/ ]? $/x ) {
+    if (@parts == 2 and $parts[1] =~ /^ [\/\\]? $/x ) {
       $reason_dir_unusable =
         'File::Spec->tmpdir returned a root directory instead of a designated '
       . 'tempdir (possibly https://rt.cpan.org/Ticket/Display.html?id=76663)';
