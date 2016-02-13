@@ -20,6 +20,9 @@ Revision history for DBIx::Class
         - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
           was not sufficient to cover up RT#67843)
 
+    * Misc
+        - Typo fixes from downstream debian packagers (RT#112007)
+
 0.082821 2016-02-11 17:58 (UTC)
     * Fixes
         - Fix t/52leaks.t failures on compilerless systems (RT#104429)
