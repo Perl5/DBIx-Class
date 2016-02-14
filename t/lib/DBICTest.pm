@@ -7,6 +7,7 @@ use ANFANG;
 use strict;
 use warnings;
 
+
 # this noop trick initializes the STDOUT, so that the TAP::Harness
 # issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
 # keep spinning and scheduling jobs
@@ -25,9 +26,12 @@ BEGIN {
 }
 
 
-use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
-use DBICTest::Schema;
+use DBICTest::Util qw(
+  local_umask tmpdir await_flock
+  dbg DEBUG_TEST_CONCURRENCY_LOCKS PEEPEENESS
+);
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+use DBICTest::Schema;
 use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
 use Carp;
 use Path::Class::File ();
@@ -276,7 +280,7 @@ sub __mk_disconnect_guard {
 
   return if (
     # this perl leaks handles, delaying DESTROY, can't work right
-    DBIx::Class::_ENV_::PEEPEENESS
+    PEEPEENESS
       or
     ! -f $db_file
   );

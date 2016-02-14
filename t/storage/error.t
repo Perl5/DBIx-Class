@@ -7,7 +7,7 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-
+use DBICTest::Util 'PEEPEENESS';
 use DBICTest;
 
 for my $conn_args (
@@ -95,9 +95,8 @@ throws_ok (
 # exception fallback:
 
 SKIP: {
-  if ( !!DBIx::Class::_ENV_::PEEPEENESS ) {
-    skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
-  }
+  skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1
+    if PEEPEENESS;
 
   undef ($schema);
   throws_ok (

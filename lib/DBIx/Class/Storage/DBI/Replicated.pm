@@ -376,7 +376,8 @@ my $method_dispatch = {
   )],
 };
 
-if (DBIx::Class::_ENV_::DBICTEST) {
+# this only happens during DBIC-internal testing
+if ( $INC{"t/lib/ANFANG.pm"} ) {
 
   my $seen;
   for my $type (keys %$method_dispatch) {

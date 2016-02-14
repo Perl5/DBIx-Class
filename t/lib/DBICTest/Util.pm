@@ -5,11 +5,27 @@ use strict;
 
 use ANFANG;
 
-use constant DEBUG_TEST_CONCURRENCY_LOCKS =>
-  ( ($ENV{DBICTEST_DEBUG_CONCURRENCY_LOCKS}||'') =~ /^(\d+)$/ )[0]
-    ||
-  0
-;
+use DBICTest::RunMode;
+
+use constant {
+
+  DEBUG_TEST_CONCURRENCY_LOCKS => (
+    ( ($ENV{DBICTEST_DEBUG_CONCURRENCY_LOCKS}||'') =~ /^(\d+)$/ )[0]
+      ||
+    0
+  ),
+
+  # During 5.13 dev cycle HELEMs started to leak on copy
+  # add an escape for these perls ON SMOKERS - a user/CI will still get death
+  # constname a homage to http://theoatmeal.com/comics/working_home
+  PEEPEENESS => (
+    DBICTest::RunMode->is_smoker
+      and
+    ! DBICTest::RunMode->is_ci
+      and
+    ( "$]" >= 5.013005 and "$]" <= 5.013006)
+  ),
+};
 
 use Config;
 use Carp qw(cluck confess croak);
@@ -21,7 +37,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace
   local_umask tmpdir find_co_root
-  visit_namespaces
+  visit_namespaces PEEPEENESS
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
 );

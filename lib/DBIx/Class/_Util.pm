@@ -23,12 +23,6 @@ BEGIN {
 
     UNSTABLE_DOLLARAT => ( "$]" < 5.013002 ) ? 1 : 0,
 
-    DBICTEST => $INC{"DBICTest/Util.pm"} ? 1 : 0,
-
-    # During 5.13 dev cycle HELEMs started to leak on copy
-    # add an escape for these perls ON SMOKERS - a user will still get death
-    PEEPEENESS => ( eval { DBICTest::RunMode->is_smoker } && ( "$]" >= 5.013005 and "$]" <= 5.013006) ),
-
     ( map
       #
       # the "DBIC_" prefix below is crucial - this is what makes CI pick up
