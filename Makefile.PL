@@ -99,7 +99,7 @@ my $test_requires = {
 # tests will fail
 # Note - these are added as test_requires *directly*, so they get properly
 # excluded on META.yml cleansing (even though no dist can be created from this)
-# we force these reqs regarless of author_deps, worst case scenario they will
+# we force these reqs regarless of --with-optdeps, worst case scenario they will
 # be specified twice
 #
 # also note that we *do* set dynamic_config => 0, as these are the only things
@@ -205,10 +205,10 @@ sub invoke_author_mode {
     config => [qw/gnu_getopt bundling_override no_ignore_case pass_through/]
   );
   my $args = {
-    skip_author_deps => undef,
+    with_optdeps => undef,
   };
   $getopt->getoptions($args, qw/
-    skip_author_deps|skip-author-deps
+    with_optdeps|with-optdeps
   /);
   if (@ARGV) {
     warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
@@ -235,10 +235,6 @@ sub invoke_author_mode {
     my $targets = join ', ', map { "q($_)" } @_;
     "\t" . $mm_proto->oneliner( qq(\$ENV{PERLIO}='unix' and system( \$^X, qw( -MExtUtils::Command -e dos2unix -- ), $targets ) ) );
   };
-
-  # we are in the process of (re)writing the makefile - some things we
-  # call below very well may fail
-  local $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION} = 1;
 
   require File::Spec;
   # string-eval, not do(), because we need to provide the

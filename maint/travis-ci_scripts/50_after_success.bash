@@ -27,7 +27,7 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
   # FIXME Change when Moose goes away
   installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
-  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
+  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL && make dist"
   tarball_assembled=1
 
 elif [[ "$CLEANTEST" != "true" ]] ; then

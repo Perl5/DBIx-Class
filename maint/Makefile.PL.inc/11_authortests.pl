@@ -31,7 +31,7 @@ test_xt : pm_to_blib
     # perl cmd
     join( ' ',
       '$(ABSPERLRUN)',
-      map { $mm_proto->quote_literal($_) } qw(-e $ENV{RELEASE_TESTING}=1;$ENV{DBICTEST_NO_MAKEFILE_VERIFICATION}=1;)
+      map { $mm_proto->quote_literal($_) } qw(-e $ENV{RELEASE_TESTING}=1;$ENV{HARNESS_OPTIONS}=j4;)
     ),
     # test list
     join( ' ',
@@ -50,7 +50,7 @@ dbic_distdir_retest_ws_and_footers :
       # perl cmd
       join( ' ',
         '$(ABSPERLRUN)',
-        map { $mm_proto->quote_literal($_) } qw(-Ilib -e $ENV{RELEASE_TESTING}=1;$ENV{DBICTEST_NO_MAKEFILE_VERIFICATION}=1;)
+        map { $mm_proto->quote_literal($_) } qw(-Ilib -e $ENV{RELEASE_TESTING}=1;$ENV{HARNESS_OPTIONS}=j4;)
       ),
       'xt/dist/postdistdir/*.t',
     )

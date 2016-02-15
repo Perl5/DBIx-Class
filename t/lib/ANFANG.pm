@@ -123,4 +123,10 @@ BEGIN {
 
 use lib 't/lib';
 
+# Back in ab340f7f ribasushi stupidly introduced a "did you check your deps"
+# verification tied very tightly to Module::Install. The check went away, and
+# so eventually will M::I, but bisecting can bring all of this back from the
+# dead. In order to reduce hair-pulling make sure that ./inc/ is always there
+-f 'Makefile.PL' and mkdir 'inc' and mkdir 'inc/.author';
+
 1;

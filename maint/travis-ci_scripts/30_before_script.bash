@@ -114,12 +114,11 @@ else
   fi
 fi
 
-# generate the makefile which will have different deps depending on
-# the runmode and envvars set above
-run_or_err "Configure on current branch" "perl Makefile.PL"
 
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
+
+  run_or_err "Configure on current branch" "perl Makefile.PL"
 
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
@@ -143,15 +142,18 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
   installdeps $HARD_DEPS
 
+  run_or_err "Re-configure" "perl Makefile.PL"
+
 else
+
+  run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
   parallel_installdeps_notest "$(make listdeps | sort -R)"
 
+  run_or_err "Re-configure with --with-optdeps" "perl Makefile.PL --with-optdeps"
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
-
-run_or_err "Re-configure" "perl Makefile.PL"
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
