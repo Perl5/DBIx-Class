@@ -6,7 +6,6 @@ use warnings;
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
-use Time::HiRes 'sleep';
 use DBIx::Class::_Util 'scope_guard';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
@@ -273,7 +272,7 @@ sub connection {
 
         for (1..50) {
           kill (0, $old_pid) or last;
-          sleep 0.1;
+          select( undef, undef, undef, 0.1 );
         }
 
         DEBUG_TEST_CONCURRENCY_LOCKS

@@ -11,7 +11,6 @@ use if DBIx::Class::_ENV_::BROKEN_FORK, 'threads';
 
 use Test::More;
 use File::Find;
-use Time::HiRes 'sleep';
 
 my $worker = sub {
   my $fn = shift;
@@ -35,7 +34,7 @@ find({
     if (DBIx::Class::_ENV_::BROKEN_FORK) {
       # older perls crash if threads are spawned way too quickly, sleep for 100 msecs
       my $t = threads->create(sub { $worker->($_) });
-      sleep 0.1;
+      select( undef, undef, undef, 0.1);
       is ($t->join, 42, "Thread loading $_ did not finish successfully")
         || diag ($t->can('error') ? $t->error : 'threads.pm too old to retrieve the error :(' );
     }

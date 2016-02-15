@@ -3,8 +3,6 @@ BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use strict;
 use warnings;
 use Test::More;
-use Time::HiRes qw/gettimeofday/;
-
 
 use DBICTest; # do not remove even though it is not used
 
@@ -41,10 +39,7 @@ EOM
 
 is (DBICTest::NS::Stress::Schema->sources, 0, 'Start with no sources');
 
-
-note gettimeofday . ":\tload_namespaces start";
 DBICTest::NS::Stress::Schema->load_namespaces;
-note gettimeofday . ":\tload_namespaces finished";
 
 is (DBICTest::NS::Stress::Schema->sources, $src_count, 'All sources attached');
 

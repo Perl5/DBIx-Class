@@ -203,7 +203,6 @@ use base 'DBIx::Class::Schema';
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util 'dbic_internal_try';
-use Time::HiRes qw/gettimeofday/;
 use Scalar::Util 'weaken';
 use namespace::clean;
 
@@ -710,7 +709,8 @@ sub _set_db_version {
   # not possible to format the string sanely, as the column is a varchar(20).
   # The 'v' character is added to the front of the string, so that any version
   # formatted by this new function will sort _after_ any existing 200... strings.
-  my @tm = gettimeofday();
+  require Time::HiRes;
+  my @tm = Time::HiRes::gettimeofday();
   my @dt = gmtime ($tm[0]);
   my $o = $vtable->new_result({
     version => $version,
