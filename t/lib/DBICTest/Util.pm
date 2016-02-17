@@ -13,14 +13,14 @@ use constant DEBUG_TEST_CONCURRENCY_LOCKS =>
 
 use Config;
 use Carp qw(cluck confess croak);
-use Fcntl ':flock';
+use Fcntl qw( :DEFAULT :flock );
 use Scalar::Util qw(blessed refaddr);
-use DBIx::Class::_Util qw( scope_guard parent_dir );
+use DBIx::Class::_Util qw( scope_guard parent_dir mkdir_p );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace
-  local_umask find_co_root
+  local_umask tmpdir find_co_root
   visit_namespaces
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
@@ -132,8 +132,101 @@ sub find_co_root () {
         unless -f "${root}Makefile.PL";
     }
 
-    $root;
+    # at this point we are pretty sure this is the right thing - detaint
+    ($root =~ /(.+)/)[0];
   }
+}
+
+my $tempdir;
+sub tmpdir () {
+  $tempdir ||= do {
+
+    require File::Spec;
+    my $dir = File::Spec->tmpdir;
+    $dir .= '/' unless $dir =~ / [\/\\] $ /x;
+
+    # the above works but not always, test it to bits
+    my $reason_dir_unusable;
+
+    # PathTools has a bug where on MSWin32 it will often return / as a tmpdir.
+    # This is *really* stupid and the result of having our lockfiles all over
+    # the place is also rather obnoxious. So we use our own heuristics instead
+    # https://rt.cpan.org/Ticket/Display.html?id=76663
+    my @parts = File::Spec->splitdir($dir);
+
+    # deal with how 'C:\\\\\\\\\\\\\\' decomposes
+    pop @parts while @parts and ! length $parts[-1];
+
+    if (
+      @parts < 2
+        or
+      ( @parts == 2 and $parts[1] =~ /^ [\/\\] $/x )
+    ) {
+      $reason_dir_unusable =
+        'File::Spec->tmpdir returned a root directory instead of a designated '
+      . 'tempdir (possibly https://rt.cpan.org/Ticket/Display.html?id=76663)';
+    }
+    else {
+      # make sure we can actually create and sysopen a file in this dir
+
+      my $fn = $dir . "_dbictest_writability_test_$$";
+
+      my $u = local_umask(0); # match the umask we use in DBICTest(::Schema)
+      my $g = scope_guard { unlink $fn };
+
+      eval {
+
+        if (-e $fn) {
+          unlink $fn or die "Unable to unlink pre-existing $fn: $!\n";
+        }
+
+        sysopen (my $tmpfh, $fn, O_RDWR|O_CREAT) or die "Opening $fn failed: $!\n";
+
+        print $tmpfh 'deadbeef' x 1024 or die "Writing to $fn failed: $!\n";
+
+        close $tmpfh or die "Closing $fn failed: $!\n";
+
+        1;
+      }
+        or
+      do {
+        chomp( my $err = $@ );
+
+        my @x_tests = map
+          { (defined $_) ? ( $_ ? 1 : 0 ) : 'U' }
+          map
+            { (-e, -d, -f, -r, -w, -x, -o)}
+            ($dir, $fn)
+        ;
+
+        $reason_dir_unusable = sprintf <<"EOE", $fn, $err, scalar $>, scalar $), umask(), (stat($dir))[4,5,2], @x_tests;
+File::Spec->tmpdir returned a directory which appears to be non-writeable:
+
+Error encountered while testing '%s': %s
+Process EUID/EGID: %s / %s
+Effective umask:   %o
+TmpDir UID/GID:    %s / %s
+TmpDir StatMode:   %o
+TmpDir X-tests:    -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+TmpFile X-tests:   -e:%s -d:%s -f:%s -r:%s -w:%s -x:%s -o:%s
+EOE
+      };
+    }
+
+    if ($reason_dir_unusable) {
+      # Replace with our local project tmpdir. This will make multiple tests
+      # from different runs conflict with each other, but is much better than
+      # polluting the root dir with random crap or failing outright
+      my $local_dir = find_co_root . 't/var/';
+
+      mkdir_p $local_dir;
+
+      warn "\n\nUsing '$local_dir' as test scratch-dir instead of '$dir': $reason_dir_unusable\n\n";
+      $dir = $local_dir;
+    }
+
+    $dir;
+  };
 }
 
 

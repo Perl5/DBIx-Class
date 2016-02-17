@@ -12,6 +12,7 @@ BEGIN {
   }
 }
 
+use DBICTest::Util 'tmpdir';
 use File::Temp ();
 use DBIx::Class::_Util 'scope_guard';
 use DBIx::Class::Schema;
@@ -49,7 +50,7 @@ $schema->connection('dbi:SQLite::memory:');
 # demonstrate utter breakage of the reconnection/retry logic
 #
 open(my $stderr_copy, '>&', *STDERR) or die "Unable to dup STDERR: $!";
-my $tf = File::Temp->new( UNLINK => 1 );
+my $tf = File::Temp->new( UNLINK => 1, DIR => tmpdir() );
 
 my $output;
 

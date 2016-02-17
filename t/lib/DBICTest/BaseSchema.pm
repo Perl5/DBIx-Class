@@ -9,7 +9,7 @@ use Fcntl qw(:DEFAULT :seek :flock);
 use Time::HiRes 'sleep';
 use DBIx::Class::_Util 'scope_guard';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
-use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use namespace::clean;
 
 if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
@@ -243,7 +243,7 @@ sub connection {
 
       undef $locker;
 
-      my $lockpath = DBICTest::RunMode->tmpdir->file("_dbictest_$locktype.lock");
+      my $lockpath = tmpdir . "_dbictest_$locktype.lock";
 
       DEBUG_TEST_CONCURRENCY_LOCKS
         and dbg "Waiting for $locktype LOCK: $lockpath...";

@@ -443,6 +443,10 @@ for my $addr (keys %$weak_registry) {
     # T::B 2.0 has result objects and other fancyness
     delete $weak_registry->{$addr};
   }
+  elsif ($names =~ /^Class::Struct/m) {
+    # remove this when Path::Class is gone, what a crock of shit
+    delete $weak_registry->{$addr};
+  }
   elsif ($names =~ /^Hash::Merge/m) {
     # only clear one object of a specific behavior - more would indicate trouble
     delete $weak_registry->{$addr}

@@ -82,7 +82,7 @@ our @EXPORT_OK = qw(
   scope_guard detected_reinvoked_destructor
   is_exception dbic_internal_try
   quote_sub qsub perlstring serialize deep_clone
-  parent_dir
+  parent_dir mkdir_p
   UNRESOLVABLE_CONDITION
 );
 
@@ -449,6 +449,12 @@ sub parent_dir ($) {
       )
     )
   ;
+}
+
+sub mkdir_p ($) {
+  require File::Path;
+  # do not ask for a recent version, use 1.x API calls
+  File::Path::mkpath([ "$_[0]" ]);  # File::Path does not like objects
 }
 
 

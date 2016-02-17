@@ -25,13 +25,12 @@ BEGIN {
 }
 
 
-use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use DBICTest::Schema;
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
 use Carp;
 use Path::Class::File ();
-use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
 
@@ -104,7 +103,7 @@ our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
 
-    my $lockpath = DBICTest::RunMode->tmpdir->file('_dbictest_global.lock');
+    my $lockpath = tmpdir . '_dbictest_global.lock';
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
