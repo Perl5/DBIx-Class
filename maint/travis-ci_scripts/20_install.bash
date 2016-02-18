@@ -111,12 +111,16 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     fi
   done
 
-  # emulate a local::lib-like env
+
+### emulate a local::lib-like env
   # trick cpanm into executing true as shell - we just need the find+unpack
   run_or_err "Downloading latest stable DBIC from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
 
-  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
+  # move it somewhere as following cpanm will clobber it
+  run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
+
+  export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
 
   # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
   echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
