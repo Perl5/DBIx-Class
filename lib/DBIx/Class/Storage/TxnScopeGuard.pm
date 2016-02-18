@@ -56,6 +56,11 @@ sub commit {
   $self->{storage}->txn_commit;
 }
 
+sub force_inactivate {
+  my $self = shift;
+  $self->{inactivated} = 1;
+}
+
 sub DESTROY {
   return if &detected_reinvoked_destructor;
 
@@ -137,6 +142,15 @@ DBIx::Class::Storage::TxnScopeGuard - Scope-based transaction handling
 An object that behaves much like L<Scope::Guard>, but hardcoded to do the
 right thing with transactions in DBIx::Class.
 
+If you get the urge to call a C<rollback> method on the guard object, you're
+advised to instead wrap your scoped transaction using C<< L<eval BLOCK|perlfunc/eval> >>
+or L<Try::Tiny> and throw an exception with C<< L<die()|perlfunc/die> >>.
+Explicit rollbacks don't compose (or nest) nicely without unwinding the scope
+via an exception.
+
+A warning is emitted if the guard goes out of scope without being first
+inactivated by L</commit> or an exception.
+
 =head1 METHODS
 
 =head2 new
@@ -150,6 +164,12 @@ L<DBIx::Class::Storage> object as its only argument.
 Commit the transaction, and stop guarding the scope. If this method is not
 called and this object goes out of scope (e.g. an exception is thrown) then
 the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
+
+=head2 force_inactivate
+
+Forcibly inactivate the guard, causing it to stop guarding the scope without
+committing.  You're advised not to use this and to throw an exception if you
+want to abort the transaction.  See the L</DESCRIPTION>.
 
 =cut
 
