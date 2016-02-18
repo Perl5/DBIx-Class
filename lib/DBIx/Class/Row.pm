@@ -176,6 +176,45 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   return 0;
 }
 
+
+my $create_related_rows =  sub {
+  my( $new, $key, $type, $others ) =  @_;
+
+  if( ref $others ne 'ARRAY' ) {
+    $others =  [ $others ];
+    #assert $type must be 'multi'
+  }
+
+  my $total =  @$others;
+  my @objects;
+  foreach my $idx ( 0 .. $#$others ) {
+    my $rel_obj =  $others->[$idx];
+    if( !blessed $rel_obj ) {
+      $rel_obj =  $new->__new_related_find_or_new_helper($key, $rel_obj);
+    }
+
+    if( $rel_obj->in_storage ) {
+      $type eq 'multi'
+        and $rel_obj->throw_exception( 'A multi relationship can not be pre-existing when doing multicreate. Something went wrong' );
+
+      $new->{_rel_in_storage}{$key} = 1;
+      $new->set_from_related( $key, $rel_obj )   if $type eq 'single';
+    } else {
+      my $tmp =  $type eq 'multi' ? "(${\($idx+1)} of $total)" : '';
+      MULTICREATE_DEBUG
+        and print STDERR "MC $new uninserted $key $rel_obj$tmp\n";
+    }
+    push( @objects, $rel_obj );
+  }
+
+  return  $type eq 'multi'
+    ? \@objects
+    : shift @objects
+    ;
+};
+
+
+
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
@@ -197,8 +236,7 @@ sub new {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
     }
 
-    my ($related,$inflated);
-
+    my( $postponed, $inflated );
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
         ## Can we extract this lot to use with update(_or .. ) ?
@@ -206,56 +244,13 @@ sub new {
           unless $rsrc;
         my $info = $rsrc->relationship_info($key);
         my $acc_type = $info->{attrs}{accessor} || '';
-        if ($acc_type eq 'single') {
-          my $rel_obj = delete $attrs->{$key};
-          if(!blessed $rel_obj) {
-            $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
-          }
-
-          if ($rel_obj->in_storage) {
-            $new->{_rel_in_storage}{$key} = 1;
-            $new->set_from_related($key, $rel_obj);
-          } else {
-            MULTICREATE_DEBUG and print STDERR "MC $new uninserted $key $rel_obj\n";
-          }
-
-          $related->{$key} = $rel_obj;
-          next;
-        }
-        elsif ($acc_type eq 'multi' && ref $attrs->{$key} eq 'ARRAY' ) {
-          my $others = delete $attrs->{$key};
-          my $total = @$others;
-          my @objects;
-          foreach my $idx (0 .. $#$others) {
-            my $rel_obj = $others->[$idx];
-            if(!blessed $rel_obj) {
-              $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
-            }
-
-            if ($rel_obj->in_storage) {
-              $rel_obj->throw_exception ('A multi relationship can not be pre-existing when doing multicreate. Something went wrong');
-            } else {
-              MULTICREATE_DEBUG and
-                print STDERR "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
-            }
-            push(@objects, $rel_obj);
-          }
-          $related->{$key} = \@objects;
-          next;
-        }
-        elsif ($acc_type eq 'filter') {
-          ## 'filter' should disappear and get merged in with 'single' above!
-          my $rel_obj = delete $attrs->{$key};
-          if(!blessed $rel_obj) {
-            $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
-          }
-          if ($rel_obj->in_storage) {
-            $new->{_rel_in_storage}{$key} = 1;
-          }
-          else {
-            MULTICREATE_DEBUG and print STDERR "MC $new uninserted $key $rel_obj\n";
-          }
-          $inflated->{$key} = $rel_obj;
+        if(   $acc_type eq 'single'
+          ||  $acc_type eq 'multi'  &&  ref $attrs->{$key} eq 'ARRAY'
+          ||  $acc_type eq 'filter'
+        ) {
+          # We can add related (children) row *ONLY AFTER* main (parent) row is created!!!
+          # So we postpone creation (see below)
+          $postponed->{$key} =  [ $acc_type, delete $attrs->{$key} ];
           next;
         }
         elsif (
@@ -268,6 +263,18 @@ sub new {
         }
       }
       $new->store_column($key => $attrs->{$key});
+    }
+    # After main (master) row's columns are stored (new row is created)
+    # we can add related (children) rows
+
+    my $related;
+    foreach my $key ( keys %$postponed ) {
+      if( $postponed->{$key}[0] ne 'filter' ) {
+        $related->{$key} =  $create_related_rows->( $new, $key, $postponed->{$key}[0], $postponed->{$key}[1] );
+      }
+      else {
+        $inflated->{$key} =  $create_related_rows->( $new, $key, $postponed->{$key}[0], $postponed->{$key}[1] );
+      }
     }
 
     $new->{_relationship_data} = $related if $related;
