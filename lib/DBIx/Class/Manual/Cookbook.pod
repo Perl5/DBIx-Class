@@ -1690,13 +1690,12 @@ customers as above.
 =head2 Setting quoting for the generated SQL
 
 If the database contains column names with spaces and/or reserved words, they
-need to be quoted in the SQL queries. This is done using:
-
- $schema->storage->sql_maker->quote_names(1);
+need to be quoted in the SQL queries. This is done by passing in the
+C<quote_names> attribute into the connect_info when connecting a schema.
 
 This will automatically determine which quotes are required for your RDBMS.
 
-In most cases you should set this as part of the arguments passed to
+This is generally done like this with,
 L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
@@ -1708,15 +1707,50 @@ L<DBIx::Class::Schema/connect>:
   }
  )
 
-In some cases, quoting will be required for all users of a schema. To enforce
-this, you can also overload the C<connection> method for your schema class:
+Turning quoting on is generally a good idea, and there is even a helper
+to allow you to do it without requiring explicit configuration.
 
- sub connection {
-     my $self = shift;
-     my $rv = $self->next::method( @_ );
-     $rv->storage->sql_maker->quote_names(1);
-     return $rv;
- }
+See L<DBIx::Class::Helper::Schema::QuoteNames>.
+
+Turning quoting on does mean that all terms assumed to be identifiers will
+be quoted.  This means that you need to be careful with complex expressions
+used on the left hand side where identifiers are assumed.  A query like this
+would work without quoting on.
+
+ return $self->search(undef, {
+   '+columns' => [
+     { items => 'sum(items.quantity)',
+   ]
+ });
+
+With it on the whole chunk would get encoded and so you would end up with
+an error complaining that the field C<"sum(items.quantity)"> does not exist.
+
+There are several ways to resolve this, often there is a data structure that
+SQL Abstract can interpret into the function call, in this case
+C<< { sum => 'items.quantity' } >> is equivalent.
+
+Here are some examples, including using literal SQL by passing in a string
+reference.
+
+ return $self->search(undef, {
+   join => ['items'],
+   '+columns' => [
+     { items => { sum => 'items.quantity', -as => 'items' }},
+     { lines => { count => 'items.quantity', -as => 'lines' }},
+     { total => \'sum(items.quantity*items.per_item*(1+items.vat)) as total' },
+   ],
+ });
+
+If you need to provide variables where there is an identifier take a look at the
+L</Using SQL functions on the left hand side of a comparison>.
+
+Also note that the opposite is possible too.  If you need to use an identier on
+the right side you can use the construct C<< { -ident => 'column' } >>
+
+For example,
+
+ return $self->search({ col1 => { -ident => 'col2' }});
 
 =head2 Working with PostgreSQL array types
 
