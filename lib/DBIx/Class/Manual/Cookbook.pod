@@ -1692,20 +1692,11 @@ customers as above.
 If the database contains column names with spaces and/or reserved words, they
 need to be quoted in the SQL queries. This is done using:
 
- $schema->storage->sql_maker->quote_char([ qw/[ ]/] );
- $schema->storage->sql_maker->name_sep('.');
+ $schema->storage->sql_maker->quote_names(1);
 
-The first sets the quote characters. Either a pair of matching
-brackets, or a C<"> or C<'>:
+This will automatically determine which quotes are required for your RDBMS.
 
- $schema->storage->sql_maker->quote_char('"');
-
-Check the documentation of your database for the correct quote
-characters to use. C<name_sep> needs to be set to allow the SQL
-generator to put the quotes the correct place, and defaults to
-C<.> if not supplied.
-
-In most cases you should set these as part of the arguments passed to
+In most cases you should set this as part of the arguments passed to
 L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
@@ -1713,8 +1704,7 @@ L<DBIx::Class::Schema/connect>:
   'db_user',
   'db_password',
   {
-    quote_char => '"',
-    name_sep   => '.'
+    quote_names => 1,
   }
  )
 
@@ -1724,8 +1714,7 @@ this, you can also overload the C<connection> method for your schema class:
  sub connection {
      my $self = shift;
      my $rv = $self->next::method( @_ );
-     $rv->storage->sql_maker->quote_char([ qw/[ ]/ ]);
-     $rv->storage->sql_maker->name_sep('.');
+     $rv->storage->sql_maker->quote_names(1);
      return $rv;
  }
 
