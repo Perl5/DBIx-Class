@@ -3343,52 +3343,75 @@ sub current_source_alias {
 }
 
 =head2 as_subselect_rs
-
+ 
 =over 4
-
+ 
 =item Arguments: none
-
+ 
 =item Return Value: L<$resultset|/search>
-
+ 
 =back
 
-Act as a barrier to SQL symbols.  The resultset provided will be made into a
-"virtual view" by including it as a subquery within the from clause.  From this
-point on, any joined tables are inaccessible to ->search on the resultset (as if
-it were simply where-filtered without joins).  For example:
+Turn a resultset into a subselect which can be further queried from;
+SELECT ... FROM (SELECT ...).
 
- my $rs = $schema->resultset('Bar')->search({'x.name' => 'abc'},{ join => 'x' });
+One reason to do this is to chain group_bys, for example to aggregate
+an aggregate.
 
- # 'x' now pollutes the query namespace
+  # Doesn't work. Columns override each other but even if you use +columns,
+  # the aggregates will apply at the same level
+  $sales->search({},
+    {
+      columns  => [ 'salesperson_id', {'total_sales' => {sum => 'value', -as => 'total_sales'} ],
+      group_by => [ 'salesperson_id' ]
+    })->search({},
+    {
+      columns  => [ { 'best_total' => { max => 'total_sales' } } ],
+    });
 
- # So the following works as expected
- my $ok_rs = $rs->search({'x.other' => 1});
+  # Works. Does first GROUP BY inside a subselect, second select aggregates that
+  $sales->search({},
+    {
+      columns  => [ 'salesperson_id', {'total_sales' => {sum => 'value', -as => 'total_sales'} ],
+      group_by => [ 'salesperson_id' ]
+    })->as_subselect_rs->search({},
+    {
+      columns  => [ { 'best_total' => { max => 'total_sales' } } ],
+    });
 
- # But this doesn't: instead of finding a 'Bar' related to two x rows (abc and
- # def) we look for one row with contradictory terms and join in another table
- # (aliased 'x_2') which we never use
- my $broken_rs = $rs->search({'x.name' => 'def'});
 
- my $rs2 = $rs->as_subselect_rs;
+A second reason as_subselect_rs is useful is to make chained ResultSet
+methods which involve joins work; essentially using it to work around
+a quirk in how repeated joins are normally coalesced.
 
- # doesn't work - 'x' is no longer accessible in $rs2, having been sealed away
- my $not_joined_rs = $rs2->search({'x.other' => 1});
+  sub has_track_titled {
+    my $self = shift;
+    my $tracktitle = shift;
+    return $self->search({'track.title' => $tracktitle}, { join => 'track' });
+  }      
 
- # works as expected: finds a 'table' row related to two x rows (abc and def)
- my $correctly_joined_rs = $rs2->search({'x.name' => 'def'});
+  # selects all the albums that contain a track with title 'Red'
+  $album_rs->has_track_titled('Red');
+  
+  # DOESN'T WORK
+  $album_rs->has_track_titled('Red')->has_track_titled('Stay Stay Stay');
 
-Another example of when one might use this would be to select a subset of
-columns in a group by clause:
+The reason the second example doesn't work is that when C<has_track_titled> is
+chained a second time it will do a not do a fresh join on 'track' and
+will simply refer to the existing join.
 
- my $rs = $schema->resultset('Bar')->search(undef, {
-   group_by => [qw{ id foo_id baz_id }],
- })->as_subselect_rs->search(undef, {
-   columns => [qw{ id foo_id }]
- });
+  # Works. Finds all albums which contain a track titled 'Red' *and*
+  # a track titled 'Stay Stay Stay'. Generates a query something like
+  # SELECT subq.* FROM
+  #   (SELECT * FROM album JOIN track track ON track.album_id = album.id WHERE track.title = 'Red') subq
+  #   JOIN
+  #   track track ON track.album_id = album.id WHERE track.title = 'Stay Stay Stay'
+  
+  $album_rs->has_track_titled('Red')->as_subselect_rs->has_track_titled('Stay Stay Stay')
 
-In the above example normally columns would have to be equal to the group by,
-but because we isolated the group by into a subselect the above works.
-
+And this works because of the SQL rules for name scoping and
+subqueries, each WHERE clause refers to its own copy of 'track'.
+ 
 =cut
 
 sub as_subselect_rs {
