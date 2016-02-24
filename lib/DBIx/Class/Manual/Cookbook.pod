@@ -1264,7 +1264,7 @@ example of the recommended way to use it:
     $genus->add_to_species({ name => 'troglodyte' });
     $genus->wings(2);
     $genus->update;
-    $schema->txn_do($coderef2); # Can have a nested transaction. Only the outer will actualy commit
+    $schema->txn_do($coderef2); # Can have a nested transaction. Only the outer will actually commit
     return $genus->species;
   };
 
