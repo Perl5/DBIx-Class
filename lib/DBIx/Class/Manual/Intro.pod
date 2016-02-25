@@ -22,7 +22,7 @@ class defines one Table, which defines the Columns it has, along with
 any Relationships it has to other tables.  (And oh, so much more
 besides) The important thing to understand:
 
-  A Result class == Table
+I<A Result class == Table>
 
 (most of the time, but just bear with my simplification)
 
@@ -50,8 +50,7 @@ You could easily achieve it.
 
 The important thing to understand:
 
-  Any time you would reach for a SQL query in DBI, you are
-  creating a DBIx::Class::ResultSet.
+I<Any time you would reach for a SQL query in DBI, you are creating a DBIx::Class::ResultSet.>
 
 =head2 Search is like "prepare"
 
@@ -61,8 +60,7 @@ use a method that wants to access the data. (Such as "next", or "first")
 
 The important thing to understand:
 
-  Setting up a ResultSet does not execute the query; retrieving
-  the data does.
+I<Setting up a ResultSet does not execute the query; retrieving the data does.>
 
 =head2 Search results are returned as Rows
 
