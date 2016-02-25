@@ -363,10 +363,10 @@ In list context, the C<search> method returns all of the matching rows:
     print $album->artist . ' - ' . $album->title;
   }
 
-We also provide a handy shortcut for doing a C<LIKE> search:
+We also provide a way to do C<LIKE> searches:
 
   # Find albums whose artist starts with 'Jimi'
-  my $rs = $schema->resultset('Album')->search_like({ artist => 'Jimi%' });
+  my $rs = $schema-resultset('Album')->search({ artist => { like => 'Jimi%' } });
 
 Or you can provide your own C<WHERE> clause:
 
@@ -401,6 +401,8 @@ attributes:
   );
 
 C<@albums> then holds the two most recent Bob Marley albums.
+
+For more information on searching, see L<DBIx::Class::ResultSet/search>.
 
 For more information on what you can do with a L<DBIx::Class::ResultSet>, see
 L<DBIx::Class::ResultSet/METHODS>.
