@@ -90,7 +90,7 @@ of the internals is simply not worth the performance cost.
 =head2 Relationship to L<Data::Query (DQ)|Data::Query>
 
 When initial work on DQ was taking place, the tools in L<::Storage::DBIHacks
-|http://github.com/dbsrgits/dbix-class/blob/current/blead/lib/DBIx/Class/Storage/DBIHacks.pm>
+|http://github.com/dbsrgits/dbix-class/blob/master/lib/DBIx/Class/Storage/DBIHacks.pm>
 were only beginning to take shape, and it wasn't clear how important they will
 become further down the road. In fact the I<regexing all over the place> was
 considered an ugly stop-gap, and even a couple of highly entertaining talks

@@ -14,10 +14,6 @@
 
 #
 # Smoke all branches except for blocked* and wip/*
-#
-# Additionally master does not smoke with bleadperl
-# ( implemented in maint/travis-ci_scripts/10_before_install.bash )
-#
 branches:
   except:
     - /^wip\//

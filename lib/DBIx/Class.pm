@@ -291,7 +291,7 @@ accessible at the following locations:
 =item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
 
 =for html
-&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+&#x21AA; Bleeding edge dev CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
 
 =back
 
