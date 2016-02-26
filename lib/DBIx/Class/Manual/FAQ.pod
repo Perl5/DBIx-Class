@@ -643,6 +643,16 @@ The dirty way:
         return $self->result_source->schema->resultset('Server')->search({ ... });
     };
 
+=item DBIC and fork/threads
+
+L<DBIx::Class> is thread- and fork-safe. Including threads-masked-as-forks on win32.
+
+Each L<DBIx::Class::Schema> instance has its own dbh. L<DBIx::Class> does the right
+thing and safely reconnects if a thread or process context change is detected.
+
+In-progress cursor access from a different thread/fork is also detected and an
+exception is thrown.
+
 =back
 
 =head2 Notes for CDBI users
