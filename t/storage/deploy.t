@@ -62,6 +62,11 @@ for (
   }
 }
 
+my $schemas = $schema->storage->create_ddl($schema);
+
+is("HASH", ref $schemas, "Is a HashRef");
+ok($schemas->{MySQL}, "Has an MySQL schema");
+
 {
   local $TODO = 'we should probably add some tests here for actual deployability of the DDL?';
   ok( 0 );
