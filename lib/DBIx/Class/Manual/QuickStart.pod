@@ -28,7 +28,7 @@ mentioned earlier, the next command will download and unpack it:
 
 Inspect the database:
 
-    DBIx-Class/examples/Schema$ sqlite3 db/example.db .dump
+    DBIx-Class/examples/Schema$ sqlite3 examples/Schema/db/example.db .dump
 
 You can also use a GUI database browser such as
 L<SQLite Manager|https://addons.mozilla.org/firefox/addon/sqlite-manager>.
