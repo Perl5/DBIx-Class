@@ -1594,6 +1594,8 @@ sub count {
 
   my $attrs = { %{ $self->_resolved_attrs } };
 
+  return $self->count_rs->first unless $attrs->{software_limit};
+
   # this is a little optimization - it is faster to do the limit
   # adjustments in software, instead of a subquery
   my ($rows, $offset) = delete @{$attrs}{qw/rows offset/};

@@ -31,7 +31,7 @@ my $schema = DBICTest->init_schema();
   is ($rs->all, 2, 'Correct number of objects');
 
   $schema->is_executed_sql_bind( sub {
-    is ($rs->count, 2, 'Correct count via count()');
+    is ($rs->count({}, { software_limit => 1 }), 2, 'Correct count via count()');
   }, [[
     'SELECT COUNT( * )
       FROM cd me
@@ -78,7 +78,7 @@ my $schema = DBICTest->init_schema();
   is ($rs->all, 1, 'Correct number of objects');
 
   $schema->is_executed_sql_bind( sub {
-    is ($rs->count, 1, 'Correct count via count()');
+    is ($rs->count({}, { software_limit => 1 }), 1, 'Correct count via count()');
   }, [ [
     'SELECT COUNT( * )
       FROM (

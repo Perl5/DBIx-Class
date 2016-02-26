@@ -134,9 +134,6 @@ for my $ord_set (
 
   my $rs = $books_45_and_owners->search ({}, {order_by => $ord_set->{order_by}});
 
-  # query actually works
-  ok( defined $rs->count, 'Query actually works' );
-
   is_same_sql_bind(
     $rs->as_query,
     "(SELECT me.id, me.source, me.owner, me.price, owner__id, owner__name
