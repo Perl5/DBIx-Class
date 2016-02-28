@@ -364,7 +364,7 @@ In list context, the C<search> method returns all of the matching rows:
 We also provide a way to do C<LIKE> searches:
 
   # Find albums whose artist starts with 'Jimi'
-  my $rs = $schema-resultset('Album')->search({ artist => { like => 'Jimi%' } });
+  my $rs = $schema->resultset('Album')->search({ artist => { like => 'Jimi%' } });
 
 Or you can provide your own C<WHERE> clause:
 
