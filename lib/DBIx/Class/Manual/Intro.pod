@@ -22,7 +22,7 @@ class defines one Table, which defines the Columns it has, along with
 any Relationships it has to other tables.  (And oh, so much more
 besides) The important thing to understand:
 
-  A Result class == Table
+I<A Result class == Table>
 
 (most of the time, but just bear with my simplification)
 
@@ -50,8 +50,7 @@ You could easily achieve it.
 
 The important thing to understand:
 
-  Any time you would reach for a SQL query in DBI, you are
-  creating a DBIx::Class::ResultSet.
+I<Any time you would reach for a SQL query in DBI, you are creating a DBIx::Class::ResultSet.>
 
 =head2 Search is like "prepare"
 
@@ -61,8 +60,7 @@ use a method that wants to access the data. (Such as "next", or "first")
 
 The important thing to understand:
 
-  Setting up a ResultSet does not execute the query; retrieving
-  the data does.
+I<Setting up a ResultSet does not execute the query; retrieving the data does.>
 
 =head2 Search results are returned as Rows
 
@@ -363,10 +361,10 @@ In list context, the C<search> method returns all of the matching rows:
     print $album->artist . ' - ' . $album->title;
   }
 
-We also provide a handy shortcut for doing a C<LIKE> search:
+We also provide a way to do C<LIKE> searches:
 
   # Find albums whose artist starts with 'Jimi'
-  my $rs = $schema->resultset('Album')->search_like({ artist => 'Jimi%' });
+  my $rs = $schema->resultset('Album')->search({ artist => { like => 'Jimi%' } });
 
 Or you can provide your own C<WHERE> clause:
 
@@ -401,6 +399,8 @@ attributes:
   );
 
 C<@albums> then holds the two most recent Bob Marley albums.
+
+For more information on searching, see L<DBIx::Class::ResultSet/search>.
 
 For more information on what you can do with a L<DBIx::Class::ResultSet>, see
 L<DBIx::Class::ResultSet/METHODS>.
