@@ -66,7 +66,11 @@ use Path::Class qw/file dir/;
 use Fcntl ':DEFAULT';
 use File::Spec ();
 use File::Temp ();
-use DBICTest::Util 'local_umask';
+use DBICTest::Util qw( local_umask find_co_root );
+
+# Try to determine the root of a checkout/untar if possible
+# return a Path::Class::Dir object or undef
+sub _find_co_root { eval { dir( find_co_root() ) } }
 
 _check_author_makefile() unless $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION};
 
@@ -269,30 +273,6 @@ sub is_plain {
       and
     ! __PACKAGE__->is_author
   )
-}
-
-# Try to determine the root of a checkout/untar if possible
-# or return undef
-sub _find_co_root {
-
-    my @mod_parts = split /::/, (__PACKAGE__ . '.pm');
-    my $rel_path = join ('/', @mod_parts);  # %INC stores paths with / regardless of OS
-
-    return undef unless ($INC{$rel_path});
-
-    # a bit convoluted, but what we do here essentially is:
-    #  - get the file name of this particular module
-    #  - do 'cd ..' as many times as necessary to get to t/lib/../..
-
-    my $root = dir ($INC{$rel_path});
-    for (1 .. @mod_parts + 2) {
-        $root = $root->parent;
-    }
-
-    return (-f $root->file ('Makefile.PL') )
-      ? $root
-      : undef
-    ;
 }
 
 1;

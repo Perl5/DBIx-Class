@@ -82,6 +82,7 @@ our @EXPORT_OK = qw(
   scope_guard detected_reinvoked_destructor
   is_exception dbic_internal_try
   quote_sub qsub perlstring serialize deep_clone
+  parent_dir
   UNRESOLVABLE_CONDITION
 );
 
@@ -408,6 +409,48 @@ sub modver_gt_or_eq_and_lt ($$$) {
     ! modver_gt_or_eq($mod, $v_lt)
   ) ? 1 : 0;
 }
+
+
+#
+# Why not just use some higher-level module or at least File::Spec here?
+# Because:
+# 1)  This is a *very* rarely used function, and the deptree is large
+#     enough already as it is
+#
+# 2)  (more importantly) Our tooling is utter shit in this area. There
+#     is no comprehensive support for UNC paths in PathTools and there
+#     are also various small bugs in representation across different
+#     path-manipulation CPAN offerings.
+#
+# Since this routine is strictly used for logical path processing (it
+# *must* be able to work with not-yet-existing paths), use this seemingly
+# simple but I *think* complete implementation to feed to other consumers
+#
+# If bugs are ever uncovered in this routine, *YOU ARE URGED TO RESIST*
+# the impulse to bring in an external dependency. During runtime there
+# is exactly one spot that could potentially maybe once in a blue moon
+# use this function. Keep it lean.
+#
+sub parent_dir ($) {
+  ( $_[0] =~ m{  [\/\\]  ( \.{0,2} ) ( [\/\\]* ) \z }x )
+    ? (
+      $_[0]
+        .
+      ( ( length($1) and ! length($2) ) ? '/' : '' )
+        .
+      '../'
+    )
+    : (
+      require File::Spec
+        and
+      File::Spec->catpath (
+        ( File::Spec->splitpath( "$_[0]" ) )[0,1],
+        '/',
+      )
+    )
+  ;
+}
+
 
 {
   my $list_ctx_ok_stack_marker;

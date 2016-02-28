@@ -110,6 +110,7 @@ BEGIN {
     Sub::Defer
     Sub::Quote
 
+    File::Spec
     Scalar::Util
     List::Util
     Storable

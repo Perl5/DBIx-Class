@@ -13,12 +13,12 @@ use Config;
 use Carp qw(cluck confess croak);
 use Fcntl ':flock';
 use Scalar::Util qw(blessed refaddr);
-use DBIx::Class::_Util 'scope_guard';
+use DBIx::Class::_Util qw( scope_guard parent_dir );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace
-  local_umask
+  local_umask find_co_root
   visit_namespaces
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
@@ -97,6 +97,43 @@ sub local_umask ($) {
     );
   });
 }
+
+# Try to determine the root of a checkout/untar if possible
+# OR throws an exception
+my $co_root;
+sub find_co_root () {
+
+  $co_root ||= do {
+
+    my @mod_parts = split /::/, (__PACKAGE__ . '.pm');
+    my $inc_key = join ('/', @mod_parts);  # %INC stores paths with / regardless of OS
+
+    # a bit convoluted, but what we do here essentially is:
+    #  - get the file name of this particular module
+    #  - do 'cd ..' as many times as necessary to get to t/lib/../..
+
+    my $root = $INC{$inc_key}
+      or croak "\$INC{'$inc_key'} seems to be missing, this can't happen...";
+
+    $root = parent_dir $root
+      for 1 .. @mod_parts + 2;
+
+    # do the check twice so that the exception is more informative in the
+    # very unlikely case of realpath returning garbage
+    # (Paththools are in really bad shape - handholding all the way down)
+    for my $call_realpath (0,1) {
+
+      require Cwd and $root = ( Cwd::realpath($root) . '/' )
+        if $call_realpath;
+
+      croak "Unable to find root of DBIC checkout/untar: '${root}Makefile.PL' does not exist"
+        unless -f "${root}Makefile.PL";
+    }
+
+    $root;
+  }
+}
+
 
 sub stacktrace {
   my $frame = shift;
