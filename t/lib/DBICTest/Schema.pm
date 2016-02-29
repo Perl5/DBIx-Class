@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBICTest::Schema;
 
+# load early so that `perl -It/lib -MDBICTest::Schema` keeps  working
+use ANFANG;
+
 use strict;
 use warnings;
 no warnings 'qw';

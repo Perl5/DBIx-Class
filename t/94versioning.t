@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw(deploy test_rdbms_mysql);
 
 use strict;
@@ -11,7 +12,7 @@ use Path::Class;
 use File::Copy;
 use Time::HiRes qw/time sleep/;
 
-use lib qw(t/lib);
+
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 

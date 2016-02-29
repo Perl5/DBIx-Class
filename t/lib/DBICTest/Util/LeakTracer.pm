@@ -3,10 +3,12 @@ package DBICTest::Util::LeakTracer;
 use warnings;
 use strict;
 
+use ANFANG;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
 use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
 use DBIx::Class::Optional::Dependencies;
+use DBICTest::RunMode;
 use Data::Dumper::Concise;
 use DBICTest::Util qw( stacktrace visit_namespaces );
 use constant {

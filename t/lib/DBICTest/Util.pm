@@ -3,6 +3,8 @@ package DBICTest::Util;
 use warnings;
 use strict;
 
+use ANFANG;
+
 use constant DEBUG_TEST_CONCURRENCY_LOCKS =>
   ( ($ENV{DBICTEST_DEBUG_CONCURRENCY_LOCKS}||'') =~ /^(\d+)$/ )[0]
     ||

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
 
 use strict;
@@ -8,8 +9,6 @@ use Test::Exception;
 use Test::Warn;
 use Sub::Name;
 use Config;
-use DBIx::Class::Optional::Dependencies ();
-use lib qw(t/lib);
 use DBICTest;
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util 'is_exception';

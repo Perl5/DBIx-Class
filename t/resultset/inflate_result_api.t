@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 no warnings 'exiting';
 
 use Test::More;
 use Test::Deep;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema(no_populate => 1);

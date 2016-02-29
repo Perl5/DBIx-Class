@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 use Time::HiRes qw/gettimeofday/;
 
-use lib qw(t/lib);
+
 use DBICTest; # do not remove even though it is not used
 
 our $src_count = 100;

@@ -1,9 +1,11 @@
 package # hide from PAUSE
     DBICTest;
 
+# load early so that `perl -It/lib -MDBICTest` keeps  working
+use ANFANG;
+
 use strict;
 use warnings;
-
 
 # this noop trick initializes the STDOUT, so that the TAP::Harness
 # issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
@@ -39,9 +41,12 @@ DBICTest - Library to be used by DBIx::Class test scripts
 
 =head1 SYNOPSIS
 
-  use lib qw(t/lib);
-  use DBICTest;
+  BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
+  use warnings;
+  use strict;
   use Test::More;
+  use DBICTest;
 
   my $schema = DBICTest->init_schema();
 

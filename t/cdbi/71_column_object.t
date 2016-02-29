@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # Columns in CDBI could be defined as Class::DBI::Column objects rather than
 # or as well as with __PACKAGE__->columns();
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Class::DBI>=3.000005 );

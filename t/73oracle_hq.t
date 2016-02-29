@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_oracle';
 
 use strict;
@@ -9,8 +10,6 @@ use Test::More;
 # I *strongly* suspect Oracle has an implicit stable output order when
 # dealing with HQs. So just punt on the entire shuffle thing.
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
-
-use lib qw(t/lib);
 
 use DBICTest::Schema::Artist;
 BEGIN {

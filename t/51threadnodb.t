@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use Config;
 BEGIN {
   unless ($Config{useithreads}) {
@@ -17,7 +19,6 @@ use warnings;
 use Test::More;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-use lib qw(t/lib);
 use DBICTest;
 
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'

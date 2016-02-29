@@ -1,7 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
-use lib 't/lib';
+
 use DBICTest::RunMode;
 BEGIN {
   if( DBICTest::RunMode->is_plain ) {

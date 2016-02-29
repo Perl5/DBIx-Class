@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -7,7 +9,7 @@ use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
 use List::Util 'shuffle';
 use Try::Tiny;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $env2optdep = {

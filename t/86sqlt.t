@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'deploy';
 
 use strict;
@@ -7,7 +8,7 @@ use Test::More;
 use Test::Warn;
 use Scalar::Util 'blessed';
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $custom_deployment_statements_called = 0;

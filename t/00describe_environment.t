@@ -11,9 +11,9 @@ BEGIN {
   @initial_INC = @INC;
 }
 
-BEGIN {
-  unshift @INC, 't/lib';
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 
+BEGIN {
   if ( "$]" < 5.010) {
 
     # Pre-5.10 perls pollute %INC on unsuccesfull module

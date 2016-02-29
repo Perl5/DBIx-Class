@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # vim: filetype=perl
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
+
 use DBICTest;
 
 use POSIX ();

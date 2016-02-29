@@ -1,7 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
-use lib qw(t/lib);
+
 
 BEGIN {
   plan skip_all =>

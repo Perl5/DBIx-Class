@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -5,7 +7,7 @@ use Test::More;
 use Test::Exception;
 use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer scope_guard);
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 {

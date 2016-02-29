@@ -1,3 +1,5 @@
+BEGIN { $ENV{DBICTEST_ANFANG_DEFANG} = 1 }
+
 use strict;
 use warnings;
 use Config;

@@ -1,6 +1,6 @@
 require File::Spec;
 my $test_ddl_fn     = File::Spec->catfile(qw( t lib sqlite.sql ));
-my @test_ddl_cmd    = qw( -I lib -I t/lib -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
+my @test_ddl_cmd    = qw( -I lib -Mt::lib::ANFANG -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
 
 my $example_ddl_fn  = File::Spec->catfile(qw( examples Schema db example.sql ));
 my $example_db_fn   = File::Spec->catfile(qw( examples Schema db example.db ));

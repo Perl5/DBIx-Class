@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mssql_odbc';
 
 use strict;
@@ -7,7 +8,7 @@ use Test::More;
 use Test::Exception;
 use Try::Tiny;
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};

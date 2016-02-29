@@ -4,64 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-BEGIN {
-  if ($INC{'DBIx/Class.pm'}) {
-    my ($fr, @frame) = 1;
-    while (@frame = caller($fr++)) {
-      last if $frame[1] !~ m|^t/lib/DBICTest|;
-    }
-
-    die __PACKAGE__ . " must be loaded before DBIx::Class (or modules using DBIx::Class) at $frame[1] line $frame[2]\n";
-  }
-
-  if ( $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} ) {
-    my $ov = UNIVERSAL->can("VERSION");
-
-    require Carp;
-
-    no warnings 'redefine';
-    *UNIVERSAL::VERSION = sub {
-      Carp::carp( 'Argument "blah bleh bloh" isn\'t numeric in subroutine entry' );
-      &$ov;
-    };
-  }
-
-  if (
-    $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION}
-      or
-    # keep it always on during CI
-    (
-      ($ENV{TRAVIS}||'') eq 'true'
-        and
-      ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
-    )
-  ) {
-    require Try::Tiny;
-    my $orig = \&Try::Tiny::try;
-
-    no warnings 'redefine';
-    *Try::Tiny::try = sub (&;@) {
-      my ($fr, $first_pkg) = 0;
-      while( $first_pkg = caller($fr++) ) {
-        last if $first_pkg !~ /^
-          __ANON__
-            |
-          \Q(eval)\E
-        $/x;
-      }
-
-      if ($first_pkg =~ /DBIx::Class/) {
-        require Test::Builder;
-        Test::Builder->new->ok(0,
-          'Using try{} within DBIC internals is a mistake - use dbic_internal_try{} instead'
-        );
-      }
-
-      goto $orig;
-    };
-  }
-}
-
 use Path::Class qw/file dir/;
 use Fcntl ':DEFAULT';
 use File::Spec ();

@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # work around brain damage in PPerl (yes, it has to be a global)
 $SIG{__WARN__} = sub {
   warn @_ unless $_[0] =~ /\QUse of "goto" to jump into a construct is deprecated/
@@ -21,7 +23,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 use Scalar::Util qw(weaken blessed reftype);

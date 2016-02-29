@@ -1,8 +1,10 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema();

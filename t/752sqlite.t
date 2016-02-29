@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -7,7 +9,7 @@ use Test::Warn;
 use Time::HiRes 'time';
 use Math::BigInt;
 
-use lib qw(t/lib);
+
 use DBICTest;
 use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt );
 

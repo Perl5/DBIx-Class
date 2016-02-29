@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt _rdbms_msaccess_common );
 
 use strict;
@@ -6,7 +7,7 @@ use warnings;
 use Test::More;
 use Try::Tiny;
 use DBIx::Class::_Util 'scope_guard';
-use lib qw(t/lib);
+
 use DBICTest;
 
 my @tdeps = qw( test_rdbms_msaccess_odbc test_rdbms_msaccess_ado );

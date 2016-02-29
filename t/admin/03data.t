@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'admin';
 
 use strict;
@@ -6,7 +7,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use lib 't/lib';
+
 use DBICTest;
 
 use DBIx::Class::Admin;

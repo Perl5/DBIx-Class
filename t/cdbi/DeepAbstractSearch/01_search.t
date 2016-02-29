@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Class::DBI::Plugin::DeepAbstractSearch>=0 );
 
 use strict;
@@ -5,7 +6,6 @@ use warnings;
 
 use Test::More;
 
-use lib 't/lib';
 use DBICTest;
 
 my $DB = DBICTest->_sqlite_dbname(sqlite_use_file => 1);;

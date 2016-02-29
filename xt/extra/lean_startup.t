@@ -1,3 +1,5 @@
+BEGIN { $ENV{DBICTEST_ANFANG_DEFANG} = 1 }
+
 # Use a require override instead of @INC munging (less common)
 # Do the override as early as possible so that CORE::require doesn't get compiled away
 

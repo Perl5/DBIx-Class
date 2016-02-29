@@ -5,8 +5,6 @@ use warnings;
 use strict;
 
 use DBI;
-
-use lib 't/lib';
 use DBICTest;
 
 use base qw(DBIx::Class::CDBICompat);

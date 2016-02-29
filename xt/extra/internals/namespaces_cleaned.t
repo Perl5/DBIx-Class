@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 BEGIN {
   if ( "$]" < 5.010) {
 
@@ -16,7 +18,7 @@ BEGIN {
     # we want to do this here, in the very beginning, before even
     # warnings/strict are loaded
 
-    unshift @INC, 't/lib';
+
     require DBICTest::Util::OverrideRequire;
 
     DBICTest::Util::OverrideRequire::override_global_require( sub {
@@ -34,8 +36,6 @@ use strict;
 use warnings;
 
 use Test::More;
-
-use lib 't/lib';
 
 use DBICTest;
 use File::Find;

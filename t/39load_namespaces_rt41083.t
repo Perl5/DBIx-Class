@@ -1,7 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
-use lib 't/lib';
+
 use DBICTest; # do not remove even though it is not used
 use Test::More tests => 8;
 

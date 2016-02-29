@@ -1,10 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 use Class::Inspector ();
-
-unshift(@INC, './t/lib');
-use lib 't/lib';
 
 use DBICTest;
 

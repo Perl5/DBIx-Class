@@ -1,7 +1,10 @@
+BEGIN {
+  delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY};
+  do "./t/lib/ANFANG.pm" or die ( $@ || $! )
+}
+
 use warnings;
 use strict;
-
-BEGIN { delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} }
 
 use DBIx::Class::_Util 'sigwarn_silencer';
 use if DBIx::Class::_ENV_::BROKEN_FORK, 'threads';
@@ -9,9 +12,6 @@ use if DBIx::Class::_ENV_::BROKEN_FORK, 'threads';
 use Test::More;
 use File::Find;
 use Time::HiRes 'sleep';
-
-
-use lib 't/lib';
 
 my $worker = sub {
   my $fn = shift;

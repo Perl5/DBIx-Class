@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use Config;
 BEGIN {
   unless ($Config{useithreads}) {
@@ -23,7 +25,7 @@ use Test::Exception;
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if "$]" < 5.008005;
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 # README: If you set the env var to a number greater than 10,

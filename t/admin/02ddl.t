@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( admin deploy );
 
 use strict;
@@ -9,7 +10,7 @@ use Test::Warn;
 
 use Path::Class;
 
-use lib qw(t/lib);
+
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 

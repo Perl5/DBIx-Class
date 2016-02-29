@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # Test if prefetch and join in diamond relationship fetching the correct rows
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema();

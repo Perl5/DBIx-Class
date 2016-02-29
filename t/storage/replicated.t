@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_replicated';
 
 use strict;
@@ -5,7 +6,7 @@ use warnings;
 
 use Test::More;
 use DBIx::Class::_Util 'modver_gt_or_eq_and_lt';
-use lib qw(t/lib);
+
 use DBICTest;
 
 BEGIN {

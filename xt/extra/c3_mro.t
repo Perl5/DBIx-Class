@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest; # do not remove even though it is not used (pulls in MRO::Compat if needed)
 
 {

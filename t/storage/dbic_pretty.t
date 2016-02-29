@@ -1,9 +1,10 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_prettydebug';
 
 use strict;
 use warnings;
 
-use lib qw(t/lib);
+
 use DBICTest;
 use Test::More;
 

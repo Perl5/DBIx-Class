@@ -1,8 +1,10 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More 'no_plan';
-use lib 't/lib';
+
 use DBICTest::RunMode;
 
 my $authorcount = scalar do {

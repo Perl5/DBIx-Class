@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -5,7 +7,7 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 for my $conn_args (

@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -10,7 +12,7 @@ use Test::Exception;
 # and that's a whole another bag of dicks
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
 
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema();

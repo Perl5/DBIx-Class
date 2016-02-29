@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_ase';
 
 use strict;
@@ -8,7 +9,6 @@ use Test::More;
 use Test::Exception;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-use lib qw(t/lib);
 use DBICTest;
 
 my @storage_types = (

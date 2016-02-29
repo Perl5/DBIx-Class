@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_podcoverage';
 
 use warnings;
@@ -6,7 +7,7 @@ use strict;
 use Test::More;
 use List::Util 'first';
 use Module::Runtime 'require_module';
-use lib qw(t/lib maint/.Generated_Pod/lib);
+use lib 'maint/.Generated_Pod/lib';
 use DBICTest;
 use namespace::clean;
 

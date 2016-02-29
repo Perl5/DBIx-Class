@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw(test_rdbms_pg binary_data);
 
 use strict;
@@ -6,7 +7,7 @@ use warnings;
 use Test::More;
 use DBIx::Class::_Util 'modver_gt_or_eq';
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};

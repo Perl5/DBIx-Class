@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -8,7 +10,7 @@ use Test::Exception;
 use List::Util 'shuffle';
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 # Test txn_scope_guard

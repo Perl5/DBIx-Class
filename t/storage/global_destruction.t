@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -8,7 +10,7 @@ BEGIN { $ENV{DBIC_STORAGE_RETRY_DEBUG} = 1 }
 
 use DBIx::Class::Optional::Dependencies ();
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 for my $type (qw/PG MYSQL SQLite/) {

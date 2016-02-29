@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
 
 use strict;
@@ -5,7 +6,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $main_pid = $$;

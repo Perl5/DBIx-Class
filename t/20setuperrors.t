@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More;
 use Test::Exception;
 
-use lib 't/lib';
+
 use DBICTest;
 
 throws_ok (

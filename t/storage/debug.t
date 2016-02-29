@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 no warnings 'once';
@@ -15,7 +17,7 @@ use Test::More;
 use Test::Exception;
 use Try::Tiny;
 use File::Spec;
-use lib qw(t/lib);
+
 use DBICTest;
 use Path::Class qw/file/;
 

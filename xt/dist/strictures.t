@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_strictures';
 
 use warnings;
@@ -7,7 +8,7 @@ use Test::More;
 use File::Find;
 use File::Spec;
 use Config;
-use lib 't/lib';
+
 use DBICTest;
 
 # The rationale is - if we can load all our optdeps
@@ -42,7 +43,9 @@ find({
         |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
         |
-      lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load spee sensitive)
+      t/lib/ANFANG.pm                                 # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load speed sensitive)
     )$}x;
 
     my $f = $_;

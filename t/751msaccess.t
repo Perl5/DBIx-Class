@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -6,7 +8,7 @@ use Test::Exception;
 use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
-use lib qw(t/lib);
+
 use DBICTest;
 
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_MSACCESS_ODBC_${_}" } qw/DSN USER PASS/};

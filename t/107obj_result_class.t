@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 package ResultClassInflator;
 
 sub new { bless {}, __PACKAGE__ }
@@ -11,7 +13,7 @@ use warnings;
 
 use Test::More tests => 6;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema();

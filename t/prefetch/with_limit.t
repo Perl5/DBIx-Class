@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # Test to ensure we get a consistent result set wether or not we use the
 # prefetch option in combination rows (LIMIT).
 use strict;
@@ -5,7 +7,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 

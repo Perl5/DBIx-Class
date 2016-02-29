@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_whitespace';
 
 use warnings;
@@ -5,7 +6,7 @@ use strict;
 
 use Test::More;
 use File::Glob 'bsd_glob';
-use lib 't/lib';
+
 use DBICTest ':GlobalLock';
 
 # FIXME - temporary workaround for RT#82032, RT#82033

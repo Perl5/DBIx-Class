@@ -1,18 +1,20 @@
-use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_admin_script';
-
-use strict;
-use warnings;
-
 BEGIN {
   # just in case the user env has stuff in it
   delete $ENV{JSON_ANY_ORDER};
   delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY};
+
+  do "./t/lib/ANFANG.pm" or die ( $@ || $! )
 }
+
+use strict;
+use warnings;
+
+use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_admin_script';
 
 use Test::More;
 use Config;
 use File::Spec;
-use lib qw(t/lib);
+
 use DBICTest;
 
 $ENV{PATH} = '';
@@ -71,7 +73,7 @@ sub test_dbicadmin {
 
         my ($perl) = $^X =~ /(.*)/;
 
-        open(my $fh, "-|",  ( $perl, '-MDBICTest::RunMode', 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  ( $perl, '-MANFANG', 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -101,7 +103,7 @@ sub default_args {
 sub test_exec {
   my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ($perl, '-MDBICTest::RunMode', File::Spec->catfile(qw(script dbicadmin)), @_);
+  my @args = ($perl, '-MANFANG', File::Spec->catfile(qw(script dbicadmin)), @_);
 
   if ($^O eq 'MSWin32') {
     require Win32::ShellQuote; # included in test optdeps

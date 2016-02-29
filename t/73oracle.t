@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_oracle';
 
 use strict;
@@ -8,7 +9,6 @@ use Test::More;
 use Sub::Name;
 use Try::Tiny;
 
-use lib qw(t/lib);
 use DBICTest;
 
 $ENV{NLS_SORT} = "BINARY";
