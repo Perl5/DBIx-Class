@@ -861,7 +861,9 @@ sub skip_without {
   if ( my $err = $self->req_missing_for($groups) ) {
     my ($fn, $ln) = (caller(0))[1,2];
     $tb->skip("block in $fn around line $ln requires $err");
-    local $^W = 0;
+
+    BEGIN { ${^WARNING_BITS} = "" }
+
     last SKIP;
   }
 
