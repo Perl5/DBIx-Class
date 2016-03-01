@@ -13,7 +13,6 @@ use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_admin_script'
 
 use Test::More;
 use Config;
-use File::Spec;
 
 use DBICTest;
 
@@ -103,7 +102,7 @@ sub default_args {
 sub test_exec {
   my ($perl) = $^X =~ /(.*)/;
 
-  my @args = ($perl, '-MANFANG', File::Spec->catfile(qw(script dbicadmin)), @_);
+  my @args = ($perl, '-MANFANG', 'script/dbicadmin', @_);
 
   if ($^O eq 'MSWin32') {
     require Win32::ShellQuote; # included in test optdeps

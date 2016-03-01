@@ -1240,14 +1240,12 @@ format.
 sub ddl_filename {
   my ($self, $type, $version, $dir, $preversion) = @_;
 
-  require File::Spec;
-
   $version = "$preversion-$version" if $preversion;
 
   my $class = blessed($self) || $self;
   $class =~ s/::/-/g;
 
-  return File::Spec->catfile($dir, "$class-$version-$type.sql");
+  return "$dir/$class-$version-$type.sql";
 }
 
 =head2 thaw

@@ -4,7 +4,7 @@ use File::Glob();
 # leftovers in old checkouts
 unlink 'lib/DBIx/Class/Optional/Dependencies.pod'
   if -f 'lib/DBIx/Class/Optional/Dependencies.pod';
-File::Path::rmtree( File::Glob::bsd_glob('.generated_pod'), { verbose => 0 } )
+File::Path::rmtree([ '.generated_pod' ])
   if -d '.generated_pod';
 
 my $pod_dir = 'maint/.Generated_Pod';
@@ -12,7 +12,7 @@ my $ver = Meta->version;
 
 # cleanup the generated pod dir (again - kill leftovers from old checkouts)
 if (-d $pod_dir) {
-  File::Path::rmtree( File::Glob::bsd_glob("$pod_dir/*"), { verbose => 0 } );
+  File::Path::rmtree([ File::Glob::bsd_glob("$pod_dir/*") ]);
 }
 else {
   mkdir $pod_dir or die "Unable to create $pod_dir: $!";
@@ -95,7 +95,7 @@ EOP
 
 # generate the DBIx/Class.pod only during distdir
 {
-  my $dist_pod_fn = File::Spec->catfile($pod_dir, qw(lib DBIx Class.pod));
+  my $dist_pod_fn = "$pod_dir/lib/DBIx/Class.pod";
 
   postamble <<"EOP";
 
@@ -146,7 +146,7 @@ clonedir_post_generate_files : dbic_clonedir_copy_generated_pod
 dbic_clonedir_copy_generated_pod :
 \t\$(RM_F) $pod_dir.packlist
 \t@{[
-  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => File::Spec->curdir(), write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
+  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => './', write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
 ]}
 
 EOP

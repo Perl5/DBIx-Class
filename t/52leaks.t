@@ -538,6 +538,8 @@ SKIP: {
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
 
+  require File::Spec;
+
   $persistence_tests = {
     PPerl => {
       cmd => [qw/pperl --prefork=1/, __FILE__],

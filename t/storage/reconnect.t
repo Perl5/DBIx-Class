@@ -3,9 +3,7 @@ BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use strict;
 use warnings;
 
-use FindBin;
 use B::Deparse;
-use File::Copy 'move';
 use Scalar::Util 'weaken';
 use Test::More;
 use Test::Exception;
@@ -48,7 +46,7 @@ cmp_ok(@art_two, '==', 3, "Three artists returned");
 ### Now, disconnect the dbh, and move the db file;
 # create a new one full of garbage, prevent SQLite from connecting.
 $schema->storage->_dbh->disconnect;
-move( $db_orig, $db_tmp )
+rename( $db_orig, $db_tmp )
   or die "failed to move $db_orig to $db_tmp: $!";
 open my $db_file, '>', $db_orig;
 print $db_file 'THIS IS NOT A REAL DATABASE';
@@ -67,7 +65,7 @@ ok (! $schema->storage->connected, 'We are not connected' );
 
 ### Now, move the db file back to the correct name
 unlink($db_orig) or die "could not delete $db_orig: $!";
-move( $db_tmp, $db_orig )
+rename( $db_tmp, $db_orig )
   or die "could not move $db_tmp to $db_orig: $!";
 
 ### Try the operation again... this time, it should succeed

@@ -19,14 +19,12 @@ BEGIN {
 
 use Test::Moose;
 use Test::Exception;
-use List::Util 'first';
 use Scalar::Util 'reftype';
-use File::Spec;
 use Moose();
 use MooseX::Types();
 note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
-my $var_dir = quotemeta ( File::Spec->catdir(qw/t var/) );
+my $var_dir_re = qr{ t [\/\\] var [\/\\] }x;
 
 ## Add a connect_info option to test option merging.
 use DBIx::Class::Storage::DBI::Replicated;
@@ -157,8 +155,8 @@ TESTSCHEMACLASSES: {
 
         $self->master_path( DBICTest->_sqlite_dbfilename );
         $self->slave_paths([
-            File::Spec->catfile(qw/t var DBIxClass_slave1.db/),
-            File::Spec->catfile(qw/t var DBIxClass_slave2.db/),
+            't/var/DBIxClass_slave1.db',
+            't/var/DBIxClass_slave2.db',
         ]);
 
         return $self;
@@ -376,7 +374,7 @@ ok @replicant_names, "found replicant names @replicant_names";
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ $var_dir_re } @replicant_names;
 
 isa_ok $replicated->schema->storage->balancer->current_replicant
     => 'DBIx::Class::Storage::DBI';
@@ -424,7 +422,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ $var_dir_re } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 
@@ -607,7 +605,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ $var_dir_re } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 

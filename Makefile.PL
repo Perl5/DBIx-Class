@@ -236,11 +236,10 @@ sub invoke_author_mode {
     "\t" . $mm_proto->oneliner( qq(\$ENV{PERLIO}='unix' and system( \$^X, qw( -MExtUtils::Command -e dos2unix -- ), $targets ) ) );
   };
 
-  require File::Spec;
   # string-eval, not do(), because we need to provide the
   # $mm_proto, $reqs and $*_requires lexicals to the included file
   # (some includes *do* modify $reqs above)
-  for my $inc (sort glob ( File::Spec->catfile('maint', 'Makefile.PL.inc', '*') ) ) {
+  for my $inc (sort glob ( 'maint/Makefile.PL.inc/*' ) ) {
     my $src = do { local (@ARGV, $/) = $inc; <> } or die $!;
     eval "use warnings; use strict; $src" or die sprintf
       "Failed execution of %s: %s\n",

@@ -31,7 +31,7 @@ my $ddl_dir = dir(qw/t var/, "admin_ddl-$$");
 { # create the schema
 
 #  make sure we are  clean
-clean_dir($ddl_dir);
+cleanup();
 
 
 my $admin = DBIx::Class::Admin->new(
@@ -50,7 +50,7 @@ lives_ok {
 
 { # upgrade schema
 
-clean_dir($ddl_dir);
+cleanup();
 require DBICVersion_v1;
 
 my $admin = DBIx::Class::Admin->new(
@@ -92,7 +92,7 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 
 { # install
 
-clean_dir($ddl_dir);
+cleanup();
 
 my $admin = DBIx::Class::Admin->new(
   schema_class  => 'DBICVersion::Schema',
@@ -115,14 +115,14 @@ warnings_exist ( sub {
 is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 }
 
-sub clean_dir {
+sub cleanup {
   my ($dir) = @_;
-  $dir->rmtree if -d $dir;
+  $ddl_dir->rmtree if -d $ddl_dir;
   unlink $db_fn;
 }
 
 END {
-  clean_dir($ddl_dir);
+  cleanup();
 }
 
 done_testing;

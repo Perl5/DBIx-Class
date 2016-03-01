@@ -340,7 +340,13 @@ sub create {
 
   my $schema = $self->schema();
 
-  $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
+  $schema->create_ddl_dir(
+    $sqlt_type,
+    (defined $schema->schema_version ? $schema->schema_version : ""),
+    $self->sql_dir,
+    $preversion,
+    $sqlt_args,
+  );
 }
 
 

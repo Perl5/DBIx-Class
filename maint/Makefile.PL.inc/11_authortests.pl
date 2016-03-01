@@ -1,4 +1,3 @@
-require File::Spec;
 require File::Find;
 
 my $xt_dist_dirs;
@@ -9,7 +8,7 @@ File::Find::find(sub {
   );
 }, 'xt/dist');
 
-my @xt_dist_tests = map { File::Spec->catfile($_, '*.t') } sort keys %$xt_dist_dirs;
+my @xt_dist_tests = map { "$_/*.t" } sort keys %$xt_dist_dirs;
 
 # inject an explicit xt test run, mainly to check the contents of
 # lib and the generated POD's *before* anything is copied around

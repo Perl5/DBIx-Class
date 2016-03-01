@@ -120,7 +120,7 @@ END {
     unlink 'Makefile';
     exit 1;
   }
-  my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
+  my $meta = do { local (@ARGV, $/) = 'META.yml'; <> };
 
   $meta =~ /^\Qname: DBIx-Class\E$/m or do {
     warn "Seemingly malformed META.yml...?\n";
