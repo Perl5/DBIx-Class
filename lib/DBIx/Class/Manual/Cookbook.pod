@@ -502,7 +502,7 @@ To return all CDs matching a particular artist name, you specify the name of the
   # JOIN artist ON cd.artist = artist.id
   # WHERE artist.name = 'Bob Marley'
 
-In that example both the join, and the condition use the relationship name rather than the table name
+In that example both the join, and the condition B<use the relationship name> rather than the table name
 (see L<DBIx::Class::Manual::Joining> for more details on aliasing ).
 
 If required, you can now sort on any column in the related tables by including
