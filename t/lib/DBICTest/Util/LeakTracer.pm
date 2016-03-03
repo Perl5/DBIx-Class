@@ -7,12 +7,17 @@ use ANFANG;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
 use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
-use DBIx::Class::Optional::Dependencies;
 use DBICTest::RunMode;
 use Data::Dumper::Concise;
 use DBICTest::Util qw( stacktrace visit_namespaces );
 use constant {
-  CV_TRACING => !DBICTest::RunMode->is_plain && DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
+  CV_TRACING => !!(
+    !DBICTest::RunMode->is_plain
+      &&
+    require DBIx::Class::Optional::Dependencies
+      &&
+    DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy')
+  ),
 };
 
 use base 'Exporter';

@@ -33,6 +33,7 @@ use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 use Scalar::Util qw(weaken blessed reftype);
 use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt);
+use DBIx::Class::Optional::Dependencies;
 
 my $TB = Test::More->builder;
 if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {

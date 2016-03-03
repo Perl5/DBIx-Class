@@ -6,7 +6,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-
+use DBIx::Class::Optional::Dependencies;
 use DBICTest;
 
 my $schema = DBICTest->init_schema(cursor_class => 'DBICTest::Cursor');

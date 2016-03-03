@@ -5,6 +5,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies;
 use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer scope_guard);
 
 

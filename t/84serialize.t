@@ -61,6 +61,7 @@ my %stores = (
 );
 
 SKIP: {
+    require DBIx::Class::Optional::Dependencies;
     DBIx::Class::Optional::Dependencies->skip_without('test_memcached');
 
     my $memcached = Cache::Memcached->new(

@@ -181,6 +181,8 @@ sub bind_attribute_by_data_type {
         );
       }
       elsif (
+        require DBIx::Class::Optional::Dependencies
+          and
         my $missing = DBIx::Class::Optional::Dependencies->req_missing_for([qw( rdbms_pg binary_data )])
       ) {
         # FIXME - perhaps this needs to be an exception too...?

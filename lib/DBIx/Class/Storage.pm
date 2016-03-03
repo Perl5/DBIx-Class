@@ -577,6 +577,7 @@ sub debugobj {
 
       if ($profile =~ /^\.?\//) {
 
+        require DBIx::Class::Optional::Dependencies;
         if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('config_file_reader') ) {
           $self->throw_exception("Unable to parse TRACE_PROFILE config file '$profile' without $missing");
         }

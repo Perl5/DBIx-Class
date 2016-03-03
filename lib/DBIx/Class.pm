@@ -18,8 +18,6 @@ $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev relea
 use DBIx::Class::_Util;
 use mro 'c3';
 
-use DBIx::Class::Optional::Dependencies;
-
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::StartupCheck;
 use DBIx::Class::Exception;

@@ -641,6 +641,7 @@ sub _create_db_to_schema_diff {
     return;
   }
 
+  require DBIx::Class::Optional::Dependencies;
   if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('deploy') ) {
     $self->throw_exception("Unable to proceed without $missing");
   }

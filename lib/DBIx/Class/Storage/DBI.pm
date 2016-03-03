@@ -2938,6 +2938,11 @@ them.
 sub create_ddl_dir {
   my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')) {
+    $self->throw_exception("Can't create a ddl file without $missing");
+  }
+
   if (!$dir) {
     carp "No directory given, using ./\n";
     $dir = './';
@@ -2959,10 +2964,6 @@ sub create_ddl_dir {
     quote_identifiers => $self->sql_maker->_quoting_enabled,
     %{$sqltargs || {}}
   };
-
-  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')) {
-    $self->throw_exception("Can't create a ddl file without $missing");
-  }
 
   my $sqlt = SQL::Translator->new( $sqltargs );
 
@@ -3117,6 +3118,7 @@ sub deployment_statements {
       return join('', @rows);
   }
 
+  require DBIx::Class::Optional::Dependencies;
   if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') ) {
     $self->throw_exception("Can't deploy without a pregenerated 'ddl_dir' directory or $missing");
   }
