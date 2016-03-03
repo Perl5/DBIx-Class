@@ -302,6 +302,30 @@ sub rm_rf ($) {
 }
 
 
+# This is an absolutely horrible thing to do on an end-user system
+# DO NOT use it indiscriminately - ideally under nothing short of ->is_smoker
+# Not added to EXPORT_OK on purpose
+sub can_alloc_MB ($) {
+  my $arg = shift;
+  $arg = 'UNDEF' if not defined $arg;
+
+  croak "Expecting a positive integer, got '$arg'"
+    if $arg !~ /^[1-9][0-9]*$/;
+
+  my ($perl) = $^X =~ /(.+)/;
+  local $ENV{PATH};
+  local $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
+
+  local ( $!, $^E, $?, $@ );
+
+  system( $perl, qw( -Mt::lib::ANFANG -e ), <<'EOS', $arg );
+$0 = 'malloc_canary';
+my $tail_character_of_reified_megastring = substr( ( join '', map chr, 0..255 ) x (4 * 1024 * $ARGV[0]), -1 );
+EOS
+
+  !!( $? == 0 )
+}
+
 sub stacktrace {
   my $frame = shift;
   $frame++;

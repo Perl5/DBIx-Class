@@ -1,33 +1,59 @@
 BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 
+use warnings;
+use strict;
+
 use Config;
 BEGIN {
-  unless ($Config{useithreads}) {
-    print "1..0 # SKIP your perl does not support ithreads\n";
-    exit 0;
+  my $skipall;
+
+  # FIXME: this discrepancy is crazy, need to investigate
+  my $mem_needed = ($Config{ptrsize} == 4)
+    ? 200
+    : 750
+  ;
+
+  if( ! $Config{useithreads} ) {
+    $skipall = 'your perl does not support ithreads';
+  }
+  elsif( "$]" < 5.008005 ) {
+    $skipall = 'DBIC does not actively support threads before perl 5.8.5';
+  }
+  elsif( $INC{'Devel/Cover.pm'} ) {
+    $skipall = 'Devel::Cover does not work with ithreads yet';
+  }
+  elsif(
+    ! $ENV{DBICTEST_RUN_ALL_TESTS}
+      and
+    require DBICTest::RunMode
+      and
+    ! DBICTest::RunMode->is_smoker
+  ) {
+    $skipall = "Test is too expensive (may use up to ${mem_needed}MB of memory), skipping on non-smoker";
+  }
+  else {
+    require threads;
+    threads->import();
+
+    require DBICTest;
+    # without this the can_alloc may very well shoot half of the CI down
+    DBICTest->import(':GlobalLock');
+
+    unless ( DBICTest::Util::can_alloc_MB($mem_needed) ) {
+      $skipall = "Your system does not have the necessary amount of memory (${mem_needed}MB) for this ridiculous test";
+    }
   }
 
-  if ($INC{'Devel/Cover.pm'}) {
-    print "1..0 # SKIP Devel::Cover does not work with threads yet\n";
+  if( $skipall ) {
+    print "1..0 # SKIP $skipall\n";
     exit 0;
   }
 }
-use threads;
 
-use strict;
-use warnings;
 use Test::More;
 use Errno ();
 use DBIx::Class::_Util 'sigwarn_silencer';
 use Time::HiRes qw(time sleep);
-
-use DBICTest;
-
-plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
-  if "$]" < 5.008005;
-
-plan skip_all => 'Potential problems on Win32 Perl < 5.14 and Variable::Magic - investigation pending'
-  if $^O eq 'MSWin32' && "$]" < 5.014 && DBICTest::RunMode->is_plain;
 
 # README: If you set the env var to a number greater than 5,
 #   we will use that many children
@@ -73,6 +99,7 @@ SKIP: {
 ok(1, "past spawning");
 
 $_->join for @threads;
+
 ok(1, "past joining");
 
 # Too many threading bugs on exit, none of which have anything to do with

@@ -139,6 +139,7 @@ matrix:
     - perl: "5.8.8_thr"
       sudo: required
       dist: precise
+      group: legacy
       env:
         - VCPU_USE=1
         - CLEANTEST=false
