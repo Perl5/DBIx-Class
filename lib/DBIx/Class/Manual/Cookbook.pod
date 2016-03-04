@@ -1491,8 +1491,17 @@ Once you've loaded your table class select from it using C<select>
 and C<as> instead of C<columns>
 
   my $rs = $schema->resultset('Dual')->search(undef,
-    { select => [ 'sydate' ],
+    { select => [ \'sydate' ],
       as     => [ 'now' ]
+    },
+  );
+
+You can pass parameters to your function like this
+
+  my $rs = $schema->resultset('Dual')->search(undef,
+    { select => [ \'MyDBProc(?,?,?)' ],
+      as     => [ 'ProcResult' ],
+      bind   => [ $param1, $param2, $param3 ]
     },
   );
 
