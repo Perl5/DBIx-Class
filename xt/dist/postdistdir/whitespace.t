@@ -27,8 +27,9 @@ Test::EOL::all_perl_files_ok({ trailing_whitespace => 1 }, @pl_targets);
 Test::NoTabs::all_perl_files_ok(@pl_targets);
 
 # check some non-"perl files" in the root separately
-# use .gitignore as a guide of what to skip
-# (or do not test at all if no .gitignore is found)
+my @root_files = grep { -f $_ } bsd_glob('*');
+
+# use .gitignore as a partial guide of what to skip
 if (open(my $gi, '<', '.gitignore')) {
   my $skipnames;
   while (my $ln = <$gi>) {
@@ -37,15 +38,23 @@ if (open(my $gi, '<', '.gitignore')) {
     $skipnames->{$_}++ for bsd_glob($ln);
   }
 
-  # that we want to check anyway
-  delete $skipnames->{'META.yml'};
+  # these we want to check no matter what the above says
+  delete $skipnames->{qw(
+    Changes
+    LICENSE
+    AUTHORS
+    README
+    MANIFEST
+    META.yml
+    META.json
+  )};
 
-  for my $fn (bsd_glob('*')) {
-    next if $skipnames->{$fn};
-    next unless -f $fn;
-    Test::EOL::eol_unix_ok($fn, { trailing_whitespace => 1 });
-    Test::NoTabs::notabs_ok($fn);
-  }
+  @root_files = grep { ! $skipnames->{$_} } @root_files;
+}
+
+for my $fn (@root_files) {
+  Test::EOL::eol_unix_ok($fn, { trailing_whitespace => 1 });
+  Test::NoTabs::notabs_ok($fn) unless $fn eq 'MANIFEST';  # it is always tab infested
 }
 
 # FIXME - Test::NoTabs and Test::EOL declare 'no_plan' which conflicts with done_testing

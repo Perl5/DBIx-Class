@@ -105,15 +105,18 @@ dbic_distdir_gen_dbic_pod :
 
 \tperldoc -u lib/DBIx/Class.pm > $dist_pod_fn
 \t@{[ $mm_proto->oneliner(
-  "s!^.*?this line is replaced with the author list.*! qq{List of the awesome contributors who made DBIC v$ver possible\n\n} . qx(\$^X -Ilib maint/gen_pod_authors)!me",
-  [qw( -0777 -p -i )]
+  "s!^.*?this line is replaced with the author list.*! qq{List of the awesome contributors who made DBIC v$ver possible\\n\\n} . qx(\$^X -Ilib maint/gen_pod_authors)!me",
+  [qw( -0777 -p -i.arghwin32 )]
 ) ]} $dist_pod_fn
+\t\$(RM_F) $dist_pod_fn.arghwin32
 
 create_distdir : dbic_distdir_defang_authors
 
 # Remove the maintainer-only warning (be nice ;)
 dbic_distdir_defang_authors :
-\t@{[ $mm_proto->oneliner('s/ ^ \s* \# \s* \*\*\* .+ \n ( ^ \s* \# \s*? \n )? //xmg', [qw( -0777 -p -i )] ) ]} \$(DISTVNAME)/AUTHORS
+\t@{[ $mm_proto->oneliner('s/ ^ \s* \# \s* \*\*\* .+ \n ( ^ \s* \# \s*? \n )? //xmg', [qw( -0777 -p -i.arghwin32 )] ) ]} \$(DISTVNAME)/AUTHORS
+@{[ $crlf_fixup->( '$(DISTVNAME)/AUTHORS' ) ]}
+\t\$(RM_F) \$(DISTVNAME)/AUTHORS.arghwin32
 
 EOP
 }

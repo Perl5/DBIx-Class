@@ -10,6 +10,11 @@ File::Find::find(sub {
 
 my @xt_dist_tests = map { "$_/*.t" } sort keys %$xt_dist_dirs;
 
+my $parallel_jobs = ( $^O eq 'MSWin32' )
+  ? 1 # FIXME for some reason windows hangs on parallel jobs at `make dist`
+  : 4
+;
+
 # inject an explicit xt test run, mainly to check the contents of
 # lib and the generated POD's *before* anything is copied around
 #
@@ -30,7 +35,10 @@ test_xt : pm_to_blib
     # perl cmd
     join( ' ',
       '$(ABSPERLRUN)',
-      map { $mm_proto->quote_literal($_) } qw(-e $ENV{RELEASE_TESTING}=1;$ENV{HARNESS_OPTIONS}=j4;)
+      map { $mm_proto->quote_literal($_) } (
+        '-e',
+        "\$ENV{RELEASE_TESTING}=1;\$ENV{HARNESS_OPTIONS}=j$parallel_jobs;"
+      ),
     ),
     # test list
     join( ' ',
@@ -49,7 +57,11 @@ dbic_distdir_retest_ws_and_footers :
       # perl cmd
       join( ' ',
         '$(ABSPERLRUN)',
-        map { $mm_proto->quote_literal($_) } qw(-Ilib -e $ENV{RELEASE_TESTING}=1;$ENV{HARNESS_OPTIONS}=j4;)
+        map { $mm_proto->quote_literal($_) } (
+          '-Ilib',
+          '-e',
+          "\$ENV{RELEASE_TESTING}=1;\$ENV{HARNESS_OPTIONS}=j$parallel_jobs;"
+        ),
       ),
       'xt/dist/postdistdir/*.t',
     )

@@ -33,6 +33,7 @@ create_distdir : dbic_distdir_regen_license
 dbic_distdir_regen_license :
 @{[ $start_file->( Meta->name . '-' . Meta->version . '/LICENSE' ) ]}
 \t@{[ $mm_proto->oneliner('cat', ['-MExtUtils::Command']) ]} LICENSE >> \$(DISTVNAME)/LICENSE
+@{[ $crlf_fixup->('$(DISTVNAME)/LICENSE') ]}
 
 EOP
 

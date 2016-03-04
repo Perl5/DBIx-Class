@@ -4,6 +4,7 @@
 postamble <<"EOM";
 
 fresh_manifest : remove_manifest manifest
+@{[ $crlf_fixup->('MANIFEST') ]}
 
 remove_manifest :
 \t\$(RM_F) MANIFEST
