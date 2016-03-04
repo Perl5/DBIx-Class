@@ -1,16 +1,8 @@
-BEGIN { $ENV{DBICTEST_ANFANG_DEFANG} = 1 }
-
 # Use a require override instead of @INC munging (less common)
 # Do the override as early as possible so that CORE::require doesn't get compiled away
 
 my ($initial_inc_contents, $expected_dbic_deps, $require_sites);
 BEGIN {
-  # these envvars *will* bring in more stuff than the baseline
-  delete @ENV{qw(DBICTEST_SQLT_DEPLOY DBIC_TRACE)};
-
-  # make sure extras do not load even when this is set
-  $ENV{PERL_STRICTURES_EXTRA} = 1;
-
   unshift @INC, 't/lib';
   require DBICTest::Util::OverrideRequire;
 
@@ -71,8 +63,24 @@ BEGIN {
   plan skip_all => 'A defined PERL5OPT may inject extra deps crashing this test'
     if $ENV{PERL5OPT};
 
+  plan skip_all => 'Presence of sitecustomize.pl may inject extra deps crashing this test'
+    if grep { $_ =~ m| \/ sitecustomize\.pl $ |x } keys %INC;
+
   plan skip_all => 'Dependency load patterns are radically different before perl 5.10'
     if "$]" < 5.010;
+
+  # these envvars *will* bring in more stuff than the baseline
+  delete @ENV{qw(
+    DBIC_TRACE
+    DBICTEST_SQLT_DEPLOY
+    DBICTEST_VIA_REPLICATED
+    DBICTEST_DEBUG_CONCURRENCY_LOCKS
+  )};
+
+  $ENV{DBICTEST_ANFANG_DEFANG} = 1;
+
+  # make sure extras do not load even when this is set
+  $ENV{PERL_STRICTURES_EXTRA} = 1;
 
   # add what we loaded so far
   for (keys %INC) {
@@ -83,12 +91,6 @@ BEGIN {
   }
 }
 
-BEGIN {
-  delete $ENV{$_} for qw(
-    DBICTEST_VIA_REPLICATED
-    DBICTEST_DEBUG_CONCURRENCY_LOCKS
-  );
-}
 
 #######
 ### This is where the test starts

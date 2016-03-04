@@ -536,6 +536,7 @@ SKIP: {
     if modver_gt_or_eq_and_lt( 'Test::More', '1.200', '1.301001_099' );
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
+  local $ENV{DBICTEST_ANFANG_DEFANG} = 1;
 
   require File::Spec;
 

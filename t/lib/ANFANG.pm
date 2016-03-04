@@ -7,15 +7,23 @@ BEGIN {
     require warnings and warnings->import;
     require strict and strict->import;
   }
-
-  # allow 'use ANFANG' to work after it's been do()ne
-  $INC{"ANFANG.pm"} ||= __FILE__;
-  $INC{"t/lib/ANFANG.pm"} ||= __FILE__;
-  $INC{"./t/lib/ANFANG.pm"} ||= __FILE__;
 }
 
-BEGIN {
+#
+# FROM THIS POINT ONWARD EVERYTHING HAPPENS LINEARLY AT RUNTIME
+#
+our $anfang_loaded;
 
+# this allows the obscure but possible call case to behave correctly:
+#
+#   perl -Mt::lib::ANFANG -e 'do "./t/lib/ANFANG.pm" or die ( $@ || $! )'
+#
+return 1 if $anfang_loaded;
+
+# cover even more bases
+$INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
+
+{
   # load-me-first sanity check
   if (
 
@@ -24,8 +32,12 @@ BEGIN {
 
       and
 
-    # if this is set - all bets are off
-    ! $ENV{PERL5OPT}
+    # if these are set - all bets are off
+    ! (
+      $ENV{PERL5OPT}
+        or
+      scalar grep { $_ =~ m| \/ sitecustomize\.pl $ |x } keys %INC
+    )
 
       and
 
@@ -118,10 +130,12 @@ BEGIN {
       goto $orig;
     };
   }
-
 }
 
-use lib 't/lib';
+
+require lib;
+lib->import('t/lib');
+
 
 # everything expects this to be there
 ! -d 't/var' and (
@@ -130,10 +144,13 @@ use lib 't/lib';
   die "Unable to create 't/var': $!\n"
 );
 
+
 # Back in ab340f7f ribasushi stupidly introduced a "did you check your deps"
 # verification tied very tightly to Module::Install. The check went away, and
 # so eventually will M::I, but bisecting can bring all of this back from the
 # dead. In order to reduce hair-pulling make sure that ./inc/ is always there
 -f 'Makefile.PL' and mkdir 'inc' and mkdir 'inc/.author';
 
-1;
+
+# make absolutely sure this is last
+$anfang_loaded = 1;

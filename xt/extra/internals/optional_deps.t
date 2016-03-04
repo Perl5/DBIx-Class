@@ -19,8 +19,15 @@ use Carp 'confess';
 use List::Util 'shuffle';
 
 SKIP: {
-  skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1 if $ENV{PERL5OPT};
-  skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1 if $ENV{RELEASE_TESTING};
+  skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1
+    if $ENV{PERL5OPT};
+
+  skip 'Lean load pattern testing unsafe with sitecustomize.pl', 1
+    if grep { $_ =~ m| \/ sitecustomize\.pl $ |x } keys %INC;
+
+  skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1
+    if $ENV{RELEASE_TESTING};
+
   is_deeply
     $inc_before,
     [],
