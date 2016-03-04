@@ -101,6 +101,31 @@ SQL
     cmp_ok( $row->$col->nanosecond, '==', $sample_dt->{nanosecond},
       'DateTime fractional portion roundtrip' )
       if exists $sample_dt->{nanosecond};
+
+    {
+        # copy() uses get_columns()
+        # the values should survive a roundtrip also
+
+        # my %col = $row->get_columns;
+
+        # result: 2004-08-21T14:36:48.500Z
+        # error message from Sybase in an insert/update:
+        # Syntax error during implicit conversion of VARCHAR value
+        # '2004-08-21T14:36:48.500Z' to a DATETIME field.
+
+        # doing this:
+        #     $_[0]->dbh->syb_date_fmt('ISO');
+        # will result in a string that's accepted for an insert, however
+        # then the default datetime parser
+        # DBIx::Class::Storage::DBI::Sybase::ASE::DateTime::Format
+        # will die on inflating. Additionally you will need
+        #     DBIx::Class::Storage::DBI::Sybase::ASE
+        #       ->datetime_parser_type("DateTime::Format::Sybase");
+        local $TODO = "copy() doesn't work for datetime columns with the default datetime_setup";
+        lives_ok(sub {
+                $row->copy
+            }, "copy()");
+    }
   }
 
   # test a computed datetime column
