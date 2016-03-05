@@ -151,6 +151,36 @@ lib->import('t/lib');
 # dead. In order to reduce hair-pulling make sure that ./inc/ is always there
 -f 'Makefile.PL' and mkdir 'inc' and mkdir 'inc/.author';
 
+END {
+  if( my @finalest_tasks = (
+
+    ( !$ENV{DBICTEST_DIRTY_EXIT} ? () : sub {
+
+      my $exit = $?;
+      require POSIX;
+
+      # Crucial flushes in case we are piping things out (e.g. prove)
+      # Otherwise the last lines will never arrive at the receiver
+      select($_), $| = 1 for \*STDOUT, \*STDERR;
+
+      POSIX::_exit($exit);
+    } ),
+
+  )) {
+
+    # in the case of an early skip_all B may very well not have loaded
+    unless( $INC{"B.pm"} ) {
+      local ( $!, $^E, $?, $@ );
+      require B;
+    }
+
+    # Make sure we run after any cleanup in other END blocks
+    # ( push-to-end twice in a row )
+    push @{ B::end_av()->object_2svref }, sub {
+      push @{ B::end_av()->object_2svref }, @finalest_tasks;
+    }
+  }
+}
 
 # make absolutely sure this is last
 $anfang_loaded = 1;

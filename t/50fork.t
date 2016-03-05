@@ -5,17 +5,17 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-
+use Time::HiRes qw(time sleep);
 
 use DBICTest;
 
 my $main_pid = $$;
 
-# README: If you set the env var to a number greater than 10,
+# README: If you set the env var to a number greater than 5,
 #   we will use that many children
 my $num_children = $ENV{DBICTEST_FORK_STRESS} || 1;
-if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
-   $num_children = 10;
+if($num_children !~ /^[0-9]+$/ || $num_children < 5) {
+   $num_children = 5;
 }
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
@@ -88,6 +88,11 @@ ok(!$@) or diag "Creation eval failed: $@";
 }
 
 $parent_rs->reset;
+
+# sleep until this spot so everything starts simultaneously
+# add "until turn of second" for prettier display
+my $t = int( time() ) + 4;
+
 my @pids;
 while(@pids < $num_children) {
 
@@ -101,6 +106,9 @@ while(@pids < $num_children) {
     }
 
     $pid = $$;
+
+    sleep ( $t - time );
+    note ("Child process $pid starting work at " . time() );
 
     my $work = sub {
       my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
@@ -122,7 +130,7 @@ while(@pids < $num_children) {
       $work->();
     }
 
-    sleep(3);
+    sleep(2);
     exit 0;
 }
 

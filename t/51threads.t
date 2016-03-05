@@ -21,6 +21,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Time::HiRes qw(time sleep);
 
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if "$]" < 5.008005;
@@ -28,11 +29,11 @@ plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
 
 use DBICTest;
 
-# README: If you set the env var to a number greater than 10,
+# README: If you set the env var to a number greater than 5,
 #   we will use that many children
 my $num_children = $ENV{DBICTEST_THREAD_STRESS} || 1;
-if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
-   $num_children = 10;
+if($num_children !~ /^[0-9]+$/ || $num_children < 5) {
+   $num_children = 5;
 }
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
@@ -85,7 +86,7 @@ lives_ok (sub {
     done_testing;
 
     close $tb->$_ for (qw/output failure_output todo_output/);
-    sleep(1); # tasty crashes without this
+    sleep (0.2); # tasty crashes without this
 
     $out;
   };
@@ -103,18 +104,31 @@ lives_ok (sub {
 }
 
 $parent_rs->reset;
+
+# sleep until this spot so everything starts simultaneously
+# add "until turn of second" for prettier display
+my $t = int( time() ) + 4;
+
 my @children;
 while(@children < $num_children) {
 
     my $newthread = async {
         my $tid = threads->tid;
 
+        sleep ($t - time);
+
+        # FIXME if we do not stagger the threads, sparks fly due to CXSA
+        sleep ( $tid / 10 ) if "$]" < 5.012;
+
+        note ("Thread $tid starting work at " . time() );
+
         my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
         my $row = $parent_rs->next;
         if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
             $schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
         }
-        sleep(1); # tasty crashes without this
+
+        sleep (0.2); # without this many tasty crashes even on latest perls
     };
     die "Thread creation failed: $! $@" if !defined $newthread;
     push(@children, $newthread);
@@ -122,16 +136,17 @@ while(@children < $num_children) {
 
 ok(1, "past spawning");
 
-{
-    $_->join for(@children);
+my @tids;
+for (@children) {
+  push @tids, $_->tid;
+  $_->join;
 }
 
 ok(1, "past joining");
 
-while(@children) {
-    my $child = pop(@children);
-    my $tid = $child->tid;
-    my $rs = $schema->resultset('CD')->search({ title => "test success $tid", artist => $tid, year => scalar(@children) });
+while (@tids) {
+    my $tid = pop @tids;
+    my $rs = $schema->resultset('CD')->search({ title => "test success $tid", artist => $tid, year => scalar(@tids) });
     is($rs->next->get_column('artist'), $tid, "Child $tid successful");
 }
 
@@ -139,5 +154,10 @@ ok(1, "Made it to the end");
 undef $parent_rs;
 
 $schema->storage->dbh->do("DROP TABLE cd");
+
+# Too many threading bugs on exit, none of which have anything to do with
+# the actual stuff we test
+$ENV{DBICTEST_DIRTY_EXIT} = 1
+  if "$]" < 5.012;
 
 done_testing;
