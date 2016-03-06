@@ -22,10 +22,17 @@ else {
 {
   print "Regenerating Optional/Dependencies.pod\n";
 
-  # this should always succeed - hence no error checking
-  # if someone breaks OptDeps - travis should catch it
-  require DBIx::Class::Optional::Dependencies;
-  DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
+  eval {
+    require DBIx::Class::Optional::Dependencies;
+    DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
+    1;
+  }
+    or
+  printf ("FAILED!!! Subsequent `make dist` will fail. %s\n",
+    $ENV{DBICDIST_DEBUG}
+      ? "Full error: $@"
+      : 'Re-run with $ENV{DBICDIST_DEBUG} set for more info'
+  );
 
   postamble <<"EOP";
 
