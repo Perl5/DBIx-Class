@@ -39,7 +39,7 @@ if (open(my $gi, '<', '.gitignore')) {
   }
 
   # these we want to check no matter what the above says
-  delete $skipnames->{qw(
+  delete @{$skipnames}{qw(
     Changes
     LICENSE
     AUTHORS
