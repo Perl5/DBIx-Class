@@ -142,7 +142,12 @@ else
 
   run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
-  parallel_installdeps_notest "$(make listdeps | sort -R)"
+  # if we are smoking devrels - make sure we upgrade everything we know about
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    parallel_installdeps_notest "$(make listalldeps | sort -R)"
+  else
+    parallel_installdeps_notest "$(make listdeps | sort -R)"
+  fi
 
   run_or_err "Re-configure with --with-optdeps" "perl Makefile.PL --with-optdeps"
 fi
