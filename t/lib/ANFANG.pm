@@ -161,7 +161,7 @@ END {
 
       # Crucial flushes in case we are piping things out (e.g. prove)
       # Otherwise the last lines will never arrive at the receiver
-      select($_), $| = 1 for \*STDOUT, \*STDERR;
+      close($_) for \*STDOUT, \*STDERR;
 
       POSIX::_exit($exit);
     } ),
