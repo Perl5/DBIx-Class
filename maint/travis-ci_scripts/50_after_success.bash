@@ -88,9 +88,11 @@ if [[ -n "$tarball_assembled" ]] ; then
       export $e=""
     done
 
+    # FIXME - for some reason a plain `cpan .` does not work in this case
+    # no time to investigate
     run_or_err \
       "Attempt to configure/test/build/install dist using latest CPAN@$(perl -MCPAN -e 'print CPAN->VERSION')" \
-      "cpan ."
+      "perl -MCPAN -e 'install( q{.} )'"
 
   else
     run_or_err \
