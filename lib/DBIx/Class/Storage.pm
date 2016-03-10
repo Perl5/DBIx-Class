@@ -438,7 +438,7 @@ sub svp_release {
     };
 
     $self->throw_exception ("Savepoint '$name' does not exist")
-      unless $svp;
+      unless $svp and $svp eq $name;
 
     $self->savepoints(\@stack); # put back what's left
   }
