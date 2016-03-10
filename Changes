@@ -34,6 +34,8 @@ Revision history for DBIx::Class
           was not sufficient to cover up RT#67843)
 
     * Misc
+        - Test suite is now officially certified to work under very high random
+          parallelism: META x_parallel_test_certified set to true accordingly
         - Typo fixes from downstream debian packagers (RT#112007)
 
 0.082821 2016-02-11 17:58 (UTC)
