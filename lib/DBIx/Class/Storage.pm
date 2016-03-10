@@ -328,12 +328,15 @@ sub svp_release {
 
   if (defined $name) {
     my @stack = @{ $self->savepoints };
-    my $svp;
+    my $svp = '';
 
-    do { $svp = pop @stack } until $svp eq $name;
+    while( $svp ne $name ) {
 
-    $self->throw_exception ("Savepoint '$name' does not exist")
-      unless $svp;
+      $self->throw_exception ("Savepoint '$name' does not exist")
+        unless @stack;
+
+      $svp = pop @stack;
+    }
 
     $self->savepoints(\@stack); # put back what's left
   }

@@ -3,6 +3,9 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use DBIx::Class::Optional::Dependencies;
+use DBIx::Class::_Util qw(sigwarn_silencer scope_guard);
+use Scalar::Util 'weaken';
 
 use lib qw(t/lib);
 use DBICTest;
@@ -230,6 +233,17 @@ for ('', keys %$env2optdep) { SKIP: {
 
   # make sure a fresh txn will work after above
   $schema->storage->txn_do(sub { ok "noop" } );
+
+### Make sure non-existend savepoint release doesn't infloop itself
+  {
+    weaken( my $s = $schema );
+
+    throws_ok {
+      $s->storage->txn_do(sub { $s->svp_release('wibble') })
+    } qr/Savepoint 'wibble' does not exist/,
+      "Calling svp_release on a non-existant savepoint throws expected error"
+    ;
+  }
 
 ### cleanupz
   $schema->storage->dbh->do ("DROP TABLE artist");
