@@ -88,7 +88,21 @@ sub await_flock ($$) {
 
     # "say something" every 10 cycles to work around RT#108390
     # jesus christ our tooling is such a crock of shit :(
-    print "#\n" if not $tries % 10;
+    unless ( $tries % 10 ) {
+
+      # Turning on autoflush is crucial: if stars align just right buffering
+      # will ensure we never actually call write() underneath until the grand
+      # timeout is reached (and that's too long). Reproducible via
+      #
+      # DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1 \
+      # DBICTEST_RUN_ALL_TESTS=1 \
+      # strace -f \
+      # prove -lj10 xt/extra/internals/
+      #
+      select( ( select(\*STDOUT), $|=1 )[0] );
+
+      print "#\n";
+    }
   }
 
   return $res;
