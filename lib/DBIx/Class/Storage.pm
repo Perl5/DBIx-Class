@@ -431,9 +431,9 @@ sub svp_release {
 
   if (defined $name) {
     my @stack = @{ $self->savepoints };
-    my $svp;
+    my $svp   = pop @stack;
 
-    while (@stack and $stack[-1] ne $name) {
+    while (@stack and $svp ne $name) {
       $svp = pop @stack
     };
 
