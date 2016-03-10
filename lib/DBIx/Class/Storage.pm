@@ -433,7 +433,9 @@ sub svp_release {
     my @stack = @{ $self->savepoints };
     my $svp;
 
-    do { $svp = pop @stack } until $svp eq $name;
+    while (@stack and $stack[-1] ne $name) {
+      $svp = pop @stack
+    };
 
     $self->throw_exception ("Savepoint '$name' does not exist")
       unless $svp;
