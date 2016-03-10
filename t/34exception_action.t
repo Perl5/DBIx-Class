@@ -102,14 +102,14 @@ for my $ap (qw(
 
   # make sure an exception_action can replace $@ with an antipattern
   $schema->exception_action(sub { die $ap->new });
-  warnings_like {
+  warnings_exist {
     eval { $throw->() };
     isa_ok $@, $ap;
   } $exp_warn, 'proper warning on antipattern encountered within exception_action';
 
   # and make sure that the rethrow works
   $schema->exception_action(sub { die @_ });
-  warnings_like {
+  warnings_exist {
     eval {
       $schema->txn_do (sub { die $ap->new });
     };
