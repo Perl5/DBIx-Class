@@ -45,6 +45,7 @@ Revision history for DBIx::Class
           create()/populate()
         - Remove spurious exception warping in ::Replicated::execute_reliably
           (RT#113339)
+        - Fix infinite loop on ->svp_release("nonexistent_savepoint") (GH#97)
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)
