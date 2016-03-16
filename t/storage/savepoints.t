@@ -247,6 +247,19 @@ SKIP: {
     undef,
     'rollback from inner transaction';
 }
+  # Check we do not go into an infinite loop calling svp_release() with a
+  # savepoint that is not on the stack
+  eval {
+    local $SIG{ALRM} = sub { die "infinite loop\n" };
+    alarm 3;
+    $schema->txn_do(sub {
+      $schema->svp_release('wibble');
+    });
+    alarm 0;
+  };
+  my $error = $@;
+  like $error, qr/Savepoint 'wibble' does not exist/,
+    "Calling svp_release on a non-existant savepoint throws expected error";
 
 ### cleanupz
   $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") });
