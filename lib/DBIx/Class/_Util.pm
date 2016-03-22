@@ -161,6 +161,7 @@ sub is_exception ($) {
 
   my ($not_blank, $suberror);
   {
+    local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;
     eval {
       # The ne() here is deliberate - a plain length($e), or worse "$e" ne
@@ -270,9 +271,7 @@ sub is_exception ($) {
         unless $callstack_state->{in_internal_try};
 
       # always unset - someone may have snuck it in
-      local $SIG{__DIE__}
-        if $SIG{__DIE__};
-
+      local $SIG{__DIE__} if $SIG{__DIE__};
 
       if( $wantarray ) {
         @ret = $try_cref->();
@@ -383,8 +382,8 @@ sub modver_gt_or_eq ($$) {
     local $SIG{__WARN__} = sigwarn_silencer( qr/\Qisn't numeric in subroutine entry/ )
       if SPURIOUS_VERSION_CHECK_WARNINGS;
 
+    local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;
-    local $SIG{__DIE__};
     eval { $mod->VERSION($ver) } ? 1 : 0;
   };
 

@@ -139,6 +139,11 @@ require DBICTest::AntiPattern::NullObject;
     }
   };
 
+
+  # we are driving manually here, do not allow interference
+  local $SIG{__DIE__} if $SIG{__DIE__};
+
+
   no warnings 'redefine';
   local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;

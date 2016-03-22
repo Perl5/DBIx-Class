@@ -57,6 +57,7 @@ sub populate_weakregistry {
 
     # on perl < 5.8.3 sometimes a weaken can throw (can't find RT)
     # so guard against that unlikely event
+    local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;
     eval { weaken( $weak_registry->{$refaddr}{weakref} ); $refs_traced++ }
       or delete $weak_registry->{$refaddr};
@@ -134,6 +135,7 @@ sub visit_refs {
 
     my $type = reftype $r;
 
+    local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;
     eval {
       if ($type eq 'HASH') {

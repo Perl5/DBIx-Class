@@ -13,7 +13,7 @@ use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY
 use namespace::clean;
 
 if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
-  __PACKAGE__->exception_action( sub {
+  my $ea = __PACKAGE__->exception_action( sub {
 
     my ( $fr_num, $disarmed, $throw_exception_fr_num );
     while( ! $disarmed and my @fr = caller(++$fr_num) ) {
@@ -55,7 +55,27 @@ if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
     ) unless $disarmed;
 
     DBIx::Class::Exception->throw( $_[0] );
-  })
+  });
+
+  my $interesting_ns_rx = qr/^ (?: main$ | DBIx::Class:: | DBICTest:: ) /x;
+
+  # hard-set $SIG{__DIE__} to the class-wide exception_action
+  # with a little escape preceeding it
+  $SIG{__DIE__} = sub {
+
+    # without this there would be false positives everywhere :(
+    die @_ if (
+      (caller(0))[0] !~ $interesting_ns_rx
+        or
+      (
+        caller(0) eq 'main'
+          and
+        (caller(1))[0] !~ $interesting_ns_rx
+      )
+    );
+
+    &$ea;
+  };
 }
 
 sub capture_executed_sql_bind {
@@ -216,6 +236,7 @@ sub connection {
       # we need to work with a forced fresh clone so that we do not upset any state
       # of the main $schema (some tests examine it quite closely)
       local $SIG{__WARN__} = sub {};
+      local $SIG{__DIE__};
       local $@;
 
       # this will either give us an undef $locktype or will determine things

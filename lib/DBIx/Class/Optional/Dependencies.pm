@@ -1156,6 +1156,9 @@ sub _errorlist_for_modreqs {
     my $v = $reqs->{$m};
 
     if (! exists $req_unavailability_cache{$m}{$v} ) {
+      # masking this off is important, as it may very well be
+      # a transient error
+      local $SIG{__DIE__} if $SIG{__DIE__};
       local $@;
       eval( "require $m;" . ( $v ? "$m->VERSION(q($v))" : '' ) );
       $req_unavailability_cache{$m}{$v} = $@;

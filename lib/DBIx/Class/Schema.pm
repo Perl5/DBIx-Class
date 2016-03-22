@@ -1448,6 +1448,7 @@ sub DESTROY {
     # however beware - on older perls the exception seems randomly untrappable
     # due to some weird race condition during thread joining :(((
     if (length ref $srcs->{$source_name} and refcount($srcs->{$source_name}) > 1) {
+      local $SIG{__DIE__} if $SIG{__DIE__};
       local $@;
       eval {
         $srcs->{$source_name}->schema($self);

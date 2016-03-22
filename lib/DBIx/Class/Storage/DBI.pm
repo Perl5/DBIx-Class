@@ -904,10 +904,8 @@ sub disconnect {
 
   my $g = scope_guard {
 
-    {
-      local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
-      eval { $self->_dbh->disconnect };
-    }
+    defined( $self->_dbh )
+      and dbic_internal_try { $self->_dbh->disconnect };
 
     $self->_dbh(undef);
     $self->_dbh_details({});
