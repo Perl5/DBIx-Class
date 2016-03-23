@@ -1423,17 +1423,27 @@ sub _construct_results {
       :                                           'classic_nonpruning'
     ;
 
-    # $args and $attrs to _mk_row_parser are separated to delineate what is
-    # core collapser stuff and what is dbic $rs specific
-    $self->{_row_parser}{$parser_type}{cref} = $rsrc->_mk_row_parser({
-      eval => 1,
-      inflate_map => $infmap,
-      collapse => $attrs->{collapse},
-      premultiplied => $attrs->{_main_source_premultiplied},
-      hri_style => $self->{_result_inflator}{is_hri},
-      prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
-    }, $attrs) unless $self->{_row_parser}{$parser_type}{cref};
+    unless( $self->{_row_parser}{$parser_type}{cref} ) {
 
+      # $args and $attrs to _mk_row_parser are separated to delineate what is
+      # core collapser stuff and what is dbic $rs specific
+      $self->{_row_parser}{$parser_type}{src} = $rsrc->_mk_row_parser({
+        inflate_map => $infmap,
+        collapse => $attrs->{collapse},
+        premultiplied => $attrs->{_main_source_premultiplied},
+        hri_style => $self->{_result_inflator}{is_hri},
+        prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
+      }, $attrs);
+
+      $self->{_row_parser}{$parser_type}{cref} = do {
+        package # hide form PAUSE
+          DBIx::Class::__GENERATED_ROW_PARSER__;
+
+        eval $self->{_row_parser}{$parser_type}{src};
+      } || die $@;
+    }
+
+    # this needs to close over the *current* cursor, hence why it is not cached above
     my $next_cref = ($did_fetch_all or ! $attrs->{collapse})
       ? undef
       : sub {

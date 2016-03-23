@@ -18,7 +18,7 @@ our @EXPORT_OK = qw(
 our $null_branch_class = 'DBIx::ResultParser::RelatedNullBranch';
 
 sub __wrap_in_strictured_scope {
-  "  { use strict; use warnings; use warnings FATAL => 'uninitialized';\n$_[0]\n  }"
+  "sub { use strict; use warnings; use warnings FATAL => 'uninitialized';\n$_[0]\n  }"
 }
 
 sub assemble_simple_parser {

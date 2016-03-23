@@ -148,9 +148,7 @@ sub _mk_row_parser {
   utf8::upgrade($src)
     if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
 
-  return (
-    $args->{eval} ? ( eval "sub $src" || die $@ ) : $src,
-  );
+  $src;
 }
 
 

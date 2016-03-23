@@ -1457,7 +1457,7 @@ sub is_same_src { SKIP: {
 
   $expect =~ s/__NBC__/perlstring($DBIx::Class::ResultSource::RowParser::Util::null_branch_class)/ge;
 
-  $expect = "  { use strict; use warnings FATAL => 'uninitialized';\n$expect\n  }";
+  $expect = "sub { use strict; use warnings FATAL => 'uninitialized';\n$expect\n  }";
 
   my @normalized = map {
     my $cref = eval "sub { $_ }" or do {
