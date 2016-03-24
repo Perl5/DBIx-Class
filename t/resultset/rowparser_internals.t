@@ -9,14 +9,6 @@ use DBICTest;
 use B::Deparse;
 use DBIx::Class::_Util 'perlstring';
 
-# globally set for the rest of test
-# the rowparser maker does not order its hashes by default for the miniscule
-# speed gain. But it does not disable sorting either - for this test
-# everything will be ordered nicely, and the hash randomization of 5.18
-# will not trip up anything
-use Data::Dumper;
-$Data::Dumper::Sortkeys = 1;
-
 my $schema = DBICTest->init_schema(no_deploy => 1);
 my $infmap = [qw/
   single_track.cd.artist.name

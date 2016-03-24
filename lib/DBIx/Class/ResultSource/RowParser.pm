@@ -225,7 +225,7 @@ sub _resolve_collapse {
   if ( ! $args->{_parent_info}{underdefined} and ! $args->{_parent_info}{rev_rel_is_optional} ) {
     for my $col ( values %{$args->{_parent_info}{rel_condition} || {}} ) {
       next if exists $my_cols->{$col};
-      $my_cols->{$col} = { via_collapse => $args->{_parent_info}{collapse_on_idcols} };
+      $my_cols->{$col} = {};
       $assumed_from_parent->{columns}{$col}++;
     }
   }
@@ -402,7 +402,6 @@ sub _resolve_collapse {
     @{ $collapse_map->{-identifying_columns} },
   )];
 
-  my @id_sets;
   for my $rel (sort keys %$relinfo) {
 
     $collapse_map->{$rel} = $relinfo->{$rel}{rsrc}->_resolve_collapse ({
