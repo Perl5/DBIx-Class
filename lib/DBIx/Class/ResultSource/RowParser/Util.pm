@@ -119,6 +119,8 @@ sub assemble_collapsing_parser {
       { "{ \$cur_row_ids{$_} }" }
       @{$args->{collapse_map}{-identifying_columns}}
     );
+
+    $top_node_key_assembler = '';
   }
   elsif( my @variants = @{$args->{collapse_map}{-identifying_columns_variants}} ) {
 
@@ -163,15 +165,19 @@ sub assemble_collapsing_parser {
     ( $args->{prune_null_branches}
       ? sprintf( '@{$cur_row_data}[( %s )]', join ', ', @row_ids )
       : join (",\n", map {
-        my $quoted_null_val = qq("\0NULL\xFF\${rows_pos}\xFF${_}\0");
-        HAS_DOR
-          ? qq!( \$cur_row_data->[$_] // $quoted_null_val )!
-          : qq!( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val )!
+        $stats->{nullchecks}{mandatory}{$_}
+          ? qq!( \$cur_row_data->[$_] )!
+          : do {
+            my $quoted_null_val = qq("\0NULL\xFF\${rows_pos}\xFF${_}\0");
+            HAS_DOR
+              ? qq!( \$cur_row_data->[$_] // $quoted_null_val )!
+              : qq!( defined(\$cur_row_data->[$_]) ? \$cur_row_data->[$_] : $quoted_null_val )!
+          }
       } @row_ids)
     )
   ;
 
-  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler||'', $top_node_key, join( "\n", @$data_assemblers ) );
+  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler, $top_node_key, join( "\n", @$data_assemblers ) );
 ### BEGIN LITERAL STRING EVAL
   my $rows_pos = 0;
   my ($result_pos, @collapse_idx, $cur_row_data, %%cur_row_ids );
@@ -211,19 +217,19 @@ sub assemble_collapsing_parser {
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
     # (otherwise folding of optional 1:1s will be greatly confused
-%1$s
+%s
 
     # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)
-%2$s
+%s
 
     # if we were supplied a coderef - we are collapsing lazily (the set
     # is ordered properly)
     # as long as we have a result already and the next result is new we
     # return the pre-read data and bail
-( $_[1] and $result_pos and ! $collapse_idx[0]%3$s and (unshift @{$_[2]}, $cur_row_data) and last ),
+( $_[1] and $result_pos and ! $collapse_idx[0]%s and (unshift @{$_[2]}, $cur_row_data) and last ),
 
     # the rel assemblers
-%4$s
+%s
 
   }
 
@@ -240,6 +246,27 @@ sub __visit_infmap_collapse {
   my $args = {%{ shift() }};
 
   my $cur_node_idx = ${ $args->{-node_idx_counter} ||= \do { my $x = 0} }++;
+
+  $args->{-mandatory_ids} ||= {};
+  $args->{-seen_ids} ||= {};
+  $args->{-all_or_nothing_sets} ||= [];
+  $args->{-null_from} ||= [];
+
+  $args->{-seen_ids}{$_} = 1
+    for @{$args->{collapse_map}->{-identifying_columns}};
+
+  my $node_specific_ids = { map { $_ => 1 } grep
+    { ! $args->{-parent_ids}{$_} }
+    @{$args->{collapse_map}->{-identifying_columns}}
+  };
+
+  if (not ( $args->{-chain_is_optional} ||= $args->{collapse_map}{-is_optional} ) ) {
+    $args->{-mandatory_ids}{$_} = 1
+      for @{$args->{collapse_map}->{-identifying_columns}};
+  }
+  elsif ( keys %$node_specific_ids > 1 ) {
+    push @{$args->{-all_or_nothing_sets}}, $node_specific_ids;
+  }
 
   my ($my_cols, $rel_cols) = {};
   for ( keys %{$args->{val_index}} ) {
@@ -305,17 +332,19 @@ sub __visit_infmap_collapse {
   }
 
   my $known_present_ids = { map { $_ => 1 } @{$args->{collapse_map}{-identifying_columns}} };
-  my ($stats, $rel_src);
+  my $rel_src;
 
   for my $rel (sort keys %$rel_cols) {
 
     my $relinfo = $args->{collapse_map}{$rel};
 
-    ($rel_src, $stats->{$rel}) = __visit_infmap_collapse({ %$args,
+    ($rel_src) = __visit_infmap_collapse({ %$args,
       val_index => $rel_cols->{$rel},
       collapse_map => $relinfo,
       -parent_node_idx => $cur_node_idx,
       -parent_node_key => $node_key,
+      -parent_id_path => [ @{$args->{-parent_id_path}||[]}, sort { $a <=> $b } keys %$node_specific_ids ],
+      -parent_ids => { map { %$_ } $node_specific_ids, $args->{-parent_ids}||{} },
       -node_rel_name => $rel,
     });
 
@@ -362,14 +391,58 @@ sub __visit_infmap_collapse {
     }
   }
 
+  if (
+
+    # calculation only valid for leaf nodes
+    ! values %$rel_cols
+
+      and
+
+    # child of underdefined path doesn't leave us anything to test
+    @{$args->{-parent_id_path} || []}
+
+      and
+
+    (my @nullable_portion = grep
+      { ! $args->{-mandatory_ids}{$_} }
+      (
+        @{$args->{-parent_id_path}},
+        sort { $a <=> $b } keys %$node_specific_ids
+      )
+    ) > 1
+  ) {
+    # there may be 1:1 overlap with a specific all_or_nothing
+    push @{$args->{-null_from}}, \@nullable_portion unless grep
+      {
+        my $a_o_n_set = $_;
+
+        keys %$a_o_n_set == @nullable_portion
+          and
+        ! grep { ! $a_o_n_set->{$_} } @nullable_portion
+      }
+      @{ $args->{-all_or_nothing_sets} || [] }
+    ;
+  }
+
   return (
     \@src,
-    {
-      idcols_seen => {
-        ( map { %{ $_->{idcols_seen} } } values %$stats ),
-        ( map { $_ => 1 } @{$args->{collapse_map}->{-identifying_columns}} ),
-      }
-    }
+    ( $cur_node_idx != 0 ) ? () : {
+      idcols_seen => $args->{-seen_ids},
+      nullchecks => {
+        ( keys %{$args->{-mandatory_ids} }
+          ? ( mandatory => $args->{-mandatory_ids} )
+          : ()
+        ),
+        ( @{$args->{-all_or_nothing_sets}}
+          ? ( all_or_nothing => $args->{-all_or_nothing_sets} )
+          : ()
+        ),
+        ( @{$args->{-null_from}}
+          ? ( from_first_encounter => $args->{-null_from} )
+          : ()
+        ),
+      },
+    },
   );
 }
 

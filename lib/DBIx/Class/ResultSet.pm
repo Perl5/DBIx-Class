@@ -1485,7 +1485,8 @@ EOS
 
     $self->{_row_parser}{$parser_type}{cref}->(
       $rows,
-      $next_cref ? ( $next_cref, $self->{_stashed_rows} = [] ) : (),
+      $next_cref,
+      ( $self->{_stashed_rows} = [] ),
     );
 
     # simple in-place substitution, does not regrow $rows

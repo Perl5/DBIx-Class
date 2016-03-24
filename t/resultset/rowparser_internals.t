@@ -263,8 +263,8 @@ is_same_src (
         ( $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0" ),
         ( $cur_row_data->[1] // "\0NULL\xFF$rows_pos\xFF1\0" ),
         ( $cur_row_data->[3] // "\0NULL\xFF$rows_pos\xFF3\0" ),
-        ( $cur_row_data->[4] // "\0NULL\xFF$rows_pos\xFF4\0" ),
-        ( $cur_row_data->[5] // "\0NULL\xFF$rows_pos\xFF5\0" ),
+        ( $cur_row_data->[4] ),
+        ( $cur_row_data->[5] ),
       ) ),
 
       # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
@@ -466,7 +466,7 @@ is_same_src (
 
       ( @cur_row_ids{0, 1, 5, 6, 8, 10} = (
         $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0",
-        $cur_row_data->[1] // "\0NULL\xFF$rows_pos\xFF1\0",
+        $cur_row_data->[1],
         $cur_row_data->[5] // "\0NULL\xFF$rows_pos\xFF5\0",
         $cur_row_data->[6] // "\0NULL\xFF$rows_pos\xFF6\0",
         $cur_row_data->[8] // "\0NULL\xFF$rows_pos\xFF8\0",
