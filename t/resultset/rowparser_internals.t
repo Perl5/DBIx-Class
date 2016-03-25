@@ -828,6 +828,166 @@ is_same_src (
   'Multiple has_many on multiple branches with underdefined root, HRI-direct torture test',
 );
 
+
+$infmap = [
+  'single_track.lyrics.track_id',             # (0) random optional 1:1:1 chain
+  'year',                                     # (1) non-unique
+  'tracks.cd',                                # (2) \ together both uniqueness for second multirel
+  'tracks.title',                             # (3) / and definitive link back to root
+  'single_track.cd.artist.cds.cdid',          # (4) to give uniquiness to ...tracks.title below
+  'single_track.cd.artist.cds.year',          # (5) non-unique
+  'single_track.cd.artist.artistid',          # (6) uniqufies entire parental chain
+  'single_track.cd.artist.cds.genreid',       # (7) nullable
+  'single_track.cd.artist.cds.tracks.title',  # (8) unique when combined with ...cds.cdid above
+  'single_track.lyrics.lyric_versions.text',  # (9) unique combined with the single_track.lyrics 1:1:1
+];
+
+is_deeply (
+  $schema->source('CD')->_resolve_collapse({ as => {map { $infmap->[$_] => $_ } 0 .. $#$infmap} }),
+  {
+    -identifying_columns => [],
+    -identifying_columns_variants => [
+      [ 2 ], [ 6 ],
+    ],
+    single_track => {
+      -identifying_columns => [ 6 ],
+      -is_optional => 1,
+      -is_single => 1,
+      cd => {
+        -identifying_columns => [ 6 ],
+        -is_single => 1,
+        artist => {
+          -identifying_columns => [ 6 ],
+          -is_single => 1,
+          cds => {
+            -identifying_columns => [ 4, 6 ],
+            -is_optional => 1,
+            tracks => {
+              -identifying_columns => [ 4, 6, 8 ],
+              -is_optional => 1,
+            }
+          }
+        }
+      },
+      lyrics => {
+        -identifying_columns => [ 0, 6 ],
+        -is_optional => 1,
+        -is_single => 1,
+        lyric_versions => {
+          -identifying_columns => [ 0, 6, 9 ],
+          -is_optional => 1,
+        },
+      },
+    },
+    tracks => {
+      -identifying_columns => [ 2, 3 ],
+      -is_optional => 1,
+    }
+  },
+  'Correct underdefined root tripple-has-many-torture collapse map constructed'
+);
+
+is_same_src (
+  ($schema->source ('CD')->_mk_row_parser({
+    inflate_map => $infmap,
+    collapse => 1,
+    hri_style => 1,
+    prune_null_branches => 1,
+  }))[0],
+  ' my $rows_pos = 0;
+    my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids);
+
+    while ($cur_row_data = (
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
+    ) ) {
+
+      # do not care about nullability here
+      ( @cur_row_ids{( 0, 2, 3, 4, 6, 8, 9 )} = @{$cur_row_data}[( 0, 2, 3, 4, 6, 8, 9 )] ),
+
+      # cache expensive set of ops in a non-existent rowid slot
+      ( $cur_row_ids{11} = (
+        ( ( defined $cur_row_data->[2] ) && (join "\xFF", q{}, $cur_row_ids{2}, q{} ))
+          or
+        ( ( defined $cur_row_data->[6] ) && (join "\xFF", q{}, $cur_row_ids{6}, q{} ))
+          or
+        "\0$rows_pos\0"
+      )),
+
+      # a present cref in $_[1] implies lazy prefetch, implies a supplied stash in $_[2]
+      ( $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{11}} and (unshift @{$_[2]}, $cur_row_data) and last ),
+
+      ( $collapse_idx[0]{$cur_row_ids{11}} //= $_[0][$result_pos++] = { year => $$cur_row_data[1] } ),
+
+      ( (! defined $cur_row_data->[6] ) ? $collapse_idx[0]{$cur_row_ids{11}}{single_track} = undef : do {
+
+        ( $collapse_idx[0]{$cur_row_ids{11}}{single_track} //= ( $collapse_idx[1]{$cur_row_ids{6}} = {} ) ),
+
+        ( $collapse_idx[1]{$cur_row_ids{6}}{cd} //= $collapse_idx[2]{$cur_row_ids{6}} = {} ),
+
+        ( $collapse_idx[2]{$cur_row_ids{6}}{artist} //= ($collapse_idx[3]{$cur_row_ids{6}} = { artistid => $$cur_row_data[6] }) ),
+
+        ( (! defined $cur_row_data->[4] ) ? $collapse_idx[3]{$cur_row_ids{6}}{cds} = [] : do {
+
+          (
+            (! $collapse_idx[4]{$cur_row_ids{4}}{$cur_row_ids{6}} )
+              and
+            push @{$collapse_idx[3]{$cur_row_ids{6}}{cds}}, (
+                $collapse_idx[4]{$cur_row_ids{4}}{$cur_row_ids{6}} = { cdid => $$cur_row_data[4], genreid => $$cur_row_data[7], year => $$cur_row_data[5] }
+            )
+          ),
+
+          ( (! defined $cur_row_data->[8] ) ? $collapse_idx[4]{$cur_row_ids{4}}{$cur_row_ids{6}}{tracks} = [] : do {
+
+            (! $collapse_idx[5]{$cur_row_ids{4}}{$cur_row_ids{6}}{$cur_row_ids{8}} )
+              and
+            push @{$collapse_idx[4]{$cur_row_ids{4}}{$cur_row_ids{6}}{tracks}}, (
+                $collapse_idx[5]{$cur_row_ids{4}}{$cur_row_ids{6}}{$cur_row_ids{8}} = { title => $$cur_row_data[8] }
+            ),
+          } ),
+        } ),
+
+        ( ( ! defined $cur_row_data->[0] ) ? $collapse_idx[1]{ $cur_row_ids{6} }{"lyrics"} = undef : do {
+
+          ( $collapse_idx[1]{ $cur_row_ids{6} }{"lyrics"} //= ( $collapse_idx[6]{ $cur_row_ids{0} }{ $cur_row_ids{6} } = { "track_id" => $cur_row_data->[0] } ) ),
+
+          ( ( ! defined $cur_row_data->[9] ) ? $collapse_idx[6]{ $cur_row_ids{0} }{ $cur_row_ids{6} }{"lyric_versions"} = [] : do {
+            (
+              (! $collapse_idx[7]{ $cur_row_ids{0} }{ $cur_row_ids{6} }{ $cur_row_ids{9} })
+                and
+              push @{$collapse_idx[6]{ $cur_row_ids{0} }{ $cur_row_ids{6} }{"lyric_versions"}}, (
+                $collapse_idx[7]{ $cur_row_ids{0} }{ $cur_row_ids{6} }{ $cur_row_ids{9} } = { "text" => $cur_row_data->[9] }
+              ),
+            ),
+          } ),
+        } ),
+      } ),
+
+      ( (! defined $cur_row_data->[2] ) ? $collapse_idx[0]{$cur_row_ids{11}}{tracks} = [] : do {
+        (
+          (! $collapse_idx[8]{$cur_row_ids{2}}{$cur_row_ids{3}} )
+            and
+          push @{$collapse_idx[0]{$cur_row_ids{11}}{tracks}}, (
+            $collapse_idx[8]{$cur_row_ids{2}}{$cur_row_ids{3}} = { cd => $$cur_row_data[2], title => $$cur_row_data[3] }
+          )
+        ),
+      } ),
+    }
+
+    $#{$_[0]} = $result_pos - 1;
+  ',
+  'Tripple multiple has_many on multiple branches with underdefined root, HRI-direct torture test',
+);
+
 is_same_src (
   ($schema->source ('Owners')->_mk_row_parser({
     inflate_map => [qw( books.title books.owner )],

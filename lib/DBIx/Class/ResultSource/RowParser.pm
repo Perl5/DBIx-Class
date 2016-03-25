@@ -178,13 +178,13 @@ sub _resolve_collapse {
     $args->{_is_top_level} = 1;
   };
 
-  my ($my_cols, $rel_cols);
+  my ($my_cols, $rel_cols, $native_cols);
   for (keys %{$args->{as}}) {
     if ($_ =~ /^ ([^\.]+) \. (.+) /x) {
       $rel_cols->{$1}{$2} = 1;
     }
     else {
-      $my_cols->{$_} = {};  # important for ||='s below
+      $native_cols->{$_} = $my_cols->{$_} = {};  # important for ||='s below
     }
   }
 
@@ -240,9 +240,50 @@ sub _resolve_collapse {
 
   # first try to reuse the parent's collapser (i.e. reuse collapser over 1:1)
   # (makes for a leaner coderef later)
-  unless ($collapse_map->{-identifying_columns}) {
+  if(
+    ! $collapse_map->{-identifying_columns}
+      and
+    $args->{_parent_info}{collapser_reusable}
+  ) {
     $collapse_map->{-identifying_columns} = $args->{_parent_info}{collapse_on_idcols}
-      if $args->{_parent_info}{collapser_reusable};
+  }
+
+  # Still don't know how to collapse - in case we are a *single* relationship
+  # AND our parent is defined AND we have any *native* non-nullable pieces: then
+  # we are still good to go
+  # NOTE: it doesn't matter if the nonnullable set is unique or not - it will be
+  # made unique by the parents identifying cols
+  if(
+    ! $collapse_map->{-identifying_columns}
+      and
+    $args->{_parent_info}{is_single}
+      and
+    @{ $args->{_parent_info}{collapse_on_idcols} }
+      and
+    ( my @native_nonnull_cols = grep {
+      $native_cols->{$_}{colinfo}
+        and
+      ! $native_cols->{$_}{colinfo}{is_nullable}
+    } keys %$native_cols )
+  ) {
+
+    $collapse_map->{-identifying_columns} = [ __unique_numlist(
+      @{ $args->{_parent_info}{collapse_on_idcols}||[] },
+
+      # FIXME - we don't really need *all* of the columns, $our_nonnull_cols[0]
+      # is sufficient. However map the entire thing to engage the extra nonnull
+      # explicit checks, just to be on the safe side
+      # Remove some day in the future
+      (map
+        {
+          $common_args->{_as_fq_idx}{join ('.',
+            @{$args->{_rel_chain}}[1 .. $#{$args->{_rel_chain}}],
+            $_,
+          )}
+        }
+        @native_nonnull_cols
+      ),
+    )];
   }
 
   # Still don't know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
@@ -414,6 +455,8 @@ sub _resolve_collapse {
         rel_condition => $relinfo->{$rel}{fk_map},
 
         is_optional => ! $relinfo->{$rel}{is_inner},
+
+        is_single => $relinfo->{$rel}{is_single},
 
         # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
         # we can safely assume that the child can not exist without us
