@@ -259,6 +259,40 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) ) {
 
+
+      # NULL checks
+      # mandatory => { 4 => 1, 5 => 1 }
+      # from_first_encounter => [ [ 1, 3, 0 ] ]
+      #
+      ( defined( $cur_row_data->[4] ) or $_[3]->{4} = 1 ),
+
+      ( defined( $cur_row_data->[5] ) or $_[3]->{5} = 1 ),
+
+      (
+        ( not defined $cur_row_data->[1] )
+        ? (
+            ( not defined $cur_row_data->[3] )
+              and
+            ( not defined $cur_row_data->[0] )
+              or
+            ( $_[3]->{1} = 1 )
+          )
+      : ( not defined $cur_row_data->[3] )
+        ? (
+            ( not defined $cur_row_data->[0] )
+              or
+            ( $_[3]->{3} = 1 )
+        )
+      : ()
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
+
       ( @cur_row_ids{0,1,3,4,5} = (
         ( $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0" ),
         ( $cur_row_data->[1] // "\0NULL\xFF$rows_pos\xFF1\0" ),
@@ -332,6 +366,40 @@ is_same_src (
         or
       ( $_[1] and $_[1]->() )
     ) ) {
+
+
+      # NULL checks
+      # mandatory => { 4 => 1, 5 => 1 }
+      # from_first_encounter => [ [ 1, 3, 0 ] ]
+      #
+      ( defined( $cur_row_data->[4] ) or $_[3]->{4} = 1 ),
+
+      ( defined( $cur_row_data->[5] ) or $_[3]->{5} = 1 ),
+
+      (
+        ( not defined $cur_row_data->[1] )
+        ? (
+          ( not defined $cur_row_data->[3] )
+            and
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{1} = 1 )
+        )
+      : ( not defined $cur_row_data->[3] )
+        ? (
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{3} = 1 )
+        )
+      : ()
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
 
       ( @cur_row_ids{0, 1, 3, 4, 5} = @{$cur_row_data}[0, 1, 3, 4, 5] ),
 
@@ -464,6 +532,48 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) ) {
 
+
+      # NULL checks
+      # mandatory => { 1 => 1 }
+      # from_first_encounter => [ [6, 8], [5, 10, 0] ],
+      #
+      ( defined( $cur_row_data->[1] ) or $_[3]->{1} = 1 ),
+
+      (
+        ( not defined $cur_row_data->[6] )
+        ? (
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{6} = 1 )
+        )
+      : ()
+      ),
+
+      (
+        ( not defined $cur_row_data->[5] )
+        ? (
+          ( not defined $cur_row_data->[10] )
+            and
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{5} = 1 )
+          )
+      : ( not defined $cur_row_data->[10] )
+        ? (
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{10} = 1 )
+        )
+      : ()
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
+
       ( @cur_row_ids{0, 1, 5, 6, 8, 10} = (
         $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0",
         $cur_row_data->[1],
@@ -548,6 +658,48 @@ is_same_src (
         or
       ( $_[1] and $_[1]->() )
     ) ) {
+
+
+      # NULL checks
+      # mandatory => { 1 => 1 }
+      # from_first_encounter => [ [6, 8], [5, 10, 0] ],
+      #
+      ( defined( $cur_row_data->[1] ) or $_[3]->{1} = 1 ),
+
+      (
+        ( not defined $cur_row_data->[6] )
+        ? (
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{6} = 1 )
+        )
+      : ()
+      ),
+
+      (
+        ( not defined $cur_row_data->[5] )
+        ? (
+          ( not defined $cur_row_data->[10] )
+            and
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{5} = 1 )
+          )
+      : ( not defined $cur_row_data->[10] )
+        ? (
+          ( not defined $cur_row_data->[0] )
+            or
+          ( $_[3]->{10} = 1 )
+        )
+      : ()
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
 
       ( @cur_row_ids{( 0, 1, 5, 6, 8, 10 )} = @{$cur_row_data}[( 0, 1, 5, 6, 8, 10 )] ),
 
@@ -680,6 +832,49 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) ) {
 
+
+      # NULL checks
+      #
+      # from_first_encounter => [ [0, 4, 8] ]
+      # all_or_nothing => [ { 2 => 1, 3 => 1 } ]
+      (
+        ( not defined $cur_row_data->[0] )
+        ? (
+          ( not defined $cur_row_data->[4] )
+            and
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{0} = 1 )
+          )
+      : ( not defined $cur_row_data->[4] )
+        ? (
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{4} = 1 )
+        )
+      : ()
+      ),
+
+      (
+        (
+          ( not defined $cur_row_data->[2] )
+            and
+          ( not defined $cur_row_data->[3] )
+        )
+          or
+        (
+          ( defined($cur_row_data->[2]) or $_[3]->{2} = 1 ),
+          ( defined($cur_row_data->[3]) or $_[3]->{3} = 1 ),
+        )
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
+
       ( @cur_row_ids{( 0, 2, 3, 4, 8 )} = (
         $cur_row_data->[0] // "\0NULL\xFF$rows_pos\xFF0\0",
         $cur_row_data->[2] // "\0NULL\xFF$rows_pos\xFF2\0",
@@ -765,6 +960,49 @@ is_same_src (
         or
       ( $_[1] and $_[1]->() )
     ) ) {
+
+
+      # NULL checks
+      #
+      # from_first_encounter => [ [0, 4, 8] ]
+      # all_or_nothing => [ { 2 => 1, 3 => 1 } ]
+      (
+        ( not defined $cur_row_data->[0] )
+        ? (
+          ( not defined $cur_row_data->[4] )
+            and
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{0} = 1 )
+          )
+      : ( not defined $cur_row_data->[4] )
+        ? (
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{4} = 1 )
+        )
+      : ()
+      ),
+
+      (
+        (
+          ( not defined $cur_row_data->[2] )
+            and
+          ( not defined $cur_row_data->[3] )
+        )
+          or
+        (
+          ( defined($cur_row_data->[2]) or $_[3]->{2} = 1 ),
+          ( defined($cur_row_data->[3]) or $_[3]->{3} = 1 ),
+        )
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
 
       # do not care about nullability here
       ( @cur_row_ids{( 0, 2, 3, 4, 8 )} = @{$cur_row_data}[( 0, 2, 3, 4, 8 )] ),
@@ -911,6 +1149,66 @@ is_same_src (
       ( $_[1] and $_[1]->() )
     ) ) {
 
+      # NULL checks
+      #
+      # from_first_encounter => [ [6, 4, 8], [6, 0, 9] ]
+      # all_or_nothing => [ { 2 => 1, 3 => 1 } ]
+      (
+        ( not defined $cur_row_data->[6] )
+        ? (
+          ( not defined $cur_row_data->[4] )
+            and
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{6} = 1 )
+          )
+      : ( not defined $cur_row_data->[4] )
+        ? (
+          ( not defined $cur_row_data->[8] )
+            or
+          ( $_[3]->{4} = 1 )
+          )
+      : ()
+      ),
+
+      (
+        ( not defined $cur_row_data->[6] )
+        ? (
+          ( not defined $cur_row_data->[0] )
+            and
+          ( not defined $cur_row_data->[9] )
+            or
+          ( $_[3]->{6} = 1 )
+          )
+      : ( not defined $cur_row_data->[0] )
+        ? (
+          ( not defined $cur_row_data->[9] )
+            or
+          ( $_[3]->{0} = 1 )
+          )
+      : ()
+      ),
+
+      (
+        (
+          ( not defined $cur_row_data->[2] )
+            and
+          ( not defined $cur_row_data->[3] )
+        )
+          or
+        (
+          ( defined($cur_row_data->[2]) or $_[3]->{2} = 1 ),
+          ( defined($cur_row_data->[3]) or $_[3]->{3} = 1 ),
+        )
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
+
       # do not care about nullability here
       ( @cur_row_ids{( 0, 2, 3, 4, 6, 8, 9 )} = @{$cur_row_data}[( 0, 2, 3, 4, 6, 8, 9 )] ),
 
@@ -1035,6 +1333,110 @@ is_same_src (
     $#{$_[0]} = $result_pos - 1; # truncate the passed in array to where we filled it with results
   ',
   'Non-premultiplied implicit collapse with missing join columns',
+);
+
+is_same_src (
+  ($schema->source('Artist')->_mk_row_parser({
+    inflate_map => [qw( artistid cds.artist cds.title cds.tracks.title )],
+    collapse => 1,
+    prune_null_branches => 1,
+  }))[0],
+  ' my $rows_pos = 0;
+    my ($result_pos, @collapse_idx, $cur_row_data, %cur_row_ids );
+
+    while ($cur_row_data = (
+      (
+        $rows_pos >= 0
+          and
+        (
+          $_[0][$rows_pos++]
+            or
+          ( ($rows_pos = -1), undef )
+        )
+      )
+        or
+      ( $_[1] and $_[1]->() )
+    ) ) {
+
+      # NULL checks
+      #
+      # mandatory => { 0 => 1 }
+      # from_first_encounter => [ [1, 2, 3] ]
+      # all_or_nothing => [ { 1 => 1, 2 => 1 } ]
+
+      ( defined( $cur_row_data->[0] ) or $_[3]->{0} = 1 ),
+
+      (
+        ( not defined $cur_row_data->[1] )
+        ? (
+          ( not defined $cur_row_data->[2] )
+            and
+          ( not defined $cur_row_data->[3] )
+            or
+          $_[3]->{1} = 1
+          )
+      : ( not defined $cur_row_data->[2] )
+        ? (
+          ( not defined $cur_row_data->[3] )
+            or
+          $_[3]->{2} = 1
+          )
+      : ()
+      ),
+
+      (
+        (
+          ( not defined $cur_row_data->[1] )
+            and
+          ( not defined $cur_row_data->[2] )
+        )
+          or
+        (
+          ( defined($cur_row_data->[1]) or $_[3]->{1} = 1 ),
+          ( defined($cur_row_data->[2]) or $_[3]->{2} = 1 ),
+        )
+      ),
+
+      ( keys %{$_[3]} and (
+        ( @{$_[2]} = $cur_row_data ),
+        ( $result_pos = 0 ),
+        last
+      ) ),
+
+
+      ( @cur_row_ids{( 0, 1, 2, 3 )} = @{$cur_row_data}[ 0, 1, 2, 3 ] ),
+
+      ( $_[1] and $result_pos and ! $collapse_idx[0]{$cur_row_ids{0}} and (unshift @{$_[2]}, $cur_row_data) and last ),
+
+      ( $collapse_idx[0]{ $cur_row_ids{0} }
+          //= $_[0][$result_pos++] = [ { "artistid" => $cur_row_data->[0] } ]
+      ),
+
+      ( ( ! defined $cur_row_data->[1] ) ? $collapse_idx[0]{ $cur_row_ids{0} }[1]{"cds"} = [] : do {
+
+        (
+          ! $collapse_idx[1]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }
+            and
+          push @{$collapse_idx[0]{ $cur_row_ids{0} }[1]{"cds"}},
+            $collapse_idx[1]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }
+              = [ { "artist" => $cur_row_data->[1], "title" => $cur_row_data->[2] } ]
+        ),
+
+        ( ( ! defined $cur_row_data->[3] ) ? $collapse_idx[1]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }[1]{"tracks"} = [] : do {
+          (
+            ! $collapse_idx[2]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }{ $cur_row_ids{3} }
+              and
+            push @{$collapse_idx[1]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }[1]{"tracks"}},
+              $collapse_idx[2]{ $cur_row_ids{0} }{ $cur_row_ids{1} }{ $cur_row_ids{2} }{ $cur_row_ids{3} }
+                = [ { "title" => $cur_row_data->[3] } ]
+          ),
+        } ),
+      } ),
+    }
+
+    $#{$_[0]} = $result_pos - 1
+  ',
+  'A rolled out version of inflate map of misled_rowparser.t'
 );
 
 done_testing;

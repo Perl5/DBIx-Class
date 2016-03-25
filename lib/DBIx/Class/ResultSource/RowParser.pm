@@ -122,8 +122,6 @@ sub _mk_row_parser {
     },
   );
 
-  my $check_null_columns;
-
   my $src = (! $args->{collapse} ) ? assemble_simple_parser(\%common) : do {
     my $collapse_map = $self->_resolve_collapse ({
       # FIXME
@@ -141,9 +139,6 @@ sub _mk_row_parser {
       premultiplied => $args->{premultiplied},
     });
 
-    $check_null_columns = $collapse_map->{-identifying_columns}
-      if @{$collapse_map->{-identifying_columns}};
-
     assemble_collapsing_parser({
       %common,
       collapse_map => $collapse_map,
@@ -155,7 +150,6 @@ sub _mk_row_parser {
 
   return (
     $args->{eval} ? ( eval "sub $src" || die $@ ) : $src,
-    $check_null_columns,
   );
 }
 

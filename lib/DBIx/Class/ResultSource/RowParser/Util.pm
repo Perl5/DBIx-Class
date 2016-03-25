@@ -177,7 +177,65 @@ sub assemble_collapsing_parser {
     )
   ;
 
-  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler, $top_node_key, join( "\n", @$data_assemblers ) );
+  my $null_checks = '';
+
+  for my $c ( sort { $a <=> $b } keys %{$stats->{nullchecks}{mandatory}} ) {
+    $null_checks .= sprintf <<'EOS', $c
+( defined( $cur_row_data->[%1$s] ) or $_[3]->{%1$s} = 1 ),
+
+EOS
+  }
+
+  for my $set ( @{ $stats->{nullchecks}{from_first_encounter} || [] } ) {
+    my @sub_checks;
+
+    for my $i (0 .. $#$set - 1) {
+
+      push @sub_checks, sprintf
+        '( not defined $cur_row_data->[%1$s] ) ? ( %2$s or ( $_[3]->{%1$s} = 1 ) )',
+        $set->[$i],
+        join( ' and ', map
+          { "( not defined \$cur_row_data->[$set->[$_]] )" }
+          ( $i+1 .. $#$set )
+        ),
+      ;
+    }
+
+    $null_checks .= "(\n @{[ join qq(\n: ), @sub_checks, '()' ]} \n),\n";
+  }
+
+  for my $set ( @{ $stats->{nullchecks}{all_or_nothing} || [] } ) {
+
+    $null_checks .= sprintf "(\n( %s )\n  or\n(\n%s\n)\n),\n",
+      join ( ' and ', map
+        { "( not defined \$cur_row_data->[$_] )" }
+        sort { $a <=> $b } keys %$set
+      ),
+      join ( ",\n", map
+        { "( defined(\$cur_row_data->[$_]) or \$_[3]->{$_} = 1 )" }
+        sort { $a <=> $b } keys %$set
+      ),
+    ;
+  }
+
+  # If any of the above generators produced something, we need to add the
+  # final "if seen any violations - croak" part
+  # Do not throw from within the string eval itself as it does not have
+  # the necessary metadata to construct a nice exception text. As a bonus
+  # we get to entirely avoid https://github.com/Test-More/Test2/issues/16
+  # and https://rt.perl.org/Public/Bug/Display.html?id=127774
+
+  $null_checks .= <<'EOS' if $null_checks;
+
+( keys %{$_[3]} and (
+    ( @{$_[2]} = $cur_row_data ),
+    ( $result_pos = 0 ),
+    last
+) ),
+EOS
+
+
+  my $parser_src = sprintf (<<'EOS', $null_checks, $row_id_defs, $top_node_key_assembler, $top_node_key, join( "\n", @$data_assemblers ) );
 ### BEGIN LITERAL STRING EVAL
   my $rows_pos = 0;
   my ($result_pos, @collapse_idx, $cur_row_data, %%cur_row_ids );
@@ -210,13 +268,24 @@ sub assemble_collapsing_parser {
     ( $_[1] and $_[1]->() )
   ) ) {
 
-    # the undef checks may or may not be there
-    # depending on whether we prune or not
+    # column_info metadata historically hasn't been too reliable.
+    # We need to start fixing this somehow (the collapse resolver
+    # can't work without it). Add explicit checks for several cases
+    # of "unexpected NULL", based on the metadata returned by
+    # __visit_infmap_collapse
     #
+    # FIXME - this is a temporary kludge that reduces performance
+    # It is however necessary for the time being, until way into the
+    # future when the extra errors clear out all invalid metadata
+%s
+
     # due to left joins some of the ids may be NULL/undef, and
     # won't play well when used as hash lookups
     # we also need to differentiate NULLs on per-row/per-col basis
     # (otherwise folding of optional 1:1s will be greatly confused
+    #
+    # the undef checks may or may not be there depending on whether
+    # we prune or not
 %s
 
     # in the case of an underdefined root - calculate the virtual id (otherwise no code at all)

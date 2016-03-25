@@ -1425,7 +1425,7 @@ sub _construct_results {
 
     # $args and $attrs to _mk_row_parser are separated to delineate what is
     # core collapser stuff and what is dbic $rs specific
-    @{$self->{_row_parser}{$parser_type}}{qw(cref nullcheck)} = $rsrc->_mk_row_parser({
+    $self->{_row_parser}{$parser_type}{cref} = $rsrc->_mk_row_parser({
       eval => 1,
       inflate_map => $infmap,
       collapse => $attrs->{collapse},
@@ -1434,49 +1434,9 @@ sub _construct_results {
       prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
     }, $attrs) unless $self->{_row_parser}{$parser_type}{cref};
 
-    # column_info metadata historically hasn't been too reliable.
-    # We need to start fixing this somehow (the collapse resolver
-    # can't work without it). Add an explicit check for the *main*
-    # result, hopefully this will gradually weed out such errors
-    #
-    # FIXME - this is a temporary kludge that reduces performance
-    # It is however necessary for the time being
-    my ($unrolled_non_null_cols_to_check, $err);
-
-    if (my $check_non_null_cols = $self->{_row_parser}{$parser_type}{nullcheck} ) {
-
-      $err =
-        'Collapse aborted due to invalid ResultSource metadata - the following '
-      . 'selections are declared non-nullable but NULLs were retrieved: '
-      ;
-
-      my @violating_idx;
-      COL: for my $i (@$check_non_null_cols) {
-        ! defined $_->[$i] and push @violating_idx, $i and next COL for @$rows;
-      }
-
-      $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
-        if @violating_idx;
-
-      $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
-
-      utf8::upgrade($unrolled_non_null_cols_to_check)
-        if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
-    }
-
-    my $next_cref =
-      ($did_fetch_all or ! $attrs->{collapse})  ? undef
-    : defined $unrolled_non_null_cols_to_check  ? eval sprintf <<'EOS', $unrolled_non_null_cols_to_check
-sub {
-  # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-  my @r = $cursor->next or return;
-  if (my @violating_idx = grep { ! defined $r[$_] } (%s) ) {
-    $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
-  }
-  \@r
-}
-EOS
-    : sub {
+    my $next_cref = ($did_fetch_all or ! $attrs->{collapse})
+      ? undef
+      : sub {
         # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
         my @r = $cursor->next or return;
         \@r
@@ -1487,7 +1447,22 @@ EOS
       $rows,
       $next_cref,
       ( $self->{_stashed_rows} = [] ),
+      ( my $null_violations = {} ),
     );
+
+    $self->throw_exception(
+      'Collapse aborted - the following columns are declared (or defaulted to) '
+    . 'non-nullable within DBIC but NULLs were retrieved from storage: '
+    . join( ', ', map { "'$infmap->[$_]'" } sort { $a <=> $b } keys %$null_violations )
+    . ' within data row ' . dump_value({
+      map {
+        $infmap->[$_] =>
+          ( ! defined $self->{_stashed_rows}[0][$_] or length $self->{_stashed_rows}[0][$_] < 50 )
+            ? $self->{_stashed_rows}[0][$_]
+            : substr( $self->{_stashed_rows}[0][$_], 0, 50 ) . '...'
+      } 0 .. $#{$self->{_stashed_rows}[0]}
+    })
+    ) if keys %$null_violations;
 
     # simple in-place substitution, does not regrow $rows
     if ($self->{_result_inflator}{is_core_row}) {
