@@ -285,19 +285,19 @@ sub __visit_infmap_collapse {
     );
 
     if ($args->{collapse_map}->{-is_single}) {
-      push @src, sprintf ( '( %s %s %s%s ),',
+      push @src, sprintf ( '( %s %s %s = %s ),',
         $parent_attach_slot,
         (HAS_DOR ? '//=' : '||='),
         $node_idx_slot,
-        $me_struct ? " = $me_struct" : '',
+        $me_struct || '{}',
       );
     }
     else {
-      push @src, sprintf('( (! %s) and push @{%s}, %s%s ),',
+      push @src, sprintf('( (! %s) and push @{%s}, %s = %s ),',
         $node_idx_slot,
         $parent_attach_slot,
         $node_idx_slot,
-        $me_struct ? " = $me_struct" : '',
+        $me_struct || '{}',
       );
     }
   }

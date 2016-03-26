@@ -343,10 +343,10 @@ is_same_src (
 
       # prefetch data of single_track (placed in root)
       ( (! defined($cur_row_data->[1]) ) ? $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} = undef : do {
-        ( $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} //= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ),
+        ( $collapse_idx[0]{$cur_row_ids{4}}{$cur_row_ids{5}}{single_track} //= $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = {} ),
 
         # prefetch data of cd (placed in single_track)
-        ( $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cd} //= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} ),
+        ( $collapse_idx[1]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{cd} //= $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = {} ),
 
         # prefetch data of artist ( placed in single_track->cd)
         ( $collapse_idx[2]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}}{artist} //= $collapse_idx[3]{$cur_row_ids{1}}{$cur_row_ids{4}}{$cur_row_ids{5}} = { artistid => $cur_row_data->[1] } ),
@@ -787,7 +787,7 @@ is_same_src (
 
         ( $collapse_idx[0]{$cur_row_ids{10}}{single_track} //= ($collapse_idx[1]{$cur_row_ids{0}} = { trackid => $$cur_row_data[0] }) ),
 
-        ( $collapse_idx[1]{$cur_row_ids{0}}{cd} //= $collapse_idx[2]{$cur_row_ids{0}} ),
+        ( $collapse_idx[1]{$cur_row_ids{0}}{cd} //= $collapse_idx[2]{$cur_row_ids{0}} = {} ),
 
         ( $collapse_idx[2]{$cur_row_ids{0}}{artist} //= ($collapse_idx[3]{$cur_row_ids{0}} = { artistid => $$cur_row_data[6] }) ),
 

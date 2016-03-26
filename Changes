@@ -34,6 +34,9 @@ Revision history for DBIx::Class
           similar produces a large warning
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
+        - Fix incorrect data returned in a corner case of partial-select HRI
+          invocation (no known manifestations of this bug in the field, see
+          commit message for description of exact failure scenario)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
