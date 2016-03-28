@@ -39,6 +39,7 @@ $schema->resultset('CD')->create({
       title => 'Oxygene',
       year => 1976,
       artist => { name => 'JMJ' },
+      artwork => {},
       tracks => [
         { title => 'o2', position => 2},  # the position should not be needed here, bug in MC
       ],
@@ -468,6 +469,49 @@ INFTYPE: for ('', '(native inflator)') {
       ],
     ],
     "Expected output of collapsing 1:M with empty root selection $native_inflator",
+  );
+
+  cmp_structures (
+    rs_contents( $schema->resultset ('CD')->search_rs (
+      {
+        'tracks.title' => 'e2',
+        'cds.title' => 'Oxygene',
+      },
+      {
+        collapse => 1,
+        join => [
+          'tracks',
+          { single_track => { cd => 'mandatory_artwork' } },
+          { artist => { cds => 'mandatory_artwork'} },
+        ],
+        columns => {
+          cdid                                      => 'cdid',
+          'single_track.cd.mandatory_artwork.cd_id' => 'mandatory_artwork.cd_id',
+          'artist.cds.mandatory_artwork.cd_id'      => 'mandatory_artwork_2.cd_id',
+        },
+      },
+    )),
+    [[
+      { cdid => 3 },
+      {
+        single_track => [
+          undef,
+          { cd => [
+            undef,
+            { mandatory_artwork => [ { cd_id => 2 } ] }
+          ] }
+        ],
+        artist => [
+          undef,
+          { cds => [
+            [
+              undef,
+              { mandatory_artwork => [ { cd_id => 2 } ] }
+            ]
+          ] },
+        ],
+      }
+    ]],
   );
 }
 

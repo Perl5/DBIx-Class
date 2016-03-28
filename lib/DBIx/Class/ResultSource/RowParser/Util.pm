@@ -4,8 +4,7 @@ package # hide from the pauses
 use strict;
 use warnings;
 
-use List::Util 'first';
-use DBIx::Class::_Util 'perlstring';
+use DBIx::Class::_Util qw( perlstring dump_value );
 
 use constant HAS_DOR => ( "$]" < 5.010 ? 0 : 1 );
 
@@ -126,7 +125,7 @@ sub assemble_collapsing_parser {
     my @path_parts = map { sprintf
       "( ( defined \$cur_row_data->[%d] ) && (join qq(\xFF), '', %s, '') )",
       $_->[0],  # checking just first is enough - one ID defined, all defined
-      ( join ', ', map { ++$variant_idcols->{$_} and " \$cur_row_ids{$_} " } @$_ ),
+      ( join ', ', map { $variant_idcols->{$_} = 1; " \$cur_row_ids{$_} " } @$_ ),
     } @variants;
 
     my $virtual_column_idx = (scalar keys %{$args->{val_index}} ) + 1;
@@ -144,7 +143,10 @@ sub assemble_collapsing_parser {
     };
   }
   else {
-    die('Unexpected collapse map contents');
+    DBIx::Class::Exception->throw(
+     'Unexpected collapse map contents: ' . dump_value $args->{collapse_map},
+      1,
+    )
   }
 
   my ($data_assemblers, $stats) = __visit_infmap_collapse ($args);
@@ -169,7 +171,7 @@ sub assemble_collapsing_parser {
     )
   ;
 
-  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler||'', $top_node_key, join( "\n", @{$data_assemblers||[]} ) );
+  my $parser_src = sprintf (<<'EOS', $row_id_defs, $top_node_key_assembler||'', $top_node_key, join( "\n", @$data_assemblers ) );
 ### BEGIN LITERAL STRING EVAL
   my $rows_pos = 0;
   my ($result_pos, @collapse_idx, $cur_row_data, %%cur_row_ids );
@@ -322,12 +324,17 @@ sub __visit_infmap_collapse {
 
     if (
       $relinfo->{-is_optional}
-        and
-      defined ( my $first_distinct_child_idcol = first
+    ) {
+
+      my ($first_distinct_child_idcol) = grep
         { ! $known_present_ids->{$_} }
         @{$relinfo->{-identifying_columns}}
-      )
-    ) {
+      ;
+
+      DBIx::Class::Exception->throw(
+        "An optional node *without* a distinct identifying set shouldn't be possible: " . dump_value $args->{collapse_map},
+        1,
+      ) unless defined $first_distinct_child_idcol;
 
       if ($args->{prune_null_branches}) {
 
