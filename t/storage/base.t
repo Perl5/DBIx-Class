@@ -8,7 +8,7 @@ use Test::Warn;
 use Test::Exception;
 
 use DBICTest;
-use Data::Dumper;
+use DBIx::Class::_Util 'dump_value';
 
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
@@ -157,8 +157,7 @@ for my $type (keys %$invocations) {
 
   # we can not use a cloner portably because of the coderef
   # so compare dumps instead
-  local $Data::Dumper::Sortkeys = 1;
-  my $arg_dump = Dumper ($invocations->{$type}{args});
+  my $arg_dump = dump_value $invocations->{$type}{args};
 
   warnings_exist (
     sub { $storage->connect_info ($invocations->{$type}{args}) },
@@ -166,7 +165,11 @@ for my $type (keys %$invocations) {
     'Warned about ignored attributes',
   );
 
-  is ($arg_dump, Dumper ($invocations->{$type}{args}), "$type didn't modify passed arguments");
+  is (
+    $arg_dump,
+    dump_value $invocations->{$type}{args},
+    "$type didn't modify passed arguments",
+  );
 
   is_deeply ($storage->_dbi_connect_info, $invocations->{$type}{dbi_connect_info}, "$type produced correct _dbi_connect_info");
   ok ( (not $storage->auto_savepoint and not $storage->unsafe), "$type correctly ignored extra hashref");

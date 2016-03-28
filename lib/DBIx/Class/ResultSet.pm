@@ -8,7 +8,7 @@ use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw/blessed weaken reftype/;
 use DBIx::Class::_Util qw(
-  dbic_internal_try
+  dbic_internal_try dump_value
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use Try::Tiny;
@@ -554,7 +554,6 @@ sub search_rs {
   return $rs;
 }
 
-my $dark_sel_dumper;
 sub _normalize_selection {
   my ($self, $attrs) = @_;
 
@@ -619,11 +618,10 @@ sub _normalize_selection {
           else {
             $attrs->{_dark_selector} = {
               plus_stage => $pref,
-              string => ($dark_sel_dumper ||= do {
-                  require Data::Dumper::Concise;
-                  Data::Dumper::Concise::DumperObject()->Indent(0);
-                })->Values([$_])->Dump
-              ,
+              string => do {
+                local $Data::Dumper::Indent = 0;
+                dump_value $_;
+              },
             };
             last SELECTOR;
           }

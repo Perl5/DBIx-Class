@@ -3,10 +3,11 @@ BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use strict;
 use warnings;
 use Test::More;
-use Data::Dumper::Concise;
 use Try::Tiny;
 
 use DBICTest;
+use DBIx::Class::_Util 'dump_value';
+$Data::Dumper::Indent = 0;
 
 my %expected = (
   'DBIx::Class::Storage::DBI'                    =>
@@ -62,7 +63,7 @@ for my $class (keys %expected) { SKIP: {
   my ($quote_char, $name_sep) = @$mapping{qw/quote_char name_sep/};
   my $instance = $class->new;
 
-  my $quote_char_text = dumper($quote_char);
+  my $quote_char_text = dump_value $quote_char;
 
   if (exists $mapping->{quote_char}) {
     is_deeply $instance->sql_quote_char, $quote_char,
@@ -122,7 +123,7 @@ for my $db (sort {
   my ($exp_quote_char, $exp_name_sep) =
     @{$expected{$dbs{$db}}}{qw/quote_char name_sep/};
 
-  my ($quote_char_text, $name_sep_text) = map { dumper($_) }
+  my ($quote_char_text, $name_sep_text) = map { dump_value $_ }
     ($exp_quote_char, $exp_name_sep);
 
   is_deeply $sql_maker->quote_char,
@@ -148,13 +149,3 @@ for my $db (sort {
 }
 
 done_testing;
-
-sub dumper {
-  my $val = shift;
-
-  my $dd = DumperObject;
-  $dd->Indent(0);
-  return $dd->Values([ $val ])->Dump;
-}
-
-1;

@@ -8,9 +8,8 @@ use Test::Exception;
 
 
 use DBICTest ':DiffSQL';
-use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dump_value );
 
-use Data::Dumper;
 BEGIN {
   if ( eval { require Test::Differences } ) {
     no warnings 'redefine';
@@ -626,7 +625,7 @@ for my $t (@tests) {
   ) {
     die unless Test::Builder->new->is_passing;
 
-    my $name = do { local ($Data::Dumper::Indent, $Data::Dumper::Terse, $Data::Dumper::Sortkeys) = (0, 1, 1); Dumper $w };
+    my $name = do { local $Data::Dumper::Indent = 0; dump_value $w };
 
     my ($collapsed_cond, $collapsed_cond_as_sql);
 

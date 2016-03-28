@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 use Test::More;
-use Data::Dumper;
+use DBIx::Class::_Util 'dump_value';
 
 use lib 't/cdbi/testlib';
 use Film;
@@ -42,8 +42,7 @@ for my $args ({ no_cascade_delete => 1 }, { cascade => "None" }) {
     is $dir->nasties, 1, "We have one nasty";
 
     ok $dir->delete;
-    local $Data::Dumper::Terse = 1;
-    ok +Film->retrieve("Alligator"), 'has_many with ' . Dumper ($args);;
+    ok +Film->retrieve("Alligator"), 'has_many with ' . dump_value $args;
     $kk->delete;
 }
 

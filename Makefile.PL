@@ -57,7 +57,6 @@ my $runtime_requires = {
   'Class::C3::Componentised' => '1.0009',
   'Class::Inspector'         => '1.24',
   'Context::Preserve'        => '0.01',
-  'Data::Dumper::Concise'    => '2.020',
   'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0.09',
   'Hash::Merge'              => '0.12',

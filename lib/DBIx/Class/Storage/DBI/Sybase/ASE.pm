@@ -13,10 +13,9 @@ use DBIx::Class::Carp;
 use Scalar::Util qw/blessed weaken/;
 use List::Util 'first';
 use Sub::Name();
-use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try );
+use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -781,7 +780,7 @@ sub _insert_blobs {
     if (not $sth) {
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
-        . (Dumper \%where)
+        . dump_value \%where
       );
     }
 

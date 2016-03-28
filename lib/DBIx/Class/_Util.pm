@@ -75,7 +75,7 @@ our @EXPORT_OK = qw(
   refdesc refcount hrefaddr
   scope_guard detected_reinvoked_destructor
   is_exception dbic_internal_try
-  quote_sub qsub perlstring serialize deep_clone
+  quote_sub qsub perlstring serialize deep_clone dump_value
   parent_dir mkdir_p
   UNRESOLVABLE_CONDITION
 );
@@ -119,6 +119,42 @@ sub refcount ($) {
 sub serialize ($) {
   local $Storable::canonical = 1;
   nfreeze($_[0]);
+}
+
+my ($dd_obj, $dump_str);
+sub dump_value ($) {
+  local $Data::Dumper::Indent = 1
+    unless defined $Data::Dumper::Indent;
+
+  $dump_str = (
+    $dd_obj
+      ||=
+    do {
+      require Data::Dumper;
+      my $d = Data::Dumper->new([])
+        ->Purity(0)
+        ->Pad('')
+        ->Useqq(1)
+        ->Terse(1)
+        ->Freezer('')
+        ->Quotekeys(0)
+        ->Bless('bless')
+        ->Pair(' => ')
+        ->Sortkeys(1)
+        ->Deparse(1)
+      ;
+
+      $d->Sparseseen(1) if modver_gt_or_eq (
+        'Data::Dumper', '2.136'
+      );
+
+      $d;
+    }
+  )->Values([$_[0]])->Dump;
+
+  $dd_obj->Reset->Values([]);
+
+  $dump_str;
 }
 
 sub scope_guard (&) {

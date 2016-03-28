@@ -14,7 +14,7 @@ use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use DBIx::Class::_Util qw(
-  quote_sub perlstring serialize
+  quote_sub perlstring serialize dump_value
   dbic_internal_try
   detected_reinvoked_destructor scope_guard
   mkdir_p
@@ -1419,12 +1419,10 @@ sub _get_rdbms_name { shift->_dbh_get_info('SQL_DBMS_NAME') }
 sub _warn_undetermined_driver {
   my ($self, $msg) = @_;
 
-  require Data::Dumper::Concise;
-
   carp_once ($msg . ' While we will attempt to continue anyway, the results '
   . 'are likely to be underwhelming. Please upgrade DBIC, and if this message '
   . "does not go away, file a bugreport including the following info:\n"
-  . Data::Dumper::Concise::Dumper($self->_describe_connection)
+  . dump_value $self->_describe_connection
   );
 }
 
@@ -2200,13 +2198,12 @@ sub _insert_bulk {
       $msg,
       $cols->[$c_idx],
       do {
-        require Data::Dumper::Concise;
         local $Data::Dumper::Maxdepth = 5;
-        Data::Dumper::Concise::Dumper ({
+        dump_value {
           map { $cols->[$_] =>
             $data->[$r_idx][$_]
           } 0..$#$cols
-        }),
+        };
       }
     );
   };
@@ -2403,10 +2400,9 @@ sub _dbh_execute_for_fetch {
     $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper::Concise;
     $self->throw_exception(sprintf "execute_for_fetch() aborted with '%s' at populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      Data::Dumper::Concise::Dumper( { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) } ),
+      dump_value { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) },
     );
   }
 

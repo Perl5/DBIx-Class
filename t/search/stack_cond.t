@@ -5,12 +5,10 @@ use warnings;
 
 use Test::More;
 
+use DBIx::Class::_Util 'dump_value';
 use DBICTest ':DiffSQL';
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use List::Util 'shuffle';
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Useqq = 1;
 $Data::Dumper::Indent = 0;
 
 my $schema = DBICTest->init_schema();
@@ -87,7 +85,7 @@ for my $c (
         year $c->{sql}
     )",
     \@bind,
-    'Double condition correctly collapsed for steps' . Dumper \@query_steps,
+    'Double condition correctly collapsed for steps' . dump_value \@query_steps,
   );
 }
 

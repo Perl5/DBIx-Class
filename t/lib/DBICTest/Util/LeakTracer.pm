@@ -6,9 +6,8 @@ use strict;
 use ANFANG;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
-use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
+use DBIx::Class::_Util qw(refcount hrefaddr refdesc dump_value);
 use DBICTest::RunMode;
-use Data::Dumper::Concise;
 use DBICTest::Util qw( stacktrace visit_namespaces );
 use constant {
   CV_TRACING => !!(
@@ -280,7 +279,7 @@ sub assert_empty_weakregistry {
           ref($weak_registry->{$addr}{weakref}) eq 'CODE'
             and
           B::svref_2object($weak_registry->{$addr}{weakref})->XSUB
-        ) ? '__XSUB__' : Dumper( $weak_registry->{$addr}{weakref} )
+        ) ? '__XSUB__' : dump_value $weak_registry->{$addr}{weakref}
       ;
     };
 

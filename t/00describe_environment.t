@@ -192,6 +192,7 @@ my $load_weights = {
 
 my @known_modules = sort
   { ($load_weights->{$b}||0) <=> ($load_weights->{$a}||0) }
+  qw( Data::Dumper ),
   keys %{
     DBIx::Class::Optional::Dependencies->req_list_for([
       grep

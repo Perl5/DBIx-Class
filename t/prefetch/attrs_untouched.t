@@ -6,9 +6,7 @@ use strict;
 use Test::More;
 
 use DBICTest;
-
-use Data::Dumper;
-$Data::Dumper::Sortkeys = 1;
+use DBIx::Class::_Util 'dump_value';
 
 my $schema = DBICTest->init_schema();
 
@@ -19,11 +17,11 @@ plan tests => 3;
 my $search = { 'artist.name' => 'Caterwauler McCrae' };
 my $attr = { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' };
-my $search_str = Dumper($search);
-my $attr_str = Dumper($attr);
+my $search_str = dump_value $search;
+my $attr_str = dump_value $attr;
 
 my $rs = $schema->resultset("CD")->search($search, $attr);
 
-is(Dumper($search), $search_str, 'Search hash untouched after search()');
-is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
+is( dump_value $search, $search_str, 'Search hash untouched after search()');
+is( dump_value $attr, $attr_str, 'Attribute hash untouched after search()');
 cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');

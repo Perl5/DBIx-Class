@@ -30,7 +30,7 @@ use mro 'c3';
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
+use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize dump_value);
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use DBIx::Class::Carp;
 use namespace::clean;
@@ -513,9 +513,9 @@ sub _resolve_aliastypes_from_select_args {
   ( $_ = join ' ', map {
 
     ( ! defined $_ )  ? ()
-  : ( length ref $_ ) ? (require Data::Dumper::Concise && $self->throw_exception(
-                          "Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($_)
-                        ))
+  : ( length ref $_ ) ? $self->throw_exception(
+                          "Unexpected ref in scan-plan: " . dump_value $_
+                        )
   : ( $_ =~ /^\s*$/ ) ? ()
                       : $_
 
@@ -1346,11 +1346,10 @@ sub _collapse_cond_unroll_pairs {
 
             # extra sanity check
             if (keys %$p > 1) {
-              require Data::Dumper::Concise;
               local $Data::Dumper::Deepcopy = 1;
               $self->throw_exception(
                 "Internal error: unexpected collapse unroll:"
-              . Data::Dumper::Concise::Dumper { in => { $lhs => $rhs }, out => $p }
+              . dump_value { in => { $lhs => $rhs }, out => $p }
               );
             }
 

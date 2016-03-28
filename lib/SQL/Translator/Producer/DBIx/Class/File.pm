@@ -36,7 +36,7 @@ $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);
-use Data::Dumper ();
+use DBIx::Class::_Util 'dump_value';
 
 ## Skip all column type translation, as we want to use whatever the parser got.
 
@@ -108,13 +108,9 @@ __PACKAGE__->table('${tname}');
         $output .= "\n__PACKAGE__->add_columns(";
         foreach my $f (@fields)
         {
-            local $Data::Dumper::Terse = 1;
             $output .= "\n    '" . (keys %$f)[0] . "' => " ;
-            my $colinfo =
-                Data::Dumper->Dump([values %$f],
-                                   [''] # keys   %$f]
-                                   );
-            chomp($colinfo);
+            ( my $colinfo = dump_value( (values %$f)[0] ) ) =~ s/^/    /mg;
+            $colinfo =~ s/^\s*|\s*$//g;
             $output .= $colinfo . ",";
         }
         $output .= "\n);\n";
@@ -129,7 +125,6 @@ __PACKAGE__->table('${tname}');
 
         foreach my $cont ($table->get_constraints)
         {
-#            print Data::Dumper::Dumper($cont->type);
             if($cont->type =~ /foreign key/i)
             {
 #                 $output .= "\n__PACKAGE__->belongs_to('" .
