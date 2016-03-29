@@ -121,12 +121,12 @@ sub serialize ($) {
   nfreeze($_[0]);
 }
 
-my ($dd_obj, $dump_str);
+my $dd_obj;
 sub dump_value ($) {
   local $Data::Dumper::Indent = 1
     unless defined $Data::Dumper::Indent;
 
-  $dump_str = (
+  my $dump_str = (
     $dd_obj
       ||=
     do {
