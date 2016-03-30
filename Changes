@@ -43,6 +43,8 @@ Revision history for DBIx::Class
           commit message for description of exact failure scenario)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
+        - Remove spurious exception warping in ::Replicated::execute_reliably
+          (RT#113339)
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)
