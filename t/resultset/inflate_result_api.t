@@ -5,6 +5,8 @@ no warnings 'exiting';
 use Test::More;
 use Test::Deep;
 use lib qw(t/lib);
+use Test::Exception;
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema(no_populate => 1);
@@ -502,6 +504,7 @@ sub cmp_structures {
   cmp_deeply($left, $right, $msg||()) or next INFTYPE;
 }
 
+
 {
   package DBICTest::_DoubleResult;
 
@@ -528,5 +531,19 @@ is_deeply(
     order_by => [qw(me.cdid tracks.title)],
   })->all_hri}) x 2 ],
 );
+
+
+{
+  package DBICTest::_DieTrying;
+
+  sub inflate_result {
+    die "nyah nyah nyah";
+  }
+}
+
+throws_ok {
+  $schema->resultset('CD')->search({}, { result_class => 'DBICTest::_DieTrying' })->all
+} qr/nyah nyah nyah/, 'Exception in custom inflate_result propagated correctly';
+
 
 done_testing;

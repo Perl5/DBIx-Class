@@ -1417,7 +1417,7 @@ sub _construct_results {
           : '@$rows = map { $inflator_cref->($res_class, $rsrc, { %s } ) } @$rows'
         ),
         ( join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap ) )
-      );
+      ) . '; 1' or die;
     }
   }
   else {
