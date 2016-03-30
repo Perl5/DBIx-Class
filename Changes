@@ -50,6 +50,8 @@ Revision history for DBIx::Class
           immediately before the commit is attempted (RT#107159)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
+        - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
+          was not sufficient to cover up RT#67843)
         - Fix several corner cases with Many2Many over custom relationships
         - Fix the Sybase ASE storage incorrectly attempting to retrieve an
           autoinc value when inserting rows containing blobs (GH#82)

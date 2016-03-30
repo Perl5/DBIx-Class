@@ -96,6 +96,11 @@ DDL
 }
 
 # test blank begin/svp/commit/begin cycle
+#
+# need to prime this for exotic testing scenarios
+# before testing for lack of warnings
+modver_gt_or_eq('DBD::SQLite', '1.33');
+
 warnings_are {
   my $schema = DBICTest->init_schema( no_populate => 1 );
   my $rs = $schema->resultset('Artist');
