@@ -17,6 +17,8 @@ Revision history for DBIx::Class
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix leaktest failures with upcoming version of Sub::Quote
+        - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
+          was not sufficient to cover up RT#67843)
 
 0.082821 2016-02-11 17:58 (UTC)
     * Fixes

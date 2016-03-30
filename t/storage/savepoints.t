@@ -228,6 +228,9 @@ for ('', keys %$env2optdep) { SKIP: {
     undef,
     'rollback from inner transaction';
 
+  # make sure a fresh txn will work after above
+  $schema->storage->txn_do(sub { ok "noop" } );
+
 ### cleanupz
   $schema->storage->dbh->do ("DROP TABLE artist");
 }}
@@ -235,6 +238,6 @@ for ('', keys %$env2optdep) { SKIP: {
 done_testing;
 
 END {
-  eval { $schema->storage->dbh->do ("DROP TABLE artist") } if defined $schema;
+  eval { $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") }) } if defined $schema;
   undef $schema;
 }
