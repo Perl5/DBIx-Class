@@ -1197,7 +1197,7 @@ sub _collapse_cond {
           $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
         }
       }
-      elsif (! length ref $where->[$i] ) {
+      elsif (! ref $where->[$i] ) {
         my $sub_elt = $self->_collapse_cond({ @{$where}[$i, $i+1] })
           or next;
 
