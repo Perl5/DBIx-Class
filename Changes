@@ -7,6 +7,8 @@ Revision history for DBIx::Class
           $dbh->{HandleError} (GH#101)
         - Fix parsing of DSNs containing driver arguments (GH#99)
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
+        - Remove spurious exception warping in ::Replicated::execute_reliably
+          (RT#113339)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix leaktest failures with upcoming version of Sub::Quote

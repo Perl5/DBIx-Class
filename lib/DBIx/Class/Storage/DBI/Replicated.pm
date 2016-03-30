@@ -685,19 +685,13 @@ sub execute_reliably {
   my $self = shift;
   my $coderef = shift;
 
-  unless( ref $coderef eq 'CODE') {
-    $self->throw_exception('Second argument must be a coderef');
-  }
+  $self->throw_exception('Second argument must be a coderef')
+    unless( ref $coderef eq 'CODE');
 
   ## replace the current read handler for the remainder of the scope
   local $self->{read_handler} = $self->master;
 
-  my $args = \@_;
-  return try {
-    $coderef->(@$args);
-  } catch {
-    $self->throw_exception("coderef returned an error: $_");
-  };
+  &$coderef;
 }
 
 =head2 set_reliable_storage

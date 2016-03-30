@@ -713,9 +713,19 @@ ok my $reliably = sub {
     is $debug{storage_type}, 'MASTER',
         "got last query from a master: $debug{dsn}";
 
+    $_[1] = 9;
+
 } => 'created coderef properly';
 
-$replicated->schema->storage->execute_reliably($reliably);
+my @list_to_mangle = (1, 2, 3);
+
+$replicated->schema->storage->execute_reliably($reliably, @list_to_mangle);
+
+is_deeply
+  \@list_to_mangle,
+  [ 1, 9, 3],
+  'Aliasing of values passed to execute_reliably works'
+;
 
 ## Try something with an error
 
@@ -729,6 +739,12 @@ ok my $unreliably = sub {
 throws_ok {$replicated->schema->storage->execute_reliably($unreliably)}
     qr/Can't find source for ArtistXX/
     => 'Bad coderef throws proper error';
+
+throws_ok {
+  $replicated->schema->storage->execute_reliably(sub{
+    die bless [], 'SomeExceptionThing';
+  });
+} 'SomeExceptionThing', "Blessed exception kept intact";
 
 ## Make sure replication came back
 
