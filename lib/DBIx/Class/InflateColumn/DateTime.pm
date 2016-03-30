@@ -298,6 +298,88 @@ B<DEPRECATED> because this gets you into trouble using L<DBIx::Class::Schema::Ve
 Instead put it directly into the columns definition like in the examples above. If you still
 use the old way you'll see a warning - please fix your code then!
 
+=head1 METHODS AND ATTRIBUTES FOR EXTENDING
+
+=head2 _pre_deflate_datetime method
+
+This method is called to process the DateTime object before it is
+deflated into the database representation. If an explicit timezone or
+locale have been set for the column, those are applied to the DateTime
+by this method before deflation.
+
+To extend, wrap the method:
+
+  sub _pre_deflate_datetime {
+      my ( $self, $dt, $info ) = @_;
+      ...
+      $dt = $self->next::method($dt, $info);
+      ...
+      return $dt;
+  }
+
+=head2 _post_inflate_datetime method
+
+This method is called to process the DateTime object after it has been
+inflated from the database representation. If an explicit timezone or
+locale habe been set for the column, those are applied to the DateTime
+by this method after inflation.
+
+To extend, wrap the method:
+
+  sub _post_inflate_datetime method
+      my ( $self, $dt, $info ) = @_;
+      ...
+      $dt = $self->next::method($dt, $info);
+      ...
+      return $dt;
+  }
+
+=head2 _ic_dt_method attribute
+
+The type of datetime data stored in the column is available in C<$info>,
+set by the C<register_column> method. This allows extensions to change
+behavior depending on the type of datetime being processed.
+
+Available values, with their origins:
+
+=over
+
+=item timestamp_with_timezone
+
+SQL datatype "timestamp with time zone", or "timestamptz"
+
+=item timestamp_without_timezone
+
+SQL datatype "timestamp without time zone"
+
+=item smalldatetime
+
+SQL datatype "smalldatetime"
+
+=item datetime
+
+SQL datatype "datetime", or C<inflate_datetime> attribute set on column
+
+=item timestamp
+
+SQL datatype "timestamp", or C<inflate_timestamp> attribute set on column
+
+=item date
+
+SQL datatype "date", or C<inflate_date> attribute set on column
+
+=back
+
+  my $date_method = $info->{_ic_dt_method};
+
+=head2 __dbic_colname attribute
+
+The column name is available in the copy of C<$info> that is passed to
+all of the inflation and deflation methods. This allows error messages
+to use the column name.
+
+  my $colname = $info->{__dbic_colname};
+
 =head1 SEE ALSO
 
 =over 4
