@@ -224,7 +224,7 @@ sub connection {
       and
     ref($_[0]) ne 'CODE'
       and
-    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite \: (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
+    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
   ) {
 
     my $locktype;

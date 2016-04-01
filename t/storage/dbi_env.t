@@ -79,6 +79,10 @@ $schema = DBICTest::Schema->connect("dbi:SQLite:$dbname");
 lives_ok { count_sheep($schema) } 'SQLite passed to connect_info';
 isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
 
+$schema = DBICTest::Schema->connect("dbi:SQLite(ReadOnly=1):$dbname");
+lives_ok { count_sheep($schema) } 'SQLite passed to connect_info despite extra arguments present';
+isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
+
 $ENV{DBI_DRIVER} = 'SQLite';
 $schema = DBICTest::Schema->connect("dbi::$dbname");
 lives_ok { count_sheep($schema) } 'SQLite in DBI_DRIVER';

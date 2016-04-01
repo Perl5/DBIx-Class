@@ -1377,7 +1377,16 @@ sub _extract_driver_from_connect_info {
     # try to use dsn to not require being connected, the driver may still
     # force a connection later in _rebless to determine version
     # (dsn may not be supplied at all if all we do is make a mock-schema)
-    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:]+):/i;
+    #
+    # Use the same regex as the one used by DBI itself (even if the use of
+    # \w is odd given unicode):
+    # https://metacpan.org/source/TIMB/DBI-1.634/DBI.pm#L621
+    #
+    # DO NOT use https://metacpan.org/source/TIMB/DBI-1.634/DBI.pm#L559-566
+    # as there is a long-standing precedent of not loading DBI.pm until the
+    # very moment we are actually connecting
+    #
+    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:(\w*)/i;
     $drv ||= $ENV{DBI_DRIVER};
   }
 
