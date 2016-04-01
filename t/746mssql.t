@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use Try::Tiny;
 
 use DBIx::Class::Optional::Dependencies ();
@@ -102,11 +103,35 @@ SQL
 
     ok(($new->artistid||0) > 0, "Auto-PK worked for $opts_name");
 
-# Test multiple active statements
-    SKIP: {
-      skip 'not a multiple active statements configuration', 1
-        if $opts_name eq 'plain';
+# Test graceful error handling if not supporting multiple active statements
+    if( $opts_name eq 'plain' ) {
 
+      # keep the first cursor alive (as long as $rs is alive)
+      my $rs = $schema->resultset("Artist");
+
+      my $a1 = $rs->next;
+
+      my $a2;
+
+      warnings_are {
+        # second cursor, invalidates $rs, but it doesn't
+        # matter as long as we do not try to use it
+        $a2 = $schema->resultset("Artist")->next;
+      } [], 'No warning on retry due to previous cursor invalidation';
+
+      is_deeply(
+        { $a1->get_columns },
+        { $a2->get_columns },
+        'Same data',
+      );
+
+      dies_ok {
+        $rs->next;
+      } 'Invalid cursor did not silently return garbage';
+    }
+
+# Test multiple active statements
+    else {
       $schema->storage->ensure_connected;
 
       lives_ok {

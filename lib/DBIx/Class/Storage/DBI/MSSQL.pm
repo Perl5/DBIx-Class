@@ -10,6 +10,7 @@ use base qw/
 use mro 'c3';
 
 use Try::Tiny;
+use DBIx::Class::_Util qw( sigwarn_silencer );
 use List::Util 'first';
 use namespace::clean;
 
@@ -175,13 +176,31 @@ sub _ping {
 
   my $dbh = $self->_dbh or return 0;
 
-  local $dbh->{RaiseError} = 1;
-  local $dbh->{PrintError} = 0;
-
-  return try {
+  try {
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
     $dbh->do('select 1');
     1;
-  } catch {
+  }
+  catch {
+    # MSSQL is *really* annoying wrt multiple active resultsets,
+    # and this may very well be the reason why the _ping failed
+    #
+    # Proactively disconnect, while hiding annoying warnings if the case
+    #
+    # The callchain is:
+    #   < check basic retryability prerequisites (e.g. no txn) >
+    #    ->retry_handler
+    #     ->storage->connected()
+    #      ->ping
+    # So if we got here with the in_handler bit set - we won't  break
+    # anything by a disconnect
+    if( $self->{_in_do_block_retry_handler} ) {
+      local $SIG{__WARN__} = sigwarn_silencer qr/disconnect invalidates .+? active statement/;
+      $self->disconnect;
+    }
+
+    # RV of _ping itself
     0;
   };
 }

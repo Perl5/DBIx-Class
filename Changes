@@ -6,6 +6,7 @@ Revision history for DBIx::Class
         - Fix use of ::Schema::Versioned combined with a user-supplied
           $dbh->{HandleError} (GH#101)
         - Fix parsing of DSNs containing driver arguments (GH#99)
+        - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix leaktest failures with upcoming version of Sub::Quote
