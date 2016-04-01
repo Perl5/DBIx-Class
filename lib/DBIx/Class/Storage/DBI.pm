@@ -1377,7 +1377,10 @@ sub _extract_driver_from_connect_info {
     # try to use dsn to not require being connected, the driver may still
     # force a connection later in _rebless to determine version
     # (dsn may not be supplied at all if all we do is make a mock-schema)
-    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:]+):/i;
+
+    # be careful when parsing DSNs that the driver name may include
+    # DBI attributes, e.g. "mysql(Username=bob)"
+    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:(]+)[:(]/i;
     $drv ||= $ENV{DBI_DRIVER};
   }
 
