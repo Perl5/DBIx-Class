@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
     * Fixes
+        - Fix parsing of DSNs containing driver arguments (GH#99)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
         - Fix leaktest failures with upcoming version of Sub::Quote
