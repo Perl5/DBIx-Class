@@ -57,6 +57,7 @@ my $exceptions = {
             store_column
             get_column
             get_columns
+            get_dirty_columns
             has_column_loaded
         /],
     },

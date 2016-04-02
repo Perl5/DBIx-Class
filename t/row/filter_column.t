@@ -130,6 +130,72 @@ CACHE_TEST: {
   is $from_storage_ran, ++$expected_from, 'from did run';
   is $to_storage_ran, $expected_to,  'to did not run';
 
+  ok ! $artist->is_changed, 'object clean';
+  is_deeply
+    { $artist->get_dirty_columns },
+    {},
+    'dirty columns as expected',
+  ;
+
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+
+  $artist->charfield(42);
+
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, ++$expected_to,  'to ran once, determining dirtyness';
+
+  is $artist->charfield, 42, 'setting once works';
+  ok $artist->is_column_changed('charfield'), 'column changed';
+  ok $artist->is_changed, 'object changed';
+  is_deeply
+    { $artist->get_dirty_columns },
+    { charfield => 21 },
+    'dirty columns as expected',
+  ;
+
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
+
+  $artist->charfield(66);
+  is $artist->charfield, 66, 'setting twice works';
+  ok $artist->is_column_changed('charfield'), 'column changed';
+  ok $artist->is_changed, 'object changed';
+
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run a second time on dirty column';
+
+  is_deeply
+    { $artist->get_dirty_columns },
+    { charfield => 33 },
+    'dirty columns as expected',
+  ;
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, ++$expected_to,  'to did run producing a new dirty_columns set';
+
+  is_deeply
+    { $artist->get_dirty_columns },
+    { charfield => 33 },
+    'dirty columns still as expected',
+  ;
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run on re-invoked get_dirty_columns';
+
+  $artist->update;
+  is $artist->charfield, 66, 'value still there';
+
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to, 'to did not run ';
+
+  $artist->discard_changes;
+
+  is $from_storage_ran, $expected_from, 'from did not run after discard_changes';
+  is $to_storage_ran, $expected_to, 'to did not run after discard_changes';
+
+  is $artist->charfield, 66, 'value still there post reload';
+
+  is $from_storage_ran, ++$expected_from, 'from did run';
+  is $to_storage_ran, $expected_to,  'to did not run';
 }
 
 # test in-memory operations
@@ -137,6 +203,7 @@ for my $artist_maker (
   sub { $schema->resultset('Artist')->new({ charfield => 42 }) },
   sub { my $art = $schema->resultset('Artist')->new({}); $art->charfield(42); $art },
 ) {
+  $schema->resultset('Artist')->delete;
 
   my $expected_from = $from_storage_ran;
   my $expected_to   = $to_storage_ran;
@@ -150,6 +217,14 @@ for my $artist_maker (
   ok( $artist->has_column_loaded('charfield'), 'Filtered column marked as loaded under new' );
   is( $artist->charfield, 42, 'Proper unfiltered value' );
   is( $artist->get_column('charfield'), 21, 'Proper filtered value' );
+
+  $artist->insert;
+  ($raw_db_charfield) = $schema->resultset('Artist')
+                                ->search ($artist->ident_condition)
+                                 ->get_column('charfield')
+                                  ->next;
+
+  is $raw_db_charfield, 21, 'Proper value in database';
 }
 
 # test literals
