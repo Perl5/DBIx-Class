@@ -78,11 +78,13 @@ sub get_filtered_column {
 sub get_column {
   my ($self, $col) = @_;
 
-  if (exists $self->{_filtered_column}{$col}) {
-    return $self->{_column_data}{$col} ||= $self->_column_to_storage (
-      $col, $self->{_filtered_column}{$col}
-    );
-  }
+  ! exists $self->{_column_data}{$col}
+    and
+  exists $self->{_filtered_column}{$col}
+    and
+  $self->{_column_data}{$col} = $self->_column_to_storage (
+    $col, $self->{_filtered_column}{$col}
+  );
 
   return $self->next::method ($col);
 }
@@ -99,6 +101,22 @@ sub get_columns {
   ;
 
   $self->next::method (@_);
+}
+
+# and *another* separate codepath, argh!
+sub get_dirty_columns {
+  my $self = shift;
+
+  $self->{_dirty_columns}{$_}
+    and
+  ! exists $self->{_column_data}{$_}
+    and
+  $self->{_column_data}{$_} = $self->_column_to_storage (
+    $_, $self->{_filtered_column}{$_}
+  )
+    for keys %{$self->{_filtered_column}||{}};
+
+  $self->next::method(@_);
 }
 
 sub store_column {

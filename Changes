@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored
           afterwards. Instead an exception (detailing the fix) is thrown.
+        - Another relatively invasive set of ::FilterColumn changes, covering
+          potential data loss (RT#111567). Please run your regression tests!
         - Increased checking for the correctness of the is_nullable attribute
           within the prefetch result parser may highlight previously unknown
           mismatches between your codebase and data source
