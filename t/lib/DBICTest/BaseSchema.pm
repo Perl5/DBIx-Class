@@ -242,7 +242,12 @@ sub connection {
       # this will either give us an undef $locktype or will determine things
       # properly with a default ( possibly connecting in the process )
       eval {
-        my $s = ref($self)->connect(@{$self->storage->connect_info})->storage;
+        my $cur_storage = $self->storage;
+
+        $cur_storage = $cur_storage->master
+          if $cur_storage->isa('DBIx::Class::Storage::DBI::Replicated');
+
+        my $s = ref($self)->connect(@{$cur_storage->connect_info})->storage;
 
         $locktype = $s->sqlt_type || 'generic';
 

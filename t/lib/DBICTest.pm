@@ -32,7 +32,7 @@ use DBICTest::Util qw(
 );
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
 use DBICTest::Schema;
-use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
+use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard modver_gt_or_eq );
 use Carp;
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
@@ -374,8 +374,19 @@ sub init_schema {
     if ( !$args{no_connect} ) {
       $schema->connection(@dsn);
 
-      $schema->storage->connect_replicants(\@dsn)
-        if $ENV{DBICTEST_VIA_REPLICATED};
+      if( $ENV{DBICTEST_VIA_REPLICATED} ) {
+
+        # add explicit ReadOnly=1 if we can support it
+        $dsn[0] =~ /^dbi:SQLite:/i
+          and
+        require DBD::SQLite
+          and
+        modver_gt_or_eq('DBD::SQLite', '1.49_05')
+          and
+        $dsn[0] =~ s/^dbi:SQLite:/dbi:SQLite(ReadOnly=1):/i;
+
+        $schema->storage->connect_replicants(\@dsn);
+      }
     }
 
     if ( !$args{no_deploy} ) {
