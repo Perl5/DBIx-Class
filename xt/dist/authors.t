@@ -77,7 +77,7 @@ if (
   for (
     map
       { my ($gitname) = m/^ \s* \d+ \s* (.+?) \s* $/mx; utf8::decode($gitname); $gitname }
-      qx( git shortlog -e -s )
+      qx( git shortlog HEAD --remotes=historic/ghpr/applied/ --remotes=historic/ghpr/closed/ -e -s )
   ) {
     my ($eml) = $_ =~ $email_re;
 
