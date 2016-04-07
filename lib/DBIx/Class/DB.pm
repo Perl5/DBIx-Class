@@ -222,15 +222,14 @@ sub result_source_instance {
   }
 
   my($source, $result_class) = @{$class->_result_source_instance};
-  return unless blessed $source;
+  return undef unless blessed $source;
 
   if ($result_class ne $class) {  # new class
     # Give this new class its own source and register it.
-    $source = $source->new({
-        %$source,
+    $source = $source->clone(
         source_name  => $class,
         result_class => $class
-    } );
+    );
     $class->_result_source_instance([$source, $class]);
     $class->_maybe_attach_source_to_schema($source);
   }

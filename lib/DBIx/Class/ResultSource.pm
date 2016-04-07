@@ -115,20 +115,72 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 
 =cut
 
-sub new {
-  my ($class, $attrs) = @_;
-  $class = ref $class if ref $class;
+{
+  sub new {
+    my ($class, $attrs) = @_;
+    $class = ref $class if ref $class;
 
-  my $new = bless { %{$attrs || {}} }, $class;
-  $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
-  $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
-  $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
-  $new->{_columns} = { %{$new->{_columns}||{}} };
-  $new->{_relationships} = { %{$new->{_relationships}||{}} };
-  $new->{name} ||= "!!NAME NOT SET!!";
-  $new->{_columns_info_loaded} ||= 0;
-  $new->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
-  return $new;
+    my $self = bless { %{$attrs || {}} }, $class;
+
+
+    DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+      and
+    # a constructor with 'name' as sole arg clearly isn't "inheriting" from anything
+    ( not ( keys(%$self) == 1 and exists $self->{name} ) )
+      and
+    defined CORE::caller(1)
+      and
+    (CORE::caller(1))[3] !~ / ::new$ | ^ DBIx::Class :: (?:
+      ResultSourceProxy::Table::table
+        |
+      ResultSourceProxy::Table::_init_result_source_instance
+        |
+      ResultSource::clone
+    ) $ /x
+      and
+    local $Carp::CarpLevel = $Carp::CarpLevel + 1
+      and
+    Carp::confess("Incorrect instantiation of '$self': you almost certainly wanted to call ->clone() instead");
+
+
+    $self->{resultset_class} ||= 'DBIx::Class::ResultSet';
+    $self->{name} ||= "!!NAME NOT SET!!";
+    $self->{_columns_info_loaded} ||= 0;
+    $self->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
+
+    $self->{$_} = { %{ $self->{$_} || {} } }
+      for qw( _columns _relationships resultset_attributes );
+
+    $self->{_ordered_columns} = [ @{ $self->{_ordered_columns} || [] } ];
+
+    $self;
+  }
+}
+
+=head2 clone
+
+  $rsrc_instance->clone( atribute_name => overriden_value );
+
+A wrapper around L</new> inheriting any defaults from the callee. This method
+also not normally invoked directly by end users.
+
+=cut
+
+sub clone {
+  my $self = shift;
+
+  $self->new({
+    (
+      (length ref $self)
+        ? %$self
+        : ()
+    ),
+    (
+      (@_ == 1 and ref $_[0] eq 'HASH')
+        ? %{ $_[0] }
+        : @_
+    ),
+  });
 }
 
 =pod

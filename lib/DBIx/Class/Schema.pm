@@ -957,19 +957,12 @@ sub compose_namespace {
       my $target_class = "${target}::${source_name}";
       $self->inject_base($target_class, $orig_source->result_class, ($base || ()) );
 
-      # register_source examines result_class, and then returns us a clone
-      my $new_source = $schema->register_source($source_name, bless
-        { %$orig_source, result_class => $target_class },
-        ref $orig_source,
+      $schema->register_source(
+        $source_name,
+        $orig_source->clone(
+          result_class => $target_class
+        ),
       );
-
-      if ($target_class->can('result_source_instance')) {
-        # give the class a schema-less source copy
-        $target_class->result_source_instance( bless
-          { %$new_source, schema => ref $new_source->{schema} || $new_source->{schema} },
-          ref $new_source,
-        );
-      }
     }
 
     # Legacy stuff, not inserting INDIRECT assertions
@@ -978,6 +971,24 @@ sub compose_namespace {
   }
 
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
+  # Give each composed class yet another *schema-less* source copy
+  # this is used for the freeze/thaw cycle
+  #
+  # This is not covered by any tests directly, but is indirectly exercised
+  # in t/cdbi/sweet/08pager by re-setting the schema on an existing object
+  # FIXME - there is likely a much cheaper way to take care of this
+  for my $source_name ($self->sources) {
+
+    my $target_class = "${target}::${source_name}";
+
+    $target_class->result_source_instance(
+      $self->source($source_name)->clone(
+        result_class => $target_class,
+        schema => ( ref $schema || $schema ),
+      )
+    );
+  }
 
   return $schema;
 }
@@ -1083,13 +1094,10 @@ sub _copy_state_from {
   $self->class_mappings({ %{$from->class_mappings} });
   $self->source_registrations({ %{$from->source_registrations} });
 
-  foreach my $source_name ($from->sources) {
-    my $source = $from->source($source_name);
-    my $new = $source->new($source);
-    # we use extra here as we want to leave the class_mappings as they are
-    # but overwrite the source_registrations entry with the new source
-    $self->register_extra_source($source_name => $new);
-  }
+  # we use extra here as we want to leave the class_mappings as they are
+  # but overwrite the source_registrations entry with the new source
+  $self->register_extra_source( $_ => $from->source($_) )
+    for $from->sources;
 
   if ($from->storage) {
     $self->storage($from->storage);
@@ -1448,8 +1456,7 @@ sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 sub _register_source {
   my ($self, $source_name, $supplied_rsrc, $params) = @_;
 
-  my $derived_rsrc = $supplied_rsrc->new({
-    %$supplied_rsrc,
+  my $derived_rsrc = $supplied_rsrc->clone({
     source_name => $source_name,
   });
 

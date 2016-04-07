@@ -49,6 +49,7 @@ BEGIN {
         DBIC_SHUFFLE_UNORDERED_RESULTSETS
         DBIC_ASSERT_NO_INTERNAL_WANTARRAY
         DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
+        DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
         DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE
         DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
       )
@@ -1076,6 +1077,61 @@ sub fail_on_internal_call {
       }),
     ), 'with_stacktrace');
   }
+}
+
+if (DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE) {
+
+  no warnings 'redefine';
+
+  my $next_bless = defined(&CORE::GLOBAL::bless)
+    ? \&CORE::GLOBAL::bless
+    : sub { CORE::bless($_[0], $_[1]) }
+  ;
+
+  *CORE::GLOBAL::bless = sub {
+    my $class = (@_ > 1) ? $_[1] : CORE::caller();
+
+    # allow for reblessing (role application)
+    return $next_bless->( $_[0], $class )
+      if defined blessed $_[0];
+
+    my $obj = $next_bless->( $_[0], $class );
+
+    my $calling_sub = (CORE::caller(1))[3] || '';
+
+    (
+      # before 5.18 ->isa() will choke on the "0" package
+      # which we test for in several obscure cases, sigh...
+      !( DBIx::Class::_ENV_::PERL_VERSION < 5.018 )
+        or
+      $class
+    )
+      and
+    (
+      (
+        $calling_sub !~ /^ (?:
+          DBIx::Class::Schema::clone
+            |
+          DBIx::Class::DB::setup_schema_instance
+        )/x
+          and
+        $class->isa("DBIx::Class::Schema")
+      )
+        or
+      (
+        $calling_sub ne 'DBIx::Class::ResultSource::new'
+          and
+        $class->isa("DBIx::Class::ResultSource")
+      )
+    )
+      and
+    local $Carp::CarpLevel = $Carp::CarpLevel + 1
+      and
+    Carp::confess("Improper instantiation of '$obj': you *MUST* call the corresponding constructor");
+
+
+    $obj;
+  };
 }
 
 1;
