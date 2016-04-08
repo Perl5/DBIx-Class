@@ -1585,9 +1585,9 @@ sub throw_exception {
   my $self=shift;
 
   if (
-    ref $self
+    ! DBIx::Class::_Util::in_internal_try
       and
-    my $rsrc = dbic_internal_try { $self->result_source_instance }
+    my $rsrc = dbic_internal_try { $self->result_source }
   ) {
     $rsrc->throw_exception(@_)
   }
