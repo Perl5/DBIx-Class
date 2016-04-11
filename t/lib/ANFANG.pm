@@ -46,6 +46,13 @@ $INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
 
       and
 
+    # a ghetto way of recognizing cperl without loading Config.pm
+    # the $] guard is there because touching $^V on pre-5.10 loads
+    # the entire utf8 stack (wtf!!!)
+    ( "$]" < 5.010 or $^V !~ /\d+c$/ )
+
+      and
+
     # just don't check anything under RELEASE_TESTING
     # a naive approach would be to simply whitelist both
     # strict and warnings, but pre 5.10 there were even

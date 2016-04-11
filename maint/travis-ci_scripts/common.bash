@@ -135,6 +135,8 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
+  is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
   # one module spec per line
   MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
@@ -194,6 +196,8 @@ installdeps() {
 
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
     $LASTCMD 2>&1 || return 1
@@ -328,3 +332,5 @@ CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
 
 have_sudo() { sudo /bin/true &>/dev/null ; }
+
+is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }

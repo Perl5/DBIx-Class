@@ -204,6 +204,8 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
+    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO CPERL BELOW
+    # allows for easier side-by-side comparison
     - perl: "5.22.1_thr_qm"
       # explicit new infra spec preparing for a future forced upgrade
       # also need to pull in a sufficiently new compiler for quadmath.h
@@ -219,6 +221,22 @@ matrix:
 
     ###
     # Start of the allow_failures block
+
+    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO STOCK 5.22.1 ABOVE
+    # allows for easier side-by-side comparison
+    - perl: "cperl-5.22.1_thr_qm"
+      # explicit new infra spec preparing for a future forced upgrade
+      # also need to pull in a sufficiently new compiler for quadmath.h
+      sudo: required
+      dist: trusty
+      env:
+        # FIXME - work around https://github.com/perl11/cperl/issues/131
+        - VCPU_USE=1
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=cperl-5.22.1
+        - BREWOPTS="-Duseithreads -Dusequadmath"
 
     # threaded oldest possible with blead CPAN
     - perl: "devcpan_5.8.1_thr_mb"
@@ -330,6 +348,7 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
+    - perl: cperl-5.22.1_thr_qm
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb

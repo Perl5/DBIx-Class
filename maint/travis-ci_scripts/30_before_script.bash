@@ -11,6 +11,19 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
   export MVDT=""
 fi
 
+# Need a shitton of patches to run on cperl (luckily all provided)
+# Also need to have YAML in place, otherwise the distroprefs are not readable
+if is_cperl ; then
+
+  run_or_err "Downloading and installing cperl distroprefs" '
+    wget -qO- https://github.com/rurban/distroprefs/archive/master.tar.gz |\
+    tar -C $HOME/.cpan --strip-components 1 -zx distroprefs-master/prefs distroprefs-master/sources
+  '
+
+  installdeps YAML
+
+fi
+
 # FIXME - this is a kludge in place of proper MDV testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)

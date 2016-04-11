@@ -17,6 +17,7 @@ use Scalar::Util();
 use MRO::Compat();
 use Carp 'confess';
 use List::Util 'shuffle';
+use Config;
 
 SKIP: {
   skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1
@@ -27,6 +28,9 @@ SKIP: {
 
   skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1
     if $ENV{RELEASE_TESTING};
+
+  skip 'Lean load pattern testing useless under cperl', 1
+    if $Config{usecperl};
 
   is_deeply
     $inc_before,

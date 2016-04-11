@@ -31,7 +31,11 @@ if [[ -n "$BREWVER" ]] ; then
 
   BREWSRC="$BREWVER"
 
-  if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
+  if is_cperl; then
+    # FFS perlbrew ( see http://wollmers-perl.blogspot.de/2015/10/install-cperl-with-perlbrew.html )
+    wget -qO- https://github.com/perl11/cperl/archive/$BREWVER.tar.gz > /tmp/cperl-$BREWVER.tar.gz
+    BREWSRC="/tmp/cperl-$BREWVER.tar.gz"
+  elif [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
     BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
   fi
 
