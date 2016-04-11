@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use base 'DBIx::Class';
 use Sub::Name ();
-use Class::Inspector;
+use Package::Stash ();
 
 warn "DBIx::Class::ResultSetManager never left experimental status and
 has now been DEPRECATED. This module will be deleted in 09000 so please
@@ -53,7 +53,16 @@ sub _register_attributes {
     my $cache = $self->_attr_cache;
     return if keys %$cache == 0;
 
-    foreach my $meth (@{Class::Inspector->methods($self) || []}) {
+    foreach my $meth (keys %{ { map
+      { $_ => 1 }
+      map
+        { Package::Stash->new($_)->list_all_symbols("CODE") }
+        @{ mro::get_linear_isa( ref $self || $self ) }
+    } } ) {
+        # *DO NOT* rely on P::S returning crefs in reverse mro order
+        # but instead ask the mro to redo the lookup
+        # This codepath is extremely old, miht as well keep it running
+        # as-is with no room for surprises
         my $attrs = $cache->{$self->can($meth)};
         next unless $attrs;
         if ($attrs->[0] eq 'ResultSet') {

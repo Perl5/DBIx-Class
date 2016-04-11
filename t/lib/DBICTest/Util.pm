@@ -35,7 +35,7 @@ use DBIx::Class::_Util qw( scope_guard parent_dir mkdir_p );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  dbg stacktrace
+  dbg stacktrace class_seems_loaded
   local_umask slurp_bytes tmpdir find_co_root rm_rf
   visit_namespaces PEEPEENESS
   check_customcond_args
@@ -429,6 +429,29 @@ sub visit_namespaces {
   }
 
   return $visited_count;
+}
+
+#
+# Replicate the *heuristic* (important!!!) implementation found in various
+# forms within Class::Load / Module::Inspector / Class::C3::Componentised
+#
+sub class_seems_loaded ($) {
+
+  croak "Function expects a class name as plain string (no references)"
+    unless defined $_[0] and not length ref $_[0];
+
+  no strict 'refs';
+
+  return 1 if defined ${"$_[0]::VERSION"};
+
+  return 1 if @{"$_[0]::ISA"};
+
+  return 1 if $INC{ (join ('/', split ('::', $_[0]) ) ) . '.pm' };
+
+  ( !!*{"$_[0]::$_"}{CODE} ) and return 1
+    for keys %{"$_[0]::"};
+
+  return 0;
 }
 
 1;

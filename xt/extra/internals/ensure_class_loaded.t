@@ -7,7 +7,7 @@ use Test::More;
 
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
-use Class::Inspector;
+use DBICTest::Util 'class_seems_loaded';
 
 BEGIN {
   package TestPackage::A;
@@ -21,11 +21,11 @@ plan tests => 28;
 # Test ensure_class_found
 ok( $schema->ensure_class_found('DBIx::Class::Schema'),
     'loaded package DBIx::Class::Schema was found' );
-ok( !Class::Inspector->loaded('DBICTest::FakeComponent'),
+ok( ! class_seems_loaded('DBICTest::FakeComponent'),
     'DBICTest::FakeComponent not loaded yet' );
 ok( $schema->ensure_class_found('DBICTest::FakeComponent'),
     'package DBICTest::FakeComponent was found' );
-ok( !Class::Inspector->loaded('DBICTest::FakeComponent'),
+ok( ! class_seems_loaded('DBICTest::FakeComponent'),
     'DBICTest::FakeComponent not loaded by ensure_class_found()' );
 ok( $schema->ensure_class_found('TestPackage::A'),
     'anonymous package TestPackage::A found' );
@@ -88,17 +88,17 @@ like( $@, qr/did not return a true value/,
 }
 
 # Test ensure_class_loaded
-ok( Class::Inspector->loaded('TestPackage::A'), 'anonymous package exists' );
+ok( class_seems_loaded('TestPackage::A'), 'anonymous package exists' );
 eval { $schema->ensure_class_loaded('TestPackage::A'); };
 ok( !$@, 'ensure_class_loaded detected an anon. class' );
 eval { $schema->ensure_class_loaded('FakePackage::B'); };
 like( $@, qr/Can't locate/,
      'ensure_class_loaded threw exception for nonexistent class' );
-ok( !Class::Inspector->loaded('DBICTest::FakeComponent'),
+ok( ! class_seems_loaded('DBICTest::FakeComponent'),
    'DBICTest::FakeComponent not loaded yet' );
 eval { $schema->ensure_class_loaded('DBICTest::FakeComponent'); };
 ok( !$@, 'ensure_class_loaded detected an existing but non-loaded class' );
-ok( Class::Inspector->loaded('DBICTest::FakeComponent'),
+ok( class_seems_loaded('DBICTest::FakeComponent'),
    'DBICTest::FakeComponent now loaded' );
 
 {
