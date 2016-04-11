@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
-use List::Util 'first';
 use Try::Tiny;
 use namespace::clean;
 
@@ -49,8 +48,8 @@ sub _prefetch_autovalues {
 
   my $values = $self->next::method(@_);
 
-  my $identity_col =
-    first { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
+  my ($identity_col) =
+    grep { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
 
 # user might have an identity PK without is_auto_increment
 #

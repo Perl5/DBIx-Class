@@ -76,7 +76,6 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   #
   installdeps Sub::Name Clone Package::Stash::XS \
               $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
-              $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" ) \
               $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
               $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
               $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )

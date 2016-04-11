@@ -57,13 +57,6 @@ my $runtime_requires = {
 ###
   'DBI'                      => '1.57',
 
-  # on older versions first() leaks
-  # for the time being make it a hard dep - when we get
-  # rid of Sub::Name will revisit this (possibility is
-  # to use Devel::HideXS to force the pure-perl version
-  # or something like that)
-  'List::Util'               => '1.16',
-
   # XS (or XS-dependent) libs
   'Sub::Name'                => '0.04',
 

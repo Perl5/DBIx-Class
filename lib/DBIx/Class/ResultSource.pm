@@ -13,7 +13,6 @@ use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Try::Tiny;
-use List::Util 'first';
 use Scalar::Util qw/blessed weaken isweak/;
 
 use namespace::clean;
@@ -476,7 +475,7 @@ sub columns_info {
   my $colinfo = $self->_columns;
 
   if (
-    first { ! $_->{data_type} } values %$colinfo
+    grep { ! $_->{data_type} } values %$colinfo
       and
     ! $self->{_columns_info_loaded}
       and
@@ -803,7 +802,7 @@ sub add_unique_constraints {
   my $self = shift;
   my @constraints = @_;
 
-  if ( !(@constraints % 2) && first { ref $_ ne 'ARRAY' } @constraints ) {
+  if ( !(@constraints % 2) && grep { ref $_ ne 'ARRAY' } @constraints ) {
     # with constraint name
     while (my ($name, $constraint) = splice @constraints, 0, 2) {
       $self->add_unique_constraint($name => $constraint);
@@ -1707,10 +1706,10 @@ sub _resolve_join {
                   : $rel_info->{attrs}{join_type}
                 ,
                -join_path => [@$jpath, { $join => $as } ],
-               -is_single => (
+               -is_single => !!(
                   (! $rel_info->{attrs}{accessor})
                     or
-                  first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
+                  grep { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
                 ),
                -alias => $as,
                -relation_chain_depth => ( $seen->{-relation_chain_depth} || 0 ) + 1,

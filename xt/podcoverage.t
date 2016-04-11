@@ -2,10 +2,8 @@ use warnings;
 use strict;
 
 use Test::More;
-use List::Util 'first';
 use lib qw(t/lib maint/.Generated_Pod/lib);
 use DBICTest;
-use namespace::clean;
 
 plan skip_all => "Skipping finicky test on older perl"
   if "$]" < 5.008005;
@@ -170,7 +168,7 @@ foreach my $module (@modules) {
   SKIP: {
 
     my ($match) =
-      first { $module =~ $_ }
+      grep { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 

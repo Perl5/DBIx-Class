@@ -8,9 +8,6 @@ use DBIx::Class::Carp;
 use DBIx::Class::_Util 'fail_on_internal_wantarray';
 use namespace::clean;
 
-# not importing first() as it will clash with our own method
-use List::Util ();
-
 =head1 NAME
 
   DBIx::Class::ResultSetColumn - helpful methods for messing
@@ -56,7 +53,7 @@ sub new {
   # (to create a new column definition on-the-fly).
   my $as_list = $orig_attrs->{as} || [];
   my $select_list = $orig_attrs->{select} || [];
-  my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
+  my ($as_index) = grep { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
   my $colmap;

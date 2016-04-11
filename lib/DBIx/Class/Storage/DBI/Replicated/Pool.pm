@@ -2,7 +2,6 @@ package DBIx::Class::Storage::DBI::Replicated::Pool;
 
 use Moose;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
-use List::Util 'sum';
 use Scalar::Util 'reftype';
 use DBI ();
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
@@ -322,10 +321,10 @@ is actually connected, try not to hit this 10 times a second.
 =cut
 
 sub connected_replicants {
-  my $self = shift @_;
-  return sum( map {
-    $_->connected ? 1:0
-  } $self->all_replicants );
+  return scalar grep
+    { $_->connected }
+    shift->all_replicants
+  ;
 }
 
 =head2 active_replicants

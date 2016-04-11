@@ -4,7 +4,6 @@ package # hide from the pauses
 use strict;
 use warnings;
 
-use List::Util 'first';
 use DBIx::Class::_Util 'perlstring';
 
 use constant HAS_DOR => ( $] < 5.010 ? 0 : 1 );
@@ -316,7 +315,7 @@ sub __visit_infmap_collapse {
     if (
       $relinfo->{-is_optional}
         and
-      defined ( my $first_distinct_child_idcol = first
+      scalar( my ($first_distinct_child_idcol) = grep
         { ! $known_present_ids->{$_} }
         @{$relinfo->{-identifying_columns}}
       )

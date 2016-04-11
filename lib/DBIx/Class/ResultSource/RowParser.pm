@@ -7,7 +7,6 @@ use warnings;
 use base 'DBIx::Class';
 
 use Try::Tiny;
-use List::Util qw(first max);
 
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
@@ -193,9 +192,9 @@ sub _resolve_collapse {
         and
       keys %$cond
         and
-      ! defined first { $_ !~ /^foreign\./ } (keys %$cond)
+      ! grep { $_ !~ /^foreign\./ } (keys %$cond)
         and
-      ! defined first { $_ !~ /^self\./ } (values %$cond)
+      ! grep { $_ !~ /^self\./ } (values %$cond)
     ) {
       for my $f (keys %$cond) {
         my $s = $cond->{$f};
@@ -371,7 +370,14 @@ sub _resolve_collapse {
       # coderef later
       $collapse_map->{-identifying_columns} = [];
       $collapse_map->{-identifying_columns_variants} = [ sort {
-        (scalar @$a) <=> (scalar @$b) or max(@$a) <=> max(@$b)
+        (scalar @$a) <=> (scalar @$b)
+          or
+        (
+          # Poor man's max()
+          ( sort { $b <=> $a } @$a )[0]
+            <=>
+          ( sort { $b <=> $a } @$b )[0]
+        )
       } @collapse_sets ];
     }
   }
@@ -418,7 +424,7 @@ sub _resolve_collapse {
 
         # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
         # we can safely assume that the child can not exist without us
-        rev_rel_is_optional => ( first
+        rev_rel_is_optional => ( grep
           { ref $_->{cond} eq 'HASH' and ($_->{attrs}{join_type}||'') !~ /^left/i }
           values %{ $self->reverse_relationship_info($rel) },
         ) ? 0 : 1,

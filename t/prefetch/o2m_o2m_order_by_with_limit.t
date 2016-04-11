@@ -4,6 +4,8 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
+use List::Util 'min';
+
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 
@@ -131,7 +133,7 @@ for (
 
   is_deeply(
     $rs->all_hri,
-    [ @{$hri_contents}[$offset .. List::Util::min( $used_limit+$offset-1, $#$hri_contents)] ],
+    [ @{$hri_contents}[$offset .. min( $used_limit+$offset-1, $#$hri_contents)] ],
     "Correct slice of the resultset returned with limit '$limit', offset '$offset'",
   );
 }

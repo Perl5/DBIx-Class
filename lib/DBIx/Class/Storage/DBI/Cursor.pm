@@ -7,7 +7,6 @@ use base 'DBIx::Class::Cursor';
 
 use Try::Tiny;
 use Scalar::Util qw(refaddr weaken);
-use List::Util 'shuffle';
 use DBIx::Class::_Util 'detected_reinvoked_destructor';
 use namespace::clean;
 
@@ -179,12 +178,14 @@ sub all {
 
   (undef, $sth) = $self->storage->_select( @{$self->{args}} );
 
-  return (
+  (
     DBIx::Class::_ENV_::SHUFFLE_UNORDERED_RESULTSETS
       and
     ! $self->{attrs}{order_by}
+      and
+    require List::Util
   )
-    ? shuffle @{$sth->fetchall_arrayref}
+    ? List::Util::shuffle( @{$sth->fetchall_arrayref} )
     : @{$sth->fetchall_arrayref}
   ;
 }

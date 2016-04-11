@@ -64,7 +64,6 @@ use B ();
 use Carp 'croak';
 use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
-use List::Util qw(first);
 use Sub::Quote qw(qsub quote_sub);
 
 use base 'Exporter';

@@ -8,7 +8,6 @@ use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -285,7 +284,7 @@ sub _dbh_execute {
   my ($self, $sql, $bind) = @_[0,2,3];
 
   # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
-  local $self->{disable_sth_caching} = 1 if first {
+  local $self->{disable_sth_caching} = 1 if grep {
     ($_->[0]{_ora_lob_autosplit_part}||0)
       >
     (__cache_queries_with_max_lob_parts - 1)

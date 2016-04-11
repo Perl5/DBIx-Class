@@ -9,7 +9,6 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
-use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
@@ -1687,7 +1686,7 @@ sub _gen_sql_bind {
       and
     $op eq 'select'
       and
-    first {
+    grep {
       length ref $_->[1]
         and
       blessed($_->[1])
