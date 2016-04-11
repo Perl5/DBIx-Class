@@ -10,9 +10,9 @@ you use joins extensively (and also probably if you don't).
 
 =head1 WHAT ARE JOINS
 
-If you ended up here and you don't actually know what joins are yet,
-then you should likely try the L<DBIx::Class::Manual::Intro>
-instead. Skip this part if you know what joins are..
+If you don't know the basics of DBIx::Class, read
+L<DBIx::Class::Manual::Intro> first. Skip this section if you know how
+SQL joins work.
 
 But I'll explain anyway. Assuming you have created your database in a
 more or less sensible way, you will end up with several tables that
