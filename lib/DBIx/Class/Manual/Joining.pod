@@ -10,20 +10,19 @@ you use joins extensively (and also probably if you don't).
 
 =head1 WHAT ARE JOINS
 
-If you ended up here and you don't actually know what joins are yet,
-then you should likely try the L<DBIx::Class::Manual::Intro>
-instead. Skip this part if you know what joins are..
+If you don't know the basics of DBIx::Class, read
+L<DBIx::Class::Manual::Intro> first. Skip this section if you know how
+SQL joins work.
 
-But I'll explain anyway. Assuming you have created your database in a
-more or less sensible way, you will end up with several tables that
-contain C<related> information. For example, you may have a table
-containing information about C<CD>s, containing the CD title and its
-year of publication, and another table containing all the C<Track>s
-for the CDs, one track per row.
+If you have created your database sensibly, you will have several tables
+that contain C<related> information. For example, you may have a table
+representing C<CD>s, containing each CD's title and its year of
+publication, and another table representing all the C<Track>s for the
+CDs, one track per row.
 
-When you wish to extract information about a particular CD and all
-its tracks, You can either fetch the CD row, then make another query
-to fetch the tracks, or you can use a join. Compare:
+To retrieve information about a particular CD and all its tracks, either
+fetch the CD row, then make another query to fetch the tracks, or use a
+join. Compare:
 
   SELECT ID, Title, Year FROM CD WHERE Title = 'Funky CD';
   # .. Extract the ID, which is 10
@@ -39,7 +38,7 @@ L<http://dev.mysql.com/doc/refman/5.0/en/join.html>.
 
 =head1 DEFINING JOINS AND RELATIONSHIPS
 
-In L<DBIx::Class> each relationship between two tables needs to first
+In L<DBIx::Class> each relationship between two tables must
 be defined in the L<ResultSource|DBIx::Class::Manual::Glossary/ResultSource> for the
 table. If the relationship needs to be accessed in both directions
 (i.e. Fetch all tracks of a CD, and fetch the CD data for a Track),
@@ -53,7 +52,7 @@ And in C<MySchema::Tracks>:
 
   MySchema::Tracks->belongs_to('cd', 'MySchema::CD', 'CDID');
 
-There are several other types of relationships, they are more
+There are several other types of relationships, more
 comprehensively described in L<DBIx::Class::Relationship>.
 
 =head1 USING JOINS
