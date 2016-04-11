@@ -5,16 +5,16 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
-# The prereq-install stage will not work with both POISON and DEVREL
+# The DEVREL_DEPS prereq-install stage won't mix with MVDT
 # DEVREL wins
 if [[ "$DEVREL_DEPS" = "true" ]] ; then
-  export POISON_ENV=""
+  export MVDT=""
 fi
 
 # FIXME - this is a kludge in place of proper MDV testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
-if [[ "$POISON_ENV" = "true" ]] ; then
+if [[ "$MVDT" = "true" ]] ; then
 
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
   if [[ "$CLEANTEST" != "true" ]] || perl -M5.013003 -e1 &>/dev/null ; then
@@ -32,25 +32,29 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   else
     parallel_installdeps_notest DBD::SQLite@1.29
   fi
+fi
 
-  # also try minimal tested installs *without* a compiler
-  if [[ "$CLEANTEST" = "true" ]]; then
+# try minimal fully tested installs *without* a compiler (with some exceptions of course)
+if [[ "$BREAK_CC" = "true" ]] ; then
 
-    # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
-    # List::Util can be excised after that as well (need to make my own max() routine for older perls)
-    installdeps Sub::Name Clone Package::Stash::XS \
-                $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
+  [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
 
-    mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
-    run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
-               "ln -s /bin/false $HOME/bin/cc"
+  # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
+  # List::Util can be excised after that as well (need to make my own max() routine for older perls)
+  installdeps Sub::Name Clone Package::Stash::XS \
+              $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" ) \
+              $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
+              $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
 
-    # FIXME: working around RT#113682, RT#113685
-    installdeps Module::Build B::Hooks::EndOfScope
+  mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
+  run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
+             "ln -s /bin/false $HOME/bin/cc"
 
-    run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
-               "ln -fs /bin/true $HOME/bin/cc"
-  fi
+  # FIXME: working around RT#113682, RT#113685
+  installdeps Module::Build B::Hooks::EndOfScope
+
+  run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
+             "ln -fs /bin/true $HOME/bin/cc"
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
@@ -169,8 +173,8 @@ if [[ -n "$(make listdeps)" ]] ; then
   exit 1
 fi
 
-# check that our MDV somewhat works
-if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
+# check that our MVDT somewhat works
+if [[ "$MVDT" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
   echo_err "Something went wrong - higher versions of DBI and/or DBD::SQLite than we expected"
   exit 1
 fi
