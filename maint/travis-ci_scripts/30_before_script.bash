@@ -36,15 +36,20 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   # also try minimal tested installs *without* a compiler
   if [[ "$CLEANTEST" = "true" ]]; then
 
-    # Clone and P::S::XS are both bugs
+    # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
     # List::Util can be excised after that as well (need to make my own max() routine for older perls)
-
     installdeps Sub::Name Clone Package::Stash::XS \
                 $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
 
     mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
     run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
                "ln -s /bin/false $HOME/bin/cc"
+
+    # FIXME: working around RT#113682, RT#113685
+    installdeps Module::Build B::Hooks::EndOfScope
+
+    run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
+               "ln -fs /bin/true $HOME/bin/cc"
   fi
 fi
 
