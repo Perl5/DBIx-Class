@@ -11,7 +11,6 @@ use mro 'c3';
 
 use Try::Tiny;
 use DBIx::Class::_Util qw( dbic_internal_try sigwarn_silencer );
-use List::Util 'first';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/

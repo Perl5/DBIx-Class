@@ -5,8 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
-use namespace::clean;
-
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
 __PACKAGE__->sql_quote_char ('`');

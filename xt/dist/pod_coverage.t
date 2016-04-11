@@ -5,7 +5,6 @@ use warnings;
 use strict;
 
 use Test::More;
-use List::Util 'first';
 use Module::Runtime 'require_module';
 use lib 'maint/.Generated_Pod/lib';
 use DBICTest;
@@ -167,7 +166,7 @@ foreach my $module (@modules) {
   SKIP: {
 
     my ($match) =
-      first { $module =~ $_ }
+      grep { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 

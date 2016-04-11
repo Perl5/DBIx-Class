@@ -6,7 +6,6 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
-use List::Util 'first';
 use DBIx::Class::_Util 'dbic_internal_try';
 use DBIx::Class::Carp;
 use SQL::Abstract qw( is_literal_value is_plain_value );
@@ -1026,7 +1025,10 @@ sub _eq_column_values {
 # value tracked between column changes and commitment to storage
 sub _track_storage_value {
   my ($self, $col) = @_;
-  return defined first { $col eq $_ } ($self->result_source->primary_columns);
+  return scalar grep
+    { $col eq $_ }
+    $self->result_source->primary_columns
+  ;
 }
 
 =head2 set_columns

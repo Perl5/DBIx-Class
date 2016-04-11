@@ -13,9 +13,6 @@ use DBIx::Class::_Util qw(
 );
 use Try::Tiny;
 
-# not importing first() as it will clash with our own method
-use List::Util ();
-
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
   # (the merger is used for other things that ought not to be de-duped)
@@ -466,7 +463,7 @@ sub search_rs {
   # see if we can keep the cache (no $rs changes)
   my $cache;
   my %safe = (alias => 1, cache => 1);
-  if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
+  if ( ! grep { !$safe{$_} } keys %$call_attrs and (
     ! defined $call_cond
       or
     ref $call_cond eq 'HASH' && ! keys %$call_cond
@@ -490,9 +487,8 @@ sub search_rs {
     my @selector_attrs = qw/select as columns cols +select +as +columns include_columns/;
 
     # reset the current selector list if new selectors are supplied
-    if (List::Util::first { exists $call_attrs->{$_} } qw/columns cols select as/) {
-      delete @{$old_attrs}{(@selector_attrs, '_dark_selector')};
-    }
+    delete @{$old_attrs}{(@selector_attrs, '_dark_selector')}
+      if grep { exists $call_attrs->{$_} } qw(columns cols select as);
 
     # Normalize the new selector list (operates on the passed-in attr structure)
     # Need to do it on every chain instead of only once on _resolved_attrs, in
@@ -1888,7 +1884,7 @@ sub _rs_update_delete {
       $storage->_prune_unused_joins ($attrs);
 
     # any non-pruneable non-local restricting joins imply subq
-    $needs_subq = defined List::Util::first { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
+    $needs_subq = grep { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
   }
 
   # check if the head is composite (by now all joins are thrown out unless $needs_subq)
@@ -3531,7 +3527,7 @@ sub _resolved_attrs {
 
   # default selection list
   $attrs->{columns} = [ $source->columns ]
-    unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;
+    unless grep { exists $attrs->{$_} } qw/columns cols select as/;
 
   # merge selectors together
   for (qw/columns select as/) {
@@ -3692,7 +3688,7 @@ sub _resolved_attrs {
         if (
           ! $attrs->{_main_source_premultiplied}
             and
-          ! List::Util::first { ! $_->[0]{-is_single} } @fromlist
+          ! grep { ! $_->[0]{-is_single} } @fromlist
         ) {
           $attrs->{collapse} = 0;
         }
@@ -3922,7 +3918,7 @@ sub _merge_joinpref_attr {
           },
           ARRAY => sub {
             return $_[1] if !defined $_[0];
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [$_[0], @{$_[1]}]
           },
           HASH  => sub {
@@ -3935,7 +3931,7 @@ sub _merge_joinpref_attr {
         ARRAY => {
           SCALAR => sub {
             return $_[0] if !defined $_[1];
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [@{$_[0]}, $_[1]]
           },
           ARRAY => sub {
@@ -3948,7 +3944,7 @@ sub _merge_joinpref_attr {
           HASH => sub {
             return [ $_[1] ] if ! @{$_[0]};
             return $_[0] if !keys %{$_[1]};
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [ @{$_[0]}, $_[1] ];
           },
         },
@@ -3963,7 +3959,7 @@ sub _merge_joinpref_attr {
             return [] if !keys %{$_[0]} and !@{$_[1]};
             return [ $_[0] ] if !@{$_[1]};
             return $_[1] if !keys %{$_[0]};
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [ $_[0], @{$_[1]} ];
           },
           HASH => sub {

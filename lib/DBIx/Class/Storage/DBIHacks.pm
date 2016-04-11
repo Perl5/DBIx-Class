@@ -28,7 +28,6 @@ use warnings;
 use base 'DBIx::Class::Storage';
 use mro 'c3';
 
-use List::Util 'first';
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize dump_value);
 use SQL::Abstract qw(is_plain_value is_literal_value);
@@ -344,7 +343,7 @@ sub _adjust_select_args_for_complex_prefetch {
     ) {
       push @outer_from, $j
     }
-    elsif (first { $_->{$alias} } @outer_nonselecting_chains ) {
+    elsif (grep { $_->{$alias} } @outer_nonselecting_chains ) {
       push @outer_from, $j;
       $may_need_outer_group_by ||= $outer_aliastypes->{multiplying}{$alias} ? 1 : 0;
     }

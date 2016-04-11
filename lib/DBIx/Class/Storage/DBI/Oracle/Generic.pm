@@ -7,7 +7,6 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
-use List::Util 'first';
 use DBIx::Class::_Util qw( modver_gt_or_eq_and_lt dbic_internal_try );
 use namespace::clean;
 
@@ -286,7 +285,7 @@ sub _dbh_execute {
   my ($self, $sql, $bind) = @_[0,2,3];
 
   # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
-  local $self->{disable_sth_caching} = 1 if first {
+  local $self->{disable_sth_caching} = 1 if grep {
     ($_->[0]{_ora_lob_autosplit_part}||0)
       >
     (__cache_queries_with_max_lob_parts - 1)

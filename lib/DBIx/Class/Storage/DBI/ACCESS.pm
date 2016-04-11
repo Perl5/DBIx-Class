@@ -6,8 +6,6 @@ use base 'DBIx::Class::Storage::DBI::UniqueIdentifier';
 use mro 'c3';
 
 use DBI ();
-use List::Util 'first';
-use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('Top');
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::ACCESS');
@@ -66,7 +64,7 @@ sub insert {
   my $columns_info = $source->columns_info;
 
   if (keys %$to_insert == 0) {
-    my $autoinc_col = first {
+    my ($autoinc_col) = grep {
       $columns_info->{$_}{is_auto_increment}
     } keys %$columns_info;
 

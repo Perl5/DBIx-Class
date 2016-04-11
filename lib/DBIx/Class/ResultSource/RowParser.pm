@@ -7,7 +7,7 @@ use warnings;
 use base 'DBIx::Class';
 
 use Try::Tiny;
-use List::Util qw(first max);
+use List::Util 'max';
 
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
@@ -452,7 +452,7 @@ sub _resolve_collapse {
 
         # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
         # we can safely assume that the child can not exist without us
-        rev_rel_is_optional => ( first
+        rev_rel_is_optional => ( grep
           { ref $_->{cond} eq 'HASH' and ($_->{attrs}{join_type}||'') !~ /^left/i }
           values %{ $self->reverse_relationship_info($rel) },
         ) ? 0 : 1,

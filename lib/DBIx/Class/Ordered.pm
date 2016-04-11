@@ -3,9 +3,6 @@ use strict;
 use warnings;
 use base qw( DBIx::Class );
 
-use List::Util 'first';
-use namespace::clean;
-
 =head1 NAME
 
 DBIx::Class::Ordered - Modify the position of objects in an ordered list.
@@ -564,7 +561,7 @@ sub update {
   if (! keys %$changed_ordering_cols) {
     return $self->next::method( undef, @_ );
   }
-  elsif (defined first { exists $changed_ordering_cols->{$_} } @group_columns ) {
+  elsif (grep { exists $changed_ordering_cols->{$_} } @group_columns ) {
     $self->move_to_group(
       # since the columns are already re-set the _grouping_clause is correct
       # move_to_group() knows how to get the original storage values
@@ -614,7 +611,11 @@ sub delete {
 # add the current position/group to the things we track old values for
 sub _track_storage_value {
   my ($self, $col) = @_;
-  return $self->next::method($col) || defined first { $_ eq $col } ($self->position_column, $self->_grouping_columns);
+  return (
+    $self->next::method($col)
+      ||
+    grep { $_ eq $col } ($self->position_column, $self->_grouping_columns)
+  );
 }
 
 =head1 METHODS FOR EXTENDING ORDERED
@@ -740,7 +741,7 @@ sub _shift_siblings {
     local $rsrc->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
     my @pcols = $rsrc->primary_columns;
     if (
-      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
+      grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
     ) {
         my $clean_rs = $rsrc->resultset;
 

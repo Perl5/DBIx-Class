@@ -6,7 +6,6 @@ use warnings;
 use base 'DBIx::Class::Cursor';
 
 use Scalar::Util qw(refaddr weaken);
-use List::Util 'shuffle';
 use DBIx::Class::_Util qw( detected_reinvoked_destructor dbic_internal_try );
 use namespace::clean;
 
@@ -188,7 +187,7 @@ sub all {
       and
     ! $self->{attrs}{order_by}
   )
-    ? shuffle @{$sth->fetchall_arrayref}
+    ? List::Util::shuffle( @{$sth->fetchall_arrayref} )
     : @{$sth->fetchall_arrayref}
   ;
 }

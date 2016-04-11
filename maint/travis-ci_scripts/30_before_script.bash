@@ -54,7 +54,6 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
 
   # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
-  # List::Util can be excised after that as well (need to make my own max() routine for older perls)
   #
   # DEVREL_DEPS means our installer is cpanm, which will respect failures
   # and the like, so stuff soft-failing (failed deps that are not in fact
@@ -63,7 +62,6 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   # FIXME - the PathTools 3.47 is to work around https://rt.cpan.org/Ticket/Display.html?id=107392
   #
   installdeps Sub::Name Clone Package::Stash::XS \
-              $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" ) \
               $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
               $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
               $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )

@@ -3,9 +3,6 @@ package DBIx::Class::SQLMaker::LimitDialects;
 use warnings;
 use strict;
 
-use List::Util 'first';
-use namespace::clean;
-
 # constants are used not only here, but also in comparison tests
 sub __rows_bindtype () {
   +{ sqlt_datatype => 'integer' }
