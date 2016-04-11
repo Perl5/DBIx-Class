@@ -204,6 +204,19 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
+    - perl: "5.22.1_thr_qm"
+      # explicit new infra spec preparing for a future forced upgrade
+      # also need to pull in a sufficiently new compiler for quadmath.h
+      sudo: required
+      dist: trusty
+      env:
+        - VCPU_USE=1
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=5.22.1
+        - BREWOPTS="-Duseithreads -Dusequadmath"
+
     ###
     # Start of the allow_failures block
 

@@ -38,10 +38,10 @@ if [[ -n "$BREWVER" ]] ; then
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
 
-  # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
-  # furthermore `perlbrew use` returns 0 regardless of whether the perl is
-  # found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
-  perlbrew use $BREWVER
+  # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
+  # furthermore some versions of `perlbrew use` return 0 regardless of whether
+  # the perl is found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
+  perlbrew use $BREWVER || /bin/true
 
   if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]] ; then
     echo_err "Unable to switch to $BREWVER - compilation failed...?"
