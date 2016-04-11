@@ -11,6 +11,9 @@ export HARNESS_OPTIONS="j$VCPU_USE"
 
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
+
+  [[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
+
   # FIXME - Devel::Cover (brought by Test::Strict, but soon needed anyway)
   # does not test cleanly on 5.8.7 - just get it directly
   if perl -M5.008007 -e1 &>/dev/null && ! perl -M5.008008 -e1 &>/dev/null; then

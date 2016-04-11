@@ -86,6 +86,17 @@ fi
 # poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
 
+  toggle_vars=( MVDT )
+
+  [[ "$CLEANTEST" == "true" ]] && toggle_vars+=( BREAK_CC )
+
+  for var in "${toggle_vars[@]}"  ; do
+    if [[ -z "${!var}" ]] ; then
+      export $var=true
+      echo "POISON_ENV: setting $var to 'true'"
+    fi
+  done
+
   # look through lib, find all mentioned DBIC* ENVvars and set them to true and see if anything explodes
   toggle_booleans=( $( grep -ohP '\bDBIC_[0-9_A-Z]+' -r lib/ --exclude-dir Optional | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' ) )
 
