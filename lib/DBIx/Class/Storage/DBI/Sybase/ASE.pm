@@ -14,7 +14,7 @@ use Scalar::Util qw/blessed weaken/;
 use Sub::Name();
 use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value );
+use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value scope_guard );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -780,6 +780,12 @@ sub _insert_blobs {
       );
     }
 
+    # FIXME - it is not clear if this is needed at all. But it's been
+    # there since 2009 ( d867eedaa ), might as well let sleeping dogs
+    # lie... sigh.
+    weaken( my $wsth = $sth );
+    my $g = scope_guard { $wsth->finish if $wsth };
+
     dbic_internal_try {
       do {
         $sth->func('CS_GET', 1, 'ct_data_info') or die $sth->errstr;
@@ -808,9 +814,6 @@ sub _insert_blobs {
       else {
         $self->throw_exception($_);
       }
-    }
-    finally {
-      $sth->finish if $sth;
     };
   }
 }
