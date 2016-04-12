@@ -52,6 +52,24 @@ BEGIN {
     require mro;
     constant->import( OLD_MRO => 0 );
   }
+
+  # Both of these are no longer used for anything. However bring
+  # them back after they were purged in 08a8d8f1, as there appear
+  # to be outfits with *COPY PASTED* pieces of lib/DBIx/Class/Storage/*
+  # in their production codebases. There is no point in breaking these
+  # if whatever they used actually continues to work
+  my $warned;
+  my $sigh = sub {
+
+    require Carp;
+    my $cluck = "The @{[ (caller(1))[3] ]} constant is no more - adjust your code" . Carp::longmess();
+
+    warn $cluck unless $warned->{$cluck}++;
+
+    0;
+  };
+  sub DBICTEST () { &$sigh }
+  sub PEEPEENESS () { &$sigh }
 }
 
 # FIXME - this is not supposed to be here
