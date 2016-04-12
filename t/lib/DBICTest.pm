@@ -349,8 +349,11 @@ sub init_schema {
     my $schema;
 
     if (
-      $ENV{DBICTEST_VIA_REPLICATED} &&=
-        ( !$args{storage_type} && !defined $args{sqlite_use_file} )
+      $ENV{DBICTEST_VIA_REPLICATED} &&= (
+        !$args{storage_type}
+          &&
+        ( ! defined $args{sqlite_use_file} or $args{sqlite_use_file} )
+      )
     ) {
       $args{storage_type} = ['::DBI::Replicated', { balancer_type => '::Random' }];
       $args{sqlite_use_file} = 1;

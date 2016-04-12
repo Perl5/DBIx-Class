@@ -24,7 +24,8 @@ for my $conn_args (
     );
 
     my $storage = $s->storage;
-    $storage = $storage->master if $ENV{DBICTEST_VIA_REPLICATED};
+    $storage = $storage->master
+      if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
     ok( ! $storage->connected, 'Starting unconnected' );
 
@@ -49,7 +50,8 @@ for my $conn_args (
   my $s = DBICTest->init_schema( no_deploy => 1, @$conn_args );
 
   my $storage = $s->storage;
-  $storage = $storage->master if $ENV{DBICTEST_VIA_REPLICATED};
+  $storage = $storage->master
+    if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
   my $desc = "broken on_disconnect action @{[ explain $conn_args ]}";
 

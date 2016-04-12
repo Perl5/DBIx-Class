@@ -10,10 +10,8 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 my $storage = $schema->storage;
-
 $storage = $storage->master
-  if $ENV{DBICTEST_VIA_REPLICATED};
-
+  if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
 # test (re)connection
 for my $disconnect (0, 1) {

@@ -59,6 +59,7 @@ my $has_dt;
 
 # Skip the heavy-duty leak tracing when just doing an install
 # or when having Moose crap all over everything
+# FIXME - remove when Replicated gets off Moose
 if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
 
   # redefine the bless override so that we can catch each and every object created

@@ -19,9 +19,13 @@ use DBIx::Class::Admin;
     sqlite_use_file => 1,
   );
 
+  my $storage = $schema->storage;
+  $storage = $storage->master
+    if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
+
   my $admin = DBIx::Class::Admin->new(
     schema_class=> "DBICTest::Schema",
-    connect_info => $schema->storage->connect_info(),
+    connect_info => $storage->connect_info(),
     quiet  => 1,
     _confirm=>1,
   );

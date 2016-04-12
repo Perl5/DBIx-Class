@@ -18,7 +18,7 @@ use DBICTest;
 
   my $storage = $schema->storage;
 
-  if ($ENV{DBICTEST_VIA_REPLICATED}) {
+  if( $storage->isa('DBIx::Class::Storage::DBI::Replicated') ) {
     $storage = $storage->master;
   }
   else {

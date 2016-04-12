@@ -18,7 +18,7 @@ is(
   ref($storage),
   'DBIx::Class::Storage::DBI::SQLite',
   'Storage reblessed correctly into DBIx::Class::Storage::DBI::SQLite'
-) unless $ENV{DBICTEST_VIA_REPLICATED};
+) unless $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
 throws_ok {
     $schema->storage->throw_exception('test_exception_42');
@@ -55,7 +55,6 @@ throws_ok {
     $schema->storage->disconnect for 1,2;
   };
 }
-
 
 # testing various invocations of connect_info ([ ... ])
 
