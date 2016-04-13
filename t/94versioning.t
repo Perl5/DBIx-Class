@@ -281,6 +281,29 @@ is
   ), 3, "Expected number of connections at end of script"
 ;
 
+# try to setup a custom error handle without unsafe set -- should
+# fail, same behavior as regular Schema
+throws_ok(sub {
+    my $schema = DBICVersion::Schema->connect(
+        $dsn, $user, $pass,
+        { HandleError => sub { die $_[0] },
+          ignore_version => 1 });
+    $schema->deploy();
+          },
+          qr/Refusing clobbering of \{HandleError\} installed on externally supplied DBI handle/,
+          q{HandleError with unsafe not set causes an exception});
+
+# now try it with unsafe set -- should work (see RT #113741)
+lives_ok(sub {
+    my $schema = DBICVersion::Schema->connect(
+        $dsn, $user, $pass,
+        { HandleError => sub { die $_[0] },
+          unsafe => 1,
+          ignore_version => 1 });
+    $schema->deploy();
+          },
+          q{HandleError with unsafe set works});
+
 END {
   rm_rf $ddl_dir unless $ENV{DBICTEST_KEEP_VERSIONING_DDL};
 }
