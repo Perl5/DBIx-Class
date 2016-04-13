@@ -590,10 +590,15 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  weaken (my $w_self = $self );
+  weaken (my $w_storage = $self->storage );
 
-  $self->{vschema} = DBIx::Class::Version->connect(sub { $w_self->storage->dbh });
-  my $conn_attrs = $self->storage->_dbic_connect_attributes || {};
+  $self->{vschema} = DBIx::Class::Version->connect(
+    sub { $w_storage->dbh },
+
+    # proxy some flags from the main storage
+    { map { $_ => $w_storage->$_ } qw( unsafe ) },
+  );
+  my $conn_attrs = $w_storage->_dbic_connect_attributes || {};
 
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -602,7 +607,7 @@ sub _on_connect
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_self->storage->dbh })->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_storage->dbh })->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
