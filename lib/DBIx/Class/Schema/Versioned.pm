@@ -591,7 +591,12 @@ sub _on_connect
 
   weaken (my $w_storage = $self->storage );
 
-  $self->{vschema} = DBIx::Class::Version->connect(sub { $w_storage->dbh });
+  $self->{vschema} = DBIx::Class::Version->connect(
+    sub { $w_storage->dbh },
+
+    # proxy some flags from the main storage
+    { map { $_ => $w_storage->$_ } qw( unsafe ) },
+  );
   my $conn_attrs = $w_storage->_dbic_connect_attributes || {};
 
   my $vtable = $self->{vschema}->resultset('Table');

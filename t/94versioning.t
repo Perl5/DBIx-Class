@@ -281,6 +281,35 @@ is
   ), 3, "Expected number of connections at end of script"
 ;
 
+# Test custom HandleError setting on an in-memory instance
+{
+  my $custom_handler = sub { die $_[0] };
+
+  # try to setup a custom error handle without unsafe set -- should
+  # fail, same behavior as regular Schema
+  throws_ok {
+    DBICVersion::Schema->connect( 'dbi:SQLite::memory:', undef, undef, {
+      HandleError => $custom_handler,
+      ignore_version => 1,
+    })->deploy;
+  }
+    qr/Refusing clobbering of \{HandleError\} installed on externally supplied DBI handle/,
+    'HandleError with unsafe not set causes an exception'
+  ;
+
+  # now try it with unsafe set -- should work (see RT #113741)
+  my $s = DBICVersion::Schema->connect( 'dbi:SQLite::memory:', undef, undef, {
+    unsafe => 1,
+    HandleError => $custom_handler,
+    ignore_version => 1,
+  });
+
+  $s->deploy;
+
+  is $s->storage->dbh->{HandleError}, $custom_handler, 'Handler properly set on main schema';
+  is $s->{vschema}->storage->dbh->{HandleError}, $custom_handler, 'Handler properly set on version subschema';
+}
+
 END {
   rm_rf $ddl_dir unless $ENV{DBICTEST_KEEP_VERSIONING_DDL};
 }

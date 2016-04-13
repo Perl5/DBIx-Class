@@ -51,6 +51,8 @@ Revision history for DBIx::Class
         - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
           of a transaction with deferred FK checks: a guard is now inactivated
           immediately before the commit is attempted (RT#107159)
+        - Fix use of ::Schema::Versioned combined with a user-supplied
+          $dbh->{HandleError} (GH#101)
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Fix parsing of DSNs containing driver arguments (GH#99)
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
