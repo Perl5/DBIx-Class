@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Time::HiRes qw(time sleep);
+use List::Util 'max';
 
 use DBICTest;
 
@@ -107,7 +108,7 @@ while(@pids < $num_children) {
 
     $pid = $$;
 
-    sleep ( $t - time );
+    sleep( max( 0.1, $t - time ) );
     note ("Child process $pid starting work at " . time() );
 
     my $work = sub {

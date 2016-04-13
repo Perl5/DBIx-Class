@@ -54,6 +54,7 @@ use Test::More;
 use Errno ();
 use DBIx::Class::_Util 'sigwarn_silencer';
 use Time::HiRes qw(time sleep);
+use List::Util 'max';
 
 # README: If you set the env var to a number greater than 5,
 #   we will use that many children
@@ -78,7 +79,7 @@ SKIP: {
     push @threads, threads->create(sub {
       my $tid = threads->tid;
 
-      sleep ($t - time);
+      sleep( max( 0.1, $t - time ) );
       note ("Thread $tid starting work at " . time() );
 
       my $rsrc = $schema->source('Artist');

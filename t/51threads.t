@@ -22,6 +22,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Time::HiRes qw(time sleep);
+use List::Util 'max';
 
 plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if "$]" < 5.008005;
@@ -115,7 +116,7 @@ while(@children < $num_children) {
     my $newthread = async {
         my $tid = threads->tid;
 
-        sleep ($t - time);
+        sleep( max( 0.1, $t - time ) );
 
         # FIXME if we do not stagger the threads, sparks fly due to CXSA
         sleep ( $tid / 10 ) if "$]" < 5.012;
