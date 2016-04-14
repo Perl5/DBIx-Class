@@ -9,7 +9,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
-use Scalar::Util qw/blessed weaken isweak/;
+use Scalar::Util qw( blessed weaken isweak refaddr );
 
 # FIXME - somehow breaks ResultSetManager, do not remove until investigated
 use DBIx::Class::ResultSet;
@@ -122,11 +122,23 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 =cut
 
 {
+  my $rsrc_registry;
+
+  sub __derived_instances {
+    map {
+      (defined $_->{weakref})
+        ? $_->{weakref}
+        : ()
+    } values %{ $rsrc_registry->{ refaddr($_[0]) }{ derivatives } }
+  }
+
   sub new {
     my ($class, $attrs) = @_;
     $class = ref $class if ref $class;
 
-    my $self = bless { %{$attrs || {}} }, $class;
+    my $ancestor = delete $attrs->{__derived_from};
+
+    my $self = bless { %$attrs }, $class;
 
 
     DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
@@ -149,6 +161,39 @@ Creates a new ResultSource object.  Not normally called directly by end users.
     Carp::confess("Incorrect instantiation of '$self': you almost certainly wanted to call ->clone() instead");
 
 
+    my $own_slot = $rsrc_registry->{
+      my $own_addr = refaddr $self
+    } = { derivatives => {} };
+
+    weaken( $own_slot->{weakref} = $self );
+
+    if(
+      length ref $ancestor
+        and
+      my $ancestor_slot = $rsrc_registry->{
+        my $ancestor_addr = refaddr $ancestor
+      }
+    ) {
+
+      # on ancestry recording compact registry slots, prevent unbound growth
+      for my $r ( $rsrc_registry, map { $_->{derivatives} } values %$rsrc_registry ) {
+        defined $r->{$_}{weakref} or delete $r->{$_}
+          for keys %$r;
+      }
+
+      weaken( $_->{$own_addr} = $own_slot ) for map
+        { $_->{derivatives} }
+        (
+          $ancestor_slot,
+          (grep
+            { defined $_->{derivatives}{$ancestor_addr} }
+            values %$rsrc_registry
+          ),
+        )
+      ;
+    }
+
+
     $self->{resultset_class} ||= 'DBIx::Class::ResultSet';
     $self->{name} ||= "!!NAME NOT SET!!";
     $self->{_columns_info_loaded} ||= 0;
@@ -161,6 +206,16 @@ Creates a new ResultSource object.  Not normally called directly by end users.
       for @arrayref_attributes;
 
     $self;
+  }
+
+  sub DBIx::Class::__Rsrc_Ancestry_iThreads_handler__::CLONE {
+    for my $r ( $rsrc_registry, map { $_->{derivatives} } values %$rsrc_registry ) {
+      %$r = map {
+        defined $_->{weakref}
+          ? ( refaddr $_->{weakref} => $_ )
+          : ()
+      } values %$r
+    }
   }
 }
 
@@ -179,7 +234,7 @@ sub clone {
   $self->new({
     (
       (length ref $self)
-        ? %$self
+        ? ( %$self, __derived_from => $self )
         : ()
     ),
     (

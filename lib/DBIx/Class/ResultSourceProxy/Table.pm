@@ -30,6 +30,10 @@ sub _init_result_source_instance {
     $class->ensure_class_loaded($table_class);
 
     if( $rsrc ) {
+        #
+        # NOTE! - not using clone() here and *NOT* marking source as derived
+        # from the one already existing on the class (if any)
+        #
         $rsrc = $table_class->new({
             %$rsrc,
             result_class => $class,
@@ -84,14 +88,22 @@ sub table {
 
   unless (blessed $table && $table->isa($class->table_class)) {
 
+    my $ancestor = $class->can('result_source_instance')
+      ? $class->result_source_instance
+      : undef
+    ;
+
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 
+
+    # NOTE! - not using clone() here and *NOT* marking source as derived
+    # from the one already existing on the class (if any)
+    # This is logically sound as we are operating at class-level, and is
+    # in fact necessary, as otherwise any base-class with a "dummy" table
+    # will be marked as an ancestor of everything
     $table = $table_class->new({
-        $class->can('result_source_instance')
-          ? %{$class->result_source_instance||{}}
-          : ()
-        ,
+        %{ $ancestor || {} },
         name => $table,
         result_class => $class,
     });
