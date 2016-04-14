@@ -6,7 +6,7 @@ use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
-use Scalar::Util qw/blessed weaken reftype/;
+use Scalar::Util qw( blessed reftype );
 use DBIx::Class::_Util qw(
   dbic_internal_try dump_value
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION

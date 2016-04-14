@@ -2366,10 +2366,15 @@ sub DESTROY {
     # if schema is still there reintroduce ourselves with strong refs back to us
     if ($_[0]->{schema}) {
       my $srcregs = $_[0]->{schema}->source_registrations;
-      for (keys %$srcregs) {
-        next unless $srcregs->{$_};
-        $srcregs->{$_} = $_[0] if $srcregs->{$_} == $_[0];
-      }
+
+      defined $srcregs->{$_}
+        and
+      $srcregs->{$_} == $_[0]
+        and
+      $srcregs->{$_} = $_[0]
+        and
+      last
+        for keys %$srcregs;
     }
 
     1;

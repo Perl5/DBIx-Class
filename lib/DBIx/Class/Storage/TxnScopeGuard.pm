@@ -26,11 +26,9 @@ sub new {
   #
   # Deliberately *NOT* using is_exception - if someone left a misbehaving
   # antipattern value in $@, it's not our business to whine about it
-  if( defined $@ and length $@ ) {
-    weaken(
-      $guard->{existing_exception_ref} = (length ref $@) ? $@ : \$@
-    );
-  }
+  weaken(
+    $guard->{existing_exception_ref} = (length ref $@) ? $@ : \$@
+  ) if( defined $@ and length $@ );
 
   $storage->txn_begin;
 

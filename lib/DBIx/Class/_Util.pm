@@ -361,13 +361,13 @@ sub is_exception ($) {
   my $destruction_registry = {};
 
   sub CLONE {
-    $destruction_registry = { map
-      { defined $_ ? ( refaddr($_) => $_ ) : () }
-      values %$destruction_registry
-    };
+    %$destruction_registry = map {
+      (defined $_)
+        ? ( refaddr($_) => $_ )
+        : ()
+    } values %$destruction_registry;
 
-    weaken( $destruction_registry->{$_} )
-      for keys %$destruction_registry;
+    weaken($_) for values %$destruction_registry;
 
     # Dummy NEXTSTATE ensuring the all temporaries on the stack are garbage
     # collected before leaving this scope. Depending on the code above, this
@@ -553,8 +553,8 @@ sub mkdir_p ($) {
       ), 'with_stacktrace');
     }
 
-    my $mark = [];
-    weaken ( $list_ctx_ok_stack_marker = $mark );
+    weaken( $list_ctx_ok_stack_marker = my $mark = [] );
+
     $mark;
   }
 }
