@@ -82,7 +82,7 @@ Gets or sets the table name.
 =cut
 
 sub table {
-  return $_[0]->result_source_instance->name unless @_ > 1;
+  return $_[0]->result_source->name unless @_ > 1;
 
   my ($class, $table) = @_;
 

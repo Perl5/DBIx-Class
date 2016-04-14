@@ -176,7 +176,7 @@ native L<DBIx::Class::ResultSet> system.
 =cut
 
 sub resultset_instance {
-  $_[0]->result_source_instance->resultset
+  $_[0]->result_source->resultset
 }
 
 =begin hidden
@@ -194,7 +194,7 @@ __PACKAGE__->mk_classaccessor('_result_source_instance' => []);
 # Yep. this is horrific. Basically what's happening here is that
 # (with good reason) DBIx::Class::Schema copies the result source for
 # registration. Because we have a retarded setup order forced on us we need
-# to actually make our ->result_source_instance -be- the source used, and we
+# to actually make our ->result_source -be- the source used, and we
 # need to get the source name and schema into ourselves. So this makes it
 # happen.
 

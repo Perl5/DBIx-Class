@@ -199,7 +199,7 @@ sub _ns_get_rsrc_instance {
   my $rs_class = ref ($_[0]) || $_[0];
 
   return dbic_internal_try {
-    $rs_class->result_source_instance
+    $rs_class->result_source
   } catch {
     $me->throw_exception (
       "Attempt to load_namespaces() class $rs_class failed - are you sure this is a real Result Class?: $_"
@@ -1398,13 +1398,13 @@ file). You may also need it to register classes at runtime.
 Registers a class which isa DBIx::Class::ResultSourceProxy. Equivalent to
 calling:
 
-  $schema->register_source($source_name, $component_class->result_source_instance);
+  $schema->register_source($source_name, $component_class->result_source);
 
 =cut
 
 sub register_class {
   my ($self, $source_name, $to_register) = @_;
-  $self->register_source($source_name => $to_register->result_source_instance);
+  $self->register_source($source_name => $to_register->result_source);
 }
 
 =head2 register_source

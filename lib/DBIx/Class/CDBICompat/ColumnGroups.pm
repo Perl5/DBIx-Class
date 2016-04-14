@@ -36,7 +36,7 @@ sub _add_column_group {
 
 sub add_columns {
   my ($class, @cols) = @_;
-  $class->result_source_instance->add_columns(@cols);
+  $class->result_source->add_columns(@cols);
 }
 
 sub _register_column_group {
@@ -148,7 +148,7 @@ sub _mk_group_accessors {
   }
 }
 
-sub all_columns { return shift->result_source_instance->columns; }
+sub all_columns { return shift->result_source->columns; }
 
 sub primary_column {
   my ($class) = @_;

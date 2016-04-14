@@ -66,7 +66,7 @@ sub _declare_has_a {
   }
   else {
     $self->belongs_to($col, $f_class);
-    $rel_info = $self->result_source_instance->relationship_info($col);
+    $rel_info = $self->result_source->relationship_info($col);
   }
 
   $rel_info->{args} = \%args;
@@ -110,14 +110,14 @@ sub has_many {
 
   if( !$f_key and !@f_method ) {
       $class->ensure_class_loaded($f_class);
-      my $f_source = $f_class->result_source_instance;
+      my $f_source = $f_class->result_source;
       ($f_key) = grep { $f_source->relationship_info($_)->{class} eq $class }
                       $f_source->relationships;
   }
 
   $class->next::method($rel, $f_class, $f_key, $args);
 
-  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  my $rel_info = $class->result_source->relationship_info($rel);
   $args->{mapping}      = \@f_method;
   $args->{foreign_key}  = $f_key;
   $rel_info->{args} = $args;
@@ -150,7 +150,7 @@ sub might_have {
                                 { proxy => \@columns });
   }
 
-  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  my $rel_info = $class->result_source->relationship_info($rel);
   $rel_info->{args}{import} = \@columns;
 
   $class->_extend_meta(

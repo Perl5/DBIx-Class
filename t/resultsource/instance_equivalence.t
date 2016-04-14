@@ -1,5 +1,7 @@
 BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 
+BEGIN { $ENV{DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE} = 0 }
+
 use strict;
 use warnings;
 no warnings 'qw';

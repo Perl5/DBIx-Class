@@ -52,9 +52,12 @@ sub sth_to_objects {
 
   $sth->execute(@$execute_args);
 
-  my @ret;
+  my (@ret, $rsrc);
   while (my $row = $sth->fetchrow_hashref) {
-    push(@ret, $class->inflate_result($class->result_source_instance, $row));
+    push(@ret, $class->inflate_result(
+      ( $rsrc ||= $class->result_source ),
+      $row
+    ));
   }
 
   return @ret;

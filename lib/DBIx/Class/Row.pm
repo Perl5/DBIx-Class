@@ -190,7 +190,7 @@ sub new {
       $rsrc ||= $h->resolve;
     }
 
-    $new->result_source($rsrc) if $rsrc;
+    $new->result_source_instance($rsrc) if $rsrc;
 
     if (my $col_from_rel = delete $attrs->{-cols_from_relations}) {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
@@ -625,12 +625,9 @@ sub delete {
     $self->in_storage(0);
   }
   else {
-    my $rsrc = dbic_internal_try { $self->result_source_instance }
-      or $self->throw_exception("Can't do class delete without a ResultSource instance");
-
     my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
     my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
-    $rsrc->resultset->search(@_)->delete;
+    $self->result_source->resultset->search_rs(@_)->delete;
   }
   return $self;
 }
@@ -1174,7 +1171,7 @@ sub copy {
   my $new = { _column_data => $col_data };
   bless $new, ref $self;
 
-  $new->result_source($rsrc);
+  $new->result_source_instance($rsrc);
   $new->set_inflated_columns($changes);
   $new->insert;
 
@@ -1433,12 +1430,20 @@ Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 =cut
 
 sub result_source {
+  # While getter calls are routed through here for sensible exception text
+  # it makes no sense to have setters do the same thing
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+    and
+  @_ > 1
+    and
+  fail_on_internal_call;
+
   # this is essentially a `shift->result_source_instance(@_)` with handholding
   &{
     $_[0]->can('result_source_instance')
       ||
     $_[0]->throw_exception(
-      "No result source instance registered for '@{[ $_[0] ]}', did you forget to call @{[ ref $_[0] || $_[0] ]}->table(...) ?"
+      "No ResultSource instance registered for '@{[ $_[0] ]}', did you forget to call @{[ ref $_[0] || $_[0] ]}->table(...) ?"
     )
   };
 }
@@ -1589,7 +1594,8 @@ sub throw_exception {
   if (
     ! DBIx::Class::_Util::in_internal_try
       and
-    my $rsrc = dbic_internal_try { $self->result_source }
+    # FIXME - the try is 99% superfluous, but just in case
+    my $rsrc = dbic_internal_try { $self->result_source_instance }
   ) {
     $rsrc->throw_exception(@_)
   }

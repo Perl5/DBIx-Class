@@ -1038,9 +1038,10 @@ sub fail_on_internal_call {
   {
     package DB;
     $fr = [ CORE::caller(1) ];
-    $argdesc = ref $DB::args[0]
-      ? DBIx::Class::_Util::refdesc($DB::args[0])
-      : ( $DB::args[0] . '' )
+    $argdesc =
+      ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
+    : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
+    : $DB::args[0] . ''
     ;
   };
 
@@ -1062,7 +1063,7 @@ sub fail_on_internal_call {
   ;
 
   if (
-    $argdesc
+    defined $fr->[0]
       and
     $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and

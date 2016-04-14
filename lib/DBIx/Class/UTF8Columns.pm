@@ -94,7 +94,7 @@ sub utf8_columns {
     if (@_) {
         foreach my $col (@_) {
             $self->throw_exception("column $col doesn't exist")
-                unless $self->result_source_instance->has_column($col);
+                unless $self->result_source->has_column($col);
         }
         return $self->_utf8_columns({ map { $_ => 1 } @_ });
     } else {

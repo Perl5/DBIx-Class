@@ -13,7 +13,7 @@ sub _register_column_group {
 
 sub add_columns {
   my ($class, @cols) = @_;
-  return $class->result_source_instance->add_columns(map lc, @cols);
+  return $class->result_source->add_columns(map lc, @cols);
 }
 
 sub has_a {

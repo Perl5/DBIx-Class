@@ -92,10 +92,9 @@ sub inflate_column {
   $self->throw_exception("InflateColumn can not be used on a column with a declared FilterColumn filter")
     if defined $colinfo->{_filter_info} and $self->isa('DBIx::Class::FilterColumn');
 
-  $self->throw_exception("No such column $col to inflate")
-    unless $self->result_source_instance->has_column($col);
   $self->throw_exception("inflate_column needs attr hashref")
     unless ref $attrs eq 'HASH';
+
   $colinfo->{_inflate_info} = $attrs;
   my $acc = $colinfo->{accessor};
   $self->mk_group_accessors('inflated_column' => [ (defined $acc ? $acc : $col), $col]);

@@ -21,8 +21,8 @@ DBIx::Class::ResultSource::View - ResultSource object representing a view
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
-  __PACKAGE__->result_source_instance->is_virtual(1);
-  __PACKAGE__->result_source_instance->view_definition(
+  __PACKAGE__->result_source->is_virtual(1);
+  __PACKAGE__->result_source->view_definition(
       "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
   );
   __PACKAGE__->add_columns(
@@ -73,13 +73,13 @@ above, you can then:
 
 If you modified the schema to include a placeholder
 
-  __PACKAGE__->result_source_instance->view_definition(
+  __PACKAGE__->result_source->view_definition(
       "SELECT cdid, artist, title FROM cd WHERE year = ?"
   );
 
 and ensuring you have is_virtual set to true:
 
-  __PACKAGE__->result_source_instance->is_virtual(1);
+  __PACKAGE__->result_source->is_virtual(1);
 
 You could now say:
 
@@ -113,14 +113,14 @@ You could now say:
 
 =head2 is_virtual
 
-  __PACKAGE__->result_source_instance->is_virtual(1);
+  __PACKAGE__->result_source->is_virtual(1);
 
 Set to true for a virtual view, false or unset for a real
 database-based view.
 
 =head2 view_definition
 
-  __PACKAGE__->result_source_instance->view_definition(
+  __PACKAGE__->result_source->view_definition(
       "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
       );
 
@@ -129,7 +129,7 @@ syntaxes.
 
 =head2 deploy_depends_on
 
-  __PACKAGE__->result_source_instance->deploy_depends_on(
+  __PACKAGE__->result_source->deploy_depends_on(
       ["MyApp::Schema::Result::Year","MyApp::Schema::Result::CD"]
       );
 

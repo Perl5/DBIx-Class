@@ -23,7 +23,7 @@ sub set_inherited_ro_instance {
 
 sub add_columns {
   my ($class, @cols) = @_;
-  my $source = $class->result_source_instance;
+  my $source = $class->result_source;
   $source->add_columns(@cols);
 
   my $colinfos;
@@ -46,7 +46,7 @@ sub add_column {
 
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
-  my $source = $class->result_source_instance;
+  my $source = $class->result_source;
   $source->add_relationship($rel => @rest);
   $class->register_relationship($rel => $source->relationship_info($rel));
 }
@@ -55,7 +55,7 @@ sub add_relationship {
 # legacy resultset_class accessor, seems to be used by cdbi only
 sub iterator_class {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
-  shift->result_source_instance->resultset_class(@_)
+  shift->result_source->resultset_class(@_)
 }
 
 for my $method_to_proxy (qw/
@@ -91,7 +91,8 @@ for my $method_to_proxy (qw/
 /) {
   quote_sub __PACKAGE__."::$method_to_proxy", sprintf( <<'EOC', $method_to_proxy );
     DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-    shift->result_source_instance->%s (@_);
+
+    shift->result_source->%s (@_);
 EOC
 
 }

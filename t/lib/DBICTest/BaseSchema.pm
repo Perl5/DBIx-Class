@@ -7,9 +7,10 @@ use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
 use IO::Handle ();
-use DBIx::Class::_Util 'scope_guard';
+use DBIx::Class::_Util qw( emit_loud_diag scope_guard set_subname get_subname );
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use Scalar::Util qw( refaddr weaken );
 use namespace::clean;
 
 if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
@@ -216,7 +217,19 @@ END {
   }
 }
 
-my $weak_registry = {};
+my ( $weak_registry, $assertion_arounds ) = ( {}, {} );
+
+sub DBICTest::__RsrcRedefiner_iThreads_handler__::CLONE {
+  if( DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE ) {
+    %$assertion_arounds = map {
+      (defined $_)
+        ? ( refaddr($_) => $_ )
+        : ()
+    } values %$assertion_arounds;
+
+    weaken($_) for values %$assertion_arounds;
+  }
+}
 
 sub connection {
   my $self = shift->next::method(@_);
@@ -362,6 +375,157 @@ sub connection {
       }],
     ]);
   }
+
+  #
+  # Check an explicit level of indirection: makes sure that folks doing
+  # use `base "DBIx::Class::Core"; __PACKAGE__->add_column("foo")`
+  # will see the correct error message
+  #
+  # In the future this all is likely to be folded into a single method in
+  # some way, but that's a fight for another maint
+  #
+  if( DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE ) {
+
+    for my $class_of_interest (
+      'DBIx::Class::Row',
+      map { $self->class($_) } ($self->sources)
+    ) {
+
+      my $orig_rsrc = $class_of_interest->can('result_source')
+        or die "How did we get here?!";
+
+      unless ( $assertion_arounds->{refaddr $orig_rsrc} ) {
+
+        my ($origin) = get_subname($orig_rsrc);
+
+        no warnings 'redefine';
+        no strict 'refs';
+
+        *{"${origin}::result_source"} = my $replacement = set_subname "${origin}::result_source" => sub {
+
+
+          @_ > 1
+            and
+          (CORE::caller(0))[1] !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+            and
+          emit_loud_diag(
+            msg => 'Incorrect indirect call of result_source() as setter must be changed to result_source_instance()',
+            confess => 1,
+          );
+
+
+          grep {
+            ! (CORE::caller($_))[7]
+              and
+            ( (CORE::caller($_))[3] || '' ) eq '(eval)'
+              and
+            ( (CORE::caller($_))[1] || '' ) !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+          } (0..2)
+            and
+          # these evals are legit
+          ( (CORE::caller(4))[3] || '' ) !~ /^ (?:
+            DBIx::Class::Schema::_ns_get_rsrc_instance
+              |
+            DBIx::Class::Relationship::BelongsTo::belongs_to
+              |
+            DBIx::Class::Relationship::HasOne::_has_one
+              |
+            Class::C3::Componentised::.+
+          ) $/x
+            and
+          emit_loud_diag(
+            # not much else we can do (aside from exit(1) which is too obnoxious)
+            msg => 'Incorrect call of result_source() in an eval',
+          );
+
+
+          &$orig_rsrc;
+        };
+
+        weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
+      }
+
+
+      # no rsrc_instance to mangle
+      next if $class_of_interest eq 'DBIx::Class::Row';
+
+
+      my $orig_rsrc_instance = $class_of_interest->can('result_source_instance')
+        or die "How did we get here?!";
+
+      # Do the around() per definition-site as result_source_instance is a CAG inherited cref
+      unless ( $assertion_arounds->{refaddr $orig_rsrc_instance} ) {
+
+        my ($origin) = get_subname($orig_rsrc_instance);
+
+        no warnings 'redefine';
+        no strict 'refs';
+
+        *{"${origin}::result_source_instance"} = my $replacement = set_subname "${origin}::result_source_instance" => sub {
+
+
+          @_ == 1
+            and
+          # special cased as we do not care whether there is a source
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Schema::_register_source'
+            and
+          # special case because I am paranoid
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Row::throw_exception'
+            and
+          ( (CORE::caller(1))[3] || '' ) !~ / ^ DBIx::Class:: (?:
+            Row::result_source
+              |
+            Row::throw_exception
+              |
+            ResultSourceProxy::Table:: (?: _init_result_source_instance | table )
+              |
+            ResultSourceHandle::STORABLE_thaw
+          ) $ /x
+            and
+          (CORE::caller(0))[1] !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+            and
+          emit_loud_diag(
+            msg => 'Incorrect direct call of result_source_instance() as getter must be changed to result_source()',
+            confess => 1
+          );
+
+
+          grep {
+            ! (CORE::caller($_))[7]
+              and
+            ( (CORE::caller($_))[3] || '' ) eq '(eval)'
+              and
+            ( (CORE::caller($_))[1] || '' ) !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+          } (0..2)
+            and
+          # special cased as we do not care whether there is a source
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Schema::_register_source'
+            and
+          # special case because I am paranoid
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Row::throw_exception'
+            and
+          # special case for Storable, which in turn calls from an eval
+          ( (CORE::caller(1))[3] || '' ) ne 'DBIx::Class::ResultSourceHandle::STORABLE_thaw'
+            and
+          emit_loud_diag(
+            # not much else we can do (aside from exit(1) which is too obnoxious)
+            msg => 'Incorrect call of result_source_instance() in an eval',
+            skip_frames => 1,
+            show_dups => 1,
+          );
+
+          &$orig_rsrc_instance;
+        };
+
+        weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
+      }
+
+    }
+
+    Class::C3::initialize if DBIx::Class::_ENV_::OLD_MRO;
+  }
+  #
+  # END Check an explicit level of indirection
 
   return $self;
 }

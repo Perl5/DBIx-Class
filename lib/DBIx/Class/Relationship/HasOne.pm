@@ -24,7 +24,7 @@ sub has_one {
 sub _has_one {
   my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
   unless (ref $cond) {
-    my $pri = $class->result_source_instance->_single_pri_col_or_die;
+    my $pri = $class->result_source->_single_pri_col_or_die;
 
     my ($f_key,$guess,$f_rsrc);
     if (defined $cond && length $cond) {
@@ -36,7 +36,7 @@ sub _has_one {
       $class->ensure_class_loaded($f_class);
 
       $f_rsrc = dbic_internal_try {
-        my $r = $f_class->result_source_instance;
+        my $r = $f_class->result_source;
         die "There got to be some columns by now... (exception caught and rewritten by catch below)"
           unless $r->columns;
         $r;
@@ -60,8 +60,8 @@ sub _has_one {
 
 # FIXME - this check needs to be moved to schema-composition time...
 #    # only perform checks if the far side was not preloaded above *AND*
-#    # appears to have been loaded by something else (has a rsrc_instance)
-#    if (! $f_rsrc and $f_rsrc = dbic_internal_try { $f_class->result_source_instance }) {
+#    # appears to have been loaded by something else (has a rsrc)
+#    if (! $f_rsrc and $f_rsrc = dbic_internal_try { $f_class->result_source }) {
 #      $class->throw_exception(
 #        "No such column '$f_key' on foreign class ${f_class} ($guess)"
 #      ) if !$f_rsrc->has_column($f_key);

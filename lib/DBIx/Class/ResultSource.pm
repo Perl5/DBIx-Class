@@ -60,8 +60,8 @@ DBIx::Class::ResultSource - Result source object
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
-  __PACKAGE__->result_source_instance->is_virtual(1);
-  __PACKAGE__->result_source_instance->view_definition(
+  __PACKAGE__->result_source->is_virtual(1);
+  __PACKAGE__->result_source->view_definition(
       "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
       );
 
@@ -1043,11 +1043,11 @@ sub unique_constraint_columns {
 
 =back
 
-  __PACKAGE__->result_source_instance->sqlt_deploy_callback('mycallbackmethod');
+  __PACKAGE__->result_source->sqlt_deploy_callback('mycallbackmethod');
 
    or
 
-  __PACKAGE__->result_source_instance->sqlt_deploy_callback(sub {
+  __PACKAGE__->result_source->sqlt_deploy_callback(sub {
     my ($source_instance, $sqlt_table) = @_;
     ...
   } );
@@ -2388,7 +2388,7 @@ sub related_source {
   else {
     my $class = $self->relationship_info($rel)->{class};
     $self->ensure_class_loaded($class);
-    $class->result_source_instance;
+    $class->result_source;
   }
 }
 

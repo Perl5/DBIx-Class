@@ -125,9 +125,9 @@ almost like you would define a regular ResultSource.
   #
 
   # do not attempt to deploy() this view
-  __PACKAGE__->result_source_instance->is_virtual(1);
+  __PACKAGE__->result_source->is_virtual(1);
 
-  __PACKAGE__->result_source_instance->view_definition(q[
+  __PACKAGE__->result_source->view_definition(q[
     SELECT u.* FROM user u
     INNER JOIN user_friends f ON u.id = f.user_id
     WHERE f.friend_user_id = ?

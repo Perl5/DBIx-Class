@@ -88,12 +88,11 @@ sub _register_resultset_class {
     my $self = shift;
     my $resultset_class = $self . $self->table_resultset_class_suffix;
     no strict 'refs';
-    if (@{"$resultset_class\::ISA"}) {
-        $self->result_source_instance->resultset_class($resultset_class);
-    } else {
-        $self->result_source_instance->resultset_class
-          ($self->base_resultset_class);
-    }
+    $self->result_source->resultset_class(
+      ( scalar @{"${resultset_class}::ISA"} )
+        ? $resultset_class
+        : $self->base_resultset_class
+    );
 }
 
 =head1 FURTHER QUESTIONS?
