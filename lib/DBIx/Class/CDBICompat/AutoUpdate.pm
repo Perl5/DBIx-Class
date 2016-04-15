@@ -6,7 +6,7 @@ use warnings;
 
 use base 'DBIx::Class';
 
-__PACKAGE__->mk_classdata('__AutoCommit');
+__PACKAGE__->mk_group_accessors( inherited => '__AutoCommit' );
 
 sub set_column {
   my $self = shift;

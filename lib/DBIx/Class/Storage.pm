@@ -16,7 +16,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::Storage::BlockRunner;
 use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try fail_on_internal_call );
 use Try::Tiny;
 use namespace::clean;
 
@@ -25,7 +25,10 @@ __PACKAGE__->mk_group_accessors(component_class => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 
-sub cursor { shift->cursor_class(@_); }
+sub cursor {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->cursor_class(@_);
+}
 
 =head1 NAME
 

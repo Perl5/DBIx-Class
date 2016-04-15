@@ -92,7 +92,7 @@ sub _build_schema {
   my ($self)  = @_;
 
   $self->connect_info->[3]{ignore_version} = 1;
-  return $self->schema_class->connect(@{$self->connect_info});
+  return $self->schema_class->clone->connection(@{$self->connect_info});
 }
 
 =head2 resultset

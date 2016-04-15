@@ -9,13 +9,13 @@ use namespace::clean;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
-  my $colinfo = $self->column_info($col);
+  my $colinfo = $self->result_source_instance->column_info($col);
 
   $self->throw_exception("FilterColumn can not be used on a column with a declared InflateColumn inflator")
     if defined $colinfo->{_inflate_info} and $self->isa('DBIx::Class::InflateColumn');
 
   $self->throw_exception("No such column $col to filter")
-    unless $self->has_column($col);
+    unless $self->result_source_instance->has_column($col);
 
   $self->throw_exception('filter_column expects a hashref of filter specifications')
     unless ref $attrs eq 'HASH';

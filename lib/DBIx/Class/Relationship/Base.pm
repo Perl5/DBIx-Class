@@ -7,7 +7,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
 use Try::Tiny;
-use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION fail_on_internal_call );
 use namespace::clean;
 
 =head1 NAME
@@ -565,7 +565,7 @@ sub related_resultset {
       $rsrc->resultset->search(
         $self->ident_condition($obj_table_alias),
         { alias => $obj_table_alias },
-      )->search_related('me', undef, $rel_info->{attrs})
+      )->related_resultset('me')->search(undef, $rel_info->{attrs})
     }
     else {
 
@@ -612,7 +612,8 @@ See L<DBIx::Class::ResultSet/search_related> for more information.
 =cut
 
 sub search_related {
-  return shift->related_resultset(shift)->search(@_);
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->related_resultset(shift)->search(@_);
 }
 
 =head2 search_related_rs
@@ -623,7 +624,8 @@ it guarantees a resultset, even in list context.
 =cut
 
 sub search_related_rs {
-  return shift->related_resultset(shift)->search_rs(@_);
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->related_resultset(shift)->search_rs(@_)
 }
 
 =head2 count_related
@@ -642,7 +644,8 @@ current result or where conditions.
 =cut
 
 sub count_related {
-  shift->search_related(@_)->count;
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->related_resultset(shift)->search_rs(@_)->count;
 }
 
 =head2 new_related
@@ -665,7 +668,7 @@ your storage until you call L<DBIx::Class::Row/insert> on it.
 sub new_related {
   my ($self, $rel, $data) = @_;
 
-  return $self->search_related($rel)->new_result( $self->result_source->_resolve_relationship_condition (
+  $self->related_resultset($rel)->new_result( $self->result_source->_resolve_relationship_condition (
     infer_values_based_on => $data,
     rel_name => $rel,
     self_result_object => $self,
@@ -719,7 +722,8 @@ See L<DBIx::Class::ResultSet/find> for details.
 
 sub find_related {
   #my ($self, $rel, @args) = @_;
-  return shift->search_related(shift)->find(@_);
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  return shift->related_resultset(shift)->find(@_);
 }
 
 =head2 find_or_new_related
@@ -739,8 +743,9 @@ for details.
 
 sub find_or_new_related {
   my $self = shift;
-  my $obj = $self->find_related(@_);
-  return defined $obj ? $obj : $self->new_related(@_);
+  my $rel = shift;
+  my $obj = $self->related_resultset($rel)->find(@_);
+  return defined $obj ? $obj : $self->related_resultset($rel)->new_result(@_);
 }
 
 =head2 find_or_create_related
@@ -760,8 +765,9 @@ L<DBIx::Class::ResultSet/find_or_create> for details.
 
 sub find_or_create_related {
   my $self = shift;
-  my $obj = $self->find_related(@_);
-  return (defined($obj) ? $obj : $self->create_related(@_));
+  my $rel = shift;
+  my $obj = $self->related_resultset($rel)->find(@_);
+  return (defined($obj) ? $obj : $self->related_resultset($rel)->new_result(@_)->insert);
 }
 
 =head2 update_or_create_related
@@ -781,6 +787,7 @@ L<DBIx::Class::ResultSet/update_or_create> for details.
 
 sub update_or_create_related {
   #my ($self, $rel, @args) = @_;
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->related_resultset(shift)->update_or_create(@_);
 }
 
@@ -868,8 +875,9 @@ And returns the result of that.
 
 sub delete_related {
   my $self = shift;
-  my $obj = $self->search_related(@_)->delete;
-  delete $self->{related_resultsets}->{$_[0]};
+  my $rel = shift;
+  my $obj = $self->related_resultset($rel)->search_rs(@_)->delete;
+  delete $self->{related_resultsets}->{$rel};
   return $obj;
 }
 

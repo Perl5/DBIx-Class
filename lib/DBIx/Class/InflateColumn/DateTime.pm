@@ -219,7 +219,7 @@ sub _deflate_from_datetime {
 }
 
 sub _datetime_parser {
-  shift->result_source->storage->datetime_parser (@_);
+  shift->result_source->schema->storage->datetime_parser (@_);
 }
 
 sub _post_inflate_datetime {

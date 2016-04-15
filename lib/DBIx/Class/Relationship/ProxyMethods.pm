@@ -28,7 +28,7 @@ sub proxy_to_related {
     my $self = shift;
     my $relobj = $self->%1$s;
     if (@_ && !defined $relobj) {
-      $relobj = $self->create_related( %1$s => { %2$s => $_[0] } );
+      $relobj = $self->related_resultset(q{%1$s})->new_result({ %2$s => $_[0] })->insert;
       @_ = ();
     }
     $relobj ? $relobj->%2$s(@_) : undef;

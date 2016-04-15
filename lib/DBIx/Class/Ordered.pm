@@ -106,7 +106,7 @@ positional value of each record.  Defaults to "position".
 
 =cut
 
-__PACKAGE__->mk_classdata( 'position_column' => 'position' );
+__PACKAGE__->mk_classaccessor( 'position_column' => 'position' );
 
 =head2 grouping_column
 
@@ -118,7 +118,7 @@ ordered lists within the same table.
 
 =cut
 
-__PACKAGE__->mk_classdata( 'grouping_column' );
+__PACKAGE__->mk_group_accessors( inherited => 'grouping_column' );
 
 =head2 null_position_value
 
@@ -133,7 +133,7 @@ indeed start from 0.
 
 =cut
 
-__PACKAGE__->mk_classdata( 'null_position_value' => 0 );
+__PACKAGE__->mk_classaccessor( 'null_position_value' => 0 );
 
 =head2 siblings
 
@@ -680,7 +680,7 @@ L</_next_position_value> below. Defaults to 1.
 
 =cut
 
-__PACKAGE__->mk_classdata( '_initial_position_value' => 1 );
+__PACKAGE__->mk_classaccessor( '_initial_position_value' => 1 );
 
 =head2 _next_position_value
 

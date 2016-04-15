@@ -26,7 +26,7 @@ __PACKAGE__->add_columns
           'size' => '20'
           },
       );
-__PACKAGE__->set_primary_key('version');
+__PACKAGE__->result_source_instance->set_primary_key('version');
 
 package # Hide from PAUSE
   DBIx::Class::Version::TableCompat;
@@ -41,7 +41,7 @@ __PACKAGE__->add_columns
           'data_type' => 'VARCHAR',
           },
       );
-__PACKAGE__->set_primary_key('Version');
+__PACKAGE__->result_source_instance->set_primary_key('Version');
 
 package # Hide from PAUSE
   DBIx::Class::Version;
@@ -206,11 +206,13 @@ use DBIx::Class::_Util 'dbic_internal_try';
 use Scalar::Util 'weaken';
 use namespace::clean;
 
-__PACKAGE__->mk_classdata('_filedata');
-__PACKAGE__->mk_classdata('upgrade_directory');
-__PACKAGE__->mk_classdata('backup_directory');
-__PACKAGE__->mk_classdata('do_backup');
-__PACKAGE__->mk_classdata('do_diff_on_init');
+__PACKAGE__->mk_group_accessors( inherited => qw(
+  _filedata
+  upgrade_directory
+  backup_directory
+  do_backup
+  do_diff_on_init
+) );
 
 
 =head1 METHODS
@@ -591,7 +593,7 @@ sub _on_connect
 
   weaken (my $w_storage = $self->storage );
 
-  $self->{vschema} = DBIx::Class::Version->connect(
+  $self->{vschema} = DBIx::Class::Version->clone->connection(
     sub { $w_storage->dbh },
 
     # proxy some flags from the main storage
@@ -606,7 +608,7 @@ sub _on_connect
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_storage->dbh })->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->clone->connection(sub { $w_storage->dbh })->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;

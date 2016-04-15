@@ -61,7 +61,7 @@ it. See resolve_class below.
 
 =cut
 
-__PACKAGE__->mk_classdata('class_resolver' =>
+__PACKAGE__->mk_classaccessor('class_resolver' =>
                           'DBIx::Class::ClassResolver::PassThrough');
 
 =begin hidden
@@ -101,7 +101,7 @@ sub setup_schema_instance {
   my $class = shift;
   my $schema = {};
   bless $schema, 'DBIx::Class::Schema';
-  $class->mk_classdata('schema_instance' => $schema);
+  $class->mk_classaccessor('schema_instance' => $schema);
 }
 
 =begin hidden
@@ -189,7 +189,7 @@ Returns an instance of the result source for this class
 
 =cut
 
-__PACKAGE__->mk_classdata('_result_source_instance' => []);
+__PACKAGE__->mk_classaccessor('_result_source_instance' => []);
 
 # Yep. this is horrific. Basically what's happening here is that
 # (with good reason) DBIx::Class::Schema copies the result source for

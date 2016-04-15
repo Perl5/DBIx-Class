@@ -8,7 +8,7 @@ use base 'DBIx::Class';
 use mro 'c3';
 
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util 'quote_sub';
+use DBIx::Class::_Util qw( quote_sub fail_on_internal_call );
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('inherited_ro_instance' => 'source_name');
@@ -37,7 +37,10 @@ sub add_columns {
   }
 }
 
-sub add_column { shift->add_columns(@_) }
+sub add_column {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->add_columns(@_)
+}
 
 
 sub add_relationship {
@@ -49,7 +52,10 @@ sub add_relationship {
 
 
 # legacy resultset_class accessor, seems to be used by cdbi only
-sub iterator_class { shift->result_source_instance->resultset_class(@_) }
+sub iterator_class {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->result_source_instance->resultset_class(@_)
+}
 
 for my $method_to_proxy (qw/
   source_info

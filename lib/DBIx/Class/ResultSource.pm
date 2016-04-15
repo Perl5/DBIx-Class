@@ -9,7 +9,7 @@ __PACKAGE__->load_components(qw(
 ));
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try );
+use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw/blessed weaken isweak/;
@@ -28,7 +28,7 @@ __PACKAGE__->mk_group_accessors(component_class => qw/
   result_class
 /);
 
-__PACKAGE__->mk_classdata( sqlt_deploy_callback => 'default_sqlt_deploy_hook' );
+__PACKAGE__->mk_classaccessor( sqlt_deploy_callback => 'default_sqlt_deploy_hook' );
 
 =head1 NAME
 
@@ -402,7 +402,7 @@ sub column_info {
   if ( ! $self->_columns->{$column}{data_type}
        and ! $self->{_columns_info_loaded}
        and $self->column_info_from_storage
-       and my $stor = dbic_internal_try { $self->storage } )
+       and my $stor = dbic_internal_try { $self->schema->storage } )
   {
     $self->{_columns_info_loaded}++;
 
@@ -480,7 +480,7 @@ sub columns_info {
       and
     grep { ! $_->{data_type} } values %$colinfo
       and
-    my $stor = dbic_internal_try { $self->storage }
+    my $stor = dbic_internal_try { $self->schema->storage }
   ) {
     $self->{_columns_info_loaded}++;
 
@@ -578,7 +578,11 @@ sub remove_columns {
   $self->_ordered_columns([ grep { not $to_remove{$_} } @{$self->_ordered_columns} ]);
 }
 
-sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
+# DO NOT CHANGE THIS TO A GLOB
+sub remove_column {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->remove_columns(@_)
+}
 
 =head2 set_primary_key
 
@@ -1254,7 +1258,10 @@ Returns the L<storage handle|DBIx::Class::Storage> for the current schema.
 
 =cut
 
-sub storage { shift->schema->storage; }
+sub storage {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->schema->storage
+}
 
 =head2 add_relationship
 
@@ -1377,7 +1384,7 @@ Returns all relationship names for this source.
 =cut
 
 sub relationships {
-  return keys %{shift->_relationships};
+  keys %{$_[0]->_relationships};
 }
 
 =head2 relationship_info
@@ -1559,7 +1566,7 @@ sub _minimal_valueset_satisfying_constraint {
 
   $args->{columns_info} ||= $self->columns_info;
 
-  my $vals = $self->storage->_extract_fixed_condition_columns(
+  my $vals = $self->schema->storage->_extract_fixed_condition_columns(
     $args->{values},
     ($args->{carp_on_nulls} ? 'consider_nulls' : undef ),
   );
@@ -1648,7 +1655,7 @@ sub _resolve_join {
       $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
 
       # the actual seen value will be incremented by the recursion
-      my $as = $self->storage->relname_to_table_alias(
+      my $as = $self->schema->storage->relname_to_table_alias(
         $rel, ($seen->{$rel} && $seen->{$rel} + 1)
       );
 
@@ -1667,7 +1674,7 @@ sub _resolve_join {
   }
   else {
     my $count = ++$seen->{$join};
-    my $as = $self->storage->relname_to_table_alias(
+    my $as = $self->schema->storage->relname_to_table_alias(
       $join, ($count > 1 && $count)
     );
 

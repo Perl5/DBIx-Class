@@ -577,7 +577,7 @@ sub fail_on_internal_call {
     $fr = [ CORE::caller(1) ];
     $argdesc = ref $DB::args[0]
       ? DBIx::Class::_Util::refdesc($DB::args[0])
-      : undef
+      : ( $DB::args[0] . '' )
     ;
   };
 
@@ -589,7 +589,7 @@ sub fail_on_internal_call {
     $fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
   ) {
     DBIx::Class::Exception->throw( sprintf (
-      "Illegal internal call of indirect proxy-method %s() with argument %s: examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
+      "Illegal internal call of indirect proxy-method %s() with argument '%s': examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
       $fr->[3], $argdesc, @{$fr}[1,2], ( $fr->[6] || do {
         require B::Deparse;
         no strict 'refs';

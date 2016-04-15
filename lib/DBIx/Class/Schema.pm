@@ -12,17 +12,17 @@ use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util qw(
   refcount quote_sub scope_guard
   is_exception dbic_internal_try
+  fail_on_internal_call
 );
 use Devel::GlobalDestruction;
 use namespace::clean;
 
-__PACKAGE__->mk_classdata('class_mappings' => {});
-__PACKAGE__->mk_classdata('source_registrations' => {});
-__PACKAGE__->mk_classdata('storage_type' => '::DBI');
-__PACKAGE__->mk_classdata('storage');
-__PACKAGE__->mk_classdata('exception_action');
-__PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
-__PACKAGE__->mk_classdata('default_resultset_attributes' => {});
+__PACKAGE__->mk_group_accessors( inherited => qw( storage exception_action ) );
+__PACKAGE__->mk_classaccessor('class_mappings' => {});
+__PACKAGE__->mk_classaccessor('source_registrations' => {});
+__PACKAGE__->mk_classaccessor('storage_type' => '::DBI');
+__PACKAGE__->mk_classaccessor('stacktrace' => $ENV{DBIC_TRACE} || 0);
+__PACKAGE__->mk_classaccessor('default_resultset_attributes' => {});
 
 =head1 NAME
 
@@ -525,7 +525,10 @@ version, overload L</connection> instead.
 
 =cut
 
-sub connect { shift->clone->connection(@_) }
+sub connect {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->clone->connection(@_);
+}
 
 =head2 resultset
 
@@ -769,6 +772,8 @@ those values.
 =cut
 
 sub populate {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $name, $data) = @_;
   my $rs = $self->resultset($name)
     or $self->throw_exception("'$name' is not a resultset");
@@ -1517,8 +1522,8 @@ sub compose_connection {
       my $source = $self->source($source_name);
       my $class = $source->result_class;
       $self->inject_base($class, 'DBIx::Class::ResultSetProxy');
-      $class->mk_classdata(resultset_instance => $source->resultset);
-      $class->mk_classdata(class_resolver => $self);
+      $class->mk_classaccessor(resultset_instance => $source->resultset);
+      $class->mk_classaccessor(class_resolver => $self);
     }
     $self->connection(@info);
     return $self;
@@ -1532,9 +1537,9 @@ sub compose_connection {
     my $source = $schema->source($source_name);
     my $class = $source->result_class;
     #warn "$source_name $class $source ".$source->storage;
-    $class->mk_classdata(result_source_instance => $source);
-    $class->mk_classdata(resultset_instance => $source->resultset);
-    $class->mk_classdata(class_resolver => $schema);
+    $class->mk_classaccessor(result_source_instance => $source);
+    $class->mk_classaccessor(resultset_instance => $source->resultset);
+    $class->mk_classaccessor(class_resolver => $schema);
   }
   return $schema;
 }

@@ -54,7 +54,7 @@ sub add_relationship_accessor {
           $rsrc->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
         );
 
-        my $val = $self->search_related( %1$s )->single;
+        my $val = $self->related_resultset( %1$s )->single;
         return $val unless $val;  # $val instead of undef so that null-objects can go through
 
         return $self->{_relationship_data}{%1$s} = $val;
@@ -63,14 +63,16 @@ EOC
   }
   elsif ($acc_type eq 'filter') {
     $class->throw_exception("No such column '$rel' to filter")
-       unless $class->has_column($rel);
+       unless $class->result_source_instance->has_column($rel);
 
-    my $f_class = $class->relationship_info($rel)->{class};
+    my $f_class = $class->result_source_instance
+                         ->relationship_info($rel)
+                          ->{class};
 
     $class->inflate_column($rel, {
       inflate => sub {
         my ($val, $self) = @_;
-        return $self->find_or_new_related($rel, {}, {});
+        return $self->find_or_new_related($rel, {});
       },
       deflate => sub {
         my ($val, $self) = @_;
@@ -98,11 +100,11 @@ EOC
   }
   elsif ($acc_type eq 'multi') {
 
-    quote_sub "${class}::${rel}_rs", "shift->search_related_rs( $rel => \@_ )";
-    quote_sub "${class}::add_to_${rel}", "shift->create_related( $rel => \@_ )";
+    quote_sub "${class}::${rel}_rs", "shift->related_resultset('$rel')->search_rs( \@_ )";
+    quote_sub "${class}::add_to_${rel}", "shift->related_resultset('$rel')->new_result( \@_ )->insert";
     quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-      shift->search_related( %s => @_ )
+      shift->related_resultset(%s)->search( @_ )
 EOC
   }
   else {

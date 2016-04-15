@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try fail_on_internal_call );
 use DBIx::Class::Carp;
 use SQL::Abstract qw( is_literal_value is_plain_value );
 
@@ -343,7 +343,7 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $rsrc;
 
-  my $storage = $rsrc->storage;
+  my $storage = $rsrc->schema->storage;
 
   my $rollback_guard;
 
@@ -549,7 +549,7 @@ sub update {
 
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
-  my $rows = $self->result_source->storage->update(
+  my $rows = $self->result_source->schema->storage->update(
     $self->result_source, \%to_update, $self->_storage_ident_condition
   );
   if ($rows == 0) {
@@ -611,7 +611,7 @@ sub delete {
   if (ref $self) {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
-    $self->result_source->storage->delete(
+    $self->result_source->schema->storage->delete(
       $self->result_source, $self->_storage_ident_condition
     );
 
@@ -1192,7 +1192,7 @@ sub copy {
         foreign_alias => "\xFF", # irrelevant,
       )->{inferred_values}
 
-    ) for $self->search_related($rel_name)->all;
+    ) for $self->related_resultset($rel_name)->all;
   }
   return $new;
 }
@@ -1356,7 +1356,10 @@ Alias for L</update_or_insert>
 
 =cut
 
-sub insert_or_update { shift->update_or_insert(@_) }
+sub insert_or_update {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->update_or_insert(@_);
+}
 
 sub update_or_insert {
   my $self = shift;

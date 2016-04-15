@@ -29,8 +29,9 @@ appropriate My::Schema::ResultSet::* classes for it to pick up.";
 
 =cut
 
-__PACKAGE__->mk_classdata($_)
-  for qw/ base_resultset_class table_resultset_class_suffix /;
+__PACKAGE__->mk_group_accessors(inherited => qw(
+  base_resultset_class table_resultset_class_suffix
+));
 __PACKAGE__->base_resultset_class('DBIx::Class::ResultSet');
 __PACKAGE__->table_resultset_class_suffix('::_resultset');
 

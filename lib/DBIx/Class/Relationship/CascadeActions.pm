@@ -29,7 +29,7 @@ sub delete {
     my $ret = $self->next::method(@rest);
 
     foreach my $rel (@cascade) {
-      if( my $rel_rs = dbic_internal_try { $self->search_related($rel) } ) {
+      if( my $rel_rs = dbic_internal_try { $self->related_resultset($rel) } ) {
         $rel_rs->delete_all;
       } else {
         carp "Skipping cascade delete on relationship '$rel' - related resultsource '$rels{$rel}{class}' is not registered with this schema";

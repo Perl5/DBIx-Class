@@ -275,7 +275,7 @@ EOS
   if (
     $rs_attrs->{order_by}
       and
-    $rs_attrs->{result_source}->storage->_order_by_is_stable(
+    $rs_attrs->{result_source}->schema->storage->_order_by_is_stable(
       @{$rs_attrs}{qw/from order_by where/}
     )
   ) {
@@ -540,7 +540,7 @@ sub _GenericSubQ {
   . 'main-table-based order criteria.'
   ) unless $rs_attrs->{order_by};
 
-  my $usable_order_colinfo = $main_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
+  my $usable_order_colinfo = $main_rsrc->schema->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
     $rs_attrs
   );
 

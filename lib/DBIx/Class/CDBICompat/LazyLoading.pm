@@ -98,7 +98,7 @@ sub _flesh {
   my %want;
   $want{$_} = 1 for map { keys %{$self->_column_groups->{$_}} } @groups;
   if (my @want = grep { !exists $self->{'_column_data'}{$_} } keys %want) {
-    my $cursor = $self->result_source->storage->select(
+    my $cursor = $self->result_source->schema->storage->select(
                 $self->result_source->name, \@want,
                 \$self->_ident_cond, { bind => [ $self->_ident_values ] });
     #my $sth = $self->storage->select($self->_table_name, \@want,

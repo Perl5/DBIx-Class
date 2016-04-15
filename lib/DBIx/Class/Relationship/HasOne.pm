@@ -98,8 +98,8 @@ sub _validate_has_one_condition {
 
     my $key = $1;
     $class->throw_exception("Defining rel on ${class} that includes '$key' but no such column defined here yet")
-        unless $class->has_column($key);
-    my $column_info = $class->column_info($key);
+        unless $class->result_source_instance->has_column($key);
+    my $column_info = $class->result_source_instance->column_info($key);
     if ( $column_info->{is_nullable} ) {
       carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key). This might indicate an incorrect use of those relationship helpers instead of belongs_to.');
     }

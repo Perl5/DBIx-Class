@@ -65,14 +65,14 @@ EOW
 
       # this little horror is there replicating a deprecation from
       # within search_rs() itself
-      shift->search_related_rs( q{%1$s} )
-            ->search_related_rs(
-              q{%2$s},
-              undef,
-              ( @_ > 1 and ref $_[-1] eq 'HASH' )
-                ? { %%$rel_attrs, %%{ pop @_ } }
-                : $rel_attrs
-            )->search_rs(@_)
+      shift->related_resultset( q{%1$s} )
+            ->related_resultset( q{%2$s} )
+             ->search_rs (
+               undef,
+               ( @_ > 1 and ref $_[-1] eq 'HASH' )
+                 ? { %%$rel_attrs, %%{ pop @_ } }
+                 : $rel_attrs
+             )->search_rs(@_)
       ;
 EOC
 
@@ -164,13 +164,13 @@ EOC
 
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
-      $self->search_related(
-        q{%3$s},
-        ( $rel_attrs->{where}
-          ? ( $rel_attrs->{where}, { join => q{%4$s} } )
-          : ()
-        )
-      )->delete;
+      $self->related_resultset( q{%3$s} )
+            ->search_rs(
+              ( $rel_attrs->{where}
+                ? ( $rel_attrs->{where}, { join => q{%4$s} } )
+                : ()
+              )
+            )->delete;
 
       # add in the set rel objects
       $self->%2$s(
@@ -187,7 +187,7 @@ EOC
       $_[0]->throw_exception("'%1$s' expects an object")
         unless defined Scalar::Util::blessed( $_[1] );
 
-      $_[0]->search_related_rs( q{%2$s} )
+      $_[0]->related_resultset( q{%2$s} )
             ->search_rs( $_[1]->ident_condition( q{%3$s} ), { join => q{%3$s} } )
              ->delete;
 EOC

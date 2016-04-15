@@ -39,7 +39,7 @@ sub belongs_to {
 
     $class->throw_exception(
       "No such column '$f_key' declared yet on ${class} ($guess)"
-    )  unless $class->has_column($f_key);
+    )  unless $class->result_source_instance->has_column($f_key);
 
     $class->ensure_class_loaded($f_class);
     my $f_rsrc = dbic_internal_try {
@@ -81,7 +81,7 @@ sub belongs_to {
       and
     (keys %$cond)[0] =~ /^foreign\./
       and
-    $class->has_column($rel)
+    $class->result_source_instance->has_column($rel)
   ) ? 'filter' : 'single';
 
   my $fk_columns = ($acc_type eq 'single' and ref $cond eq 'HASH')

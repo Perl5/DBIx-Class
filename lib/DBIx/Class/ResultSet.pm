@@ -988,6 +988,7 @@ See also L</search_related_rs>.
 =cut
 
 sub search_related {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search(@_);
 }
 
@@ -999,6 +1000,7 @@ it guarantees a resultset, even in list context.
 =cut
 
 sub search_related_rs {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search_rs(@_);
 }
 
@@ -1022,7 +1024,7 @@ sub cursor {
 
   return $self->{cursor} ||= do {
     my $attrs = $self->_resolved_attrs;
-    $self->result_source->storage->select(
+    $self->result_source->schema->storage->select(
       $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
     );
   };
@@ -1095,7 +1097,7 @@ sub single {
     }
   }
 
-  my $data = [ $self->result_source->storage->select_single(
+  my $data = [ $self->result_source->schema->storage->select_single(
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
   )];
@@ -1122,9 +1124,7 @@ Returns a L<DBIx::Class::ResultSetColumn> instance for a column of the ResultSet
 =cut
 
 sub get_column {
-  my ($self, $column) = @_;
-  my $new = DBIx::Class::ResultSetColumn->new($self, $column);
-  return $new;
+  DBIx::Class::ResultSetColumn->new(@_);
 }
 
 =head2 search_like
@@ -1649,7 +1649,7 @@ sub _count_rs {
   # overwrite the selector (supplied by the storage)
   $rsrc->resultset_class->new($rsrc, {
     %$tmp_attrs,
-    select => $rsrc->storage->_count_select ($rsrc, $attrs),
+    select => $rsrc->schema->storage->_count_select ($rsrc, $attrs),
     as => 'count',
   })->get_column ('count');
 }
@@ -1680,7 +1680,7 @@ sub _count_subq_rs {
   # Calculate subquery selector
   if (my $g = $sub_attrs->{group_by}) {
 
-    my $sql_maker = $rsrc->storage->sql_maker;
+    my $sql_maker = $rsrc->schema->storage->sql_maker;
 
     # necessary as the group_by may refer to aliased functions
     my $sel_index;
@@ -1747,7 +1747,7 @@ sub _count_subq_rs {
   return $rsrc->resultset_class
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
-                 ->search ({}, { columns => { count => $rsrc->storage->_count_select ($rsrc, $attrs) } })
+                 ->search ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
                   ->get_column ('count');
 }
 
@@ -1770,7 +1770,10 @@ with the passed arguments, then L</count>.
 
 =cut
 
-sub count_literal { shift->search_literal(@_)->count; }
+sub count_literal {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->search_literal(@_)->count
+}
 
 =head2 all
 
@@ -1848,6 +1851,7 @@ an object for the first result (or C<undef> if the resultset is empty).
 =cut
 
 sub first {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return $_[0]->reset->next;
 }
 
@@ -1904,7 +1908,7 @@ sub _rs_update_delete {
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
     $cond = do {
-      my $sqla = $rsrc->storage->sql_maker;
+      my $sqla = $rsrc->schema->storage->sql_maker;
       local $sqla->{_dequalify_idents} = 1;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };
@@ -2413,7 +2417,7 @@ sub populate {
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->storage->_insert_bulk(
+  $rsrc->schema->storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {
@@ -2564,11 +2568,8 @@ Passes the hashref of input on to L<DBIx::Class::Row/new>.
 sub new_result {
   my ($self, $values) = @_;
 
-  $self->throw_exception( "new_result takes only one argument - a hashref of values" )
-    if @_ > 2;
-
-  $self->throw_exception( "Result object instantiation requires a hashref as argument" )
-    unless (ref $values eq 'HASH');
+  $self->throw_exception( "Result object instantiation requires a single hashref argument" )
+    if @_ > 2 or ref $values ne 'HASH';
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
 
@@ -2732,7 +2733,7 @@ sub as_query {
 
   my $attrs = { %{ $self->_resolved_attrs } };
 
-  my $aq = $self->result_source->storage->_select_args_to_query (
+  my $aq = $self->result_source->schema->storage->_select_args_to_query (
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
   );
 
@@ -3185,7 +3186,7 @@ sub is_paged {
 
 sub is_ordered {
   my ($self) = @_;
-  return scalar $self->result_source->storage->_extract_order_criteria($self->{attrs}{order_by});
+  return scalar $self->result_source->schema->storage->_extract_order_criteria($self->{attrs}{order_by});
 }
 
 =head2 related_resultset
@@ -3714,7 +3715,7 @@ sub _resolved_attrs {
     else {
       $attrs->{_grouped_by_distinct} = 1;
       # distinct affects only the main selection part, not what prefetch may add below
-      ($attrs->{group_by}, my $new_order) = $source->storage->_group_over_selection($attrs);
+      ($attrs->{group_by}, my $new_order) = $source->schema->storage->_group_over_selection($attrs);
 
       # FIXME possibly ignore a rewritten order_by (may turn out to be an issue)
       # The thinking is: if we are collapsing the subquerying prefetch engine will

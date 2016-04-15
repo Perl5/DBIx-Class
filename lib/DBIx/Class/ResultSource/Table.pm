@@ -26,7 +26,7 @@ Returns the FROM entry for the table (i.e. the table name)
 
 =cut
 
-sub from { shift->name; }
+sub from { $_[0]->name }
 
 =head1 FURTHER QUESTIONS?
 

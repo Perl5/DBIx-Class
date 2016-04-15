@@ -5,7 +5,7 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use DBIx::Class::_Util qw( fail_on_internal_wantarray fail_on_internal_call );
 use namespace::clean;
 
 =head1 NAME
@@ -254,7 +254,7 @@ sub single {
   my $self = shift;
 
   my $attrs = $self->_resultset->_resolved_attrs;
-  my ($row) = $self->_resultset->result_source->storage->select_single(
+  my ($row) = $self->_resultset->result_source->schema->storage->select_single(
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
   );
 
@@ -279,7 +279,8 @@ resultset (or C<undef> if there are none).
 =cut
 
 sub min {
-  return shift->func('MIN');
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('MIN');
 }
 
 =head2 min_rs
@@ -298,7 +299,10 @@ Wrapper for ->func_rs for function MIN().
 
 =cut
 
-sub min_rs { return shift->func_rs('MIN') }
+sub min_rs {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('MIN')
+}
 
 =head2 max
 
@@ -318,7 +322,8 @@ resultset (or C<undef> if there are none).
 =cut
 
 sub max {
-  return shift->func('MAX');
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('MAX');
 }
 
 =head2 max_rs
@@ -337,7 +342,10 @@ Wrapper for ->func_rs for function MAX().
 
 =cut
 
-sub max_rs { return shift->func_rs('MAX') }
+sub max_rs {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('MAX')
+}
 
 =head2 sum
 
@@ -357,7 +365,8 @@ the resultset. Use on varchar-like columns at your own risk.
 =cut
 
 sub sum {
-  return shift->func('SUM');
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('SUM');
 }
 
 =head2 sum_rs
@@ -376,7 +385,10 @@ Wrapper for ->func_rs for function SUM().
 
 =cut
 
-sub sum_rs { return shift->func_rs('SUM') }
+sub sum_rs {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('SUM')
+}
 
 =head2 func
 
@@ -491,7 +503,7 @@ sub _resultset {
         # collapse the selector to a literal so that it survives the distinct parse
         # if it turns out to be an aggregate - at least the user will get a proper exception
         # instead of silent drop of the group_by altogether
-        $select = \[ $rsrc->storage->sql_maker->_recurse_fields($select) ];
+        $select = \[ $rsrc->schema->storage->sql_maker->_recurse_fields($select) ];
       }
     }
 

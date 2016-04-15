@@ -5,16 +5,21 @@ use warnings;
 
 use base qw/Class::Accessor::Grouped/;
 use Scalar::Util qw/weaken blessed/;
+use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
 
 sub mk_classdata {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->mk_classaccessor(@_);
 }
 
 sub mk_classaccessor {
   my $self = shift;
   $self->mk_group_accessors('inherited', $_[0]);
-  $self->set_inherited(@_) if @_ > 1;
+  (@_ > 1)
+    ? $self->set_inherited(@_)
+    : ( DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call )
+  ;
 }
 
 my $successfully_loaded_components;

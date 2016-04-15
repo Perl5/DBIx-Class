@@ -9,20 +9,20 @@ use DBIx::Class::ResultSource::Table;
 use Scalar::Util 'blessed';
 use namespace::clean;
 
-__PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
+__PACKAGE__->mk_classaccessor(table_class => 'DBIx::Class::ResultSource::Table');
 
-__PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do
-                                          # anything yet!
+# FIXME: Doesn't actually do anything yet!
+__PACKAGE__->mk_group_accessors( inherited => 'table_alias' );
 
 sub _init_result_source_instance {
     my $class = shift;
 
-    $class->mk_classdata('result_source_instance')
-        unless $class->can('result_source_instance');
+    $class->mk_group_accessors( inherited => 'result_source_instance' )
+      unless $class->can('result_source_instance');
 
     my $table = $class->result_source_instance;
-    my $class_has_table_instance = ($table and $table->result_class eq $class);
-    return $table if $class_has_table_instance;
+    return $table
+      if $table and $table->result_class eq $class;
 
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
@@ -96,7 +96,7 @@ sub table {
     });
   }
 
-  $class->mk_classdata('result_source_instance')
+  $class->mk_group_accessors(inherited => 'result_source_instance')
     unless $class->can('result_source_instance');
 
   $class->result_source_instance($table);
