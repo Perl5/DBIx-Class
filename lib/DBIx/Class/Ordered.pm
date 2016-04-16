@@ -382,7 +382,7 @@ sub move_to {
                   ->cursor
                    ->next
         )[0] || $self->throw_exception(
-          sprintf "Unable to locate object '%s' in storage - object went ouf of sync...?",
+          sprintf "Unable to locate object '%s' in storage - object went out of sync...?",
           $self->ID
         ),
       );
