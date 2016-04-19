@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use Scalar::Util;
+use base 'DBIx::Class';
 
 use overload
   '""' => sub { return shift->stringify_self; },

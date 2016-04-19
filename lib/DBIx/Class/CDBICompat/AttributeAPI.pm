@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 sub _attrs {
   my ($self, @atts) = @_;
   return @{$self->{_column_data}}{@atts};

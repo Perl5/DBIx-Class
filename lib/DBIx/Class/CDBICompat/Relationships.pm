@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use base 'Class::Data::Inheritable';
+use base 'DBIx::Class';
 
 use Clone;
 use DBIx::Class::CDBICompat::Relationship;

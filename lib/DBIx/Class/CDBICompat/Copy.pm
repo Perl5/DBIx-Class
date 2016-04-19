@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 use Carp;
 
 =head1 NAME

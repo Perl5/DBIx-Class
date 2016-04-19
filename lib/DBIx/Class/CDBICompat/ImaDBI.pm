@@ -6,7 +6,7 @@ use warnings;
 use DBIx::ContextualFetch;
 use DBIx::Class::_Util qw(quote_sub perlstring);
 
-use base qw(Class::Data::Inheritable);
+use base 'DBIx::Class';
 
 __PACKAGE__->mk_classdata('sql_transformer_class' =>
                           'DBIx::Class::CDBICompat::SQLTransformer');

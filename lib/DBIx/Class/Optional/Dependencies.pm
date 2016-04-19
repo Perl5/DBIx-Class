@@ -178,7 +178,6 @@ my $dbic_reqs = {
 
   cdbicompat => {
     req => {
-      'Class::Data::Inheritable' => '0',
       'Class::Trigger' => '0',
       'DBIx::ContextualFetch' => '0',
       'Clone' => '0.32',

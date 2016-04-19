@@ -4,6 +4,8 @@ package # hide from PAUSE Indexer
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 use Scalar::Util 'blessed';
 use namespace::clean;
 

@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 sub resultset_instance {
   my $self = shift;
   my $rs = $self->next::method(@_);

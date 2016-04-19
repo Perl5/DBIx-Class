@@ -1,6 +1,8 @@
 package # hide from PAUSE
     DBIx::Class::CDBICompat::Constraints;
 
+use base 'DBIx::Class';
+
 use strict;
 use warnings;
 

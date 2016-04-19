@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-#use base qw/Class::Accessor/;
+use base 'DBIx::Class';
 
 sub get {
   my ($self, @cols) = @_;

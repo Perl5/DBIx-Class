@@ -8,6 +8,8 @@ use strict;
 # leaving the compat layer as-is, something may in fact depend on that
 use warnings FATAL => 'all';
 
+use base 'DBIx::Class';
+
 sub retrieve {
   my $self = shift;
   die "No args to retrieve" unless @_ > 0;

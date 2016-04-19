@@ -4,6 +4,7 @@ package
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
 
 =head1 NAME
 

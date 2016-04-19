@@ -5,6 +5,7 @@ use strict;
 
 use Test::More;
 use DBICTest;
+use DBIx::Class::Optional::Dependencies;
 
 my @global_ISA_tail = qw(
   DBIx::Class
@@ -59,6 +60,12 @@ check_ancestry($_) for (
   ref( $art->result_source->resultset ),
   ref( $art->result_source->schema ),
   qw( AAA BBB CCC ),
+  ((! DBIx::Class::Optional::Dependencies->req_ok_for('cdbicompat') ) ? () : do {
+    unshift @INC, 't/cdbi/testlib';
+    map { eval "require $_" or die $@; $_ } qw(
+      Film Lazy Actor ActorAlias ImplicitInflate
+    );
+  }),
 );
 
 use DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;

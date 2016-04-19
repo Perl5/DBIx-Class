@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 sub make_read_only {
   my $proto = shift;
   $proto->add_trigger("before_$_" => sub { shift->throw_exception("$proto is read only") })
