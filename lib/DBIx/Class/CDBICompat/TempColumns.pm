@@ -6,6 +6,7 @@ use warnings;
 use base 'DBIx::Class';
 
 use Carp;
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('_temp_columns' => { });
 

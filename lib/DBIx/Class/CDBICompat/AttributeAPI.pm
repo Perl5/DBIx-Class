@@ -11,7 +11,7 @@ sub _attrs {
   return @{$self->{_column_data}}{@atts};
 }
 
-*_attr = \&_attrs;
+sub _attr { shift->_attrs(@_) }
 
 sub _attribute_store {
   my $self   = shift;

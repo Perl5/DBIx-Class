@@ -10,7 +10,7 @@ use warnings FATAL => 'all';
 
 use base 'DBIx::Class';
 
-*pager = \&page;
+sub pager { shift->page(@_) }
 
 sub page {
   my $class = shift;

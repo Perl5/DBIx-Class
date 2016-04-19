@@ -137,15 +137,11 @@ sub _mk_group_accessors {
 
     ($name, $field) = @$field if ref $field;
 
-    my $accessor = $class->$maker($group, $field);
-    my $alias = "_${name}_accessor";
-
-    # warn "  $field $alias\n";
-    {
-      no strict 'refs';
-
-      $class->_deploy_accessor($name,  $accessor);
-      $class->_deploy_accessor($alias, $accessor);
+    for( $name, "_${name}_accessor" ) {
+      $class->_deploy_accessor(
+        $_,
+        $class->$maker($group, $field, $_)
+      );
     }
   }
 }

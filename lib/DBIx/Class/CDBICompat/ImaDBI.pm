@@ -4,9 +4,11 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::ContextualFetch;
-use DBIx::Class::_Util qw(quote_sub perlstring);
 
 use base 'DBIx::Class';
+
+use DBIx::Class::_Util qw(quote_sub perlstring);
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('sql_transformer_class' =>
                           'DBIx::Class::CDBICompat::SQLTransformer');

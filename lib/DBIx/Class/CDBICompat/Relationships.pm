@@ -9,6 +9,7 @@ use Clone;
 use DBIx::Class::CDBICompat::Relationship;
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(quote_sub perlstring);
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('__meta_info' => {});
 

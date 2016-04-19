@@ -65,8 +65,7 @@ my @modules = grep {
 # have an exception table for old and/or weird code we are not sure
 # we *want* to clean in the first place
 my $skip_idx = { map { $_ => 1 } (
-  (grep { /^DBIx::Class::CDBICompat/ } @modules), # too crufty to touch
-  'SQL::Translator::Producer::DBIx::Class::File', # ditto
+  'SQL::Translator::Producer::DBIx::Class::File', # too crufty to touch
 
   # not sure how to handle type libraries
   'DBIx::Class::Storage::DBI::Replicated::Types',
@@ -146,6 +145,9 @@ for my $mod (@modules) {
         # exception time
         if (
           ( $name eq 'import' and $via = 'Exporter' )
+            or
+          # jesus christ nobody had any idea how to design an interface back then
+          ( $name =~ /_trigger/ and $via = 'Class::Trigger' )
         ) {
           pass("${mod}::${name} is a valid uncleaned import from ${name}");
         }

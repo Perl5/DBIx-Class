@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 use Scalar::Util qw/weaken/;
+use namespace::clean;
 
 use base 'DBIx::Class';
 
