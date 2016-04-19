@@ -1,6 +1,11 @@
 Revision history for DBIx::Class
 
     * Notable Changes and Deprecations
+        - The entire class hierarchy now explicitly sets the 'c3' mro, even
+          in cases where load_components was not used. Extensive testing led
+          the maintainer believe this is safe, but this is a very complex
+          area and reality may turn out to be different. If **ANYHTING** at
+          all seems out of place, please file a report at once
         - Neither exception_action() nor $SIG{__DIE__} handlers are invoked
           on recoverable errors. This ensures that the retry logic is fully
           insulated from changes in control flow, as the handlers are only

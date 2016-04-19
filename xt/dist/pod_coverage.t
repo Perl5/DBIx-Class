@@ -31,6 +31,7 @@ my $exceptions = {
         ignore => [qw/
             MODIFY_CODE_ATTRIBUTES
             component_base_class
+            inject_base
             mk_classdata
             mk_classaccessor
         /]

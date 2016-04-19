@@ -4,9 +4,21 @@ use warnings;
 use strict;
 
 use Test::More;
+use DBICTest;
 
+my @global_ISA_tail = qw(
+  DBIx::Class
+  DBIx::Class::Componentised
+  Class::C3::Componentised
+  DBIx::Class::AccessorGroup
+  Class::Accessor::Grouped
+);
 
-use DBICTest; # do not remove even though it is not used (pulls in MRO::Compat if needed)
+is(
+  mro::get_mro('DBIx::Class'),
+  'c3',
+  'Correct mro on base class DBIx::Class',
+);
 
 {
   package AAA;
@@ -38,6 +50,17 @@ ok (! $@, "Correctly skipped injecting a direct parent of class BBB");
 eval { mro::get_linear_isa('CCC'); };
 ok (! $@, "Correctly skipped injecting an indirect parent of class BBB");
 
+
+my $art = DBICTest->init_schema->resultset("Artist")->next;
+
+check_ancestry($_) for (
+  ref( $art ),
+  ref( $art->result_source ),
+  ref( $art->result_source->resultset ),
+  ref( $art->result_source->schema ),
+  qw( AAA BBB CCC ),
+);
+
 use DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 
 is_deeply (
@@ -51,12 +74,7 @@ is_deeply (
     DBIx::Class::Storage::DBI
     DBIx::Class::Storage::DBIHacks
     DBIx::Class::Storage
-    DBIx::Class
-    DBIx::Class::Componentised
-    Class::C3::Componentised
-    DBIx::Class::AccessorGroup
-    Class::Accessor::Grouped
-  /],
+  /, @global_ISA_tail],
   'Correctly ordered ISA of DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server'
 );
 
@@ -75,6 +93,39 @@ if ( "$]" >= 5.010 ) {
   # Class::C3::Componentised loads MRO::Compat unconditionally to satisfy
   # the assumption that once Class::C3::X is loaded, so is Class::C3
   #ok (! $INC{'MRO/Compat.pm'}, 'No MRO::Compat loaded on perl 5.10+');
+}
+
+sub check_ancestry {
+  my $class = shift;
+
+  die "Expecting classname" if length ref $class;
+
+  my @linear_ISA = @{ mro::get_linear_isa($class) };
+
+  # something is *VERY* wrong, the splice below won't make it
+  unless (@linear_ISA > @global_ISA_tail) {
+    fail(
+      "Unexpectedly shallow \@ISA for class '$class': "
+    . join ', ', map { "'$_'" } @linear_ISA
+    );
+    return;
+  }
+
+  is_deeply (
+    [ splice @linear_ISA, ($#linear_ISA - $#global_ISA_tail) ],
+    \@global_ISA_tail,
+    "Correct end of \@ISA for '$class'"
+  );
+
+  # check the remainder
+  for my $c (@linear_ISA) {
+    # nothing to see there
+    next if $c =~ /^DBICTest::/;
+
+    next if mro::get_mro($c) eq 'c3';
+
+    fail( "Incorrect mro '@{[ mro::get_mro($c) ]}' on '$c' (parent of '$class')" );
+  }
 }
 
 done_testing;

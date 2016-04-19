@@ -7,6 +7,16 @@ use base qw/Class::Accessor::Grouped/;
 use Scalar::Util qw/weaken blessed/;
 use namespace::clean;
 
+sub mk_classdata {
+  shift->mk_classaccessor(@_);
+}
+
+sub mk_classaccessor {
+  my $self = shift;
+  $self->mk_group_accessors('inherited', $_[0]);
+  $self->set_inherited(@_) if @_ > 1;
+}
+
 my $successfully_loaded_components;
 
 sub get_component_class {
@@ -17,6 +27,8 @@ sub get_component_class {
 
   if (defined $class and ! $successfully_loaded_components->{$class} ) {
     $_[0]->ensure_class_loaded($class);
+
+    mro::set_mro( $class, 'c3' );
 
     no strict 'refs';
     $successfully_loaded_components->{$class}

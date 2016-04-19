@@ -2,7 +2,10 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class/;
+
+use base 'DBIx::Class';
+use mro 'c3';
+
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;

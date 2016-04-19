@@ -3,7 +3,10 @@ package DBIx::Class::ResultSource;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::ResultSource::RowParser DBIx::Class/;
+use base 'DBIx::Class';
+__PACKAGE__->load_components(qw(
+  ResultSource::RowParser
+));
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try );

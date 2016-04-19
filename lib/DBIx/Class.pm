@@ -37,17 +37,19 @@ BEGIN {
   sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor };
 }
 
-sub mk_classdata {
-  shift->mk_classaccessor(@_);
-}
-
-sub mk_classaccessor {
-  my $self = shift;
-  $self->mk_group_accessors('inherited', $_[0]);
-  $self->set_inherited(@_) if @_ > 1;
-}
-
 sub component_base_class { 'DBIx::Class' }
+
+my $mro_already_set;
+sub inject_base {
+
+  # only examine from $_[2] onwards
+  # C::C3::C already sets c3 on $_[1] and $_[0] is irrelevant
+  mro::set_mro( $_ => 'c3' ) for grep {
+    $mro_already_set->{$_} ? 0 : ( $mro_already_set->{$_} = 1 )
+  } @_[2 .. $#_];
+
+  shift->next::method(@_);
+}
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;

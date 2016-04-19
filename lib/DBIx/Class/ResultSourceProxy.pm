@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
+use mro 'c3';
 
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util 'quote_sub';
