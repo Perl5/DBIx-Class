@@ -83,7 +83,23 @@ sub _register_column_group {
 
     no strict 'refs';
     my $existing_accessor = *{$class .'::'. $name}{CODE};
-    return $existing_accessor && !$our_accessors{$existing_accessor};
+
+    return(
+      defined $existing_accessor
+        and
+      ! $our_accessors{$existing_accessor}
+        and
+      # under 5.8 mro the CODE slot may simply be a "cached method"
+      ! (
+        DBIx::Class::_ENV_::OLD_MRO
+          and
+        grep {
+          $_ ne $class
+            and
+          ($_->can($name)||0) == $existing_accessor
+        } @{mro::get_linear_isa($class)}
+      )
+    )
   }
 
   sub _deploy_accessor {
