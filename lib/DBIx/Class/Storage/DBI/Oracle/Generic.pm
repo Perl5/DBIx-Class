@@ -7,7 +7,7 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( modver_gt_or_eq_and_lt dbic_internal_try );
+use DBIx::Class::_Util qw( modver_gt_or_eq modver_gt_or_eq_and_lt dbic_internal_try );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -325,10 +325,12 @@ sub _dbh_execute {
 }
 
 sub _dbh_execute_for_fetch {
-  #my ($self, $sth, $tuple_status, @extra) = @_;
+  #my ($self, $source, $sth, $proto_bind, $cols, $data) = @_;
 
-  # DBD::Oracle warns loudly on partial execute_for_fetch failures
-  local $_[1]->{PrintWarn} = 0;
+  # Older DBD::Oracle warns loudly on partial execute_for_fetch failures
+  # before https://metacpan.org/source/PYTHIAN/DBD-Oracle-1.28/Changes#L7-9
+  local $_[2]->{PrintWarn} = 0
+    unless modver_gt_or_eq( 'DBD::Oracle', '1.28' );
 
   shift->next::method(@_);
 }
