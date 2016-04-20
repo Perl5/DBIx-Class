@@ -157,6 +157,19 @@ EOS
   return $seq_expr;
 }
 
+sub _dbh_execute_for_fetch {
+  #my ($self, $source, $sth, $tuple_status, @extra) = @_;
+
+  # This is used for bulk insert, so make sure we use a server-side
+  # prepared statement from the start, unless it's disabled
+  local $_[2]->{pg_switch_prepared} = 1 if
+    modver_gt_or_eq( 'DBD::Pg', '3.0.0' )
+      and
+    $_[2]->FETCH('pg_switch_prepared') > 0
+  ;
+
+  shift->next::method(@_);
+}
 
 sub sqlt_type {
   return 'PostgreSQL';
