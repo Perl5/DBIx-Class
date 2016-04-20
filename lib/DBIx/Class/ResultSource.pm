@@ -5,9 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class::ResultSource::RowParser DBIx::Class/;
 
-use DBIx::Class::ResultSet;
-use DBIx::Class::ResultSourceHandle;
-
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try );
 use SQL::Abstract 'is_literal_value';
@@ -2318,6 +2315,7 @@ relationship definitions.
 =cut
 
 sub handle {
+  require DBIx::Class::ResultSourceHandle;
   return DBIx::Class::ResultSourceHandle->new({
     source_moniker => $_[0]->source_name,
 
