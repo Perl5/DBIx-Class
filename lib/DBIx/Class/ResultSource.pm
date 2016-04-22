@@ -6,7 +6,11 @@ use warnings;
 use base 'DBIx::Class::ResultSource::RowParser';
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );
+use DBIx::Class::_Util qw(
+  UNRESOLVABLE_CONDITION
+  dbic_internal_try fail_on_internal_call
+  refdesc emit_loud_diag
+);
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw( blessed weaken isweak refaddr );
@@ -23,16 +27,16 @@ my @hashref_attributes = qw(
 my @arrayref_attributes = qw(
   _ordered_columns _primaries
 );
-__PACKAGE__->mk_group_accessors(simple =>
+__PACKAGE__->mk_group_accessors(rsrc_instance_specific_attribute =>
   @hashref_attributes,
   @arrayref_attributes,
   qw( source_name name column_info_from_storage sqlt_deploy_callback ),
 );
 
-__PACKAGE__->mk_group_accessors(component_class => qw/
+__PACKAGE__->mk_group_accessors(rsrc_instance_specific_handler => qw(
   resultset_class
   result_class
-/);
+));
 
 =head1 NAME
 
@@ -200,7 +204,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
     $self->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
 
     $self->{$_} = { %{ $self->{$_} || {} } }
-      for @hashref_attributes;
+      for @hashref_attributes, '__metadata_divergencies';
 
     $self->{$_} = [ @{ $self->{$_} || [] } ]
       for @arrayref_attributes;
@@ -217,6 +221,228 @@ Creates a new ResultSource object.  Not normally called directly by end users.
       } values %$r
     }
   }
+
+
+  # needs direct access to $rsrc_registry under an assert
+  #
+  sub set_rsrc_instance_specific_attribute {
+
+    # only mark if we are setting something different
+    if (
+      (
+        defined( $_[2] )
+          xor
+        defined( $_[0]->{$_[1]} )
+      )
+        or
+      (
+        # both defined
+        defined( $_[2] )
+          and
+        (
+          # differ in ref-ness
+          (
+            length ref( $_[2] )
+              xor
+            length ref( $_[0]->{$_[1]} )
+          )
+            or
+          # both refs (the mark-on-same-ref is deliberate)
+          length ref( $_[2] )
+            or
+          # both differing strings
+          $_[2] ne $_[0]->{$_[1]}
+        )
+      )
+    ) {
+
+      my $callsite;
+      # need to protect $_ here
+      for my $derivative (
+        $_[0]->__derived_instances,
+
+        # DO NOT REMOVE - this blob is marking *ancestors* as tainted, here to
+        # weed  out any fallout from https://github.com/dbsrgits/dbix-class/commit/9e36e3ec
+        # Note that there is no way to kill this warning, aside from never
+        # calling set_primary_key etc more than once per hierarchy
+        # (this is why the entire thing is guarded by an assert)
+        (
+          (
+            DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+              and
+            grep { $_[1] eq $_ } qw( _unique_constraints _primaries source_info )
+          )
+          ? (
+            map
+              { defined($_->{weakref}) ? $_->{weakref} : () }
+              grep
+                { defined( ( $_->{derivatives}{refaddr($_[0])} || {} )->{weakref} ) }
+                values %$rsrc_registry
+          )
+          : ()
+        ),
+      ) {
+
+        $derivative->{__metadata_divergencies}{$_[1]}{ $callsite ||= do {
+
+          #
+          # FIXME - this is horrible, but it's the best we can do for now
+          # Replace when Carp::Skip is written (it *MUST* take this use-case
+          # into consideration)
+          #
+          my ($cs) = DBIx::Class::Carp::__find_caller(__PACKAGE__);
+
+          my ($fr_num, @fr) = 1;
+          while( @fr = CORE::caller($fr_num++) ) {
+            $cs =~ /^ \Qat $fr[1] line $fr[2]\E (?: $ | \n )/x
+              and
+            $fr[3] =~ s/.+:://
+              and
+            last
+          }
+
+          # FIXME - using refdesc here isn't great, but I can't think of anything
+          # better at this moment
+          @fr
+            ? "@{[ refdesc $_[0] ]}->$fr[3](...) $cs"
+            : "$cs"
+          ;
+        } } = 1;
+      }
+    }
+
+    $_[0]->{$_[1]} = $_[2];
+  }
+}
+
+sub get_rsrc_instance_specific_attribute {
+
+  $_[0]->__emit_stale_metadata_diag( $_[1] ) if (
+    ! $_[0]->{__in_rsrc_setter_callstack}
+      and
+    $_[0]->{__metadata_divergencies}{$_[1]}
+  );
+
+  $_[0]->{$_[1]};
+}
+
+
+# reuse the elaborate set logic of instance_specific_attr
+sub set_rsrc_instance_specific_handler {
+  $_[0]->set_rsrc_instance_specific_attribute($_[1], $_[2]);
+
+  # trigger a load for the case of $foo->handler_accessor("bar")->new
+  $_[0]->get_rsrc_instance_specific_handler($_[1])
+    if defined wantarray;
+}
+
+# This is essentially the same logic as get_component_class
+# (in DBIC::AccessorGroup). However the latter is a grouped
+# accessor type, and here we are strictly after a 'simple'
+# So we go ahead and recreate the logic as found in ::AG
+sub get_rsrc_instance_specific_handler {
+
+  # emit desync warnings if any
+  my $val = $_[0]->get_rsrc_instance_specific_attribute( $_[1] );
+
+  # plain string means class - load it
+  no strict 'refs';
+  if (
+    defined $val
+      and
+    # inherited CAG can't be set to undef effectively, so people may use ''
+    length $val
+      and
+    ! defined blessed $val
+      and
+    ! ${"${val}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+  ) {
+    $_[0]->ensure_class_loaded($val);
+
+    ${"${val}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+      = do { \(my $anon = 'loaded') };
+  }
+
+  $val;
+}
+
+
+sub __construct_stale_metadata_diag {
+  return '' unless $_[0]->{__metadata_divergencies}{$_[1]};
+
+  my ($fr_num, @fr);
+
+  # find the CAG getter FIRST
+  # allows unlimited user-namespace overrides without screwing around with
+  # $LEVEL-like crap
+  while(
+    @fr = CORE::caller(++$fr_num)
+      and
+    $fr[3] ne 'DBIx::Class::ResultSource::get_rsrc_instance_specific_attribute'
+  ) { 1 }
+
+  Carp::confess( "You are not supposed to call __construct_stale_metadata_diag here..." )
+    unless @fr;
+
+  # then find the first non-local, non-private reportable callsite
+  while (
+    @fr = CORE::caller(++$fr_num)
+      and
+    (
+      $fr[2] == 0
+        or
+      $fr[3] eq '(eval)'
+        or
+      $fr[1] =~ /^\(eval \d+\)$/
+        or
+      $fr[3] =~ /::(?: __ANON__ | _\w+ )$/x
+        or
+      $fr[0] =~ /^DBIx::Class::ResultSource/
+    )
+  ) { 1 }
+
+  my $by = ( @fr and $fr[3] =~ s/.+::// )
+    # FIXME - using refdesc here isn't great, but I can't think of anything
+    # better at this moment
+    ? " by 'getter' @{[ refdesc $_[0] ]}->$fr[3](...)\n  within the callstack beginning"
+    : ''
+  ;
+
+  # Given the full stacktrace combined with the really involved callstack
+  # there is no chance the emitter will properly deduplicate this
+  # Only complain once per callsite per source
+  return( ( $by and $_[0]->{__encountered_divergencies}{$by}++ )
+
+    ? ''
+
+    : "$_[0] (the metadata instance of source '@{[ $_[0]->source_name ]}') is "
+    . "*OUTDATED*, and does not reflect the modifications of its "
+    . "*ancestors* as follows:\n"
+    . join( "\n",
+        map
+          { "  * $_->[0]" }
+          sort
+            { $a->[1] cmp $b->[1] }
+            map
+              { [ $_, ( $_ =~ /( at .+? line \d+)/ ) ] }
+              keys %{ $_[0]->{__metadata_divergencies}{$_[1]} }
+      )
+    . "\nStale metadata accessed${by}"
+  );
+}
+
+sub __emit_stale_metadata_diag {
+  emit_loud_diag(
+    msg => (
+      # short circuit: no message - no diag
+      $_[0]->__construct_stale_metadata_diag($_[1])
+        ||
+      return 0
+    ),
+    # the constructor already does deduplication
+    emit_dups => 1,
+    confess => DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE,
+  );
 }
 
 =head2 clone
@@ -443,6 +669,10 @@ info keys as L</add_columns>.
 
 sub add_columns {
   my ($self, @cols) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   $self->_ordered_columns(\@cols) unless $self->_ordered_columns;
 
   my ( @added, $colinfos );
@@ -470,6 +700,7 @@ sub add_columns {
   }
 
   push @{ $self->_ordered_columns }, @added;
+  $self->_columns($columns);
   return $self;
 }
 
@@ -666,6 +897,9 @@ broken result source.
 sub remove_columns {
   my ($self, @to_remove) = @_;
 
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   my $columns = $self->_columns
     or return;
 
@@ -709,6 +943,9 @@ for more info.
 
 sub set_primary_key {
   my ($self, @cols) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
 
   my $colinfo = $self->columns_info(\@cols);
   for my $col (@cols) {
@@ -792,6 +1029,9 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 sub sequence {
   my ($self,$seq) = @_;
 
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   my @pks = $self->primary_columns
     or return;
 
@@ -837,6 +1077,9 @@ the result source.
 
 sub add_unique_constraint {
   my $self = shift;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
 
   if (@_ > 2) {
     $self->throw_exception(
@@ -1329,10 +1572,11 @@ result source instance has been attached to.
 
 sub schema {
   if (@_ > 1) {
-    $_[0]->{schema} = $_[1];
+    # invoke the mark-diverging logic
+    $_[0]->set_rsrc_instance_specific_attribute( schema => $_[1] );
   }
   else {
-    $_[0]->{schema} || do {
+    $_[0]->get_rsrc_instance_specific_attribute( 'schema' ) || do {
       my $name = $_[0]->{source_name} || '_unnamed_';
       my $err = 'Unable to perform storage-dependent operations with a detached result source '
               . "(source '$name' is not associated with a schema).";
@@ -1448,6 +1692,10 @@ be resolved.
 
 sub add_relationship {
   my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   $self->throw_exception("Can't create relationship without join condition")
     unless $cond;
   $attrs ||= {};

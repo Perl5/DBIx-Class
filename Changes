@@ -12,7 +12,8 @@ Revision history for DBIx::Class
           all seems out of place, please file a report at once
         - The unique constraint info (including the primary key columns) is no
           longer shared between related (class and schema-level) ResultSource
-          instances
+          instances. If your app stops working with no obvious pointers, set
+          DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE=1 to obtain extra info
         - Neither exception_action() nor $SIG{__DIE__} handlers are invoked
           on recoverable errors. This ensures that the retry logic is fully
           insulated from changes in control flow, as the handlers are only

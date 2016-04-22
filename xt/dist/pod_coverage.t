@@ -67,6 +67,10 @@ my $exceptions = {
             resolve_prefetch
             STORABLE_freeze
             STORABLE_thaw
+            get_rsrc_instance_specific_attribute
+            set_rsrc_instance_specific_attribute
+            get_rsrc_instance_specific_handler
+            set_rsrc_instance_specific_handler
         /],
     },
     'DBIx::Class::ResultSet' => {

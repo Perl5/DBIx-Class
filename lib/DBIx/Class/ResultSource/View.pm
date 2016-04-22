@@ -5,8 +5,9 @@ use warnings;
 
 use base 'DBIx::Class::ResultSource';
 
-__PACKAGE__->mk_group_accessors(
-    'simple' => qw(is_virtual view_definition deploy_depends_on) );
+__PACKAGE__->mk_group_accessors( rsrc_instance_specific_attribute => qw(
+  is_virtual view_definition deploy_depends_on
+));
 
 =head1 NAME
 

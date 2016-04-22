@@ -93,6 +93,29 @@ sub table {
       : undef
     ;
 
+    # Folks calling ->table on a class *might* expect the name
+    # to shift everywhere, but that can't happen
+    # So what we do is mark the ancestor as "dirty"
+    # even though it will have no "derived" link to the one we
+    # will use afterwards
+    if(
+      defined $ancestor
+        and
+      $ancestor->name ne $table
+        and
+      scalar $ancestor->__derived_instances
+    ) {
+      # Trigger the "descendants are dirty" logic, without giving
+      # it an explicit externally-callable interface
+      # This is ugly as sin, but likely saner in the long run
+      local $ancestor->{__in_rsrc_setter_callstack} = 1
+        unless $ancestor->{__in_rsrc_setter_callstack};
+      my $old_name = $ancestor->name;
+      $ancestor->set_rsrc_instance_specific_attribute( name => "\0" );
+      $ancestor->set_rsrc_instance_specific_attribute( name => $old_name );
+    }
+
+
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 

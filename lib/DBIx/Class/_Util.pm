@@ -411,7 +411,10 @@ sub emit_loud_diag {
     exit 70;
   }
 
-  my $msg = "\n$0: $args->{msg}";
+  my $msg = "\n" . join( ': ',
+    ( $0 eq '-e' ? () : $0 ),
+    $args->{msg}
+  );
 
   # when we die - we usually want to keep doing it
   $args->{emit_dups} = !!$args->{confess}
