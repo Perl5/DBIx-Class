@@ -10,6 +10,10 @@ use lib qw(t/lib);
 use DBICTest;
 use Path::Class qw/file/;
 
+# something deep in Path::Class - mainline ditched it altogether
+plan skip_all => "Test is finicky under -T before 5.10"
+  if "$]" < 5.010 and ${^TAINT};
+
 BEGIN { delete @ENV{qw(DBIC_TRACE DBIC_TRACE_PROFILE DBICTEST_SQLITE_USE_FILE)} }
 
 my $schema = DBICTest->init_schema();
