@@ -24,6 +24,11 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 # in case it came from the env
 $ENV{DBIC_NO_VERSION_CHECK} = 0;
 
+# FIXME - work around RT#113965 in combination with -T on older perls:
+# the non-deparsing XS portion of D::D gets confused by some of the IO
+# handles trapped in the debug object of DBIC. What a mess.
+$Data::Dumper::Deparse = 1;
+
 use_ok('DBICVersion_v1');
 
 my $version_table_name = 'dbix_class_schema_versions';
