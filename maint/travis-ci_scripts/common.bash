@@ -15,6 +15,14 @@ fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 
+CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+
+CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }
+
+is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
+
 ci_vm_state_text() {
   echo "
 ========================== CI System information ============================
@@ -167,7 +175,7 @@ parallel_installdeps_notest() {
     "
 }
 
-export -f parallel_installdeps_notest run_or_err echo_err tstamp
+export -f parallel_installdeps_notest run_or_err echo_err tstamp is_cperl have_sudo CPAN_is_sane CPAN_supports_BUILDPL
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
@@ -325,12 +333,3 @@ purge_sitelib() {
 
   fi
 }
-
-
-CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
-
-CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
-
-have_sudo() { sudo /bin/true &>/dev/null ; }
-
-is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
