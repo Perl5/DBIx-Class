@@ -56,10 +56,22 @@ EOW
       }
     }
 
+    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
+
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
+
+      my $rs = shift->%s( @_ );
+
+      wantarray ? $rs->all : $rs;
+EOC
+
+
     my $qsub_attrs = {
       '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
       '$carp_unique' => \$cu,
     };
+
 
     quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', map { perlstring $_ } ( "${class}::${meth}", $rel, $f_rel ) ), $qsub_attrs;
 
@@ -84,17 +96,6 @@ EOW
 EOC
 
 
-    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
-
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-
-      my $rs = shift->%s( @_ );
-
-      wantarray ? $rs->all : $rs;
-EOC
-
-
     quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), $qsub_attrs;
 
       ( @_ >= 2 and @_ <= 3 ) or $_[0]->throw_exception(
@@ -109,7 +110,7 @@ EOC
 
       my $guard;
 
-      # the API needs is always expected to return the far object, possibly
+      # the API is always expected to return the far object, possibly
       # creating it in the process
       if( not defined Scalar::Util::blessed( $far_obj ) ) {
 

@@ -616,21 +616,21 @@ source name.
 =cut
 
 sub source {
-  my $self = shift;
+  my ($self, $source_name) = @_;
 
   $self->throw_exception("source() expects a source name")
-    unless @_;
+    unless $source_name;
 
-  my $source_name = shift;
+  my $source_registrations;
 
-  my $sreg = $self->source_registrations;
-  return $sreg->{$source_name} if exists $sreg->{$source_name};
-
-  # if we got here, they probably passed a full class name
-  my $mapped = $self->class_mappings->{$source_name};
-  $self->throw_exception("Can't find source for ${source_name}")
-    unless $mapped && exists $sreg->{$mapped};
-  return $sreg->{$mapped};
+  my $rsrc =
+    ( $source_registrations = $self->source_registrations )->{$source_name}
+      ||
+    # if we got here, they probably passed a full class name
+    $source_registrations->{ $self->class_mappings->{$source_name} || '' }
+      ||
+    $self->throw_exception( "Can't find source for ${source_name}" )
+  ;
 }
 
 =head2 class
@@ -1410,41 +1410,54 @@ has a source and you want to register an extra one.
 sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 
 sub _register_source {
-  my ($self, $source_name, $source, $params) = @_;
+  my ($self, $source_name, $supplied_rsrc, $params) = @_;
 
-  $source = $source->new({ %$source, source_name => $source_name });
+  my $derived_rsrc = $supplied_rsrc->new({
+    %$supplied_rsrc,
+    source_name => $source_name,
+  });
 
-  $source->schema($self);
-  weaken $source->{schema} if ref($self);
+  # Do not move into the clone-hashref above: there are things
+  # on CPAN that do hook 'sub schema' </facepalm>
+  # https://metacpan.org/source/LSAUNDERS/DBIx-Class-Preview-1.000003/lib/DBIx/Class/ResultSource/Table/Previewed.pm#L9-38
+  $derived_rsrc->schema($self);
+
+  weaken $derived_rsrc->{schema}
+    if length ref($self);
 
   my %reg = %{$self->source_registrations};
-  $reg{$source_name} = $source;
+  $reg{$source_name} = $derived_rsrc;
   $self->source_registrations(\%reg);
 
-  return $source if $params->{extra};
+  return $derived_rsrc if $params->{extra};
 
-  my $rs_class = $source->result_class;
-  if ($rs_class and my $rsrc = dbic_internal_try { $rs_class->result_source_instance } ) {
+  my( $result_class, $result_class_level_rsrc );
+  if (
+    $result_class = $derived_rsrc->result_class
+      and
+    # There are known cases where $rs_class is *ONLY* an inflator, without
+    # any hint of a rsrc (e.g. DBIx::Class::KiokuDB::EntryProxy)
+    $result_class_level_rsrc = dbic_internal_try { $result_class->result_source_instance }
+  ) {
     my %map = %{$self->class_mappings};
-    if (
-      exists $map{$rs_class}
-        and
-      $map{$rs_class} ne $source_name
-        and
-      $rsrc ne $_[2]  # orig_source
-    ) {
-      carp
-        "$rs_class already had a registered source which was replaced by this call. "
-      . 'Perhaps you wanted register_extra_source(), though it is more likely you did '
-      . 'something wrong.'
-      ;
-    }
 
-    $map{$rs_class} = $source_name;
+    carp (
+      "$result_class already had a registered source which was replaced by "
+    . 'this call. Perhaps you wanted register_extra_source(), though it is '
+    . 'more likely you did something wrong.'
+    ) if (
+      exists $map{$result_class}
+        and
+      $map{$result_class} ne $source_name
+        and
+      $result_class_level_rsrc != $supplied_rsrc
+    );
+
+    $map{$result_class} = $source_name;
     $self->class_mappings(\%map);
   }
 
-  return $source;
+  $derived_rsrc;
 }
 
 my $global_phase_destroy;

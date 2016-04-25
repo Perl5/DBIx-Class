@@ -7,21 +7,18 @@ use warnings;
 use base 'DBIx::Class';
 use mro 'c3';
 
-use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw( quote_sub fail_on_internal_call );
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('inherited_ro_instance' => 'source_name');
 
-sub get_inherited_ro_instance {  shift->get_inherited(@_) }
+sub get_inherited_ro_instance { $_[0]->get_inherited($_[1]) }
 
 sub set_inherited_ro_instance {
-  my $self = shift;
+  $_[0]->throw_exception ("Cannot set '$_[1]' on an instance")
+    if length ref $_[0];
 
-  $self->throw_exception ("Cannot set @{[shift]} on an instance")
-    if blessed $self;
-
-  $self->set_inherited(@_);
+  $_[0]->set_inherited( $_[1], $_[2] );
 }
 
 

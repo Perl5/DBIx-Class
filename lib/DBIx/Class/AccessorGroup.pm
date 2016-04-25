@@ -6,7 +6,7 @@ use warnings;
 use base qw( DBIx::Class::MethodAttributes Class::Accessor::Grouped );
 use mro 'c3';
 
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util 'blessed';
 use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
 
@@ -24,24 +24,27 @@ sub mk_classaccessor {
   ;
 }
 
-my $successfully_loaded_components;
-
 sub get_component_class {
   my $class = $_[0]->get_inherited($_[1]);
 
-  # It's already an object, just go for it.
-  return $class if blessed $class;
-
-  if (defined $class and ! $successfully_loaded_components->{$class} ) {
+  no strict 'refs';
+  if (
+    defined $class
+      and
+    # inherited CAG can't be set to undef effectively, so people may use ''
+    length $class
+      and
+    # It's already an object, just go for it.
+    ! defined blessed $class
+      and
+    ! ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+  ) {
     $_[0]->ensure_class_loaded($class);
 
     mro::set_mro( $class, 'c3' );
 
-    no strict 'refs';
-    $successfully_loaded_components->{$class}
-      = ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
-        = do { \(my $anon = 'loaded') };
-    weaken($successfully_loaded_components->{$class});
+    ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+      = do { \(my $anon = 'loaded') };
   }
 
   $class;

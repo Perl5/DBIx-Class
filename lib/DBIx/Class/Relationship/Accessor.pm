@@ -24,7 +24,9 @@ sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
 
   if ($acc_type eq 'single') {
+
     quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel);
+
       my $self = shift;
 
       if (@_) {
@@ -62,12 +64,13 @@ sub add_relationship_accessor {
 EOC
   }
   elsif ($acc_type eq 'filter') {
-    $class->throw_exception("No such column '$rel' to filter")
-       unless $class->result_source_instance->has_column($rel);
 
-    my $f_class = $class->result_source_instance
-                         ->relationship_info($rel)
-                          ->{class};
+    my $rsrc = $class->result_source_instance;
+
+    $rsrc->throw_exception("No such column '$rel' to filter")
+       unless $rsrc->has_column($rel);
+
+    my $f_class = $rsrc->relationship_info($rel)->{class};
 
     $class->inflate_column($rel, {
       inflate => sub {
@@ -100,21 +103,25 @@ EOC
   }
   elsif ($acc_type eq 'multi') {
 
-    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel );
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      shift->related_resultset(%s)->search_rs( @_ )
-EOC
-
-    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel );
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      shift->create_related( %s => @_ );
-EOC
 
     quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
       shift->related_resultset(%s)->search( @_ )
 EOC
+
+
+    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->related_resultset(%s)->search_rs( @_ )
+EOC
+
+
+    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->create_related( %s => @_ );
+EOC
+
   }
   else {
     $class->throw_exception("No such relationship accessor type '$acc_type'");

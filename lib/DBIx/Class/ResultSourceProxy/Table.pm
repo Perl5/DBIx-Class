@@ -9,8 +9,8 @@ use DBIx::Class::ResultSource::Table;
 use Scalar::Util 'blessed';
 use namespace::clean;
 
+# FIXME - both of these *PROBABLY* need to be 'inherited_ro_instance' type
 __PACKAGE__->mk_classaccessor(table_class => 'DBIx::Class::ResultSource::Table');
-
 # FIXME: Doesn't actually do anything yet!
 __PACKAGE__->mk_group_accessors( inherited => 'table_alias' );
 
@@ -20,32 +20,32 @@ sub _init_result_source_instance {
     $class->mk_group_accessors( inherited => 'result_source_instance' )
       unless $class->can('result_source_instance');
 
-    my $table = $class->result_source_instance;
-    return $table
-      if $table and $table->result_class eq $class;
+    # might be pre-made for us courtesy of DBIC::DB::result_source_instance()
+    my $rsrc = $class->result_source_instance;
+
+    return $rsrc
+      if $rsrc and $rsrc->result_class eq $class;
 
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 
-    if( $table ) {
-        $table = $table_class->new({
-            %$table,
+    if( $rsrc ) {
+        $rsrc = $table_class->new({
+            %$rsrc,
             result_class => $class,
             source_name => undef,
             schema => undef
         });
     }
     else {
-        $table = $table_class->new({
+        $rsrc = $table_class->new({
             name            => undef,
             result_class    => $class,
             source_name     => undef,
         });
     }
 
-    $class->result_source_instance($table);
-
-    return $table;
+    $class->result_source_instance($rsrc);
 }
 
 =head1 NAME
@@ -78,8 +78,9 @@ Gets or sets the table name.
 =cut
 
 sub table {
+  return $_[0]->result_source_instance->name unless @_ > 1;
+
   my ($class, $table) = @_;
-  return $class->result_source_instance->name unless $table;
 
   unless (blessed $table && $table->isa($class->table_class)) {
 
@@ -99,9 +100,7 @@ sub table {
   $class->mk_group_accessors(inherited => 'result_source_instance')
     unless $class->can('result_source_instance');
 
-  $class->result_source_instance($table);
-
-  return $class->result_source_instance->name;
+  $class->result_source_instance($table)->name;
 }
 
 =head2 table_class
