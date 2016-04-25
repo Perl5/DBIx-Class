@@ -1430,21 +1430,14 @@ Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 =cut
 
 sub result_source {
-  $_[0]->throw_exception( 'result_source can be called on instances only' )
-    unless ref $_[0];
-
-  @_ > 1
-    ? $_[0]->{_result_source} = $_[1]
-
-    # note this is a || not a ||=, the difference is important
-    : $_[0]->{_result_source} || do {
-        $_[0]->can('result_source_instance')
-          ? $_[0]->result_source_instance
-          : $_[0]->throw_exception(
-            "No result source instance registered for @{[ ref $_[0] ]}, did you forget to call @{[ ref $_[0] ]}->table(...) ?"
-          )
-      }
-  ;
+  # this is essentially a `shift->result_source_instance(@_)` with handholding
+  &{
+    $_[0]->can('result_source_instance')
+      ||
+    $_[0]->throw_exception(
+      "No result source instance registered for '@{[ $_[0] ]}', did you forget to call @{[ ref $_[0] || $_[0] ]}->table(...) ?"
+    )
+  };
 }
 
 =head2 register_column

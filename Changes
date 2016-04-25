@@ -42,6 +42,8 @@ Revision history for DBIx::Class
           specific DateTime::Format dependencies
 
     * Fixes
+        - Fix regresion (0.082800) of certain calls being presented stale
+          result source metadata (RT#107462)
         - Fix incorrect SQL generated with invalid {rows} on complex resultset
           operations, generally more robust handling of rows/offset attrs
         - Fix incorrect $storage state on unexpected RDBMS disconnects and

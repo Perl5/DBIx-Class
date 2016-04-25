@@ -1625,7 +1625,11 @@ sub compose_connection {
     my $source = $schema->source($source_name);
     my $class = $source->result_class;
     #warn "$source_name $class $source ".$source->storage;
-    $class->mk_classaccessor(result_source_instance => $source);
+
+    $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] );
+    # explicit set-call, avoid mro update lag
+    $class->set_inherited( result_source_instance => $source );
+
     $class->mk_classaccessor(resultset_instance => $source->resultset);
     $class->mk_classaccessor(class_resolver => $schema);
   }

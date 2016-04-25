@@ -17,7 +17,7 @@ __PACKAGE__->mk_group_accessors( inherited => 'table_alias' );
 sub _init_result_source_instance {
     my $class = shift;
 
-    $class->mk_group_accessors( inherited => 'result_source_instance' )
+    $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] )
       unless $class->can('result_source_instance');
 
     # might be pre-made for us courtesy of DBIC::DB::result_source_instance()
@@ -109,7 +109,7 @@ sub table {
     });
   }
 
-  $class->mk_group_accessors(inherited => 'result_source_instance')
+  $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] )
     unless $class->can('result_source_instance');
 
   $class->result_source_instance($table)->name;
