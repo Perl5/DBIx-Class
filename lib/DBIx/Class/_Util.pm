@@ -81,6 +81,7 @@ use Carp 'croak';
 use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
 use Sub::Quote qw(qsub quote_sub);
+use Sub::Name ();
 
 # Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
 BEGIN { *deep_clone = \&Storable::dclone }
@@ -89,7 +90,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr
+  refdesc refcount hrefaddr set_subname
   scope_guard detected_reinvoked_destructor
   is_exception dbic_internal_try
   quote_sub qsub perlstring serialize deep_clone dump_value
@@ -131,6 +132,16 @@ sub refcount ($) {
   # No tempvars - must operate on $_[0], otherwise the pad
   # will count as an extra ref
   B::svref_2object($_[0])->REFCNT;
+}
+
+# FIXME In another life switch this to a polyfill like the one in namespace::clean
+sub set_subname ($$) {
+
+  # fully qualify name
+  splice @_, 0, 1, caller(0) . "::$_[0]"
+    if $_[0] !~ /::|'/;
+
+  &Sub::Name::subname;
 }
 
 sub serialize ($) {

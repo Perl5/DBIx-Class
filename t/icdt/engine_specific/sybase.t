@@ -6,8 +6,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util 'scope_guard';
-use Sub::Name;
+use DBIx::Class::_Util qw( scope_guard set_subname );
 
 use DBICTest;
 
@@ -123,7 +122,7 @@ SQL
     # UGH!
     {
       no warnings 'once';
-      local *DBICTest::BaseResult::copy = subname 'DBICTest::BaseResult::copy' => sub {
+      local *DBICTest::BaseResult::copy = set_subname 'DBICTest::BaseResult::copy' => sub {
         my $self = shift;
 
         $self->make_column_dirty($_) for keys %{{ $self->get_inflated_columns }};

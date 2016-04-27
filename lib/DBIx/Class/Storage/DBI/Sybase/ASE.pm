@@ -11,10 +11,9 @@ use base qw/
 use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/blessed weaken/;
-use Sub::Name();
 use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value scope_guard );
+use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value scope_guard set_subname );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -164,7 +163,7 @@ for my $method (@also_proxy_to_extra_storages) {
 
   my $replaced = __PACKAGE__->can($method);
 
-  *{$method} = Sub::Name::subname $method => sub {
+  *{$method} = set_subname $method => sub {
     my $self = shift;
     $self->_writer_storage->$replaced(@_) if $self->_writer_storage;
     $self->_bulk_storage->$replaced(@_)   if $self->_bulk_storage;
@@ -576,7 +575,7 @@ sub _insert_bulk {
 # This ignores any data conversion errors detected by the client side libs, as
 # they are usually harmless.
   my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
-    Sub::Name::subname _insert_bulk_cslib_errhandler => sub {
+    set_subname _insert_bulk_cslib_errhandler => sub {
       my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
 
       return 1 if $errno == 36;

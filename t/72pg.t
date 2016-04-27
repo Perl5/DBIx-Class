@@ -7,11 +7,10 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use Sub::Name;
 use Config;
 use DBICTest;
 use SQL::Abstract 'is_literal_value';
-use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::_Util qw( is_exception set_subname );
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
@@ -82,7 +81,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
   no warnings qw/once redefine/;
   my $old_connection = DBICTest::Schema->can('connection');
-  local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+  local *DBICTest::Schema::connection = set_subname 'DBICTest::Schema::connection' => sub {
     my $s = shift->$old_connection(@_);
     $s->storage->_use_insert_returning ($use_insert_returning);
     $s;

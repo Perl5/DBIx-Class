@@ -3,10 +3,12 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Sub::Name ();
-use List::Util ();
 
 use base qw/DBIx::Class::Row/;
+
+use List::Util ();
+use DBIx::Class::_Util 'set_subname';
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
 
@@ -111,7 +113,7 @@ sub _register_column_group {
       no strict 'refs';
       no warnings 'redefine';
       my $fullname = join '::', $class, $name;
-      *$fullname = Sub::Name::subname $fullname, $accessor;
+      *$fullname = set_subname $fullname, $accessor;
     }
 
     $our_accessors{$accessor}++;

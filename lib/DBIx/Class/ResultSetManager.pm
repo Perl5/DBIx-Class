@@ -2,8 +2,10 @@ package DBIx::Class::ResultSetManager;
 use strict;
 use warnings;
 use base 'DBIx::Class';
-use Sub::Name ();
 use Package::Stash ();
+
+use DBIx::Class::_Util 'set_subname';
+use namespace::clean;
 
 warn "DBIx::Class::ResultSetManager never left experimental status and
 has now been DEPRECATED. This module will be deleted in 09000 so please
@@ -69,7 +71,7 @@ sub _register_attributes {
             no strict 'refs';
             my $resultset_class = $self->_setup_resultset_class;
             my $name = join '::',$resultset_class, $meth;
-            *$name = Sub::Name::subname $name, $self->can($meth);
+            *$name = set_subname $name, $self->can($meth);
             delete ${"${self}::"}{$meth};
         }
     }

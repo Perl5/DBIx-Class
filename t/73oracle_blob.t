@@ -6,7 +6,6 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use Sub::Name;
 use Try::Tiny;
 
 use DBICTest::Schema::BindType;

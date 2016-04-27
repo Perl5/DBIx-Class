@@ -130,8 +130,8 @@ use base qw/
 /;
 use mro 'c3';
 
-use Sub::Name 'subname';
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'set_subname';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
@@ -161,12 +161,12 @@ BEGIN {
   # that use DBIx::Class::Carp/DBIx::Class::Exception instead of plain Carp
   no warnings qw/redefine/;
 
-  *SQL::Abstract::belch = subname 'SQL::Abstract::belch' => sub (@) {
+  *SQL::Abstract::belch = set_subname 'SQL::Abstract::belch' => sub (@) {
     my($func) = (caller(1))[3];
     carp "[$func] Warning: ", @_;
   };
 
-  *SQL::Abstract::puke = subname 'SQL::Abstract::puke' => sub (@) {
+  *SQL::Abstract::puke = set_subname 'SQL::Abstract::puke' => sub (@) {
     my($func) = (caller(1))[3];
     __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
