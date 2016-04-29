@@ -139,22 +139,6 @@ throws_ok {
     $new_bookmark->new_related( no_such_rel => {} );
 } qr/No such relationship 'no_such_rel'/, 'creating in uknown rel throws';
 
-{
-  local $TODO = "relationship checking needs fixing";
-  # try to add a bogus relationship using the wrong cols
-  throws_ok {
-      DBICTest::Schema::Artist->add_relationship(
-          tracks => 'DBICTest::Schema::Track',
-          { 'foreign.cd' => 'self.cdid' }
-      );
-  } qr/Unknown column/, 'failed when creating a rel with invalid key, ok';
-}
-
-# another bogus relationship using no join condition
-throws_ok {
-    DBICTest::Schema::Artist->add_relationship( tracks => 'DBICTest::Track' );
-} qr/join condition/, 'failed when creating a rel without join condition, ok';
-
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
 my @producers = $cd->producers(undef, { order_by => 'producerid'} );
