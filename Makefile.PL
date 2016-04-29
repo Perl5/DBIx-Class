@@ -76,6 +76,15 @@ my $test_requires = {
   'Test::Warn'               => '0.21',
   'Test::More'               => '0.94',
 
+  # This has a bug in the caller() override, ideally we need go get rid
+  # of it entirely, but that's for another maint
+  #
+  # FIXME - this does protect tests, but does *NOT* protect the rest of
+  # DBIC itself from a faulty caller() override. Something more substantial
+  # needs to be done in the guts of DBIC::Carp
+  #
+  'Sub::Uplevel'             => '0.19',
+
   # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
   # remove and do a manual glob-collection if n::c is no longer a dep
   'Package::Stash'           => '0.28',
