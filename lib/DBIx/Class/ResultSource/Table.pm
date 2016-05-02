@@ -26,7 +26,10 @@ Returns the FROM entry for the table (i.e. the table name)
 
 =cut
 
-sub from { $_[0]->name }
+sub from {
+  $_[0]->throw_exception('from() is not a setter method') if @_ > 1;
+  $_[0]->name;
+}
 
 =head1 FURTHER QUESTIONS?
 

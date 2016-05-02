@@ -23,6 +23,8 @@ Revision history for DBIx::Class
           mismatches between your codebase and data source
         - Calling the set_* many-to-many helper with a list (instead of an
           arrayref) now emits a deprecation warning
+        - Calling the getter $rsrc->from("argument") now throws an exception
+          instead of silently discarding the argument
 
     * New Features
         - When using non-scalars (e.g. arrays) as literal bind values it is no

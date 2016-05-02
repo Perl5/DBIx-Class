@@ -148,9 +148,11 @@ or the SQL as a subselect if this is a virtual view.
 =cut
 
 sub from {
-    my $self = shift;
-    return \"(${\$self->view_definition})" if $self->is_virtual;
-    return $self->name;
+    $_[0]->throw_exception('from() is not a setter method') if @_ > 1;
+    $_[0]->is_virtual
+      ? \( '(' . $_[0]->view_definition .')' )
+      : $_[0]->name
+    ;
 }
 
 =head1 OTHER METHODS
