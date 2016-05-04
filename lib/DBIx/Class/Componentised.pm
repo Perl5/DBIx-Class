@@ -12,6 +12,9 @@ use namespace::clean;
 
 # this warns of subtle bugs introduced by UTF8Columns hacky handling of store_column
 # if and only if it is placed before something overriding store_column
+#
+# and also enforces C3 mro on all components
+my $mro_already_set;
 sub inject_base {
   my $class = shift;
   my ($target, @complist) = @_;
@@ -71,6 +74,12 @@ sub inject_base {
 
     unshift @target_isa, $comp;
   }
+
+  # only examine from $_[2] onwards
+  # C::C3::C already sets c3 on $_[1]
+  mro::set_mro( $_ => 'c3' ) for grep {
+    $mro_already_set->{$_} ? 0 : ( $mro_already_set->{$_} = 1 )
+  } @_[1 .. $#_];
 
   $class->next::method(@_);
 }
