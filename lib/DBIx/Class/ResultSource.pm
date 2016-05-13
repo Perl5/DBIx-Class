@@ -16,12 +16,18 @@ use DBIx::Class::ResultSet;
 
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors(simple => qw/
-  source_name name source_info
-  _ordered_columns _columns _primaries _unique_constraints
-  _relationships resultset_attributes
-  column_info_from_storage sqlt_deploy_callback
-/);
+my @hashref_attributes = qw(
+  source_info resultset_attributes
+  _columns _unique_constraints _relationships
+);
+my @arrayref_attributes = qw(
+  _ordered_columns _primaries
+);
+__PACKAGE__->mk_group_accessors(simple =>
+  @hashref_attributes,
+  @arrayref_attributes,
+  qw( source_name name column_info_from_storage sqlt_deploy_callback ),
+);
 
 __PACKAGE__->mk_group_accessors(component_class => qw/
   resultset_class
@@ -149,9 +155,10 @@ Creates a new ResultSource object.  Not normally called directly by end users.
     $self->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
 
     $self->{$_} = { %{ $self->{$_} || {} } }
-      for qw( _columns _relationships resultset_attributes );
+      for @hashref_attributes;
 
-    $self->{_ordered_columns} = [ @{ $self->{_ordered_columns} || [] } ];
+    $self->{$_} = [ @{ $self->{$_} || [] } ]
+      for @arrayref_attributes;
 
     $self;
   }
