@@ -767,7 +767,7 @@ sub find_or_create_related {
   my $self = shift;
   my $rel = shift;
   my $obj = $self->related_resultset($rel)->find(@_);
-  return (defined($obj) ? $obj : $self->related_resultset($rel)->new_result(@_)->insert);
+  return (defined($obj) ? $obj : $self->create_related( $rel => @_ ));
 }
 
 =head2 update_or_create_related
