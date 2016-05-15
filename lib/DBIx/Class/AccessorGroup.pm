@@ -46,7 +46,11 @@ sub get_component_class {
 };
 
 sub set_component_class {
-  shift->set_inherited(@_);
+  $_[0]->set_inherited($_[1], $_[2]);
+
+  # trigger a load for the case of $foo->component_accessor("bar")->new
+  $_[0]->get_component_class($_[1])
+    if defined wantarray;
 }
 
 1;
