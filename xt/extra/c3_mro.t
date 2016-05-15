@@ -59,6 +59,10 @@ check_ancestry($_) for (
   ref( $art->result_source ),
   ref( $art->result_source->resultset ),
   ref( $art->result_source->schema ),
+  ( map
+    { ref $art->result_source->schema->source($_) }
+    $art->result_source->schema->sources
+  ),
   qw( AAA BBB CCC ),
   ((! DBIx::Class::Optional::Dependencies->req_ok_for('cdbicompat') ) ? () : do {
     unshift @INC, 't/cdbi/testlib';

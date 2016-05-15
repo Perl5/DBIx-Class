@@ -3,10 +3,9 @@ package DBIx::Class::ResultSource::View;
 use strict;
 use warnings;
 
-use DBIx::Class::ResultSet;
+use base 'DBIx::Class::ResultSource';
+use mro 'c3';
 
-use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/ResultSource/);
 __PACKAGE__->mk_group_accessors(
     'simple' => qw(is_virtual view_definition deploy_depends_on) );
 

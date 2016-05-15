@@ -3,10 +3,8 @@ package DBIx::Class::ResultSource::Table;
 use strict;
 use warnings;
 
-use DBIx::Class::ResultSet;
-
-use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/ResultSource/);
+use base 'DBIx::Class::ResultSource';
+use mro 'c3';
 
 =head1 NAME
 

@@ -3,16 +3,17 @@ package DBIx::Class::ResultSource;
 use strict;
 use warnings;
 
-use base 'DBIx::Class';
-__PACKAGE__->load_components(qw(
-  ResultSource::RowParser
-));
+use base 'DBIx::Class::ResultSource::RowParser';
+use mro 'c3';
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw/blessed weaken isweak/;
+
+# FIXME - somehow breaks ResultSetManager, do not remove until investigated
+use DBIx::Class::ResultSet;
 
 use namespace::clean;
 
