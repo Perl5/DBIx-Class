@@ -20,15 +20,13 @@ __PACKAGE__->mk_group_accessors(simple => qw/
   source_name name source_info
   _ordered_columns _columns _primaries _unique_constraints
   _relationships resultset_attributes
-  column_info_from_storage
+  column_info_from_storage sqlt_deploy_callback
 /);
 
 __PACKAGE__->mk_group_accessors(component_class => qw/
   resultset_class
   result_class
 /);
-
-__PACKAGE__->mk_classaccessor( sqlt_deploy_callback => 'default_sqlt_deploy_hook' );
 
 =head1 NAME
 
@@ -129,6 +127,7 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
+  $new->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
   return $new;
 }
 
@@ -942,11 +941,11 @@ sub unique_constraint_columns {
 
 =back
 
-  __PACKAGE__->sqlt_deploy_callback('mycallbackmethod');
+  __PACKAGE__->result_source_instance->sqlt_deploy_callback('mycallbackmethod');
 
    or
 
-  __PACKAGE__->sqlt_deploy_callback(sub {
+  __PACKAGE__->result_source_instance->sqlt_deploy_callback(sub {
     my ($source_instance, $sqlt_table) = @_;
     ...
   } );
