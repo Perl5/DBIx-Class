@@ -132,17 +132,12 @@ sub register_column {
 
   # _ic_dt_method will follow whatever the registration requests
   # thus = instead of ||=
-  if ($data_type eq 'timestamp with time zone' || $data_type eq 'timestamptz') {
-    $info->{_ic_dt_method} = 'timestamp_with_timezone';
-  }
-  elsif ($data_type eq 'timestamp without time zone') {
-    $info->{_ic_dt_method} = 'timestamp_without_timezone';
-  }
-  elsif ($data_type eq 'smalldatetime') {
-    $info->{_ic_dt_method} = 'smalldatetime';
-  }
-  elsif ($data_type =~ /^ (?: date | datetime | timestamp ) $/x) {
-    $info->{_ic_dt_method} = $data_type;
+  if ( $data_type =~ /\A (?:
+      timestamp \s+ with(?:out)? \s+ time \s+ zone |
+      date | (small)? datetime | timestamp(?:tz)?
+    ) \z/x
+  ) {
+    ($info->{_ic_dt_method} = $data_type) =~ s/\s+/_/g;
   }
   elsif ($requested_type) {
     $info->{_ic_dt_method} = $requested_type;
