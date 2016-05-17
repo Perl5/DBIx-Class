@@ -100,9 +100,18 @@ EOC
   }
   elsif ($acc_type eq 'multi') {
 
-    quote_sub "${class}::${rel}_rs", "shift->related_resultset( q{$rel} )->search_rs( \@_ )";
-    quote_sub "${class}::add_to_${rel}", "shift->create_related( q{$rel} => \@_ )";
+    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->related_resultset(%s)->search_rs( @_ )
+EOC
+
+    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->create_related( %s => @_ );
+EOC
+
     quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
       shift->related_resultset(%s)->search( @_ )
 EOC

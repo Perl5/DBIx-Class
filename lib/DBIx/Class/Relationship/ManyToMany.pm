@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw(fail_on_internal_wantarray quote_sub);
+use DBIx::Class::_Util qw( quote_sub perlstring );
 
 # FIXME - this souldn't be needed
 my $cu;
@@ -61,12 +61,19 @@ EOW
       '$carp_unique' => \$cu,
     };
 
-    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', $rel, $f_rel ), $qsub_attrs;
+    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', map { perlstring $_ } ( "${class}::${meth}", $rel, $f_rel ) ), $qsub_attrs;
+
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+        and
+      # allow nested calls from our ->many_to_many, see comment below
+      ( (CORE::caller(1))[3] ne %s )
+        and
+      DBIx::Class::_Util::fail_on_internal_call;
 
       # this little horror is there replicating a deprecation from
       # within search_rs() itself
-      shift->related_resultset( q{%1$s} )
-            ->related_resultset( q{%2$s} )
+      shift->related_resultset( %s )
+            ->related_resultset( %s )
              ->search_rs (
                undef,
                ( @_ > 1 and ref $_[-1] eq 'HASH' )
@@ -79,6 +86,7 @@ EOC
 
     quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
 
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
 
       my $rs = shift->%s( @_ );

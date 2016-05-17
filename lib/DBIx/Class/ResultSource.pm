@@ -353,7 +353,10 @@ sub add_columns {
   return $self;
 }
 
-sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
+sub add_column {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->add_columns(@_)
+}
 
 =head2 has_column
 
@@ -578,7 +581,6 @@ sub remove_columns {
   $self->_ordered_columns([ grep { not $to_remove{$_} } @{$self->_ordered_columns} ]);
 }
 
-# DO NOT CHANGE THIS TO A GLOB
 sub remove_column {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->remove_columns(@_)

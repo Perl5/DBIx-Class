@@ -908,6 +908,7 @@ sub compose_namespace {
       }
     }
 
+    # Legacy stuff, not inserting INDIRECT assertions
     quote_sub "${target}::${_}" => "shift->schema->$_(\@_)"
       for qw(class source resultset);
   }
