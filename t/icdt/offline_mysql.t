@@ -20,7 +20,7 @@ use DBIx::Class::_Util 'sigwarn_silencer';
 
 my $schema = DBICTest->init_schema();
 
-# Test "timezone" parameter
+# Test "time_zone" parameter
 foreach my $tbl (qw/EventTZ EventTZDeprecated/) {
   my $event_tz = $schema->resultset($tbl)->create({
       starts_at => DateTime->new(year=>2007, month=>12, day=>31, time_zone => "America/Chicago" ),
@@ -34,25 +34,25 @@ foreach my $tbl (qw/EventTZ EventTZDeprecated/) {
   is ($event_tz->created_on->month_name, "January", 'Default locale loaded: month_name');
 
   my $starts_at = $event_tz->starts_at;
-  is("$starts_at", '2007-12-31T00:00:00', 'Correct date/time using timezone');
+  is("$starts_at", '2007-12-31T00:00:00', 'Correct date/time using time zone');
 
   my $created_on = $event_tz->created_on;
-  is("$created_on", '2006-01-31T12:34:56', 'Correct timestamp using timezone');
-  is($event_tz->created_on->time_zone->name, "America/Chicago", "Correct timezone");
+  is("$created_on", '2006-01-31T12:34:56', 'Correct timestamp using time zone');
+  is($event_tz->created_on->time_zone->name, "America/Chicago", "Correct time zone");
 
   my $loaded_event = $schema->resultset($tbl)->find( $event_tz->id );
 
   isa_ok($loaded_event->starts_at, 'DateTime', 'DateTime returned');
   $starts_at = $loaded_event->starts_at;
-  is("$starts_at", '2007-12-31T00:00:00', 'Loaded correct date/time using timezone');
-  is($starts_at->time_zone->name, 'America/Chicago', 'Correct timezone');
+  is("$starts_at", '2007-12-31T00:00:00', 'Loaded correct date/time using time zone');
+  is($starts_at->time_zone->name, 'America/Chicago', 'Correct time zone');
 
   isa_ok($loaded_event->created_on, 'DateTime', 'DateTime returned');
   $created_on = $loaded_event->created_on;
-  is("$created_on", '2006-01-31T12:34:56', 'Loaded correct timestamp using timezone');
-  is($created_on->time_zone->name, 'America/Chicago', 'Correct timezone');
+  is("$created_on", '2006-01-31T12:34:56', 'Loaded correct timestamp using time zone');
+  is($created_on->time_zone->name, 'America/Chicago', 'Correct time zone');
 
-  # Test floating timezone warning
+  # Test floating time zone warning
   # We expect one warning
   SKIP: {
     skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
@@ -63,8 +63,8 @@ foreach my $tbl (qw/EventTZ EventTZDeprecated/) {
           created_on => DateTime->new(year=>2006, month=>1, day=>31, hour => 13, minute => 34, second => 56 ),
         });
       },
-      qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
-      'Floating timezone warning'
+      qr/You're using a floating time zone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
+      'Floating time zone warning'
     );
   };
 

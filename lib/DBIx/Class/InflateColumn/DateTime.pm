@@ -31,11 +31,15 @@ Then you can treat the specified column as a L<DateTime> object.
   print "This event starts the month of ".
     $event->starts_when->month_name();
 
-If you want to set a specific timezone and locale for that field, use:
+If you want to set a specific time zone and locale for that field, use:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', timezone => "America/Chicago", locale => "de_DE" }
+    starts_when => { data_type => 'datetime', time_zone => "America/Chicago", locale => "de_DE" }
   );
+
+Note: DBIC before 0.082900 only accepted C<timezone>, and silently discarded
+any C<time_zone> arguments. For backwards compatibility, C<timezone> will
+continue being accepted as a synonym for C<time_zone>.
 
 If you want to inflate no matter what data_type your column is,
 use inflate_datetime or inflate_date:
@@ -73,7 +77,7 @@ that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
 
 If the data_type of a field is C<date>, C<datetime> or C<timestamp> (or
-a derivative of these datatypes, e.g. C<timestamp with timezone>), this
+a derivative of these datatypes, e.g. C<timestamp with time zone>), this
 module will automatically call the appropriate parse/format method for
 deflation/inflation as defined in the storage class. For instance, for
 a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
@@ -152,13 +156,19 @@ sub register_column {
   }
 
   if ($info->{extra}) {
-    for my $slot (qw/timezone locale floating_tz_ok/) {
+    for my $slot (qw/time_zone timezone locale floating_tz_ok/) {
       if ( defined $info->{extra}{$slot} ) {
         carp "Putting $slot into extra => { $slot => '...' } has been deprecated, ".
              "please put it directly into the '$column' column definition.";
         $info->{$slot} = $info->{extra}{$slot} unless defined $info->{$slot};
       }
     }
+  }
+
+  if ( defined $info->{timezone} ) {
+    $self->throw_exception("Cannot specify both 'timezone' and 'time_zone' in '$column' column defintion.")
+      if defined $info->{time_zone};
+    $info->{time_zone} = delete $info->{timezone};
   }
 
   # shallow copy to avoid unfounded(?) Devel::Cycle complaints
@@ -225,7 +235,7 @@ sub _datetime_parser {
 sub _post_inflate_datetime {
   my( $self, $dt, $info ) = @_;
 
-  $dt->set_time_zone($info->{timezone}) if defined $info->{timezone};
+  $dt->set_time_zone($info->{time_zone}) if defined $info->{time_zone};
   $dt->set_locale($info->{locale}) if defined $info->{locale};
 
   return $dt;
@@ -234,14 +244,14 @@ sub _post_inflate_datetime {
 sub _pre_deflate_datetime {
   my( $self, $dt, $info ) = @_;
 
-  if (defined $info->{timezone}) {
-    carp "You're using a floating timezone, please see the documentation of"
+  if (defined $info->{time_zone}) {
+    carp "You're using a floating time zone, please see the documentation of"
       . " DBIx::Class::InflateColumn::DateTime for an explanation"
       if ref( $dt->time_zone ) eq 'DateTime::TimeZone::Floating'
           and not $info->{floating_tz_ok}
           and not $ENV{DBIC_FLOATING_TZ_OK};
 
-    $dt->set_time_zone($info->{timezone});
+    $dt->set_time_zone($info->{time_zone});
   }
 
   $dt->set_locale($info->{locale}) if defined $info->{locale};
@@ -254,13 +264,13 @@ __END__
 
 =head1 USAGE NOTES
 
-If you have a datetime column with an associated C<timezone>, and subsequently
+If you have a datetime column with an associated C<time_zone>, and subsequently
 create/update this column with a DateTime object in the L<DateTime::TimeZone::Floating>
-timezone, you will get a warning (as there is a very good chance this will not have the
+time zone, you will get a warning (as there is a very good chance this will not have the
 result you expect). For example:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', timezone => "America/Chicago" }
+    starts_when => { data_type => 'datetime', time_zone => "America/Chicago" }
   );
 
   my $event = $schema->resultset('EventTZ')->create({
@@ -273,7 +283,7 @@ The warning can be avoided in several ways:
 
 =item Fix your broken code
 
-When calling C<set_time_zone> on a Floating DateTime object, the timezone is simply
+When calling C<set_time_zone> on a Floating DateTime object, the time zone is simply
 set to the requested value, and B<no time conversion takes place>. It is always a good idea
 to be supply explicit times to the database:
 
@@ -284,7 +294,7 @@ to be supply explicit times to the database:
 =item Suppress the check on per-column basis
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', timezone => "America/Chicago", floating_tz_ok => 1 }
+    starts_when => { data_type => 'datetime', time_zone => "America/Chicago", floating_tz_ok => 1 }
   );
 
 =item Suppress the check globally
@@ -293,7 +303,7 @@ Set the environment variable DBIC_FLOATING_TZ_OK to some true value.
 
 =back
 
-Putting extra attributes like timezone, locale or floating_tz_ok into extra => {} has been
+Putting extra attributes like time_zone, locale or floating_tz_ok into extra => {} has been
 B<DEPRECATED> because this gets you into trouble using L<DBIx::Class::Schema::Versioned>.
 Instead put it directly into the columns definition like in the examples above. If you still
 use the old way you'll see a warning - please fix your code then!
@@ -305,7 +315,7 @@ use the old way you'll see a warning - please fix your code then!
 =item More information about the add_columns method, and column metadata,
       can be found in the documentation for L<DBIx::Class::ResultSource>.
 
-=item Further discussion of problems inherent to the Floating timezone:
+=item Further discussion of problems inherent to the Floating time zone:
       L<Floating DateTimes|DateTime/Floating DateTimes>
       and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
