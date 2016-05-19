@@ -1,5 +1,4 @@
 Current Known Issues / Regressions
-  - Breaks DBIx::Class::FrozenColumns (fix pending in RT#114424)
   - Breaks DBIx::Class::ResultSet::WithMetaData (fix pending in RT#104602)
   - Breaks DBIx::Class::Tree::NestedSet (fix pending in RT#114440)
 

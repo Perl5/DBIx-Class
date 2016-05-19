@@ -1812,7 +1812,7 @@ sub _format_for_trace {
 
   map {
     defined( $_ && $_->[1] )
-      ? qq{'$_->[1]'}
+      ? sprintf( "'%s'", "$_->[1]" )  # because overload
       : q{NULL}
   } @{$_[1] || []};
 }

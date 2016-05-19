@@ -417,7 +417,14 @@ sub insert {
           or
         (defined $current_rowdata{$_} xor defined $returned_cols->{$_})
           or
-        (defined $current_rowdata{$_} and $current_rowdata{$_} ne $returned_cols->{$_})
+        (
+          defined $current_rowdata{$_}
+            and
+          # one of the few spots doing forced-stringification
+          # needed to work around objects with defined stringification
+          # but *without* overloaded comparison (ugh!)
+          "$current_rowdata{$_}" ne "$returned_cols->{$_}"
+        )
       );
   }
 
@@ -1225,17 +1232,13 @@ sub store_column {
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
 
-  return $self->{_column_data}{$column} = $value
-    unless length ref $value and my $vref = is_plain_value( $value );
-
-  # if we are dealing with a value/ref - there are a couple possibilities
-  # unpack the underlying piece of data and stringify all objects explicitly
-  # ( to accomodate { -value => ... } and guard against overloaded objects
-  # with defined stringification AND fallback => 0 (ugh!)
-  $self->{_column_data}{$column} = defined blessed $$vref
-    ? "$$vref"
-    : $$vref
-  ;
+  my $vref;
+  $self->{_column_data}{$column} = (
+    # unpack potential { -value => "foo" }
+    ( length ref $value and $vref = is_plain_value( $value ) )
+      ? $$vref
+      : $value
+  );
 }
 
 =head2 inflate_result
