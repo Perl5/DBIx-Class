@@ -13,6 +13,7 @@ fi
 
 # Need a shitton of patches to run on cperl (luckily all provided)
 # Also need to have YAML in place, otherwise the distroprefs are not readable
+# (cperl 5.22.2 comes with YAML already)
 if is_cperl ; then
 
   run_or_err "Downloading and installing cperl distroprefs" '
@@ -20,7 +21,7 @@ if is_cperl ; then
     tar -C $HOME/.cpan --strip-components 1 -zx distroprefs-master/prefs distroprefs-master/sources
   '
 
-  installdeps YAML
+  perl -M5.022002 -e1 &>/dev/null || installdeps YAML
 
 fi
 
@@ -84,11 +85,23 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we build are guaranteed to be clean, without side
   # effects from travis preinstalls)
 
-  # trick cpanm into executing true as shell - we just need the find+unpack
-  [[ -d ~/.cpanm/latest-build/DBIx-Class-*/inc ]] || run_or_err "Downloading latest stable DBIC inc/ from CPAN" \
-    "SHELL=/bin/true cpanm --look DBIx::Class"
+  # work around https://github.com/perl11/cperl/issues/145 (no cpanm)
+  if is_cperl ; then
 
-  mv ~/.cpanm/latest-build/DBIx-Class-*/inc .
+    wget -qO- $( wget -qO- http://cpanmetadb.plackperl.org/v1.0/package/DBIx::Class | grep distfile | sed "s|distfile:\s*|$CPAN_MIRROR/authors/id/|" ) \
+  | tar -zx --strip-components 1 --wildcards '*/inc'
+
+    # FIXME - kill this when M::I is gone
+    # Argh -DFORTIFY_INC!!!
+    export PERL5LIB="$PERL5LIB:."
+
+  else
+    # trick cpanm into executing true as shell - we just need the find+unpack
+    [[ -d ~/.cpanm/latest-build/DBIx-Class-*/inc ]] || run_or_err "Downloading latest stable DBIC inc/ from CPAN" \
+      "SHELL=/bin/true cpanm --look DBIx::Class"
+
+    mv ~/.cpanm/latest-build/DBIx-Class-*/inc .
+  fi
 
   # The first CPAN which is somewhat sane is around 1.94_56 (perl 5.12)
   # The problem is that the first sane version also brings a *lot* of

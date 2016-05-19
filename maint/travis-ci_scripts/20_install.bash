@@ -4,7 +4,7 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 # we need a mirror that both has the standard index and a backpan version rolled
 # into one, due to MDV testing
-CPAN_MIRROR="http://cpan.metacpan.org/"
+export CPAN_MIRROR="http://cpan.metacpan.org/"
 
 PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
@@ -41,6 +41,11 @@ if [[ -n "$BREWVER" ]] ; then
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
+
+  # FIXME work around https://github.com/perl11/cperl/issues/144
+  if is_cperl && ! [[ -f ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] ; then
+    ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl
+  fi
 
   # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
   # furthermore some versions of `perlbrew use` return 0 regardless of whether
@@ -128,17 +133,21 @@ if [[ "$POISON_ENV" = "true" ]] ; then
 
 
 ### emulate a local::lib-like env
-  # trick cpanm into executing true as shell - we just need the find+unpack
-  run_or_err "Downloading latest stable DBIC from CPAN" \
-    "SHELL=/bin/true cpanm --look DBIx::Class"
 
-  # move it somewhere as following cpanm will clobber it
-  run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
+  # FIXME - work around https://github.com/perl11/cperl/issues/145
+  if ! is_cperl ; then
+    # trick cpanm into executing true as shell - we just need the find+unpack
+    run_or_err "Downloading latest stable DBIC from CPAN" \
+      "SHELL=/bin/true cpanm --look DBIx::Class"
 
-  export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
+    # move it somewhere as following cpanm will clobber it
+    run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
 
-  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
-  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
+    export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
+
+    # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+    echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
+  fi
 
 fi
 

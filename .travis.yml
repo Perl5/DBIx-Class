@@ -206,7 +206,8 @@ matrix:
 
     # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO CPERL BELOW
     # allows for easier side-by-side comparison
-    - perl: "5.22.1_thr_qm"
+    # vcpu=1 for even more stable results
+    - perl: "5.22.2_thr_qm"
       # explicit new infra spec preparing for a future forced upgrade
       # also need to pull in a sufficiently new compiler for quadmath.h
       sudo: required
@@ -216,7 +217,7 @@ matrix:
         - CLEANTEST=true
         - POISON_ENV=true
         - MVDT=false
-        - BREWVER=5.22.1
+        - BREWVER=5.22.2
         - BREWOPTS="-Duseithreads -Dusequadmath"
 
     ###
@@ -224,18 +225,18 @@ matrix:
 
     # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO STOCK 5.22.1 ABOVE
     # allows for easier side-by-side comparison
-    - perl: "cperl-5.22.1_thr_qm"
+    # vcpu=1 for even more stable results
+    - perl: "cperl-5.22.2_thr_qm"
       # explicit new infra spec preparing for a future forced upgrade
       # also need to pull in a sufficiently new compiler for quadmath.h
       sudo: required
       dist: trusty
       env:
-        # FIXME - work around https://github.com/perl11/cperl/issues/131
         - VCPU_USE=1
         - CLEANTEST=true
         - POISON_ENV=true
         - MVDT=false
-        - BREWVER=cperl-5.22.1
+        - BREWVER=cperl-5.22.2
         - BREWOPTS="-Duseithreads -Dusequadmath"
 
     # threaded oldest possible with blead CPAN
@@ -348,7 +349,7 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
-    - perl: cperl-5.22.1_thr_qm
+    - perl: cperl-5.22.2_thr_qm
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb
