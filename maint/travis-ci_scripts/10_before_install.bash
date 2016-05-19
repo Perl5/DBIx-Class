@@ -71,47 +71,63 @@ if [[ "$CLEANTEST" != "true" ]]; then
       "sudo bash -c 'dd if=/dev/zero of=/swap.img bs=256M count=5 && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
   fi
 
-  export CACHE_DIR="/tmp/poormanscache"
-
-  #
-  # FIXME these debconf lines should automate the firebird config but do not :(((
-  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
-  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
-
-  # these APT sources do not mean anything to us anyway
-  sudo rm -rf /etc/apt/sources.list.d/*
-
-  # the actual package is built for lucid, installs fine on both precise and trusty
-  sudo bash -c 'echo "deb http://archive.canonical.com/ubuntu precise partner" >> /etc/apt/sources.list'
 
   # never installed, this looks like trusty
   if [[ ! -d /var/lib/mysql ]] ; then
     sudo dpkg --add-architecture i386
-    extra_debs="$extra_debs postgresql mysql-server"
+    extra_debs+=( postgresql mysql-server )
   fi
 
-  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
-  # someone needs to add a minimizing configuration akin to 9367d187
-  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
-    extra_debs="$extra_debs db2exc"
-  fi
+
+  # these APT sources do not mean anything to us anyway
+  sudo rm -rf /etc/apt/sources.list.d/*
+
+  #
+  # FIXME these debconf lines should automate the firebird config but seem not to :(((
+  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
+  sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
   run_or_err "Updating APT sources" "sudo apt-get update"
+  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
 
-  apt_install $extra_debs libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
-
-  # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
-  # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
-  apt_install unixodbc-dev
 
   # need to stop them again, in case we installed them above (trusty)
   for d in mysql postgresql ; do
     run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
   done
 
-  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --single-branch --branch=oracle/10.2.0 https://github.com/poormanscache/poormanscache.git $CACHE_DIR && $CACHE_DIR/reassemble"
-  run_or_err "Installing OracleXE manually from deb" \
-    "sudo dpkg -i $CACHE_DIR/apt_cache/bc-multiarch-travis_1.0_all.deb $CACHE_DIR/apt_cache/oracle-xe_10.2.0.1-1.1_i386.deb || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
+
+  export CACHE_DIR="/tmp/poormanscache"
+  mkdir "$CACHE_DIR"
+
+  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
+  # someone needs to add a minimizing configuration akin to 9367d187
+  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
+    run_or_err "Getting DB2 from poor man's cache github" '
+      wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
+    | tar -C "$CACHE_DIR" -zx'
+
+    # the actual package is built for lucid, installs fine on both precise and trusty
+    manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
+  fi
+
+  run_or_err "Getting Oracle from poor man's cache github" '
+    wget -qO- https://github.com/poormanscache/poormanscache/archive/OracleXE/10.2.0_deb_mixed.tar.gz \
+  | tar -C "$CACHE_DIR" -zx'
+  manual_debs+=( "bc-multiarch-travis_1.0_all.deb" "oracle-xe_10.2.0.1-1.1_i386.deb" )
+
+
+  # reassemble chunked pieces ( working around github's filesize limit )
+  for reass in $CACHE_DIR/*/reassemble ; do /bin/bash "$reass" ; done
+
+  run_or_err "Installing RDBMS debs manually: $( echo ${manual_debs[@]/#/$CACHE_DIR/*/*/} )" \
+    "sudo dpkg -i $( echo ${manual_debs[@]/#/$CACHE_DIR/*/*/} ) || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
+
+
+  # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
+  # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
+  apt_install unixodbc-dev
+
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
@@ -258,7 +274,7 @@ FileUsage       = 1
     GRANT connect,resource TO $DBICTEST_ORA_EXTRAUSER_USER;
   '"
 
-  export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
+  export ORACLE_HOME="$CACHE_DIR/poormanscache-OracleXE-10.2.0_deb_mixed/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
 
 ### config db2exc
   # we may have skipped installation due to low memory

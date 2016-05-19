@@ -99,7 +99,7 @@ apt_install() {
   # flatten
   pkgs="$@"
 
-  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
+  run_or_err "Installing APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {
