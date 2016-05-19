@@ -27,9 +27,6 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
 
-  # FIXME - workaround for RT#113740
-  parallel_installdeps_notest List::AllUtils
-
   # FIXME Change when Moose goes away
   installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 

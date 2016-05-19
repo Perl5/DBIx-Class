@@ -24,7 +24,7 @@ if is_cperl ; then
 
 fi
 
-# FIXME - this is a kludge in place of proper MDV testing. For the time
+# FIXME - this is a kludge in place of proper MVDT testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
 if [[ "$MVDT" == "true" ]] ; then
@@ -70,8 +70,8 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
              "ln -s /bin/false $HOME/bin/cc"
 
-  # FIXME: working around RT#113682, RT#113685, and some other unfiled bugs
-  installdeps Module::Build B::Hooks::EndOfScope Devel::GlobalDestruction Class::Accessor::Grouped
+  # FIXME: working around RT#113682, and some other unfiled bugs
+  installdeps Module::Build Devel::GlobalDestruction Class::Accessor::Grouped
 
   run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
              "ln -fs /bin/true $HOME/bin/cc"
