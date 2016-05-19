@@ -171,6 +171,16 @@ else
 
   run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
+  # FIXME - evil evil work around for https://github.com/Manwar/Test-Strict/issues/17
+  if perl -M5.025 -e1 &>/dev/null; then
+    mkdir -p "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel"
+    cat <<MyDevelCover > "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel/Cover.pm"
+package Devel::Cover;
+our \$VERSION = 0.43;
+1;
+MyDevelCover
+  fi
+
   # if we are smoking devrels - make sure we upgrade everything we know about
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     parallel_installdeps_notest "$(make listalldeps | sort -R)"
