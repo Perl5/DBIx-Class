@@ -6,9 +6,11 @@ use Test::Warn;
 
 use DBIx::Class::_Util 'quote_sub';
 
+### Test for strictures leakage
 my $q = do {
   no strict 'vars';
-  quote_sub '$x = $x . "buh"; $x += 42';
+  quote_sub 'DBICTest::QSUB::nostrict'
+    => '$x = $x . "buh"; $x += 42';
 };
 
 warnings_exist {
@@ -23,10 +25,10 @@ warnings_exist {
   }
 ;
 
-my $no_nothing_q = do {
+my $no_nothing_q = sub {
   no strict;
   no warnings;
-  quote_sub <<'EOC';
+  quote_sub 'DBICTest::QSUB::nowarn', <<'EOC';
     BEGIN { warn "-->${^WARNING_BITS}<--\n" };
     my $n = "Test::Warn::warnings_exist";
     warn "-->@{[ *{$n}{CODE} ]}<--\n";
@@ -35,7 +37,7 @@ EOC
 
 my $we_cref = Test::Warn->can('warnings_exist');
 
-warnings_exist { $no_nothing_q->() } [
+warnings_exist { $no_nothing_q->()->() } [
   qr/^\-\-\>\0+\<\-\-$/m,
   qr/^\Q-->$we_cref<--\E$/m,
 ], 'Expected warnings, strict did not leak inside the qsub'

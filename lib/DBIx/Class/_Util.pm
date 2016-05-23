@@ -82,7 +82,7 @@ use B ();
 use Carp 'croak';
 use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
-use Sub::Quote qw(qsub quote_sub);
+use Sub::Quote qw(qsub);
 use Sub::Name ();
 
 # Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
@@ -101,6 +101,45 @@ our @EXPORT_OK = qw(
 );
 
 use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
+
+BEGIN {
+  Sub::Quote->VERSION(2.002);
+}
+# Override forcing no_defer, and adding naming consistency checks
+sub quote_sub {
+  Carp::confess( "Anonymous quoting not supported by the DBIC sub_quote override - supply a sub name" ) if
+    @_ < 2
+      or
+    ! defined $_[1]
+      or
+    length ref $_[1]
+  ;
+
+  Carp::confess( "The DBIC sub_quote override expects sub name '$_[0]' to be fully qualified" )
+    unless $_[0] =~ /::/;
+
+  Carp::confess( "The DBIC sub_quote override expects the sub name '$_[0]' to match the supplied 'package' argument" ) if
+    $_[3]
+      and
+    defined $_[3]->{package}
+      and
+    index( $_[0], $_[3]->{package} ) != 0
+  ;
+
+  my @caller = caller(0);
+  my $sq_opts = {
+    package => $caller[0],
+    hints => $caller[8],
+    warning_bits => $caller[9],
+    hintshash => $caller[10],
+    %{ $_[3] || {} },
+
+    # explicitly forced for everything
+    no_defer => 1,
+  };
+
+  my $cref = Sub::Quote::quote_sub( $_[0], $_[1], $_[2]||{}, $sq_opts );
+}
 
 sub sigwarn_silencer ($) {
   my $pattern = shift;

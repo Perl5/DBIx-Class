@@ -109,8 +109,6 @@ my $skip_idx = { map { $_ => 1 } (
 
 my $has_moose = eval { require Moose::Util };
 
-Sub::Defer::undefer_all();
-
 my $seen; #inheritance means we will see the same method multiple times
 
 for my $mod (@modules) {
