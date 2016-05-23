@@ -39,7 +39,6 @@ sub ok {
   return !!$_[0];
 }
 
-
 # this is incredibly horrible...
 # demonstrate utter breakage of the reconnection/retry logic
 #

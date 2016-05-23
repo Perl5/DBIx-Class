@@ -5,7 +5,7 @@ use strict;
 
 use base 'DBICTest::BaseSchema';
 
-sub connect {
+sub connection {
   my($self, @opt) = @_;
   @opt == 4
     and $opt[0] eq 'klaatu'

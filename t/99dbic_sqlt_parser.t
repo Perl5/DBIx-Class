@@ -196,7 +196,7 @@ lives_ok (sub {
 {
   package DBICTest::PartialSchema;
 
-  use base qw/DBIx::Class::Schema/;
+  use base qw/DBICTest::BaseSchema/;
 
   __PACKAGE__->load_classes(
     { 'DBICTest::Schema' => [qw/

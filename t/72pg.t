@@ -79,8 +79,13 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   : (0)
 ) {
 
-  no warnings qw/once redefine/;
+  # doing it here instead of the actual class to keep the main thing under dfs
+  # and thus keep catching false positives (so far none, but one never knows)
+  mro::set_mro("DBICTest::Schema", "c3");
+
   my $old_connection = DBICTest::Schema->can('connection');
+
+  no warnings qw/once redefine/;
   local *DBICTest::Schema::connection = set_subname 'DBICTest::Schema::connection' => sub {
     my $s = shift->$old_connection(@_);
     $s->storage->_use_insert_returning ($use_insert_returning);
