@@ -8,6 +8,7 @@ use Test::More;
 use Module::Runtime 'require_module';
 use lib 'maint/.Generated_Pod/lib';
 use DBICTest;
+use DBIx::Class::Schema::SanityChecker;
 use namespace::clean;
 
 # this has already been required but leave it here for CPANTS static analysis
@@ -102,6 +103,11 @@ my $exceptions = {
             connection
         /]
     },
+    'DBIx::Class::Schema::SanityChecker' => {
+        ignore => [ map {
+          qr/^ (?: check_${_} | format_${_}_errors ) $/x
+        } @{ DBIx::Class::Schema::SanityChecker->available_checks } ]
+    },
 
     'DBIx::Class::Admin'        => {
         ignore => [ qw/
@@ -181,9 +187,10 @@ foreach my $module (@modules) {
 
     # build parms up from ignore list
     my $parms = {};
-    $parms->{trustme} =
-      [ map { qr/^$_$/ } @{ $ex->{ignore} } ]
-        if exists($ex->{ignore});
+    $parms->{trustme} = [ map
+      { ref $_ eq 'Regexp' ? $_ : qr/^\Q$_\E$/ }
+      @{ $ex->{ignore} }
+    ] if exists($ex->{ignore});
 
     # run the test with the potentially modified parm set
     Test::Pod::Coverage::pod_coverage_ok($module, $parms, "$module POD coverage");

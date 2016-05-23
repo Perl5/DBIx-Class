@@ -105,6 +105,10 @@ BEGIN {
     DBICTEST_DEBUG_CONCURRENCY_LOCKS
   )};
 
+  # ensures the checker won't be disabled in
+  # t/lib/DBICTest/BaseSchema.pm
+  $ENV{DBIC_ASSERT_NO_FAILING_SANITY_CHECKS} = 1;
+
   $ENV{DBICTEST_ANFANG_DEFANG} = 1;
 
   # make sure extras do not load even when this is set

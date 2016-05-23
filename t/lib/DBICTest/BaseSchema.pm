@@ -11,7 +11,54 @@ use DBIx::Class::_Util qw( emit_loud_diag scope_guard set_subname get_subname );
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
 use Scalar::Util qw( refaddr weaken );
+use Devel::GlobalDestruction ();
 use namespace::clean;
+
+# Unless we are running assertions there is no value in checking ourselves
+# during regular tests - the CI will do it for us
+#
+if (
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    and
+  # full-blown 5.8 sanity-checking is waaaaaay too slow, even for CI
+  (
+    ! DBIx::Class::_ENV_::OLD_MRO
+      or
+    # still run a couple test with this, even on 5.8
+    $ENV{DBICTEST_OLD_MRO_SANITY_CHECK_ASSERTIONS}
+  )
+) {
+
+  __PACKAGE__->schema_sanity_checker('DBIx::Class::Schema::SanityChecker');
+
+  # Repeat the check on going out of scope (will catch weird runtime tinkering)
+  # Add only in case we will be using it, as it slows tests down
+  eval <<'EOD' or die $@;
+
+  sub DESTROY {
+    if (
+      ! Devel::GlobalDestruction::in_global_destruction()
+        and
+      my $checker = $_[0]->schema_sanity_checker
+    ) {
+      $checker->perform_schema_sanity_checks($_[0]);
+    }
+
+    # *NOT* using next::method here - it (currently) will confuse Class::C3
+    # in some obscure cases ( 5.8 naturally )
+    shift->SUPER::DESTROY();
+  }
+
+  1;
+
+EOD
+
+}
+else {
+  # otherwise just unset the default
+  __PACKAGE__->schema_sanity_checker('');
+}
+
 
 if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
   my $ea = __PACKAGE__->exception_action( sub {

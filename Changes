@@ -33,6 +33,10 @@ Revision history for DBIx::Class
           instead of silently discarding the argument
 
     * New Features
+        - DBIC now performs a range of sanity checks on the entire hierarchy
+          of Schema/Result/ResultSet classes loudly alerting the end user to
+          potential extremely hard-to-diagnose pitfalls ( RT#93976, also fully
+          addresses https://blog.afoolishmanifesto.com/posts/mros-and-you/ )
         - InflateColumn::DateTime now accepts the ecosystem-standard option
           'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
         - Massively optimised literal SQL snippet scanner - fixes all known

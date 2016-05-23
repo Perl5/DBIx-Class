@@ -222,6 +222,9 @@ itself and various plugins are much more likely to invoke alternative direct
 call paths, bypassing your override entirely. Good examples of this are
 L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Schema/connect>.
 
+See also the check
+L<DBIx::Class::Schema::SanityChecker/no_indirect_method_overrides>.
+
 =head1 METHODS
 
 =head2 MODIFY_CODE_ATTRIBUTES

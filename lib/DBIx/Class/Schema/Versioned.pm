@@ -49,6 +49,13 @@ use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
 
+# no point sanity checking, unless we are running asserts
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    ? 'DBIx::Class::Schema::SanityChecker'
+    : ''
+);
+
 __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
 
 package # Hide from PAUSE
@@ -56,6 +63,13 @@ package # Hide from PAUSE
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
+
+# no point sanity checking, unless we are running asserts
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    ? 'DBIx::Class::Schema::SanityChecker'
+    : ''
+);
 
 __PACKAGE__->register_class('TableCompat', 'DBIx::Class::Version::TableCompat');
 

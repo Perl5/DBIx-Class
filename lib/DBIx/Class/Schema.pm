@@ -7,8 +7,9 @@ use base 'DBIx::Class';
 
 use DBIx::Class::Carp;
 use Try::Tiny;
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util qw( weaken blessed refaddr );
 use DBIx::Class::_Util qw(
+  false emit_loud_diag refdesc
   refcount quote_sub scope_guard
   is_exception dbic_internal_try
   fail_on_internal_call emit_loud_diag
@@ -26,6 +27,12 @@ __PACKAGE__->mk_classaccessor('default_resultset_attributes' => {});
 # screw with them
 __PACKAGE__->mk_classaccessor('class_mappings' => {});
 __PACKAGE__->mk_classaccessor('source_registrations' => {});
+
+__PACKAGE__->mk_group_accessors( component_class => 'schema_sanity_checker' );
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::OLD_MRO ? false :
+  'DBIx::Class::Schema::SanityChecker'
+);
 
 =head1 NAME
 
@@ -454,6 +461,42 @@ Example:
    use base qw/DBIx::Class::Schema/;
    __PACKAGE__->default_resultset_attributes( { software_limit => 1 } );
 
+=head2 schema_sanity_checker
+
+=over 4
+
+=item Arguments: L<perform_schema_sanity_checks()|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> provider
+
+=item Return Value: L<perform_schema_sanity_checks()|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> provider
+
+=item Default value: L<DBIx::Class::Schema::SanityChecker>
+
+=back
+
+On every call to L</connection> if the value of this attribute evaluates to
+true, DBIC will invoke
+C<< L<$schema_sanity_checker|/schema_sanity_checker>->L<perform_schema_sanity_checks|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks>($schema) >>
+before returning. The return value of this invocation is ignored.
+
+B<YOU ARE STRONGLY URGED> to
+L<learn more about the reason|DBIx::Class::Schema::SanityChecker/WHY> this
+feature was introduced. Blindly disabling the checker on existing projects
+B<may result in data corruption> after upgrade to C<< DBIC >= v0.082900 >>.
+
+Example:
+
+   package My::Schema;
+   use base qw/DBIx::Class::Schema/;
+   __PACKAGE__->schema_sanity_checker('My::Schema::SanityChecker');
+
+   # or to disable all checks:
+   __PACKAGE__->schema_sanity_checker('');
+
+Note: setting the value to C<undef> B<will not> have the desired effect,
+due to an implementation detail of L<Class::Accessor::Grouped> inherited
+accessors. In order to disable any and all checks you must set this
+attribute to an empty string as shown in the second example above.
+
 =head2 exception_action
 
 =over 4
@@ -859,12 +902,17 @@ Similar to L</connect> except sets the storage object and connection
 data B<in-place> on C<$self>. You should probably be calling
 L</connect> to get a properly L<cloned|/clone> Schema object instead.
 
+If the accessor L</schema_sanity_checker> returns a true value C<$checker>,
+the following call will take place before return:
+C<< L<$checker|/schema_sanity_checker>->L<perform_schema_sanity_checks(C<$self>)|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> >>
+
 =head3 Overloading
 
 Overload C<connection> to change the behaviour of C<connect>.
 
 =cut
 
+my $default_off_stderr_blurb_emitted;
 sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
@@ -888,7 +936,53 @@ sub connection {
   my $storage = $storage_class->new( $self => $args||{} );
   $storage->connect_info(\@info);
   $self->storage($storage);
-  return $self;
+
+
+###
+### Begin 5.8 "you have not selected a checker" warning
+###
+  # We can not blanket-enable this on 5.8 - it is just too expensive for
+  # day to day execution. We also can't just go silent - there are genuine
+  # regressions ( due to core changes) for which this is the only line of
+  # defense. So instead we whine on STDERR that folks need to do something
+  #
+  # Beyond suboptimal, but given the constraints the best we can do :(
+  #
+  # This should stay around for at least 3~4 years
+  #
+  DBIx::Class::_ENV_::OLD_MRO
+    and
+  ! $default_off_stderr_blurb_emitted
+    and
+  length ref $self->schema_sanity_checker
+    and
+  length ref __PACKAGE__->schema_sanity_checker
+    and
+  (
+    refaddr( $self->schema_sanity_checker )
+      ==
+    refaddr( __PACKAGE__->schema_sanity_checker )
+  )
+    and
+  emit_loud_diag(
+    msg => sprintf(
+    "Sanity checks for schema %s are disabled on this perl $]: "
+  . '*THIS IS POTENTIALLY VERY DANGEROUS*. You are strongly urged to '
+  . "read http://is.gd/dbic_sancheck_5_008 before proceeding\n",
+    ( defined( blessed $self ) ? refdesc $self : "'$self'" )
+  ))
+    and
+  $default_off_stderr_blurb_emitted = 1;
+###
+### End 5.8 "you have not selected a checker" warning
+###
+
+
+  if( my $checker = $self->schema_sanity_checker ) {
+    $checker->perform_schema_sanity_checks($self);
+  }
+
+  $self;
 }
 
 sub _normalize_storage_type {
