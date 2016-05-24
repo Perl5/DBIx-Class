@@ -7,6 +7,10 @@ BEGIN {
     require warnings and warnings->import;
     require strict and strict->import;
   }
+
+  # Temporary to satisfy TempExtlib under tests
+  require DBIx::Class::StartupCheck
+    if $0 =~ /\.t$/;
 }
 
 sub croak {

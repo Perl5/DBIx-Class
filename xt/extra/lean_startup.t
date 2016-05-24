@@ -141,6 +141,7 @@ BEGIN {
     Sub::Name
     Sub::Defer
     Sub::Quote
+    File::Spec
 
     Scalar::Util
     Storable

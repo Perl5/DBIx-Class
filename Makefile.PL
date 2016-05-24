@@ -21,6 +21,40 @@ BEGIN {
   $Module::Install::AUTHOR = 0 if (grep { $ENV{"PERL5_${_}_IS_RUNNING"} } (qw/CPANM CPANPLUS CPAN/) );
 }
 
+##
+## TEMPORARY (and non-portable)
+## Get trial Moo
+##
+BEGIN {
+  my $target_libdir = 'lib/DBIx/Class/_TempExtlib';
+
+  if ( ($Module::Install::AUTHOR or $ENV{TRAVIS}) and ! $ENV{MAKELEVEL} ) {
+
+    `rm -rf $target_libdir`;
+    `mkdir $target_libdir`;
+    for (
+      [ 'Sub::Quote' => master => 'https://github.com/moose/Moo.git' ],
+    ) {
+      my $tdir = "/tmp/dbictemplib/$_->[0]/";
+
+      `rm -rf $tdir`;
+
+      `GIT_SSH=maint/careless_ssh.bash git clone --bare --quiet --branch=$_->[1] --depth=1 $_->[2] $tdir`;
+      printf "\nIncluding %s git rev %s\n",
+        $_->[0],
+        scalar `GIT_DIR=$tdir git rev-parse $_->[1]`,
+      ;
+      `git archive --format=tar --remote=file://$tdir $_->[1] lib/ | tar --strip-components=1 -xC $target_libdir`;
+
+      #`rm -rf $tdir`;
+    }
+
+    unshift @INC, $target_libdir;
+
+    no_index directory => $target_libdir;
+  }
+}
+
 name         'DBIx-Class';
 version_from 'lib/DBIx/Class.pm';
 perl_version '5.008001';
@@ -59,6 +93,9 @@ my $runtime_requires = {
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.81',
   'Try::Tiny'                => '0.07',
+
+  # Temp to satisfy TemptExtlib
+  'Role::Tiny'               => '2.000002',
 
   # Technically this is not a core dependency - it is only required
   # by the MySQL codepath. However this particular version is bundled
