@@ -47,6 +47,11 @@ sub MODIFY_CODE_ATTRIBUTES {
   return ();
 }
 
+sub FETCH_CODE_ATTRIBUTES {
+  my ($class,$code) = @_;
+  @{ $class->_attr_cache->{$code} || [] }
+}
+
 sub _attr_cache {
   my $self = shift;
   my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};

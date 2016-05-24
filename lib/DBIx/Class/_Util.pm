@@ -103,7 +103,11 @@ our @EXPORT_OK = qw(
 use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
 
 BEGIN {
+  # add preliminary attribute support
+  # FIXME FIXME FIXME
+  # To be revisited when Moo with proper attr support ships
   Sub::Quote->VERSION(2.002);
+  require attributes;
 }
 # Override forcing no_defer, and adding naming consistency checks
 sub quote_sub {
@@ -139,6 +143,27 @@ sub quote_sub {
   };
 
   my $cref = Sub::Quote::quote_sub( $_[0], $_[1], $_[2]||{}, $sq_opts );
+
+  # FIXME FIXME FIXME
+  # To be revisited when Moo with proper attr support ships
+  if(
+    # external application does not work on things like :prototype(...), :lvalue, etc
+    my @attrs = grep {
+      $_ !~ /^[a-z]/
+        or
+      Carp::confess( "The DBIC sub_quote override does not support applying of reserved attribute '$_'" )
+    } @{ $sq_opts->{attributes} || []}
+  ) {
+    Carp::confess( "The DBIC sub_quote override does not allow mixing 'attributes' with 'no_install'" )
+      if $sq_opts->{no_install};
+
+    # might be different from $sq_opts->{package};
+    my ($install_into) = $_[0] =~ /(.+)::[^:]+$/;
+
+    attributes->import( $install_into, $cref, @attrs );
+  }
+
+  $cref;
 }
 
 sub sigwarn_silencer ($) {

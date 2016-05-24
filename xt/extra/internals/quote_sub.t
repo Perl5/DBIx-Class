@@ -47,4 +47,30 @@ warnings_exist { $no_nothing_q->()->() } [
   }
 ;
 
+### Test the upcoming attributes support
+require DBIx::Class;
+@DBICTest::QSUB::ISA  = 'DBIx::Class';
+
+my $var = \42;
+my $s = quote_sub(
+  'DBICTest::QSUB::attr',
+  '$v',
+  { '$v' => $var },
+  {
+    # use grandfathered 'ResultSet' attribute for starters
+    attributes => [qw( ResultSet )],
+    package => 'DBICTest::QSUB',
+  },
+);
+
+is $s, \&DBICTest::QSUB::attr, 'Same cref installed';
+
+is DBICTest::QSUB::attr(), 42, 'Sub properly installed and callable';
+
+is_deeply
+  [ attributes::get( $s ) ],
+  [ 'ResultSet' ],
+  'Attribute installed',
+unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+
 done_testing;
