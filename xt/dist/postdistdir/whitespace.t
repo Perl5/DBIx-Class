@@ -27,9 +27,19 @@ Test::EOL::all_perl_files_ok({ trailing_whitespace => 1 }, @pl_targets);
 Test::NoTabs::all_perl_files_ok(@pl_targets);
 
 # check some non-"perl files" in the root separately
-my @root_files = grep { -f $_ } bsd_glob('*');
+# start with what we want to check no matter what .gitignore says
+my @root_files = grep { -f $_ } qw(
+  Changes
+  LICENSE
+  AUTHORS
+  README
+  MANIFEST
+  META.yml
+  META.json
+);
 
-# use .gitignore as a partial guide of what to skip
+# if .gitignore is available - go for * and use .gitignore as a guide
+# of what to skip
 if (open(my $gi, '<', '.gitignore')) {
   my $skipnames;
   while (my $ln = <$gi>) {
@@ -38,18 +48,13 @@ if (open(my $gi, '<', '.gitignore')) {
     $skipnames->{$_}++ for bsd_glob($ln);
   }
 
-  # these we want to check no matter what the above says
-  delete @{$skipnames}{qw(
-    Changes
-    LICENSE
-    AUTHORS
-    README
-    MANIFEST
-    META.yml
-    META.json
-  )};
+  delete @{$skipnames}{@root_files};
 
-  @root_files = grep { ! $skipnames->{$_} } @root_files;
+  @root_files = grep {
+    ! $skipnames->{$_}
+      and
+    -f $_
+  } bsd_glob('*');
 }
 
 for my $fn (@root_files) {
