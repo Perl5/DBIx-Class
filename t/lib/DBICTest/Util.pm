@@ -31,7 +31,7 @@ use Config;
 use Carp qw(cluck confess croak);
 use Fcntl qw( :DEFAULT :flock );
 use Scalar::Util qw( blessed refaddr openhandle );
-use DBIx::Class::_Util qw( scope_guard parent_dir mkdir_p );
+use DBIx::Class::_Util qw( scope_guard parent_dir );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
@@ -249,7 +249,15 @@ EOE
       # polluting the root dir with random crap or failing outright
       my $local_dir = find_co_root . 't/var/';
 
-      mkdir_p $local_dir;
+      # Generlly this should be handled by ANFANG, but double-check ourselves
+      # Not using mkdir_p here: we *know* everything else up until 'var' exists
+      # If it doesn't - we better fail outright
+      # (also saves an extra File::Path require(), small enough as it is)
+      -d $local_dir
+        or
+      mkdir $local_dir
+        or
+      die "Unable to create build-local tempdir '$local_dir': $!\n";
 
       warn "\n\nUsing '$local_dir' as test scratch-dir instead of '$dir': $reason_dir_unusable\n\n";
       $dir = $local_dir;
