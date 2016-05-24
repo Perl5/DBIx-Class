@@ -98,6 +98,7 @@ BEGIN {
   # these envvars *will* bring in more stuff than the baseline
   delete @ENV{qw(
     DBIC_TRACE
+    DBIC_SHUFFLE_UNORDERED_RESULTSETS
     DBICTEST_SQLT_DEPLOY
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER
     DBICTEST_VIA_REPLICATED
@@ -142,7 +143,6 @@ BEGIN {
     Sub::Quote
 
     Scalar::Util
-    List::Util
     Storable
 
     Class::Accessor::Grouped
@@ -234,6 +234,7 @@ EOP
   my $art = $s->resultset('Artist')->create({ name => \[ '?' => 'foo'], rank => 42 });
   $art->discard_changes;
   $art->update({ rank => 69, name => 'foo' });
+  $s->resultset('Artist')->all;
   assert_no_missing_expected_requires();
 }
 

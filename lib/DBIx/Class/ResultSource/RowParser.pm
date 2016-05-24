@@ -8,7 +8,6 @@ use base 'DBIx::Class';
 use mro 'c3';
 
 use Try::Tiny;
-use List::Util 'max';
 
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
@@ -405,7 +404,14 @@ sub _resolve_collapse {
       # coderef later
       $collapse_map->{-identifying_columns} = [];
       $collapse_map->{-identifying_columns_variants} = [ sort {
-        (scalar @$a) <=> (scalar @$b) or max(@$a) <=> max(@$b)
+        (scalar @$a) <=> (scalar @$b)
+          or
+        (
+          # Poor man's max()
+          ( sort { $b <=> $a } @$a )[0]
+            <=>
+          ( sort { $b <=> $a } @$b )[0]
+        )
       } @collapse_sets ];
     }
   }

@@ -182,10 +182,12 @@ sub all {
 
   (undef, $sth) = $self->storage->_select( @{$self->{args}} );
 
-  return (
+  (
     DBIx::Class::_ENV_::SHUFFLE_UNORDERED_RESULTSETS
       and
     ! $self->{attrs}{order_by}
+      and
+    require List::Util
   )
     ? List::Util::shuffle( @{$sth->fetchall_arrayref} )
     : @{$sth->fetchall_arrayref}
