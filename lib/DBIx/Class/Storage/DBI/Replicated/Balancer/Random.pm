@@ -20,10 +20,6 @@ Given a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>) of replicated
 database's (L<DBIx::Class::Storage::DBI::Replicated::Replicant>), defines a
 method by which query load can be spread out across each replicant in the pool.
 
-This Balancer uses L<List::Util> keyword 'shuffle' to randomly pick an active
-replicant from the associated pool.  This may or may not be random enough for
-you, patches welcome.
-
 =head1 ATTRIBUTES
 
 This class defines the following attributes.
