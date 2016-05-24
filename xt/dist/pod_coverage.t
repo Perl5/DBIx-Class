@@ -116,6 +116,8 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::_TempExtlib*'                     => { skip => 1 },
+
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },

@@ -167,6 +167,8 @@ find({
   wanted => sub {
     -f $_ or return;
 
+    $_ =~ m|lib/DBIx/Class/_TempExtlib| and return;
+
     # can't just `require $fn`, as we need %INC to be
     # populated properly
     my ($mod) = $_ =~ /^ lib [\/\\] (.+) \.pm $/x

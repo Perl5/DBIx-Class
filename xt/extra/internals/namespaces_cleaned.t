@@ -208,6 +208,7 @@ sub find_modules {
   find( {
     wanted => sub {
       -f $_ or return;
+      $_ =~ m|lib/DBIx/Class/_TempExtlib| and return;
       s/\.pm$// or return;
       s/^ (?: lib | blib . (?:lib|arch) ) . //x;
       push @modules, join ('::', File::Spec->splitdir($_));

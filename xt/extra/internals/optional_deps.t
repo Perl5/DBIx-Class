@@ -20,6 +20,9 @@ use List::Util 'shuffle';
 use Config;
 
 SKIP: {
+  skip 'Lean load pattern testing makes no sense with TempExtlib', 1
+    if grep { $_ =~ /TempExtlib/ } @INC;
+
   skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1
     if $ENV{PERL5OPT};
 

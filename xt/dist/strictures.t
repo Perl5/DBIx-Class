@@ -46,6 +46,10 @@ find({
       t/lib/ANFANG.pm                                 # no stictures by design (load speed sensitive)
         |
       lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/StartupCheck.pm                  # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/_TempExtlib/.+
     )$}x;
 
     my $f = $_;

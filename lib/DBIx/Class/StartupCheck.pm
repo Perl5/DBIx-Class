@@ -1,8 +1,5 @@
 package DBIx::Class::StartupCheck;
 
-use strict;
-use warnings;
-
 1;
 
 __END__

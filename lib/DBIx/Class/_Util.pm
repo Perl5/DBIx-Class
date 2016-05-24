@@ -1,6 +1,8 @@
 package # hide from PAUSE
   DBIx::Class::_Util;
 
+use DBIx::Class::StartupCheck;  # load es early as we can, usually a noop
+
 use warnings;
 use strict;
 
