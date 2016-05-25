@@ -41,6 +41,8 @@ find({
     return if m{^(?:
       maint/Makefile.PL.inc/.+                        # all the maint inc snippets are auto-strictured
         |
+      t/lib/DBICTest/WithTaint.pm                     # no stictures by design (trips up local::lib on older perls)
+        |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
         |
       t/lib/ANFANG.pm                                 # no stictures by design (load speed sensitive)

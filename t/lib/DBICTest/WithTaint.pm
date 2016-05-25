@@ -1,4 +1,3 @@
-# keep stricture tests happy
-use strict;
-use warnings;
+package DBICTest::WithTaint;
+
 1;

@@ -35,8 +35,20 @@ if [[ "$MVDT" == "true" ]] ; then
     # the fulltest may re-upgrade DBI, be conservative only on cleantests
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
+    fi
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz"
+    fi
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite

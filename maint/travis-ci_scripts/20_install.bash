@@ -64,6 +64,13 @@ elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] ; then
   purge_sitelib
 fi
 
+if [[ "$POISON_ENV" = "true" ]] ; then
+  # create a perlbrew-specific local lib
+  perlbrew lib create travis-local
+  perlbrew use "$( perlbrew use | grep -oP '(?<=Currently using ).+' )@travis-local"
+  echo_err "POISON_ENV active - adding a local lib: $(perlbrew use)"
+fi
+
 # configure CPAN.pm - older versions go into an endless loop
 # when trying to autoconf themselves
 CPAN_CFG_SCRIPT="
