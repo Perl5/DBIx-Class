@@ -1,5 +1,4 @@
-package # hide from PAUSE
-    DBIx::Class::MethodAttributes;
+package DBIx::Class::MethodAttributes;
 
 use strict;
 use warnings;
@@ -10,10 +9,11 @@ use Scalar::Util qw( weaken refaddr );
 use mro 'c3';
 use namespace::clean;
 
-my $attr_cref_registry;
+my ( $attr_cref_registry, $attr_cache_active );
 sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
 
   # This is disgusting, but the best we can do without even more surgery
+  # Note the if() at the end - we do not run this crap if we can help it
   visit_namespaces( action => sub {
     my $pkg = shift;
 
@@ -34,7 +34,7 @@ sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
     }
 
     return 1;
-  });
+  }) if $attr_cache_active;
 
   # renumber the cref registry itself
   %$attr_cref_registry = map {
@@ -48,9 +48,16 @@ sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
 }
 
 sub MODIFY_CODE_ATTRIBUTES {
-  my ($class,$code,@attrs) = @_;
-  $class->mk_classaccessor('__attr_cache' => {})
-    unless $class->can('__attr_cache');
+  my $class = shift;
+  my $code = shift;
+
+  my $attrs;
+  $attrs->{
+    $_ =~ /^[a-z]+$/  ? 'builtin'
+  : $_ =~ /^DBIC_/    ? 'dbic'
+  :                     'misc'
+  }{$_}++ for @_;
+
 
   # compaction step
   defined $attr_cref_registry->{$_}{weakref} or delete $attr_cref_registry->{$_}
@@ -69,10 +76,37 @@ sub MODIFY_CODE_ATTRIBUTES {
     weaken( $attr_cref_registry->{$code}{weakref} = $code )
   }
 
-  $class->__attr_cache->{$code} = [ sort( uniq(
-    @{ $class->__attr_cache->{$code} || [] },
-    @attrs,
-  ))];
+  # handle legacy attrs
+  if( $attrs->{misc} ) {
+
+    # if the user never tickles this - we won't have to do a gross
+    # symtable scan in the ithread handler above, so:
+    #
+    # User - please don't tickle this
+    $attr_cache_active = 1;
+
+    $class->mk_classaccessor('__attr_cache' => {})
+      unless $class->can('__attr_cache');
+
+    $class->__attr_cache->{$code} = [ sort( uniq(
+      @{ $class->__attr_cache->{$code} || [] },
+      keys %{ $attrs->{misc} },
+    ))];
+  }
+
+  # handle DBIC_* attrs
+  if( $attrs->{dbic} ) {
+    my $slot = $attr_cref_registry->{$code};
+
+    $slot->{attrs} = [ uniq
+      @{ $slot->{attrs} || [] },
+      grep {
+        $class->VALID_DBIC_CODE_ATTRIBUTE($_)
+          or
+        Carp::confess( "DBIC-specific attribute '$_' did not pass validation by $class->VALID_DBIC_CODE_ATTRIBUTE() as described in DBIx::Class::MethodAttributes" )
+      } keys %{$attrs->{dbic}},
+    ];
+  }
 
   # FIXME - DBIC essentially gobbles up any attribute it can lay its hands on:
   # decidedly not cool
@@ -85,12 +119,33 @@ sub MODIFY_CODE_ATTRIBUTES {
   # https://metacpan.org/source/ZIGOROU/DBIx-Class-Service-0.02/t/lib/DBIC/Test/Service/User.pm#L29
   # https://metacpan.org/source/ZIGOROU/DBIx-Class-Service-0.02/t/lib/DBIC/Test/Service/User.pm#L36
   #
-  return ();
+  # For the time being reuse the old logic for any attribute we do not have
+  # explicit plans for (i.e. stuff that is neither reserved, nor DBIC-internal)
+  #
+  # Pass the "builtin attrs" onwards, as the DBIC internals can't possibly  handle them
+  return sort keys %{ $attrs->{builtin} || {} };
+}
+
+# Address the above FIXME halfway - if something (e.g. DBIC::Helpers) wants to
+# add extra attributes - it needs to override this in its base class to allow
+# for 'return 1' on the newly defined attributes
+sub VALID_DBIC_CODE_ATTRIBUTE {
+  #my ($class, $attr) = @_;
+
+  # initially no valid attributes
+  0;
 }
 
 sub FETCH_CODE_ATTRIBUTES {
-  my ($class,$code) = @_;
-  @{ $class->_attr_cache->{$code} || [] }
+  #my ($class,$code) = @_;
+
+  sort(
+    @{ $_[0]->_attr_cache->{$_[1]} || [] },
+    ( defined( $attr_cref_registry->{$_[1]}{ weakref } )
+      ? @{ $attr_cref_registry->{$_[1]}{attrs} || [] }
+      : ()
+    ),
+  )
 }
 
 sub _attr_cache {
@@ -102,3 +157,95 @@ sub _attr_cache {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+DBIx::Class::MethodAttributes - DBIC-specific handling of CODE attributes
+
+=head1 SYNOPSIS
+
+ my @attrlist = attributes::get( \&My::App::Schema::Result::some_method )
+
+=head1 DESCRIPTION
+
+This class provides the L<DBIx::Class> inheritance chain with the bits
+necessary for L<attribute|attributes> support on methods.
+
+Historically DBIC has accepted any string as a C<CODE> attribute and made
+such strings available via the semi-private L</_attr_cache> method. This
+was used for e.g. the long-deprecated L<DBIx::Class::ResultSetManager>,
+but also has evidence of use on both C<CPAN> and C<DarkPAN>.
+
+Starting mid-2016 DBIC treats any method attribute starting with C<DBIC_>
+as an I<internal boolean decorator> for various DBIC-related methods.
+Unlike the general attribute naming policy, strict whitelisting is imposed
+on attribute names starting with C<DBIC_> as described in
+L</VALID_DBIC_CODE_ATTRIBUTE> below.
+
+=head2 DBIC-specific method attributes
+
+The following method attributes are currently recognized under the C<DBIC_*>
+prefix:
+
+=over
+
+=item * None so far
+
+=back
+
+=head1 METHODS
+
+=head2 MODIFY_CODE_ATTRIBUTES
+
+See L<attributes/MODIFY_type_ATTRIBUTES>.
+
+=head2 FETCH_CODE_ATTRIBUTES
+
+See L<attributes/FETCH_type_ATTRIBUTES>. Always returns the combination of
+all attributes: both the free-form strings registered via the
+L<legacy system|/_attr_cache> and the DBIC-specific ones.
+
+=head2 VALID_DBIC_CODE_ATTRIBUTE
+
+=over
+
+=item Arguments: $attribute_string
+
+=item Return Value: ( true| false )
+
+=back
+
+This method is invoked when processing each DBIC-specific attribute (the ones
+starting with C<DBIC_>). An attribute is considered invalid and an exception
+is thrown unless this method returns a C<truthy> value.
+
+=head2 _attr_cache
+
+=over
+
+=item Arguments: none
+
+=item Return Value: B<purposefully undocumented>
+
+=back
+
+The legacy method of retrieving attributes declared on DBIC methods
+(L</FETCH_CODE_ATTRIBUTES> was not defined until mid-2016). This method
+B<does not return any DBIC-specific attributes>, and is kept for backwards
+compatibility only.
+
+In order to query the attributes of a particular method use
+L<attributes::get()|attributes/get> as shown in the L</SYNOPSIS>.
+
+=head1 FURTHER QUESTIONS?
+
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
+
+=head1 COPYRIGHT AND LICENSE
+
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

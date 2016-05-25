@@ -116,7 +116,6 @@ my $exceptions = {
 
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
-    'DBIx::Class::MethodAttributes'                 => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
     'DBIx::Class::AccessorGroup'                    => { skip => 1 },
     'DBIx::Class::Relationship::*'                  => { skip => 1 },

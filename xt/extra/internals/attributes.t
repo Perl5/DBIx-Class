@@ -21,75 +21,130 @@ BEGIN {
 }
 
 use Test::More;
-use DBIx::Class::_Util qw( quote_sub modver_gt_or_eq );
+use Test::Exception;
+use DBIx::Class::_Util qw( quote_sub );
 
 require DBIx::Class;
-@DBICTest::ATTRTEST::ISA  = 'DBIx::Class';
+@DBICTest::AttrLegacy::ISA  = 'DBIx::Class';
+sub DBICTest::AttrLegacy::VALID_DBIC_CODE_ATTRIBUTE { 1 }
 
 my $var = \42;
 my $s = quote_sub(
-  'DBICTest::ATTRTEST::attr',
+  'DBICTest::AttrLegacy::attr',
   '$v',
   { '$v' => $var },
   {
-    attributes => [qw( ResultSet )],
-    package => 'DBICTest::ATTRTEST',
+    attributes => [qw( ResultSet DBIC_random_attr )],
+    package => 'DBICTest::AttrLegacy',
   },
 );
 
-is $s, \&DBICTest::ATTRTEST::attr, 'Same cref installed';
+is $s, \&DBICTest::AttrLegacy::attr, 'Same cref installed';
 
-is DBICTest::ATTRTEST::attr(), 42, 'Sub properly installed and callable';
+is DBICTest::AttrLegacy::attr(), 42, 'Sub properly installed and callable';
 
 is_deeply
-  [ attributes::get( $s ) ],
-  [ 'ResultSet' ],
+  [ sort( attributes::get( $s ) ) ],
+  [qw( DBIC_random_attr ResultSet )],
   'Attribute installed',
 unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+
+
+@DBICTest::AttrTest::ISA  = 'DBIx::Class';
+{
+    package DBICTest::AttrTest;
+
+    eval <<'EOS' or die $@;
+      sub VALID_DBIC_CODE_ATTRIBUTE { $_[1] =~ /DBIC_attr/ }
+      sub attr :lvalue :method :DBIC_attr1 { $$var}
+      1;
+EOS
+
+    ::throws_ok {
+      attributes->import(
+        'DBICTest::AttrTest',
+        DBICTest::AttrTest->can('attr'),
+        'DBIC_unknownattr',
+      );
+    } qr/DBIC-specific attribute 'DBIC_unknownattr' did not pass validation/;
+}
+
+is_deeply
+  [ sort( attributes::get( DBICTest::AttrTest->can("attr") )) ],
+  [qw( DBIC_attr1 lvalue method )],
+  'Attribute installed',
+unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+
+ok(
+  ! DBICTest::AttrTest->can('__attr_cache'),
+  'Inherited classdata never created on core attrs'
+);
+
+is_deeply(
+  DBICTest::AttrTest->_attr_cache,
+  {},
+  'Cache never instantiated on core attrs'
+);
 
 sub add_more_attrs {
   # Test that secondary attribute application works
   attributes->import(
-    'DBICTest::ATTRTEST',
-    DBICTest::ATTRTEST->can('attr'),
-    'method',
+    'DBICTest::AttrLegacy',
+    DBICTest::AttrLegacy->can('attr'),
     'SomethingNobodyUses',
   );
 
   # and that double-application also works
   attributes->import(
-    'DBICTest::ATTRTEST',
-    DBICTest::ATTRTEST->can('attr'),
+    'DBICTest::AttrLegacy',
+    DBICTest::AttrLegacy->can('attr'),
     'SomethingNobodyUses',
   );
 
   is_deeply
     [ sort( attributes::get( $s ) )],
-    [
-      qw( ResultSet SomethingNobodyUses method ),
-
-      # before 5.10/5.8.9 internal reserved would get doubled, sigh
-      #
-      # FIXME - perhaps need to weed them out somehow at FETCH_CODE_ATTRIBUTES
-      # time...? In any case - this is not important at this stage
-      ( modver_gt_or_eq( attributes => '0.08' ) ? () : 'method' )
-    ],
+    [ qw( DBIC_random_attr ResultSet SomethingNobodyUses ) ],
     'Secondary attributes installed',
   unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
 
   is_deeply (
-    DBICTest::ATTRTEST->_attr_cache->{$s},
-    [
-      qw( ResultSet SomethingNobodyUses ),
+    DBICTest::AttrLegacy->_attr_cache->{$s},
+    [ qw( ResultSet SomethingNobodyUses ) ],
+    'Attributes visible in legacy DBIC attribute API',
+  );
 
-      # after 5.10/5.8.9 FETCH_CODE_ATTRIBUTES is never called for reserved
-      # attribute names, so there is nothing for DBIC to see
-      #
-      # FIXME - perhaps need to teach ->_attr to reinvoke attributes::get() ?
-      # In any case - this is not important at this stage
-      ( modver_gt_or_eq( attributes => '0.08' ) ? () : 'method' )
-    ],
-    'Attributes visible in DBIC-specific attribute API',
+
+
+  # Test that secondary attribute application works
+  attributes->import(
+    'DBICTest::AttrTest',
+    DBICTest::AttrTest->can('attr'),
+    'DBIC_attr2',
+  );
+
+  # and that double-application also works
+  attributes->import(
+    'DBICTest::AttrTest',
+    DBICTest::AttrTest->can('attr'),
+    'DBIC_attr2',
+    'DBIC_attr3',
+  );
+
+  is_deeply
+    [ sort( attributes::get( DBICTest::AttrTest->can("attr") )) ],
+    [qw( DBIC_attr1 DBIC_attr2 DBIC_attr3 lvalue method )],
+    'DBIC-specific attribute installed',
+  unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+
+  ok(
+    ! DBICTest::AttrTest->can('__attr_cache'),
+    'Inherited classdata never created on core+DBIC-specific attrs'
+  );
+
+  is_deeply(
+    DBICTest::AttrTest->_attr_cache,
+    {},
+    'Legacy DBIC attribute cache never instantiated on core+DBIC-specific attrs'
   );
 }
 
