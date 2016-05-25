@@ -17,7 +17,10 @@ BEGIN {
         . "Unable to continue - a part of the bundled templib contents "
         . "was already loaded (likely an older version from CPAN). "
         . "Make sure that @{[ __PACKAGE__ ]} is loaded before $_\n"
-        . "\n\tThis *WILL NOT* be necessary for the official DBIC release\n\n"
+        . "\nUsually it is sufficient to add PERL5OPT=\"-M@{[ __PACKAGE__ ]}\" "
+        . "to your environment in order to resolve this problem\n"
+        . "\n\tThis is temporary and *WILL NOT* be necessary for the official "
+        . "DBIC release\n\n"
       ;
     }
   }

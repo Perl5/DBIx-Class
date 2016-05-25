@@ -1,5 +1,8 @@
 package DBIx::Class;
 
+# important to load early
+use DBIx::Class::_Util;
+
 use strict;
 use warnings;
 
@@ -15,11 +18,9 @@ $VERSION = '0.082899_15';
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
-use DBIx::Class::_Util;
 use mro 'c3';
 
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
-use DBIx::Class::StartupCheck;
 use DBIx::Class::Exception;
 
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
