@@ -94,8 +94,8 @@ our @EXPORT_OK = qw(
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr set_subname
   scope_guard detected_reinvoked_destructor
-  is_exception dbic_internal_try
-  quote_sub qsub perlstring serialize deep_clone dump_value
+  is_exception dbic_internal_try visit_namespaces
+  quote_sub qsub perlstring serialize deep_clone dump_value uniq
   parent_dir mkdir_p
   UNRESOLVABLE_CONDITION
 );
@@ -200,6 +200,36 @@ sub refcount ($) {
   B::svref_2object($_[0])->REFCNT;
 }
 
+sub visit_namespaces {
+  my $args = { (ref $_[0]) ? %{$_[0]} : @_ };
+
+  my $visited_count = 1;
+
+  # A package and a namespace are subtly different things
+  $args->{package} ||= 'main';
+  $args->{package} = 'main' if $args->{package} =~ /^ :: (?: main )? $/x;
+  $args->{package} =~ s/^:://;
+
+  if ( $args->{action}->($args->{package}) ) {
+    my $ns =
+      ( ($args->{package} eq 'main') ? '' :  $args->{package} )
+        .
+      '::'
+    ;
+
+    $visited_count += visit_namespaces( %$args, package => $_ ) for
+      grep
+        # this happens sometimes on %:: traversal
+        { $_ ne '::main' }
+        map
+          { $_ =~ /^(.+?)::$/ ? "$ns$1" : () }
+          do { no strict 'refs'; keys %$ns }
+    ;
+  }
+
+  $visited_count;
+}
+
 # FIXME In another life switch this to a polyfill like the one in namespace::clean
 sub set_subname ($$) {
 
@@ -213,6 +243,15 @@ sub set_subname ($$) {
 sub serialize ($) {
   local $Storable::canonical = 1;
   nfreeze($_[0]);
+}
+
+sub uniq {
+  my( %seen, $seen_undef, $numeric_preserving_copy );
+  grep { not (
+    defined $_
+      ? $seen{ $numeric_preserving_copy = $_ }++
+      : $seen_undef++
+  ) } @_;
 }
 
 my $dd_obj;

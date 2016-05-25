@@ -57,7 +57,7 @@ use List::Util 'max';
 use ExtUtils::MakeMaker;
 
 use DBICTest::RunMode;
-use DBICTest::Util 'visit_namespaces';
+use DBIx::Class::_Util 'visit_namespaces';
 use DBIx::Class::Optional::Dependencies;
 
 my $known_paths = {

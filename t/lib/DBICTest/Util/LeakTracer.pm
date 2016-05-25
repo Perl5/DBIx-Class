@@ -6,9 +6,9 @@ use strict;
 use ANFANG;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
-use DBIx::Class::_Util qw(refcount hrefaddr refdesc dump_value);
+use DBIx::Class::_Util qw(refcount hrefaddr refdesc dump_value visit_namespaces);
 use DBICTest::RunMode;
-use DBICTest::Util qw( stacktrace visit_namespaces );
+use DBICTest::Util 'stacktrace';
 use constant {
   CV_TRACING => !!(
     !DBICTest::RunMode->is_plain

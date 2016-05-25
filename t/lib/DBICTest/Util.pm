@@ -37,7 +37,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace class_seems_loaded
   local_umask slurp_bytes tmpdir find_co_root rm_rf
-  visit_namespaces PEEPEENESS
+  PEEPEENESS
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
 );
@@ -407,36 +407,6 @@ sub check_customcond_args ($) {
     if $struct_cnt == 2;
 
   $args;
-}
-
-sub visit_namespaces {
-  my $args = { (ref $_[0]) ? %{$_[0]} : @_ };
-
-  my $visited_count = 1;
-
-  # A package and a namespace are subtly different things
-  $args->{package} ||= 'main';
-  $args->{package} = 'main' if $args->{package} =~ /^ :: (?: main )? $/x;
-  $args->{package} =~ s/^:://;
-
-  if ( $args->{action}->($args->{package}) ) {
-    my $ns =
-      ( ($args->{package} eq 'main') ? '' :  $args->{package} )
-        .
-      '::'
-    ;
-
-    $visited_count += visit_namespaces( %$args, package => $_ ) for
-      grep
-        # this happens sometimes on %:: traversal
-        { $_ ne '::main' }
-        map
-          { $_ =~ /^(.+?)::$/ ? "$ns$1" : () }
-          do { no strict 'refs'; keys %$ns }
-    ;
-  }
-
-  return $visited_count;
 }
 
 #
