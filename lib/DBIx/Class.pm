@@ -23,6 +23,10 @@ use mro 'c3';
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::Exception;
 
+use DBIx::Class::_Util qw( uniq refdesc visit_namespaces );
+use Scalar::Util qw( weaken refaddr );
+use namespace::clean;
+
 __PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
 __PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve|^Moose::Meta::');
 
@@ -40,11 +44,72 @@ BEGIN {
 
 sub component_base_class { 'DBIx::Class' }
 
+
+my $cref_registry;
+sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
+
+  # this is disgusting, but the best we can do without even more surgery
+  visit_namespaces( action => sub {
+    my $pkg = shift;
+
+    # skip dangerous namespaces
+    return 1 if $pkg =~ /^ (?:
+      DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
+    ) $/x;
+
+    no strict 'refs';
+
+    if (
+      exists ${"${pkg}::"}{__cag___attr_cache}
+        and
+      ref( my $attr_stash = ${"${pkg}::__cag___attr_cache"} ) eq 'HASH'
+    ) {
+      $attr_stash->{ $cref_registry->{$_} } = delete $attr_stash->{$_}
+        for keys %$attr_stash;
+    }
+
+    return 1;
+  })
+}
+
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
   $class->mk_classaccessor('__attr_cache' => {})
     unless $class->can('__attr_cache');
-  $class->__attr_cache->{$code} = [@attrs];
+
+  # compaction step
+  defined $cref_registry->{$_} or delete $cref_registry->{$_}
+    for keys %$cref_registry;
+
+  # The original API used stringification instead of refaddr - can't change that now
+  if( $cref_registry->{$code} ) {
+    Carp::confess( sprintf
+      "Coderefs '%s' and '%s' stringify to the same value '%s': nothing will work",
+      refdesc($code),
+      refdesc($cref_registry->{$code}),
+      "$code"
+    ) if refaddr($cref_registry->{$code}) != refaddr($code);
+  }
+  else {
+    weaken( $cref_registry->{$code} = $code )
+  }
+
+  $class->__attr_cache->{$code} = [ sort( uniq(
+    @{ $class->__attr_cache->{$code} || [] },
+    @attrs,
+  ))];
+
+  # FIXME - DBIC essentially gobbles up any attribute it can lay its hands on:
+  # decidedly not cool
+  #
+  # There should be some sort of warning on unrecognized attributes or
+  # somesuch... OTOH people do use things in the wild hence the plan of action
+  # is anything but clear :/
+  #
+  # https://metacpan.org/source/ZIGOROU/DBIx-Class-Service-0.02/lib/DBIx/Class/Service.pm#L93-110
+  # https://metacpan.org/source/ZIGOROU/DBIx-Class-Service-0.02/t/lib/DBIC/Test/Service/User.pm#L29
+  # https://metacpan.org/source/ZIGOROU/DBIx-Class-Service-0.02/t/lib/DBIC/Test/Service/User.pm#L36
+  #
   return ();
 }
 
@@ -55,10 +120,8 @@ sub FETCH_CODE_ATTRIBUTES {
 
 sub _attr_cache {
   my $self = shift;
-  my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-
-  return {
-    %$cache,
+  +{
+    %{ $self->can('__attr_cache') ? $self->__attr_cache : {} },
     %{ $self->maybe::next::method || {} },
   };
 }
