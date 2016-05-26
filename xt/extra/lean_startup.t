@@ -88,6 +88,9 @@ BEGIN {
   plan skip_all => 'Dependency load patterns are radically different before perl 5.10'
     if "$]" < 5.010;
 
+  plan skip_all => 'Dependency load patterns may be different on cperl - skip for now'
+    if $^V =~ /\d+c$/;
+
   # these envvars *will* bring in more stuff than the baseline
   delete @ENV{qw(
     DBIC_TRACE
