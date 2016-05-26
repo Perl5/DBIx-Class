@@ -43,7 +43,7 @@ BEGIN {
     # Some modules have a bare 'use $perl_version' as the first statement
     # Since the use() happens before 'package' had a chance to switch
     # the namespace, the shim thinks DBIC* tried to require this
-    return $res if $req =~ /^v?[0-9.]$/;
+    return $res if $req =~ /^v?[0-9.]+$/;
 
     # exclude everything where the current namespace does not match the called function
     # (this works around very weird XS-induced require callstack corruption)
@@ -87,9 +87,6 @@ BEGIN {
 
   plan skip_all => 'Dependency load patterns are radically different before perl 5.10'
     if "$]" < 5.010;
-
-  plan skip_all => 'Dependency load patterns may be different on cperl - skip for now'
-    if $^V =~ /\d+c$/;
 
   # these envvars *will* bring in more stuff than the baseline
   delete @ENV{qw(
