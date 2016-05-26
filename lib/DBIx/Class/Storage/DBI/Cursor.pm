@@ -72,7 +72,7 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
     return $self;
   }
 
-  sub CLONE {
+  sub DBIx::Class::__DBI_Cursor_iThreads_handler__::CLONE {
     for (keys %cursor_registry) {
       # once marked we no longer care about them, hence no
       # need to keep in the registry, left alone renumber the

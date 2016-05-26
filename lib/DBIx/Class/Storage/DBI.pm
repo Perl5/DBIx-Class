@@ -251,7 +251,7 @@ sub new {
     undef;
   }
 
-  sub CLONE {
+  sub DBIx::Class::__DBI_Storage_iThreads_handler__::CLONE {
     # As per DBI's recommendation, DBIC disconnects all handles as
     # soon as possible (DBIC will reconnect only on demand from within
     # the thread)

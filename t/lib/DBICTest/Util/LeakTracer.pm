@@ -73,7 +73,7 @@ sub populate_weakregistry {
 }
 
 # Regenerate the slots names on a thread spawn
-sub CLONE {
+sub DBICTest::__LeakTracer_iThreads_handler__::CLONE {
   my @individual_regs = grep { scalar keys %{$_||{}} } values %reg_of_regs;
   %reg_of_regs = ();
 

@@ -437,7 +437,7 @@ sub is_exception ($) {
 {
   my $destruction_registry = {};
 
-  sub CLONE {
+  sub DBIx::Class::__Util_iThreads_handler__::CLONE {
     %$destruction_registry = map {
       (defined $_)
         ? ( refaddr($_) => $_ )
