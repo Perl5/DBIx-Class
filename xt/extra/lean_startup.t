@@ -40,17 +40,10 @@ BEGIN {
 
     return $res if $req =~ /^DBIx::Class|^DBICTest::/;
 
-    # FIXME - work around RT#114641
-    #
-    # Because *OF COURSE* when (questionable) unicode tests fail on < 5.8
-    # the answer is to make the entire module 5.8 only, instead of skipping
-    # the tests in question
-    # rjbs-- # thinly veiled passive aggressive bullshit
-    #
-    # The actual skip is needed because the use happens before 'package' had
-    # a chance to switch the namespace, so the shim thinks DBIC::Schema tried
-    # to require this
-    return $res if $req eq '5.008';
+    # Some modules have a bare 'use $perl_version' as the first statement
+    # Since the use() happens before 'package' had a chance to switch
+    # the namespace, the shim thinks DBIC* tried to require this
+    return $res if $req =~ /^v?[0-9.]$/;
 
     # exclude everything where the current namespace does not match the called function
     # (this works around very weird XS-induced require callstack corruption)
