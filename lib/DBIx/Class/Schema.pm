@@ -552,7 +552,7 @@ version, overload L</connection> instead.
 
 =cut
 
-sub connect {
+sub connect :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->clone->connection(@_);
 }
@@ -835,7 +835,7 @@ those values.
 
 =cut
 
-sub populate {
+sub populate :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   my ($self, $name, $data) = @_;

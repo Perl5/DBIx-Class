@@ -443,6 +443,12 @@ sub connection {
         };
 
         weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
+
+        attributes->import(
+          $origin,
+          $replacement,
+          attributes::get($orig_rsrc)
+        );
       }
 
 
@@ -518,8 +524,13 @@ sub connection {
         };
 
         weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
-      }
 
+        attributes->import(
+          $origin,
+          $replacement,
+          attributes::get($orig_rsrc_instance)
+        );
+      }
     }
 
     Class::C3::initialize if DBIx::Class::_ENV_::OLD_MRO;

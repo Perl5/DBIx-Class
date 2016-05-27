@@ -9,12 +9,12 @@ use Scalar::Util 'blessed';
 use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
 
-sub mk_classdata {
+sub mk_classdata :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->mk_classaccessor(@_);
 }
 
-sub mk_classaccessor {
+sub mk_classaccessor :DBIC_method_is_indirect_sugar {
   my $self = shift;
   $self->mk_group_accessors('inherited', $_[0]);
   (@_ > 1)

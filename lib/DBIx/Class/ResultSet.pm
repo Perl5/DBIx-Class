@@ -986,7 +986,7 @@ See also L</search_related_rs>.
 
 =cut
 
-sub search_related {
+sub search_related :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search(@_);
 }
@@ -998,7 +998,7 @@ it guarantees a resultset, even in list context.
 
 =cut
 
-sub search_related_rs {
+sub search_related_rs :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search_rs(@_);
 }
@@ -1769,7 +1769,7 @@ with the passed arguments, then L</count>.
 
 =cut
 
-sub count_literal {
+sub count_literal :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->search_literal(@_)->count
 }
@@ -1849,7 +1849,7 @@ an object for the first result (or C<undef> if the resultset is empty).
 
 =cut
 
-sub first {
+sub first :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return $_[0]->reset->next;
 }
@@ -2867,7 +2867,7 @@ L</new>.
 
 =cut
 
-sub create {
+sub create :DBIC_method_is_indirect_sugar {
   #my ($self, $col_data) = @_;
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->new_result(shift)->insert;

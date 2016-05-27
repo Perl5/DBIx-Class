@@ -143,8 +143,22 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub VALID_DBIC_CODE_ATTRIBUTE {
   #my ($class, $attr) = @_;
 
-  # initially no valid attributes
-  0;
+###
+### !!! IMPORTANT !!!
+###
+### *DO NOT* yield to the temptation of using free-form-argument attributes.
+### The technique was proven instrumental in Catalyst a decade ago, and
+### was more recently revived in Sub::Attributes. Yet, while on the surface
+### they seem immensely useful, per-attribute argument lists are in fact an
+### architectural dead end.
+###
+### In other words: you are *very strongly urged* to ensure the regex below
+### does not allow anything beyond qr/^ DBIC_method_is_ [A-Z_a-z0-9]+ $/x
+###
+
+  $_[1] =~ /^ DBIC_method_is_ (?:
+    indirect_sugar
+  ) $/x;
 }
 
 sub FETCH_CODE_ATTRIBUTES {
@@ -200,11 +214,13 @@ L</VALID_DBIC_CODE_ATTRIBUTE> below.
 The following method attributes are currently recognized under the C<DBIC_*>
 prefix:
 
-=over
+=head3 DBIC_method_is_indirect_sugar
 
-=item * None so far
-
-=back
+The presence of this attribute indicates a helper "sugar" method. Overriding
+such methods in your subclasses will be of limited success at best, as DBIC
+itself and various plugins are much more likely to invoke alternative direct
+call paths, bypassing your override entirely. Good examples of this are
+L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Schema/connect>.
 
 =head1 METHODS
 

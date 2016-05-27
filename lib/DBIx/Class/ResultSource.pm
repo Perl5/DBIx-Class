@@ -704,7 +704,7 @@ sub add_columns {
   return $self;
 }
 
-sub add_column {
+sub add_column :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->add_columns(@_)
 }
@@ -748,7 +748,7 @@ contents of the hashref.
 
 =cut
 
-sub column_info {
+sub column_info :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   #my ($self, $column) = @_;
@@ -912,7 +912,7 @@ sub remove_columns {
   $self->_ordered_columns([ grep { not $to_remove{$_} } @{$self->_ordered_columns} ]);
 }
 
-sub remove_column {
+sub remove_column :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->remove_columns(@_)
 }
@@ -1143,7 +1143,7 @@ See also L</add_unique_constraint>.
 
 =cut
 
-sub add_unique_constraints {
+sub add_unique_constraints :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   my $self = shift;
@@ -1606,7 +1606,7 @@ Returns the L<storage handle|DBIx::Class::Storage> for the current schema.
 
 =cut
 
-sub storage {
+sub storage :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->schema->storage
 }

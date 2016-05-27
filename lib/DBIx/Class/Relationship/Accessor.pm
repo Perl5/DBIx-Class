@@ -104,20 +104,30 @@ EOC
   elsif ($acc_type eq 'multi') {
 
 
-    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
+    my @qsub_args = (
+      {},
+      {
+        attributes => [qw(
+          DBIC_method_is_indirect_sugar
+        )]
+      },
+    );
+
+
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
       shift->related_resultset(%s)->search( @_ )
 EOC
 
 
-    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel );
+    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       shift->related_resultset(%s)->search_rs( @_ )
 EOC
 
 
-    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel );
+    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
       shift->create_related( %s => @_ );
 EOC

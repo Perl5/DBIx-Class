@@ -1065,6 +1065,42 @@ sub fail_on_internal_call {
     : $fr
   ;
 
+
+  die "\nMethod $fr->[3] is not marked with the 'DBIC_method_is_indirect_sugar' attribute\n\n" unless (
+
+    # unlikely but who knows...
+    ! @$fr
+
+      or
+
+    # This is a weird-ass double-purpose method, only one branch of which is marked
+    # as an illegal indirect call
+    # Hence the 'indirect' attribute makes no sense
+    # FIXME - likely need to mark this in some other manner
+    $fr->[3] eq 'DBIx::Class::ResultSet::new'
+
+      or
+
+    # RsrcProxy stuff is special and not attr-annotated on purpose
+    # Yet it is marked (correctly) as fail_on_internal_call(), as DBIC
+    # itself should not call these methods as first-entry
+    $fr->[3] =~ /^DBIx::Class::ResultSourceProxy::[^:]+$/
+
+      or
+
+    # FIXME - there is likely a more fine-graned way to escape "foreign"
+    # callers, based on annotations... (albeit a slower one)
+    # For the time being just skip in a dumb way
+    $fr->[3] !~ /^DBIx::Class|^DBICx::|^DBICTest::/
+
+      or
+
+    grep
+      { $_ eq 'DBIC_method_is_indirect_sugar' }
+      do { no strict 'refs'; attributes::get( \&{ $fr->[3] }) }
+  );
+
+
   if (
     defined $fr->[0]
       and

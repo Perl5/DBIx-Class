@@ -6,6 +6,9 @@ use warnings;
 
 use base 'DBIx::Class';
 
+# needs to be loaded early to query method attributes below
+use DBIx::Class::ResultSource;
+
 use DBIx::Class::_Util qw( quote_sub fail_on_internal_call );
 use namespace::clean;
 
@@ -38,7 +41,7 @@ sub add_columns {
   }
 }
 
-sub add_column {
+sub add_column :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->add_columns(@_)
 }
@@ -53,7 +56,7 @@ sub add_relationship {
 
 
 # legacy resultset_class accessor, seems to be used by cdbi only
-sub iterator_class {
+sub iterator_class :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->result_source->resultset_class(@_)
 }
@@ -89,7 +92,13 @@ for my $method_to_proxy (qw/
   relationship_info
   has_relationship
 /) {
-  quote_sub __PACKAGE__."::$method_to_proxy", sprintf( <<'EOC', $method_to_proxy );
+
+  my $qsub_opts = { attributes => [ do {
+    no strict 'refs';
+    attributes::get( \&{"DBIx::Class::ResultSource::$method_to_proxy"} )
+  } ] };
+
+  quote_sub __PACKAGE__."::$method_to_proxy", sprintf( <<'EOC', $method_to_proxy ), {}, $qsub_opts;
     DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
 
     shift->result_source->%s (@_);

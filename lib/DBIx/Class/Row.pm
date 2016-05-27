@@ -1359,7 +1359,7 @@ Alias for L</update_or_insert>
 
 =cut
 
-sub insert_or_update {
+sub insert_or_update :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->update_or_insert(@_);
 }
@@ -1429,7 +1429,7 @@ Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 
 =cut
 
-sub result_source {
+sub result_source :DBIC_method_is_indirect_sugar {
   # While getter calls are routed through here for sensible exception text
   # it makes no sense to have setters do the same thing
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
