@@ -3382,7 +3382,8 @@ sub as_subselect_rs {
   my $attrs = $self->_resolved_attrs;
 
   my $fresh_rs = (ref $self)->new (
-    $self->result_source
+    $self->result_source,
+    {}
   );
 
   # these pieces will be locked in the subquery
