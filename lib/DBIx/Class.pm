@@ -45,7 +45,7 @@ BEGIN {
 sub component_base_class { 'DBIx::Class' }
 
 
-my $cref_registry;
+my $attr_cref_registry;
 sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
 
   # this is disgusting, but the best we can do without even more surgery
@@ -64,12 +64,22 @@ sub DBIx::Class::__Attr_iThreads_handler__::CLONE {
         and
       ref( my $attr_stash = ${"${pkg}::__cag___attr_cache"} ) eq 'HASH'
     ) {
-      $attr_stash->{ $cref_registry->{$_} } = delete $attr_stash->{$_}
+      $attr_stash->{ $attr_cref_registry->{$_}{weakref} } = delete $attr_stash->{$_}
         for keys %$attr_stash;
     }
 
     return 1;
-  })
+  });
+
+  # renumber the cref registry itself
+  %$attr_cref_registry = map {
+    ( defined $_->{weakref} )
+      ? (
+        # because of how __attr_cache works, ugh
+        "$_->{weakref}"         => $_,
+      )
+      : ()
+  } values %$attr_cref_registry;
 }
 
 sub MODIFY_CODE_ATTRIBUTES {
@@ -78,20 +88,20 @@ sub MODIFY_CODE_ATTRIBUTES {
     unless $class->can('__attr_cache');
 
   # compaction step
-  defined $cref_registry->{$_} or delete $cref_registry->{$_}
-    for keys %$cref_registry;
+  defined $attr_cref_registry->{$_}{weakref} or delete $attr_cref_registry->{$_}
+    for keys %$attr_cref_registry;
 
   # The original API used stringification instead of refaddr - can't change that now
-  if( $cref_registry->{$code} ) {
+  if( $attr_cref_registry->{$code} ) {
     Carp::confess( sprintf
       "Coderefs '%s' and '%s' stringify to the same value '%s': nothing will work",
       refdesc($code),
-      refdesc($cref_registry->{$code}),
+      refdesc($attr_cref_registry->{$code}{weakref}),
       "$code"
-    ) if refaddr($cref_registry->{$code}) != refaddr($code);
+    ) if refaddr($attr_cref_registry->{$code}{weakref}) != refaddr($code);
   }
   else {
-    weaken( $cref_registry->{$code} = $code )
+    weaken( $attr_cref_registry->{$code}{weakref} = $code )
   }
 
   $class->__attr_cache->{$code} = [ sort( uniq(

@@ -23,7 +23,6 @@ BEGIN {
 use Test::More;
 use DBIx::Class::_Util qw( quote_sub modver_gt_or_eq );
 
-### Test the upcoming attributes support
 require DBIx::Class;
 @DBICTest::ATTRTEST::ISA  = 'DBIx::Class';
 
@@ -102,10 +101,17 @@ if ($skip_threads) {
 }
 else {
   threads->create(sub {
-    add_more_attrs();
+
+    threads->create(sub {
+
+      add_more_attrs();
+      select( undef, undef, undef, 0.2 ); # without this many tasty crashes even on latest perls
+
+    })->join;
+
     select( undef, undef, undef, 0.2 ); # without this many tasty crashes even on latest perls
+
   })->join;
 }
-
 
 done_testing;
