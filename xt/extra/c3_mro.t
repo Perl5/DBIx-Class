@@ -12,6 +12,7 @@ my @global_ISA_tail = qw(
   DBIx::Class::Componentised
   Class::C3::Componentised
   DBIx::Class::AccessorGroup
+  DBIx::Class::MethodAttributes
   Class::Accessor::Grouped
 );
 
