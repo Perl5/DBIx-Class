@@ -10,6 +10,9 @@ Revision history for DBIx::Class
         - Fix silent failure to retrieve a primary key (RT#80283) or worse:
           returning an incorrect value (RT#115381) in case a rdbms-side autoinc
           column is declared as PK with the is_auto_increment attribute unset
+        - Fix docs on how to properly use Moo(se) in ResultSet's, and fix a
+          corner case of ->count not functioning properly when the old recipe
+          was being used (GH#105)
         - Work around breakage in Hash::Merge by soft-requiring Clone as part
           of the replicated subsystem (RT#124321)
 

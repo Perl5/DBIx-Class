@@ -134,6 +134,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     DBICTEST_SQLITE_USE_FILE \
     DBICTEST_RUN_ALL_TESTS \
     DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER \
+    DBICTEST_MOOIFIED_RESULTSETS \
   )
 
   # if we have Moose - try to run everything under replicated

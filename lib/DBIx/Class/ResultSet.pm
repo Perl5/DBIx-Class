@@ -220,7 +220,7 @@ unusual signature of the L<constructor provided by DBIC
 
   use Moo;
   extends 'DBIx::Class::ResultSet';
-  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
+  sub BUILDARGS { $_[2] || {} } # ::RS::new() expects my ($class, $rsrc, $args) = @_
 
   ...your code...
 
@@ -238,7 +238,7 @@ with the DBIC one.
   use MooseX::NonMoose;
   extends 'DBIx::Class::ResultSet';
 
-  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
+  sub BUILDARGS { $_[2] || {} } # ::RS::new() expects my ($class, $rsrc, $args) = @_
 
   ...your code...
 
@@ -3388,7 +3388,8 @@ sub as_subselect_rs {
   my $attrs = $self->_resolved_attrs;
 
   my $fresh_rs = (ref $self)->new (
-    $self->result_source
+    $self->result_source,
+    {},
   );
 
   # these pieces will be locked in the subquery

@@ -511,7 +511,7 @@ One method is to use the built in mk_group_accessors (via L<Class::Accessor::Gro
 	__PACKAGE__->table('foo'); #etc
 	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
 
-An another method is to use L<Moose> with your L<DBIx::Class> package.
+And another method is to use L<Moose> with your L<DBIx::Class> package.
 
 	package App::Schema::Result::MyTable;
 
