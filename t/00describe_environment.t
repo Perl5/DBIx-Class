@@ -600,12 +600,21 @@ sub module_found_at_inc_index {
 
   my $fn = module_notional_filename($mod);
 
-  for my $i ( 0 .. $#$inc_dirs ) {
+  # trust INC if it specifies an existing path
+  if( -f ( my $existing_path = abs_unix_path( $INC{$fn} ) ) ) {
+    for my $i ( 0 .. $#$inc_dirs ) {
 
-    # searching from here on out won't mean anything
-    # FIXME - there is actually a way to interrogate this safely, but
-    # that's a fight for another day
-    return undef if length ref $inc_dirs->[$i];
+      # searching from here on out won't mean anything
+      # FIXME - there is actually a way to interrogate this safely, but
+      # that's a fight for another day
+      return undef if length ref $inc_dirs->[$i];
+
+      return $i
+        if 0 == index( $existing_path, abs_unix_path( $inc_dirs->[$i] ) . '/' );
+    }
+  }
+
+  for my $i ( 0 .. $#$inc_dirs ) {
 
     if (
       -d $inc_dirs->[$i]
