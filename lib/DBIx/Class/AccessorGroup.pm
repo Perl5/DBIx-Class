@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use base qw/Class::Accessor::Grouped/;
+use mro 'c3';
+
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;

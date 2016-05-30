@@ -16,10 +16,10 @@ my @global_ISA_tail = qw(
 );
 
 is(
-  mro::get_mro('DBIx::Class'),
+  mro::get_mro($_),
   'c3',
-  'Correct mro on base class DBIx::Class',
-);
+  "Correct mro on base class '$_'",
+) for grep { $_ =~ /^DBIx::Class/ } @global_ISA_tail;
 
 {
   package AAA;
