@@ -76,6 +76,16 @@ sub MODIFY_CODE_ATTRIBUTES {
     weaken( $attr_cref_registry->{$code}{weakref} = $code )
   }
 
+
+  # increment the pkg gen, this ensures the sanity checkers will re-evaluate
+  # this class when/if the time comes
+  mro::method_changed_in($class) if (
+    ! DBIx::Class::_ENV_::OLD_MRO
+      and
+    ( $attrs->{dbic} or $attrs->{misc} )
+  );
+
+
   # handle legacy attrs
   if( $attrs->{misc} ) {
 
@@ -94,6 +104,7 @@ sub MODIFY_CODE_ATTRIBUTES {
     ))];
   }
 
+
   # handle DBIC_* attrs
   if( $attrs->{dbic} ) {
     my $slot = $attr_cref_registry->{$code};
@@ -107,6 +118,7 @@ sub MODIFY_CODE_ATTRIBUTES {
       } keys %{$attrs->{dbic}},
     ];
   }
+
 
   # FIXME - DBIC essentially gobbles up any attribute it can lay its hands on:
   # decidedly not cool

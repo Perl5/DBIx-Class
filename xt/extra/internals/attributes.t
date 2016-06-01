@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
@@ -22,11 +24,25 @@ BEGIN {
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util qw( quote_sub );
+use DBIx::Class::_Util qw( quote_sub describe_class_methods serialize refdesc );
+use List::Util 'shuffle';
+use Errno ();
 
-require DBIx::Class;
+use DBICTest;
+
+my $pkg_gen_history = {};
+
+sub grab_pkg_gen ($) {
+  push @{ $pkg_gen_history->{$_[0]} }, [
+    DBIx::Class::_Util::get_real_pkg_gen($_[0]),
+    'line ' . ( (caller(0))[2] ),
+  ];
+}
+
 @DBICTest::AttrLegacy::ISA  = 'DBIx::Class';
 sub DBICTest::AttrLegacy::VALID_DBIC_CODE_ATTRIBUTE { 1 }
+
+grab_pkg_gen("DBICTest::AttrLegacy");
 
 my $var = \42;
 my $s = quote_sub(
@@ -39,6 +55,8 @@ my $s = quote_sub(
   },
 );
 
+grab_pkg_gen("DBICTest::AttrLegacy");
+
 is $s, \&DBICTest::AttrLegacy::attr, 'Same cref installed';
 
 is DBICTest::AttrLegacy::attr(), 42, 'Sub properly installed and callable';
@@ -47,33 +65,52 @@ is_deeply
   [ sort( attributes::get( $s ) ) ],
   [qw( DBIC_random_attr ResultSet )],
   'Attribute installed',
-unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+;
 
-
-@DBICTest::AttrTest::ISA  = 'DBIx::Class';
 {
-    package DBICTest::AttrTest;
+  package DBICTest::SomeGrandParentClass;
+  use base 'DBIx::Class::MethodAttributes';
+  sub VALID_DBIC_CODE_ATTRIBUTE { shift->next::method(@_) };
+}
+{
+  package DBICTest::SomeParentClass;
+  use base qw(DBICTest::SomeGrandParentClass);
+}
+{
+  package DBICTest::AnotherParentClass;
+  use base 'DBIx::Class::MethodAttributes';
+  sub VALID_DBIC_CODE_ATTRIBUTE { $_[1] =~ /DBIC_attr/ };
+}
 
-    eval <<'EOS' or die $@;
-      sub VALID_DBIC_CODE_ATTRIBUTE { $_[1] =~ /DBIC_attr/ }
+{
+  package DBICTest::AttrTest;
+
+  @DBICTest::AttrTest::ISA = qw( DBICTest::SomeParentClass DBICTest::AnotherParentClass );
+  use mro 'c3';
+
+  ::grab_pkg_gen("DBICTest::AttrTest");
+
+  eval <<'EOS' or die $@;
       sub attr :lvalue :method :DBIC_attr1 { $$var}
       1;
 EOS
 
-    ::throws_ok {
-      attributes->import(
-        'DBICTest::AttrTest',
-        DBICTest::AttrTest->can('attr'),
-        'DBIC_unknownattr',
-      );
-    } qr/DBIC-specific attribute 'DBIC_unknownattr' did not pass validation/;
+  ::grab_pkg_gen("DBICTest::AttrTest");
+
+  ::throws_ok {
+    attributes->import(
+      'DBICTest::AttrTest',
+      DBICTest::AttrTest->can('attr'),
+      'DBIC_unknownattr',
+    );
+  } qr/DBIC-specific attribute 'DBIC_unknownattr' did not pass validation/;
 }
 
 is_deeply
   [ sort( attributes::get( DBICTest::AttrTest->can("attr") )) ],
   [qw( DBIC_attr1 lvalue method )],
   'Attribute installed',
-unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+;
 
 ok(
   ! DBICTest::AttrTest->can('__attr_cache'),
@@ -87,6 +124,7 @@ is_deeply(
 );
 
 sub add_more_attrs {
+
   # Test that secondary attribute application works
   attributes->import(
     'DBICTest::AttrLegacy',
@@ -101,11 +139,13 @@ sub add_more_attrs {
     'SomethingNobodyUses',
   );
 
+  grab_pkg_gen("DBICTest::AttrLegacy");
+
   is_deeply
     [ sort( attributes::get( $s ) )],
     [ qw( DBIC_random_attr ResultSet SomethingNobodyUses ) ],
     'Secondary attributes installed',
-  unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+  ;
 
   is_deeply (
     DBICTest::AttrLegacy->_attr_cache->{$s},
@@ -113,14 +153,14 @@ sub add_more_attrs {
     'Attributes visible in legacy DBIC attribute API',
   );
 
-
-
   # Test that secondary attribute application works
   attributes->import(
     'DBICTest::AttrTest',
     DBICTest::AttrTest->can('attr'),
     'DBIC_attr2',
   );
+
+  grab_pkg_gen("DBICTest::AttrTest");
 
   # and that double-application also works
   attributes->import(
@@ -130,11 +170,13 @@ sub add_more_attrs {
     'DBIC_attr3',
   );
 
+  grab_pkg_gen("DBICTest::AttrTest");
+
   is_deeply
     [ sort( attributes::get( DBICTest::AttrTest->can("attr") )) ],
     [qw( DBIC_attr1 DBIC_attr2 DBIC_attr3 lvalue method )],
     'DBIC-specific attribute installed',
-  unless $^V =~ /c/; # FIXME work around https://github.com/perl11/cperl/issues/147
+  ;
 
   ok(
     ! DBICTest::AttrTest->can('__attr_cache'),
@@ -146,27 +188,257 @@ sub add_more_attrs {
     {},
     'Legacy DBIC attribute cache never instantiated on core+DBIC-specific attrs'
   );
-}
 
+  # no point dragging in threads::shared, just do the check here
+  for my $class ( keys %$pkg_gen_history ) {
+    my $stack = $pkg_gen_history->{$class};
+
+    for my $i ( 1 .. $#$stack ) {
+      cmp_ok(
+        $stack->[$i-1][0],
+          ( DBIx::Class::_ENV_::OLD_MRO ? '!=' : '<' ),
+        $stack->[$i][0],
+        "pkg_gen for $class changed from $stack->[$i-1][1] to $stack->[$i][1]"
+      );
+    }
+  }
+
+  my $cnt;
+  # check that class description is stable, and changes when needed
+  for my $class (qw(
+    DBICTest::AttrTest
+    DBICTest::AttrLegacy
+    DBIx::Class
+    main
+  )) {
+    my $desc = describe_class_methods($class);
+
+    is_deeply(
+      describe_class_methods($class),
+      $desc,
+      "describe_class_methods result is stable over '$class' (pass $_)"
+    ) for (1,2,3);
+
+    my $desc2 = do {
+      no warnings 'once';
+      no strict 'refs';
+
+      $cnt++;
+
+      eval "sub UNIVERSAL::some_unimethod_$cnt {}; 1" or die $@;
+
+      my $rv = describe_class_methods($class);
+
+      delete ${"UNIVERSAL::"}{"some_unimethod_$cnt"};
+
+      $rv
+    };
+
+    delete $_->{cumulative_gen} for $desc, $desc2;
+    ok(
+      serialize( $desc )
+        ne
+      serialize( $desc2 ),
+      "touching UNIVERSAL changed '$class' method availability"
+    );
+  }
+
+  my $bottom_most_V_D_C_A = refdesc(
+    describe_class_methods("DBIx::Class::MethodAttributes")
+     ->{methods}
+      ->{VALID_DBIC_CODE_ATTRIBUTE}
+       ->[0]
+  );
+
+  for my $class ( shuffle( qw(
+    DBICTest::AttrTest
+    DBICTest::AttrLegacy
+    DBICTest::SomeGrandParentClass
+    DBIx::Class::Schema
+    DBIx::Class::ResultSet
+    DBICTest::Schema::Track
+  ))) {
+    my $desc = describe_class_methods($class);
+
+    is (
+      refdesc( $desc->{methods}{VALID_DBIC_CODE_ATTRIBUTE}[-1] ),
+      $bottom_most_V_D_C_A,
+      "Same physical structure returned for last VALID_DBIC_CODE_ATTRIBUTE via class $class"
+    );
+
+    is (
+      refdesc( $desc->{methods_with_supers}{VALID_DBIC_CODE_ATTRIBUTE}[-1] ),
+      $bottom_most_V_D_C_A,
+      "Same physical structure returned for bottom-most SUPER of VALID_DBIC_CODE_ATTRIBUTE via class $class"
+    ) if $desc->{methods_with_supers}{VALID_DBIC_CODE_ATTRIBUTE};
+  }
+
+  # check that describe_class_methods returns the right stuff
+  # ( on the simpler class )
+  my $expected_AttrTest_ISA = [qw(
+    DBICTest::SomeParentClass
+    DBICTest::SomeGrandParentClass
+    DBICTest::AnotherParentClass
+    DBIx::Class::MethodAttributes
+  )];
+
+  my $expected_desc = {
+    class => "DBICTest::AttrTest",
+
+    # sum and/or is_deeply are buggy on old List::Util/Test::More
+    # do the sum by hand ourselves to be sure
+    cumulative_gen => do {
+      require Math::BigInt;
+      my $gen = Math::BigInt->new(0);
+
+      $gen += DBIx::Class::_Util::get_real_pkg_gen($_) for (
+        'UNIVERSAL',
+        'DBICTest::AttrTest',
+        @$expected_AttrTest_ISA,
+      );
+
+      $gen;
+    },
+    mro => {
+      type => 'c3',
+      is_c3 => 1,
+    },
+    isa => $expected_AttrTest_ISA,
+    methods => {
+      FETCH_CODE_ATTRIBUTES => [
+        {
+          attributes => {},
+          name => "FETCH_CODE_ATTRIBUTES",
+          via_class => "DBIx::Class::MethodAttributes"
+        },
+      ],
+      MODIFY_CODE_ATTRIBUTES => [
+        {
+          attributes => {},
+          name => "MODIFY_CODE_ATTRIBUTES",
+          via_class => "DBIx::Class::MethodAttributes"
+        },
+      ],
+      VALID_DBIC_CODE_ATTRIBUTE => [
+        {
+          attributes => {},
+          name => "VALID_DBIC_CODE_ATTRIBUTE",
+          via_class => "DBICTest::SomeGrandParentClass",
+        },
+        {
+          attributes => {},
+          name => "VALID_DBIC_CODE_ATTRIBUTE",
+          via_class => "DBICTest::AnotherParentClass"
+        },
+        {
+          attributes => {},
+          name => "VALID_DBIC_CODE_ATTRIBUTE",
+          via_class => "DBIx::Class::MethodAttributes"
+        },
+      ],
+      _attr_cache => [
+        {
+          attributes => {},
+          name => "_attr_cache",
+          via_class => "DBIx::Class::MethodAttributes"
+        },
+      ],
+      attr => [
+        {
+          attributes => {
+            DBIC_attr1 => 1,
+            DBIC_attr2 => 1,
+            DBIC_attr3 => 1,
+            lvalue => 1,
+            method => 1
+          },
+          name => "attr",
+          via_class => "DBICTest::AttrTest"
+        }
+      ],
+      can => [
+        {
+          attributes => {},
+          name => "can",
+          via_class => "UNIVERSAL",
+        },
+      ],
+      isa => [
+        {
+          attributes => {},
+          name => "isa",
+          via_class => "UNIVERSAL",
+        },
+      ],
+      VERSION => [
+        {
+          attributes => {},
+          name => "VERSION",
+          via_class => "UNIVERSAL",
+        },
+      ],
+      ( DBIx::Class::_ENV_::OLD_MRO ? () : (
+        DOES => [{
+          attributes => {},
+          name => "DOES",
+          via_class => "UNIVERSAL",
+        }],
+      ) ),
+    },
+  };
+
+  $expected_desc->{methods_with_supers}{VALID_DBIC_CODE_ATTRIBUTE}
+    = $expected_desc->{methods}{VALID_DBIC_CODE_ATTRIBUTE};
+
+  is_deeply (
+    describe_class_methods("DBICTest::AttrTest"),
+    $expected_desc,
+    'describe_class_methods returns correct data',
+  );
+}
 
 if ($skip_threads) {
   SKIP: { skip "Skipping the thread test: $skip_threads", 1 }
 
   add_more_attrs();
 }
-else {
-  threads->create(sub {
+else { SKIP: {
 
-    threads->create(sub {
+  my $t = threads->create(sub {
+
+    my $t = threads->create(sub {
 
       add_more_attrs();
       select( undef, undef, undef, 0.2 ); # without this many tasty crashes even on latest perls
 
-    })->join;
+      42;
+
+    }) || do {
+      die "Unable to start thread: $!"
+        unless $! == Errno::EAGAIN();
+
+      SKIP: { skip "EAGAIN encountered, your system is likely bogged down: skipping rest of test", 1 }
+
+      return 42 ;
+    };
+
+    my $rv = $t->join;
 
     select( undef, undef, undef, 0.2 ); # without this many tasty crashes even on latest perls
 
-  })->join;
-}
+    $rv;
+  }) || do {
+    die "Unable to start thread: $!"
+      unless $! == Errno::EAGAIN();
+
+    skip "EAGAIN encountered, your system is likely bogged down: skipping rest of test", 1;
+  };
+
+  is (
+    $t->join,
+    42,
+    'Thread stack exitted succesfully'
+  );
+}}
 
 done_testing;

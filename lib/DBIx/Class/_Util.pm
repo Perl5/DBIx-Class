@@ -8,6 +8,8 @@ use strict;
 
 use constant SPURIOUS_VERSION_CHECK_WARNINGS => ( "$]" < 5.010 ? 1 : 0);
 
+my $mro_recursor_stack;
+
 BEGIN {
   package # hide from pause
     DBIx::Class::_ENV_;
@@ -49,10 +51,71 @@ BEGIN {
   if ( "$]" < 5.009_005) {
     require MRO::Compat;
     constant->import( OLD_MRO => 1 );
+
+    #
+    # Yes, I know this is a rather PHP-ish name, but please first read
+    # https://metacpan.org/source/BOBTFISH/MRO-Compat-0.12/lib/MRO/Compat.pm#L363-368
+    #
+    # Even if we are using Class::C3::XS it still won't work, as doing
+    #   defined( *{ "SubClass::"->{$_} }{CODE} )
+    # will set pkg_gen to the same value for SubClass and *ALL PARENTS*
+    #
+    *DBIx::Class::_Util::get_real_pkg_gen = sub ($) {
+      require Digest::MD5;
+      require Math::BigInt;
+
+      # the non-assign-unless-there-is-a-hash is deliberate
+      ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{gen} ||= (
+        Math::BigInt->new( '0x' . ( Digest::MD5::md5_hex( join "\0", map {
+
+          ( $mro_recursor_stack->{cache} || {} )->{$_}{methlist} ||= do {
+
+            my $class = $_;
+
+            no strict 'refs';
+            my %methlist =
+              map
+                # this is essentially a uniq_by step
+                # it is crucial on OLD_MRO
+                {( Scalar::Util::refaddr($_) => $_ )}
+                map
+                  {
+                    (
+                      ref(\ "${class}::"->{$_} ) ne 'GLOB'
+                        or
+                      defined( *{ "${class}::"->{$_} }{CODE} )
+                    )
+                    ? ( \&{"${class}::$_"} )
+                    : ()
+                  }
+                  keys %{ "${class}::" }
+            ;
+
+            # RV to be hashed up and turned into a number
+            join "\0", (
+              $class,
+              map {(
+                $_, # refaddr is sufficient, ignore names entirely
+                @{
+                  ( $mro_recursor_stack->{cache} || {} )->{attrs}{$_}
+                    ||=
+                  [ attributes::get( $methlist{$_} ) ]
+                },
+              )} sort keys %methlist
+            ),
+          }
+        } ( 'UNIVERSAL', @{
+          ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{linear_isa}
+            ||=
+           mro::get_linear_isa($_[0])
+        } ) ) ) )
+      );
+    };
   }
   else {
     require mro;
     constant->import( OLD_MRO => 0 );
+    *DBIx::Class::_Util::get_real_pkg_gen = \&mro::get_pkg_gen;
   }
 
   # Both of these are no longer used for anything. However bring
@@ -84,6 +147,7 @@ use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
 use Sub::Quote qw(qsub);
 use Sub::Name ();
+use attributes ();
 
 # Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
 BEGIN { *deep_clone = \&Storable::dclone }
@@ -92,7 +156,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr set_subname
+  refdesc refcount hrefaddr set_subname describe_class_methods
   scope_guard detected_reinvoked_destructor
   is_exception dbic_internal_try visit_namespaces
   quote_sub qsub perlstring serialize deep_clone dump_value uniq
@@ -107,7 +171,6 @@ BEGIN {
   # FIXME FIXME FIXME
   # To be revisited when Moo with proper attr support ships
   Sub::Quote->VERSION(2.002);
-  require attributes;
 }
 # Override forcing no_defer, and adding naming consistency checks
 sub quote_sub {
@@ -573,6 +636,187 @@ sub modver_gt_or_eq_and_lt ($$$) {
       and
     ! modver_gt_or_eq($mod, $v_lt)
   ) ? 1 : 0;
+}
+
+{
+  # FIXME - should be a private my(), but I'm too uncertain whether
+  # all bases are covered
+  our $describe_class_query_cache;
+
+  sub describe_class_methods {
+
+    croak "Expecting a class name"
+      if not defined $_[0] or $_[0] !~ $module_name_rx;
+
+    # use a cache on old MRO, since while we are recursing in this function
+    # nothing can possibly change (the speedup is immense)
+    # (yes, people could be tie()ing the stash and adding methods on access
+    # but there is a limit to how much crazy can be supported here)
+    #
+    # we use the cache for linear_isa lookups on new MRO as well - it adds
+    # a *tiny* speedup, and simplifies the code a lot
+    #
+    local $mro_recursor_stack->{cache} = {}
+      unless $mro_recursor_stack->{cache};
+
+    my $my_gen = 0;
+
+    $my_gen += get_real_pkg_gen($_) for (
+      'UNIVERSAL',
+      my ($class, @my_ISA) = @{
+        $mro_recursor_stack->{cache}{$_[0]}{linear_isa}
+          ||=
+        mro::get_linear_isa($_[0])
+      }
+    );
+
+    my $slot = $describe_class_query_cache->{$class} ||= {};
+
+    unless ( ($slot->{cumulative_gen}||0) == $my_gen ) {
+
+      # reset
+      %$slot = (
+        class => $class,
+        isa => [ @my_ISA ], # copy before we shove UNIVERSAL into it
+        mro => {
+          type => mro::get_mro($class),
+        },
+        cumulative_gen => $my_gen,
+      );
+      $slot->{mro}{is_c3} = ($slot->{mro}{type} eq 'c3') ? 1 : 0;
+
+      push @my_ISA, 'UNIVERSAL';
+
+      # ensure the cache is populated for the parents, code below can then
+      # efficiently operate over the query_cache directly
+      for (reverse @my_ISA) {
+        my ($parent_gen, @parent_ISA);
+
+        # and even more skips before calling out recursively
+        describe_class_methods($_) unless (
+          $describe_class_query_cache->{$_}{cumulative_gen}
+            and
+          $parent_gen = get_real_pkg_gen($_)
+            and
+          (
+            (
+              (undef, @parent_ISA) = @{
+                $mro_recursor_stack->{cache}{$_}{linear_isa}
+                  ||=
+                mro::get_linear_isa($_)
+              }
+            ) == 1
+              or
+            do {
+              $parent_gen += get_real_pkg_gen($_) for @parent_ISA;
+              1;
+            }
+          )
+            and
+          $describe_class_query_cache->{$_}{cumulative_gen} == $parent_gen
+        );
+      }
+
+      my ($methods_seen_via_ISA_on_old_mro, $current_node_refaddr);
+      no strict 'refs';
+
+      # combine full ISA-order inherited and local method list into a
+      # "shadowing stack"
+
+      (
+        $current_node_refaddr = refaddr($_)
+
+          and
+
+        # on complex MI herarchies the method can be anywhere in the
+        # shadow stack - look through the entire slot, not just [0]
+        ( ! grep {
+          refaddr($_) == $current_node_refaddr
+        } @{ $slot->{methods}{ $_->{name} } || [] } )
+
+          and
+
+        unshift @{ $slot->{methods}{$_->{name}} }, $_
+
+          and
+
+        @{ $slot->{methods}{$_->{name}} } > 1
+
+          and
+
+        $slot->{methods_with_supers}{$_->{name}} = $slot->{methods}{$_->{name}}
+
+      ) for (
+
+        # what describe_class_methods for @my_ISA produced above
+        ( map { $_->[0] } map {
+          values %{ $describe_class_query_cache->{$_}{methods} }
+        } reverse @my_ISA ),
+
+        # our own non-cleaned subs + their attributes
+        ( map {
+          (
+            # these 2 OR-ed checks are sufficient for 5.10+
+            (
+              ref(\ "${class}::"->{$_} ) ne 'GLOB'
+                or
+              defined( *{ "${class}::"->{$_} }{CODE} )
+            )
+              and
+            # need to account for dummy helper crefs under OLD_MRO
+            (
+              ! DBIx::Class::_ENV_::OLD_MRO
+                or
+              (
+                $methods_seen_via_ISA_on_old_mro ||= do {
+                  my $rv = {};
+                  $rv->{$_->{name}}->{ refaddr( \&{ "$_->{via_class}::$_->{name}"} ) } = 1 for
+                    map { @$_ } map
+                      { values %{ $describe_class_query_cache->{$_}{methods} } }
+                      @my_ISA;
+                  $rv;
+                }
+                  and
+                (
+                  ! $methods_seen_via_ISA_on_old_mro->{$_}
+                    or
+                  ! $methods_seen_via_ISA_on_old_mro->{$_}{ refaddr( \&{"${class}::${_}"} ) }
+                )
+              )
+            )
+          ) ? {
+              via_class => $class,
+              name => $_,
+              attributes => { map { $_ => 1 } @{
+                $mro_recursor_stack->{cache}{attrs}{ refaddr \&{"${class}::${_}"} }
+                  ||=
+                [ attributes::get( \&{"${class}::${_}"} ) ]
+              } },
+            }
+            : ()
+        } keys %{"${class}::"} )
+      );
+
+
+      # recalculate the pkg_gen on newer perls under Taint mode,
+      # because of shit like:
+      # perl -T -Mmro -e 'package Foo; sub bar {}; defined( *{ "Foo::"->{bar}}{CODE} ) and warn mro::get_pkg_gen("Foo") for (1,2,3)'
+      #
+      if (
+        ! DBIx::Class::_ENV_::OLD_MRO
+          and
+        ${^TAINT}
+      ) {
+
+        $slot->{cumulative_gen} = 0;
+        $slot->{cumulative_gen} += get_real_pkg_gen($_)
+          for $class, @my_ISA;
+      }
+    }
+
+    # RV
+    +{ %$slot };
+  }
 }
 
 

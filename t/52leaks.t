@@ -108,6 +108,7 @@ if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
   require DBI;
   require DBD::SQLite;
   require Moo;
+  require Math::BigInt;
 
   %$weak_registry = ();
 }
