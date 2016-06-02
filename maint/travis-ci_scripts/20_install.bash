@@ -32,9 +32,14 @@ if [[ -n "$BREWVER" ]] ; then
   BREWSRC="$BREWVER"
 
   if is_cperl; then
-    # FFS perlbrew ( see http://wollmers-perl.blogspot.de/2015/10/install-cperl-with-perlbrew.html )
-    wget -qO- https://github.com/perl11/cperl/archive/$BREWVER.tar.gz > /tmp/cperl-$BREWVER.tar.gz
-    BREWSRC="/tmp/cperl-$BREWVER.tar.gz"
+    if [[ "$BREWVER" == "cperl-master" ]] ; then
+      git clone --single-branch --depth=1 --branch=master https://github.com/perl11/cperl /tmp/cperl-master
+      BREWSRC="/tmp/cperl-master"
+    else
+      # FFS perlbrew ( see http://wollmers-perl.blogspot.de/2015/10/install-cperl-with-perlbrew.html )
+      wget -qO- https://github.com/perl11/cperl/archive/$BREWVER.tar.gz > /tmp/cperl-$BREWVER.tar.gz
+      BREWSRC="/tmp/cperl-$BREWVER.tar.gz"
+    fi
   elif [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
     BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
   fi
@@ -43,6 +48,7 @@ if [[ -n "$BREWVER" ]] ; then
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
 
   # FIXME work around https://github.com/perl11/cperl/issues/144
+  # (still affecting 5.22.3)
   if is_cperl && ! [[ -f ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] ; then
     ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl
   fi
@@ -141,21 +147,17 @@ if [[ "$POISON_ENV" = "true" ]] ; then
 
 ### emulate a local::lib-like env
 
-  # FIXME - work around https://github.com/perl11/cperl/issues/145
-  if ! is_cperl ; then
-    # trick cpanm into executing true as shell - we just need the find+unpack
-    run_or_err "Downloading latest stable DBIC from CPAN" \
-      "SHELL=/bin/true cpanm --look DBIx::Class"
+  # trick cpanm into executing true as shell - we just need the find+unpack
+  run_or_err "Downloading latest stable DBIC from CPAN" \
+    "SHELL=/bin/true cpanm --look DBIx::Class"
 
-    # move it somewhere as following cpanm will clobber it
-    run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
+  # move it somewhere as following cpanm will clobber it
+  run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
 
-    export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
+  export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
 
-    # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
-    echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
-  fi
-
+  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
+  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
 fi
 
 if [[ "$CLEANTEST" != "true" ]] ; then
