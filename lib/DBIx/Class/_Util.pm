@@ -173,6 +173,7 @@ our @EXPORT_OK = qw(
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr set_subname describe_class_methods
   scope_guard detected_reinvoked_destructor
+  true false
   is_exception dbic_internal_try visit_namespaces
   quote_sub qsub perlstring serialize deep_clone dump_value uniq
   parent_dir mkdir_p
@@ -368,6 +369,20 @@ sub dump_value ($) {
 
   $dump_str;
 }
+
+###
+### This is *NOT* boolean.pm - deliberately not using a singleton
+###
+{
+  package # hide from pause
+    DBIx::Class::_Util::_Bool;
+  use overload
+    bool => sub { ${$_[0]} },
+    fallback => 1,
+  ;
+}
+sub true () { my $x = 1; bless \$x, "DBIx::Class::_Util::_Bool" }
+sub false () { my $x = 0; bless \$x, "DBIx::Class::_Util::_Bool" }
 
 sub scope_guard (&) {
   croak 'Calling scope_guard() in void context makes no sense'
