@@ -76,7 +76,7 @@ sub dbg ($) {
 # This figure esentially means "how long can a single test hold a
 # resource before everyone else gives up waiting and aborts" or
 # in other words "how long does the longest test-group legitimally run?"
-my $lock_timeout_minutes = 15;  # yes, that's long, I know
+my $lock_timeout_minutes = 30;  # yes, that's long, I know
 my $wait_step_seconds = 0.25;
 
 sub await_flock ($$) {
@@ -108,6 +108,9 @@ sub await_flock ($$) {
       print "#\n";
     }
   }
+
+  print STDERR "Lock timeout of $lock_timeout_minutes minutes reached: "
+    unless $res;
 
   return $res;
 }
@@ -282,7 +285,7 @@ sub slurp_bytes ($) {
 
 
 sub rm_rf ($) {
-  croak "No valid argument supplied to rm_rf()" unless length "$_[0]";
+  croak "No argument supplied to rm_rf()" unless length "$_[0]";
 
   return unless -e $_[0];
 
