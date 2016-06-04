@@ -128,7 +128,12 @@ sub has_many {
   );
 
   if (@f_method) {
-    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel), { '$rf' => \sub { my $o = shift; $o = $o->$_ for @f_method; $o } };
+    my @qsub_args = (
+      { '$rf' => \sub { my $o = shift; $o = $o->$_ for @f_method; $o } },
+      { attributes => [ 'DBIC_method_is_generated_from_resultsource_metadata' ] },
+    );
+
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel), @qsub_args;
       my $rs = shift->related_resultset(%s)->search_rs( @_);
       $rs->{attrs}{record_filter} = $rf;
       return (wantarray ? $rs->all : $rs);

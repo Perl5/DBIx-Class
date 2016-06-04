@@ -60,6 +60,10 @@ EOW
       {},
       { attributes => [
         'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_sugar'
+        ),
       ] },
     );
 
@@ -82,6 +86,10 @@ EOC
       },
       { attributes => [
         'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_extra_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_extra_sugar'
+        ),
       ] },
     );
 
@@ -205,6 +213,11 @@ EOC
 
       $guard->commit if $guard;
 EOC
+
+
+    # the last method needs no captures - just kill it all with fire
+    $extra_meth_qsub_args[0] = {};
+
 
     quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 

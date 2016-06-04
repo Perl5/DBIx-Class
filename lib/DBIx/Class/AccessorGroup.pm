@@ -23,6 +23,48 @@ sub mk_classaccessor :DBIC_method_is_indirect_sugar {
   ;
 }
 
+sub mk_group_accessors {
+  my $class = shift;
+  my $type = shift;
+
+  $class->next::method($type, @_);
+
+  # label things
+  if( $type =~ /^ ( inflated_ | filtered_ )? column $/x ) {
+
+    $class = ref $class
+      if length ref $class;
+
+    for my $acc_pair  (
+      map
+        { [ $_, "_${_}_accessor" ] }
+        map
+          { ref $_ ? $_->[0] : $_ }
+          @_
+    ) {
+
+      for my $i (0, 1) {
+
+        my $acc_name = $acc_pair->[$i];
+
+        attributes->import(
+          $class,
+          (
+            $class->can($acc_name)
+              ||
+            Carp::confess("Accessor '$acc_name' we just created on $class can't be found...?")
+          ),
+          'DBIC_method_is_generated_from_resultsource_metadata',
+          ($i
+            ? "DBIC_method_is_${type}_extra_accessor"
+            : "DBIC_method_is_${type}_accessor"
+          ),
+        )
+      }
+    }
+  }
+}
+
 sub get_component_class {
   my $class = $_[0]->get_inherited($_[1]);
 

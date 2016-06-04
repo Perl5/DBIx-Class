@@ -158,6 +158,18 @@ sub VALID_DBIC_CODE_ATTRIBUTE {
 
   $_[1] =~ /^ DBIC_method_is_ (?:
     indirect_sugar
+      |
+    generated_from_resultsource_metadata
+      |
+    (?: inflated_ | filtered_ )? column_ (?: extra_)? accessor
+      |
+    single_relationship_accessor
+      |
+    (?: multi | filter ) _relationship_ (?: extra_ )? accessor
+      |
+    proxy_to_relationship
+      |
+    m2m_ (?: extra_)? sugar (?:_with_attrs)?
   ) $/x;
 }
 
@@ -224,6 +236,98 @@ L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Schema/connect>.
 
 See also the check
 L<DBIx::Class::Schema::SanityChecker/no_indirect_method_overrides>.
+
+=head3 DBIC_method_is_generated_from_resultsource_metadata
+
+This attribute is applied to all methods dynamically installed after various
+invocations of L<ResultSource metadata manipulation
+methods|DBIx::Class::Manual::ResultClass/DBIx::Class::ResultSource>. Notably
+this includes L<add_columns|DBIx::Class::ResultSource/add_columns>,
+L<add_relationship|DBIx::Class::ResultSource/add_relationship>,
+L<the proxied relationship attribute|DBIx::Class::Relationship::Base/proxy>
+and the various L<relationship
+helpers|DBIx::Class::Manual::ResultClass/DBIx::Class::Relationship>,
+B<except> the L<M2M helper|DBIx::Class::Relationship/many_to_many> (given its
+effects are never reflected as C<ResultSource metadata>).
+
+=head3 DBIC_method_is_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<add_columns|DBIx::Class::ResultSource/add_columns>.
+
+=head3 DBIC_method_is_inflated_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<inflate_column|DBIx::Class::InflateColumn/inflate_column>.
+
+=head3 DBIC_method_is_filtered_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<filter_column|DBIx::Class::FilterColumn/filter_column>.
+
+=head3 DBIC_method_is_*column_extra_accessor
+
+For historical reasons any L<Class::Accessor::Grouped> accessor is generated
+twice as C<{name}> and C<_{name}_accessor>. The second method is marked with
+C<DBIC_method_is_*column_extra_accessor> correspondingly.
+
+=head3 DBIC_method_is_single_relationship_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<might_have|DBIx::Class::Relationship/might_have>,
+L<has_one|DBIx::Class::Relationship/has_one> or
+L<belongs_to|DBIx::Class::Relationship/belongs_to> (though for C<belongs_to>
+see L<...filter_rel...|/DBIC_method_is_filter_relationship_accessor> below.
+
+=head3 DBIC_method_is_multi_relationship_accessor
+
+This attribute is applied to the main method dynamically installed as a result
+of invoking L<has_many|DBIx::Class::Relationship/has_many>.
+
+=head3 DBIC_method_is_multi_relationship_extra_accessor
+
+This attribute is applied to the two extra methods dynamically installed as a
+result of invoking L<has_many|DBIx::Class::Relationship/has_many>:
+C<$relname_rs> and C<add_to_$relname>.
+
+=head3 DBIC_method_is_filter_relationship_accessor
+
+This attribute is applied to (legacy) methods dynamically installed as a
+result of invoking L<belongs_to|DBIx::Class::Relationship/belongs_to> with an
+already-existing identically named column. The method is internally
+implemented as an L<inflated_column|/DBIC_method_is_inflated_column_accessor>
+and is labeled with both atributes at the same time.
+
+=head3 DBIC_method_is_filter_relationship_extra_accessor
+
+Same as L</DBIC_method_is_*column_extra_accessor>.
+
+=head3 DBIC_method_is_proxy_to_relationship
+
+This attribute is applied to methods dynamically installed as a result of
+providing L<the proxied relationship
+attribute|DBIx::Class::Relationship::Base/proxy>.
+
+=head3 DBIC_method_is_m2m_sugar
+
+=head3 DBIC_method_is_m2m_sugar_with_attrs
+
+One of the above attributes is applied to the main method dynamically
+installed as a result of invoking
+L<many_to_many|DBIx::Class::Relationship/many_to_many>. The C<_with_atrs> suffix
+serves to indicate whether the user supplied any C<\%attrs> to the
+C<many_to_many> call. There is deliberately no mechanism to retrieve the actual
+supplied values: if you really need this functionality you would need to rely on
+L<DBIx::Class::IntrospectableM2M>.
+
+=head3 DBIC_method_is_extra_m2m_sugar
+
+=head3 DBIC_method_is_extra_m2m_sugar_with_attrs
+
+One of the above attributes is applied to the extra B<four> methods dynamically
+installed as a result of invoking
+L<many_to_many|DBIx::Class::Relationship/many_to_many>: C<$m2m_rs>, C<add_to_$m2m>,
+C<remove_from_$m2m> and C<set_$m2m>.
 
 =head1 METHODS
 

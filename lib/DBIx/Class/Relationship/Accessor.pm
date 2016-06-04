@@ -25,8 +25,15 @@ sub add_relationship_accessor {
 
   if ($acc_type eq 'single') {
 
-    quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel);
+    my @qsub_args = ( {}, {
+      attributes => [qw(
+        DBIC_method_is_single_relationship_accessor
+        DBIC_method_is_generated_from_resultsource_metadata
+      )]
+    });
 
+
+    quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel), @qsub_args;
       my $self = shift;
 
       if (@_) {
@@ -100,6 +107,38 @@ EOC
         return $pk_val;
       },
     });
+
+
+    # god this is horrible...
+    my $acc =
+      $rsrc->columns_info->{$rel}{accessor}
+        ||
+      $rel
+    ;
+
+    # because CDBI may elect to never make an accessor at all...
+    if( my $main_cref = $class->can($acc) ) {
+
+      attributes->import(
+        $class,
+        $main_cref,
+        qw(
+          DBIC_method_is_filter_relationship_accessor
+          DBIC_method_is_generated_from_resultsource_metadata
+        ),
+      );
+
+      if( my $extra_cref = $class->can("_${acc}_accessor") ) {
+        attributes->import(
+          $class,
+          $extra_cref,
+          qw(
+            DBIC_method_is_filter_relationship_extra_accessor
+            DBIC_method_is_generated_from_resultsource_metadata
+          ),
+        );
+      }
+    }
   }
   elsif ($acc_type eq 'multi') {
 
@@ -108,6 +147,8 @@ EOC
       {},
       {
         attributes => [qw(
+          DBIC_method_is_multi_relationship_accessor
+          DBIC_method_is_generated_from_resultsource_metadata
           DBIC_method_is_indirect_sugar
         )]
       },
@@ -119,6 +160,11 @@ EOC
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
       shift->related_resultset(%s)->search( @_ )
 EOC
+
+
+    $qsub_args[1]{attributes}[0]
+      =~ s/^DBIC_method_is_multi_relationship_accessor$/DBIC_method_is_multi_relationship_extra_accessor/
+    or die "Unexpected attr '$qsub_args[1]{attributes}[0]' ...";
 
 
     quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
