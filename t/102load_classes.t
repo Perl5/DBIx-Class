@@ -11,7 +11,7 @@ my $warnings;
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICTest::Schema;
-    use base qw/DBIx::Class::Schema/;
+    use base qw/DBICTest::BaseSchema/;
     __PACKAGE__->load_classes;
 };
 ok(!$@, 'Loaded all loadable classes') or diag $@;

@@ -60,7 +60,7 @@ sub do_admin_stuff {
 
 package My::Schema;
 
-use base qw/DBIx::Class::Schema/;
+use base qw/DBICTest::BaseSchema/;
 
 My::Schema->register_class( Admin => 'My::Schema::Result::User::Admin' );
 My::Schema->register_class( User  => 'My::Schema::Result::User' );

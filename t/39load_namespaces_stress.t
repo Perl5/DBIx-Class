@@ -27,7 +27,7 @@ EOM
 {
   package DBICTest::NS::Stress::Schema;
 
-  use base qw/DBIx::Class::Schema/;
+  use base qw/DBICTest::BaseSchema/;
 
   sub _findallmod {
     return $_[1] eq ( __PACKAGE__ . '::Result' )

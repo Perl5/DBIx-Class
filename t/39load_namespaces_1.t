@@ -11,7 +11,7 @@ my $warnings;
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICNSTest;
-    use base qw/DBIx::Class::Schema/;
+    use base qw/DBICTest::BaseSchema/;
     __PACKAGE__->load_namespaces;
 };
 ok(!$@, 'load_namespaces doesnt die') or diag $@;
