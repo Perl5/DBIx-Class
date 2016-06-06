@@ -11,7 +11,7 @@ sub _register_column_group {
   return $class->next::method($group => map lc, @cols);
 }
 
-sub add_columns {
+sub add_columns :DBIC_method_is_bypassable_resultsource_proxy {
   my ($class, @cols) = @_;
   return $class->result_source->add_columns(map lc, @cols);
 }

@@ -20,6 +20,9 @@ Revision history for DBIx::Class
           invoked when an error is leaving the DBIC internals to be handled by
           the caller (n.b. https://github.com/PerlDancer/Dancer2/issues/1125)
           (also fixes the previously rejected RT#63874)
+        - Overrides of ResultSourceProxy-provided methods are no longer skipped
+          silently: a one-per-callsite warning is issued any time this tricky
+          situation is encoutered https://is.gd/dbic_rsrcproxy_methodattr
         - $result->related_resultset() no longer passes extra arguments to
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored

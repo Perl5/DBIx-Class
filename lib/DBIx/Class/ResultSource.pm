@@ -1,5 +1,15 @@
 package DBIx::Class::ResultSource;
 
+### !!!NOTE!!!
+#
+# Some of the methods defined here will be around()-ed by code at the
+# end of ::ResultSourceProxy. The reason for this strange arrangement
+# is that the list of around()s of methods in this # class depends
+# directly on the list of may-not-be-defined-yet methods within
+# ::ResultSourceProxy itself.
+# If this sounds terrible - it is. But got to work with what we have.
+#
+
 use strict;
 use warnings;
 

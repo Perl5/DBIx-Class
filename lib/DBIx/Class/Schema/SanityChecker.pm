@@ -371,7 +371,12 @@ sub check_no_indirect_method_overrides {
       push @err, {
         overriden => {
           name => $_->{name},
-          via_class => $_->{via_class}
+          via_class => (
+            # this way we report a much better Dwarn oneliner in the error
+            $_->{attributes}{DBIC_method_is_bypassable_resultsource_proxy}
+              ? 'DBIx::Class::ResultSource'
+              : $_->{via_class}
+          ),
         },
         by => [ map { "$_->{via_class}::$_->{name}" } @$nonsugar_methods ],
       } if (

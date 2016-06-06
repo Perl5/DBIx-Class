@@ -159,6 +159,8 @@ sub VALID_DBIC_CODE_ATTRIBUTE {
   $_[1] =~ /^ DBIC_method_is_ (?:
     indirect_sugar
       |
+    (?: bypassable | mandatory ) _resultsource_proxy
+      |
     generated_from_resultsource_metadata
       |
     (?: inflated_ | filtered_ )? column_ (?: extra_)? accessor
@@ -236,6 +238,63 @@ L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Schema/connect>.
 
 See also the check
 L<DBIx::Class::Schema::SanityChecker/no_indirect_method_overrides>.
+
+=head3 DBIC_method_is_mandatory_resultsource_proxy
+
+=head3 DBIC_method_is_bypassable_resultsource_proxy
+
+The presence of one of these attributes on a L<proxied ResultSource
+method|DBIx::Class::Manual::ResultClass/DBIx::Class::ResultSource> indicates
+how DBIC will behave when someone calls e.g.:
+
+  $some_result->result_source->add_columns(...)
+
+as opposed to the conventional
+
+  SomeResultClass->add_columns(...)
+
+This distinction becomes important when someone declares a sub named after
+one of the (currently 22) methods proxied from a
+L<Result|DBIx::Class::Manual::ResultClass> to
+L<ResultSource|DBIx::Class::ResultSource>. While there are obviously no
+problems when these methods are called at compile time, there is a lot of
+ambiguity whether an override of something like
+L<columns_info|DBIx::Class::ResultSource/columns_info> will be respected by
+DBIC and various plugins during runtime operations.
+
+It must be noted that there is a reason for this weird situation: during the
+original design of DBIC the "ResultSourceProxy" system was established in
+order to allow easy transition from Class::DBI. Unfortunately it was not
+well abstracted away: it is rather difficult to use a custom ResultSource
+subclass. The expansion of the DBIC project never addressed this properly
+in the years since. As a result when one wishes to override a part of the
+ResultSource functionality, the overwhelming practice is to hook a method
+in a Result class and "hope for the best".
+
+The subtle changes of various internal call-chains in C<DBIC v0.0829xx> make
+this silent uncertainty untenable. As a solution any such override will now
+issue a descriptive warning that it has been bypassed during a
+C<< $rsrc->overriden_function >> invocation. A user B<must> determine how
+each individual override must behave in this situation, and tag it with one
+of the above two attributes.
+
+Naturally any override marked with C<..._bypassable_resultsource_proxy> will
+behave like it did before: it will be silently ignored. This is the attribute
+you want to set if your code appears to work fine, and you do not wish to
+receive the warning anymore (though you are strongly encouraged to understand
+the other option).
+
+However overrides marked with C<..._mandatory_resultsource_proxy> will always
+be reinvoked by DBIC itself, so that any call of the form:
+
+  $some_result->result_source->columns_info(...)
+
+will be transformed into:
+
+  $some_result->result_source->result_class->columns_info(...)
+
+with the rest of the callchain flowing out of that (provided the override did
+invoke L<next::method|mro/next::method> where appropriate)
 
 =head3 DBIC_method_is_generated_from_resultsource_metadata
 
