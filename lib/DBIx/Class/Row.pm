@@ -196,7 +196,7 @@ sub new {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
     }
 
-    my ($related,$inflated);
+    my( $related, $inflated, $colinfos );
 
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
@@ -258,9 +258,8 @@ sub new {
           next;
         }
         elsif (
-          $rsrc->has_column($key)
-            and
-          $rsrc->column_info($key)->{_inflate_info}
+          ( $colinfos ||= $rsrc->columns_info )
+           ->{$key}{_inflate_info}
         ) {
           $inflated->{$key} = $attrs->{$key};
           next;
@@ -902,7 +901,7 @@ sub _is_column_numeric {
     return undef
       unless ( $rsrc = $self->result_source )->has_column($column);
 
-    my $colinfo = $rsrc->column_info ($column);
+    my $colinfo = $rsrc->columns_info->{$column};
 
     # cache for speed (the object may *not* have a resultsource instance)
     if (
@@ -1099,7 +1098,9 @@ See also L<DBIx::Class::Relationship::Base/set_from_related>.
 
 sub set_inflated_columns {
   my ( $self, $upd ) = @_;
-  my $rsrc;
+
+  my ($rsrc, $colinfos);
+
   foreach my $key (keys %$upd) {
     if (ref $upd->{$key}) {
       $rsrc ||= $self->result_source;
@@ -1117,9 +1118,11 @@ sub set_inflated_columns {
         );
       }
       elsif (
-        $rsrc->has_column($key)
-          and
-        exists $rsrc->column_info($key)->{_inflate_info}
+        exists( (
+          ( $colinfos ||= $rsrc->columns_info )->{$key}
+            ||
+          {}
+        )->{_inflate_info} )
       ) {
         $self->set_inflated_column($key, delete $upd->{$key});
       }

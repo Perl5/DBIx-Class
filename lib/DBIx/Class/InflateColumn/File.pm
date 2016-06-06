@@ -49,7 +49,7 @@ sub register_column {
 sub _file_column_file {
     my ($self, $column, $filename) = @_;
 
-    my $column_info = $self->result_source->column_info($column);
+    my $column_info = $self->result_source->columns_info->{$column};
 
     return unless $column_info->{is_file_column};
 

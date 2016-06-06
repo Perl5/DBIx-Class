@@ -117,8 +117,9 @@ sub deployment_statements {
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
   my @ids = ();
+  my $ci = $source->columns_info(\@columns);
   foreach my $col (@columns) {
-    my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+    my $seq = ( $ci->{$col}{sequence} ||= $self->get_autoinc_seq($source,$col));
     my $id = $self->_sequence_fetch( 'CURRVAL', $seq );
     push @ids, $id;
   }

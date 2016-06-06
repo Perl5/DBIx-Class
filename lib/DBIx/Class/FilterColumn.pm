@@ -9,13 +9,10 @@ use namespace::clean;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
-  my $colinfo = $self->result_source_instance->column_info($col);
+  my $colinfo = $self->result_source->columns_info([$col])->{$col};
 
   $self->throw_exception("FilterColumn can not be used on a column with a declared InflateColumn inflator")
     if defined $colinfo->{_inflate_info} and $self->isa('DBIx::Class::InflateColumn');
-
-  $self->throw_exception("No such column $col to filter")
-    unless $self->result_source_instance->has_column($col);
 
   $self->throw_exception('filter_column expects a hashref of filter specifications')
     unless ref $attrs eq 'HASH';
@@ -34,8 +31,7 @@ sub _column_from_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->result_source->column_info($col)
-    or $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_filter_info};
 
@@ -49,8 +45,7 @@ sub _column_to_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->result_source->column_info($col) or
-    $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_filter_info};
 
@@ -63,7 +58,7 @@ sub get_filtered_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not a filtered column")
-    unless exists $self->result_source->column_info($col)->{_filter_info};
+    unless exists $self->result_source->columns_info->{$col}{_filter_info};
 
   return $self->{_filtered_column}{$col}
     if exists $self->{_filtered_column}{$col};

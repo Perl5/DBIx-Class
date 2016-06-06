@@ -445,13 +445,19 @@ sub add_columns {
   my ($self, @cols) = @_;
   $self->_ordered_columns(\@cols) unless $self->_ordered_columns;
 
-  my @added;
+  my ( @added, $colinfos );
   my $columns = $self->_columns;
+
   while (my $col = shift @cols) {
-    my $column_info = {};
-    if ($col =~ s/^\+//) {
-      $column_info = $self->column_info($col);
-    }
+    my $column_info =
+      (
+        $col =~ s/^\+//
+          and
+        ( $colinfos ||= $self->columns_info )->{$col}
+      )
+        ||
+      {}
+    ;
 
     # If next entry is { ... } use that for the column info, if not
     # use an empty hashref
@@ -462,6 +468,7 @@ sub add_columns {
     push(@added, $col) unless exists $columns->{$col};
     $columns->{$col} = $column_info;
   }
+
   push @{ $self->_ordered_columns }, @added;
   return $self;
 }
@@ -511,35 +518,10 @@ contents of the hashref.
 =cut
 
 sub column_info {
-  my ($self, $column) = @_;
-  $self->throw_exception("No such column $column")
-    unless exists $self->_columns->{$column};
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
-  if ( ! $self->_columns->{$column}{data_type}
-       and ! $self->{_columns_info_loaded}
-       and $self->column_info_from_storage
-       and my $stor = dbic_internal_try { $self->schema->storage } )
-  {
-    $self->{_columns_info_loaded}++;
-
-    # try for the case of storage without table
-    dbic_internal_try {
-      my $info = $stor->columns_info_for( $self->from );
-      my $lc_info = { map
-        { (lc $_) => $info->{$_} }
-        ( keys %$info )
-      };
-
-      foreach my $col ( keys %{$self->_columns} ) {
-        $self->_columns->{$col} = {
-          %{ $self->_columns->{$col} },
-          %{ $info->{$col} || $lc_info->{lc $col} || {} }
-        };
-      }
-    };
-  }
-
-  return $self->_columns->{$column};
+  #my ($self, $column) = @_;
+  $_[0]->columns_info([ $_[1] ])->{$_[1]};
 }
 
 =head2 columns
@@ -634,6 +616,8 @@ sub columns_info {
     }
   }
   else {
+    # the shallow copy is crucial - there are exists() checks within
+    # the wider codebase
     %ret = %$colinfo;
   }
 
@@ -1857,14 +1841,17 @@ sub _pk_depends_on {
   # auto-increment
   my $rel_source = $self->related_source($rel_name);
 
+  my $colinfos;
+
   foreach my $p ($self->primary_columns) {
-    if (exists $keyhash->{$p}) {
-      unless (defined($rel_data->{$keyhash->{$p}})
-              || $rel_source->column_info($keyhash->{$p})
-                            ->{is_auto_increment}) {
-        return 0;
-      }
-    }
+    return 0 if (
+      exists $keyhash->{$p}
+        and
+      ! defined( $rel_data->{$keyhash->{$p}} )
+        and
+      ! ( $colinfos ||= $rel_source->columns_info )
+         ->{$keyhash->{$p}}{is_auto_increment}
+    )
   }
 
   return 1;
