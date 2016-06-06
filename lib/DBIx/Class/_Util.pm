@@ -930,12 +930,29 @@ sub fail_on_internal_call {
     ;
   };
 
+  my @fr2;
+  # need to make allowance for a proxy-yet-direct call
+  my $check_fr = (
+    $fr->[0] eq 'DBIx::Class::ResultSourceProxy'
+      and
+    @fr2 = (CORE::caller(2))
+      and
+    (
+      ( $fr->[3] =~ /([^:])+$/ )[0]
+        eq
+      ( $fr2[3] =~ /([^:])+$/ )[0]
+    )
+  )
+    ? \@fr2
+    : $fr
+  ;
+
   if (
     $argdesc
       and
-    $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
+    $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and
-    $fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+    $check_fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
   ) {
     DBIx::Class::Exception->throw( sprintf (
       "Illegal internal call of indirect proxy-method %s() with argument '%s': examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",

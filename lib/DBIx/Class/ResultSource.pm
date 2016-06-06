@@ -804,6 +804,8 @@ See also L</add_unique_constraint>.
 =cut
 
 sub add_unique_constraints {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my $self = shift;
   my @constraints = @_;
 
