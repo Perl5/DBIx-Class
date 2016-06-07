@@ -25,6 +25,11 @@ if is_cperl ; then
 
 fi
 
+
+# announce what are we running
+echo_err "$(ci_vm_state_text)"
+
+
 # FIXME - this is a kludge in place of proper MVDT testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
@@ -239,9 +244,6 @@ if [[ "$CLEANTEST" = "true" ]] && perl -MModule::Build::Tiny -e1 &>/dev/null ; t
   exit 1
 fi
 
-# announce what are we running
 echo_err "
 ===================== DEPENDENCY CONFIGURATION COMPLETE =====================
-$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
-
-$(ci_vm_state_text)"
+$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)"
