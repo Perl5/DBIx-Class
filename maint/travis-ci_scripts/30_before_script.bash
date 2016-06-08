@@ -27,6 +27,11 @@ if is_cperl ; then
   # (cperl 5.22.2 comes with YAML already)
   perl -M5.022002 -e1 &>/dev/null || installdeps YAML
 
+  # Work around cperl's Test::More being typed, by getting the CPAN one
+  # https://github.com/perl11/cperl/issues/153#issuecomment-224515895
+  # ( in the long term this is sadly a nail in cperl's coffin :/ )
+  installdeps Test::More
+
 fi
 
 
