@@ -195,7 +195,8 @@ warnings_like {
   qr/\Qsearch( %condition ) is deprecated/
 ], 'Warning properly bubbled from search()';
 
-$cd->set_producers([$schema->resultset('Producer')->all]);
+# the undef-attr-arg at the end is deliberate: this is what FormFu does
+$cd->set_producers([$schema->resultset('Producer')->all], undef);
 is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);

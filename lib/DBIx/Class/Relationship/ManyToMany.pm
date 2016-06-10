@@ -161,7 +161,7 @@ EOC
       ) if (
         @_ > 1
           or
-        ( @_ and ref $_[0] ne 'HASH' )
+        ( defined $_[0] and ref $_[0] ne 'HASH' )
       );
 
       my $guard;
