@@ -85,7 +85,7 @@ CPAN_CFG_SCRIPT="
   *CPAN::FirstTime::conf_sites = sub {};
   CPAN::Config->load;
   \$CPAN::Config->{urllist} = [qw{ $CPAN_MIRROR }];
-  \$CPAN::Config->{halt_on_failure} = 1;
+  \$CPAN::Config->{halt_on_failure} = $( is_cperl && echo -n 0 || echo -n 1 );
   CPAN::Config->commit;
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
