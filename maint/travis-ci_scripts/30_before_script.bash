@@ -24,13 +24,8 @@ if is_cperl ; then
   export PERL5LIB="$PERL5LIB:."
 
   # Also need to have YAML in place, otherwise the distroprefs are not readable
-  # (cperl 5.22.2 comes with YAML already)
-  perl -M5.022002 -e1 &>/dev/null || installdeps YAML
-
-  # Work around cperl's Test::More being typed, by getting the CPAN one
-  # https://github.com/perl11/cperl/issues/153#issuecomment-224515895
-  # ( in the long term this is sadly a nail in cperl's coffin :/ )
-  installdeps Test::More
+  # work around https://github.com/perl11/cperl/issues/155#issuecomment-224862978
+  perl -MYAML -e1 &>/dev/null || installdeps YAML
 
 fi
 
