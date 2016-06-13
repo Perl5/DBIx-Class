@@ -32,6 +32,9 @@ use DBICTest;
 
 my $pkg_gen_history = {};
 
+{ package UEBERVERSAL; sub ueber {} }
+@UNIVERSAL::ISA = "UEBERVERSAL";
+
 sub grab_pkg_gen ($) {
   push @{ $pkg_gen_history->{$_[0]} }, [
     DBIx::Class::_Util::get_real_pkg_gen($_[0]),
@@ -225,11 +228,11 @@ sub add_more_attrs {
 
       $cnt++;
 
-      eval "sub UNIVERSAL::some_unimethod_$cnt {}; 1" or die $@;
+      eval "sub UEBERVERSAL::some_unimethod_$cnt {}; 1" or die $@;
 
       my $rv = describe_class_methods($class);
 
-      delete ${"UNIVERSAL::"}{"some_unimethod_$cnt"};
+      delete ${"UEBERVERSAL::"}{"some_unimethod_$cnt"};
 
       $rv
     };
@@ -292,6 +295,7 @@ sub add_more_attrs {
       my $gen = Math::BigInt->new(0);
 
       $gen += DBIx::Class::_Util::get_real_pkg_gen($_) for (
+        'UEBERVERSAL',
         'UNIVERSAL',
         'DBICTest::AttrTest',
         @$expected_AttrTest_ISA,
@@ -354,6 +358,13 @@ sub add_more_attrs {
           },
           name => "attr",
           via_class => "DBICTest::AttrTest"
+        }
+      ],
+      ueber => [
+        {
+          attributes => {},
+          name => "ueber",
+          via_class => "UEBERVERSAL",
         }
       ],
       can => [

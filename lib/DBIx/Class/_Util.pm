@@ -100,11 +100,25 @@ BEGIN {
               )} sort keys %methlist
             ),
           }
-        } ( 'UNIVERSAL', @{
-          ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{linear_isa}
-            ||=
-           mro::get_linear_isa($_[0])
-        } ) ) ) )
+        } (
+
+          @{
+            ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{linear_isa}
+              ||=
+            mro::get_linear_isa($_[0])
+          },
+
+          ((
+            ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{is_universal}
+              ||=
+            mro::is_universal($_[0])
+          ) ? () : @{
+            ( $mro_recursor_stack->{cache} || {} )->{UNIVERSAL}{linear_isa}
+              ||=
+            mro::get_linear_isa("UNIVERSAL")
+          } ),
+
+        ) ) ) )
       );
     };
   }
@@ -658,23 +672,40 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
     my $my_gen = 0;
 
-    $my_gen += get_real_pkg_gen($_) for (
-      'UNIVERSAL',
-      ( $class, my @my_ISA ) = @{
+    $my_gen += get_real_pkg_gen($_) for ( my @full_ISA = (
+
+      @{
         $mro_recursor_stack->{cache}{$class}{linear_isa}
           ||=
         mro::get_linear_isa($class)
-      }
-    );
+      },
+
+      ((
+        $mro_recursor_stack->{cache}{$class}{is_universal}
+          ||=
+        mro::is_universal($class)
+      ) ? () : @{
+        $mro_recursor_stack->{cache}{UNIVERSAL}{linear_isa}
+          ||=
+        mro::get_linear_isa("UNIVERSAL")
+      }),
+
+    ));
 
     my $slot = $describe_class_query_cache->{$class} ||= {};
 
     unless ( ($slot->{cumulative_gen}||0) == $my_gen ) {
 
+      # remove ourselves from ISA
+      shift @full_ISA;
+
       # reset
       %$slot = (
         class => $class,
-        isa => [ @my_ISA ], # copy before we shove UNIVERSAL into it
+        isa => [
+          @{ $mro_recursor_stack->{cache}{$class}{linear_isa} }
+            [ 1 .. $#{$mro_recursor_stack->{cache}{$class}{linear_isa}} ]
+        ],
         mro => {
           type => mro::get_mro($class),
         },
@@ -682,11 +713,9 @@ sub modver_gt_or_eq_and_lt ($$$) {
       );
       $slot->{mro}{is_c3} = ($slot->{mro}{type} eq 'c3') ? 1 : 0;
 
-      push @my_ISA, 'UNIVERSAL';
-
       # ensure the cache is populated for the parents, code below can then
       # efficiently operate over the query_cache directly
-      describe_class_methods($_) for reverse @my_ISA;
+      describe_class_methods($_) for reverse @full_ISA;
 
       my ($methods_seen_via_ISA_on_old_mro, $current_node_refaddr);
       no strict 'refs';
@@ -719,10 +748,10 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
       ) for (
 
-        # what describe_class_methods for @my_ISA produced above
+        # what describe_class_methods for @full_ISA produced above
         ( map { values %{
           $describe_class_query_cache->{$_}{methods_defined_in_class} || {}
-        } } reverse @my_ISA ),
+        } } reverse @full_ISA ),
 
         # our own non-cleaned subs + their attributes
         ( map {
@@ -744,7 +773,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
                   $rv->{$_->{name}}->{ refaddr( \&{ "$_->{via_class}::$_->{name}"} ) } = 1 for
                     map { @$_ } map
                       { values %{ $describe_class_query_cache->{$_}{methods} } }
-                      @my_ISA;
+                      @full_ISA;
                   $rv;
                 }
                   and
@@ -779,7 +808,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
         $slot->{cumulative_gen} = 0;
         $slot->{cumulative_gen} += get_real_pkg_gen($_)
-          for $class, @my_ISA;
+          for $class, @full_ISA;
       }
     }
 
