@@ -27,18 +27,6 @@ __PACKAGE__->mk_classaccessor( _skip_namespace_frames =>
   '^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve|^Moose::Meta::'
 );
 
-# FIXME - this is not really necessary, and is in
-# fact going to slow things down a bit
-# However it is the right thing to do in order to get
-# various install bases to highlight their brokenness
-# Remove at some unknown point in the future
-#
-# The oddball BEGIN is there for... reason unknown
-# It does make non-segfaulty difference on pre-5.8.5 perls, so shrug
-BEGIN {
-  sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor };
-}
-
 sub component_base_class { 'DBIx::Class' }
 
 # *DO NOT* change this URL nor the identically named =head1 below
