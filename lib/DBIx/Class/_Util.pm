@@ -71,34 +71,33 @@ BEGIN {
           ( $mro_recursor_stack->{cache} || {} )->{$_}{methlist} ||= do {
 
             my $class = $_;
-
             no strict 'refs';
-            my %methlist =
+
+            # RV to be hashed up and turned into a number
+            join "\0", (
+              $class,
               map
-                # this is essentially a uniq_by step
-                # it is crucial on OLD_MRO
-                {( Scalar::Util::refaddr($_) => $_ )}
+                {(
+                  # stringification should be sufficient, ignore names/refaddr entirely
+                  $_,
+                  attributes::get( $_ ),
+                )}
                 map
-                  {
+                  {(
+                    # skip dummy C::C3 helper crefs
+                    ! ( ( $Class::C3::MRO{$class} || {} )->{methods}{$_} )
+                      and
                     (
                       ref(\ "${class}::"->{$_} ) ne 'GLOB'
                         or
                       defined( *{ "${class}::"->{$_} }{CODE} )
                     )
+                  )
                     ? ( \&{"${class}::$_"} )
                     : ()
                   }
                   keys %{ "${class}::" }
-            ;
-
-            # RV to be hashed up and turned into a number
-            join "\0", (
-              $class,
-              map {(
-                $_, # refaddr is sufficient, ignore names entirely
-                attributes::get( $methlist{$_} )
-              )} sort keys %methlist
-            ),
+            );
           }
         } (
 
@@ -717,7 +716,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
       # efficiently operate over the query_cache directly
       describe_class_methods($_) for reverse @full_ISA;
 
-      my ($methods_seen_via_ISA_on_old_mro, $current_node_refaddr);
+      my $current_node_refaddr;
       no strict 'refs';
 
       # combine full ISA-order inherited and local method list into a
@@ -756,33 +755,18 @@ sub modver_gt_or_eq_and_lt ($$$) {
         # our own non-cleaned subs + their attributes
         ( map {
           (
+            # need to account for dummy helper crefs under OLD_MRO
+            (
+              ! DBIx::Class::_ENV_::OLD_MRO
+                or
+              ! ( ( $Class::C3::MRO{$class} || {} )->{methods}{$_} )
+            )
+              and
             # these 2 OR-ed checks are sufficient for 5.10+
             (
               ref(\ "${class}::"->{$_} ) ne 'GLOB'
                 or
               defined( *{ "${class}::"->{$_} }{CODE} )
-            )
-              and
-            # need to account for dummy helper crefs under OLD_MRO
-            (
-              ! DBIx::Class::_ENV_::OLD_MRO
-                or
-              (
-                $methods_seen_via_ISA_on_old_mro ||= do {
-                  my $rv = {};
-                  $rv->{$_->{name}}->{ refaddr( \&{ "$_->{via_class}::$_->{name}"} ) } = 1 for
-                    map { @$_ } map
-                      { values %{ $describe_class_query_cache->{$_}{methods} } }
-                      @full_ISA;
-                  $rv;
-                }
-                  and
-                (
-                  ! $methods_seen_via_ISA_on_old_mro->{$_}
-                    or
-                  ! $methods_seen_via_ISA_on_old_mro->{$_}{ refaddr( \&{"${class}::${_}"} ) }
-                )
-              )
             )
           ) ? {
               via_class => $class,
