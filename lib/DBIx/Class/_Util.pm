@@ -96,11 +96,7 @@ BEGIN {
               $class,
               map {(
                 $_, # refaddr is sufficient, ignore names entirely
-                @{
-                  ( $mro_recursor_stack->{cache} || {} )->{attrs}{$_}
-                    ||=
-                  [ attributes::get( $methlist{$_} ) ]
-                },
+                attributes::get( $methlist{$_} )
               )} sort keys %methlist
             ),
           }
@@ -644,9 +640,10 @@ sub modver_gt_or_eq_and_lt ($$$) {
   our $describe_class_query_cache;
 
   sub describe_class_methods {
+    my ($class) = @_;
 
     croak "Expecting a class name"
-      if not defined $_[0] or $_[0] !~ $module_name_rx;
+      if not defined $class or $class !~ $module_name_rx;
 
     # use a cache on old MRO, since while we are recursing in this function
     # nothing can possibly change (the speedup is immense)
@@ -663,10 +660,10 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
     $my_gen += get_real_pkg_gen($_) for (
       'UNIVERSAL',
-      my ($class, @my_ISA) = @{
-        $mro_recursor_stack->{cache}{$_[0]}{linear_isa}
+      ( $class, my @my_ISA ) = @{
+        $mro_recursor_stack->{cache}{$class}{linear_isa}
           ||=
-        mro::get_linear_isa($_[0])
+        mro::get_linear_isa($class)
       }
     );
 
@@ -689,33 +686,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
       # ensure the cache is populated for the parents, code below can then
       # efficiently operate over the query_cache directly
-      for (reverse @my_ISA) {
-        my ($parent_gen, @parent_ISA);
-
-        # and even more skips before calling out recursively
-        describe_class_methods($_) unless (
-          $describe_class_query_cache->{$_}{cumulative_gen}
-            and
-          $parent_gen = get_real_pkg_gen($_)
-            and
-          (
-            (
-              (undef, @parent_ISA) = @{
-                $mro_recursor_stack->{cache}{$_}{linear_isa}
-                  ||=
-                mro::get_linear_isa($_)
-              }
-            ) == 1
-              or
-            do {
-              $parent_gen += get_real_pkg_gen($_) for @parent_ISA;
-              1;
-            }
-          )
-            and
-          $describe_class_query_cache->{$_}{cumulative_gen} == $parent_gen
-        );
-      }
+      describe_class_methods($_) for reverse @my_ISA;
 
       my ($methods_seen_via_ISA_on_old_mro, $current_node_refaddr);
       no strict 'refs';
@@ -787,11 +758,9 @@ sub modver_gt_or_eq_and_lt ($$$) {
           ) ? {
               via_class => $class,
               name => $_,
-              attributes => { map { $_ => 1 } @{
-                $mro_recursor_stack->{cache}{attrs}{ refaddr \&{"${class}::${_}"} }
-                  ||=
-                [ attributes::get( \&{"${class}::${_}"} ) ]
-              } },
+              attributes => {
+                map { $_ => 1 } attributes::get( \&{"${class}::${_}"} )
+              },
             }
             : ()
         } keys %{"${class}::"} )
