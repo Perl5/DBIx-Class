@@ -424,6 +424,61 @@ sub add_more_attrs {
     $expected_desc,
     'describe_class_methods returns correct data',
   );
+
+  # ensure that asking with a different MRO will not perturb the cache
+  my $cached_desc = serialize(
+    $DBIx::Class::_Util::describe_class_query_cache->{"DBICTest::AttrTest|c3"}
+  );
+
+  # now try to ask for DFS explicitly, adjust our expectations
+  $expected_desc->{mro} = { type => 'dfs', is_c3 => 0 };
+
+  # due to DFS the last 2 entries of ISA and the VALID_DBIC_CODE_ATTRIBUTE
+  # sourcing-list will change places
+  splice @$_, -2, 2, @{$_}[-1, -2]
+    for $V_D_C_A_stack, $expected_AttrTest_ISA;
+
+  is_deeply (
+    # work around taint, see TODO below
+    {
+      %{describe_class_methods("DBICTest::AttrTest", "dfs")},
+      cumulative_gen => $expected_desc->{cumulative_gen},
+    },
+    $expected_desc,
+    'describing with explicit mro returns correct data'
+  );
+
+  # FIXME: TODO does not work on new T::B under threads sigh
+  # https://github.com/Test-More/test-more/issues/683
+  unless(
+    ! DBIx::Class::_ENV_::OLD_MRO
+      and
+    ${^TAINT}
+  ) {
+    #local $TODO = "On 5.10+ -T combined with stash peeking invalidates the pkg_gen (wtf)" if ...
+
+    ok(
+      (
+        serialize( describe_class_methods("DBICTest::AttrTest") )
+          eq
+        $cached_desc
+      ),
+      "Asking for alternative mro type did not invalidate cache"
+    );
+  }
+
+  # setting mro explicitly still matches what we expect
+  mro::set_mro("DBICTest::AttrTest", "dfs");
+
+  is_deeply (
+    # in case set_mro starts increasing pkg_gen...
+    {
+      %{describe_class_methods("DBICTest::AttrTest")},
+      cumulative_gen => $expected_desc->{cumulative_gen},
+    },
+    $expected_desc,
+    'describing with implicit mro returns correct data'
+  );
 }
 
 if ($skip_threads) {

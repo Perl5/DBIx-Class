@@ -653,10 +653,21 @@ sub modver_gt_or_eq_and_lt ($$$) {
   our $describe_class_query_cache;
 
   sub describe_class_methods {
-    my ($class) = @_;
+    my ($class, $requested_mro) = @_;
 
     croak "Expecting a class name"
       if not defined $class or $class !~ $module_name_rx;
+
+    $requested_mro ||= mro::get_mro($class);
+
+    # mro::set_mro() does not bump pkg_gen - WHAT THE FUCK?!
+    my $query_cache_key = "$class|$requested_mro";
+
+    my $stack_cache_key =
+      ( mro::get_mro($class) eq $requested_mro )
+        ? $class
+        : $query_cache_key
+    ;
 
     # use a cache on old MRO, since while we are recursing in this function
     # nothing can possibly change (the speedup is immense)
@@ -674,9 +685,9 @@ sub modver_gt_or_eq_and_lt ($$$) {
     $my_gen += get_real_pkg_gen($_) for ( my @full_ISA = (
 
       @{
-        $mro_recursor_stack->{cache}{$class}{linear_isa}
+        $mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa}
           ||=
-        mro::get_linear_isa($class)
+        mro::get_linear_isa($class, $requested_mro)
       },
 
       ((
@@ -691,7 +702,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
     ));
 
-    my $slot = $describe_class_query_cache->{$class} ||= {};
+    my $slot = $describe_class_query_cache->{$query_cache_key} ||= {};
 
     unless ( ($slot->{cumulative_gen}||0) == $my_gen ) {
 
@@ -702,15 +713,15 @@ sub modver_gt_or_eq_and_lt ($$$) {
       %$slot = (
         class => $class,
         isa => [
-          @{ $mro_recursor_stack->{cache}{$class}{linear_isa} }
-            [ 1 .. $#{$mro_recursor_stack->{cache}{$class}{linear_isa}} ]
+          @{ $mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa} }
+            [ 1 .. $#{$mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa}} ]
         ],
         mro => {
-          type => mro::get_mro($class),
+          type => $requested_mro,
+          is_c3 => ( ($requested_mro eq 'c3') ? 1 : 0 ),
         },
         cumulative_gen => $my_gen,
       );
-      $slot->{mro}{is_c3} = ($slot->{mro}{type} eq 'c3') ? 1 : 0;
 
       # ensure the cache is populated for the parents, code below can then
       # efficiently operate over the query_cache directly
@@ -750,7 +761,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
         # what describe_class_methods for @full_ISA produced above
         ( map { values %{
           $describe_class_query_cache->{$_}{methods_defined_in_class} || {}
-        } } reverse @full_ISA ),
+        } } map { "$_|" . mro::get_mro($_) } reverse @full_ISA ),
 
         # our own non-cleaned subs + their attributes
         ( map {
