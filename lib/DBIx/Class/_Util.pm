@@ -699,15 +699,15 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
           and
 
-        # on complex MI herarchies the method can be anywhere in the
-        # shadow stack - look through the entire slot, not just [0]
-        ( ! grep {
-          refaddr($_) == $current_node_refaddr
-        } @{ $slot->{methods}{ $_->{name} } || [] } )
+        unshift @{ $slot->{methods}{$_->{name}} }, $_
 
           and
 
-        unshift @{ $slot->{methods}{$_->{name}} }, $_
+        (
+          $_->{via_class} ne $class
+            or
+          $slot->{methods_defined_in_class}{$_->{name}} = $_
+        )
 
           and
 
@@ -720,9 +720,9 @@ sub modver_gt_or_eq_and_lt ($$$) {
       ) for (
 
         # what describe_class_methods for @my_ISA produced above
-        ( map { $_->[0] } map {
-          values %{ $describe_class_query_cache->{$_}{methods} }
-        } reverse @my_ISA ),
+        ( map { values %{
+          $describe_class_query_cache->{$_}{methods_defined_in_class} || {}
+        } } reverse @my_ISA ),
 
         # our own non-cleaned subs + their attributes
         ( map {

@@ -390,6 +390,9 @@ sub add_more_attrs {
   $expected_desc->{methods_with_supers}{VALID_DBIC_CODE_ATTRIBUTE}
     = $expected_desc->{methods}{VALID_DBIC_CODE_ATTRIBUTE};
 
+  $expected_desc->{methods_defined_in_class}{attr}
+    = $expected_desc->{methods}{attr}[0];
+
   is_deeply (
     describe_class_methods("DBICTest::AttrTest"),
     $expected_desc,
@@ -440,5 +443,28 @@ else { SKIP: {
     'Thread stack exitted succesfully'
   );
 }}
+
+# this doesn't really belong in this test, but screw it
+{
+  package DBICTest::WackyDFS;
+  use base qw( DBICTest::SomeGrandParentClass DBICTest::SomeParentClass );
+}
+
+is_deeply
+  describe_class_methods("DBICTest::WackyDFS")->{methods}{VALID_DBIC_CODE_ATTRIBUTE},
+  [
+    {
+      attributes => {},
+      name => "VALID_DBIC_CODE_ATTRIBUTE",
+      via_class => "DBICTest::SomeGrandParentClass",
+    },
+    {
+      attributes => {},
+      name => "VALID_DBIC_CODE_ATTRIBUTE",
+      via_class => "DBIx::Class::MethodAttributes"
+    },
+  ],
+  'Expected description on unusable inheritance hierarchy'
+;
 
 done_testing;
