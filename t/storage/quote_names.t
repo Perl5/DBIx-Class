@@ -128,7 +128,11 @@ for my $db (sort {
     "$db name_sep with quote_names => 1 is $name_sep_text";
 
   # if something was produced - it better be quoted
-  if ( my $ddl = try { $schema->deployment_statements } ) {
+  if (
+    ! grep { $db eq $_ } qw( SYBASE DB2 )
+      and
+    my $ddl = try { $schema->deployment_statements }
+  ) {
 
     my $quoted_artist = $schema->storage->sql_maker->_quote('artist');
 

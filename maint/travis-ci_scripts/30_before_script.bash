@@ -1,55 +1,104 @@
 #!/bin/bash
 
+# this file is executed in a subshell - set up the common stuff
 source maint/travis-ci_scripts/common.bash
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# poison the environment
-if [[ "$POISON_ENV" = "true" ]] ; then
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
-  # look through lib, find all mentioned ENVvars and set them
-  # to true and see if anything explodes
-  for var in $(grep -P '\$ENV\{' -r lib/ | grep -oP 'DBIC_\w+' | sort -u | grep -v DBIC_TRACE) ; do
-    if [[ -z "${!var}" ]] ; then
-      export $var=1
-    fi
-  done
+# The DEVREL_DEPS prereq-install stage won't mix with MVDT
+# DEVREL wins
+if [[ "$DEVREL_DEPS" == "true" ]] ; then
+  export MVDT=""
+fi
 
-  # bogus nonexisting DBI_*
-  export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
-  export DBI_DRIVER="ADO"
+# Need a shitton of patches to run on cperl (luckily all provided)
+if is_cperl ; then
 
-  # make sure tests do not rely on implicid order of returned results
-  export DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER=1
+  run_or_err "Downloading and installing cperl distroprefs" '
+    wget -qO- https://github.com/rurban/distroprefs/archive/master.tar.gz |\
+    tar -C $HOME/.cpan --strip-components 1 -zx distroprefs-master/prefs distroprefs-master/sources
+  '
 
-  # emulate a local::lib-like env
-  # trick cpanm into executing true as shell - we just need the find+unpack
-  run_or_err "Downloading latest stable DBIC from CPAN" \
-    "SHELL=/bin/true cpanm --look DBIx::Class"
+  # Argh -DFORTIFY_INC!!!
+  # FIXME - remove when M::I is gone
+  export PERL5LIB="$PERL5LIB:."
 
-  export PERL5LIB="$( ls -d ~/.cpanm/latest-build/DBIx-Class-*/lib | tail -n1 ):$PERL5LIB"
+  # Also need to have YAML in place, otherwise the distroprefs are not readable
+  # work around https://github.com/perl11/cperl/issues/155#issuecomment-224862978
+  perl -MYAML -e1 &>/dev/null || installdeps YAML
 
-  # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
-  echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
+fi
 
-  # FIXME - this is a kludge in place of proper MDV testing. For the time
-  # being simply use the minimum versions of our DBI/DBDstack, to avoid
-  # fuckups like 0.08260 (went unnoticed for 5 months)
-  #
+
+# announce what are we running
+echo_err "$(ci_vm_state_text)"
+
+
+# FIXME - this is a kludge in place of proper MVDT testing. For the time
+# being simply use the minimum versions of our DBI/DBDstack, to avoid
+# fuckups like 0.08260 (went unnoticed for 5 months)
+if [[ "$MVDT" == "true" ]] ; then
+
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
-  if perl -M5.013003 -e1 &>/dev/null ; then
+  if [[ "$CLEANTEST" != "true" ]] || perl -M5.013003 -e1 &>/dev/null ; then
+    # the fulltest may re-upgrade DBI, be conservative only on cleantests
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
+    fi
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz"
+    fi
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite
+  # reverse the logic from above for this (low on full, higher on clean)
   if [[ "$CLEANTEST" = "true" ]]; then
     parallel_installdeps_notest DBD::SQLite@1.37
   else
     parallel_installdeps_notest DBD::SQLite@1.29
   fi
+fi
 
+#
+# try minimal fully tested installs *without* a compiler (with some exceptions of course)
+if [[ "$BREAK_CC" == "true" ]] ; then
+
+  [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
+
+  # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
+  #
+  # DEVREL_DEPS means our installer is cpanm, which will respect failures
+  # and the like, so stuff soft-failing (failed deps that are not in fact
+  # needed) will not fly. Add *EVEN MORE* stuff that needs a compiler
+  #
+  # FIXME - the PathTools 3.47 is to work around https://rt.cpan.org/Ticket/Display.html?id=107392
+  #
+  installdeps Sub::Name Clone Package::Stash::XS \
+              $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
+              $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" ) \
+              $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
+              $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
+              $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
+
+  mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
+  run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
+             "ln -s /bin/false $HOME/bin/cc"
+
+  # FIXME: working around RT#113682, and some other unfiled bugs
+  installdeps Module::Build Devel::GlobalDestruction Class::Accessor::Grouped
+
+  run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
+             "ln -fs /bin/true $HOME/bin/cc"
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
@@ -58,7 +107,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # the point is to have a *really* clean perl (the ones
   # we build are guaranteed to be clean, without side
   # effects from travis preinstalls)
-
+  #
   # trick cpanm into executing true as shell - we just need the find+unpack
   [[ -d ~/.cpanm/latest-build/DBIx-Class-*/inc ]] || run_or_err "Downloading latest stable DBIC inc/ from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
@@ -73,166 +122,100 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # So instead we still use our stock (possibly old) CPAN, and add some
   # handholding
 
-  if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # Many dists still do not pass tests under tb1.5 properly (and it itself
-    # does not even install on things like 5.10). Install the *stable-dev*
-    # latest T::B here, so that it will not show up as a dependency, and
-    # hence it will not get installed a second time as an unsatisfied dep
-    # under cpanm --dev
-    #
-    # We are also not "quite ready" for SQLA 1.99, do not consider it
-    #
-    installdeps 'Test::Builder~<1.005' 'SQL::Abstract~<1.99'
-
+  if [[ "$DEVREL_DEPS" = "true" ]] ; then
+    # nothing for now
+    /bin/true
   elif ! CPAN_is_sane ; then
     # no configure_requires - we will need the usual suspects anyway
-    # without pre-installing these in one pass things like extract_prereqs won't work
-    installdeps ExtUtils::MakeMaker ExtUtils::CBuilder Module::Build
-
+    # without pre-installing these in one pass things won't yet work
+    installdeps Module::Build
   fi
 
 else
   # we will be running all dbic tests - preinstall lots of stuff, run basic tests
-  # using SQLT and set up whatever databases necessary
-  export DBICTEST_SQLT_DEPLOY=1
-
-  # FIXME - need new TB1.5 devrel
-  # if we run under --dev install latest github of TB1.5 first
-  # (unreleased workaround for precedence warnings)
-  if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    parallel_installdeps_notest git://github.com/nthykier/test-more.git@fix-return-precedence-issue
-  fi
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
-  # (e.g. once Carp is upgraded there's no more Carp::Heavy,
-  # while a File::Path upgrade may cause a parallel EUMM run to fail)
+  # (e.g. once Carp is upgraded there's no more Carp::Heavy)
   #
-  parallel_installdeps_notest ExtUtils::MakeMaker
-  parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Data::Dumper Module::Runtime
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Class::Trigger JSON::XS DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest 'SQL::Abstract~<1.99' Moose Module::Install JSON SQL::Translator File::Which
+  parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/dbsrgits/perl-pperl.git
 
-  if [[ -n "DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
-    # the official version is very much outdated and does not compile on 5.14+
-    # use this rather updated source tree (needs to go to PAUSE):
-    # https://github.com/pilcrow/perl-dbd-interbase
+  # the official version is very much outdated and does not compile on 5.14+
+  # use this rather updated source tree (needs to go to PAUSE):
+  # https://github.com/pilcrow/perl-dbd-interbase
+  if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
     parallel_installdeps_notest git://github.com/dbsrgits/perl-dbd-interbase.git
   fi
 
+  # SCGI does not install under < 5.8.8 perls nor under parallel make
+  # FIXME: The 5.8.8 thing is likely fixable, something to do with
+  # #define speedy_new(s,n,t) Newx(s,n,t)
+  if perl -M5.008008 -e 1 &>/dev/null ; then
+    MAKEFLAGS="" bash -c "parallel_installdeps_notest git://github.com/dbsrgits/cgi-speedycgi.git"
+  fi
 fi
 
-# generate the makefile which will have different deps depending on
-# the runmode and envvars set above
-run_or_err "Configure on current branch" "perl Makefile.PL"
 
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
-  # we may need to prepend some stuff to that list
-  HARD_DEPS="$(echo $(make listdeps))"
 
-##### TEMPORARY WORKAROUNDS needed in case we will be using CPAN.pm
-  if [[ "$DEVREL_DEPS" != "true" ]] && ! CPAN_is_sane ; then
-    # combat dzillirium on harness-wide level, otherwise breakage happens weekly
-    echo_err "$(tstamp) Ancient CPAN.pm: engaging TAP::Harness::IgnoreNonessentialDzilAutogeneratedTests during dep install"
-    perl -MTAP::Harness\ 3.18 -e1 &>/dev/null || run_or_err "Upgrading TAP::Harness for HARNESS_SUBCLASS support" "cpan TAP::Harness"
-    export PERL5LIB="$(pwd)/maint/travis-ci_scripts/lib:$PERL5LIB"
-    export HARNESS_SUBCLASS="TAP::Harness::IgnoreNonessentialDzilAutogeneratedTests"
-    # sanity check, T::H does not report sensible errors when the subclass fails to load
-    perl -MTAP::Harness::IgnoreNonessentialDzilAutogeneratedTests -e1
+  run_or_err "Configure on current branch" "perl Makefile.PL"
 
-    # DBD::SQLite reasonably wants DBI at config time
-    perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+  # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    # this is a fucked CPAN - won't understand configure_requires of
-    # various pieces we may run into
-    # FIXME - need to get these off metacpan or something instead
-    HARD_DEPS="ExtUtils::Depends B::Hooks::OP::Check $HARD_DEPS"
+    HARD_DEPS="$(make listalldeps | sort -R)"
 
-    # FIXME
-    # parent is temporary due to Carp https://rt.cpan.org/Ticket/Display.html?id=88494
-    HARD_DEPS="parent $HARD_DEPS"
+  else
 
-    if CPAN_supports_BUILDPL ; then
-      # We will invoke a posibly MBT based BUILD-file, but we do not support
-      # configure requires. So we not only need to install MBT but its prereqs
-      # FIXME This is madness
-      HARD_DEPS="$(extract_prereqs Module::Build::Tiny) Module::Build::Tiny $HARD_DEPS"
-    else
-      # FIXME
-      # work around Params::Validate not having a Makefile.PL so really old
-      # toolchains can not figure out what the prereqs are ;(
-      # Need to do more research before filing a bug requesting Makefile inclusion
-      HARD_DEPS="$(extract_prereqs Params::Validate) $HARD_DEPS"
+    HARD_DEPS="$(make listdeps | sort -R)"
+
+##### TEMPORARY WORKAROUNDS needed in case we will be using a fucked CPAN.pm
+    if ! CPAN_is_sane ; then
+
+      # DBD::SQLite reasonably wants DBI at config time
+      perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
+
     fi
-  fi
+
 ##### END TEMPORARY WORKAROUNDS
+  fi
 
   installdeps $HARD_DEPS
 
-### FIXME in case we set it earlier in a workaround
-  if [[ -n "$HARNESS_SUBCLASS" ]] ; then
-
-    INSTALLDEPS_SKIPPED_TESTLIST=$(perl -0777 -e '
-my $curmod_re = qr{
-^
-  (?:
-    \QBuilding and testing\E
-      |
-    [\x20\t]* CPAN\.pm: [^\n]*? (?i:build)\S*
-  )
-
-  [\x20\t]+ (\S+)
-$}mx;
-
-my $curskip_re = qr{^ === \x20 \QSkipping nonessential autogenerated tests: \E([^\n]+) }mx;
-
-my (undef, @chunks) = (split qr/$curmod_re/, <>);
-while (@chunks) {
-  my ($mod, $log) = splice @chunks, 0, 2;
-  print "!!! Skipped nonessential tests while installing $mod:\n\t$1\n"
-    if $log =~ $curskip_re;
-}
-' <<< "$LASTOUT")
-
-    if [[ -n "$INSTALLDEPS_SKIPPED_TESTLIST" ]] ; then
-      POSTMORTEM="$POSTMORTEM$(
-        echo
-        echo "The following non-essential tests were skipped during deps installation"
-        echo "============================================================="
-        echo "$INSTALLDEPS_SKIPPED_TESTLIST"
-        echo "============================================================="
-        echo
-      )"
-    fi
-
-    unset HARNESS_SUBCLASS
-  fi
+  run_or_err "Re-configure" "perl Makefile.PL"
 
 else
 
-  # listalldeps is deliberate - will upgrade everything it can find
-  # we exclude SQLA specifically, since we do not want to pull
-  # in 1.99_xx on bleadcpan runs
-  deplist="$(make listalldeps | grep -vP '^(SQL::Abstract)$')"
+  run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
-  # assume MDV on POISON_ENV, do not touch DBI/SQLite
-  if [[ "$POISON_ENV" = "true" ]] ; then
-    deplist="$(grep -vP '^(DBI|DBD::SQLite)$' <<< "$deplist")"
+  # FIXME - evil evil work around for https://github.com/Manwar/Test-Strict/issues/17
+  if perl -M5.025 -e1 &>/dev/null; then
+    mkdir -p "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel"
+    cat <<MyDevelCover > "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel/Cover.pm"
+package Devel::Cover;
+our \$VERSION = 0.43;
+1;
+MyDevelCover
   fi
 
-  parallel_installdeps_notest "$deplist"
+  # if we are smoking devrels - make sure we upgrade everything we know about
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    parallel_installdeps_notest "$(make listalldeps | sort -R)"
+  else
+    parallel_installdeps_notest "$(make listdeps | sort -R)"
+  fi
+
+  run_or_err "Re-configure with --with-optdeps" "perl Makefile.PL --with-optdeps"
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
-# this will display list of available versions
-perl Makefile.PL
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
@@ -244,36 +227,12 @@ if [[ -n "$(make listdeps)" ]] ; then
   exit 1
 fi
 
-# check that our MDV somewhat works
-if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
+# check that our MVDT somewhat works
+if [[ "$MVDT" == "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
   echo_err "Something went wrong - higher versions of DBI and/or DBD::SQLite than we expected"
   exit 1
 fi
 
-
-# announce what are we running
 echo_err "
 ===================== DEPENDENCY CONFIGURATION COMPLETE =====================
-$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
-
-= CPUinfo
-$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
-
-= Meminfo
-$(free -m -t)
-
-= Kernel info
-$(uname -a)
-
-= Network Configuration
-$(ip addr)
-
-= Network Sockets Status
-$(sudo netstat -an46p | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
-
-= Environment
-$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC' | LC_ALL=C sort | cat -v)
-
-= Perl in use
-$(perl -V)
-============================================================================="
+$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)"

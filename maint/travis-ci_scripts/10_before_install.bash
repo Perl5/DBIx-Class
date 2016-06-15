@@ -1,54 +1,152 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
+export SHORT_CIRCUIT_SMOKE
+
+if have_sudo ; then
+
+  # Stop pre-started RDBMS, move their data back to disk (save RAM)
+  # sync for some settle time (not available on all platforms)
+  for d in mysql postgresql ; do
+    # maybe not even running
+    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
+
+    # no longer available on newer build systems
+    if [[ -d /var/ramfs/$d ]] ; then
+      sudo rm -rf /var/lib/$d
+      sudo mv /var/ramfs/$d /var/lib/
+      sudo ln -s /var/lib/$d /var/ramfs/$d
+    fi
+  done
+  /bin/sync
+fi
+
+# Sanity check VM before continuing
+echo "
+=============================================================================
+
+= Startup Meminfo
+$(free -m -t)
+
+============================================================================="
+
+CI_VM_MIN_FREE_MB=2000
+if [[ "$(free -m | grep 'buffers/cache:' | perl -p -e '$_ = (split /\s+/, $_)[3]')" -lt "$CI_VM_MIN_FREE_MB" ]]; then
+  SHORT_CIRCUIT_SMOKE=1
+  echo_err "
+=============================================================================
+
+CI virtual machine stuck in a state with a lot of memory locked for no reason.
+Under Travis this state usually results in a failed build.
+Short-circuiting buildjob to avoid false negatives, please restart it manually.
+
+============================================================================="
+
+# pull requests are always scrutinized after the fact anyway - run a
+# a simpler matrix
+elif [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+  if [[ -n "$BREWVER" ]]; then
+    # just don't brew anything
+    SHORT_CIRCUIT_SMOKE=1
+  else
+    # running PRs with 1 thread is non-sensical
+    VCPU_USE=""
+  fi
+fi
+
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
-# Different boxes we run on may have different amount of hw threads
-# Hence why we need to query
-# Originally we used to read /sys/devices/system/cpu/online
-# but it is not available these days (odd). Thus we fall to
-# the alwas-present /proc/cpuinfo
-# The oneliner is a tad convoluted - basicaly what we do is
-# slurp the entire file and get the index off the last
-# `processor    : XX` line
-export NUMTHREADS="$(( $(perl -0777 -n -e 'print (/ (?: .+ ^ processor \s+ : \s+ (\d+) ) (?! ^ processor ) /smx)' < /proc/cpuinfo) + 1 ))"
+# Previously we were going off the OpenVZ vcpu count and dividing by 3
+# With the new infrastructure, somply go with "something high"
+export VCPU_AVAILABLE=10
 
-export CACHE_DIR="/tmp/poormanscache"
+if [[ -z "$VCPU_USE" ]] ; then
+  export VCPU_USE="$VCPU_AVAILABLE"
+fi
 
-# install some common tools from APT, more below unless CLEANTEST
-apt_install libapp-nopaste-perl tree apt-transport-https
-
-# FIXME - the debian package is oddly broken - uses a bin/env based shebang
-# so nothing works under a brew. Fix here until #debian-perl patches it up
-sudo /usr/bin/perl -p -i -e 's|#!/usr/bin/env perl|#!/usr/bin/perl|' $(which nopaste)
 
 if [[ "$CLEANTEST" != "true" ]]; then
-### apt-get invocation - faster to grab everything at once
+
+  if [[ -z "$(tail -n +2 /proc/swaps)" ]] ; then
+    run_or_err "Configuring swap (for Oracle)" \
+      "sudo bash -c 'dd if=/dev/zero of=/swap.img bs=256M count=5 && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
+  fi
+
+
+  # never installed, this looks like trusty
+  if [[ ! -d /var/lib/mysql ]] ; then
+    sudo dpkg --add-architecture i386
+    extra_debs+=( postgresql mysql-server )
+  fi
+
+
+  # these APT sources do not mean anything to us anyway
+  sudo rm -rf /etc/apt/sources.list.d/*
+
   #
-  # FIXME these debconf lines should automate the firebird config but do not :(((
+  # FIXME these debconf lines should automate the firebird config but seem not to :(((
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/enabled\tboolean\ttrue" | debconf-set-selections'
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
-  # add extra APT repo for Oracle
-  # (https is critical - apt-get update can't seem to follow the 302)
-  sudo bash -c 'echo -e "\ndeb [arch=i386] https://oss.oracle.com/debian unstable main non-free" >> /etc/apt/sources.list'
+  run_or_err "Updating APT sources" "sudo apt-get update"
+  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
 
-  run_or_err "Cloning poor man's cache from github" "git clone --depth=1 --branch=poor_mans_travis_cache https://github.com/ribasushi/travis_futzing.git $CACHE_DIR && $CACHE_DIR/reassemble"
 
-  run_or_err "Priming up the APT cache with $(echo $(ls -d $CACHE_DIR/apt_cache/*.deb))" "sudo cp $CACHE_DIR/apt_cache/*.deb /var/cache/apt/archives"
+  # need to stop them again, in case we installed them above (trusty)
+  for d in mysql postgresql ; do
+    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
+  done
 
-  apt_install memcached firebird2.5-super firebird2.5-dev unixodbc-dev expect oracle-xe
+
+  export CACHE_DIR="/tmp/poormanscache"
+  mkdir "$CACHE_DIR"
+
+  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
+  # someone needs to add a minimizing configuration akin to 9367d187
+  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
+    run_or_err "Getting DB2 from poor man's cache github" '
+      wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
+    | tar -C "$CACHE_DIR" -zx'
+
+    # the actual package is built for lucid, installs fine on both precise and trusty
+    manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
+  fi
+
+  run_or_err "Getting Oracle from poor man's cache github" '
+    wget -qO- https://github.com/poormanscache/poormanscache/archive/OracleXE/10.2.0_deb_mixed.tar.gz \
+  | tar -C "$CACHE_DIR" -zx'
+  manual_debs+=( "bc-multiarch-travis_1.0_all.deb" "oracle-xe_10.2.0.1-1.1_i386.deb" )
+
+
+  # reassemble chunked pieces ( working around github's filesize limit )
+  for reass in $CACHE_DIR/*/reassemble ; do /bin/bash "$reass" ; done
+
+  run_or_err "Installing RDBMS debs manually: $( echo ${manual_debs[@]/#/$CACHE_DIR/*/*/} )" \
+    "sudo dpkg -i $( echo ${manual_debs[@]/#/$CACHE_DIR/*/*/} ) || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
+
+
+  # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
+  # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
+  apt_install unixodbc-dev
+
 
 ### config memcached
   run_or_err "Starting memcached" "sudo /etc/init.d/memcached start"
   export DBICTEST_MEMCACHED=127.0.0.1:11211
 
 ### config mysql
-  run_or_err "Creating MySQL TestDB" "mysql -e 'create database dbic_test;'"
+  run_or_err "Installing minimizing MySQL config" "\
+     sudo bash -c 'rm /var/lib/mysql/ib*' \
+  && sudo cp maint/travis-ci_scripts/configs/minimal_mysql_travis.cnf /etc/mysql/conf.d/ \
+  && sudo chmod 644 /etc/mysql/conf.d/*.cnf \
+  "
+
+  run_or_err "Starting MySQL" "sudo /etc/init.d/mysql start"
+  run_or_err "Creating MySQL TestDB" "mysql -u root -e 'create database dbic_test;'"
   export DBICTEST_MYSQL_DSN='dbi:mysql:database=dbic_test;host=127.0.0.1'
   export DBICTEST_MYSQL_USER=root
 
 ### config pg
+  run_or_err "Starting PostgreSQL" "sudo /etc/init.d/postgresql start"
   run_or_err "Creating PostgreSQL TestDB" "psql -c 'create database dbic_test;' -U postgres"
   export DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=127.0.0.1'
   export DBICTEST_PG_USER=postgres
@@ -61,27 +159,19 @@ if [[ "$CLEANTEST" != "true" ]]; then
     send "\177\177\177\177yes\r"
     expect "Password for SYSDBA"
     send "123\r"
-    sleep 1
+    sleep 2
     expect eof
   '
   # creating testdb
   # FIXME - this step still fails from time to time >:(((
   # has to do with the FB reconfiguration I suppose
   # for now if it fails twice - simply skip FB testing
-  for i in 1 2 ; do
+  for i in 1 2 3 ; do
 
     run_or_err "Re-configuring Firebird" "
       sync
+      sleep 5
       DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
-      sleep 1
-      sync
-      # restart the server for good measure
-      sudo /etc/init.d/firebird2.5-super stop || true
-      sleep 1
-      sync
-      sudo /etc/init.d/firebird2.5-super start
-      sleep 1
-      sync
     "
 
     if run_or_err "Creating Firebird TestDB" \
@@ -184,5 +274,25 @@ FileUsage       = 1
     GRANT connect,resource TO $DBICTEST_ORA_EXTRAUSER_USER;
   '"
 
-  export ORACLE_HOME="$CACHE_DIR/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
+  export ORACLE_HOME="$CACHE_DIR/poormanscache-OracleXE-10.2.0_deb_mixed/ora_instaclient/x86-64/oracle_instaclient_10.2.0.5.0"
+
+### config db2exc
+  # we may have skipped installation due to low memory
+  if dpkg -l db2exc &>/dev/null ; then
+    # WTF is this world-writable?
+    # Strip the write bit so it doesn't trip Ubuntu's symlink-in-/tmp attack mitigation
+    sudo chmod -R o-w ~dasusr1/das
+
+    export DB2_HOME=/opt/ibm/db2/V9.7
+    export DBICTEST_DB2_DSN=dbi:DB2:DATABASE=dbictest
+    export DBICTEST_DB2_USER=db2inst1
+    export DBICTEST_DB2_PASS=abc123456
+
+    run_or_err "Set up DB2 users" \
+      "echo -e '$DBICTEST_DB2_PASS\n$DBICTEST_DB2_PASS' | sudo passwd $DBICTEST_DB2_USER"
+
+    run_or_err "Create DB2 database" \
+      "sudo -u $DBICTEST_DB2_USER -i db2 'CREATE DATABASE dbictest' && sudo -u $DBICTEST_DB2_USER -i db2 'ACTIVATE DATABASE dbictest'"
+  fi
+
 fi

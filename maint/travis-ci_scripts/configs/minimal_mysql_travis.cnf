@@ -1,0 +1,44 @@
+[mysqld]
+
+max_connections = 10
+
+thread_cache_size = 0
+thread_stack = 128K
+
+# mysql >= 5.5.16
+#thread_pool_size = 1
+
+net_buffer_length = 4K
+read_buffer_size = 32K
+join_buffer_size = 128K
+sort_buffer_size = 128K
+bulk_insert_buffer_size = 0
+
+table_definition_cache = 256
+performance_schema = 0
+
+query_cache_type = 0
+query_cache_size = 0
+query_cache_limit = 16K
+
+myisam_sort_buffer_size = 16K
+tmp_table_size = 1M
+key_buffer_size = 64K
+
+innodb_data_file_path           = ibdata1:10M:autoextend
+innodb_autoextend_increment     = 1
+innodb_buffer_pool_size         = 512K
+
+innodb_stats_on_metadata        = 0
+innodb_file_per_table           = 0
+
+innodb_log_file_size            = 1M
+innodb_log_buffer_size          = 512K
+innodb_buffer_pool_size         = 512K
+
+innodb_use_sys_malloc           = 0
+innodb_additional_mem_pool_size = 256K
+innodb_flush_method             = O_DIRECT
+
+innodb_read_io_threads          = 1
+innodb_write_io_threads         = 1

@@ -1,15 +1,11 @@
 #!/bin/bash
 
-source maint/travis-ci_scripts/common.bash
-if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
+# !!! Nothing here will be executed !!!
+# The line calling this script is commented out in .travis.yml
 
-if [[ "$CLEANTEST" != "true" ]] ; then
-  parallel_installdeps_notest $(perl -Ilib -MDBIx::Class -e 'print join " ", keys %{DBIx::Class::Optional::Dependencies->req_list_for("dist_dir")}')
-  run_or_err "Attempt to build a dist with all prereqs present" "make dist"
-  echo "Contents of the resulting dist tarball:"
-  echo "==========================================="
-  tar -vzxf DBIx-Class-*.tar.gz
-  echo "==========================================="
-  run_or_err 'Attempt to configure from re-extracted distdir' \
-    'bash -c "cd \$(find DBIx-Class-* -maxdepth 0 -type d | head -n 1) && perl Makefile.PL"'
-fi
+# this file is executed in a subshell - set up the common stuff
+source maint/travis-ci_scripts/common.bash
+
+if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
+
+echo_err "Nothing to do"

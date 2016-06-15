@@ -1,9 +1,10 @@
 #!/bin/bash
 
+# "autodie"
 set -e
 
 TEST_STDERR_LOG=/tmp/dbictest.stderr
-TIMEOUT_CMD="/usr/bin/timeout --kill-after=9.5m --signal=TERM 9m"
+TIMEOUT_CMD="/usr/bin/timeout --kill-after=16m --signal=TERM 15m"
 
 echo_err() { echo "$@" 1>&2 ; }
 
@@ -14,22 +15,79 @@ fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 
+CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+
+CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }
+
+is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
+
+ci_vm_state_text() {
+  echo "
+========================== CI System information ============================
+
+= CPUinfo
+$(perl -0777 -p -e 's/.+\n\n(?!\z)//s' < /proc/cpuinfo)
+
+= Meminfo
+$(free -m -t)
+
+= Diskinfo
+$(df -h)
+
+$(mount | grep '^/')
+
+= Kernel info
+$(uname -a)
+
+= Network Configuration
+$(ip addr)
+
+= Network Sockets Status
+$( (sudo netstat -an46p || netstat -an46p) | grep -Pv '\s(CLOSING|(FIN|TIME|CLOSE)_WAIT.?|LAST_ACK)\s')
+
+= Processlist
+$(ps fuxa)
+
+= Environment
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC|PATH|SHELL' | LC_ALL=C sort | cat -v)
+
+= Perl in use
+$(perl -V)
+============================================================================="
+}
+
 run_or_err() {
   echo_err -n "$(tstamp) $1 ... "
 
+  LASTCMD="$2"
   LASTEXIT=0
   START_TIME=$SECONDS
-  # the tee is a handy debugging tool when stumpage is exceedingly strong
-  #LASTOUT=$( bash -c "$2" 2>&1 | tee /dev/stderr) || LASTEXIT=$?
-  LASTOUT=$( bash -c "$2" 2>&1 ) || LASTEXIT=$?
+
+  PRMETER_PIDFILE="$(tempfile)_$SECONDS"
+  # the double bash is to hide the job control messages
+  bash -c "bash -c 'echo \$\$ >> $PRMETER_PIDFILE; while true; do sleep 10; echo -n \"\${SECONDS}s ... \"; done' &"
+
+  LASTOUT=$( eval "$2" 2>&1 ) || LASTEXIT=$?
+
+  # stop progress meter
+  for p in $(cat "$PRMETER_PIDFILE"); do kill $p ; done
+
   DELTA_TIME=$(( $SECONDS - $START_TIME ))
 
   if [[ "$LASTEXIT" != "0" ]] ; then
-    echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-    echo_err "Command executed:"
-    echo_err "$2"
-    echo_err "STDOUT+STDERR:"
-    echo_err "$LASTOUT"
+    if [[ -z "$3" ]] ; then
+      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
+      echo_err "Command executed:"
+      echo_err "$LASTCMD"
+      echo_err "STDOUT+STDERR:"
+      echo_err "$LASTOUT"
+      if [[ "$(dmesg)" =~ $( echo "\\bOOM\\b" ) ]] ; then
+        echo_err "=== dmesg ringbuffer"
+        echo_err "$(dmesg)"
+      fi
+    fi
 
     return $LASTEXIT
   else
@@ -41,10 +99,7 @@ apt_install() {
   # flatten
   pkgs="$@"
 
-  # Need to do this at every step, the sources list may very well have changed
-  run_or_err "Updating APT available package list" "sudo apt-get update"
-
-  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
+  run_or_err "Installing APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {
@@ -58,7 +113,7 @@ extract_prereqs() {
     || LASTEXIT=$?
 
   OUT=${COMBINED_OUT#*!!!STDERRSTDOUTSEPARATOR!!!}
-  ERR=$(grep -v " is up to date." <<< "${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}")
+  ERR=${COMBINED_OUT%!!!STDERRSTDOUTSEPARATOR!!!*}
 
   if [[ "$LASTEXIT" != "0" ]] ; then
     echo_err "Error occured (exit code $LASTEXIT) retrieving dependencies of $@:"
@@ -67,8 +122,14 @@ extract_prereqs() {
     exit 1
   fi
 
-  # throw away warnings, ascii art, convert to modnames
-  PQ=$(perl -p -e 's/^\!.*//; s/^[^a-z]+//i; s/\-[^\-]+$/ /; s/\-/::/g' <<< "$OUT")
+  # throw away warnings, up-to-date diag, ascii art, convert to modnames
+  PQ=$(perl -p -e '
+    s/^.*?is up to date.*$//;
+    s/^\!.*//;
+    s/^[^a-z]+//i;
+    s/\-[^\-]+$/ /; # strip version part
+    s/\-/::/g
+  ' <<< "$OUT")
 
   # throw away what was in $@
   for m in "$@" ; do
@@ -82,8 +143,10 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
+  is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
   # one module spec per line
-  MODLIST="$(printf '%s\n' "$@")"
+  MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
   # We want to trap the output of each process and serially append them to
   # each other as opposed to just dumping a jumbled up mass-log that would
@@ -106,55 +169,34 @@ parallel_installdeps_notest() {
   run_or_err "Installing (without testing) $(echo $MODLIST)" \
     "echo \\
 \"$MODLIST\" \\
-      | xargs -d '\\n' -n 1 -P $NUMTHREADS bash -c \\
-        'OUT=\$($TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
+      | xargs -d '\\n' -n 1 -P $VCPU_USE bash -c \\
+        'OUT=\$(maint/getstatus $TIMEOUT_CMD cpanm --notest \"\$@\" 2>&1 ) || (LASTEXIT=\$?; echo \"\$OUT\"; exit \$LASTEXIT)' \\
         'giant space monkey penises'
     "
 }
 
+export -f parallel_installdeps_notest run_or_err echo_err tstamp is_cperl have_sudo CPAN_is_sane CPAN_supports_BUILDPL
+
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
 
-  echo_err "$(tstamp) Processing dependencies: $@"
+  MODLIST=$(printf "%q " "$@" | perl -pe 's/^\s+|\s+$//g')
 
   local -x HARNESS_OPTIONS
 
-  HARNESS_OPTIONS="j$NUMTHREADS"
+  HARNESS_OPTIONS="j$VCPU_USE"
 
-  echo_err -n "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ... "
+  if ! run_or_err "Attempting install of $# modules under parallel ($HARNESS_OPTIONS) testing ($MODLIST)" "_dep_inst_with_test $MODLIST" quiet_fail ; then
+    local errlog="failed after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/perl /usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
+    echo "$errlog"
 
-  LASTEXIT=0
-  START_TIME=$SECONDS
-  LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
-  DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-  if [[ "$LASTEXIT" = "0" ]] ; then
-    echo_err "done (took ${DELTA_TIME}s)"
-  else
-    local errlog="after ${DELTA_TIME}s Exit:$LASTEXIT Log:$(/usr/bin/nopaste -q -s Shadowcat -d "Parallel testfail" <<< "$LASTOUT")"
-    echo_err -n "failed ($errlog) retrying with sequential testing ... "
     POSTMORTEM="$POSTMORTEM$(
       echo
-      echo "Depinstall under $HARNESS_OPTIONS parallel testing failed $errlog"
-      echo "============================================================="
-      echo "Attempted installation of: $@"
-      echo "============================================================="
+      echo "Depinstall of $MODLIST under $HARNESS_OPTIONS parallel testing $errlog"
     )"
 
     HARNESS_OPTIONS=""
-    LASTEXIT=0
-    START_TIME=$SECONDS
-    LASTOUT=$( _dep_inst_with_test "$@" ) || LASTEXIT=$?
-    DELTA_TIME=$(( $SECONDS - $START_TIME ))
-
-    if [[ "$LASTEXIT" = "0" ]] ; then
-      echo_err "done (took ${DELTA_TIME}s)"
-    else
-      echo_err "FAILED !!! (after ${DELTA_TIME}s)"
-      echo_err "STDOUT+STDERR:"
-      echo_err "$LASTOUT"
-      exit 1
-    fi
+    run_or_err "Retrying same $# modules without parallel testing" "_dep_inst_with_test $MODLIST"
   fi
 
   INSTALLDEPS_OUT="${INSTALLDEPS_OUT}${LASTOUT}"
@@ -162,24 +204,64 @@ installdeps() {
 
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
     # --dev is already part of CPANM_OPT
-    $TIMEOUT_CMD cpanm "$@" 2>&1
+    LASTCMD="$TIMEOUT_CMD cpanm $@"
+    $LASTCMD 2>&1 || return 1
   else
-    $TIMEOUT_CMD cpan "$@" 2>&1
+    LASTCMD="$TIMEOUT_CMD cpan $@"
+    $LASTCMD 2>&1 || return 1
 
     # older perls do not have a CPAN which can exit with error on failed install
     for m in "$@"; do
       if ! perl -e '
 
+$ARGV[0] =~ s/-TRIAL\.//;
+
 my $mod = (
-  $ARGV[0] =~ m{ \/ .*? ([^\/]+) $ }x
+  # abuse backtrack
+  $ARGV[0] =~ m{ / .*? ( [^/]+ ) $ }x
     ? do { my @p = split (/\-/, $1); pop @p; join "::", @p }
     : $ARGV[0]
 );
 
-$mod = q{List::Util} if $mod eq q{Scalar::List::Utils};
+# map some install-names to a module/version combo
+# serves both as a grandfathered title-less tarball, and
+# as a minimum version check for upgraded core modules
+my $eval_map = {
 
-eval qq{require($mod)} or ( print $@ and exit 1)
+  # this is temporary, will need something more robust down the road
+  # (perhaps by then Module::CoreList will be dep-free)
+  "Module::Build" => { ver => "0.4214" },
+  "podlators" => { mod => "Pod::Man", ver => "2.17" },
+
+  "File::Spec" => { ver => "3.47" },
+  "Cwd" => { ver => "3.47" },
+
+  "List::Util" => { ver => "1.42" },
+  "Scalar::Util" => { ver => "1.42" },
+  "Scalar::List::Utils" => { mod => "List::Util", ver => "1.42" },
+};
+
+my $m = $eval_map->{$mod}{mod} || $mod;
+
+eval(
+  "require $m"
+
+  .
+
+  ($eval_map->{$mod}{ver}
+    ? "; $m->VERSION(\$eval_map->{\$mod}{ver}) "
+    : ""
+  )
+
+  .
+
+  "; 1"
+)
+  or
+( print $@ and exit 1)
 
       ' "$m" 2> /dev/null ; then
         echo -e "$m installation seems to have failed"
@@ -189,6 +271,23 @@ eval qq{require($mod)} or ( print $@ and exit 1)
   fi
 }
 
-CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+# Idea stolen from
+# https://github.com/kentfredric/Dist-Zilla-Plugin-Prereqs-MatchInstalled-All/blob/master/maint-travis-ci/sterilize_env.pl
+# Only works on 5.12+ (where sitelib was finally properly fixed)
+purge_sitelib() {
+  echo_err "$(tstamp) Sterilizing the Perl installation (cleaning up sitelib)"
 
-CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+  if perl -M5.012 -e1 &>/dev/null ; then
+
+    perl -M5.012 -MConfig -MFile::Find -e '
+      my $sitedirs = {
+        map { $Config{$_} => 1 }
+          grep { $_ =~ /site(lib|arch)exp$/ }
+            keys %Config
+      };
+      find({ bydepth => 1, no_chdir => 1, follow_fast => 1, wanted => sub {
+        ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
+      } }, keys %$sitedirs )
+    '
+  fi
+}
