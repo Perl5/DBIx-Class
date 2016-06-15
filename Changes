@@ -8,6 +8,7 @@ Revision history for DBIx::Class
           implementation changes due to RT#100648 made an alarm() based
           timeout lock-prone.
         - Adjust Oracle SQLMaker to accommodate fixed API in SQL::Abstract
+        - Disable test failing on newer SQLite (workaround for RT#96499)
 
     * Misc
         - Remove warning about potential side effects of RT#79576 (scheduled)

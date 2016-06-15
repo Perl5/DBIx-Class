@@ -356,14 +356,6 @@ my $newbook = $schema->resultset( 'Bookmark' )->find(1);
 
 lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't cause error");
 
-# test cascade_delete through many_to_many relations
-{
-  my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
-  lives_ok (sub { $art_del->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
-  is( $schema->resultset("CD")->search({artist => 1}), 0, 'Cascading through has_many top level.');
-  is( $schema->resultset("CD_to_Producer")->search({cd => 1}), 0, 'Cascading through has_many children.');
-}
-
 # test column_info
 {
   $schema->source("Artist")->{_columns}{'artistid'} = {};
