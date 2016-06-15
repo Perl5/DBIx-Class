@@ -1,5 +1,5 @@
 
-my $dbic_ver_re = qr/ (\d) \. (\d{2}) (\d{3}) (?: _ (\d{2}) )? /x; # not anchored!!!
+my $dbic_ver_re = qr/ (\d) \. (\d{2}) (\d{3,4}) (?: _ (\d{2}) )? /x; # not anchored!!!
 
 my $version_string = Meta->version;
 my $version_value = eval $version_string;
