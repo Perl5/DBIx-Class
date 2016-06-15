@@ -178,16 +178,10 @@ our @EXPORT_OK = qw(
 
 use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
 
-BEGIN {
-  # add preliminary attribute support
-  # FIXME FIXME FIXME
-  # To be revisited when Moo with proper attr support ships
-  Sub::Quote->VERSION(2.002);
-}
 # Override forcing no_defer, and adding naming consistency checks
 our %refs_closed_over_by_quote_sub_installed_crefs;
 sub quote_sub {
-  Carp::confess( "Anonymous quoting not supported by the DBIC sub_quote override - supply a sub name" ) if
+  Carp::confess( "Anonymous quoting not supported by the DBIC quote_sub override - supply a sub name" ) if
     @_ < 2
       or
     ! defined $_[1]
@@ -195,16 +189,27 @@ sub quote_sub {
     length ref $_[1]
   ;
 
-  Carp::confess( "The DBIC sub_quote override expects sub name '$_[0]' to be fully qualified" )
-    unless $_[0] =~ /::/;
+  Carp::confess( "The DBIC quote_sub override expects sub name '$_[0]' to be fully qualified" )
+    unless (my $stash) = $_[0] =~ /^(.+)::/;
 
-  Carp::confess( "The DBIC sub_quote override expects the sub name '$_[0]' to match the supplied 'package' argument" ) if
+  Carp::confess(
+    "The DBIC sub_quote override does not support 'no_install'"
+  ) if (
+    $_[3]
+      and
+    $_[3]->{no_install}
+  );
+
+  Carp::confess(
+    'The DBIC quote_sub override expects the namespace-part of sub name '
+  . "'$_[0]' to match the supplied package argument '$_[3]->{package}'"
+  ) if (
     $_[3]
       and
     defined $_[3]->{package}
       and
-    index( $_[0], $_[3]->{package} ) != 0
-  ;
+    $stash ne $_[3]->{package}
+  );
 
   my @caller = caller(0);
   my $sq_opts = {
@@ -234,28 +239,7 @@ sub quote_sub {
     )
   } values %{ $_[2] || {} };
 
-  my $cref = Sub::Quote::quote_sub( $_[0], $_[1], $_[2]||{}, $sq_opts );
-
-  # FIXME FIXME FIXME
-  # To be revisited when Moo with proper attr support ships
-  if(
-    # external application does not work on things like :prototype(...), :lvalue, etc
-    my @attrs = grep {
-      $_ !~ /^[a-z]/
-        or
-      Carp::confess( "The DBIC sub_quote override does not support applying of reserved attribute '$_'" )
-    } @{ $sq_opts->{attributes} || []}
-  ) {
-    Carp::confess( "The DBIC sub_quote override does not allow mixing 'attributes' with 'no_install'" )
-      if $sq_opts->{no_install};
-
-    # might be different from $sq_opts->{package};
-    my ($install_into) = $_[0] =~ /(.+)::[^:]+$/;
-
-    attributes->import( $install_into, $cref, @attrs );
-  }
-
-  $cref;
+  Sub::Quote::quote_sub( $_[0], $_[1], $_[2]||{}, $sq_opts );
 }
 
 sub sigwarn_silencer ($) {
