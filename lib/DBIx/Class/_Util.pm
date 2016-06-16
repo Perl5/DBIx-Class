@@ -727,17 +727,12 @@ sub modver_gt_or_eq_and_lt ($$$) {
       # efficiently operate over the query_cache directly
       describe_class_methods($_) for reverse @full_ISA;
 
-      my $current_node_refaddr;
       no strict 'refs';
 
       # combine full ISA-order inherited and local method list into a
       # "shadowing stack"
 
       (
-        $current_node_refaddr = refaddr($_)
-
-          and
-
         unshift @{ $slot->{methods}{$_->{name}} }, $_
 
           and
