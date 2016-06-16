@@ -23,6 +23,9 @@ BEGIN {
 
     BROKEN_GOTO => ( "$]" < 5.008003 ) ? 1 : 0,
 
+    # perl -MScalar::Util=weaken -e 'weaken( $hash{key} = \"value" )'
+    BROKEN_WEAK_SCALARREF_VALUES => ( "$]" < 5.008003 ) ? 1 : 0,
+
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
     UNSTABLE_DOLLARAT => ( "$]" < 5.013002 ) ? 1 : 0,

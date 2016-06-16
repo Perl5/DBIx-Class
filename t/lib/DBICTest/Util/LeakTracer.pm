@@ -48,18 +48,23 @@ sub populate_weakregistry {
       for keys %$reg;
   }
 
+  return $target if (
+    DBIx::Class::_ENV_::BROKEN_WEAK_SCALARREF_VALUES
+      and
+    ref $target eq 'SCALAR'
+  );
+
   if (! defined $weak_registry->{$refaddr}{weakref}) {
+
+    # replace slot entirely
     $weak_registry->{$refaddr} = {
       stacktrace => stacktrace(1),
       weakref => $target,
     };
 
-    # on perl < 5.8.3 sometimes a weaken can throw (can't find RT)
-    # so guard against that unlikely event
-    local $SIG{__DIE__} if $SIG{__DIE__};
-    local $@;
-    eval { weaken( $weak_registry->{$refaddr}{weakref} ); $refs_traced++ }
-      or delete $weak_registry->{$refaddr};
+    weaken( $weak_registry->{$refaddr}{weakref} );
+
+    $refs_traced++;
   }
 
   my $desc = refdesc $target;
