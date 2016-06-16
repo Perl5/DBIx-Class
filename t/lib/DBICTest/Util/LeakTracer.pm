@@ -250,13 +250,13 @@ sub assert_empty_weakregistry {
 
   # the symtable walk is very expensive
   # if we are $quiet (running in an END block) we do not really need to be
-  # that thorough - can get by with only %Sub::Quote::QUOTED
+  # that thorough - can get by with our own registry
   delete $weak_registry->{$_} for $quiet
     ? do {
       my $refs = {};
       visit_refs (
         # only look at the closed over stuffs
-        refs => [ grep { length ref $_ } map { values %{$_->[2]} } grep { ref $_ eq 'ARRAY' } values %Sub::Quote::QUOTED ],
+        refs => [ values %DBIx::Class::_Util::refs_closed_over_by_quote_sub_installed_crefs ],
         seen_refs => $refs,
         action => sub { 1 },
       );

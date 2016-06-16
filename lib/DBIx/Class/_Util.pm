@@ -185,6 +185,7 @@ BEGIN {
   Sub::Quote->VERSION(2.002);
 }
 # Override forcing no_defer, and adding naming consistency checks
+our %refs_closed_over_by_quote_sub_installed_crefs;
 sub quote_sub {
   Carp::confess( "Anonymous quoting not supported by the DBIC sub_quote override - supply a sub name" ) if
     @_ < 2
@@ -216,6 +217,22 @@ sub quote_sub {
     # explicitly forced for everything
     no_defer => 1,
   };
+
+  weaken (
+    # just use a growing counter, no need to perform neither compaction
+    # nor any special ithread-level handling
+    $refs_closed_over_by_quote_sub_installed_crefs
+     { scalar keys %refs_closed_over_by_quote_sub_installed_crefs }
+      = $_
+  ) for grep {
+    length ref $_
+      and
+    (
+      ! DBIx::Class::_ENV_::BROKEN_WEAK_SCALARREF_VALUES
+        or
+      ref $_ ne 'SCALAR'
+    )
+  } values %{ $_[2] || {} };
 
   my $cref = Sub::Quote::quote_sub( $_[0], $_[1], $_[2]||{}, $sq_opts );
 
