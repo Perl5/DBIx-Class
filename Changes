@@ -20,8 +20,6 @@ Revision history for DBIx::Class
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored
           afterwards. Instead an exception (detailing the fix) is thrown.
-        - Another relatively invasive set of ::FilterColumn changes, covering
-          potential data loss (RT#111567). Please run your regression tests!
         - Increased checking for the correctness of the is_nullable attribute
           within the prefetch result parser may highlight previously unknown
           mismatches between your codebase and data source
@@ -31,9 +29,6 @@ Revision history for DBIx::Class
           instead of silently discarding the argument
 
     * New Features
-        - When using non-scalars (e.g. arrays) as literal bind values it is no
-          longer necessary to explicitly specify a bindtype (this turned out
-          to be a mostly useless overprotection)
         - InflateColumn::DateTime now accepts the ecosystem-standard option
           'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
         - DBIx::Class::Optional::Dependencies now properly understands
@@ -42,48 +37,24 @@ Revision history for DBIx::Class
           specific DateTime::Format dependencies
 
     * Fixes
-        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
-          notably on_connect* failures now properly abort the entire connect
         - Fix incorrect SQL generated with invalid {rows} on complex resultset
           operations, generally more robust handling of rows/offset attrs
         - Fix incorrect $storage state on unexpected RDBMS disconnects and
           other failure events, preventing clean reconnection (RT#110429)
-        - Ensure leaving an exception stack via Return::MultiLevel or something
-          similar produces a large warning
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
-        - Fix silencing of exceptions thrown by custom inflate_result() methods
-        - Fix complex prefetch when ordering over foreign boolean columns
-          ( Pg can't MAX(boolcol) despite being able to ORDER BY boolcol )
         - Fix incorrect data returned in a corner case of partial-select HRI
           invocation (no known manifestations of this bug in the field, see
           commit message for description of exact failure scenario)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
-        - Remove spurious exception warping in ::Replicated::execute_reliably
-          (RT#113339)
-        - Fix infinite loop on ->svp_release("nonexistent_savepoint") (GH#97)
-        - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
-          of a transaction with deferred FK checks: a guard is now inactivated
-          immediately before the commit is attempted (RT#107159)
-        - Fix use of ::Schema::Versioned combined with a user-supplied
-          $dbh->{HandleError} (GH#101)
-        - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
-        - Fix parsing of DSNs containing driver arguments (GH#99)
-        - Work around unreliable $sth->finish() on INSERT ... RETURNING within
-          DBD::Firebird on some compiler/driver combinations (RT#110979)
-        - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
-          was not sufficient to cover up RT#67843)
         - Fix several corner cases with Many2Many over custom relationships
-        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
-          autoinc value when inserting rows containing blobs (GH#82)
 
     * Misc
         - Add explicit test for pathological example of asymmetric IC::DT setup
           working with copy() in t/icdt/engine_specific/sybase.t (GH#84)
         - Fix t/54taint.t failing on local::lib's with upgraded Carp on 5.8.*
         - Fix invalid variable names in ResultSource::View examples
-        - Typo fixes from downstream debian packagers (RT#112007)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
