@@ -15,6 +15,14 @@ fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
 
+CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+
+CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }
+
+is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
+
 ci_vm_state_text() {
   echo "
 ========================== CI System information ============================
@@ -91,7 +99,7 @@ apt_install() {
   # flatten
   pkgs="$@"
 
-  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
+  run_or_err "Installing APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {
@@ -135,8 +143,10 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
+  is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
   # one module spec per line
-  MODLIST="$(printf '%s\n' "$@")"
+  MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
   # We want to trap the output of each process and serially append them to
   # each other as opposed to just dumping a jumbled up mass-log that would
@@ -165,7 +175,7 @@ parallel_installdeps_notest() {
     "
 }
 
-export -f parallel_installdeps_notest run_or_err echo_err tstamp
+export -f parallel_installdeps_notest run_or_err echo_err tstamp is_cperl have_sudo CPAN_is_sane CPAN_supports_BUILDPL
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
@@ -194,6 +204,8 @@ installdeps() {
 
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
     $LASTCMD 2>&1 || return 1
@@ -277,59 +289,5 @@ purge_sitelib() {
         ! $sitedirs->{$_} and ( -d _ ? rmdir : unlink )
       } }, keys %$sitedirs )
     '
-  else
-
-    cl_fn="/tmp/${TRAVIS_BUILD_ID}_Module_CoreList.pm";
-
-    [[ -s "$cl_fn" ]] || run_or_err \
-      "Downloading latest Module::CoreList" \
-      "curl -s --compress -o '$cl_fn' https://api.metacpan.org/source/Module::CoreList"
-
-    perl -0777 -Ilib -MDBIx::Class::Optional::Dependencies -e '
-
-      # this is horrible, but really all we want is "has this ever been used"
-      # so a grep without a load is quite legit (and horrible)
-      my $mcl_source = <>;
-
-      my %reqs_for_group = %{DBIx::Class::Optional::Dependencies->req_group_list};
-
-      my @all_possible_never_been_core_modpaths = map
-        { (my $mp = $_ . ".pm" ) =~ s|::|/|g; $mp }
-        grep
-          { $mcl_source !~ / ^ \s+ \x27 $_ \x27 \s* \=\> /mx }
-          (
-            qw(
-              Module::Build::Tiny
-            ),
-            (map
-              { keys %{$reqs_for_group{$_}} }
-              grep
-                { !/^rdbms_|^dist_/ }
-                keys %reqs_for_group
-            ),
-          )
-      ;
-
-      # now that we have the list we can go ahead and destroy every single one
-      # of these modules without being concerned about breaking the base ability
-      # to install things
-      for my $mp ( sort { lc($a) cmp lc($b) } @all_possible_never_been_core_modpaths ) {
-        for my $incdir (@INC) {
-          -e "$incdir/$mp"
-            and
-          unlink "$incdir/$mp"
-            and
-          print "Nuking $incdir/$mp\n"
-        }
-      }
-    ' "$cl_fn"
-
   fi
 }
-
-
-CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
-
-CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
-
-have_sudo() { sudo /bin/true &>/dev/null ; }

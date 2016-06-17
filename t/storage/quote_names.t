@@ -132,7 +132,7 @@ for my $db (sort {
   # if something was produced - it better be quoted
   if (
     # the SQLT producer has no idea what quotes are :/
-    $db ne 'SYBASE'
+    ! grep { $db eq $_ } qw( SYBASE DB2 )
       and
     my $ddl = try { $schema->deployment_statements }
   ) {

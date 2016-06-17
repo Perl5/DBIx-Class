@@ -14,10 +14,13 @@ run_harness_tests() {
     ulim=$(( ( $(ps xH | wc -l) - 3 ) + 4 )) # (real count excluding header + ps + wc) + space for ( make + tee + harness + <actual test> )
     echo_err "$(tstamp) Setting process/thread limit to $ulim"
     ulimit -u $ulim
-    sleep 10 # needed to settle things down a bit
+    sleep 5 # needed to settle things down a bit
   fi
   make test 2> >(tee "$TEST_STDERR_LOG")
 }
+
+# announce everything we have on this box
+TRAVIS="" perl -Ilib t/00describe_environment.t >/dev/null
 
 TEST_T0=$SECONDS
 if [[ "$CLEANTEST" = "true" ]] ; then
@@ -26,6 +29,11 @@ if [[ "$CLEANTEST" = "true" ]] ; then
   run_harness_tests
 else
   PROVECMD="prove -lrswTj$VCPU_USE xt t"
+
+  # List every single SKIP/TODO when they are visible
+  if [[ "$VCPU_USE" == 1 ]] ; then
+    PROVECMD="$PROVECMD --directives"
+  fi
 
   echo_err "$(tstamp) running tests with \`$PROVECMD\`"
   $PROVECMD 2> >(tee "$TEST_STDERR_LOG")
