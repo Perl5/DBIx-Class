@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * Fixes
         - Work around unreliable $sth->finish() on INSERT ... RETURNING within
           DBD::Firebird on some compiler/driver combinations (RT#110979)
+        - Fix leaktest failures with upcoming version of Sub::Quote
 
 0.082821 2016-02-11 17:58 (UTC)
     * Fixes

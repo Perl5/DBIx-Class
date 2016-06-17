@@ -234,7 +234,15 @@ sub assert_empty_weakregistry {
       my $refs = {};
       visit_refs (
         # only look at the closed over stuffs
-        refs => [ grep { length ref $_ } map { values %{$_->[2]} } grep { ref $_ eq 'ARRAY' } values %Sub::Quote::QUOTED ],
+        refs => [ grep { length ref $_ } (
+
+          # old style Sub::Quote
+          ( map { values %{ $_->[2]}        } grep { ref $_ eq 'ARRAY' } values %Sub::Quote::QUOTED ),
+
+          # new style Sub::Quote
+          ( map { values %{ $_->{captures}} } grep { ref $_ eq 'HASH'  } values %Sub::Quote::QUOTED ),
+
+        )],
         seen_refs => $refs,
         action => sub { 1 },
       );
