@@ -7,6 +7,9 @@ use lib qw(t/lib maint/.Generated_Pod/lib);
 use DBICTest;
 use namespace::clean;
 
+plan skip_all => "Skipping finicky test on older perl"
+  if "$]" < 5.008005;
+
 require DBIx::Class;
 unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) {
   my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_podcoverage');

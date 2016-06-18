@@ -55,7 +55,7 @@ $schema->storage->debugfh(undef);
 }
 
 END {
-  unlink $lfn;
+  unlink $lfn if $lfn;
 }
 
 open(STDERRCOPY, '>&STDERR');
