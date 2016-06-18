@@ -23,6 +23,13 @@ DBICTest::Schema->load_classes('EventTZPg');
   my $parser = $s->storage->datetime_parser;
   is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
 
+  my $colinfo = $s->source('EventTZPg')->column_info('created_on');
+  is (
+    $colinfo->{timezone},
+    $colinfo->{time_zone},
+    'Legacy timezone key is still present in colinfo',
+  );
+
   ok (!$s->storage->_dbh, 'still not connected');
 }
 

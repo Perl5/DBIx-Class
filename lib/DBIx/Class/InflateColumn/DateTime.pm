@@ -39,7 +39,10 @@ If you want to set a specific time zone and locale for that field, use:
 
 Note: DBIC before 0.082900 only accepted C<timezone>, and silently discarded
 any C<time_zone> arguments. For backwards compatibility, C<timezone> will
-continue being accepted as a synonym for C<time_zone>.
+continue being accepted as a synonym for C<time_zone>, and the value will
+continue to be available in the
+L<< C<column_info> hash|DBIx::Class::ResultSource/column_info >>
+under both names.
 
 If you want to inflate no matter what data_type your column is,
 use inflate_datetime or inflate_date:
@@ -165,10 +168,15 @@ sub register_column {
     }
   }
 
+  # Store the time zone under both 'timezone' for backwards compatibility and
+  # 'time_zone' for DateTime ecosystem consistency
   if ( defined $info->{timezone} ) {
-    $self->throw_exception("Cannot specify both 'timezone' and 'time_zone' in '$column' column defintion.")
-      if defined $info->{time_zone};
-    $info->{time_zone} = delete $info->{timezone};
+    $self->throw_exception("Conflicting 'timezone' and 'time_zone' values in '$column' column defintion.")
+      if defined $info->{time_zone} and $info->{time_zone} ne $info->{timezone};
+    $info->{time_zone} = $info->{timezone};
+  }
+  elsif ( defined $info->{time_zone} ) {
+    $info->{timezone} = $info->{time_zone};
   }
 
   # shallow copy to avoid unfounded(?) Devel::Cycle complaints
