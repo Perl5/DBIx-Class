@@ -39,10 +39,11 @@ my $schema;
 
 for my $prefix (shuffle keys %$env2optdep) { SKIP: {
 
+  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
+  next unless $dsn;
+
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
-
-  my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
 
   note "Testing with ${prefix}_DSN";
 
