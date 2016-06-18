@@ -285,10 +285,6 @@ accessible at the following locations:
 
 =item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
 
-=for html
-&#x21AA; Main dev branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=current/blead"></img>
-&#x21AA; Release branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=current/for_cpan_index"></img>
-
 =back
 
 =head1 AUTHORS
