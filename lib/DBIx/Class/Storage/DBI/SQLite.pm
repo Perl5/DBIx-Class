@@ -63,7 +63,7 @@ Even if you upgrade DBIx::Class (which works around the bug starting from
 version 0.08210) you may still have corrupted/incorrect data in your database.
 DBIx::Class warned about this condition for several years, hoping to give
 anyone affected sufficient notice of the potential issues. The warning was
-removed in version 0.082900.
+removed in 2015/v0.082820.
 
 =back
 
