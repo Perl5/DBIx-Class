@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.082830 2016-06-19 06:12 (UTC)
     * New Features
         - When using non-scalars (e.g. arrays) as literal bind values it is no
           longer necessary to explicitly specify a bindtype (this turned out
