@@ -188,12 +188,7 @@ sub _run {
           # FIXME - we assume that $storage->{_dbh_autocommit} is there if
           # txn_init_depth is there, but this is a DBI-ism
           $txn_init_depth > ( $storage->{_dbh_autocommit} ? 0 : 1 )
-        )
-          or
-        ! do {
-          local $self->storage->{_in_do_block_retry_handler} = 1;
-          $self->retry_handler->($self)
-        }
+        ) or ! $self->retry_handler->($self)
       );
 
       # we got that far - let's retry
