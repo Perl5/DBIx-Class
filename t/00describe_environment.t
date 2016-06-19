@@ -501,6 +501,11 @@ $final_out .= "=============================\n$discl\n\n";
 
 diag $final_out;
 
+# *very* large printouts may not finish flushing before the test exits
+# injecting a <testname> ... ok in the middle of the diag
+# http://www.cpantesters.org/cpan/report/fbdac74c-35ca-11e6-ab41-c893a58a4b8c
+select( undef, undef, undef, 0.2 );
+
 exit 0;
 
 
