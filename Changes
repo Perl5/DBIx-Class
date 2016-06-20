@@ -50,6 +50,7 @@ Revision history for DBIx::Class
           commit message for description of exact failure scenario)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
+        - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Fix several corner cases with Many2Many over custom relationships
 
     * Misc
@@ -66,6 +67,44 @@ Revision history for DBIx::Class
           similar (but likely not limited to) P5#72210
         - Config::Any is no longer a core dep, but instead is migrated to a new
           optdep group 'config_file_reader'
+
+0.082840 2016-06-20 07:02 (UTC)
+    * New Features
+        - When using non-scalars (e.g. arrays) as literal bind values it is no
+          longer necessary to explicitly specify a bindtype (this turned out
+          to be a mostly useless overprotection)
+
+    * Fixes
+        - Ensure leaving an exception stack via Return::MultiLevel or something
+          similar produces a large warning
+        - Another relatively invasive set of ::FilterColumn changes, covering
+          potential data loss (RT#111567). Please run your regression tests!
+        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
+          notably on_connect* failures now properly abort the entire connect
+        - Fix use of ::Schema::Versioned combined with a user-supplied
+          $dbh->{HandleError} (GH#101)
+        - Fix parsing of DSNs containing driver arguments (GH#99)
+        - Fix silencing of exceptions thrown by custom inflate_result() methods
+        - Fix complex prefetch when ordering over foreign boolean columns
+          ( Pg can't MAX(boolcol) despite being able to ORDER BY boolcol )
+        - Fix infinite loop on ->svp_release("nonexistent_savepoint") (GH#97)
+        - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
+          of a transaction with deferred FK checks: a guard is now inactivated
+          immediately before the commit is attempted (RT#107159)
+        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
+          autoinc value when inserting rows containing blobs (GH#82)
+        - Remove spurious exception warping in ::Replicated::execute_reliably
+          (RT#113339)
+        - Work around unreliable $sth->finish() on INSERT ... RETURNING within
+          DBD::Firebird on some compiler/driver combinations (RT#110979)
+        - Fix leaktest failures with upcoming version of Sub::Quote
+        - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
+          was not sufficient to cover up RT#67843)
+
+    * Misc
+        - Test suite is now officially certified to work under very high random
+          parallelism: META x_parallel_test_certified set to true accordingly
+        - Typo fixes from downstream debian packagers (RT#112007)
 
 0.082821 2016-02-11 17:58 (UTC)
     * Fixes
