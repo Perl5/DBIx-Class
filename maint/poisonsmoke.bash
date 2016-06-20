@@ -24,11 +24,17 @@ for var in "${toggle_booleans[@]}"
 do
   if [[ -z "${!var}" ]] ; then
     export $var=1
-    echo "POISON_ENV: setting $var to 1"
+    echo -n "$var "
   fi
 done
+echo -e "\n\n^^ variables above **automatically** set to '1'"
 
 provecmd="nice prove -QlrswTj10"
 
-echo -e "\nExecuting \`$provecmd\` via $(which perl)\n"
-$provecmd
+echo -e "
+Executing \`$provecmd $@\` via $(which perl) within the following environment:
+
+$(env | grep -P 'TEST|HARNESS|MAKE|TRAVIS|PERL|DBIC|PATH|SHELL' | LC_ALL=C sort | cat -v)
+"
+
+$provecmd "$@"
