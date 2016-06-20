@@ -5,7 +5,11 @@ use strict;
 
 use ANFANG;
 
-use DBICTest::RunMode;
+use Config;
+use Carp qw(cluck confess croak);
+use Fcntl qw( :DEFAULT :flock );
+use Scalar::Util qw( blessed refaddr openhandle );
+use DBIx::Class::_Util qw( scope_guard parent_dir );
 
 use constant {
 
@@ -19,19 +23,19 @@ use constant {
   # add an escape for these perls ON SMOKERS - a user/CI will still get death
   # constname a homage to http://theoatmeal.com/comics/working_home
   PEEPEENESS => (
+    (
+      DBIx::Class::_ENV_::PERL_VERSION >= 5.013005
+        and
+      DBIx::Class::_ENV_::PERL_VERSION <= 5.013006
+    )
+      and
+    require DBICTest::RunMode
+      and
     DBICTest::RunMode->is_smoker
       and
     ! DBICTest::RunMode->is_ci
-      and
-    ( "$]" >= 5.013005 and "$]" <= 5.013006)
   ),
 };
-
-use Config;
-use Carp qw(cluck confess croak);
-use Fcntl qw( :DEFAULT :flock );
-use Scalar::Util qw( blessed refaddr openhandle );
-use DBIx::Class::_Util qw( scope_guard parent_dir );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(

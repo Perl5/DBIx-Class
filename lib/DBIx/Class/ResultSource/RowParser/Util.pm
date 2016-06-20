@@ -6,7 +6,7 @@ use warnings;
 
 use DBIx::Class::_Util qw( perlstring dump_value );
 
-use constant HAS_DOR => ( "$]" < 5.010 ? 0 : 1 );
+use constant HAS_DOR => ( ( DBIx::Class::_ENV_::PERL_VERSION < 5.010 ) ? 0 : 1 );
 
 use base 'Exporter';
 our @EXPORT_OK = qw(

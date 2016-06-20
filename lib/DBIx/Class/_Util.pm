@@ -6,8 +6,6 @@ use DBIx::Class::StartupCheck;  # load es early as we can, usually a noop
 use warnings;
 use strict;
 
-use constant SPURIOUS_VERSION_CHECK_WARNINGS => ( "$]" < 5.010 ? 1 : 0);
-
 my $mro_recursor_stack;
 
 BEGIN {
@@ -17,18 +15,23 @@ BEGIN {
   use Config;
 
   use constant {
+    PERL_VERSION => "$]",
+    OS_NAME => "$^O",
+  };
+
+  use constant {
 
     # but of course
-    BROKEN_FORK => ($^O eq 'MSWin32') ? 1 : 0,
+    BROKEN_FORK => (OS_NAME eq 'MSWin32') ? 1 : 0,
 
-    BROKEN_GOTO => ( "$]" < 5.008003 ) ? 1 : 0,
+    BROKEN_GOTO => ( PERL_VERSION < 5.008003 ) ? 1 : 0,
 
     # perl -MScalar::Util=weaken -e 'weaken( $hash{key} = \"value" )'
-    BROKEN_WEAK_SCALARREF_VALUES => ( "$]" < 5.008003 ) ? 1 : 0,
+    BROKEN_WEAK_SCALARREF_VALUES => ( PERL_VERSION < 5.008003 ) ? 1 : 0,
 
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
-    UNSTABLE_DOLLARAT => ( "$]" < 5.013002 ) ? 1 : 0,
+    UNSTABLE_DOLLARAT => ( PERL_VERSION < 5.013002 ) ? 1 : 0,
 
     ( map
       #
@@ -47,11 +50,9 @@ BEGIN {
     ),
 
     IV_SIZE => $Config{ivsize},
-
-    OS_NAME => $^O,
   };
 
-  if ( "$]" < 5.009_005) {
+  if ( PERL_VERSION < 5.009_005) {
     require MRO::Compat;
     constant->import( OLD_MRO => 1 );
 
@@ -148,6 +149,8 @@ BEGIN {
   sub DBICTEST () { &$sigh }
   sub PEEPEENESS () { &$sigh }
 }
+
+use constant SPURIOUS_VERSION_CHECK_WARNINGS => ( DBIx::Class::_ENV_::PERL_VERSION < 5.010 ? 1 : 0);
 
 # FIXME - this is not supposed to be here
 # Carp::Skip to the rescue soon
