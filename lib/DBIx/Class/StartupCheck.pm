@@ -1,40 +1,7 @@
 package DBIx::Class::StartupCheck;
 
-# Temporary - tempextlib
 use warnings;
 use strict;
-use namespace::clean;
-BEGIN {
-  # There can be only one of these, make sure we get the bundled part and
-  # *not* something off the site lib
-  for (qw(
-    Sub::Quote
-  )) {
-    (my $incfn = "$_.pm") =~ s|::|/|g;
-
-    if ($INC{$incfn}) {
-      die "\n\t*TEMPORARY* TRIAL RELEASE REQUIREMENTS VIOLATED\n\n"
-        . "Unable to continue - a part of the bundled templib contents "
-        . "was already loaded (likely an older version from CPAN). "
-        . "Make sure that @{[ __PACKAGE__ ]} is loaded before $_\n"
-        . "\nUsually it is sufficient to add PERL5OPT=\"-M@{[ __PACKAGE__ ]}\" "
-        . "to your environment in order to resolve this problem\n"
-        . "\n\tThis is temporary and *WILL NOT* be necessary for the official "
-        . "DBIC release\n\n"
-      ;
-    }
-  }
-
-  require File::Spec;
-  our ($HERE) = File::Spec->rel2abs(
-    File::Spec->catdir( (File::Spec->splitpath(__FILE__))[1], '_TempExtlib' )
-  ) =~ /^(.*)$/; # screw you, taint mode
-
-  die "TempExtlib $HERE does not seem to exist - perhaps you need to run `perl Makefile.PL` in the DBIC checkout?\n"
-    unless -d $HERE;
-
-  unshift @INC, $HERE;
-}
 
 1;
 

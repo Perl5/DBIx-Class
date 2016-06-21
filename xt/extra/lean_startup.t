@@ -135,7 +135,6 @@ BEGIN {
     Sub::Defer
     Sub::Quote
     attributes
-    File::Spec
 
     Scalar::Util
     Storable
