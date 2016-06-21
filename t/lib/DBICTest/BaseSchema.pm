@@ -15,11 +15,26 @@ use namespace::clean;
 if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
   my $ea = __PACKAGE__->exception_action( sub {
 
-    my ( $fr_num, $disarmed, $throw_exception_fr_num );
+    # Can not rely on $^S here at all - the exception_action
+    # itself is always called in an eval so that the goto-guard
+    # can work (see 7cb35852)
+
+    my ( $fr_num, $disarmed, $throw_exception_fr_num, $eval_fr_num );
     while( ! $disarmed and my @fr = caller(++$fr_num) ) {
 
       $throw_exception_fr_num ||= (
-        $fr[3] eq 'DBIx::Class::ResultSource::throw_exception'
+        $fr[3] =~ /^DBIx::Class::(?:ResultSource|Schema|Storage|Exception)::throw(?:_exception)?$/
+          and
+        # there may be evals in the throwers themselves - skip those
+        ( $eval_fr_num ) = ( undef )
+          and
+        $fr_num
+      );
+
+      # now that the above stops un-setting us, we can find the first
+      # ineresting eval
+      $eval_fr_num ||= (
+        $fr[3] eq '(eval)'
           and
         $fr_num
       );
@@ -52,7 +67,15 @@ if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
       '',
       '  You almost certainly used eval/try instead of dbic_internal_try()',
       "  Adjust *one* of the eval-ish constructs in the callstack starting" . DBICTest::Util::stacktrace($throw_exception_fr_num||())
-    ) unless $disarmed;
+    ) if (
+      ! $disarmed
+        and
+      (
+        $eval_fr_num
+          or
+        ! $throw_exception_fr_num
+      )
+    );
 
     DBIx::Class::Exception->throw( $_[0] );
   });
@@ -65,6 +88,9 @@ if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
 
     # without this there would be false positives everywhere :(
     die @_ if (
+      # blindly rethrow if nobody is waiting for us
+      ( defined $^S and ! $^S )
+        or
       (caller(0))[0] !~ $interesting_ns_rx
         or
       (
