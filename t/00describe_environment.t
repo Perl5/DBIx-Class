@@ -413,9 +413,10 @@ my $max_ver_len = max map
 ;
 my $max_marker_len = max map { length $_ } ( '$INC[999]', keys %$seen_markers );
 
+# Note - must be less than 76 chars wide to account for the diag() prefix
 my $discl = <<'EOD';
 
-List of loadable modules within both the core and *OPTIONAL* dependency chains
+List of loadable modules within both *OPTIONAL* and core dependency chains
 present on this system (modules sourced from ./blib, ./lib, ./t, and ./xt
 with versions identical to their parent namespace were omitted for brevity)
 
