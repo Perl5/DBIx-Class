@@ -530,12 +530,18 @@ sub abs_unix_path {
 
   # File::Spec's rel2abs does not resolve symlinks
   # we *need* to look at the filesystem to be sure
-  my $abs_fn = abs_path($_[0]);
+  #
+  # But looking at the FS for non-existing basenames *may*
+  # throw on some OSes so be extra paranoid:
+  # http://www.cpantesters.org/cpan/report/26a6e42f-6c23-1014-b7dd-5cd275d8a230
+  #
+  my $abs_fn = eval { abs_path($_[0]) } || '';
 
-  if ( $^O eq 'MSWin32' and $abs_fn ) {
+  if ( $abs_fn and $^O eq 'MSWin32' ) {
 
     # sometimes we can get a short/longname mix, normalize everything to longnames
-    $abs_fn = Win32::GetLongPathName($abs_fn);
+    $abs_fn = Win32::GetLongPathName($abs_fn)
+      if -e $abs_fn;
 
     # Fixup (native) slashes in Config not matching (unixy) slashes in INC
     $abs_fn =~ s|\\|/|g;
@@ -549,7 +555,7 @@ sub shorten_fn {
 
   my $abs_fn = abs_unix_path($fn);
 
-  if (my $p = subpath_of_known_path( $fn ) ) {
+  if ($abs_fn and my $p = subpath_of_known_path( $fn ) ) {
     $abs_fn =~ s| (?<! / ) $|/|x
       if -d $abs_fn;
 
