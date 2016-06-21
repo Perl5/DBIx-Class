@@ -48,6 +48,15 @@ use strict;
 use warnings;
 
 use Test::More 'no_plan';
+
+# Things happen... unfortunately
+$SIG{__DIE__} = sub {
+  die unless defined $^S and ! $^S;
+
+  diag "Something horrible happened while assembling the diag data\n$_[0]";
+  exit 0;
+};
+
 use Config;
 use File::Find 'find';
 use Digest::MD5 ();
