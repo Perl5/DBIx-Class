@@ -35,6 +35,7 @@ my $pkg_gen_history = {};
 
 { package UEBERVERSAL; sub ueber {} }
 @UNIVERSAL::ISA = "UEBERVERSAL";
+sub UNIVERSAL::uni { "unistuff" }
 
 sub grab_pkg_gen ($) {
   push @{ $pkg_gen_history->{$_[0]} }, [
@@ -379,6 +380,13 @@ sub add_more_attrs {
           via_class => "UEBERVERSAL",
         }
       ],
+      uni => [
+        {
+          attributes => {},
+          name => "uni",
+          via_class => "UNIVERSAL",
+        }
+      ],
       can => [
         {
           attributes => {},
@@ -478,6 +486,27 @@ sub add_more_attrs {
     },
     $expected_desc,
     'describing with implicit mro returns correct data'
+  );
+
+  # check that a UNIVERSAL-parent interrogation makes sense
+  # ( it should not list anything from UNIVERSAL itself )
+  is_deeply (
+    describe_class_methods("UEBERVERSAL"),
+    {
+      # should be cached by now, thus safe to rely on...?
+      cumulative_gen => DBIx::Class::_Util::get_real_pkg_gen('UEBERVERSAL'),
+
+      class => 'UEBERVERSAL',
+      mro => { is_c3 => 0, type => 'dfs' },
+      isa => [],
+      methods => {
+        ueber => $expected_desc->{methods}{ueber}
+      },
+      methods_defined_in_class => {
+        ueber => $expected_desc->{methods}{ueber}[0]
+      },
+    },
+    "Expected description of a parent-of-UNIVERSAL class (pathological case)",
   );
 }
 
