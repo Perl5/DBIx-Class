@@ -1098,12 +1098,15 @@ Store a collection of resultset attributes, that will be set on every
 L<DBIx::Class::ResultSet> produced from this result source.
 
 B<CAVEAT>: C<resultset_attributes> comes with its own set of issues and
-bugs! While C<resultset_attributes> isn't deprecated per se, its usage is
-not recommended!
+bugs! Notably the contents of the attributes are B<entirely static>, which
+greatly hinders composability (things like L<current_source_alias
+|DBIx::Class::ResultSet/current_source_alias> can not possibly be respected).
+While C<resultset_attributes> isn't deprecated per se, you are strongly urged
+to seek alternatives.
 
 Since relationships use attributes to link tables together, the "default"
 attributes you set may cause unpredictable and undesired behavior.  Furthermore,
-the defaults cannot be turned off, so you are stuck with them.
+the defaults B<cannot be turned off>, so you are stuck with them.
 
 In most cases, what you should actually be using are project-specific methods:
 

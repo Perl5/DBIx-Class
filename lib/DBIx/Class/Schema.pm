@@ -18,11 +18,15 @@ use Devel::GlobalDestruction;
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors( inherited => qw( storage exception_action ) );
-__PACKAGE__->mk_classaccessor('class_mappings' => {});
-__PACKAGE__->mk_classaccessor('source_registrations' => {});
 __PACKAGE__->mk_classaccessor('storage_type' => '::DBI');
 __PACKAGE__->mk_classaccessor('stacktrace' => $ENV{DBIC_TRACE} || 0);
 __PACKAGE__->mk_classaccessor('default_resultset_attributes' => {});
+
+# These two should have been private from the start but too late now
+# Undocumented on purpose, hopefully it won't ever be necessary to
+# screw with them
+__PACKAGE__->mk_classaccessor('class_mappings' => {});
+__PACKAGE__->mk_classaccessor('source_registrations' => {});
 
 =head1 NAME
 
@@ -427,6 +431,30 @@ both types of refs here in order to play nice with your
 Config::[class] or your choice. See
 L<DBIx::Class::Storage::DBI::Replicated> for an example of this.
 
+=head2 default_resultset_attributes
+
+=over 4
+
+=item Arguments: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
+
+=item Return Value: L<\%attrs|DBIx::Class::ResultSet/ATTRIBUTES>
+
+=item Default value: None
+
+=back
+
+Like L<DBIx::Class::ResultSource/resultset_attributes> stores a collection
+of resultset attributes, to be used as defaults for B<every> ResultSet
+instance schema-wide. The same list of CAVEATS and WARNINGS applies, with
+the extra downside of these defaults being practically inescapable: you will
+B<not> be able to derive a ResultSet instance with these attributes unset.
+
+Example:
+
+   package My::Schema;
+   use base qw/DBIx::Class::Schema/;
+   __PACKAGE__->default_resultset_attributes( { software_limit => 1 } );
+
 =head2 exception_action
 
 =over 4
@@ -787,13 +815,13 @@ sub populate {
 
 =item Arguments: @args
 
-=item Return Value: $new_schema
+=item Return Value: $self
 
 =back
 
 Similar to L</connect> except sets the storage object and connection
-data in-place on the Schema class. You should probably be calling
-L</connect> to get a proper Schema object instead.
+data B<in-place> on C<$self>. You should probably be calling
+L</connect> to get a properly L<cloned|/clone> Schema object instead.
 
 =head3 Overloading
 
@@ -918,6 +946,9 @@ sub compose_namespace {
   return $schema;
 }
 
+# LEGACY: The intra-call to this was removed in 66d9ef6b and then
+# the sub was de-documented way later in 249963d4. No way to be sure
+# nothing on darkpan is calling it directly, so keeping as-is
 sub setup_connection_class {
   my ($class, $target, @info) = @_;
   $class->inject_base($target => 'DBIx::Class::DB');
