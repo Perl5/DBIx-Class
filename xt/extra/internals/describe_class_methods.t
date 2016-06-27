@@ -25,7 +25,10 @@ BEGIN {
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util qw( quote_sub describe_class_methods serialize refdesc );
+use DBIx::Class::_Util qw(
+  quote_sub describe_class_methods
+  serialize refdesc sigwarn_silencer
+);
 use List::Util 'shuffle';
 use Errno ();
 
@@ -557,27 +560,117 @@ else { SKIP: {
   );
 }}
 
-# this doesn't really belong in this test, but screw it
+# check "crosed-over" mro
 {
-  package DBICTest::WackyDFS;
-  use base qw( DBICTest::SomeGrandParentClass DBICTest::SomeParentClass );
+  {
+    package DBICTest::WackyDFS;
+    use base qw( DBICTest::SomeGrandParentClass DBICTest::SomeParentClass );
+  }
+
+  is_deeply
+    describe_class_methods("DBICTest::WackyDFS")->{methods}{VALID_DBIC_CODE_ATTRIBUTE},
+    [
+      {
+        attributes => {},
+        name => "VALID_DBIC_CODE_ATTRIBUTE",
+        via_class => "DBICTest::SomeGrandParentClass",
+      },
+      {
+        attributes => {},
+        name => "VALID_DBIC_CODE_ATTRIBUTE",
+        via_class => "DBIx::Class::MethodAttributes"
+      },
+    ],
+    'Expected description on unusable inheritance hierarchy'
+  ;
 }
 
-is_deeply
-  describe_class_methods("DBICTest::WackyDFS")->{methods}{VALID_DBIC_CODE_ATTRIBUTE},
-  [
-    {
-      attributes => {},
-      name => "VALID_DBIC_CODE_ATTRIBUTE",
-      via_class => "DBICTest::SomeGrandParentClass",
-    },
-    {
-      attributes => {},
-      name => "VALID_DBIC_CODE_ATTRIBUTE",
-      via_class => "DBIx::Class::MethodAttributes"
-    },
-  ],
-  'Expected description on unusable inheritance hierarchy'
-;
+# check pathological cases ( combinations of cases from
+# Package::Stash and Devel::Isa::Explainer )
+{
+  {
+    package DBICTest::Exotic;
+
+    use constant CSCALAR    => 1;
+    use constant CSCALARREF => \1;
+    use constant CARRAYREF  => [];
+    use constant CHASHREF   => {};
+    use constant CSUB       => sub { };
+
+    sub subnormal { }
+    sub substub;
+    sub subnormalproto () { }
+    sub substubproto ();
+
+    sub Bsubnormal { }
+    sub Bsubstub;
+    sub Bsubnormalproto () { }
+    sub Bsubstubproto ();
+
+    our @OURARRAY;
+    our %OURHASH;
+    our $OURSCALAR;
+
+    *someXSUB = \&DBIx::Class::_Util::deep_clone;
+
+    *EMPTYGLOB = *EMPTYGLOB;
+
+    our @GLOBCOLLISION;
+    our %GLOBCOLLISION;
+    sub GLOBCOLLISION { }
+
+    no strict 'refs';
+    ${'DBICTest::'}{stubUNDEF} = undef;
+    ${'DBICTest::'}{stubSCALAR} = 1;
+
+    bless $_, "0"
+      for map
+        { \&{"DBICTest::Exotic::Bsub$_"} }
+        qw( normal stub )
+    ;
+
+    bless $_, __PACKAGE__
+      for map
+        { \&{"DBICTest::Exotic::Bsub$_"} }
+        qw( normalproto stubproto )
+    ;
+
+    package DBICTest::Exotic::SubPackage;
+    *CHILDGLOB = *CHILDGLOB;
+  }
+
+  my $expected = [ sort
+    qw(
+      CSCALAR CSCALARREF CARRAYREF CHASHREF CSUB
+      GLOBCOLLISION someXSUB
+    ),
+    (map
+      {( "Bsub$_", "sub$_" )}
+      qw( normal stub normalproto stubproto )
+    ),
+  ];
+
+  # FIXME because attributes::get() has an error in its signature parser
+  local $SIG{__WARN__} = sigwarn_silencer qr/Unable to determine attributes of/;
+
+  is_deeply
+    [ sort keys %{
+      describe_class_methods('DBICTest::Exotic')->{methods_defined_in_class}
+    } ],
+    $expected,
+    'All expected methods recognized in pathological cases'
+  ;
+
+  # blow the cache
+  *DBICTest::Exotic::zzz_extra_method = sub {};
+
+  is_deeply
+    [ sort keys %{
+      describe_class_methods('DBICTest::Exotic')->{methods_defined_in_class}
+    } ],
+    [ @$expected, 'zzz_extra_method' ],
+    'All expected methods yet again recognized in pathological cases'
+  ;
+}
 
 done_testing;

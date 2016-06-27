@@ -91,7 +91,15 @@ BEGIN {
                 {(
                   # stringification should be sufficient, ignore names/refaddr entirely
                   $_,
-                  attributes::get( $_ ),
+                  do {
+                    my @attrs;
+                    local $@;
+                    local $SIG{__DIE__} if $SIG{__DIE__};
+                    # attributes::get may throw on blessed-false crefs :/
+                    eval { @attrs = attributes::get( $_ ); 1 }
+                      or warn "Unable to determine attributes of coderef $_ due to the following error: $@";
+                    @attrs;
+                  },
                 )}
                 map
                   {(
@@ -810,9 +818,15 @@ sub modver_gt_or_eq_and_lt ($$$) {
           ) ? {
               via_class => $class,
               name => $_,
-              attributes => {
-                map { $_ => 1 } attributes::get( \&{"${class}::${_}"} )
-              },
+              attributes => { map { $_ => 1 } do {
+                my @attrs;
+                local $@;
+                local $SIG{__DIE__} if $SIG{__DIE__};
+                # attributes::get may throw on blessed-false crefs :/
+                eval { @attrs = attributes::get( \&{"${class}::${_}"} ); 1 }
+                  or warn "Unable to determine attributes of the \\&${class}::$_ method due to following error: $@";
+                @attrs;
+              } },
             }
             : ()
         } keys %{"${class}::"} )
