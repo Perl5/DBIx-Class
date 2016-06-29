@@ -286,12 +286,17 @@ sub add_more_attrs {
 
   # check that describe_class_methods returns the right stuff
   # ( on the simpler class )
-  my $expected_AttrTest_ISA = [qw(
+  my $expected_AttrTest_linear_ISA = [qw(
     DBICTest::SomeParentClass
     DBICTest::SomeGrandParentClass
     DBICTest::AnotherParentClass
     DBIx::Class::MethodAttributes
   )];
+
+  my $expected_AttrTest_full_ISA = { map { $_ => 1 } (
+    qw( UEBERVERSAL UNIVERSAL DBICTest::AttrTest ),
+    @$expected_AttrTest_linear_ISA,
+  )};
 
   my $expected_desc = {
     class => "DBICTest::AttrTest",
@@ -302,12 +307,8 @@ sub add_more_attrs {
       require Math::BigInt;
       my $gen = Math::BigInt->new(0);
 
-      $gen += DBIx::Class::_Util::get_real_pkg_gen($_) for (
-        'UEBERVERSAL',
-        'UNIVERSAL',
-        'DBICTest::AttrTest',
-        @$expected_AttrTest_ISA,
-      );
+      $gen += DBIx::Class::_Util::get_real_pkg_gen($_)
+        for keys %$expected_AttrTest_full_ISA;
 
       $gen;
     },
@@ -315,7 +316,8 @@ sub add_more_attrs {
       type => 'c3',
       is_c3 => 1,
     },
-    isa => $expected_AttrTest_ISA,
+    linear_isa => $expected_AttrTest_linear_ISA,
+    isa => $expected_AttrTest_full_ISA,
     methods => {
       FETCH_CODE_ATTRIBUTES => [
         {
@@ -444,7 +446,7 @@ sub add_more_attrs {
   # due to DFS the last 2 entries of ISA and the VALID_DBIC_CODE_ATTRIBUTE
   # sourcing-list will change places
   splice @$_, -2, 2, @{$_}[-1, -2]
-    for $V_D_C_A_stack, $expected_AttrTest_ISA;
+    for $V_D_C_A_stack, $expected_AttrTest_linear_ISA;
 
   is_deeply (
     # work around taint, see TODO below
@@ -498,7 +500,8 @@ sub add_more_attrs {
 
       class => 'UEBERVERSAL',
       mro => { is_c3 => 0, type => 'dfs' },
-      isa => [],
+      isa => { UEBERVERSAL => 1 },
+      linear_isa => [],
       methods => {
         ueber => $expected_desc->{methods}{ueber}
       },

@@ -734,13 +734,11 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
     unless ( ($slot->{cumulative_gen}||0) == $my_gen ) {
 
-      # remove ourselves from ISA
-      shift @full_ISA;
-
       # reset
       %$slot = (
         class => $class,
-        isa => [
+        isa => { map { $_ => 1 } @full_ISA },
+        linear_isa => [
           @{ $mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa} }
             [ 1 .. $#{$mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa}} ]
         ],
@@ -750,6 +748,9 @@ sub modver_gt_or_eq_and_lt ($$$) {
         },
         cumulative_gen => $my_gen,
       );
+
+      # remove ourselves from ISA
+      shift @full_ISA;
 
       # ensure the cache is populated for the parents, code below can then
       # efficiently operate over the query_cache directly
