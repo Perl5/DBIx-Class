@@ -449,7 +449,7 @@ sub add_more_attrs {
   is_deeply (
     # work around taint, see TODO below
     {
-      %{describe_class_methods("DBICTest::AttrTest", "dfs")},
+      %{ describe_class_methods({ class => "DBICTest::AttrTest", use_mro => "dfs" }) },
       cumulative_gen => $expected_desc->{cumulative_gen},
     },
     $expected_desc,

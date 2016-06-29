@@ -675,9 +675,15 @@ sub modver_gt_or_eq_and_lt ($$$) {
   our $describe_class_query_cache;
 
   sub describe_class_methods {
-    my ($class, $requested_mro) = @_;
+    my $args = (
+      ref $_[0] eq 'HASH'                 ? $_[0]
+    : ( @_ == 1 and ! length ref $_[0] )  ? { class => $_[0] }
+    :                                       { @_ }
+    );
 
-    croak "Expecting a class name"
+    my ($class, $requested_mro) = @{$args}{qw( class use_mro )};
+
+    croak "Expecting a class name either as the sole argument or a 'class' option"
       if not defined $class or $class !~ $module_name_rx;
 
     $requested_mro ||= mro::get_mro($class);
