@@ -85,6 +85,9 @@ my $test_requires = {
   #
   'Sub::Uplevel'             => '0.19',
 
+  'DateTime' => '1.18',
+  'DateTime::Format::SQLite' => '0.11',
+
   # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
   # remove and do a manual glob-collection if n::c is no longer a dep
   'Package::Stash'           => '0.28',
