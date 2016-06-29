@@ -70,23 +70,28 @@ matrix:
     # In genereal it is strongly recommended to keep things on the older
     # version indefinitely - there is little value in-depth smoking on
     # more recent software stacks
+    # Add moderate (not complete) poisoning, as these will run on PR-related
+    # builds, therefore contributors will get notified about *most* issues
     - perl: "5.8"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     - perl: "5.10"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     - perl: "5.22-extras"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     # CLEANTEST of minimum supported with non-tracing poisoning, single thread (hence the sudo)
     - perl: "5.8.3_nt_mb"
