@@ -437,7 +437,7 @@ sub add_more_attrs {
 
   # ensure that asking with a different MRO will not perturb the cache
   my $cached_desc = serialize(
-    $DBIx::Class::_Util::describe_class_query_cache->{"DBICTest::AttrTest|c3"}
+    $DBIx::Class::_Util::__describe_class_query_cache->{"DBICTest::AttrTest|c3"}
   );
 
   # now try to ask for DFS explicitly, adjust our expectations

@@ -6,7 +6,10 @@ use DBIx::Class::StartupCheck;  # load es early as we can, usually a noop
 use warnings;
 use strict;
 
-my $mro_recursor_stack;
+# For the love of everything that is crab-like: DO NOT reach into this
+# The entire thing is really fragile and should not be screwed with
+# unless absolutely and unavoidably necessary
+our $__describe_class_query_cache;
 
 BEGIN {
   package # hide from pause
@@ -68,18 +71,22 @@ BEGIN {
       require Digest::MD5;
       require Math::BigInt;
 
+      my $cur_class;
+      no strict 'refs';
+
       # the non-assign-unless-there-is-a-hash is deliberate
-      ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{gen} ||= (
+      ( $__describe_class_query_cache->{'!internal!'} || {} )->{$_[0]}{gen} ||= (
         Math::BigInt->new( '0x' . ( Digest::MD5::md5_hex( join "\0", map {
 
-          ( $mro_recursor_stack->{cache} || {} )->{$_}{methlist} ||= do {
+          ( $__describe_class_query_cache->{'!internal!'} || {} )->{$_}{methlist} ||= (
 
-            my $class = $_;
-            no strict 'refs';
+            $cur_class = $_
+
+              and
 
             # RV to be hashed up and turned into a number
             join "\0", (
-              $class,
+              $cur_class,
               map
                 {(
                   # stringification should be sufficient, ignore names/refaddr entirely
@@ -89,34 +96,34 @@ BEGIN {
                 map
                   {(
                     # skip dummy C::C3 helper crefs
-                    ! ( ( $Class::C3::MRO{$class} || {} )->{methods}{$_} )
+                    ! ( ( $Class::C3::MRO{$cur_class} || {} )->{methods}{$_} )
                       and
                     (
-                      ref(\ "${class}::"->{$_} ) ne 'GLOB'
+                      ref(\ "${cur_class}::"->{$_} ) ne 'GLOB'
                         or
-                      defined( *{ "${class}::"->{$_} }{CODE} )
+                      defined( *{ "${cur_class}::"->{$_} }{CODE} )
                     )
                   )
-                    ? ( \&{"${class}::$_"} )
+                    ? ( \&{"${cur_class}::$_"} )
                     : ()
                   }
-                  keys %{ "${class}::" }
-            );
-          }
+                  keys %{ "${cur_class}::" }
+            )
+          )
         } (
 
           @{
-            ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{linear_isa}
+            ( $__describe_class_query_cache->{'!internal!'} || {} )->{$_[0]}{linear_isa}
               ||=
             mro::get_linear_isa($_[0])
           },
 
           ((
-            ( $mro_recursor_stack->{cache} || {} )->{$_[0]}{is_universal}
+            ( $__describe_class_query_cache->{'!internal!'} || {} )->{$_[0]}{is_universal}
               ||=
             mro::is_universal($_[0])
           ) ? () : @{
-            ( $mro_recursor_stack->{cache} || {} )->{UNIVERSAL}{linear_isa}
+            ( $__describe_class_query_cache->{'!internal!'} || {} )->{UNIVERSAL}{linear_isa}
               ||=
             mro::get_linear_isa("UNIVERSAL")
           } ),
@@ -670,9 +677,6 @@ sub modver_gt_or_eq_and_lt ($$$) {
 }
 
 {
-  # FIXME - should be a private my(), but I'm too uncertain whether
-  # all bases are covered
-  our $describe_class_query_cache;
 
   sub describe_class_methods {
     my $args = (
@@ -691,7 +695,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
     # mro::set_mro() does not bump pkg_gen - WHAT THE FUCK?!
     my $query_cache_key = "$class|$requested_mro";
 
-    my $stack_cache_key =
+    my $internal_cache_key =
       ( mro::get_mro($class) eq $requested_mro )
         ? $class
         : $query_cache_key
@@ -705,32 +709,32 @@ sub modver_gt_or_eq_and_lt ($$$) {
     # we use the cache for linear_isa lookups on new MRO as well - it adds
     # a *tiny* speedup, and simplifies the code a lot
     #
-    local $mro_recursor_stack->{cache} = {}
-      unless $mro_recursor_stack->{cache};
+    local $__describe_class_query_cache->{'!internal!'} = {}
+      unless $__describe_class_query_cache->{'!internal!'};
 
     my $my_gen = 0;
 
     $my_gen += get_real_pkg_gen($_) for ( my @full_ISA = (
 
       @{
-        $mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa}
+        $__describe_class_query_cache->{'!internal!'}{$internal_cache_key}{linear_isa}
           ||=
         mro::get_linear_isa($class, $requested_mro)
       },
 
       ((
-        $mro_recursor_stack->{cache}{$class}{is_universal}
+        $__describe_class_query_cache->{'!internal!'}{$class}{is_universal}
           ||=
         mro::is_universal($class)
       ) ? () : @{
-        $mro_recursor_stack->{cache}{UNIVERSAL}{linear_isa}
+        $__describe_class_query_cache->{'!internal!'}{UNIVERSAL}{linear_isa}
           ||=
         mro::get_linear_isa("UNIVERSAL")
       }),
 
     ));
 
-    my $slot = $describe_class_query_cache->{$query_cache_key} ||= {};
+    my $slot = $__describe_class_query_cache->{$query_cache_key} ||= {};
 
     unless ( ($slot->{cumulative_gen}||0) == $my_gen ) {
 
@@ -739,8 +743,8 @@ sub modver_gt_or_eq_and_lt ($$$) {
         class => $class,
         isa => { map { $_ => 1 } @full_ISA },
         linear_isa => [
-          @{ $mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa} }
-            [ 1 .. $#{$mro_recursor_stack->{cache}{$stack_cache_key}{linear_isa}} ]
+          @{ $__describe_class_query_cache->{'!internal!'}{$internal_cache_key}{linear_isa} }
+            [ 1 .. $#{$__describe_class_query_cache->{'!internal!'}{$internal_cache_key}{linear_isa}} ]
         ],
         mro => {
           type => $requested_mro,
@@ -784,7 +788,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
 
         # what describe_class_methods for @full_ISA produced above
         ( map { values %{
-          $describe_class_query_cache->{$_}{methods_defined_in_class} || {}
+          $__describe_class_query_cache->{$_}{methods_defined_in_class} || {}
         } } map { "$_|" . mro::get_mro($_) } reverse @full_ISA ),
 
         # our own non-cleaned subs + their attributes
