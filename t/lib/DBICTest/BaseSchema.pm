@@ -96,7 +96,7 @@ if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
       (
         caller(0) eq 'main'
           and
-        (caller(1))[0] !~ $interesting_ns_rx
+        ( (caller(1))[0] || '' ) !~ $interesting_ns_rx
       )
     );
 
