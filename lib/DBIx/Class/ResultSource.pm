@@ -2371,7 +2371,7 @@ sub DESTROY {
   # however beware - on older perls the exception seems randomly untrappable
   # due to some weird race condition during thread joining :(((
   local $SIG{__DIE__} if $SIG{__DIE__};
-  local $@;
+  local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
   eval {
     weaken $_[0]->{schema};
 

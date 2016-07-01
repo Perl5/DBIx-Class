@@ -1304,7 +1304,9 @@ sub _determine_driver {
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
     my $started_connected = 0;
-    local $self->{_in_determine_driver} = 1;
+
+    local $self->{_in_determine_driver} = 1
+      unless $self->{_in_determine_driver};
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;

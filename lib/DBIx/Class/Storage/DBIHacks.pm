@@ -228,7 +228,8 @@ sub _adjust_select_args_for_complex_prefetch {
   my $inner_subq = do {
 
     # must use it here regardless of user requests (vastly gentler on optimizer)
-    local $self->{_use_join_optimizer} = 1;
+    local $self->{_use_join_optimizer} = 1
+      unless $self->{_use_join_optimizer};
 
     # throw away multijoins since we def. do not care about those inside the subquery
     # $inner_aliastypes *will* be redefined at this point

@@ -297,11 +297,12 @@ sub _dbh_execute {
   return shift->$next(@_)
     if $self->transaction_depth;
 
-  # cheat the blockrunner we are just about to create
-  # we do want to rerun things regardless of outer state
-  local $self->{_in_do_block};
+  # Cheat the blockrunner we are just about to create:
+  # We *do* want to rerun things regardless of outer state
+  local $self->{_in_do_block}
+    if $self->{_in_do_block};
 
-  return DBIx::Class::Storage::BlockRunner->new(
+  DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
     wrap_txn => 0,
     retry_handler => sub {

@@ -262,7 +262,7 @@ sub connection {
       # we need to work with a forced fresh clone so that we do not upset any state
       # of the main $schema (some tests examine it quite closely)
       local $SIG{__WARN__} = sub {};
-      local $SIG{__DIE__};
+      local $SIG{__DIE__} if $SIG{__DIE__};
       local $@;
 
       # this will either give us an undef $locktype or will determine things

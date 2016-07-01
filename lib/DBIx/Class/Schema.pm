@@ -1058,7 +1058,7 @@ sub throw_exception {
 
     my $guard = scope_guard {
       return if $guard_disarmed;
-      local $SIG{__WARN__};
+      local $SIG{__WARN__} if $SIG{__WARN__};
       Carp::cluck("
                     !!! DBIx::Class INTERNAL PANIC !!!
 
@@ -1436,7 +1436,7 @@ sub DESTROY {
     # due to some weird race condition during thread joining :(((
     if (length ref $srcs->{$source_name} and refcount($srcs->{$source_name}) > 1) {
       local $SIG{__DIE__} if $SIG{__DIE__};
-      local $@;
+      local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
       eval {
         $srcs->{$source_name}->schema($self);
         weaken $srcs->{$source_name};

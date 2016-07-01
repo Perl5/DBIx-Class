@@ -54,6 +54,8 @@ sub _dbh_get_autoinc_seq {
   $table_name    = $self->sql_maker->quote_char ? $table_name : uc($table_name);
 
   local $dbh->{LongReadLen} = 100000;
+
+  # FIXME - this is likely *WRONG*
   local $dbh->{LongTruncOk} = 1;
 
   my $sth = $dbh->prepare(<<'EOF');

@@ -104,8 +104,7 @@ sub await_flock ($$) {
       # prove -lj10 xt/extra/internals/
       #
       select( ( select(\*STDOUT), $|=1 )[0] );
-
-      print "#\n";
+      print STDOUT "#\n";
     }
   }
 
@@ -126,7 +125,7 @@ sub local_umask ($) {
   croak "Setting umask failed: $!" unless defined $old_umask;
 
   scope_guard(sub {
-    local ($@, $!, $?);
+    local ( $!, $^E, $?, $@ );
 
     eval {
       defined(umask $old_umask) or die "nope";

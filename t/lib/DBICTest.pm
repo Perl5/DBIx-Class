@@ -20,8 +20,8 @@ BEGIN {
   # prove) but I do not know it offhand, especially on older environments
   # Go with the safer option
   if ($INC{'Test/Builder.pm'}) {
-    local $| = 1;
-    print "#\n";
+    select( ( select(\*STDOUT), $|=1 )[0] );
+    print STDOUT "#\n";
   }
 }
 

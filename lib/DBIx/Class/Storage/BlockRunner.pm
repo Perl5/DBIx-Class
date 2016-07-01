@@ -190,7 +190,8 @@ sub _run {
         )
           or
         ! do {
-          local $self->storage->{_in_do_block_retry_handler} = 1;
+          local $self->storage->{_in_do_block_retry_handler} = 1
+            unless $self->storage->{_in_do_block_retry_handler};
           $self->retry_handler->($self)
         }
       );
