@@ -1101,7 +1101,7 @@ sub set_inflated_columns {
   my ( $self, $upd ) = @_;
   my $rsrc;
   foreach my $key (keys %$upd) {
-    if (ref $upd->{$key}) {
+    if (!defined $upd->{$key} || ref $upd->{$key}) {
       $rsrc ||= $self->result_source;
       my $info = $rsrc->relationship_info($key);
       my $acc_type = $info->{attrs}{accessor} || '';
