@@ -161,7 +161,16 @@ sub visit_refs {
         } values %{ scalar PadWalker::closed_over($r) } ] }); # scalar due to RT#92269
       }
       1;
-    } or warn "Could not descend into @{[ refdesc $r ]}: $@\n";
+    } or (
+      # this is some bizarre old DBI autosplit thing, no point mentioning it
+      $@ !~ m{ ^Can't \s locate \s (?:
+        auto/DBI/FIRSTKEY.al
+          |
+        \Qobject method "FIRSTKEY" via package "DBI"\E
+      )}x
+        and
+      warn "Could not descend into @{[ refdesc $r ]}: $@\n"
+    );
   }
   $visited_cnt;
 }
