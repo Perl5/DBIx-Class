@@ -9,11 +9,44 @@ use warnings;
 use Carp ();
 $Carp::Internal{ (__PACKAGE__) }++;
 
+use Scalar::Util ();
+
+# Because... sigh
+# There are cases out there where a user provides a can() that won't actually
+# work as perl intends it. Since this is a reporting library, we *have* to be
+# extra paranoid ( e.g. https://rt.cpan.org/Ticket/Display.html?id=90715 )
+sub __safe_can ($$) {
+  local $@;
+  local $SIG{__DIE__} if $SIG{__DIE__};
+
+  my $cref;
+  eval {
+    $cref = $_[0]->can( $_[1] );
+
+    # in case the can() isn't an actual UNIVERSAL::can()
+    die "Return value of $_[0]" . "->can(q($_[1])) is true yet not a code reference...\n"
+      if $cref and Scalar::Util::reftype($cref) ne 'CODE';
+
+    1;
+  } or do {
+    undef $cref;
+
+    # can not use DBIC::_Util::emit_loud_diag - it uses us internally
+    printf STDERR
+      "\n$0: !!! INTERNAL PANIC !!!\nClass '%s' implements or inherits a broken can() - PLEASE FIX ASAP!: %s\n\n",
+      ( length ref $_[0] ? ref $_[0] : $_[0] ),
+      $@,
+    ;
+  };
+
+  $cref;
+}
+
 sub __find_caller {
   my ($skip_pattern, $class) = @_;
 
   my $skip_class_data = $class->_skip_namespace_frames
-    if ($class and $class->can('_skip_namespace_frames'));
+    if ($class and __safe_can($class, '_skip_namespace_frames') );
 
   $skip_pattern = qr/$skip_pattern|$skip_class_data/
     if $skip_class_data;
@@ -40,7 +73,7 @@ sub __find_caller {
     ) ? $f[3] : undef;
 
     if (
-      $f[0]->can('_skip_namespace_frames')
+      __safe_can( $f[0], '_skip_namespace_frames' )
         and
       my $extra_skip = $f[0]->_skip_namespace_frames
     ) {
