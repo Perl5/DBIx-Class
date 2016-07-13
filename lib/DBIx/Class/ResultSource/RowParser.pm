@@ -5,7 +5,6 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-use mro 'c3';
 
 use Try::Tiny;
 

@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::ResultSource::RowParser';
-use mro 'c3';
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );

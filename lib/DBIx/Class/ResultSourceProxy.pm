@@ -5,7 +5,6 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-use mro 'c3';
 
 use DBIx::Class::_Util qw( quote_sub fail_on_internal_call );
 use namespace::clean;

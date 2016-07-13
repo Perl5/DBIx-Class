@@ -1321,7 +1321,17 @@ sub _determine_driver {
       if ($driver) {
         my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
         if ($self->load_optional_class($storage_class)) {
-          mro::set_mro($storage_class, 'c3');
+
+          no strict 'refs';
+          mro::set_mro($storage_class, 'c3') if
+            (
+              ${"${storage_class}::__INITIAL_MRO_UPON_DBIC_LOAD__"}
+                ||= mro::get_mro($storage_class)
+            )
+              ne
+            'c3'
+          ;
+
           bless $self, $storage_class;
           $self->_rebless();
         }

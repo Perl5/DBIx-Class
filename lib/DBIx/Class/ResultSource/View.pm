@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::ResultSource';
-use mro 'c3';
 
 __PACKAGE__->mk_group_accessors(
     'simple' => qw(is_virtual view_definition deploy_depends_on) );

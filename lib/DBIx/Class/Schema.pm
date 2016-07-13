@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-use mro 'c3';
 
 use DBIx::Class::Carp;
 use Try::Tiny;
@@ -631,6 +630,43 @@ sub source {
       ||
     $self->throw_exception( "Can't find source for ${source_name}" )
   ;
+
+  # DO NOT REMOVE:
+  # We need to prevent alterations of pre-existing $@ due to where this call
+  # sits in the overall stack ( *unless* of course there is an actual error
+  # to report ). set_mro does alter $@ (and yes - it *can* throw an exception)
+  # We do not use local because set_mro *can* throw an actual exception
+  # We do not use a try/catch either, as on one hand it would slow things
+  # down for no reason (we would always rethrow), but also because adding *any*
+  # try/catch block below will segfault various threading tests on older perls
+  # ( which in itself is a FIXME but ENOTIMETODIG )
+  my $old_dollarat = $@;
+
+  no strict 'refs';
+  mro::set_mro($_, 'c3') for
+    grep
+      {
+        # some pseudo-sources do not have a result/resultset yet
+        defined $_
+          and
+        (
+          (
+            ${"${_}::__INITIAL_MRO_UPON_DBIC_LOAD__"}
+              ||= mro::get_mro($_)
+          )
+            ne
+          'c3'
+        )
+      }
+      map
+        { length ref $_ ? ref $_ : $_ }
+        ( $rsrc, $rsrc->result_class, $rsrc->resultset_class )
+  ;
+
+  # DO NOT REMOVE - see comment above
+  $@ = $old_dollarat;
+
+  $rsrc;
 }
 
 =head2 class

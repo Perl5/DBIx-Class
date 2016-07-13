@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use base qw( DBIx::Class::MethodAttributes Class::Accessor::Grouped );
-use mro 'c3';
 
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util 'fail_on_internal_call';
@@ -40,8 +39,6 @@ sub get_component_class {
     ! ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
   ) {
     $_[0]->ensure_class_loaded($class);
-
-    mro::set_mro( $class, 'c3' );
 
     ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
       = do { \(my $anon = 'loaded') };

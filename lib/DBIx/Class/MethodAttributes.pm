@@ -6,7 +6,6 @@ use warnings;
 use DBIx::Class::_Util qw( uniq refdesc visit_namespaces );
 use Scalar::Util qw( weaken refaddr );
 
-use mro 'c3';
 use namespace::clean;
 
 my ( $attr_cref_registry, $attr_cache_active );
