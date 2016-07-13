@@ -65,6 +65,8 @@ Revision history for DBIx::Class
           create()/populate()
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Fix several corner cases with Many2Many over custom relationships
+        - Fix corner cases of C3 composition being broken on OLD_MRO (5.8.x)
+          only: https://github.com/frioux/DBIx-Class-Helpers/issues/61
 
     * Misc
         - Add explicit test for pathological example of asymmetric IC::DT setup

@@ -244,10 +244,6 @@ sub load_namespaces {
 
   my @to_register;
   {
-    no warnings qw/redefine/;
-    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
-    use warnings qw/redefine/;
-
     # ensure classes are loaded and attached in inheritance order
     for my $result_class (values %$results_by_source_name) {
       $class->ensure_class_loaded($result_class);
@@ -300,8 +296,6 @@ sub load_namespaces {
     carp "load_namespaces found ResultSet class '$resultsets_by_source_name->{$_}' "
         .'with no corresponding Result class';
   }
-
-  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   $class->register_class(@$_) for (@to_register);
 
@@ -384,10 +378,6 @@ sub load_classes {
 
   my @to_register;
   {
-    no warnings qw/redefine/;
-    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
-    use warnings qw/redefine/;
-
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
@@ -404,7 +394,6 @@ sub load_classes {
       }
     }
   }
-  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   foreach my $to (@to_register) {
     $class->register_class(@$to);
@@ -1041,10 +1030,6 @@ sub compose_namespace {
   #$schema->class_mappings({});
 
   {
-    no warnings qw/redefine/;
-    local *Class::C3::reinitialize = sub { } if DBIx::Class::_ENV_::OLD_MRO;
-    use warnings qw/redefine/;
-
     foreach my $source_name ($self->sources) {
       my $orig_source = $self->source($source_name);
 
@@ -1064,7 +1049,8 @@ sub compose_namespace {
       for qw(class source resultset);
   }
 
-  Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+  # needed to cover the newly installed stuff via quote_sub above
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   # Give each composed class yet another *schema-less* source copy
   # this is used for the freeze/thaw cycle
@@ -1751,6 +1737,9 @@ sub compose_connection {
 
   my $schema = $self->compose_namespace($target, 'DBIx::Class::ResultSetProxy');
   quote_sub "${target}::schema", '$s', { '$s' => \$schema };
+
+  # needed to cover the newly installed stuff via quote_sub above
+  Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
 
   $schema->connection(@info);
   foreach my $source_name ($schema->sources) {

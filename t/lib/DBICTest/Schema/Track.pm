@@ -7,6 +7,8 @@ use strict;
 use base 'DBICTest::BaseResult';
 use DBICTest::Util 'check_customcond_args';
 
+# The component order is Part of a test,
+# important to remain as-is
 __PACKAGE__->load_components(qw{
     +DBICTest::DeployComponent
     InflateColumn::DateTime
