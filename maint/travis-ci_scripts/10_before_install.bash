@@ -178,9 +178,13 @@ if [[ "$CLEANTEST" != "true" ]]; then
       "echo \"CREATE DATABASE '/var/lib/firebird/2.5/data/dbic_test.fdb';\" | sudo isql-fb -u sysdba -p 123"
     then
 
+
+      # Do not upgrade to a newer ODBC driver - smoking on an old
+      # and buggy POS is much more valuable
+      #
       run_or_err "Fetching and building Firebird ODBC driver" '
         cd "$(mktemp -d)"
-        wget -qO- http://sourceforge.net/projects/firebird/files/firebird-ODBC-driver/2.0.2-Release/OdbcFb-Source-2.0.2.153.gz/download | tar -zx
+        wget -qO- https://github.com/dbsrgits/Firebird-ODBC-driver/archive/2.0.2.153.tar.gz | tar -zx --strip-components 1
         cd Builds/Gcc.lin
         perl -p -i -e "s|/usr/lib64|/usr/lib/x86_64-linux-gnu|g" ../makefile.environ
         make -f makefile.linux
