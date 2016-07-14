@@ -239,29 +239,4 @@ require DBICTest::AntiPattern::NullObject;
   is(scalar @w, 0, 'no warnings \o/');
 }
 
-# ensure Devel::StackTrace-refcapture-like effects are countered
-{
-  my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
-  my $g = $s->txn_scope_guard;
-
-  my @arg_capture;
-  {
-    local $SIG{__WARN__} = sub {
-      package DB;
-      my $frnum;
-      while (my @f = CORE::caller(++$frnum) ) {
-        push @arg_capture, @DB::args;
-      }
-    };
-
-    undef $g;
-    1;
-  }
-
-  warnings_exist
-    { @arg_capture = () }
-    qr/\QPreventing *MULTIPLE* DESTROY() invocations on DBIx::Class::Storage::TxnScopeGuard/
-  ;
-}
-
 done_testing;

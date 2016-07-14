@@ -12,7 +12,7 @@ use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util qw(
   refcount quote_sub scope_guard
   is_exception dbic_internal_try
-  fail_on_internal_call
+  fail_on_internal_call emit_loud_diag
 );
 use Devel::GlobalDestruction;
 use namespace::clean;
@@ -1089,8 +1089,8 @@ sub throw_exception {
 
     my $guard = scope_guard {
       return if $guard_disarmed;
-      local $SIG{__WARN__} if $SIG{__WARN__};
-      Carp::cluck("
+      emit_loud_diag( emit_dups => 1, msg => "
+
                     !!! DBIx::Class INTERNAL PANIC !!!
 
 The exception_action() handler installed on '$self'
@@ -1103,7 +1103,7 @@ anything for other software that might be affected by a similar problem.
 
                       !!! FIX YOUR ERROR HANDLING !!!
 
-This guard was activated beginning"
+This guard was activated starting",
       );
     };
 

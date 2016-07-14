@@ -72,6 +72,7 @@ ESCAPE:
   $schema->storage->ensure_connected;
   $schema->storage->_dbh->disconnect;
 
+  # silences "exitting sub via last"
   local $SIG{__WARN__} = sub {};
 
   $schema->exception_action(sub {

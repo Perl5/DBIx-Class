@@ -151,13 +151,11 @@ BEGIN {
   # to be outfits with *COPY PASTED* pieces of lib/DBIx/Class/Storage/*
   # in their production codebases. There is no point in breaking these
   # if whatever they used actually continues to work
-  my $warned;
   my $sigh = sub {
-
-    require Carp;
-    my $cluck = "The @{[ (caller(1))[3] ]} constant is no more - adjust your code" . Carp::longmess();
-
-    warn $cluck unless $warned->{$cluck}++;
+    DBIx::Class::_Util::emit_loud_diag(
+      skip_frames => 1,
+      msg => "The @{[ (caller(1))[3] ]} constant is no more - adjust your code"
+    );
 
     0;
   };
@@ -187,7 +185,7 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr set_subname describe_class_methods
-  scope_guard detected_reinvoked_destructor
+  scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
   is_exception dbic_internal_try visit_namespaces
   quote_sub qsub perlstring serialize deep_clone dump_value uniq
@@ -385,6 +383,61 @@ sub dump_value ($) {
   $dump_str;
 }
 
+my $seen_loud_screams;
+sub emit_loud_diag {
+  my $args = { ref $_[0] eq 'HASH' ? %{$_[0]} : @_ };
+
+  unless ( defined $args->{msg} and length $args->{msg} ) {
+    emit_loud_diag(
+      msg => "No 'msg' value supplied to emit_loud_diag()"
+    );
+    exit 70;
+  }
+
+  my $msg = "\n$0: $args->{msg}";
+
+  # when we die - we usually want to keep doing it
+  $args->{emit_dups} = !!$args->{confess}
+    unless exists $args->{emit_dups};
+
+  local $Carp::CarpLevel =
+    ( $args->{skip_frames} || 0 )
+      +
+    $Carp::CarpLevel
+      +
+    # hide our own frame
+    1
+  ;
+
+  my $longmess = Carp::longmess();
+
+  # different object references will thwart deduplication without this
+  ( my $key = "${msg}\n${longmess}" ) =~ s/\b0x[0-9a-f]+\b/0x.../gi;
+
+  return $seen_loud_screams->{$key} if
+    $seen_loud_screams->{$key}++
+      and
+    ! $args->{emit_dups}
+  ;
+
+  $msg .= $longmess
+    unless $msg =~ /\n\z/;
+
+  print STDERR "$msg\n"
+    or
+  print STDOUT "\n!!!STDERR ISN'T WRITABLE!!!:$msg\n";
+
+  return $seen_loud_screams->{$key}
+    unless $args->{confess};
+
+  # increment *again*, because... Carp.
+  $Carp::CarpLevel++;
+
+  # not $msg - Carp will reapply the longmess on its own
+  Carp::confess($args->{msg});
+}
+
+
 ###
 ### This is *NOT* boolean.pm - deliberately not using a singleton
 ###
@@ -420,8 +473,9 @@ sub scope_guard (&) {
       1;
     }
       or
-    Carp::cluck(
-      "Execution of scope guard $_[0] resulted in the non-trappable exception:\n\n$@"
+    DBIx::Class::_Util::emit_loud_diag(
+      emit_dups => 1,
+      msg => "Execution of scope guard $_[0] resulted in the non-trappable exception:\n\n$@\n "
     );
   }
 }
@@ -486,18 +540,16 @@ sub is_exception ($) {
       and
     length( my $class = ref $e )
   ) {
-    carp_unique( sprintf(
-      "Objects of external exception class '%s' stringify to '' (the "
+    carp_unique(
+      "Objects of external exception class '$class' stringify to '' (the "
     . 'empty string), implementing the so called null-object-pattern. '
     . 'Given Perl\'s "globally cooperative" exception handling using this '
     . 'class of exceptions is extremely dangerous, as it may (and often '
     . 'does) result in silent discarding of errors. DBIx::Class tries to '
     . 'work around this as much as possible, but other parts of your '
     . 'software stack may not be even aware of the problem. Please submit '
-    . 'a bugreport against the distribution containing %s',
-
-      ($class) x 2,
-    ));
+    . "a bugreport against the distribution containing '$class'",
+    );
 
     $not_blank = 1;
   }
@@ -610,10 +662,10 @@ sub is_exception ($) {
       for keys %$destruction_registry;
 
     if (! length ref $_[0]) {
-      printf STDERR '%s() expects a blessed reference %s',
-        (caller(0))[3],
-        Carp::longmess,
-      ;
+      emit_loud_diag(
+        emit_dups => 1,
+        msg => (caller(0))[3] . '() expects a blessed reference'
+      );
       return undef; # don't know wtf to do
     }
     elsif (! defined $destruction_registry->{ my $addr = refaddr($_[0]) } ) {
@@ -621,7 +673,7 @@ sub is_exception ($) {
       return 0;
     }
     else {
-      carp_unique ( sprintf (
+      emit_loud_diag( msg => sprintf (
         'Preventing *MULTIPLE* DESTROY() invocations on %s - an *EXTREMELY '
       . 'DANGEROUS* condition which is *ALMOST CERTAINLY GLOBAL* within your '
       . 'application, affecting *ALL* classes without active protection against '
