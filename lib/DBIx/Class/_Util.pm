@@ -184,7 +184,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
-  refdesc refcount hrefaddr set_subname describe_class_methods
+  refdesc refcount hrefaddr set_subname get_subname describe_class_methods
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
   is_exception dbic_internal_try visit_namespaces
@@ -323,7 +323,14 @@ sub visit_namespaces {
   $visited_count;
 }
 
-# FIXME In another life switch this to a polyfill like the one in namespace::clean
+# FIXME In another life switch these to a polyfill like the ones in namespace::clean
+sub get_subname ($) {
+  my $gv = B::svref_2object( $_[0] )->GV;
+  wantarray
+    ? ( $gv->STASH->NAME, $gv->NAME )
+    : ( join '::', $gv->STASH->NAME, $gv->NAME )
+  ;
+}
 sub set_subname ($$) {
 
   # fully qualify name

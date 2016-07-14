@@ -63,7 +63,7 @@ use Test::More;
 use DBICTest;
 use File::Find;
 use File::Spec;
-use B qw/svref_2object/;
+use DBIx::Class::_Util 'get_subname';
 
 # makes sure we can load at least something
 use DBIx::Class;
@@ -134,15 +134,14 @@ for my $mod (@modules) {
       # overload is a funky thing - it is not cleaned, and its imports are named funny
       next if $name =~ /^\(/;
 
-      my $gv = svref_2object($all_method_like{$name})->GV;
-      my $origin = $gv->STASH->NAME;
+      my ($origin, $cv_name) = get_subname($all_method_like{$name});
 
-      is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
+      is ($cv_name, $name, "Properly named $name method at $origin" . ($origin eq $mod
         ? ''
         : " (inherited by $mod)"
       ));
 
-      next if $seen->{"${origin}:${name}"}++;
+      next if $seen->{"${origin}::${name}"}++;
 
       if ($origin eq $mod) {
         pass ("$name is a native $mod method");
