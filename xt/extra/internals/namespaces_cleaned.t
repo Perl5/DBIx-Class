@@ -35,41 +35,48 @@ BEGIN {
 use strict;
 use warnings;
 
-# FIXME This is a crock of shit, needs to go away
-# currently here to work around https://rt.cpan.org/Ticket/Display.html?id=74151
-# kill with fire when PS::XS / RT#74151 is *finally* fixed
-BEGIN {
-  my $PS_provider;
-
-  if ( "$]" < 5.010 ) {
-    require Package::Stash::PP;
-    $PS_provider = 'Package::Stash::PP';
-  }
-  else {
-    require Package::Stash;
-    $PS_provider = 'Package::Stash';
-  }
-  eval <<"EOS" or die $@;
-
-sub stash_for (\$) {
-  $PS_provider->new(\$_[0]);
-}
-1;
-EOS
-}
-
 use Test::More;
 
 use DBICTest;
 use File::Find;
 use File::Spec;
-use DBIx::Class::_Util 'get_subname';
+use DBIx::Class::_Util qw( get_subname describe_class_methods );
 
 # makes sure we can load at least something
 use DBIx::Class;
 use DBIx::Class::Carp;
 
-my @modules = grep {
+my @modules = map {
+  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
+  # FIXME !!! without this detaint I get the test into an infloop on 5.16.x
+  # (maybe other versions): https://travis-ci.org/ribasushi/dbix-class/jobs/144738784#L26762
+  #
+  # or locally like:
+  #
+  # ~$ ulimit -v $(( 1024 * 256 )); perl -d:Confess -Ilib  -Tl xt/extra/internals/namespaces_cleaned.t
+  #     ...
+  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
+  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
+  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
+  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 154
+  #  DBIx::Class::MethodAttributes::FETCH_CODE_ATTRIBUTES("DBIx::Class::Storage::DBI::ODBC::Firebird", CODE(0x42ac2b0)) called at /home/rabbit/perl5/perlbrew/perls/5.16.2/lib/5.16.2/x86_64-linux-thread-multi-ld/attributes.pm line 101
+  #  attributes::get(CODE(0x42ac2b0)) called at lib/DBIx/Class/_Util.pm line 885
+  #  eval {...} called at lib/DBIx/Class/_Util.pm line 885
+  #  DBIx::Class::_Util::describe_class_methods("DBIx::Class::Storage::DBI::ODBC::Firebird") called at xt/extra/internals/namespaces_cleaned.t line 129
+  # Out of memory!
+  # Out of memory!
+  # Out of memory!
+  #    ...
+  # Segmentation fault
+  #
+  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
+  # Sweeping it under the rug for now as this is an xt/ test,
+  # but someone *must* find what is going on eventually
+  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
+
+  ( $_ =~ /(.+)/ )
+
+} grep {
   my ($mod) = $_ =~ /(.+)/;
 
   # not all modules are loadable at all times
@@ -115,10 +122,13 @@ for my $mod (@modules) {
   SKIP: {
     skip "$mod exempt from namespace checks",1 if $skip_idx->{$mod};
 
-    my %all_method_like = (map
-      { %{stash_for($_)->get_all_symbols('CODE')} }
-      (reverse @{mro::get_linear_isa($mod)})
-    );
+    my %all_method_like =
+      map
+        { $_->[0]{name} => $mod->can( $_->[0]{name} ) }
+        grep
+          { $_->[0]{via_class} ne 'UNIVERSAL' }
+          values %{ describe_class_methods($mod)->{methods} }
+    ;
 
     my %parents = map { $_ => 1 } @{mro::get_linear_isa($mod)};
 

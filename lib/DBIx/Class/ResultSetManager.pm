@@ -2,9 +2,8 @@ package DBIx::Class::ResultSetManager;
 use strict;
 use warnings;
 use base 'DBIx::Class';
-use Package::Stash ();
 
-use DBIx::Class::_Util 'set_subname';
+use DBIx::Class::_Util qw( set_subname describe_class_methods );
 use namespace::clean;
 
 warn "DBIx::Class::ResultSetManager never left experimental status and
@@ -56,25 +55,22 @@ sub _register_attributes {
     my $cache = $self->_attr_cache;
     return if keys %$cache == 0;
 
-    foreach my $meth (keys %{ { map
-      { $_ => 1 }
+    for my $meth(
       map
-        { Package::Stash->new($_)->list_all_symbols("CODE") }
-        @{ mro::get_linear_isa( ref $self || $self ) }
-    } } ) {
-        # *DO NOT* rely on P::S returning crefs in reverse mro order
-        # but instead ask the mro to redo the lookup
+        { $_->{name} }
+        grep
+          { $_->{attributes}{ResultSet} }
+          map
+            { $_->[0] }
+            values %{ describe_class_methods( ref $self || $self )->{methods} }
+    ) {
         # This codepath is extremely old, miht as well keep it running
         # as-is with no room for surprises
-        my $attrs = $cache->{$self->can($meth)};
-        next unless $attrs;
-        if ($attrs->[0] eq 'ResultSet') {
-            no strict 'refs';
-            my $resultset_class = $self->_setup_resultset_class;
-            my $name = join '::',$resultset_class, $meth;
-            *$name = set_subname $name, $self->can($meth);
-            delete ${"${self}::"}{$meth};
-        }
+        no strict 'refs';
+        my $resultset_class = $self->_setup_resultset_class;
+        my $name = join '::',$resultset_class, $meth;
+        *$name = set_subname $name, $self->can($meth);
+        delete ${"${self}::"}{$meth};
     }
 }
 

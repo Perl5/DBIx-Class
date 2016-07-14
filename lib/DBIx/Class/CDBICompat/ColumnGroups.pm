@@ -98,7 +98,7 @@ sub _register_column_group {
         grep {
           $_ ne $class
             and
-          ($_->can($name)||0) == $existing_accessor
+          ( $Class::C3::MRO{$_} || {} )->{methods}{$name}
         } @{mro::get_linear_isa($class)}
       )
     )

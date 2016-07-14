@@ -85,10 +85,6 @@ my $test_requires = {
   #
   'Sub::Uplevel'             => '0.19',
 
-  # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
-  # remove and do a manual glob-collection if n::c is no longer a dep
-  'Package::Stash'           => '0.28',
-
   # needed for testing only, not for operation
   # we will move away from this dep eventually, perhaps to DBD::CSV or something
   %{ DBIx::Class::Optional::Dependencies->req_list_for('test_rdbms_sqlite') },
