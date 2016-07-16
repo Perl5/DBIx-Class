@@ -175,9 +175,16 @@ use B ();
 use Carp 'croak';
 use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
-use Sub::Quote qw(qsub);
 use Sub::Name ();
 use attributes ();
+
+# Usually versions are not specified anywhere aside the Makefile.PL
+# (writing them out in-code is extremely obnoxious)
+# However without a recent enough Moo the quote_sub override fails
+# in very puzzling and hard to detect ways: so add a version check
+# just this once
+use Sub::Quote qw(qsub);
+BEGIN { Sub::Quote->VERSION('2.002002') }
 
 # Already correctly prototyped: perlbrew exec perl -MStorable -e 'warn prototype \&Storable::dclone'
 BEGIN { *deep_clone = \&Storable::dclone }
