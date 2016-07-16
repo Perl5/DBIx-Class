@@ -28,6 +28,7 @@ use Test::Exception;
 use DBIx::Class::_Util qw(
   quote_sub describe_class_methods
   serialize refdesc sigwarn_silencer
+  modver_gt_or_eq_and_lt
 );
 use List::Util 'shuffle';
 use Errno ();
@@ -461,14 +462,23 @@ sub add_more_attrs {
     'describing with explicit mro returns correct data'
   );
 
-  # FIXME: TODO does not work on new T::B under threads sigh
-  # https://github.com/Test-More/test-more/issues/683
-  unless(
-    ! DBIx::Class::_ENV_::OLD_MRO
-      and
-    DBIx::Class::_ENV_::TAINT_MODE
+  if (
+    DBIx::Class::_ENV_::OLD_MRO
+      or
+    ! DBIx::Class::_ENV_::TAINT_MODE
+      or
+    ! $INC{"threads.pm"}
+      or
+    # $TODO did not work on T::B under threads in this range
+    # https://github.com/Test-More/test-more/issues/683
+    ! modver_gt_or_eq_and_lt( 'Test::More', '1.300', '1.302027' )
   ) {
-    #local $TODO = "On 5.10+ -T combined with stash peeking invalidates the pkg_gen (wtf)" if ...
+    local $TODO = "On 5.10+ -T combined with stash peeking invalidates the pkg_gen (wtf)"
+      if
+        DBIx::Class::_ENV_::TAINT_MODE
+          and
+        DBIx::Class::_ENV_::PERL_VERSION > 5.009
+    ;
 
     ok(
       (
