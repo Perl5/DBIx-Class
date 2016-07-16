@@ -24,9 +24,9 @@ my $missing_groupdeps_present = grep
 # don't test syntax when RT#106935 is triggered (mainly CI)
 # FIXME - remove when RT is resolved
 my $tainted_relpath = (
-  length $ENV{PATH}
+  DBIx::Class::_ENV_::TAINT_MODE
     and
-  ${^TAINT}
+  length $ENV{PATH}
     and
   grep
     { ! File::Spec->file_name_is_absolute($_) }

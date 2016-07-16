@@ -34,6 +34,8 @@ BEGIN {
 
     HAS_ITHREADS => $Config{useithreads} ? 1 : 0,
 
+    TAINT_MODE => 0 + ${^TAINT}, # tri-state: 0, 1, -1
+
     UNSTABLE_DOLLARAT => ( PERL_VERSION < 5.013002 ) ? 1 : 0,
 
     ( map
@@ -757,6 +759,16 @@ sub modver_gt_or_eq_and_lt ($$$) {
     croak "Expecting a class name either as the sole argument or a 'class' option"
       if not defined $class or $class !~ $module_name_rx;
 
+    croak(
+      "The supplied 'class' argument is tainted: this is *extremely* "
+    . 'dangerous, fix your code ASAP!!! ( for more details read through '
+    . 'https://is.gd/perl_mro_taint_wtf )'
+    ) if (
+      DBIx::Class::_ENV_::TAINT_MODE
+        and
+      Scalar::Util::tainted($class)
+    );
+
     $requested_mro ||= mro::get_mro($class);
 
     # mro::set_mro() does not bump pkg_gen - WHAT THE FUCK?!
@@ -899,7 +911,7 @@ sub modver_gt_or_eq_and_lt ($$$) {
       if (
         ! DBIx::Class::_ENV_::OLD_MRO
           and
-        ${^TAINT}
+        DBIx::Class::_ENV_::TAINT_MODE
       ) {
 
         $slot->{cumulative_gen} = 0;

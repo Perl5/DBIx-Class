@@ -39,45 +39,14 @@ use Test::More;
 
 use DBICTest;
 use File::Find;
-use File::Spec;
 use DBIx::Class::_Util qw( get_subname describe_class_methods );
 
 # makes sure we can load at least something
 use DBIx::Class;
 use DBIx::Class::Carp;
 
-my @modules = map {
-  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
-  # FIXME !!! without this detaint I get the test into an infloop on 5.16.x
-  # (maybe other versions): https://travis-ci.org/ribasushi/dbix-class/jobs/144738784#L26762
-  #
-  # or locally like:
-  #
-  # ~$ ulimit -v $(( 1024 * 256 )); perl -d:Confess -Ilib  -Tl xt/extra/internals/namespaces_cleaned.t
-  #     ...
-  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
-  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
-  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 166
-  #  DBIx::Class::MethodAttributes::_attr_cache("DBIx::Class::Storage::DBI::ODBC::Firebird") called at lib/DBIx/Class/MethodAttributes.pm line 154
-  #  DBIx::Class::MethodAttributes::FETCH_CODE_ATTRIBUTES("DBIx::Class::Storage::DBI::ODBC::Firebird", CODE(0x42ac2b0)) called at /home/rabbit/perl5/perlbrew/perls/5.16.2/lib/5.16.2/x86_64-linux-thread-multi-ld/attributes.pm line 101
-  #  attributes::get(CODE(0x42ac2b0)) called at lib/DBIx/Class/_Util.pm line 885
-  #  eval {...} called at lib/DBIx/Class/_Util.pm line 885
-  #  DBIx::Class::_Util::describe_class_methods("DBIx::Class::Storage::DBI::ODBC::Firebird") called at xt/extra/internals/namespaces_cleaned.t line 129
-  # Out of memory!
-  # Out of memory!
-  # Out of memory!
-  #    ...
-  # Segmentation fault
-  #
-  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
-  # Sweeping it under the rug for now as this is an xt/ test,
-  # but someone *must* find what is going on eventually
-  # FIXME:  AS THIS IS CLEARLY A LACK OF DEFENSE IN describe_class_methods  :FIXME
-
-  ( $_ =~ /(.+)/ )
-
-} grep {
-  my ($mod) = $_ =~ /(.+)/;
+my @modules = grep {
+  my $mod = $_;
 
   # not all modules are loadable at all times
   do {
@@ -218,7 +187,8 @@ sub find_modules {
       $_ =~ m|lib/DBIx/Class/_TempExtlib| and return;
       s/\.pm$// or return;
       s/^ (?: lib | blib . (?:lib|arch) ) . //x;
-      push @modules, join ('::', File::Spec->splitdir($_));
+      s/[\/\\]/::/g;
+      push @modules, ( $_ =~ /(.+)/ );
     },
     no_chdir => 1,
   }, (

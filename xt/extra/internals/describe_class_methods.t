@@ -466,7 +466,7 @@ sub add_more_attrs {
   unless(
     ! DBIx::Class::_ENV_::OLD_MRO
       and
-    ${^TAINT}
+    DBIx::Class::_ENV_::TAINT_MODE
   ) {
     #local $TODO = "On 5.10+ -T combined with stash peeking invalidates the pkg_gen (wtf)" if ...
 
