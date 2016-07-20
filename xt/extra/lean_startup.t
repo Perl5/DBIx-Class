@@ -29,7 +29,7 @@ BEGIN {
         # exclude our test suite, known "module require-rs" and eval frames
         $caller[1] =~ / (?: \A | [\/\\] ) x?t [\/\\] /x
           or
-        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime ) $/x
+        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime | DBIx::Class::Optional::Dependencies ) $/x
           or
         $caller[3] eq '(eval)',
       )
@@ -45,8 +45,6 @@ BEGIN {
     # the namespace, the shim thinks DBIC* tried to require this
     return $res if $req =~ /^v?[0-9.]+$/;
 
-    # exclude everything where the current namespace does not match the called function
-    # (this works around very weird XS-induced require callstack corruption)
     if (
       !$initial_inc_contents->{$req}
         and
@@ -55,19 +53,28 @@ BEGIN {
       @caller
         and
       $caller[0] =~ /^DBIx::Class/
-        and
-      (CORE::caller($up))[3] =~ /\Q$caller[0]/
     ) {
       local $stack{neutralize_override} = 1;
 
-      do 1 while CORE::caller(++$up);
+      # find last-most frame, to feed to T::B below
+      while( CORE::caller(++$up) ) { 1 }
 
       require('Test/More.pm');
       local $Test::Builder::Level = $up + 1;
+
+      # work around the trainwreck that is https://github.com/doy/package-stash-xs/pull/4
+      local $::TODO = 'sigh' if (
+        $INC{'Package/Stash/XS.pm'}
+          and
+        $req eq 'utf8'
+      );
+
       Test::More::fail ("Unexpected require of '$req' by $caller[0] ($caller[1] line $caller[2])");
 
-      require('DBICTest/Util.pm');
-      Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
+      unless( $::TODO ) {
+        require('DBICTest/Util.pm');
+        Test::More::diag( 'Require invoked' .  DBICTest::Util::stacktrace() );
+      }
     }
 
     return $res;
@@ -142,6 +149,11 @@ BEGIN {
     Class::Accessor::Grouped
     Class::C3::Componentised
   ));
+
+  # load Storable ourselves here - there are too many
+  # variations with DynaLoader and XSLoader making testing
+  # for it rather unstable
+  require Storable;
 
   require DBIx::Class::Schema;
   assert_no_missing_expected_requires();
