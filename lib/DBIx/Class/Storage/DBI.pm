@@ -3107,6 +3107,11 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
+
+  $self->throw_exception(
+    'Calling deployment_statements() in void context makes no sense'
+  ) unless defined wantarray;
+
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';

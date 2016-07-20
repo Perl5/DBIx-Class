@@ -23,8 +23,16 @@ use mro 'c3';
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
 use DBIx::Class::Exception;
 
-__PACKAGE__->mk_classaccessor( _skip_namespace_frames =>
-  '^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve|^Moose::Meta::'
+__PACKAGE__->mk_classaccessor(
+  _skip_namespace_frames => join( '|', map { '^' . $_ } qw(
+    DBIx::Class
+    SQL::Abstract
+    SQL::Translator
+    Try::Tiny
+    Class::Accessor::Grouped
+    Context::Preserve
+    Moose::Meta::
+  )),
 );
 
 sub component_base_class { 'DBIx::Class' }
