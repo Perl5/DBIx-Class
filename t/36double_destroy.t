@@ -4,15 +4,10 @@ use strict;
 use warnings;
 
 use Test::More;
-use File::Temp ();
 
-use DBICTest::Util 'tmpdir';
-use DBIx::Class::_Util 'scope_guard';
+use DBICTest::Util 'capture_stderr';
 
 use DBICTest;
-
-open(my $stderr_copy, '>&', *STDERR) or die "Unable to dup STDERR: $!";
-my $tf = File::Temp->new( UNLINK => 1, DIR => tmpdir() );
 
 my $output;
 
@@ -35,22 +30,9 @@ my $output;
     1;
   }
 
-  my $guard = scope_guard {
-    close STDERR;
-    open(STDERR, '>&', $stderr_copy);
-    $output = do { local (@ARGV, $/) = $tf; <> };
-    close $tf;
-    unlink $tf;
-    undef $tf;
-    close $stderr_copy;
-  };
-
-  close STDERR;
-  open(STDERR, '>&', $tf) or die "Unable to reopen STDERR: $!";
-
   # this should emit on stderr
-  @arg_capture = ();
-}
+  $output = capture_stderr { @arg_capture = () };
+};
 
 like(
   $output,

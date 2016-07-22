@@ -41,7 +41,7 @@ use base 'Exporter';
 our @EXPORT_OK = qw(
   dbg stacktrace class_seems_loaded
   local_umask slurp_bytes tmpdir find_co_root rm_rf
-  PEEPEENESS
+  capture_stderr PEEPEENESS
   check_customcond_args
   await_flock DEBUG_TEST_CONCURRENCY_LOCKS
 );
@@ -273,6 +273,36 @@ EOE
   };
 }
 
+sub capture_stderr (&) {
+  open(my $stderr_copy, '>&', *STDERR) or croak "Unable to dup STDERR: $!";
+
+  require File::Temp;
+  my $tf = File::Temp->new( UNLINK => 1, DIR => tmpdir() );
+
+  my $err_out;
+
+  {
+    my $guard = scope_guard {
+      close STDERR;
+
+      open(STDERR, '>&', $stderr_copy) or do {
+        my $msg = "\n\nPANIC!!!\nFailed restore of STDERR: $!\n";
+        print $stderr_copy $msg;
+        print STDOUT $msg;
+        die;
+      };
+
+      close $stderr_copy;
+    };
+
+    close STDERR;
+    open( STDERR, '>&', $tf );
+
+    $_[0]->();
+  }
+
+  slurp_bytes( "$tf" );
+}
 
 sub slurp_bytes ($) {
   croak "Expecting a file name, not a filehandle" if openhandle $_[0];

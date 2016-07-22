@@ -12,9 +12,7 @@ BEGIN {
   }
 }
 
-use DBICTest::Util 'tmpdir';
-use File::Temp ();
-use DBIx::Class::_Util 'scope_guard';
+use DBICTest::Util 'capture_stderr';
 use DBIx::Class::Schema;
 
 # Do not use T::B - the test is hard enough not to segfault as it is
@@ -41,34 +39,17 @@ sub ok {
   return !!$_[0];
 }
 
-# yes, make it even dirtier
-my $schema = 'DBIx::Class::Schema';
-
-$schema->connection('dbi:SQLite::memory:');
 
 # this is incredibly horrible...
 # demonstrate utter breakage of the reconnection/retry logic
 #
-open(my $stderr_copy, '>&', *STDERR) or die "Unable to dup STDERR: $!";
-my $tf = File::Temp->new( UNLINK => 1, DIR => tmpdir() );
-
-my $output;
-
+my $output = capture_stderr {
 ESCAPE:
 {
-  my $guard = scope_guard {
-    close STDERR;
-    open(STDERR, '>&', $stderr_copy);
-    $output = do { local (@ARGV, $/) = $tf; <> };
-    close $tf;
-    unlink $tf;
-    undef $tf;
-    close $stderr_copy;
-  };
+  # yes, make it even dirtier
+  my $schema = 'DBIx::Class::Schema';
 
-  close STDERR;
-  open(STDERR, '>&', $tf) or die "Unable to reopen STDERR: $!";
-
+  $schema->connection('dbi:SQLite::memory:');
   $schema->storage->ensure_connected;
   $schema->storage->_dbh->disconnect;
 
@@ -88,7 +69,7 @@ ESCAPE:
 
   # NEITHER will this
   ok(0, "Nope");
-}
+}};
 
 ok(1, "Post-escape reached");
 
