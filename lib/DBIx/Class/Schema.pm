@@ -1466,7 +1466,7 @@ sub _register_source {
   $derived_rsrc->schema($self);
 
   weaken $derived_rsrc->{schema}
-    if length ref($self);
+    if length( my $schema_class = ref($self) );
 
   my %reg = %{$self->source_registrations};
   $reg{$source_name} = $derived_rsrc;
@@ -1498,6 +1498,44 @@ sub _register_source {
 
     $map{$result_class} = $source_name;
     $self->class_mappings(\%map);
+
+
+    my $schema_class_level_rsrc;
+    if (
+      # we are called on a schema instance, not on the class
+      length $schema_class
+
+        and
+
+      # the schema class also has a registration with the same name
+      $schema_class_level_rsrc = dbic_internal_try { $schema_class->source($source_name) }
+
+        and
+
+      # what we are registering on the schema instance *IS* derived
+      # from the class-level (top) rsrc...
+      ( grep { $_ == $derived_rsrc } $result_class_level_rsrc->__derived_instances )
+
+        and
+
+      # ... while the schema-class-level has stale-markers
+      keys %{ $schema_class_level_rsrc->{__metadata_divergencies} || {} }
+    ) {
+      my $msg =
+        "The ResultSource instance you just registered on '$self' as "
+      . "'$source_name' seems to have no relation to $schema_class->"
+      . "source('$source_name') which in turn is marked stale (likely due "
+      . "to recent $result_class->... direct class calls). This is almost "
+      . "always a mistake: perhaps you forgot a cycle of "
+      . "$schema_class->unregister_source( '$source_name' ) / "
+      . "$schema_class->register_class( '$source_name' => '$result_class' )"
+      ;
+
+      DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+        ? emit_loud_diag( msg => $msg, confess => 1 )
+        : carp_unique($msg)
+      ;
+    }
   }
 
   $derived_rsrc;
