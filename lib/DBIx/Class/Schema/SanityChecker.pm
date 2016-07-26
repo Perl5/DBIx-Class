@@ -21,7 +21,7 @@ DBIx::Class::Schema::SanityChecker - Extensible "critic" for your Schema class h
   package MyApp::Schema;
   use base 'DBIx::Class::Schema';
 
-  # this is the default on Perl v5.10 and later
+  # this is the default setting
   __PACKAGE__->schema_sanity_checker('DBIx::Class::Schema::SanityChecker');
   ...
 
@@ -30,8 +30,8 @@ DBIx::Class::Schema::SanityChecker - Extensible "critic" for your Schema class h
 This is the default implementation of the Schema and related classes
 L<validation framework|DBIx::Class::Schema/schema_sanity_checker>.
 
-The validator is B<enabled by default> on perls C<v5.10> and above. See
-L</Performance considerations> for discussion of the runtime effects.
+The validator is B<enabled by default>. See L</Performance considerations>
+for discussion of the runtime effects.
 
 Use of this class begins by invoking L</perform_schema_sanity_checks>
 (usually via L<DBIx::Class::Schema/connection>), which in turn starts
@@ -100,11 +100,6 @@ L<mentioned above|/Performance considerations> takes a C<B<220%>> hit on its
 test execution time (these numbers are observed with the speedups of
 L<Class::C3::XS> available, without them the slowdown reaches the whopping
 C<350%>).
-
-Therefore, on these versions of perl the sanity checks are B<not enabled> by
-default. Instead a C<false> placeholder value is inserted into the
-L<schema_sanity_checker attribute|DBIx::Class::Schema/schema_sanity_checker>,
-urging the user to decide for themselves how to proceed.
 
 It is the author's B<strongest> recommendation to find a way to run the
 checks on your codebase continuously, even if it takes much longer. Refer to

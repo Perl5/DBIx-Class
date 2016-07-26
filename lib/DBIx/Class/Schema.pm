@@ -30,7 +30,6 @@ __PACKAGE__->mk_classaccessor('source_registrations' => {});
 
 __PACKAGE__->mk_group_accessors( component_class => 'schema_sanity_checker' );
 __PACKAGE__->schema_sanity_checker(
-  DBIx::Class::_ENV_::OLD_MRO ? false :
   'DBIx::Class::Schema::SanityChecker'
 );
 
@@ -925,47 +924,6 @@ sub connection {
   my $storage = $storage_class->new( $self => $args||{} );
   $storage->connect_info(\@info);
   $self->storage($storage);
-
-
-###
-### Begin 5.8 "you have not selected a checker" warning
-###
-  # We can not blanket-enable this on 5.8 - it is just too expensive for
-  # day to day execution. We also can't just go silent - there are genuine
-  # regressions ( due to core changes) for which this is the only line of
-  # defense. So instead we whine on STDERR that folks need to do something
-  #
-  # Beyond suboptimal, but given the constraints the best we can do :(
-  #
-  # This should stay around for at least 3~4 years
-  #
-  DBIx::Class::_ENV_::OLD_MRO
-    and
-  ! $default_off_stderr_blurb_emitted
-    and
-  length ref $self->schema_sanity_checker
-    and
-  length ref __PACKAGE__->schema_sanity_checker
-    and
-  (
-    refaddr( $self->schema_sanity_checker )
-      ==
-    refaddr( __PACKAGE__->schema_sanity_checker )
-  )
-    and
-  emit_loud_diag(
-    msg => sprintf(
-    "Sanity checks for schema %s are disabled on this perl $]: "
-  . '*THIS IS POTENTIALLY VERY DANGEROUS*. You are strongly urged to '
-  . "read http://is.gd/dbic_sancheck_5_008 before proceeding\n",
-    ( defined( blessed $self ) ? refdesc $self : "'$self'" )
-  ))
-    and
-  $default_off_stderr_blurb_emitted = 1;
-###
-### End 5.8 "you have not selected a checker" warning
-###
-
 
   if( my $checker = $self->schema_sanity_checker ) {
     $checker->perform_schema_sanity_checks($self);
