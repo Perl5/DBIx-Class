@@ -53,11 +53,23 @@ sub __find_caller {
 
   my $fr_num = 1; # skip us and the calling carp*
 
-  my (@f, $origin);
+  my (@f, $origin, $eval_src);
   while (@f = CORE::caller($fr_num++)) {
 
-    next if
-      ( $f[3] eq '(eval)' or $f[3] =~ /::__ANON__$/ );
+    undef $eval_src;
+
+    next if (
+      $f[2] == 0
+        or
+      # there is no value reporting a sourceless eval frame
+      (
+        ( $f[3] eq '(eval)' or $f[1] =~ /^\(eval \d+\)$/ )
+          and
+        not defined ( $eval_src = (CORE::caller($fr_num))[6] )
+      )
+        or
+      $f[3] =~ /::__ANON__$/
+    );
 
     $origin ||= (
       $f[3] =~ /^ (.+) :: ([^\:]+) $/x
@@ -84,7 +96,7 @@ sub __find_caller {
   }
 
   my $site = @f # if empty - nothing matched - full stack
-    ? "at $f[1] line $f[2]"
+    ? ( "at $f[1] line $f[2]" . ( $eval_src ? "\n    === BEGIN $f[1]\n$eval_src\n    === END $f[1]" : '' ) )
     : Carp::longmess()
   ;
 

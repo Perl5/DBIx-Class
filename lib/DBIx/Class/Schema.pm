@@ -4,12 +4,12 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class';
-use mro 'c3';
 
 use DBIx::Class::Carp;
 use Try::Tiny;
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util qw( weaken blessed refaddr );
 use DBIx::Class::_Util qw(
+  false emit_loud_diag refdesc
   refcount quote_sub scope_guard
   is_exception dbic_internal_try
   fail_on_internal_call emit_loud_diag
@@ -27,6 +27,12 @@ __PACKAGE__->mk_classaccessor('default_resultset_attributes' => {});
 # screw with them
 __PACKAGE__->mk_classaccessor('class_mappings' => {});
 __PACKAGE__->mk_classaccessor('source_registrations' => {});
+
+__PACKAGE__->mk_group_accessors( component_class => 'schema_sanity_checker' );
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::OLD_MRO ? false :
+  'DBIx::Class::Schema::SanityChecker'
+);
 
 =head1 NAME
 
@@ -200,7 +206,7 @@ sub _ns_get_rsrc_instance {
   my $rs_class = ref ($_[0]) || $_[0];
 
   return dbic_internal_try {
-    $rs_class->result_source_instance
+    $rs_class->result_source
   } catch {
     $me->throw_exception (
       "Attempt to load_namespaces() class $rs_class failed - are you sure this is a real Result Class?: $_"
@@ -455,6 +461,42 @@ Example:
    use base qw/DBIx::Class::Schema/;
    __PACKAGE__->default_resultset_attributes( { software_limit => 1 } );
 
+=head2 schema_sanity_checker
+
+=over 4
+
+=item Arguments: L<perform_schema_sanity_checks()|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> provider
+
+=item Return Value: L<perform_schema_sanity_checks()|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> provider
+
+=item Default value: L<DBIx::Class::Schema::SanityChecker>
+
+=back
+
+On every call to L</connection> if the value of this attribute evaluates to
+true, DBIC will invoke
+C<< L<$schema_sanity_checker|/schema_sanity_checker>->L<perform_schema_sanity_checks|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks>($schema) >>
+before returning. The return value of this invocation is ignored.
+
+B<YOU ARE STRONGLY URGED> to
+L<learn more about the reason|DBIx::Class::Schema::SanityChecker/WHY> this
+feature was introduced. Blindly disabling the checker on existing projects
+B<may result in data corruption> after upgrade to C<< DBIC >= v0.082900 >>.
+
+Example:
+
+   package My::Schema;
+   use base qw/DBIx::Class::Schema/;
+   __PACKAGE__->schema_sanity_checker('My::Schema::SanityChecker');
+
+   # or to disable all checks:
+   __PACKAGE__->schema_sanity_checker('');
+
+Note: setting the value to C<undef> B<will not> have the desired effect,
+due to an implementation detail of L<Class::Accessor::Grouped> inherited
+accessors. In order to disable any and all checks you must set this
+attribute to an empty string as shown in the second example above.
+
 =head2 exception_action
 
 =over 4
@@ -553,7 +595,7 @@ version, overload L</connection> instead.
 
 =cut
 
-sub connect {
+sub connect :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->clone->connection(@_);
 }
@@ -616,21 +658,58 @@ source name.
 =cut
 
 sub source {
-  my $self = shift;
+  my ($self, $source_name) = @_;
 
   $self->throw_exception("source() expects a source name")
-    unless @_;
+    unless $source_name;
 
-  my $source_name = shift;
+  my $source_registrations;
 
-  my $sreg = $self->source_registrations;
-  return $sreg->{$source_name} if exists $sreg->{$source_name};
+  my $rsrc =
+    ( $source_registrations = $self->source_registrations )->{$source_name}
+      ||
+    # if we got here, they probably passed a full class name
+    $source_registrations->{ $self->class_mappings->{$source_name} || '' }
+      ||
+    $self->throw_exception( "Can't find source for ${source_name}" )
+  ;
 
-  # if we got here, they probably passed a full class name
-  my $mapped = $self->class_mappings->{$source_name};
-  $self->throw_exception("Can't find source for ${source_name}")
-    unless $mapped && exists $sreg->{$mapped};
-  return $sreg->{$mapped};
+  # DO NOT REMOVE:
+  # We need to prevent alterations of pre-existing $@ due to where this call
+  # sits in the overall stack ( *unless* of course there is an actual error
+  # to report ). set_mro does alter $@ (and yes - it *can* throw an exception)
+  # We do not use local because set_mro *can* throw an actual exception
+  # We do not use a try/catch either, as on one hand it would slow things
+  # down for no reason (we would always rethrow), but also because adding *any*
+  # try/catch block below will segfault various threading tests on older perls
+  # ( which in itself is a FIXME but ENOTIMETODIG )
+  my $old_dollarat = $@;
+
+  no strict 'refs';
+  mro::set_mro($_, 'c3') for
+    grep
+      {
+        # some pseudo-sources do not have a result/resultset yet
+        defined $_
+          and
+        (
+          (
+            ${"${_}::__INITIAL_MRO_UPON_DBIC_LOAD__"}
+              ||= mro::get_mro($_)
+          )
+            ne
+          'c3'
+        )
+      }
+      map
+        { length ref $_ ? ref $_ : $_ }
+        ( $rsrc, $rsrc->result_class, $rsrc->resultset_class )
+  ;
+
+  # DO NOT REMOVE - see comment above
+  $@ = $old_dollarat;
+
+  $rsrc;
 }
 
 =head2 class
@@ -799,7 +878,7 @@ those values.
 
 =cut
 
-sub populate {
+sub populate :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   my ($self, $name, $data) = @_;
@@ -823,12 +902,17 @@ Similar to L</connect> except sets the storage object and connection
 data B<in-place> on C<$self>. You should probably be calling
 L</connect> to get a properly L<cloned|/clone> Schema object instead.
 
+If the accessor L</schema_sanity_checker> returns a true value C<$checker>,
+the following call will take place before return:
+C<< L<$checker|/schema_sanity_checker>->L<perform_schema_sanity_checks(C<$self>)|DBIx::Class::Schema::SanityChecker/perform_schema_sanity_checks> >>
+
 =head3 Overloading
 
 Overload C<connection> to change the behaviour of C<connect>.
 
 =cut
 
+my $default_off_stderr_blurb_emitted;
 sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
@@ -852,7 +936,53 @@ sub connection {
   my $storage = $storage_class->new( $self => $args||{} );
   $storage->connect_info(\@info);
   $self->storage($storage);
-  return $self;
+
+
+###
+### Begin 5.8 "you have not selected a checker" warning
+###
+  # We can not blanket-enable this on 5.8 - it is just too expensive for
+  # day to day execution. We also can't just go silent - there are genuine
+  # regressions ( due to core changes) for which this is the only line of
+  # defense. So instead we whine on STDERR that folks need to do something
+  #
+  # Beyond suboptimal, but given the constraints the best we can do :(
+  #
+  # This should stay around for at least 3~4 years
+  #
+  DBIx::Class::_ENV_::OLD_MRO
+    and
+  ! $default_off_stderr_blurb_emitted
+    and
+  length ref $self->schema_sanity_checker
+    and
+  length ref __PACKAGE__->schema_sanity_checker
+    and
+  (
+    refaddr( $self->schema_sanity_checker )
+      ==
+    refaddr( __PACKAGE__->schema_sanity_checker )
+  )
+    and
+  emit_loud_diag(
+    msg => sprintf(
+    "Sanity checks for schema %s are disabled on this perl $]: "
+  . '*THIS IS POTENTIALLY VERY DANGEROUS*. You are strongly urged to '
+  . "read http://is.gd/dbic_sancheck_5_008 before proceeding\n",
+    ( defined( blessed $self ) ? refdesc $self : "'$self'" )
+  ))
+    and
+  $default_off_stderr_blurb_emitted = 1;
+###
+### End 5.8 "you have not selected a checker" warning
+###
+
+
+  if( my $checker = $self->schema_sanity_checker ) {
+    $checker->perform_schema_sanity_checks($self);
+  }
+
+  $self;
 }
 
 sub _normalize_storage_type {
@@ -921,19 +1051,12 @@ sub compose_namespace {
       my $target_class = "${target}::${source_name}";
       $self->inject_base($target_class, $orig_source->result_class, ($base || ()) );
 
-      # register_source examines result_class, and then returns us a clone
-      my $new_source = $schema->register_source($source_name, bless
-        { %$orig_source, result_class => $target_class },
-        ref $orig_source,
+      $schema->register_source(
+        $source_name,
+        $orig_source->clone(
+          result_class => $target_class
+        ),
       );
-
-      if ($target_class->can('result_source_instance')) {
-        # give the class a schema-less source copy
-        $target_class->result_source_instance( bless
-          { %$new_source, schema => ref $new_source->{schema} || $new_source->{schema} },
-          ref $new_source,
-        );
-      }
     }
 
     # Legacy stuff, not inserting INDIRECT assertions
@@ -942,6 +1065,24 @@ sub compose_namespace {
   }
 
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
+
+  # Give each composed class yet another *schema-less* source copy
+  # this is used for the freeze/thaw cycle
+  #
+  # This is not covered by any tests directly, but is indirectly exercised
+  # in t/cdbi/sweet/08pager by re-setting the schema on an existing object
+  # FIXME - there is likely a much cheaper way to take care of this
+  for my $source_name ($self->sources) {
+
+    my $target_class = "${target}::${source_name}";
+
+    $target_class->result_source_instance(
+      $self->source($source_name)->clone(
+        result_class => $target_class,
+        schema => ( ref $schema || $schema ),
+      )
+    );
+  }
 
   return $schema;
 }
@@ -1047,13 +1188,10 @@ sub _copy_state_from {
   $self->class_mappings({ %{$from->class_mappings} });
   $self->source_registrations({ %{$from->source_registrations} });
 
-  foreach my $source_name ($from->sources) {
-    my $source = $from->source($source_name);
-    my $new = $source->new($source);
-    # we use extra here as we want to leave the class_mappings as they are
-    # but overwrite the source_registrations entry with the new source
-    $self->register_extra_source($source_name => $new);
-  }
+  # we use extra here as we want to leave the class_mappings as they are
+  # but overwrite the source_registrations entry with the new source
+  $self->register_extra_source( $_ => $from->source($_) )
+    for $from->sources;
 
   if ($from->storage) {
     $self->storage($from->storage);
@@ -1354,13 +1492,13 @@ file). You may also need it to register classes at runtime.
 Registers a class which isa DBIx::Class::ResultSourceProxy. Equivalent to
 calling:
 
-  $schema->register_source($source_name, $component_class->result_source_instance);
+  $schema->register_source($source_name, $component_class->result_source);
 
 =cut
 
 sub register_class {
   my ($self, $source_name, $to_register) = @_;
-  $self->register_source($source_name => $to_register->result_source_instance);
+  $self->register_source($source_name => $to_register->result_source);
 }
 
 =head2 register_source
@@ -1410,41 +1548,91 @@ has a source and you want to register an extra one.
 sub register_extra_source { shift->_register_source(@_, { extra => 1 }) }
 
 sub _register_source {
-  my ($self, $source_name, $source, $params) = @_;
+  my ($self, $source_name, $supplied_rsrc, $params) = @_;
 
-  $source = $source->new({ %$source, source_name => $source_name });
+  my $derived_rsrc = $supplied_rsrc->clone({
+    source_name => $source_name,
+  });
 
-  $source->schema($self);
-  weaken $source->{schema} if ref($self);
+  # Do not move into the clone-hashref above: there are things
+  # on CPAN that do hook 'sub schema' </facepalm>
+  # https://metacpan.org/source/LSAUNDERS/DBIx-Class-Preview-1.000003/lib/DBIx/Class/ResultSource/Table/Previewed.pm#L9-38
+  $derived_rsrc->schema($self);
+
+  weaken $derived_rsrc->{schema}
+    if length( my $schema_class = ref($self) );
 
   my %reg = %{$self->source_registrations};
-  $reg{$source_name} = $source;
+  $reg{$source_name} = $derived_rsrc;
   $self->source_registrations(\%reg);
 
-  return $source if $params->{extra};
+  return $derived_rsrc if $params->{extra};
 
-  my $rs_class = $source->result_class;
-  if ($rs_class and my $rsrc = dbic_internal_try { $rs_class->result_source_instance } ) {
+  my( $result_class, $result_class_level_rsrc );
+  if (
+    $result_class = $derived_rsrc->result_class
+      and
+    # There are known cases where $rs_class is *ONLY* an inflator, without
+    # any hint of a rsrc (e.g. DBIx::Class::KiokuDB::EntryProxy)
+    $result_class_level_rsrc = dbic_internal_try { $result_class->result_source_instance }
+  ) {
     my %map = %{$self->class_mappings};
+
+    carp (
+      "$result_class already had a registered source which was replaced by "
+    . 'this call. Perhaps you wanted register_extra_source(), though it is '
+    . 'more likely you did something wrong.'
+    ) if (
+      exists $map{$result_class}
+        and
+      $map{$result_class} ne $source_name
+        and
+      $result_class_level_rsrc != $supplied_rsrc
+    );
+
+    $map{$result_class} = $source_name;
+    $self->class_mappings(\%map);
+
+
+    my $schema_class_level_rsrc;
     if (
-      exists $map{$rs_class}
+      # we are called on a schema instance, not on the class
+      length $schema_class
+
         and
-      $map{$rs_class} ne $source_name
+
+      # the schema class also has a registration with the same name
+      $schema_class_level_rsrc = dbic_internal_try { $schema_class->source($source_name) }
+
         and
-      $rsrc ne $_[2]  # orig_source
+
+      # what we are registering on the schema instance *IS* derived
+      # from the class-level (top) rsrc...
+      ( grep { $_ == $derived_rsrc } $result_class_level_rsrc->__derived_instances )
+
+        and
+
+      # ... while the schema-class-level has stale-markers
+      keys %{ $schema_class_level_rsrc->{__metadata_divergencies} || {} }
     ) {
-      carp
-        "$rs_class already had a registered source which was replaced by this call. "
-      . 'Perhaps you wanted register_extra_source(), though it is more likely you did '
-      . 'something wrong.'
+      my $msg =
+        "The ResultSource instance you just registered on '$self' as "
+      . "'$source_name' seems to have no relation to $schema_class->"
+      . "source('$source_name') which in turn is marked stale (likely due "
+      . "to recent $result_class->... direct class calls). This is almost "
+      . "always a mistake: perhaps you forgot a cycle of "
+      . "$schema_class->unregister_source( '$source_name' ) / "
+      . "$schema_class->register_class( '$source_name' => '$result_class' )"
+      ;
+
+      DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+        ? emit_loud_diag( msg => $msg, confess => 1 )
+        : carp_unique($msg)
       ;
     }
-
-    $map{$rs_class} = $source_name;
-    $self->class_mappings(\%map);
   }
 
-  return $source;
+  $derived_rsrc;
 }
 
 my $global_phase_destroy;
@@ -1569,7 +1757,11 @@ sub compose_connection {
     my $source = $schema->source($source_name);
     my $class = $source->result_class;
     #warn "$source_name $class $source ".$source->storage;
-    $class->mk_classaccessor(result_source_instance => $source);
+
+    $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] );
+    # explicit set-call, avoid mro update lag
+    $class->set_inherited( result_source_instance => $source );
+
     $class->mk_classaccessor(resultset_instance => $source->resultset);
     $class->mk_classaccessor(class_resolver => $schema);
   }

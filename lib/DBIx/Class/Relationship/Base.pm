@@ -611,7 +611,7 @@ See L<DBIx::Class::ResultSet/search_related> for more information.
 
 =cut
 
-sub search_related {
+sub search_related :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->related_resultset(shift)->search(@_);
 }
@@ -623,7 +623,7 @@ it guarantees a resultset, even in list context.
 
 =cut
 
-sub search_related_rs {
+sub search_related_rs :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->related_resultset(shift)->search_rs(@_)
 }
@@ -643,7 +643,7 @@ current result or where conditions.
 
 =cut
 
-sub count_related {
+sub count_related :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->related_resultset(shift)->search_rs(@_)->count;
 }
@@ -720,7 +720,7 @@ See L<DBIx::Class::ResultSet/find> for details.
 
 =cut
 
-sub find_related {
+sub find_related :DBIC_method_is_indirect_sugar {
   #my ($self, $rel, @args) = @_;
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->find(@_);
@@ -785,7 +785,7 @@ L<DBIx::Class::ResultSet/update_or_create> for details.
 
 =cut
 
-sub update_or_create_related {
+sub update_or_create_related :DBIC_method_is_indirect_sugar {
   #my ($self, $rel, @args) = @_;
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->related_resultset(shift)->update_or_create(@_);

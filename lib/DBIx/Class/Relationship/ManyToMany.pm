@@ -56,12 +56,45 @@ EOW
       }
     }
 
-    my $qsub_attrs = {
-      '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
-      '$carp_unique' => \$cu,
-    };
+    my @main_meth_qsub_args = (
+      {},
+      { attributes => [
+        'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_sugar'
+        ),
+      ] },
+    );
 
-    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', map { perlstring $_ } ( "${class}::${meth}", $rel, $f_rel ) ), $qsub_attrs;
+
+    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth ), @main_meth_qsub_args;
+
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
+
+      my $rs = shift->%s( @_ );
+
+      wantarray ? $rs->all : $rs;
+EOC
+
+
+    my @extra_meth_qsub_args = (
+      {
+        '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
+        '$carp_unique' => \$cu,
+      },
+      { attributes => [
+        'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_extra_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_extra_sugar'
+        ),
+      ] },
+    );
+
+
+    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', map { perlstring $_ } ( "${class}::${meth}", $rel, $f_rel ) ), @extra_meth_qsub_args;
 
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
         and
@@ -83,19 +116,11 @@ EOW
       ;
 EOC
 
-
-    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
-
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-
-      my $rs = shift->%s( @_ );
-
-      wantarray ? $rs->all : $rs;
-EOC
+    # the above is the only indirect method, the 3 below have too much logic
+    shift @{$extra_meth_qsub_args[1]{attributes}};
 
 
-    quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), $qsub_attrs;
+    quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       ( @_ >= 2 and @_ <= 3 ) or $_[0]->throw_exception(
         "'%1$s' expects an object or hashref to link to, and an optional hashref of link data"
@@ -109,7 +134,7 @@ EOC
 
       my $guard;
 
-      # the API needs is always expected to return the far object, possibly
+      # the API is always expected to return the far object, possibly
       # creating it in the process
       if( not defined Scalar::Util::blessed( $far_obj ) ) {
 
@@ -139,7 +164,7 @@ EOC
 EOC
 
 
-    quote_sub "${class}::${set_meth}", sprintf( <<'EOC', $set_meth, $add_meth, $rel, $f_rel ), $qsub_attrs;
+    quote_sub "${class}::${set_meth}", sprintf( <<'EOC', $set_meth, $add_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       my $self = shift;
 
@@ -190,7 +215,11 @@ EOC
 EOC
 
 
-    quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel );
+    # the last method needs no captures - just kill it all with fire
+    $extra_meth_qsub_args[0] = {};
+
+
+    quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       $_[0]->throw_exception("'%1$s' expects an object")
         unless defined Scalar::Util::blessed( $_[1] );

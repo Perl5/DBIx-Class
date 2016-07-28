@@ -6,6 +6,7 @@ use strict;
 use Test::More;
 use DBICTest;
 use DBIx::Class::Optional::Dependencies;
+use DBIx::Class::_Util 'uniq';
 
 my @global_ISA_tail = qw(
   DBIx::Class
@@ -16,16 +17,11 @@ my @global_ISA_tail = qw(
   Class::Accessor::Grouped
 );
 
-is(
-  mro::get_mro($_),
-  'c3',
-  "Correct mro on base class '$_'",
-) for grep { $_ =~ /^DBIx::Class/ } @global_ISA_tail;
-
 {
   package AAA;
 
   use base "DBIx::Class::Core";
+  use mro 'c3';
 }
 
 {
@@ -55,23 +51,27 @@ ok (! $@, "Correctly skipped injecting an indirect parent of class BBB");
 
 my $art = DBICTest->init_schema->resultset("Artist")->next;
 
-check_ancestry($_) for (
-  ref( $art ),
-  ref( $art->result_source ),
-  ref( $art->result_source->resultset ),
-  ref( $art->result_source->schema ),
-  ( map
-    { ref $art->result_source->schema->source($_) }
-    $art->result_source->schema->sources
-  ),
-  qw( AAA BBB CCC ),
-  ((! DBIx::Class::Optional::Dependencies->req_ok_for('cdbicompat') ) ? () : do {
-    unshift @INC, 't/cdbi/testlib';
-    map { eval "require $_" or die $@; $_ } qw(
-      Film Lazy Actor ActorAlias ImplicitInflate
-    );
-  }),
-);
+check_ancestry($_) for uniq map
+  { length ref $_ ? ref $_ : $_ }
+  (
+    $art,
+    $art->result_source,
+    $art->result_source->resultset,
+    ( map
+      { $_, $_->result_class, $_->resultset_class }
+      map
+        { $art->result_source->schema->source($_) }
+        $art->result_source->schema->sources
+    ),
+    qw( AAA BBB CCC ),
+    ((! DBIx::Class::Optional::Dependencies->req_ok_for('cdbicompat') ) ? () : do {
+      unshift @INC, 't/cdbi/testlib';
+      map { eval "require $_" or die $@; $_ } qw(
+        Film Lazy Actor ActorAlias ImplicitInflate
+      );
+    }),
+  )
+;
 
 use DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 
@@ -129,15 +129,11 @@ sub check_ancestry {
     "Correct end of \@ISA for '$class'"
   );
 
-  # check the remainder
-  for my $c (@linear_ISA) {
-    # nothing to see there
-    next if $c =~ /^DBICTest::/;
-
-    next if mro::get_mro($c) eq 'c3';
-
-    fail( "Incorrect mro '@{[ mro::get_mro($c) ]}' on '$c' (parent of '$class')" );
-  }
+  is(
+    mro::get_mro($class),
+    'c3',
+    "Expected mro on class '$class' automatically set",
+  );
 }
 
 done_testing;

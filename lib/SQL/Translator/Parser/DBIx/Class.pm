@@ -127,6 +127,10 @@ sub parse {
                                        name => $table_name,
                                        type => 'TABLE',
                                        );
+
+        my $ci = $source->columns_info;
+
+        # same order as add_columns
         foreach my $col ($source->columns)
         {
             # assuming column_info in dbic is the same as DBI (?)
@@ -137,7 +141,7 @@ sub parse {
               is_auto_increment => 0,
               is_foreign_key => 0,
               is_nullable => 0,
-              %{$source->column_info($col)}
+              %{$ci->{$col} || {}}
             );
             if ($colinfo{is_nullable}) {
               $colinfo{default} = '' unless exists $colinfo{default};

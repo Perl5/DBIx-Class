@@ -278,7 +278,7 @@ resultset (or C<undef> if there are none).
 
 =cut
 
-sub min {
+sub min :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func('MIN');
 }
@@ -299,7 +299,7 @@ Wrapper for ->func_rs for function MIN().
 
 =cut
 
-sub min_rs {
+sub min_rs :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func_rs('MIN')
 }
@@ -321,7 +321,7 @@ resultset (or C<undef> if there are none).
 
 =cut
 
-sub max {
+sub max :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func('MAX');
 }
@@ -342,7 +342,7 @@ Wrapper for ->func_rs for function MAX().
 
 =cut
 
-sub max_rs {
+sub max_rs :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func_rs('MAX')
 }
@@ -364,7 +364,7 @@ the resultset. Use on varchar-like columns at your own risk.
 
 =cut
 
-sub sum {
+sub sum :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func('SUM');
 }
@@ -385,7 +385,7 @@ Wrapper for ->func_rs for function SUM().
 
 =cut
 
-sub sum_rs {
+sub sum_rs :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->func_rs('SUM')
 }

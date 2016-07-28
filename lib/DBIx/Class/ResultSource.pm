@@ -1,33 +1,52 @@
 package DBIx::Class::ResultSource;
 
+### !!!NOTE!!!
+#
+# Some of the methods defined here will be around()-ed by code at the
+# end of ::ResultSourceProxy. The reason for this strange arrangement
+# is that the list of around()s of methods in this # class depends
+# directly on the list of may-not-be-defined-yet methods within
+# ::ResultSourceProxy itself.
+# If this sounds terrible - it is. But got to work with what we have.
+#
+
 use strict;
 use warnings;
 
 use base 'DBIx::Class::ResultSource::RowParser';
-use mro 'c3';
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dbic_internal_try fail_on_internal_call );
+use DBIx::Class::_Util qw(
+  UNRESOLVABLE_CONDITION
+  dbic_internal_try fail_on_internal_call
+  refdesc emit_loud_diag
+);
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
-use Scalar::Util qw/blessed weaken isweak/;
+use Scalar::Util qw( blessed weaken isweak refaddr );
 
 # FIXME - somehow breaks ResultSetManager, do not remove until investigated
 use DBIx::Class::ResultSet;
 
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors(simple => qw/
-  source_name name source_info
-  _ordered_columns _columns _primaries _unique_constraints
-  _relationships resultset_attributes
-  column_info_from_storage sqlt_deploy_callback
-/);
+my @hashref_attributes = qw(
+  source_info resultset_attributes
+  _columns _unique_constraints _relationships
+);
+my @arrayref_attributes = qw(
+  _ordered_columns _primaries
+);
+__PACKAGE__->mk_group_accessors(rsrc_instance_specific_attribute =>
+  @hashref_attributes,
+  @arrayref_attributes,
+  qw( source_name name column_info_from_storage sqlt_deploy_callback ),
+);
 
-__PACKAGE__->mk_group_accessors(component_class => qw/
+__PACKAGE__->mk_group_accessors(rsrc_instance_specific_handler => qw(
   resultset_class
   result_class
-/);
+));
 
 =head1 NAME
 
@@ -55,8 +74,8 @@ DBIx::Class::ResultSource - Result source object
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
-  __PACKAGE__->result_source_instance->is_virtual(1);
-  __PACKAGE__->result_source_instance->view_definition(
+  __PACKAGE__->result_source->is_virtual(1);
+  __PACKAGE__->result_source->view_definition(
       "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
       );
 
@@ -116,20 +135,350 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 
 =cut
 
-sub new {
-  my ($class, $attrs) = @_;
-  $class = ref $class if ref $class;
+{
+  my $rsrc_registry;
 
-  my $new = bless { %{$attrs || {}} }, $class;
-  $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
-  $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
-  $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
-  $new->{_columns} = { %{$new->{_columns}||{}} };
-  $new->{_relationships} = { %{$new->{_relationships}||{}} };
-  $new->{name} ||= "!!NAME NOT SET!!";
-  $new->{_columns_info_loaded} ||= 0;
-  $new->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
-  return $new;
+  sub __derived_instances {
+    map {
+      (defined $_->{weakref})
+        ? $_->{weakref}
+        : ()
+    } values %{ $rsrc_registry->{ refaddr($_[0]) }{ derivatives } }
+  }
+
+  sub new {
+    my ($class, $attrs) = @_;
+    $class = ref $class if ref $class;
+
+    my $ancestor = delete $attrs->{__derived_from};
+
+    my $self = bless { %$attrs }, $class;
+
+
+    DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+      and
+    # a constructor with 'name' as sole arg clearly isn't "inheriting" from anything
+    ( not ( keys(%$self) == 1 and exists $self->{name} ) )
+      and
+    defined CORE::caller(1)
+      and
+    (CORE::caller(1))[3] !~ / ::new$ | ^ DBIx::Class :: (?:
+      ResultSourceProxy::Table::table
+        |
+      ResultSourceProxy::Table::_init_result_source_instance
+        |
+      ResultSource::clone
+    ) $ /x
+      and
+    local $Carp::CarpLevel = $Carp::CarpLevel + 1
+      and
+    Carp::confess("Incorrect instantiation of '$self': you almost certainly wanted to call ->clone() instead");
+
+
+    my $own_slot = $rsrc_registry->{
+      my $own_addr = refaddr $self
+    } = { derivatives => {} };
+
+    weaken( $own_slot->{weakref} = $self );
+
+    if(
+      length ref $ancestor
+        and
+      my $ancestor_slot = $rsrc_registry->{
+        my $ancestor_addr = refaddr $ancestor
+      }
+    ) {
+
+      # on ancestry recording compact registry slots, prevent unbound growth
+      for my $r ( $rsrc_registry, map { $_->{derivatives} } values %$rsrc_registry ) {
+        defined $r->{$_}{weakref} or delete $r->{$_}
+          for keys %$r;
+      }
+
+      weaken( $_->{$own_addr} = $own_slot ) for map
+        { $_->{derivatives} }
+        (
+          $ancestor_slot,
+          (grep
+            { defined $_->{derivatives}{$ancestor_addr} }
+            values %$rsrc_registry
+          ),
+        )
+      ;
+    }
+
+
+    $self->{resultset_class} ||= 'DBIx::Class::ResultSet';
+    $self->{name} ||= "!!NAME NOT SET!!";
+    $self->{_columns_info_loaded} ||= 0;
+    $self->{sqlt_deploy_callback} ||= 'default_sqlt_deploy_hook';
+
+    $self->{$_} = { %{ $self->{$_} || {} } }
+      for @hashref_attributes, '__metadata_divergencies';
+
+    $self->{$_} = [ @{ $self->{$_} || [] } ]
+      for @arrayref_attributes;
+
+    $self;
+  }
+
+  sub DBIx::Class::__Rsrc_Ancestry_iThreads_handler__::CLONE {
+    for my $r ( $rsrc_registry, map { $_->{derivatives} } values %$rsrc_registry ) {
+      %$r = map {
+        defined $_->{weakref}
+          ? ( refaddr $_->{weakref} => $_ )
+          : ()
+      } values %$r
+    }
+  }
+
+
+  # needs direct access to $rsrc_registry under an assert
+  #
+  sub set_rsrc_instance_specific_attribute {
+
+    # only mark if we are setting something different
+    if (
+      (
+        defined( $_[2] )
+          xor
+        defined( $_[0]->{$_[1]} )
+      )
+        or
+      (
+        # both defined
+        defined( $_[2] )
+          and
+        (
+          # differ in ref-ness
+          (
+            length ref( $_[2] )
+              xor
+            length ref( $_[0]->{$_[1]} )
+          )
+            or
+          # both refs (the mark-on-same-ref is deliberate)
+          length ref( $_[2] )
+            or
+          # both differing strings
+          $_[2] ne $_[0]->{$_[1]}
+        )
+      )
+    ) {
+
+      my $callsite;
+      # need to protect $_ here
+      for my $derivative (
+        $_[0]->__derived_instances,
+
+        # DO NOT REMOVE - this blob is marking *ancestors* as tainted, here to
+        # weed  out any fallout from https://github.com/dbsrgits/dbix-class/commit/9e36e3ec
+        # Note that there is no way to kill this warning, aside from never
+        # calling set_primary_key etc more than once per hierarchy
+        # (this is why the entire thing is guarded by an assert)
+        (
+          (
+            DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+              and
+            grep { $_[1] eq $_ } qw( _unique_constraints _primaries source_info )
+          )
+          ? (
+            map
+              { defined($_->{weakref}) ? $_->{weakref} : () }
+              grep
+                { defined( ( $_->{derivatives}{refaddr($_[0])} || {} )->{weakref} ) }
+                values %$rsrc_registry
+          )
+          : ()
+        ),
+      ) {
+
+        $derivative->{__metadata_divergencies}{$_[1]}{ $callsite ||= do {
+
+          #
+          # FIXME - this is horrible, but it's the best we can do for now
+          # Replace when Carp::Skip is written (it *MUST* take this use-case
+          # into consideration)
+          #
+          my ($cs) = DBIx::Class::Carp::__find_caller(__PACKAGE__);
+
+          my ($fr_num, @fr) = 1;
+          while( @fr = CORE::caller($fr_num++) ) {
+            $cs =~ /^ \Qat $fr[1] line $fr[2]\E (?: $ | \n )/x
+              and
+            $fr[3] =~ s/.+:://
+              and
+            last
+          }
+
+          # FIXME - using refdesc here isn't great, but I can't think of anything
+          # better at this moment
+          @fr
+            ? "@{[ refdesc $_[0] ]}->$fr[3](...) $cs"
+            : "$cs"
+          ;
+        } } = 1;
+      }
+    }
+
+    $_[0]->{$_[1]} = $_[2];
+  }
+}
+
+sub get_rsrc_instance_specific_attribute {
+
+  $_[0]->__emit_stale_metadata_diag( $_[1] ) if (
+    ! $_[0]->{__in_rsrc_setter_callstack}
+      and
+    $_[0]->{__metadata_divergencies}{$_[1]}
+  );
+
+  $_[0]->{$_[1]};
+}
+
+
+# reuse the elaborate set logic of instance_specific_attr
+sub set_rsrc_instance_specific_handler {
+  $_[0]->set_rsrc_instance_specific_attribute($_[1], $_[2]);
+
+  # trigger a load for the case of $foo->handler_accessor("bar")->new
+  $_[0]->get_rsrc_instance_specific_handler($_[1])
+    if defined wantarray;
+}
+
+# This is essentially the same logic as get_component_class
+# (in DBIC::AccessorGroup). However the latter is a grouped
+# accessor type, and here we are strictly after a 'simple'
+# So we go ahead and recreate the logic as found in ::AG
+sub get_rsrc_instance_specific_handler {
+
+  # emit desync warnings if any
+  my $val = $_[0]->get_rsrc_instance_specific_attribute( $_[1] );
+
+  # plain string means class - load it
+  no strict 'refs';
+  if (
+    defined $val
+      and
+    # inherited CAG can't be set to undef effectively, so people may use ''
+    length $val
+      and
+    ! defined blessed $val
+      and
+    ! ${"${val}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+  ) {
+    $_[0]->ensure_class_loaded($val);
+
+    ${"${val}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+      = do { \(my $anon = 'loaded') };
+  }
+
+  $val;
+}
+
+
+sub __construct_stale_metadata_diag {
+  return '' unless $_[0]->{__metadata_divergencies}{$_[1]};
+
+  my ($fr_num, @fr);
+
+  # find the CAG getter FIRST
+  # allows unlimited user-namespace overrides without screwing around with
+  # $LEVEL-like crap
+  while(
+    @fr = CORE::caller(++$fr_num)
+      and
+    $fr[3] ne 'DBIx::Class::ResultSource::get_rsrc_instance_specific_attribute'
+  ) { 1 }
+
+  Carp::confess( "You are not supposed to call __construct_stale_metadata_diag here..." )
+    unless @fr;
+
+  # then find the first non-local, non-private reportable callsite
+  while (
+    @fr = CORE::caller(++$fr_num)
+      and
+    (
+      $fr[2] == 0
+        or
+      $fr[3] eq '(eval)'
+        or
+      $fr[1] =~ /^\(eval \d+\)$/
+        or
+      $fr[3] =~ /::(?: __ANON__ | _\w+ )$/x
+        or
+      $fr[0] =~ /^DBIx::Class::ResultSource/
+    )
+  ) { 1 }
+
+  my $by = ( @fr and $fr[3] =~ s/.+::// )
+    # FIXME - using refdesc here isn't great, but I can't think of anything
+    # better at this moment
+    ? " by 'getter' @{[ refdesc $_[0] ]}->$fr[3](...)\n  within the callstack beginning"
+    : ''
+  ;
+
+  # Given the full stacktrace combined with the really involved callstack
+  # there is no chance the emitter will properly deduplicate this
+  # Only complain once per callsite per source
+  return( ( $by and $_[0]->{__encountered_divergencies}{$by}++ )
+
+    ? ''
+
+    : "$_[0] (the metadata instance of source '@{[ $_[0]->source_name ]}') is "
+    . "*OUTDATED*, and does not reflect the modifications of its "
+    . "*ancestors* as follows:\n"
+    . join( "\n",
+        map
+          { "  * $_->[0]" }
+          sort
+            { $a->[1] cmp $b->[1] }
+            map
+              { [ $_, ( $_ =~ /( at .+? line \d+)/ ) ] }
+              keys %{ $_[0]->{__metadata_divergencies}{$_[1]} }
+      )
+    . "\nStale metadata accessed${by}"
+  );
+}
+
+sub __emit_stale_metadata_diag {
+  emit_loud_diag(
+    msg => (
+      # short circuit: no message - no diag
+      $_[0]->__construct_stale_metadata_diag($_[1])
+        ||
+      return 0
+    ),
+    # the constructor already does deduplication
+    emit_dups => 1,
+    confess => DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE,
+  );
+}
+
+=head2 clone
+
+  $rsrc_instance->clone( atribute_name => overriden_value );
+
+A wrapper around L</new> inheriting any defaults from the callee. This method
+also not normally invoked directly by end users.
+
+=cut
+
+sub clone {
+  my $self = shift;
+
+  $self->new({
+    (
+      (length ref $self)
+        ? ( %$self, __derived_from => $self )
+        : ()
+    ),
+    (
+      (@_ == 1 and ref $_[0] eq 'HASH')
+        ? %{ $_[0] }
+        : @_
+    ),
+  });
 }
 
 =pod
@@ -330,15 +679,25 @@ info keys as L</add_columns>.
 
 sub add_columns {
   my ($self, @cols) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   $self->_ordered_columns(\@cols) unless $self->_ordered_columns;
 
-  my @added;
+  my ( @added, $colinfos );
   my $columns = $self->_columns;
+
   while (my $col = shift @cols) {
-    my $column_info = {};
-    if ($col =~ s/^\+//) {
-      $column_info = $self->column_info($col);
-    }
+    my $column_info =
+      (
+        $col =~ s/^\+//
+          and
+        ( $colinfos ||= $self->columns_info )->{$col}
+      )
+        ||
+      {}
+    ;
 
     # If next entry is { ... } use that for the column info, if not
     # use an empty hashref
@@ -349,11 +708,13 @@ sub add_columns {
     push(@added, $col) unless exists $columns->{$col};
     $columns->{$col} = $column_info;
   }
+
   push @{ $self->_ordered_columns }, @added;
+  $self->_columns($columns);
   return $self;
 }
 
-sub add_column {
+sub add_column :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->add_columns(@_)
 }
@@ -397,36 +758,11 @@ contents of the hashref.
 
 =cut
 
-sub column_info {
-  my ($self, $column) = @_;
-  $self->throw_exception("No such column $column")
-    unless exists $self->_columns->{$column};
+sub column_info :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
-  if ( ! $self->_columns->{$column}{data_type}
-       and ! $self->{_columns_info_loaded}
-       and $self->column_info_from_storage
-       and my $stor = dbic_internal_try { $self->schema->storage } )
-  {
-    $self->{_columns_info_loaded}++;
-
-    # try for the case of storage without table
-    dbic_internal_try {
-      my $info = $stor->columns_info_for( $self->from );
-      my $lc_info = { map
-        { (lc $_) => $info->{$_} }
-        ( keys %$info )
-      };
-
-      foreach my $col ( keys %{$self->_columns} ) {
-        $self->_columns->{$col} = {
-          %{ $self->_columns->{$col} },
-          %{ $info->{$col} || $lc_info->{lc $col} || {} }
-        };
-      }
-    };
-  }
-
-  return $self->_columns->{$column};
+  #my ($self, $column) = @_;
+  $_[0]->columns_info([ $_[1] ])->{$_[1]};
 }
 
 =head2 columns
@@ -521,6 +857,8 @@ sub columns_info {
     }
   }
   else {
+    # the shallow copy is crucial - there are exists() checks within
+    # the wider codebase
     %ret = %$colinfo;
   }
 
@@ -569,6 +907,9 @@ broken result source.
 sub remove_columns {
   my ($self, @to_remove) = @_;
 
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   my $columns = $self->_columns
     or return;
 
@@ -581,7 +922,7 @@ sub remove_columns {
   $self->_ordered_columns([ grep { not $to_remove{$_} } @{$self->_ordered_columns} ]);
 }
 
-sub remove_column {
+sub remove_column :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->remove_columns(@_)
 }
@@ -612,6 +953,9 @@ for more info.
 
 sub set_primary_key {
   my ($self, @cols) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
 
   my $colinfo = $self->columns_info(\@cols);
   for my $col (@cols) {
@@ -695,6 +1039,9 @@ will be applied to the L</column_info> of each L<primary_key|/set_primary_key>
 sub sequence {
   my ($self,$seq) = @_;
 
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   my @pks = $self->primary_columns
     or return;
 
@@ -740,6 +1087,9 @@ the result source.
 
 sub add_unique_constraint {
   my $self = shift;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
 
   if (@_ > 2) {
     $self->throw_exception(
@@ -803,7 +1153,7 @@ See also L</add_unique_constraint>.
 
 =cut
 
-sub add_unique_constraints {
+sub add_unique_constraints :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   my $self = shift;
@@ -946,11 +1296,11 @@ sub unique_constraint_columns {
 
 =back
 
-  __PACKAGE__->result_source_instance->sqlt_deploy_callback('mycallbackmethod');
+  __PACKAGE__->result_source->sqlt_deploy_callback('mycallbackmethod');
 
    or
 
-  __PACKAGE__->result_source_instance->sqlt_deploy_callback(sub {
+  __PACKAGE__->result_source->sqlt_deploy_callback(sub {
     my ($source_instance, $sqlt_table) = @_;
     ...
   } );
@@ -1232,10 +1582,11 @@ result source instance has been attached to.
 
 sub schema {
   if (@_ > 1) {
-    $_[0]->{schema} = $_[1];
+    # invoke the mark-diverging logic
+    $_[0]->set_rsrc_instance_specific_attribute( schema => $_[1] );
   }
   else {
-    $_[0]->{schema} || do {
+    $_[0]->get_rsrc_instance_specific_attribute( 'schema' ) || do {
       my $name = $_[0]->{source_name} || '_unnamed_';
       my $err = 'Unable to perform storage-dependent operations with a detached result source '
               . "(source '$name' is not associated with a schema).";
@@ -1265,7 +1616,7 @@ Returns the L<storage handle|DBIx::Class::Storage> for the current schema.
 
 =cut
 
-sub storage {
+sub storage :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   $_[0]->schema->storage
 }
@@ -1351,6 +1702,10 @@ be resolved.
 
 sub add_relationship {
   my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
+
+  local $self->{__in_rsrc_setter_callstack} = 1
+    unless $self->{__in_rsrc_setter_callstack};
+
   $self->throw_exception("Can't create relationship without join condition")
     unless $cond;
   $attrs ||= {};
@@ -1744,14 +2099,17 @@ sub _pk_depends_on {
   # auto-increment
   my $rel_source = $self->related_source($rel_name);
 
+  my $colinfos;
+
   foreach my $p ($self->primary_columns) {
-    if (exists $keyhash->{$p}) {
-      unless (defined($rel_data->{$keyhash->{$p}})
-              || $rel_source->column_info($keyhash->{$p})
-                            ->{is_auto_increment}) {
-        return 0;
-      }
-    }
+    return 0 if (
+      exists $keyhash->{$p}
+        and
+      ! defined( $rel_data->{$keyhash->{$p}} )
+        and
+      ! ( $colinfos ||= $rel_source->columns_info )
+         ->{$keyhash->{$p}}{is_auto_increment}
+    )
   }
 
   return 1;
@@ -2288,7 +2646,7 @@ sub related_source {
   else {
     my $class = $self->relationship_info($rel)->{class};
     $self->ensure_class_loaded($class);
-    $class->result_source_instance;
+    $class->result_source;
   }
 }
 

@@ -31,6 +31,21 @@ use DBICTest::Util qw(
   dbg DEBUG_TEST_CONCURRENCY_LOCKS PEEPEENESS
 );
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
+
+# The actual ASSERT logic is in BaseSchema for pesky load-order reasons
+# Hence run this through once, *before* DBICTest::Schema and friends load
+BEGIN {
+  if (
+    DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+      or
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+  ) {
+    require DBIx::Class::Row;
+    require DBICTest::BaseSchema;
+    DBICTest::BaseSchema->connect( sub {} );
+  }
+}
+
 use DBICTest::Schema;
 use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard modver_gt_or_eq );
 use Carp;
@@ -275,7 +290,7 @@ sub __mk_disconnect_guard {
 
   my $clan_connect_caller = '*UNKNOWN*';
   my $i;
-  while ( my ($pack, $file, $line) = caller(++$i) ) {
+  while ( my ($pack, $file, $line) = CORE::caller(++$i) ) {
     next if $file eq __FILE__;
     next if $pack =~ /^DBIx::Class|^Try::Tiny/;
     $clan_connect_caller = "$file line $line";

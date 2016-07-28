@@ -4,18 +4,17 @@ use strict;
 use warnings;
 
 use base qw( DBIx::Class::MethodAttributes Class::Accessor::Grouped );
-use mro 'c3';
 
-use Scalar::Util qw/weaken blessed/;
+use Scalar::Util 'blessed';
 use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
 
-sub mk_classdata {
+sub mk_classdata :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->mk_classaccessor(@_);
 }
 
-sub mk_classaccessor {
+sub mk_classaccessor :DBIC_method_is_indirect_sugar {
   my $self = shift;
   $self->mk_group_accessors('inherited', $_[0]);
   (@_ > 1)
@@ -24,24 +23,67 @@ sub mk_classaccessor {
   ;
 }
 
-my $successfully_loaded_components;
+sub mk_group_accessors {
+  my $class = shift;
+  my $type = shift;
+
+  $class->next::method($type, @_);
+
+  # label things
+  if( $type =~ /^ ( inflated_ | filtered_ )? column $/x ) {
+
+    $class = ref $class
+      if length ref $class;
+
+    for my $acc_pair  (
+      map
+        { [ $_, "_${_}_accessor" ] }
+        map
+          { ref $_ ? $_->[0] : $_ }
+          @_
+    ) {
+
+      for my $i (0, 1) {
+
+        my $acc_name = $acc_pair->[$i];
+
+        attributes->import(
+          $class,
+          (
+            $class->can($acc_name)
+              ||
+            Carp::confess("Accessor '$acc_name' we just created on $class can't be found...?")
+          ),
+          'DBIC_method_is_generated_from_resultsource_metadata',
+          ($i
+            ? "DBIC_method_is_${type}_extra_accessor"
+            : "DBIC_method_is_${type}_accessor"
+          ),
+        )
+      }
+    }
+  }
+}
 
 sub get_component_class {
   my $class = $_[0]->get_inherited($_[1]);
 
-  # It's already an object, just go for it.
-  return $class if blessed $class;
-
-  if (defined $class and ! $successfully_loaded_components->{$class} ) {
+  no strict 'refs';
+  if (
+    defined $class
+      and
+    # inherited CAG can't be set to undef effectively, so people may use ''
+    length $class
+      and
+    # It's already an object, just go for it.
+    ! defined blessed $class
+      and
+    ! ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+  ) {
     $_[0]->ensure_class_loaded($class);
 
-    mro::set_mro( $class, 'c3' );
-
-    no strict 'refs';
-    $successfully_loaded_components->{$class}
-      = ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
-        = do { \(my $anon = 'loaded') };
-    weaken($successfully_loaded_components->{$class});
+    ${"${class}::__LOADED__BY__DBIC__CAG__COMPONENT_CLASS__"}
+      = do { \(my $anon = 'loaded') };
   }
 
   $class;

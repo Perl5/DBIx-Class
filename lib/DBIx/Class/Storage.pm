@@ -25,7 +25,7 @@ __PACKAGE__->mk_group_accessors(component_class => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 
-sub cursor {
+sub cursor :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->cursor_class(@_);
 }

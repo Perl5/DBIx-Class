@@ -24,7 +24,14 @@ sub proxy_to_related {
   my ($class, $rel, $proxy_args) = @_;
   my %proxy_map = $class->_build_proxy_map_from($proxy_args);
 
-  quote_sub "${class}::$_", sprintf( <<'EOC', $rel, $proxy_map{$_} )
+  my @qsub_args = ( {}, {
+    attributes => [qw(
+      DBIC_method_is_proxy_to_relationship
+      DBIC_method_is_generated_from_resultsource_metadata
+    )],
+  } );
+
+  quote_sub "${class}::$_", sprintf( <<'EOC', $rel, $proxy_map{$_} ), @qsub_args
     my $self = shift;
     my $relobj = $self->%1$s;
     if (@_ && !defined $relobj) {

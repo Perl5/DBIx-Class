@@ -10,12 +10,19 @@ Revision history for DBIx::Class
           the maintainer believe this is safe, but this is a very complex
           area and reality may turn out to be different. If **ANYHTING** at
           all seems out of place, please file a report at once
+        - The unique constraint info (including the primary key columns) is no
+          longer shared between related (class and schema-level) ResultSource
+          instances. If your app stops working with no obvious pointers, set
+          DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE=1 to obtain extra info
         - Neither exception_action() nor $SIG{__DIE__} handlers are invoked
           on recoverable errors. This ensures that the retry logic is fully
           insulated from changes in control flow, as the handlers are only
           invoked when an error is leaving the DBIC internals to be handled by
           the caller (n.b. https://github.com/PerlDancer/Dancer2/issues/1125)
           (also fixes the previously rejected RT#63874)
+        - Overrides of ResultSourceProxy-provided methods are no longer skipped
+          silently: a one-per-callsite warning is issued any time this tricky
+          situation is encoutered https://is.gd/dbic_rsrcproxy_methodattr
         - $result->related_resultset() no longer passes extra arguments to
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored
@@ -29,6 +36,10 @@ Revision history for DBIx::Class
           instead of silently discarding the argument
 
     * New Features
+        - DBIC now performs a range of sanity checks on the entire hierarchy
+          of Schema/Result/ResultSet classes loudly alerting the end user to
+          potential extremely hard-to-diagnose pitfalls ( RT#93976, also fully
+          addresses https://blog.afoolishmanifesto.com/posts/mros-and-you/ )
         - InflateColumn::DateTime now accepts the ecosystem-standard option
           'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
         - Massively optimised literal SQL snippet scanner - fixes all known
@@ -39,6 +50,8 @@ Revision history for DBIx::Class
           specific DateTime::Format dependencies
 
     * Fixes
+        - Fix regresion (0.082800) of certain calls being presented stale
+          result source metadata (RT#107462)
         - Fix incorrect SQL generated with invalid {rows} on complex resultset
           operations, generally more robust handling of rows/offset attrs
         - Fix incorrect $storage state on unexpected RDBMS disconnects and

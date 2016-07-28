@@ -12,7 +12,7 @@ use namespace::clean;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
 
-sub columns {
+sub columns :DBIC_method_is_bypassable_resultsource_proxy {
   my $proto = shift;
   my $class = ref $proto || $proto;
   my $group = shift || "All";
@@ -34,9 +34,9 @@ sub _add_column_group {
   $class->_register_column_group($group => @cols);
 }
 
-sub add_columns {
+sub add_columns :DBIC_method_is_bypassable_resultsource_proxy {
   my ($class, @cols) = @_;
-  $class->result_source_instance->add_columns(@cols);
+  $class->result_source->add_columns(@cols);
 }
 
 sub _register_column_group {
@@ -148,7 +148,7 @@ sub _mk_group_accessors {
   }
 }
 
-sub all_columns { return shift->result_source_instance->columns; }
+sub all_columns { return shift->result_source->columns; }
 
 sub primary_column {
   my ($class) = @_;

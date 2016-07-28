@@ -24,7 +24,7 @@ sub has_one {
 sub _has_one {
   my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
   unless (ref $cond) {
-    my $pri = $class->result_source_instance->_single_pri_col_or_die;
+    my $pri = $class->result_source->_single_pri_col_or_die;
 
     my ($f_key,$guess,$f_rsrc);
     if (defined $cond && length $cond) {
@@ -36,7 +36,7 @@ sub _has_one {
       $class->ensure_class_loaded($f_class);
 
       $f_rsrc = dbic_internal_try {
-        my $r = $f_class->result_source_instance;
+        my $r = $f_class->result_source;
         die "There got to be some columns by now... (exception caught and rewritten by catch below)"
           unless $r->columns;
         $r;
@@ -60,8 +60,8 @@ sub _has_one {
 
 # FIXME - this check needs to be moved to schema-composition time...
 #    # only perform checks if the far side was not preloaded above *AND*
-#    # appears to have been loaded by something else (has a rsrc_instance)
-#    if (! $f_rsrc and $f_rsrc = dbic_internal_try { $f_class->result_source_instance }) {
+#    # appears to have been loaded by something else (has a rsrc)
+#    if (! $f_rsrc and $f_rsrc = dbic_internal_try { $f_class->result_source }) {
 #      $class->throw_exception(
 #        "No such column '$f_key' on foreign class ${f_class} ($guess)"
 #      ) if !$f_rsrc->has_column($f_key);
@@ -97,12 +97,18 @@ sub _validate_has_one_condition {
     return unless $self_id =~ /^self\.(.*)$/;
 
     my $key = $1;
-    $class->throw_exception("Defining rel on ${class} that includes '$key' but no such column defined here yet")
-        unless $class->result_source_instance->has_column($key);
-    my $column_info = $class->result_source_instance->column_info($key);
-    if ( $column_info->{is_nullable} ) {
-      carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key). This might indicate an incorrect use of those relationship helpers instead of belongs_to.');
-    }
+
+    my $column_info = $class->result_source->columns_info->{$key}
+      or $class->throw_exception(
+        "Defining rel on ${class} that includes '$key' "
+      . 'but no such column defined there yet'
+      );
+
+    carp(
+      "'might_have'/'has_one' must not be used on columns with is_nullable "
+    . "set to true ($class/$key). This almost certainly indicates an "
+    . "incorrect use of these relationship helpers instead of 'belongs_to'"
+    ) if $column_info->{is_nullable};
   }
 }
 

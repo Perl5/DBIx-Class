@@ -190,13 +190,13 @@ sub new {
       $rsrc ||= $h->resolve;
     }
 
-    $new->result_source($rsrc) if $rsrc;
+    $new->result_source_instance($rsrc) if $rsrc;
 
     if (my $col_from_rel = delete $attrs->{-cols_from_relations}) {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
     }
 
-    my ($related,$inflated);
+    my( $related, $inflated, $colinfos );
 
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
@@ -258,9 +258,8 @@ sub new {
           next;
         }
         elsif (
-          $rsrc->has_column($key)
-            and
-          $rsrc->column_info($key)->{_inflate_info}
+          ( $colinfos ||= $rsrc->columns_info )
+           ->{$key}{_inflate_info}
         ) {
           $inflated->{$key} = $attrs->{$key};
           next;
@@ -626,12 +625,9 @@ sub delete {
     $self->in_storage(0);
   }
   else {
-    my $rsrc = dbic_internal_try { $self->result_source_instance }
-      or $self->throw_exception("Can't do class delete without a ResultSource instance");
-
     my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
     my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
-    $rsrc->resultset->search(@_)->delete;
+    $self->result_source->resultset->search_rs(@_)->delete;
   }
   return $self;
 }
@@ -902,7 +898,7 @@ sub _is_column_numeric {
     return undef
       unless ( $rsrc = $self->result_source )->has_column($column);
 
-    my $colinfo = $rsrc->column_info ($column);
+    my $colinfo = $rsrc->columns_info->{$column};
 
     # cache for speed (the object may *not* have a resultsource instance)
     if (
@@ -1099,7 +1095,9 @@ See also L<DBIx::Class::Relationship::Base/set_from_related>.
 
 sub set_inflated_columns {
   my ( $self, $upd ) = @_;
-  my $rsrc;
+
+  my ($rsrc, $colinfos);
+
   foreach my $key (keys %$upd) {
     if (ref $upd->{$key}) {
       $rsrc ||= $self->result_source;
@@ -1117,9 +1115,11 @@ sub set_inflated_columns {
         );
       }
       elsif (
-        $rsrc->has_column($key)
-          and
-        exists $rsrc->column_info($key)->{_inflate_info}
+        exists( (
+          ( $colinfos ||= $rsrc->columns_info )->{$key}
+            ||
+          {}
+        )->{_inflate_info} )
       ) {
         $self->set_inflated_column($key, delete $upd->{$key});
       }
@@ -1171,7 +1171,7 @@ sub copy {
   my $new = { _column_data => $col_data };
   bless $new, ref $self;
 
-  $new->result_source($rsrc);
+  $new->result_source_instance($rsrc);
   $new->set_inflated_columns($changes);
   $new->insert;
 
@@ -1359,7 +1359,7 @@ Alias for L</update_or_insert>
 
 =cut
 
-sub insert_or_update {
+sub insert_or_update :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   shift->update_or_insert(@_);
 }
@@ -1429,22 +1429,23 @@ Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 
 =cut
 
-sub result_source {
-  $_[0]->throw_exception( 'result_source can be called on instances only' )
-    unless ref $_[0];
-
+sub result_source :DBIC_method_is_indirect_sugar {
+  # While getter calls are routed through here for sensible exception text
+  # it makes no sense to have setters do the same thing
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+    and
   @_ > 1
-    ? $_[0]->{_result_source} = $_[1]
+    and
+  fail_on_internal_call;
 
-    # note this is a || not a ||=, the difference is important
-    : $_[0]->{_result_source} || do {
-        $_[0]->can('result_source_instance')
-          ? $_[0]->result_source_instance
-          : $_[0]->throw_exception(
-            "No result source instance registered for @{[ ref $_[0] ]}, did you forget to call @{[ ref $_[0] ]}->table(...) ?"
-          )
-      }
-  ;
+  # this is essentially a `shift->result_source_instance(@_)` with handholding
+  &{
+    $_[0]->can('result_source_instance')
+      ||
+    $_[0]->throw_exception(
+      "No ResultSource instance registered for '@{[ $_[0] ]}', did you forget to call @{[ ref $_[0] || $_[0] ]}->table(...) ?"
+    )
+  };
 }
 
 =head2 register_column
@@ -1593,7 +1594,8 @@ sub throw_exception {
   if (
     ! DBIx::Class::_Util::in_internal_try
       and
-    my $rsrc = dbic_internal_try { $self->result_source }
+    # FIXME - the try is 99% superfluous, but just in case
+    my $rsrc = dbic_internal_try { $self->result_source_instance }
   ) {
     $rsrc->throw_exception(@_)
   }

@@ -6,7 +6,6 @@ use warnings;
 use DBIx::Class::_Util qw( uniq refdesc visit_namespaces );
 use Scalar::Util qw( weaken refaddr );
 
-use mro 'c3';
 use namespace::clean;
 
 my ( $attr_cref_registry, $attr_cache_active );
@@ -144,8 +143,36 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub VALID_DBIC_CODE_ATTRIBUTE {
   #my ($class, $attr) = @_;
 
-  # initially no valid attributes
-  0;
+###
+### !!! IMPORTANT !!!
+###
+### *DO NOT* yield to the temptation of using free-form-argument attributes.
+### The technique was proven instrumental in Catalyst a decade ago, and
+### was more recently revived in Sub::Attributes. Yet, while on the surface
+### they seem immensely useful, per-attribute argument lists are in fact an
+### architectural dead end.
+###
+### In other words: you are *very strongly urged* to ensure the regex below
+### does not allow anything beyond qr/^ DBIC_method_is_ [A-Z_a-z0-9]+ $/x
+###
+
+  $_[1] =~ /^ DBIC_method_is_ (?:
+    indirect_sugar
+      |
+    (?: bypassable | mandatory ) _resultsource_proxy
+      |
+    generated_from_resultsource_metadata
+      |
+    (?: inflated_ | filtered_ )? column_ (?: extra_)? accessor
+      |
+    single_relationship_accessor
+      |
+    (?: multi | filter ) _relationship_ (?: extra_ )? accessor
+      |
+    proxy_to_relationship
+      |
+    m2m_ (?: extra_)? sugar (?:_with_attrs)?
+  ) $/x;
 }
 
 sub FETCH_CODE_ATTRIBUTES {
@@ -201,11 +228,165 @@ L</VALID_DBIC_CODE_ATTRIBUTE> below.
 The following method attributes are currently recognized under the C<DBIC_*>
 prefix:
 
-=over
+=head3 DBIC_method_is_indirect_sugar
 
-=item * None so far
+The presence of this attribute indicates a helper "sugar" method. Overriding
+such methods in your subclasses will be of limited success at best, as DBIC
+itself and various plugins are much more likely to invoke alternative direct
+call paths, bypassing your override entirely. Good examples of this are
+L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Schema/connect>.
 
-=back
+See also the check
+L<DBIx::Class::Schema::SanityChecker/no_indirect_method_overrides>.
+
+=head3 DBIC_method_is_mandatory_resultsource_proxy
+
+=head3 DBIC_method_is_bypassable_resultsource_proxy
+
+The presence of one of these attributes on a L<proxied ResultSource
+method|DBIx::Class::Manual::ResultClass/DBIx::Class::ResultSource> indicates
+how DBIC will behave when someone calls e.g.:
+
+  $some_result->result_source->add_columns(...)
+
+as opposed to the conventional
+
+  SomeResultClass->add_columns(...)
+
+This distinction becomes important when someone declares a sub named after
+one of the (currently 22) methods proxied from a
+L<Result|DBIx::Class::Manual::ResultClass> to
+L<ResultSource|DBIx::Class::ResultSource>. While there are obviously no
+problems when these methods are called at compile time, there is a lot of
+ambiguity whether an override of something like
+L<columns_info|DBIx::Class::ResultSource/columns_info> will be respected by
+DBIC and various plugins during runtime operations.
+
+It must be noted that there is a reason for this weird situation: during the
+original design of DBIC the "ResultSourceProxy" system was established in
+order to allow easy transition from Class::DBI. Unfortunately it was not
+well abstracted away: it is rather difficult to use a custom ResultSource
+subclass. The expansion of the DBIC project never addressed this properly
+in the years since. As a result when one wishes to override a part of the
+ResultSource functionality, the overwhelming practice is to hook a method
+in a Result class and "hope for the best".
+
+The subtle changes of various internal call-chains in C<DBIC v0.0829xx> make
+this silent uncertainty untenable. As a solution any such override will now
+issue a descriptive warning that it has been bypassed during a
+C<< $rsrc->overriden_function >> invocation. A user B<must> determine how
+each individual override must behave in this situation, and tag it with one
+of the above two attributes.
+
+Naturally any override marked with C<..._bypassable_resultsource_proxy> will
+behave like it did before: it will be silently ignored. This is the attribute
+you want to set if your code appears to work fine, and you do not wish to
+receive the warning anymore (though you are strongly encouraged to understand
+the other option).
+
+However overrides marked with C<..._mandatory_resultsource_proxy> will always
+be reinvoked by DBIC itself, so that any call of the form:
+
+  $some_result->result_source->columns_info(...)
+
+will be transformed into:
+
+  $some_result->result_source->result_class->columns_info(...)
+
+with the rest of the callchain flowing out of that (provided the override did
+invoke L<next::method|mro/next::method> where appropriate)
+
+=head3 DBIC_method_is_generated_from_resultsource_metadata
+
+This attribute is applied to all methods dynamically installed after various
+invocations of L<ResultSource metadata manipulation
+methods|DBIx::Class::Manual::ResultClass/DBIx::Class::ResultSource>. Notably
+this includes L<add_columns|DBIx::Class::ResultSource/add_columns>,
+L<add_relationship|DBIx::Class::ResultSource/add_relationship>,
+L<the proxied relationship attribute|DBIx::Class::Relationship::Base/proxy>
+and the various L<relationship
+helpers|DBIx::Class::Manual::ResultClass/DBIx::Class::Relationship>,
+B<except> the L<M2M helper|DBIx::Class::Relationship/many_to_many> (given its
+effects are never reflected as C<ResultSource metadata>).
+
+=head3 DBIC_method_is_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<add_columns|DBIx::Class::ResultSource/add_columns>.
+
+=head3 DBIC_method_is_inflated_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<inflate_column|DBIx::Class::InflateColumn/inflate_column>.
+
+=head3 DBIC_method_is_filtered_column_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<filter_column|DBIx::Class::FilterColumn/filter_column>.
+
+=head3 DBIC_method_is_*column_extra_accessor
+
+For historical reasons any L<Class::Accessor::Grouped> accessor is generated
+twice as C<{name}> and C<_{name}_accessor>. The second method is marked with
+C<DBIC_method_is_*column_extra_accessor> correspondingly.
+
+=head3 DBIC_method_is_single_relationship_accessor
+
+This attribute is applied to all methods dynamically installed as a result of
+invoking L<might_have|DBIx::Class::Relationship/might_have>,
+L<has_one|DBIx::Class::Relationship/has_one> or
+L<belongs_to|DBIx::Class::Relationship/belongs_to> (though for C<belongs_to>
+see L<...filter_rel...|/DBIC_method_is_filter_relationship_accessor> below.
+
+=head3 DBIC_method_is_multi_relationship_accessor
+
+This attribute is applied to the main method dynamically installed as a result
+of invoking L<has_many|DBIx::Class::Relationship/has_many>.
+
+=head3 DBIC_method_is_multi_relationship_extra_accessor
+
+This attribute is applied to the two extra methods dynamically installed as a
+result of invoking L<has_many|DBIx::Class::Relationship/has_many>:
+C<$relname_rs> and C<add_to_$relname>.
+
+=head3 DBIC_method_is_filter_relationship_accessor
+
+This attribute is applied to (legacy) methods dynamically installed as a
+result of invoking L<belongs_to|DBIx::Class::Relationship/belongs_to> with an
+already-existing identically named column. The method is internally
+implemented as an L<inflated_column|/DBIC_method_is_inflated_column_accessor>
+and is labeled with both atributes at the same time.
+
+=head3 DBIC_method_is_filter_relationship_extra_accessor
+
+Same as L</DBIC_method_is_*column_extra_accessor>.
+
+=head3 DBIC_method_is_proxy_to_relationship
+
+This attribute is applied to methods dynamically installed as a result of
+providing L<the proxied relationship
+attribute|DBIx::Class::Relationship::Base/proxy>.
+
+=head3 DBIC_method_is_m2m_sugar
+
+=head3 DBIC_method_is_m2m_sugar_with_attrs
+
+One of the above attributes is applied to the main method dynamically
+installed as a result of invoking
+L<many_to_many|DBIx::Class::Relationship/many_to_many>. The C<_with_atrs> suffix
+serves to indicate whether the user supplied any C<\%attrs> to the
+C<many_to_many> call. There is deliberately no mechanism to retrieve the actual
+supplied values: if you really need this functionality you would need to rely on
+L<DBIx::Class::IntrospectableM2M>.
+
+=head3 DBIC_method_is_extra_m2m_sugar
+
+=head3 DBIC_method_is_extra_m2m_sugar_with_attrs
+
+One of the above attributes is applied to the extra B<four> methods dynamically
+installed as a result of invoking
+L<many_to_many|DBIx::Class::Relationship/many_to_many>: C<$m2m_rs>, C<add_to_$m2m>,
+C<remove_from_$m2m> and C<set_$m2m>.
 
 =head1 METHODS
 

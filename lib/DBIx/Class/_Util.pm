@@ -49,6 +49,8 @@ BEGIN {
         DBIC_SHUFFLE_UNORDERED_RESULTSETS
         DBIC_ASSERT_NO_INTERNAL_WANTARRAY
         DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
+        DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+        DBIC_ASSERT_NO_FAILING_SANITY_CHECKS
         DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE
         DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
       )
@@ -410,7 +412,10 @@ sub emit_loud_diag {
     exit 70;
   }
 
-  my $msg = "\n$0: $args->{msg}";
+  my $msg = "\n" . join( ': ',
+    ( $0 eq '-e' ? () : $0 ),
+    $args->{msg}
+  );
 
   # when we die - we usually want to keep doing it
   $args->{emit_dups} = !!$args->{confess}
@@ -1037,9 +1042,10 @@ sub fail_on_internal_call {
   {
     package DB;
     $fr = [ CORE::caller(1) ];
-    $argdesc = ref $DB::args[0]
-      ? DBIx::Class::_Util::refdesc($DB::args[0])
-      : ( $DB::args[0] . '' )
+    $argdesc =
+      ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
+    : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
+    : $DB::args[0] . ''
     ;
   };
 
@@ -1060,8 +1066,44 @@ sub fail_on_internal_call {
     : $fr
   ;
 
+
+  die "\nMethod $fr->[3] is not marked with the 'DBIC_method_is_indirect_sugar' attribute\n\n" unless (
+
+    # unlikely but who knows...
+    ! @$fr
+
+      or
+
+    # This is a weird-ass double-purpose method, only one branch of which is marked
+    # as an illegal indirect call
+    # Hence the 'indirect' attribute makes no sense
+    # FIXME - likely need to mark this in some other manner
+    $fr->[3] eq 'DBIx::Class::ResultSet::new'
+
+      or
+
+    # RsrcProxy stuff is special and not attr-annotated on purpose
+    # Yet it is marked (correctly) as fail_on_internal_call(), as DBIC
+    # itself should not call these methods as first-entry
+    $fr->[3] =~ /^DBIx::Class::ResultSourceProxy::[^:]+$/
+
+      or
+
+    # FIXME - there is likely a more fine-graned way to escape "foreign"
+    # callers, based on annotations... (albeit a slower one)
+    # For the time being just skip in a dumb way
+    $fr->[3] !~ /^DBIx::Class|^DBICx::|^DBICTest::/
+
+      or
+
+    grep
+      { $_ eq 'DBIC_method_is_indirect_sugar' }
+      do { no strict 'refs'; attributes::get( \&{ $fr->[3] }) }
+  );
+
+
   if (
-    $argdesc
+    defined $fr->[0]
       and
     $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and
@@ -1076,6 +1118,61 @@ sub fail_on_internal_call {
       }),
     ), 'with_stacktrace');
   }
+}
+
+if (DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE) {
+
+  no warnings 'redefine';
+
+  my $next_bless = defined(&CORE::GLOBAL::bless)
+    ? \&CORE::GLOBAL::bless
+    : sub { CORE::bless($_[0], $_[1]) }
+  ;
+
+  *CORE::GLOBAL::bless = sub {
+    my $class = (@_ > 1) ? $_[1] : CORE::caller();
+
+    # allow for reblessing (role application)
+    return $next_bless->( $_[0], $class )
+      if defined blessed $_[0];
+
+    my $obj = $next_bless->( $_[0], $class );
+
+    my $calling_sub = (CORE::caller(1))[3] || '';
+
+    (
+      # before 5.18 ->isa() will choke on the "0" package
+      # which we test for in several obscure cases, sigh...
+      !( DBIx::Class::_ENV_::PERL_VERSION < 5.018 )
+        or
+      $class
+    )
+      and
+    (
+      (
+        $calling_sub !~ /^ (?:
+          DBIx::Class::Schema::clone
+            |
+          DBIx::Class::DB::setup_schema_instance
+        )/x
+          and
+        $class->isa("DBIx::Class::Schema")
+      )
+        or
+      (
+        $calling_sub ne 'DBIx::Class::ResultSource::new'
+          and
+        $class->isa("DBIx::Class::ResultSource")
+      )
+    )
+      and
+    local $Carp::CarpLevel = $Carp::CarpLevel + 1
+      and
+    Carp::confess("Improper instantiation of '$obj': you *MUST* call the corresponding constructor");
+
+
+    $obj;
+  };
 }
 
 1;

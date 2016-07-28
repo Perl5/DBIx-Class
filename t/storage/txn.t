@@ -1,3 +1,6 @@
+# Test is sufficiently involved to *want* to run with "maximum paranoia"
+BEGIN { $ENV{DBICTEST_OLD_MRO_SANITY_CHECK_ASSERTIONS} = 1 }
+
 BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 
 use strict;

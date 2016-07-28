@@ -7,6 +7,23 @@ use strict;
 use DBI;
 use DBICTest;
 
+BEGIN {
+  # offset the warning from DBIx::Class::Schema on 5.8
+  # keep the ::Schema default as-is otherwise
+   DBIx::Class::_ENV_::OLD_MRO
+    and
+  ( eval <<'EOS' or die $@ );
+
+  sub setup_schema_instance {
+    my $s = shift->next::method(@_);
+    $s->schema_sanity_checker('');
+    $s;
+  }
+
+  1;
+EOS
+}
+
 use base qw(DBIx::Class::CDBICompat);
 
 my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});

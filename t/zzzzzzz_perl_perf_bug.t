@@ -6,6 +6,8 @@ use Test::More;
 
 
 BEGIN {
+  delete $ENV{DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE};
+
   plan skip_all =>
     'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
     if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
