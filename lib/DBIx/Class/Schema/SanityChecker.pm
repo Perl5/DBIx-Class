@@ -341,8 +341,8 @@ sub format_no_indirect_method_overrides_errors {
   . "chain of calls within the convenience shortcut as seen when running:\n  "
   . '~$ perl -M%2$s -MDevel::Dwarn -e "Ddie { %3$s => %2$s->can(q(%3$s)) }"',
     join (', ', map { "$_()" } sort @{ $_->{by} } ),
-    $_->{overriden}{via_class},
-    $_->{overriden}{name},
+    $_->{overridden}{via_class},
+    $_->{overridden}{name},
   )} @{ $_[1] } ]
 }
 
@@ -364,7 +364,7 @@ sub check_no_indirect_method_overrides {
         unless $_->{attributes}{DBIC_method_is_indirect_sugar};
 
       push @err, {
-        overriden => {
+        overridden => {
           name => $_->{name},
           via_class => (
             # this way we report a much better Dwarn oneliner in the error

@@ -274,7 +274,7 @@ in a Result class and "hope for the best".
 The subtle changes of various internal call-chains in C<DBIC v0.0829xx> make
 this silent uncertainty untenable. As a solution any such override will now
 issue a descriptive warning that it has been bypassed during a
-C<< $rsrc->overriden_function >> invocation. A user B<must> determine how
+C<< $rsrc->overridden_function >> invocation. A user B<must> determine how
 each individual override must behave in this situation, and tag it with one
 of the above two attributes.
 

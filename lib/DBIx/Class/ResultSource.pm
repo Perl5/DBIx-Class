@@ -457,7 +457,7 @@ sub __emit_stale_metadata_diag {
 
 =head2 clone
 
-  $rsrc_instance->clone( atribute_name => overriden_value );
+  $rsrc_instance->clone( atribute_name => overridden_value );
 
 A wrapper around L</new> inheriting any defaults from the callee. This method
 also not normally invoked directly by end users.
