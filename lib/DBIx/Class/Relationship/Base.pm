@@ -562,9 +562,9 @@ sub related_resultset {
     # ->in_storage() is orders of magnitude faster than the Try::Tiny-like
     # construct below ( perl's low level tooling is truly shit :/ )
     ( $self->in_storage or DBIx::Class::_Util::in_internal_try )
-      ? $rsrc->_resolve_relationship_condition($rrc_args)->{join_free_condition}
+      ? $rsrc->resolve_relationship_condition($rrc_args)->{join_free_condition}
       : dbic_internal_try {
-          $rsrc->_resolve_relationship_condition($rrc_args)->{join_free_condition}
+          $rsrc->resolve_relationship_condition($rrc_args)->{join_free_condition}
         }
         dbic_internal_catch {
           $unique_carper->(
@@ -729,7 +729,7 @@ sub new_related {
 ### context-specific call-site it made no sense to expose it to end users.
 ###
 
-  my $rel_resolution = $rsrc->_resolve_relationship_condition (
+  my $rel_resolution = $rsrc->resolve_relationship_condition (
     rel_name => $rel,
     self_result_object => $self,
 
@@ -947,7 +947,7 @@ L<update|DBIx::Class::Row/update> to update them in the storage.
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
 
-  $self->set_columns( $self->result_source->_resolve_relationship_condition (
+  $self->set_columns( $self->result_source->resolve_relationship_condition (
     require_join_free_values => 1,
     rel_name => $rel,
     foreign_values => (

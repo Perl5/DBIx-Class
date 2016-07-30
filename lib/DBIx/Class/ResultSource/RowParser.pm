@@ -194,7 +194,7 @@ sub _resolve_collapse {
       rsrc => $self->related_source($rel),
       fk_map => (
         dbic_internal_try {
-          $self->_resolve_relationship_condition(
+          $self->resolve_relationship_condition(
             rel_name => $rel,
 
             # an API where these are optional would be too cumbersome,

@@ -1832,7 +1832,7 @@ sub reverse_relationship_info {
   # Some custom rels may not resolve without a $schema
   #
   my $our_resolved_relcond = dbic_internal_try {
-    $self->_resolve_relationship_condition(
+    $self->resolve_relationship_condition(
       rel_name => $rel,
 
       # an API where these are optional would be too cumbersome,
@@ -1898,7 +1898,7 @@ sub reverse_relationship_info {
         and
 
       my $their_resolved_relcond = dbic_internal_try {
-        $other_rsrc->_resolve_relationship_condition(
+        $other_rsrc->resolve_relationship_condition(
           rel_name => $other_rel,
 
           # an API where these are optional would be too cumbersome,
@@ -2096,7 +2096,7 @@ sub _resolve_join {
                -alias => $as,
                -relation_chain_depth => ( $seen->{-relation_chain_depth} || 0 ) + 1,
              },
-             $self->_resolve_relationship_condition(
+             $self->resolve_relationship_condition(
                rel_name => $join,
                self_alias => $alias,
                foreign_alias => $as,
@@ -2169,18 +2169,29 @@ sub _compare_relationship_keys :DBIC_method_is_indirect_sugar {
   bag_eq( $_[1], $_[2] );
 }
 
-sub resolve_condition {
-  carp 'resolve_condition is a private method, stop calling it';
+sub _resolve_relationship_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp() - has been on CPAN for less than 2 years
+  carp '_resolve_relationship_condition() is deprecated - see resolve_relationship_condition() instead';
+
+  shift->resolve_relationship_condition(@_);
+}
+
+sub resolve_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp() - has been discouraged forever
+  carp 'resolve_condition() is deprecated - see resolve_relationship_condition() instead';
+
   shift->_resolve_condition (@_);
 }
 
-sub _resolve_condition {
-#  carp_unique sprintf
-#    '_resolve_condition is a private method, and moreover is about to go '
-#  . 'away. Please contact the development team at %s if you believe you '
-#  . 'have a genuine use for this method, in order to discuss alternatives.',
-#    DBIx::Class::_ENV_::HELP_URL,
-#  ;
+sub _resolve_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp_unique() - the interface replacing it only became reality in Sep 2016
+  carp_unique '_resolve_condition() is deprecated - see resolve_relationship_condition() instead';
 
 #######################
 ### API Design? What's that...? (a backwards compatible shim, kill me now)
@@ -2232,21 +2243,21 @@ sub _resolve_condition {
   };
 
   # Allowing passing relconds different than the relationshup itself is cute,
-  # but likely dangerous. Remove that from the (still unofficial) API of
-  # _resolve_relationship_condition, and instead make it "hard on purpose"
+  # but likely dangerous. Remove that from the API of resolve_relationship_condition,
+  # and instead make it "hard on purpose"
   local $self->relationship_info( $args->{rel_name} )->{cond} = $cond if defined $cond;
 
 #######################
 
   # now it's fucking easy isn't it?!
-  my $rc = $self->_resolve_relationship_condition( $args );
+  my $rc = $self->resolve_relationship_condition( $args );
 
   my @res = (
     ( $rc->{join_free_condition} || $rc->{condition} ),
     ! $rc->{join_free_condition},
   );
 
-  # _resolve_relationship_condition always returns qualified cols even in the
+  # resolve_relationship_condition always returns qualified cols even in the
   # case of join_free_condition, but nothing downstream expects this
   if ($rc->{join_free_condition} and ref $res[0] eq 'HASH') {
     $res[0] = { map
@@ -2268,34 +2279,73 @@ our $UNRESOLVABLE_CONDITION = UNRESOLVABLE_CONDITION;
 # we are moving to a constant
 Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 
-# Resolves the passed condition to a concrete query fragment and extra
-# metadata
-#
-## self-explanatory API, modeled on the custom cond coderef:
-# rel_name              => (scalar)
-# foreign_alias         => (scalar)
-# foreign_values        => (either not supplied or a hashref )
-# self_alias            => (scalar)
-# self_result_object    => (either not supplied or a result object)
-# require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
-# require_join_free_values => (boolean, throws on failure to return an equality-only JF-cond, implies require_join_free_condition)
-#
-## returns a hash
-# condition           => (a valid *likely fully qualified* sqla cond structure)
-# identity_map        => (a hashref of foreign-to-self *unqualified* column equality names)
-# identity_map_matches_condition => (boolean, indicates whether the entire condition is expressed in the identity-map)
-# join_free_condition => (a valid *fully qualified* sqla cond structure, maybe unset)
-# join_free_values    => (IFF the returned join_free_condition contains only exact values (no expressions)
-#                         this would be a hashref of identical join_free_condition, except with all column
-#                         names *unqualified* )
-#
-sub _resolve_relationship_condition {
+=head2 resolve_relationship_condition
+
+NOTE: You generally B<SHOULD NOT> need to use this functionality... until you
+do. The API description is terse on purpose. If the text below doesn't make
+sense right away (based on the context which prompted you to look here) it is
+almost certain you are reaching for the wrong tool. Please consider asking for
+advice in any of the support channels before proceeding.
+
+=over 4
+
+=item Arguments: C<\%args> as shown below (C<B<*>> denotes mandatory args):
+
+  * rel_name                    => $string
+
+  * foreign_alias               => $string
+
+  * self_alias                  => $string
+
+    foreign_values              => \%column_value_pairs
+
+    self_result_object          => $ResultObject
+
+    require_join_free_condition => $bool ( results in exception on failure to construct a JF-cond )
+
+    require_join_free_values    => $bool ( results in exception on failure to return an equality-only JF-cond )
+
+=item Return Value: C<\%resolution_result> as shown below (C<B<*>> denotes always-resent parts of the result):
+
+  * condition                      => $sqla_condition ( always present, valid, *likely* fully qualified, SQL::Abstract-compatible structure )
+
+    identity_map                   => \%foreign_to_self_equailty_map ( list of declared-equal foreign/self *unqualified* column names )
+
+    identity_map_matches_condition => $bool ( indicates whether the entire condition is expressed within the identity_map )
+
+    join_free_condition            => \%sqla_condition_fully_resolvable_via_foreign_table
+                                      ( always a hash, all keys guaranteed to be valid *fully qualified* columns )
+
+    join_free_values               => \%unqalified_version_of_join_free_condition
+                                      ( IFF the returned join_free_condition contains only exact values (no expressions), this would be
+                                        a hashref identical to join_free_condition, except with all column names *unqualified* )
+
+=back
+
+This is the low-level method used to convert a declared relationship into
+various parameters consumed by higher level functions. It is provided as a
+stable official API, as the logic it encapsulates grew incredibly complex with
+time. While calling this method directly B<is generally discouraged>, you
+absolutely B<should be using it> in codepaths containing the moral equivalent
+of:
+
+  ...
+  if( ref $some_rsrc->relationship_info($somerel)->{cond} eq 'HASH' ) {
+    ...
+  }
+  ...
+
+=cut
+
+# TODO - expand the documentation above, too terse
+
+sub resolve_relationship_condition {
   my $self = shift;
 
   my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
   for ( qw( rel_name self_alias foreign_alias ) ) {
-    $self->throw_exception("Mandatory argument '$_' to _resolve_relationship_condition() is not a plain string")
+    $self->throw_exception("Mandatory argument '$_' to resolve_relationship_condition() is not a plain string")
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
@@ -2560,7 +2610,7 @@ sub _resolve_relationship_condition {
     else {
       my @subconds = map {
         local $rel_info->{cond} = $_;
-        $self->_resolve_relationship_condition( $args );
+        $self->resolve_relationship_condition( $args );
       } @{ $rel_info->{cond} };
 
       if( @{ $rel_info->{cond} } == 1 ) {

@@ -54,7 +54,7 @@ sub add_relationship_accessor {
 
             and
 
-          $jfc = ( $rsrc->_resolve_relationship_condition(
+          $jfc = ( $rsrc->resolve_relationship_condition(
             rel_name => %1$s,
             foreign_alias => %1$s,
             self_alias => 'me',

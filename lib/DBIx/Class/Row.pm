@@ -1193,7 +1193,7 @@ sub copy {
 
     $copied->{$_->ID}++ or $_->copy(
 
-      $foreign_vals ||= $rsrc->_resolve_relationship_condition(
+      $foreign_vals ||= $rsrc->resolve_relationship_condition(
         require_join_free_values => 1,
         rel_name => $rel_name,
         self_result_object => $new,

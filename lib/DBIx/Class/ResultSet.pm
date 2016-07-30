@@ -835,7 +835,7 @@ sub find {
       $call_cond = {
         %$call_cond,
 
-        %{ $rsrc->_resolve_relationship_condition(
+        %{ $rsrc->resolve_relationship_condition(
           require_join_free_values => 1,
           rel_name => $key,
           foreign_values => (
@@ -2531,7 +2531,7 @@ sub populate {
 
           $colinfo->{$rel}{rs} = $rsrc->related_source($rel)->resultset;
 
-          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->_resolve_relationship_condition(
+          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->resolve_relationship_condition(
             rel_name => $rel,
 
             # an API where these are optional would be too cumbersome,
