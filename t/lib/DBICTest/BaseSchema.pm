@@ -483,6 +483,7 @@ sub connection {
           emit_loud_diag(
             # not much else we can do (aside from exit(1) which is too obnoxious)
             msg => 'Incorrect call of result_source() in an eval',
+            emit_dups => 1,
           );
 
 
@@ -564,7 +565,7 @@ sub connection {
             # not much else we can do (aside from exit(1) which is too obnoxious)
             msg => 'Incorrect call of result_source_instance() in an eval',
             skip_frames => 1,
-            show_dups => 1,
+            emit_dups => 1,
           );
 
           &$orig_rsrc_instance;

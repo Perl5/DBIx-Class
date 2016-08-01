@@ -306,9 +306,11 @@ EOC
           my $fqmeth = $in_class . '::' . %1$s . '()';
 
           DBIx::Class::_Util::emit_loud_diag(
-          # Repurpose the assertion envvar ( the override-check is independent
-          # from the schema san-checker, but the spirit is the same )
+
+            # Repurpose the assertion envvar ( the override-check is independent
+            # from the schema san-checker, but the spirit is the same )
             confess => $ENV{DBIC_ASSERT_NO_FAILING_SANITY_CHECKS},
+
             msg =>
               "The override method $fqmeth$possible_supers has been bypassed "
             . "$cs\n"

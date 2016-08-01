@@ -9,8 +9,7 @@ use DBIx::Class::Carp;
 use Try::Tiny;
 use Scalar::Util qw( weaken blessed refaddr );
 use DBIx::Class::_Util qw(
-  false emit_loud_diag refdesc
-  refcount quote_sub scope_guard
+  refdesc refcount quote_sub scope_guard
   is_exception dbic_internal_try
   fail_on_internal_call emit_loud_diag
 );
