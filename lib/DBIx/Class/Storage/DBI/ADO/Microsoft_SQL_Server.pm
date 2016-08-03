@@ -218,7 +218,7 @@ sub bind_attribute_by_data_type {
   $data_type = lc $data_type;
 
   my $max_size =
-    $self->_mssql_max_data_type_representation_size_in_bytes->{$data_type};
+    $self->_mssql_max_data_type_representation_size_in_units->{$data_type};
 
   my $res = {};
 
@@ -235,7 +235,7 @@ sub bind_attribute_by_data_type {
 # FIXME This list is an abomination. We need a way to do this outside
 # of the scope of DBIC, as it is right now nobody will ever think to
 # even look here to diagnose some sort of misbehavior.
-sub _mssql_max_data_type_representation_size_in_bytes {
+sub _mssql_max_data_type_representation_size_in_units {
   my $self = shift;
 
   my $lob_max = $self->_get_dbh->{LongReadLen} || 32768;
@@ -250,13 +250,13 @@ sub _mssql_max_data_type_representation_size_in_bytes {
     binary => 8000,
     varbinary => 8000,
     'varbinary(max)' => $lob_max,
-    nchar => 16000,
-    'national character' => 16000,
-    'national char' => 16000,
-    nvarchar => 16000,
+    nchar => 4000,                          #chars
+    'national character' => 4000,           #chars
+    'national char' => 4000,                #chars
+    nvarchar => 4000,                       #chars
     'nvarchar(max)' => ($lob_max*2),
-    'national character varying' => 16000,
-    'national char varying' => 16000,
+    'national character varying' => 4000,   #chars
+    'national char varying' => 4000,        #chars
     numeric => 100,
     smallint => 100,
     tinyint => 100,

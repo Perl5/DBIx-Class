@@ -44,8 +44,8 @@ if (keys %$tags) {
     }
   }
 
-  die sprintf "Tags in unknown format found: %s\n", join ', ', keys %$tags
-    if keys %$tags;
+#  die sprintf "Tags in unknown format found: %s\n", join ', ', keys %$tags
+ #   if keys %$tags;
 }
 
 # keep the Makefile.PL eval happy

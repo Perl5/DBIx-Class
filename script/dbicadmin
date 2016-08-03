@@ -135,3 +135,218 @@ if ($action eq 'select') {
 1;
 
 __END__
+
+=head1 NAME
+
+dbicadmin - utility for administrating DBIx::Class schemata
+
+=head1 SYNOPSIS
+
+dbicadmin: [-I] [long options...]
+
+  deploy a schema to a database
+  dbicadmin --schema=MyApp::Schema \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --deploy
+
+  update an existing record
+  dbicadmin --schema=MyApp::Schema --class=Employee \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --op=update --set='{ "name": "New_Employee" }'
+
+
+
+=head1 OPTIONS
+
+=over
+
+=back
+
+=head2 Actions
+
+=cut
+
+=over
+
+=item B<--create>
+
+Create version diffs needs preversion
+
+=cut
+
+=item B<--upgrade>
+
+Upgrade the database to the current schema
+
+=cut
+
+=item B<--install>
+
+Install the schema version tables to an existing database
+
+=cut
+
+=item B<--deploy>
+
+Deploy the schema to the database
+
+=cut
+
+=item B<--select>
+
+Select data from the schema
+
+=cut
+
+=item B<--insert>
+
+Insert data into the schema
+
+=cut
+
+=item B<--update>
+
+Update data in the schema
+
+=cut
+
+=item B<--delete>
+
+Delete data from the schema
+
+=cut
+
+=item B<--op>
+
+compatibility option all of the above can be supplied as --op=<action>
+
+=cut
+
+=item B<--help>
+
+display this help
+
+=cut
+
+=back
+
+=head2 Arguments
+
+=cut
+
+=over
+
+=item B<--config-file> or B<--config>
+
+Supply the config file for parsing by Config::Any
+
+=cut
+
+=item B<--connect-info>
+
+Supply the connect info as trailing options e.g. --connect-info dsn=<dsn> user=<user> password=<pass>
+
+=cut
+
+=item B<--connect>
+
+Supply the connect info as a JSON-encoded structure, e.g. an --connect=["dsn","user","pass"]
+
+=cut
+
+=item B<--schema-class>
+
+The class of the schema to load
+
+=cut
+
+=item B<--config-stanza>
+
+Where in the config to find the connection_info, supply in form MyApp::Model::DB
+
+=cut
+
+=item B<--resultset> or B<--resultset-class> or B<--class>
+
+The resultset to operate on for data manipulation
+
+=cut
+
+=item B<--sql-dir>
+
+The directory where sql diffs will be created
+
+=cut
+
+=item B<--sql-type>
+
+The RDBMs flavour you wish to use
+
+=cut
+
+=item B<--version>
+
+Supply a version install
+
+=cut
+
+=item B<--preversion>
+
+The previous version to diff against
+
+=cut
+
+=item B<--set>
+
+JSON data used to perform data operations
+
+=cut
+
+=item B<--attrs>
+
+JSON string to be used for the second argument for search
+
+=cut
+
+=item B<--where>
+
+JSON string to be used for the where clause of search
+
+=cut
+
+=item B<--force>
+
+Be forceful with some operations
+
+=cut
+
+=item B<--trace>
+
+Turn on DBIx::Class trace output
+
+=cut
+
+=item B<--quiet>
+
+Be less verbose
+
+=cut
+
+=item B<-I>
+
+Same as perl's -I, prepended to current @INC
+
+=cut
+
+=back
+
+
+=head1 AUTHORS
+
+See L<DBIx::Class/CONTRIBUTORS>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself
+
+=cut
