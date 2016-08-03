@@ -61,7 +61,16 @@ sub _prep_for_execute {
   # http://msdn.microsoft.com/en-us/library/ms190315.aspx
   # http://davidhayden.com/blog/dave/archive/2006/01/17/2736.aspx
   if ($self->_perform_autoinc_retrieval and not $self->_no_scope_identity_query) {
-    $sql .= "\nSELECT SCOPE_IDENTITY()";
+    if($self->_identity_method =~ /IDENT_CURRENT/i){
+      my $id_sql = 'select ' . $self->_identity_method;
+      my $tablename = $_[1] ? $_[1]->name : '?';
+      $tablename =~ s/'/''/g;
+      $id_sql =~ s/\%s/$tablename/g;
+      $sql .= "\n" . $id_sql;
+    }
+    else{
+      $sql .= "\nSELECT SCOPE_IDENTITY()";
+    }
   }
 
   return ($sql, $bind);
@@ -87,9 +96,15 @@ sub _execute {
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {
-      ($identity) = $self->_dbh->selectrow_array(
-        'select ' . $self->_identity_method
-      );
+      my $id_sql = 'select ' . $self->_identity_method;
+      # Now as we (Invoke Luxembourg) are using triggers that does insert with autoincrement,
+      # we must retrieve identitites using IDENT_CURRENT( table_name ).
+      # To do so we are looking to the _identity_method if it use IDENT_CURRENT,
+      # then we replace %s by the current table name.
+      my $tablename = $_[1] ? $_[1]->name : '?';
+      $tablename =~ s/'/''/g;
+      $id_sql =~ s/\%s/$tablename/g;
+      ($identity) = $self->_dbh->selectrow_array( $id_sql );
     }
 
     $self->_identity($identity);

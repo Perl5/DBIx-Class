@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+    *  New Features
+      - Support MSSQL indeitity method IDENT_CURRENT, especially useful when there are
+        rdbms triggers that inserts with autoincrement.
 0.08270 2014-01-30 21:54 (PST)
     * Fixes
         - Fix 0.08260 regression in DBD::SQLite bound int handling. Inserted
