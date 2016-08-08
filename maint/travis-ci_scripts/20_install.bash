@@ -50,7 +50,7 @@ if [[ -n "$BREWVER" ]] ; then
   # FIXME work around https://github.com/perl11/cperl/issues/144
   # (still affecting 5.22.3)
   if is_cperl && ! [[ -f ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] ; then
-    ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl
+    ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl || /bin/true
   fi
 
   # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
@@ -58,7 +58,10 @@ if [[ -n "$BREWVER" ]] ; then
   # the perl is found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
   perlbrew use $BREWVER || /bin/true
 
-  if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]] ; then
+  if \
+    ! [[ -x ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] \
+  ||  [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]]
+  then
     echo_err "Unable to switch to $BREWVER - compilation failed...?"
     echo_err "$LASTOUT"
     exit 1
