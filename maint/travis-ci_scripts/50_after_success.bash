@@ -27,6 +27,12 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
 
+  # FIXME - workaround for RT#116788
+  # ( two instances, see below )
+  if ! perl -M5.008007 -e1 &>/dev/null; then
+    parallel_installdeps_notest 'Encode~!=2.85'
+  fi
+
   # FIXME Change when Moose goes away
   installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
@@ -34,6 +40,13 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
   tarball_assembled=1
 
 elif [[ "$CLEANTEST" != "true" ]] ; then
+
+  # FIXME - workaround for RT#116788
+  # ( two instances, see above )
+  if ! perl -M5.008007 -e1 &>/dev/null; then
+    parallel_installdeps_notest 'Encode~!=2.85'
+  fi
+
   parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
   run_or_err "Attempt to build a dist from original checkout" "make dist"
