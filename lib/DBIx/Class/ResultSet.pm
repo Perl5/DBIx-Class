@@ -775,7 +775,7 @@ See also L</find_or_create> and L</update_or_create>.
 
 sub find {
   my $self = shift;
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
 
   my $rsrc = $self->result_source;
 
@@ -819,7 +819,7 @@ sub find {
       my $relinfo = $rsrc->relationship_info($key)
         and
       # implicitly skip has_many's (likely MC)
-      (ref (my $val = delete $call_cond->{$key}) ne 'ARRAY' )
+      ( ref( my $val = delete $call_cond->{$key} ) ne 'ARRAY' )
     ) {
       my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
         $relinfo->{cond}, $val, $key, $key
@@ -1162,7 +1162,7 @@ sub search_like {
    .' Instead use ->search({ x => { -like => "y%" } })'
    .' (note the outer pair of {}s - they are important!)'
   );
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $query = ref $_[0] eq 'HASH' ? { %{shift()} }: {@_};
   $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
   return $class->search($query, { %$attrs });
@@ -2777,7 +2777,7 @@ all in the call to C<find_or_new>, even when set to C<undef>.
 
 sub find_or_new {
   my $self     = shift;
-  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs    = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
   if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
     return $row;
@@ -2946,7 +2946,7 @@ database!
 
 sub find_or_create {
   my $self     = shift;
-  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs    = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
   if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
     return $row;
@@ -3012,7 +3012,7 @@ database!
 
 sub update_or_create {
   my $self = shift;
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $cond = ref $_[0] eq 'HASH' ? shift : {@_};
 
   my $row = $self->find($cond, $attrs);
@@ -3075,7 +3075,7 @@ See also L</find>, L</find_or_create> and L</find_or_new>.
 
 sub update_or_new {
     my $self  = shift;
-    my $attrs = ( @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {} );
+    my $attrs = ( @_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {} );
     my $cond  = ref $_[0] eq 'HASH' ? shift : {@_};
 
     my $row = $self->find( $cond, $attrs );

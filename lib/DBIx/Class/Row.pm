@@ -625,7 +625,7 @@ sub delete {
     $self->in_storage(0);
   }
   else {
-    my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
+    my $attrs = @_ > 1 && ref $_[-1] eq 'HASH' ? { %{pop(@_)} } : {};
     my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
     $self->result_source->resultset->search_rs(@_)->delete;
   }

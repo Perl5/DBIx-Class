@@ -199,7 +199,7 @@ sub meta_info {
 sub search {
   my $self = shift;
   my $attrs = {};
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+  if (@_ > 1 && ref $_[-1] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
   my $where = (@_ ? ((@_ == 1) ? ((ref $_[0] eq "HASH") ? { %{+shift} } : shift)
