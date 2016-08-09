@@ -252,7 +252,7 @@ matrix:
         - POISON_ENV=true
         - MVDT=false
         - BREWVER=cperl-master
-        - BREWOPTS="-Duseithreads"
+        - BREWOPTS="-Duseithreads -Dusedevel"
 
     # threaded oldest possible with blead CPAN
     - perl: "devcpan_5.8.1_thr_mb"
