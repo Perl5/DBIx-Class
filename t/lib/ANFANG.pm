@@ -91,8 +91,9 @@ $INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
 
     require Carp;
 
-    # not loading warnings.pm
-    local $^W = 0;
+    # in case we loaded warnings.pm / used -w
+    # ( do not do `no warnings ...` as it is also a load )
+    local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /redefined/ };
 
     *UNIVERSAL::VERSION = sub {
       Carp::carp( 'Argument "blah bleh bloh" isn\'t numeric in subroutine entry' );
@@ -114,8 +115,9 @@ $INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
     require Try::Tiny;
     my $orig = \&Try::Tiny::try;
 
-    # not loading warnings.pm
-    local $^W = 0;
+    # in case we loaded warnings.pm / used -w
+    # ( do not do `no warnings ...` as it is also a load )
+    local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /redefined/ };
 
     *Try::Tiny::try = sub (&;@) {
       my ($fr, $first_pkg) = 0;
@@ -140,15 +142,22 @@ $INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
 }
 
 
-require lib;
-lib->import('t/lib');
+unshift @INC, 't/lib';
 
 
 # everything expects this to be there
-! -d 't/var' and (
+! -d 't/var'
+  and
+(
   mkdir 't/var'
     or
-  die "Unable to create 't/var': $!\n"
+  # creation is inherently racy
+  do {
+    my $err = $!;
+    require Errno;
+    die "Unable to create 't/var': $err\n"
+      unless $err == Errno::EEXIST();
+  }
 );
 
 
