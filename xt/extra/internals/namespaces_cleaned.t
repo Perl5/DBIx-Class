@@ -80,6 +80,7 @@ my $skip_idx = { map { $_ => 1 } (
   # utility classes, not part of the inheritance chain
   'DBIx::Class::Optional::Dependencies',
   'DBIx::Class::ResultSource::RowParser::Util',
+  'DBIx::Class::SQLMaker::Util',
   'DBIx::Class::_Util',
 ) };
 

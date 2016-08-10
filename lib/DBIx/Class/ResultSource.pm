@@ -21,6 +21,7 @@ use DBIx::Class::_Util qw(
   dbic_internal_try fail_on_internal_call
   refdesc emit_loud_diag
 );
+use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw( blessed weaken isweak refaddr );
@@ -1928,7 +1929,7 @@ sub _minimal_valueset_satisfying_constraint {
 
   $args->{columns_info} ||= $self->columns_info;
 
-  my $vals = $self->schema->storage->_extract_fixed_condition_columns(
+  my $vals = extract_equality_conditions(
     $args->{values},
     ($args->{carp_on_nulls} ? 'consider_nulls' : undef ),
   );
@@ -1942,7 +1943,7 @@ sub _minimal_valueset_satisfying_constraint {
       $cols->{$args->{carp_on_nulls} ? 'undefined' : 'missing'}{$col} = undef;
     }
     else {
-      # we need to inject back the '=' as _extract_fixed_condition_columns
+      # we need to inject back the '=' as extract_equality_conditions()
       # will strip it from literals and values alike, resulting in an invalid
       # condition in the end
       $cols->{present}{$col} = { '=' => $vals->{$col} };
@@ -2304,7 +2305,7 @@ sub _resolve_relationship_condition {
           qw( columns relationships )
         ;
 
-        my $equivalencies = $storage->_extract_fixed_condition_columns(
+        my $equivalencies = extract_equality_conditions(
           $args->{foreign_values},
           'consider nulls',
         );
@@ -2520,10 +2521,10 @@ sub _resolve_relationship_condition {
       and
     $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION
       and
-    my $jfc = $storage->_collapse_cond( $ret->{join_free_condition} )
+    my $jfc = normalize_sqla_condition( $ret->{join_free_condition} )
   ) {
 
-    my $jfc_eqs = $storage->_extract_fixed_condition_columns($jfc, 'consider_nulls');
+    my $jfc_eqs = extract_equality_conditions( $jfc, 'consider_nulls' );
 
     if (keys %$jfc_eqs) {
 
@@ -2563,7 +2564,7 @@ sub _resolve_relationship_condition {
   # (may already be there, since easy to calculate on the fly in the HASH case)
   if ( ! $ret->{identity_map} ) {
 
-    my $col_eqs = $storage->_extract_fixed_condition_columns($ret->{condition});
+    my $col_eqs = extract_equality_conditions($ret->{condition});
 
     my $colinfos;
     for my $lhs (keys %$col_eqs) {

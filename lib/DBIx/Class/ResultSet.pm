@@ -13,6 +13,7 @@ use DBIx::Class::_Util qw(
   dbic_internal_try dump_value
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
+use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use Try::Tiny;
 
 BEGIN {
@@ -662,7 +663,7 @@ sub _stack_cond {
     return undef
   }
   else {
-    return $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
+    return normalize_sqla_condition({ -and => [$left, $right] });
   }
 }
 
@@ -2618,7 +2619,7 @@ sub _merge_with_rscond {
     @cols_from_relations = keys %{ $implied_data || {} };
   }
   else {
-    my $eqs = $self->result_source->schema->storage->_extract_fixed_condition_columns($self->{cond}, 'consider_nulls');
+    my $eqs = extract_equality_conditions( $self->{cond}, 'consider_nulls' );
     $implied_data = { map {
       ( ($eqs->{$_}||'') eq UNRESOLVABLE_CONDITION ) ? () : ( $_ => $eqs->{$_} )
     } keys %$eqs };

@@ -9,6 +9,7 @@ use Test::Exception;
 
 use DBICTest ':DiffSQL';
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION dump_value );
+use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 
 BEGIN {
   if ( eval { require Test::Differences } ) {
@@ -17,8 +18,7 @@ BEGIN {
   }
 }
 
-my $schema = DBICTest->init_schema( no_deploy => 1);
-my $sm = $schema->storage->sql_maker;
+my $sm = DBICTest->init_schema( no_deploy => 1)->storage->sql_maker;
 
 {
   package # hideee
@@ -37,95 +37,95 @@ is("$num", 69, 'test overloaded object is "sane"');
 my @tests = (
   {
     where => { artistid => 1, charfield => undef },
-    cc_result => { artistid => 1, charfield => undef },
+    normalized => { artistid => 1, charfield => undef },
     sql => 'WHERE artistid = ? AND charfield IS NULL',
-    efcc_result => { artistid => 1 },
-    efcc_n_result => { artistid => 1, charfield => undef },
+    equality_extract => { artistid => 1 },
+    equality_considering_nulls_extract => { artistid => 1, charfield => undef },
   },
   {
     where => { -and => [ artistid => 1, charfield => undef, { rank => 13 } ] },
-    cc_result => { artistid => 1, charfield => undef, rank => 13 },
+    normalized => { artistid => 1, charfield => undef, rank => 13 },
     sql => 'WHERE artistid = ?  AND charfield IS NULL AND rank = ?',
-    efcc_result => { artistid => 1, rank => 13 },
-    efcc_n_result => { artistid => 1, charfield => undef, rank => 13 },
+    equality_extract => { artistid => 1, rank => 13 },
+    equality_considering_nulls_extract => { artistid => 1, charfield => undef, rank => 13 },
   },
   {
     where => { -and => [ { artistid => 1, charfield => undef}, { rank => 13 } ] },
-    cc_result => { artistid => 1, charfield => undef, rank => 13 },
+    normalized => { artistid => 1, charfield => undef, rank => 13 },
     sql => 'WHERE artistid = ?  AND charfield IS NULL AND rank = ?',
-    efcc_result => { artistid => 1, rank => 13 },
-    efcc_n_result => { artistid => 1, charfield => undef, rank => 13 },
+    equality_extract => { artistid => 1, rank => 13 },
+    equality_considering_nulls_extract => { artistid => 1, charfield => undef, rank => 13 },
   },
   {
     where => { -and => [ -or => { name => 'Caterwauler McCrae' }, 'rank' ] },
-    cc_result => { name => 'Caterwauler McCrae', rank => undef },
+    normalized => { name => 'Caterwauler McCrae', rank => undef },
     sql => 'WHERE name = ? AND rank IS NULL',
-    efcc_result => { name => 'Caterwauler McCrae' },
-    efcc_n_result => { name => 'Caterwauler McCrae', rank => undef },
+    equality_extract => { name => 'Caterwauler McCrae' },
+    equality_considering_nulls_extract => { name => 'Caterwauler McCrae', rank => undef },
   },
   {
     where => { -and => [ [ [ artist => {'=' => \'foo' } ] ], { name => \[ '= ?', 'bar' ] } ] },
-    cc_result => { artist => {'=' => \'foo' }, name => \[ '= ?', 'bar' ] },
+    normalized => { artist => {'=' => \'foo' }, name => \[ '= ?', 'bar' ] },
     sql => 'WHERE artist = foo AND name = ?',
-    efcc_result => { artist => \'foo' },
+    equality_extract => { artist => \'foo' },
   },
   {
     where => { -and => [ -or => { name => 'Caterwauler McCrae', artistid => 2 } ] },
-    cc_result => { -or => [ artistid => 2, name => 'Caterwauler McCrae' ] },
+    normalized => { -or => [ artistid => 2, name => 'Caterwauler McCrae' ] },
     sql => 'WHERE artistid = ? OR name = ?',
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => { -or => { name => 'Caterwauler McCrae', artistid => 2 } },
-    cc_result => { -or => [ artistid => 2, name => 'Caterwauler McCrae' ] },
+    normalized => { -or => [ artistid => 2, name => 'Caterwauler McCrae' ] },
     sql => 'WHERE artistid = ? OR name = ?',
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'} ] },
-    cc_result => { -and => [ \'foo=bar' ], name => 'Caterwauler McCrae', artistid => $num },
+    normalized => { -and => [ \'foo=bar' ], name => 'Caterwauler McCrae', artistid => $num },
     sql => 'WHERE foo=bar AND artistid = ? AND name = ?',
-    efcc_result => { name => 'Caterwauler McCrae', artistid => $num },
+    equality_extract => { name => 'Caterwauler McCrae', artistid => $num },
   },
   {
     where => { -and => [ \'foo=bar',  [ { artistid => { '=', $num } } ], { name => 'Caterwauler McCrae'}, \'buzz=bozz' ] },
-    cc_result => { -and => [ \'foo=bar', \'buzz=bozz' ], name => 'Caterwauler McCrae', artistid => $num },
-    sql => 'WHERE foo=bar AND artistid = ? AND name = ? AND buzz=bozz',
-    collapsed_sql => 'WHERE foo=bar AND buzz=bozz AND artistid = ? AND name = ?',
-    efcc_result => { name => 'Caterwauler McCrae', artistid => $num },
+    normalized => { -and => [ \'foo=bar', \'buzz=bozz' ], name => 'Caterwauler McCrae', artistid => $num },
+    sql =>            'WHERE foo=bar AND artistid = ? AND name = ? AND buzz=bozz',
+    normalized_sql => 'WHERE foo=bar AND buzz=bozz AND artistid = ? AND name = ?',
+    equality_extract => { name => 'Caterwauler McCrae', artistid => $num },
   },
   {
     where => { artistid => [ $num ], rank => [ 13, 2, 3 ], charfield => [ undef ] },
-    cc_result => { artistid => $num, charfield => undef, rank => [13, 2, 3] },
+    normalized => { artistid => $num, charfield => undef, rank => [13, 2, 3] },
     sql => 'WHERE artistid = ? AND charfield IS NULL AND ( rank = ? OR rank = ? OR rank = ? )',
-    efcc_result => { artistid => $num },
-    efcc_n_result => { artistid => $num, charfield => undef },
+    equality_extract => { artistid => $num },
+    equality_considering_nulls_extract => { artistid => $num, charfield => undef },
   },
   {
     where => { artistid => { '=' => 1 }, rank => { '>' => 12 }, charfield => { '=' => undef } },
-    cc_result => { artistid => 1, charfield => undef, rank => { '>' => 12 } },
+    normalized => { artistid => 1, charfield => undef, rank => { '>' => 12 } },
     sql => 'WHERE artistid = ? AND charfield IS NULL AND rank > ?',
-    efcc_result => { artistid => 1 },
-    efcc_n_result => { artistid => 1, charfield => undef },
+    equality_extract => { artistid => 1 },
+    equality_considering_nulls_extract => { artistid => 1, charfield => undef },
   },
   {
     where => { artistid => { '=' => [ 1 ], }, charfield => { '=' => [ -AND => \'1', \['?',2] ] }, rank => { '=' => [ -OR => $num, $num ] } },
-    cc_result => { artistid => 1, charfield => [-and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
-    sql => 'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
-    collapsed_sql => 'WHERE artistid = ? AND charfield = ? AND charfield = 1 AND ( rank = ? OR rank = ? )',
-    efcc_result => { artistid => 1, charfield => UNRESOLVABLE_CONDITION },
+    normalized => { artistid => 1, charfield => [-and => { '=' => \['?',2] }, { '=' => \'1' } ], rank => { '=' => [$num, $num] } },
+    sql =>            'WHERE artistid = ? AND charfield = 1 AND charfield = ? AND ( rank = ? OR rank = ? )',
+    normalized_sql => 'WHERE artistid = ? AND charfield = ? AND charfield = 1 AND ( rank = ? OR rank = ? )',
+    equality_extract => { artistid => 1, charfield => UNRESOLVABLE_CONDITION },
   },
   {
     where => { -and => [ artistid => 1, artistid => 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => [ -or => { '=', 2 } ], rank => [-and => undef, { '=', undef }, { '!=', 2 } ] },
-    cc_result => { artistid => [ -and => 1, 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => 2, rank => [ -and => { '!=', 2 }, undef ] },
-    sql => 'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank IS NULL AND rank IS NULL AND rank != ?',
-    collapsed_sql => 'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank != ? AND rank IS NULL',
-    efcc_result => {
+    normalized => { artistid => [ -and => 1, 2 ], name => [ -and => { '!=', 1 }, 2 ], charfield => 2, rank => [ -and => { '!=', 2 }, undef ] },
+    sql =>            'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank IS NULL AND rank IS NULL AND rank != ?',
+    normalized_sql => 'WHERE artistid = ? AND artistid = ? AND charfield = ? AND name != ? AND name = ? AND rank != ? AND rank IS NULL',
+    equality_extract => {
       artistid => UNRESOLVABLE_CONDITION,
       name => 2,
       charfield => 2,
     },
-    efcc_n_result => {
+    equality_considering_nulls_extract => {
       artistid => UNRESOLVABLE_CONDITION,
       name => 2,
       charfield => 2,
@@ -134,14 +134,14 @@ my @tests = (
   },
   (map { {
     where => $_,
-    sql => 'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
-    collapsed_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
-    cc_result => { -and => [
+    sql =>            'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
+    normalized_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank != 42)',
+    normalized => { -and => [
       { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
       { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
     ] },
-    efcc_result => {},
-    efcc_n_result => {},
+    equality_extract => {},
+    equality_considering_nulls_extract => {},
   } } (
 
     { -and => [
@@ -162,37 +162,37 @@ my @tests = (
       baz => { '!=' => { -ident => 'bozz' } },
       baz => { -ident => 'buzz' },
     ] },
-    sql => 'WHERE ( foo IS NOT NULL AND bar IN ( ?, ? ) ) OR foo IS NULL OR baz != bozz OR baz = buzz',
-    collapsed_sql => 'WHERE baz != bozz OR baz = buzz OR foo IS NULL OR ( bar IN ( ?, ? ) AND foo IS NOT NULL )',
-    cc_result => { -or => [
+    sql =>            'WHERE ( foo IS NOT NULL AND bar IN ( ?, ? ) ) OR foo IS NULL OR baz != bozz OR baz = buzz',
+    normalized_sql => 'WHERE baz != bozz OR baz = buzz OR foo IS NULL OR ( bar IN ( ?, ? ) AND foo IS NOT NULL )',
+    normalized => { -or => [
       baz => { '!=' => { -ident => 'bozz' } },
       baz => { '=' => { -ident => 'buzz' } },
       foo => undef,
       { bar => { -in => [ 69, 42 ] }, foo => { '!=', undef } }
     ] },
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => { -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => { '=' => 1 }, genreid => { '=' => \['?', 2] } ] },
-    sql => 'WHERE rank = 13 OR charfield IS NULL OR artistid = ? OR genreid = ?',
-    collapsed_sql => 'WHERE artistid = ? OR charfield IS NULL OR genreid = ? OR rank = 13',
-    cc_result => { -or => [ artistid => 1, charfield => undef, genreid => { '=' => \['?', 2] }, rank => { '=' => \13 } ] },
-    efcc_result => {},
-    efcc_n_result => {},
+    sql =>            'WHERE rank = 13 OR charfield IS NULL OR artistid = ? OR genreid = ?',
+    normalized_sql => 'WHERE artistid = ? OR charfield IS NULL OR genreid = ? OR rank = 13',
+    normalized => { -or => [ artistid => 1, charfield => undef, genreid => { '=' => \['?', 2] }, rank => { '=' => \13 } ] },
+    equality_extract => {},
+    equality_considering_nulls_extract => {},
   },
   {
     where => { -and => [
       -or => [ rank => { '=' => \13 }, charfield => { '=' => undef }, artistid => 1 ],
       -or => { artistid => { '=' => 1 }, charfield => undef, rank => { '=' => \13 } },
     ] },
-    cc_result => { -and => [
+    normalized => { -and => [
       { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
       { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
     ] },
-    sql => 'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
-    collapsed_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
-    efcc_result => {},
-    efcc_n_result => {},
+    sql =>            'WHERE (rank = 13 OR charfield IS NULL OR artistid = ?) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
+    normalized_sql => 'WHERE (artistid = ? OR charfield IS NULL OR rank = 13) AND (artistid = ? OR charfield IS NULL OR rank = 13)',
+    equality_extract => {},
+    equality_considering_nulls_extract => {},
   },
   {
     where => { -and => [
@@ -217,7 +217,7 @@ my @tests = (
       AND NOT foo = ?
       AND NOT foo = ?
     ',
-    collapsed_sql => 'WHERE
+    normalized_sql => 'WHERE
           ( artistid = ? OR charfield IS NULL OR rank = 13 )
       AND ( artistid = ? OR charfield IS NULL OR rank != 42 )
       AND (EXISTS (SELECT 1))
@@ -229,7 +229,7 @@ my @tests = (
       AND foo = 1
       AND foo = ?
     ',
-    cc_result => {
+    normalized => {
       -and => [
         { -or => [ artistid => 1, charfield => undef, rank => { '=' => \13 } ] },
         { -or => [ artistid => 1, charfield => undef, rank => { '!=' => \42 } ] },
@@ -241,11 +241,11 @@ my @tests = (
       foo => [ -and => { '=' => \1 }, 3 ],
       bar => [ -and => { '=' => \4 }, 2 ],
     },
-    efcc_result => {
+    equality_extract => {
       foo => UNRESOLVABLE_CONDITION,
       bar => UNRESOLVABLE_CONDITION,
     },
-    efcc_n_result => {
+    equality_considering_nulls_extract => {
       foo => UNRESOLVABLE_CONDITION,
       bar => UNRESOLVABLE_CONDITION,
     },
@@ -255,7 +255,7 @@ my @tests = (
       [ '_macro.to' => { -like => '%correct%' }, '_wc_macros.to' => { -like => '%correct%' } ],
       { -and => [ { 'group.is_active' => 1 }, { 'me.is_active' => 1 } ] }
     ] },
-    cc_result => {
+    normalized => {
       'group.is_active' => 1,
       'me.is_active' => 1,
       -or => [
@@ -264,7 +264,7 @@ my @tests = (
       ],
     },
     sql => 'WHERE ( _macro.to LIKE ? OR _wc_macros.to LIKE ? ) AND group.is_active = ? AND me.is_active = ?',
-    efcc_result => { 'group.is_active' => 1, 'me.is_active' => 1 },
+    equality_extract => { 'group.is_active' => 1, 'me.is_active' => 1 },
   },
 
   {
@@ -275,18 +275,18 @@ my @tests = (
       rank => { '=' => { -ident => 'bar' } },
     ] },
     sql => 'WHERE artistid = ? AND charfield = foo AND name IS NULL AND rank = bar',
-    cc_result => {
+    normalized => {
       artistid => { -value => [1] },
       name => undef,
       charfield => { '=', { -ident => 'foo' } },
       rank => { '=' => { -ident => 'bar' } },
     },
-    efcc_result => {
+    equality_extract => {
       artistid => [1],
       charfield => { -ident => 'foo' },
       rank => { -ident => 'bar' },
     },
-    efcc_n_result => {
+    equality_considering_nulls_extract => {
       artistid => [1],
       name => undef,
       charfield => { -ident => 'foo' },
@@ -296,40 +296,40 @@ my @tests = (
 
   {
     where => { artistid => [] },
-    cc_result => { artistid => [] },
-    efcc_result => {},
+    normalized => { artistid => [] },
+    equality_extract => {},
   },
   (map {
     {
       where => { -and => $_ },
-      cc_result => undef,
-      efcc_result => {},
+      normalized => undef,
+      equality_extract => {},
       sql => '',
     },
     {
       where => { -or => $_ },
-      cc_result => undef,
-      efcc_result => {},
+      normalized => undef,
+      equality_extract => {},
       sql => '',
     },
     {
       where => { -or => [ foo => 1, $_ ] },
-      cc_result => { foo => 1 },
-      efcc_result => { foo => 1 },
+      normalized => { foo => 1 },
+      equality_extract => { foo => 1 },
       sql => 'WHERE foo = ?',
     },
     {
       where => { -or => [ $_, foo => 1 ] },
-      cc_result => { foo => 1 },
-      efcc_result => { foo => 1 },
+      normalized => { foo => 1 },
+      equality_extract => { foo => 1 },
       sql => 'WHERE foo = ?',
     },
     {
       where => { -and => [ fuu => 2, $_, foo => 1 ] },
-      sql => 'WHERE fuu = ? AND foo = ?',
-      collapsed_sql => 'WHERE foo = ? AND fuu = ?',
-      cc_result => { foo => 1, fuu => 2 },
-      efcc_result => { foo => 1, fuu => 2 },
+      sql =>            'WHERE fuu = ? AND foo = ?',
+      normalized_sql => 'WHERE foo = ? AND fuu = ?',
+      normalized => { foo => 1, fuu => 2 },
+      equality_extract => { foo => 1, fuu => 2 },
     },
   } (
     # bare
@@ -343,16 +343,16 @@ my @tests = (
   )),
 
   # FIXME legacy compat crap, possibly worth undef/dieing in SQLMaker
-  { where => { artistid => {} }, sql => '', cc_result => undef, efcc_result => {}, efcc_n_result => {} },
+  { where => { artistid => {} }, sql => '', normalized => undef, equality_extract => {}, equality_considering_nulls_extract => {} },
 
   # batshit insanity, just to be thorough
   {
     where => { -and => [ [ 'artistid' ], [ -and => [ artistid => { '!=', 69 }, artistid => undef, artistid => { '=' => 200 } ]], artistid => [], { -or => [] }, { -and => [] }, [ 'charfield' ], { name => [] }, 'rank' ] },
-    cc_result => { artistid => [ -and => [], { '!=', 69 }, undef, 200  ], charfield => undef, name => [], rank => undef },
-    sql => 'WHERE artistid IS NULL AND artistid != ? AND artistid IS NULL AND artistid = ? AND 0=1 AND charfield IS NULL AND 0=1 AND rank IS NULL',
-    collapsed_sql => 'WHERE 0=1 AND artistid != ? AND artistid IS NULL AND artistid = ? AND charfield IS NULL AND 0=1 AND rank IS NULL',
-    efcc_result => { artistid => UNRESOLVABLE_CONDITION },
-    efcc_n_result => { artistid => UNRESOLVABLE_CONDITION, charfield => undef, rank => undef },
+    normalized => { artistid => [ -and => [], { '!=', 69 }, undef, 200  ], charfield => undef, name => [], rank => undef },
+    sql =>            'WHERE artistid IS NULL AND artistid != ? AND artistid IS NULL AND artistid = ? AND 0=1 AND charfield IS NULL AND 0=1 AND rank IS NULL',
+    normalized_sql => 'WHERE 0=1 AND artistid != ? AND artistid IS NULL AND artistid = ? AND charfield IS NULL AND 0=1 AND rank IS NULL',
+    equality_extract => { artistid => UNRESOLVABLE_CONDITION },
+    equality_considering_nulls_extract => { artistid => UNRESOLVABLE_CONDITION, charfield => undef, rank => undef },
   },
 
   # original test from RT#93244
@@ -365,7 +365,7 @@ my @tests = (
         ],
         [ { 'me.title' => 'Spoonful of bees' } ],
     ]},
-    cc_result => {
+    normalized => {
       -and => [ \[
         "LOWER(me.title) LIKE ?",
         '%spoon%',
@@ -373,7 +373,7 @@ my @tests = (
       'me.title' => 'Spoonful of bees',
     },
     sql => 'WHERE LOWER(me.title) LIKE ? AND me.title = ?',
-    efcc_result => { 'me.title' => 'Spoonful of bees' },
+    equality_extract => { 'me.title' => 'Spoonful of bees' },
   },
 
   # crazy literals
@@ -384,12 +384,12 @@ my @tests = (
       ],
     },
     sql => 'WHERE foo = bar',
-    cc_result => {
+    normalized => {
       -and => [
         \'foo = bar',
       ],
     },
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => {
@@ -398,15 +398,15 @@ my @tests = (
         \'baz = ber',
       ],
     },
-    sql => 'WHERE foo = bar OR baz = ber',
-    collapsed_sql => 'WHERE baz = ber OR foo = bar',
-    cc_result => {
+    sql =>            'WHERE foo = bar OR baz = ber',
+    normalized_sql => 'WHERE baz = ber OR foo = bar',
+    normalized => {
       -or => [
         \'baz = ber',
         \'foo = bar',
       ],
     },
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => {
@@ -416,13 +416,13 @@ my @tests = (
       ],
     },
     sql => 'WHERE foo = bar AND baz = ber',
-    cc_result => {
+    normalized => {
       -and => [
         \'foo = bar',
         \'baz = ber',
       ],
     },
-    efcc_result => {},
+    equality_extract => {},
   },
   {
     where => {
@@ -433,14 +433,14 @@ my @tests = (
       ],
     },
     sql => 'WHERE foo = bar AND baz = ber AND x = y',
-    cc_result => {
+    normalized => {
       -and => [
         \'foo = bar',
         \'baz = ber',
       ],
       x => { '=' => { -ident => 'y' } }
     },
-    efcc_result => { x => { -ident => 'y' } },
+    equality_extract => { x => { -ident => 'y' } },
   },
 );
 
@@ -495,8 +495,8 @@ for my $lhs (undef, '') {
 
     push @tests, {
       where => { $lhs => $rhs },
-      cc_result => { -and => [ $rhs ] },
-      efcc_result => {},
+      normalized => { -and => [ $rhs ] },
+      equality_extract => {},
       sql => 'WHERE baz',
       warn => $expected_warning,
     };
@@ -507,12 +507,12 @@ for my $lhs (undef, '') {
     ) {
       push @tests, {
         where => $w,
-        cc_result => {
+        normalized => {
           -and => [ $rhs ],
           bizz => "buzz",
           foo => "bar",
         },
-        efcc_result => {
+        equality_extract => {
           foo => "bar",
           bizz => "buzz",
         },
@@ -539,12 +539,12 @@ for my $eq (
   ) {
     push @tests, {
       where => $where,
-      cc_result => {
+      normalized => {
         0 => $eq,
         foo => 'bar',
         bizz => 'buzz',
       },
-      efcc_result => {
+      equality_extract => {
         foo => 'bar',
         bizz => 'buzz',
         ( ref $eq eq 'HASH' ? ( 0 => $eq->{'='} ) : () ),
@@ -554,12 +554,12 @@ for my $eq (
 
     push @tests, {
       where => { -or => $where },
-      cc_result => { -or => [
+      normalized => { -or => [
         "0" => $eq,
         bizz => 'buzz',
         foo => 'bar',
       ]},
-      efcc_result => {},
+      equality_extract => {},
       sql => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
     }
 
@@ -574,14 +574,14 @@ for my $eq (
   ) {
     push @tests, {
       where => { -or => $where },
-      cc_result => { -or => [
+      normalized => { -or => [
         "0" => $eq,
         bizz => 'buzz',
         foo => 'bar',
       ]},
-      efcc_result => {},
-      sql => 'WHERE foo = ? OR 0 = baz OR bizz = ?',
-      collapsed_sql => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
+      equality_extract => {},
+      sql =>            'WHERE foo = ? OR 0 = baz OR bizz = ?',
+      normalized_sql => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
     }
   }
 
@@ -591,14 +591,14 @@ for my $eq (
   ) {
     push @tests, {
       where => { -or => $where },
-      cc_result => { -or => [
+      normalized => { -or => [
         "0" => 'baz',
         bizz => 'buzz',
         foo => 'bar',
       ]},
-      efcc_result => {},
-      sql => 'WHERE foo = ? OR 0 = ? OR bizz = ?',
-      collapsed_sql => 'WHERE 0 = ? OR bizz = ? OR foo = ?',
+      equality_extract => {},
+      sql =>            'WHERE foo = ? OR 0 = ? OR bizz = ?',
+      normalized_sql => 'WHERE 0 = ? OR bizz = ? OR foo = ?',
     };
   }
 
@@ -627,25 +627,24 @@ for my $t (@tests) {
 
     my $name = do { local $Data::Dumper::Indent = 0; dump_value $w };
 
-    my ($collapsed_cond, $collapsed_cond_as_sql);
+    my ($normalized_cond, $normalized_cond_as_sql);
 
     if ($t->{throw}) {
       throws_ok {
-        $collapsed_cond = $schema->storage->_collapse_cond($w);
-        ($collapsed_cond_as_sql) = $sm->where($collapsed_cond);
+        $sm->where( normalize_sqla_condition($w) );
       } $t->{throw}, "Exception on attempted collapse/render of $name"
         and
       next;
     }
 
     warnings_exist {
-      $collapsed_cond = $schema->storage->_collapse_cond($w);
-      ($collapsed_cond_as_sql) = $sm->where($collapsed_cond);
+      $normalized_cond = normalize_sqla_condition($w);
+      ($normalized_cond_as_sql) = $sm->where($normalized_cond);
     } $t->{warn} || [], "Expected warning when collapsing/rendering $name";
 
     is_deeply(
-      $collapsed_cond,
-      $t->{cc_result},
+      $normalized_cond,
+      $t->{normalized},
       "Expected collapsed condition produced on $name",
     );
 
@@ -658,27 +657,27 @@ for my $t (@tests) {
       if exists $t->{sql};
 
     is_same_sql(
-      $collapsed_cond_as_sql,
-      ( $t->{collapsed_sql} || $t->{sql} || $original_sql ),
-      "Collapse did not alter *the semantics* of the final SQL based on $name",
+      $normalized_cond_as_sql,
+      ( $t->{normalized_sql} || $t->{sql} || $original_sql ),
+      "Normalization did not alter *the semantics* of the final SQL based on $name",
     );
 
     is_deeply(
-      $schema->storage->_extract_fixed_condition_columns($collapsed_cond),
-      $t->{efcc_result},
-      "Expected fixed_condition produced on $name",
+      extract_equality_conditions($normalized_cond),
+      $t->{equality_extract},
+      "Expected equality_conditions produced on $name",
     );
 
     is_deeply(
-      $schema->storage->_extract_fixed_condition_columns($collapsed_cond, 'consider_nulls'),
-      $t->{efcc_n_result},
-      "Expected fixed_condition including NULLs produced on $name",
-    ) if $t->{efcc_n_result};
+      extract_equality_conditions($normalized_cond, 'consider_nulls'),
+      ( $t->{equality_considering_nulls_extract} || $t->{equality_extract} ),
+      "Expected equality_conditions including NULLs produced on $name",
+    );
 
     is_deeply(
-      $collapsed_cond,
-      $t->{cc_result},
-      "Collapsed condition result unaltered by fixed condition extractor",
+      $normalized_cond,
+      $t->{normalized},
+      "Collapsed condition result unaltered by equality conditions extractor",
     );
   }
 }

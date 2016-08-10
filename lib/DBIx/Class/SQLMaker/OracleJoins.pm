@@ -81,8 +81,8 @@ sub _recurse_oracle_joins {
     }
 
     # FIXME - the code below *UTTERLY* doesn't work with custom conds... sigh
-    # for the time being do not do any processing with the likes of _collapse_cond
-    # instead only unroll the -and hack if present
+    # for the time being do not do any processing with the likes of
+    # normalize_sqla_condition(), instead only unroll the -and hack if present
     $on = $on->{-and}[0] if (
       ref $on eq 'HASH'
         and
