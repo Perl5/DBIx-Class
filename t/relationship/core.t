@@ -266,7 +266,11 @@ is($undir_maps->count, 1, 'found 1 undirected map for artist 2');
 {
   my $artist_to_mangle = $schema->resultset('Artist')->find(2);
 
-  $artist_to_mangle->set_from_related( artist_undirected_maps => { id1 => 42 } );
+  throws_ok {
+    $artist_to_mangle->set_from_related( artist_undirected_maps => { id1 => 42 } )
+  } qr/\QUnable to complete value inferrence - relationship 'artist_undirected_maps' on source 'Artist' results in expression(s) instead of definitive values: ( artistid = ? OR artistid IS NULL )/,
+    'Expected exception on unresovable set_from_related'
+  ;
 
   ok( ! $artist_to_mangle->is_changed, 'Unresolvable set_from_related did not alter object' );
 

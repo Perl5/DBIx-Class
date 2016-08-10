@@ -2495,12 +2495,12 @@ sub _resolve_relationship_condition {
         $ret = $subconds[0];
       }
       else {
-        # we are discarding inferred values here... likely incorrect...
-        # then again - the entire thing is an OR, so we *can't* use them anyway
         for my $subcond ( @subconds ) {
           $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
             if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
 
+          # we are discarding inferred_values from individual 'OR' branches here
+          # see @nonvalues checks below
           $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
         }
       }
@@ -2535,31 +2535,43 @@ sub _resolve_relationship_condition {
 
     my $jfc_eqs = extract_equality_conditions( $jfc, 'consider_nulls' );
 
-    if (keys %$jfc_eqs) {
-
-      for (keys %$jfc) {
+    for (keys %$jfc) {
+      if( $_ =~ /^-/ ) {
+        push @nonvalues, { $_ => $jfc->{$_} };
+      }
+      else {
         # $jfc is fully qualified by definition
-        my ($col) = $_ =~ /\.(.+)/;
+        my ($col) = $_ =~ /\.(.+)/ or carp_unique(
+          'Internal error - extract_equality_conditions() returned a '
+        . "non-fully-qualified key '$_'. *Please* file a bugreport "
+        . "including your definition of $exception_rel_id"
+        );
 
         if (exists $jfc_eqs->{$_} and ($jfc_eqs->{$_}||'') ne UNRESOLVABLE_CONDITION) {
           $ret->{inferred_values}{$col} = $jfc_eqs->{$_};
         }
         elsif ( !$args->{infer_values_based_on} or ! exists $args->{infer_values_based_on}{$col} ) {
-          push @nonvalues, $col;
+          push @nonvalues, { $_ => $jfc->{$_} };
         }
       }
-
-      # all or nothing
-      delete $ret->{inferred_values} if @nonvalues;
     }
+
+    # all or nothing
+    delete $ret->{inferred_values} if @nonvalues;
   }
 
   # did the user explicitly ask
   if ($args->{infer_values_based_on}) {
 
     $self->throw_exception(sprintf (
-      "Unable to complete value inferrence - custom $exception_rel_id returns conditions instead of values for column(s): %s",
-      map { "'$_'" } @nonvalues
+      "Unable to complete value inferrence - $exception_rel_id results in expression(s) instead of definitive values: %s",
+      do {
+        # FIXME - used for diag only, but still icky
+        my $sqlm = $self->schema->storage->sql_maker;
+        local $sqlm->{quote_char};
+        local $sqlm->{_dequalify_idents} = 1;
+        ($sqlm->_recurse_where({ -and => \@nonvalues }))[0]
+      }
     )) if @nonvalues;
 
 
