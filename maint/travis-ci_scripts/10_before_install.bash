@@ -124,9 +124,11 @@ if [[ "$CLEANTEST" != "true" ]]; then
     "sudo dpkg -i $( echo ${manual_debs[@]/#/$CACHE_DIR/*/*/} ) || sudo bash -c 'source maint/travis-ci_scripts/common.bash && apt_install -f'"
 
 
-  # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
-  # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
-  apt_install unixodbc-dev
+  # Needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
+  # For more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
+  # The --reinstall is there in case it was already in place and got destroyed
+  # (this is the case on newer trusty images)
+  apt_install --reinstall unixodbc-dev
 
 
 ### config memcached
