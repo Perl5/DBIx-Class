@@ -818,6 +818,7 @@ sub find {
 
   for my $key (keys %$call_cond) {
     if (
+      # either a structure or a result-ish object
       length ref($call_cond->{$key})
         and
       ( $rel_list ||= { map { $_ => 1 } $rsrc->relationships } )
@@ -826,7 +827,7 @@ sub find {
       ! is_literal_value( $call_cond->{$key} )
         and
       # implicitly skip has_many's (likely MC), via the delete()
-      ( ref( my $val = delete $call_cond->{$key} ) ne 'ARRAY' )
+      ( ref( my $foreign_val = delete $call_cond->{$key} ) ne 'ARRAY' )
     ) {
 
       # FIXME: it seems wrong that relationship conditions take precedence...?
@@ -835,7 +836,30 @@ sub find {
 
         %{ $rsrc->_resolve_relationship_condition(
           rel_name => $key,
-          foreign_values => $val,
+          foreign_values => (
+            (! defined blessed $foreign_val) ? $foreign_val : do {
+
+              my $f_result_class = $rsrc->related_source($key)->result_class;
+
+              unless( $foreign_val->isa($f_result_class) ) {
+
+                $self->throw_exception(
+                  'Objects supplied to find() must inherit from '
+                . "'$DBIx::Class::ResultSource::__expected_result_class_isa'"
+                ) unless $foreign_val->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                );
+
+                carp_unique(
+                  "Objects supplied to find() via '$key' usually should inherit from "
+                . "the related ResultClass ('$f_result_class'), perhaps you've made "
+                . 'a mistake?'
+                );
+              }
+
+              +{ $foreign_val->get_columns };
+            }
+          ),
           infer_values_based_on => {},
 
           self_alias => "\xFE", # irrelevant

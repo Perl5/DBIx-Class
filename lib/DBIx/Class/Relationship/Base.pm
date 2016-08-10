@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION fail_on_internal_call );
+use DBIx::Class::Carp;
 use namespace::clean;
 
 =head1 NAME
@@ -822,7 +823,34 @@ sub set_from_related {
   $self->set_columns( $self->result_source->_resolve_relationship_condition (
     infer_values_based_on => {},
     rel_name => $rel,
-    foreign_values => $f_obj,
+    foreign_values => (
+      # maintain crazy set_from_related interface
+      #
+      ( ! defined $f_obj )          ? +{}
+    : ( ! defined blessed $f_obj )  ? $f_obj
+                                    : do {
+
+        my $f_result_class = $self->result_source->related_source($rel)->result_class;
+
+        unless( $f_obj->isa($f_result_class) ) {
+
+          $self->throw_exception(
+            'Object supplied to set_from_related() must inherit from '
+          . "'$DBIx::Class::ResultSource::__expected_result_class_isa'"
+          ) unless $f_obj->isa(
+            $DBIx::Class::ResultSource::__expected_result_class_isa
+          );
+
+          carp_unique(
+            'Object supplied to set_from_related() usually should inherit from '
+          . "the related ResultClass ('$f_result_class'), perhaps you've made "
+          . 'a mistake?'
+          );
+        }
+
+        +{ $f_obj->get_columns };
+      }
+    ),
     foreign_alias => $rel,
     self_alias => 'me',
   )->{inferred_values} );

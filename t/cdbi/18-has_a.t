@@ -110,7 +110,7 @@ is(
         Rating            => 'R',
         NumExplodingSheep => 23
       });
-  } qr/isn't a Director/, "Can't have film as codirector";
+  } qr/is not a column on related source 'Director'/, "Can't have film as codirector";
   is $fail, undef, "We didn't get anything";
 
   my $tastes_bad = YA::Film->create({

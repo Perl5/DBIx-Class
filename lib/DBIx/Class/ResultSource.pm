@@ -2160,6 +2160,10 @@ sub _resolve_condition {
         $is_objlike[$_] = 0;
         $res_args[$_] = '__gremlins__';
       }
+      # more compat
+      elsif( $_ == 0 and $res_args[0]->isa( $__expected_result_class_isa ) ) {
+        $res_args[0] = { $res_args[0]->get_columns };
+      }
     }
     else {
       $res_args[$_] ||= {};
@@ -2225,7 +2229,7 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 ## self-explanatory API, modeled on the custom cond coderef:
 # rel_name              => (scalar)
 # foreign_alias         => (scalar)
-# foreign_values        => (either not supplied, or a hashref, or a foreign ResultObject (to be ->get_columns()ed), or plain undef )
+# foreign_values        => (either not supplied or a hashref )
 # self_alias            => (scalar)
 # self_result_object    => (either not supplied or a result object)
 # require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
@@ -2287,67 +2291,78 @@ sub _resolve_relationship_condition {
 
   my $rel_rsrc = $self->related_source($args->{rel_name});
 
-  if (exists $args->{foreign_values}) {
+  if (
+    exists $args->{foreign_values}
+      and
+    (
+      ref $args->{foreign_values} eq 'HASH'
+        or
+      $self->throw_exception(
+        "Argument 'foreign_values' must be a hash reference"
+      )
+    )
+      and
+    keys %{$args->{foreign_values}}
+  ) {
 
-    if (! defined $args->{foreign_values} ) {
-      # fallback: undef => {}
-      $args->{foreign_values} = {};
-    }
-    elsif (defined blessed $args->{foreign_values}) {
+    my ($col_idx, $rel_idx) = map
+      { { map { $_ => 1 } $rel_rsrc->$_ } }
+      qw( columns relationships )
+    ;
 
-      $self->throw_exception( "Objects supplied as 'foreign_values' ($args->{foreign_values}) must inherit from '$__expected_result_class_isa'" )
-        unless $args->{foreign_values}->isa( $__expected_result_class_isa );
+    my $equivalencies;
 
-      carp_unique(
-        "Objects supplied as 'foreign_values' ($args->{foreign_values}) "
-      . "usually should inherit from the related ResultClass ('@{[ $rel_rsrc->result_class ]}'), "
-      . "perhaps you've made a mistake invoking the condition resolver?"
-      ) unless $args->{foreign_values}->isa($rel_rsrc->result_class);
-
-      $args->{foreign_values} = { $args->{foreign_values}->get_columns };
-    }
-    elsif ( ref $args->{foreign_values} eq 'HASH' ) {
-
-      # re-build {foreign_values} excluding identically named rels
-      if( keys %{$args->{foreign_values}} ) {
-
-        my ($col_idx, $rel_idx) = map
-          { { map { $_ => 1 } $rel_rsrc->$_ } }
-          qw( columns relationships )
-        ;
-
-        my $equivalencies = extract_equality_conditions(
-          $args->{foreign_values},
-          'consider nulls',
-        );
-
-        $args->{foreign_values} = { map {
-          # skip if relationship *and* a non-literal ref
-          # this means a multicreate stub was passed in
+    # re-build {foreign_values} excluding refs as follows
+    # ( hot codepath: intentionally convoluted )
+    #
+    $args->{foreign_values} = { map {
+      (
+        $_ !~ /^-/
+          or
+        $self->throw_exception(
+          "The key '$_' supplied as part of 'foreign_values' during "
+         . 'relationship resolution must be a column name, not a function'
+        )
+      )
+        and
+      (
+        # skip if relationship ( means a multicreate stub was passed in )
+        # skip if literal ( can't infer anything about it )
+        # or plain throw if nonequiv yet not literal
+        (
+          length ref $args->{foreign_values}{$_}
+            and
           (
             $rel_idx->{$_}
-              and
-            length ref $args->{foreign_values}{$_}
-              and
-            ! is_literal_value($args->{foreign_values}{$_})
+              or
+            is_literal_value($args->{foreign_values}{$_})
+              or
+            (
+              (
+                ! exists(
+                  ( $equivalencies ||= extract_equality_conditions( $args->{foreign_values}, 'consider nulls' ) )
+                    ->{$_}
+                )
+                  or
+                ($equivalencies->{$_}||'') eq UNRESOLVABLE_CONDITION
+              )
+                and
+              $self->throw_exception(
+                "Resolution of relationship '$args->{rel_name}' failed: "
+              . "supplied value for foreign column '$_' is not a direct "
+              . 'equivalence expression'
+              )
+            )
           )
-            ? ()
-            : ( $_ => (
-                ! $col_idx->{$_}
-                  ? $self->throw_exception( "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'" )
-              : ( !exists $equivalencies->{$_} or ($equivalencies->{$_}||'') eq UNRESOLVABLE_CONDITION )
-                  ? $self->throw_exception( "Value supplied for '...{foreign_values}{$_}' is not a direct equivalence expression" )
-              : $args->{foreign_values}{$_}
-            ))
-        } keys %{$args->{foreign_values}} };
-      }
-    }
-    else {
-      $self->throw_exception(
-        "Argument 'foreign_values' must be either an object inheriting from '@{[ $rel_rsrc->result_class ]}', "
-      . "or a hash reference, or undef"
-      );
-    }
+        )                             ? ()
+      : $col_idx->{$_}                ? ( $_ => $args->{foreign_values}{$_} )
+                                      : $self->throw_exception(
+            "The key '$_' supplied as part of 'foreign_values' during "
+           . 'relationship resolution is not a column on related source '
+           . "'@{[ $rel_rsrc->source_name ]}'"
+          )
+      )
+    } keys %{$args->{foreign_values}} };
   }
 
   my $ret;

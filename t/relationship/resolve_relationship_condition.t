@@ -27,7 +27,9 @@ for (
   } qr/
     \Qis not a column on related source 'CD'\E
       |
-    \QValue supplied for '...{foreign_values}{year}' is not a direct equivalence expression\E
+    \Qsupplied value for foreign column 'year' is not a direct equivalence expression\E
+      |
+    \QThe key '-\E \w+ \Q' supplied as part of 'foreign_values' during relationship resolution must be a column name, not a function\E
   /x;
 }
 
