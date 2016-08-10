@@ -191,7 +191,7 @@ sub _assert_bindval_matches_bindtype () { 1 };
 
 # poor man's de-qualifier
 sub _quote {
-  $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+  $_[0]->next::method( ( $_[0]{_dequalify_idents} and defined $_[1] and ! ref $_[1] )
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   );

@@ -19,7 +19,7 @@ use DBIx::Class::Carp;
 use DBIx::Class::_Util qw(
   UNRESOLVABLE_CONDITION
   dbic_internal_try fail_on_internal_call
-  refdesc emit_loud_diag
+  refdesc emit_loud_diag dump_value
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
@@ -2238,6 +2238,7 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 ## returns a hash
 # condition           => (a valid *likely fully qualified* sqla cond structure)
 # identity_map        => (a hashref of foreign-to-self *unqualified* column equality names)
+# identity_map_matches_condition => (boolean, indicates whether the entire condition is expressed in the identity-map)
 # join_free_condition => (a valid *fully qualified* sqla cond structure, maybe unset)
 # inferred_values     => (in case of an available join_free condition, this is a hashref of
 #                         *unqualified* column/value *EQUALITY* pairs, representing an amalgamation
@@ -2591,13 +2592,20 @@ sub _resolve_relationship_condition {
       "Unable to complete value inferrence - $exception_rel_id results in expression(s) instead of definitive values: %s",
       do {
         # FIXME - used for diag only, but still icky
-        my $sqlm = $self->schema->storage->sql_maker;
+        my $sqlm =
+          dbic_internal_try { $self->schema->storage->sql_maker }
+            ||
+          (
+            require DBIx::Class::SQLMaker
+              and
+            DBIx::Class::SQLMaker->new
+          )
+        ;
         local $sqlm->{quote_char};
         local $sqlm->{_dequalify_idents} = 1;
         ($sqlm->_recurse_where({ -and => \@nonvalues }))[0]
       }
     )) if @nonvalues;
-
 
     $ret->{inferred_values} ||= {};
 
@@ -2605,14 +2613,29 @@ sub _resolve_relationship_condition {
       for keys %{$args->{infer_values_based_on}};
   }
 
+  my $identity_map_incomplete;
+
   # add the identities based on the main condition
   # (may already be there, since easy to calculate on the fly in the HASH case)
   if ( ! $ret->{identity_map} ) {
 
     my $col_eqs = extract_equality_conditions($ret->{condition});
 
+    $identity_map_incomplete++ if (
+      $ret->{condition} eq UNRESOLVABLE_CONDITION
+        or
+      (
+        keys %{$ret->{condition}}
+          !=
+        keys %$col_eqs
+      )
+    );
+
     my $colinfos;
     for my $lhs (keys %$col_eqs) {
+
+      # start with the assumption it won't work
+      $identity_map_incomplete++;
 
       next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
 
@@ -2626,8 +2649,17 @@ sub _resolve_relationship_condition {
 
       next unless $colinfos->{$lhs};  # someone is engaging in witchcraft
 
-      if ( my $rhs_ref = is_literal_value( $col_eqs->{$lhs} ) ) {
-
+      if( my $rhs_ref =
+        (
+          ref $col_eqs->{$lhs} eq 'HASH'
+            and
+          keys %{$col_eqs->{$lhs}} == 1
+            and
+          exists $col_eqs->{$lhs}{-ident}
+        )
+          ? [ $col_eqs->{$lhs}{-ident} ]  # repack to match the RV of is_literal_value
+          : is_literal_value( $col_eqs->{$lhs} )
+      ) {
         if (
           $colinfos->{$rhs_ref->[0]}
             and
@@ -2637,6 +2669,9 @@ sub _resolve_relationship_condition {
             ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = $colinfos->{$rhs_ref->[0]}{-colname} )
             : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = $colinfos->{$lhs}{-colname} )
           ;
+
+          # well, what do you know!
+          $identity_map_incomplete--;
         }
       }
       elsif (
@@ -2656,6 +2691,10 @@ sub _resolve_relationship_condition {
     }
   }
 
+  $ret->{identity_map_matches_condition} = ($identity_map_incomplete ? 0 : 1)
+    if $ret->{identity_map};
+
+
   # FIXME - temporary, to fool the idiotic check in SQLMaker::_join_condition
   $ret->{condition} = { -and => [ $ret->{condition} ] } unless (
     $ret->{condition} eq UNRESOLVABLE_CONDITION
@@ -2666,6 +2705,50 @@ sub _resolve_relationship_condition {
       grep { $_ =~ /^-/ } keys %{$ret->{condition}}
     )
   );
+
+
+  if( DBIx::Class::_ENV_::ASSERT_NO_INCONSISTENT_RELATIONSHIP_RESOLUTION ) {
+
+    my $sqlm =
+      dbic_internal_try { $self->schema->storage->sql_maker }
+        ||
+      (
+        require DBIx::Class::SQLMaker
+          and
+        DBIx::Class::SQLMaker->new
+      )
+    ;
+
+    local $sqlm->{_dequalify_idents} = 1;
+
+    my ($cond_as_sql, $identmap_as_sql) = map
+      { join ' : ', map { defined $_ ? $_ : '{UNDEF}' } $sqlm->_recurse_where($_) }
+      (
+        $ret->{condition},
+
+        { map {
+          # inverse because of how the idmap is declared
+          $ret->{identity_map}{$_} => { -ident => $_ }
+        } keys %{$ret->{identity_map}} },
+      )
+    ;
+
+    emit_loud_diag(
+      confess => 1,
+      msg => sprintf (
+        "Resolution of %s produced inconsistent metadata:\n\n"
+      . "returned value of 'identity_map_matches_condition':    %s\n"
+      . "returned 'condition' rendered as de-qualified SQL:     %s\n"
+      . "returned 'identity_map' rendered as de-qualified SQL:  %s\n\n"
+      . "The condition declared on the misclassified relationship is: %s ",
+        $exception_rel_id,
+        ( $ret->{identity_map_matches_condition} || 0 ),
+        $cond_as_sql,
+        $identmap_as_sql,
+        dump_value( $rel_info->{cond} ),
+      ),
+    ) if ( $ret->{identity_map_matches_condition} xor ( $cond_as_sql eq $identmap_as_sql ) );
+  }
 
   $ret;
 }
