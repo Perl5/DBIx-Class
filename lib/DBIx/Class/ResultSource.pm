@@ -2510,6 +2510,19 @@ sub _resolve_relationship_condition {
     $self->throw_exception ("Can't handle condition $rel_info->{cond} for $exception_rel_id yet :(");
   }
 
+
+  # Explicit normalization pass
+  # ( nobody really knows what a CODE can return )
+  # Explicitly leave U_C alone - it would be normalized
+  # to an { -and => [ U_C ] }
+  defined $ret->{$_}
+    and
+  $ret->{$_} ne UNRESOLVABLE_CONDITION
+    and
+  $ret->{$_} = normalize_sqla_condition($ret->{$_})
+    for qw(condition join_free_condition);
+
+
   if (
     $args->{require_join_free_condition}
       and
@@ -2529,18 +2542,19 @@ sub _resolve_relationship_condition {
     $ret->{join_free_condition}
       and
     $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION
-      and
-    my $jfc = normalize_sqla_condition( $ret->{join_free_condition} )
   ) {
 
-    my $jfc_eqs = extract_equality_conditions( $jfc, 'consider_nulls' );
+    my $jfc_eqs = extract_equality_conditions(
+      $ret->{join_free_condition},
+      'consider_nulls'
+    );
 
-    for (keys %$jfc) {
+    for( keys %{ $ret->{join_free_condition} } ) {
       if( $_ =~ /^-/ ) {
-        push @nonvalues, { $_ => $jfc->{$_} };
+        push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
       }
       else {
-        # $jfc is fully qualified by definition
+        # a join_free_condoition is fully qualified by definition
         my ($col) = $_ =~ /\.(.+)/ or carp_unique(
           'Internal error - extract_equality_conditions() returned a '
         . "non-fully-qualified key '$_'. *Please* file a bugreport "
@@ -2551,7 +2565,7 @@ sub _resolve_relationship_condition {
           $ret->{inferred_values}{$col} = $jfc_eqs->{$_};
         }
         elsif ( !$args->{infer_values_based_on} or ! exists $args->{infer_values_based_on}{$col} ) {
-          push @nonvalues, { $_ => $jfc->{$_} };
+          push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
         }
       }
     }
@@ -2633,8 +2647,15 @@ sub _resolve_relationship_condition {
   }
 
   # FIXME - temporary, to fool the idiotic check in SQLMaker::_join_condition
-  $ret->{condition} = { -and => [ $ret->{condition} ] }
-    unless $ret->{condition} eq UNRESOLVABLE_CONDITION;
+  $ret->{condition} = { -and => [ $ret->{condition} ] } unless (
+    $ret->{condition} eq UNRESOLVABLE_CONDITION
+      or
+    (
+      ref $ret->{condition} eq 'HASH'
+        and
+      grep { $_ =~ /^-/ } keys %{$ret->{condition}}
+    )
+  );
 
   $ret;
 }
