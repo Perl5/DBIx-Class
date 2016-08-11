@@ -177,6 +177,11 @@ sub parse {
             my $rel_info = $source->relationship_info($rel);
 
             # Ignore any rel cond that isn't a straight hash
+            #
+            # FIXME - this can be done *WAY* better via the recolcond resolver
+            # but no time to think through the implications for deploy() at
+            # the moment. Grep for {identity_map_matches_condition} for ideas
+            # how to improve this, and the /^\w+\.(\w+)$/ crap below
             next unless ref $rel_info->{cond} eq 'HASH';
 
             my $relsource = dbic_internal_try { $source->related_source($rel) };

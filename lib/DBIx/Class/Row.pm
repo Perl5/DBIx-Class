@@ -6,7 +6,10 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util qw( dbic_internal_try fail_on_internal_call );
+use DBIx::Class::_Util qw(
+  dbic_internal_try fail_on_internal_call
+  DUMMY_ALIASPAIR
+);
 use DBIx::Class::Carp;
 use SQL::Abstract qw( is_literal_value is_plain_value );
 
@@ -1195,8 +1198,9 @@ sub copy {
         rel_name => $rel_name,
         self_result_object => $new,
 
-        self_alias => "\xFE", # irrelevant
-        foreign_alias => "\xFF", # irrelevant,
+        # an API where these are optional would be too cumbersome,
+        # instead always pass in some dummy values
+        DUMMY_ALIASPAIR,
       )->{inferred_values}
 
     ) for $self->related_resultset($rel_name)->all;

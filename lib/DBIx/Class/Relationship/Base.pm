@@ -6,7 +6,10 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION fail_on_internal_call );
+use DBIx::Class::_Util qw(
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
+  fail_on_internal_call
+);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -514,83 +517,89 @@ sub related_resultset {
 
   my ($self, $rel) = @_;
 
-  return $self->{related_resultsets}{$rel} = do {
+  my $rsrc = $self->result_source;
 
-    my $rsrc = $self->result_source;
+  my $rel_info = $rsrc->relationship_info($rel)
+    or $self->throw_exception( "No such relationship '$rel'" );
 
-    my $rel_info = $rsrc->relationship_info($rel)
-      or $self->throw_exception( "No such relationship '$rel'" );
+  my $relcond_is_freeform = ref $rel_info->{cond} eq 'CODE';
 
-    my $cond_res = $rsrc->_resolve_relationship_condition(
-      rel_name => $rel,
-      self_result_object => $self,
+  my $jfc = $rsrc->_resolve_relationship_condition(
 
-      # this may look weird, but remember that we are making a resultset
-      # out of an existing object, with the new source being at the head
-      # of the FROM chain. Having a 'me' alias is nothing but expected there
-      foreign_alias => 'me',
+    rel_name => $rel,
+    self_result_object => $self,
 
-      self_alias => "!!!\xFF()!!!_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFF!!!",
+    # an extra sanity check guard
+    require_join_free_condition => ! $relcond_is_freeform,
 
-      # not strictly necessary, but shouldn't hurt either
-      require_join_free_condition => !!(ref $rel_info->{cond} ne 'CODE'),
-    );
+    # an API where these are optional would be too cumbersome,
+    # instead always pass in some dummy values
+    DUMMY_ALIASPAIR,
 
-    # keep in mind that the following if() block is part of a do{} - no return()s!!!
-    if (
-      ! $cond_res->{join_free_condition}
-        and
-      ref $rel_info->{cond} eq 'CODE'
-    ) {
+    # this may look weird, but remember that we are making a resultset
+    # out of an existing object, with the new source being at the head
+    # of the FROM chain. Having a 'me' alias is nothing but expected there
+    foreign_alias => 'me',
 
-      # A WHOREIFFIC hack to reinvoke the entire condition resolution
-      # with the correct alias. Another way of doing this involves a
-      # lot of state passing around, and the @_ positions are already
-      # mapped out, making this crap a less icky option.
-      #
-      # The point of this exercise is to retain the spirit of the original
-      # $obj->search_related($rel) where the resulting rset will have the
-      # root alias as 'me', instead of $rel (as opposed to invoking
-      # $rs->search_related)
+  )->{join_free_condition};
 
-      # make the fake 'me' rel
-      local $rsrc->{_relationships}{me} = {
-        %{ $rsrc->{_relationships}{$rel} },
-        _original_name => $rel,
-      };
+  my $rel_rset;
 
-      my $obj_table_alias = lc($rsrc->source_name) . '__row';
-      $obj_table_alias =~ s/\W+/_/g;
+  if (
+    ! $jfc
+      and
+    $relcond_is_freeform
+  ) {
 
-      $rsrc->resultset->search(
-        $self->ident_condition($obj_table_alias),
-        { alias => $obj_table_alias },
-      )->related_resultset('me')->search(undef, $rel_info->{attrs})
-    }
-    else {
+    # A WHOREIFFIC hack to reinvoke the entire condition resolution
+    # with the correct alias. Another way of doing this involves a
+    # lot of state passing around, and the @_ positions are already
+    # mapped out, making this crap a less icky option.
+    #
+    # The point of this exercise is to retain the spirit of the original
+    # $obj->search_related($rel) where the resulting rset will have the
+    # root alias as 'me', instead of $rel (as opposed to invoking
+    # $rs->search_related)
 
-      # FIXME - this conditional doesn't seem correct - got to figure out
-      # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
-      # business seems shady - we could simply not query *at all*
-      my $attrs;
-      if ( $cond_res->{join_free_condition} eq UNRESOLVABLE_CONDITION ) {
-        $attrs = { %{$rel_info->{attrs}} };
-        my $reverse = $rsrc->reverse_relationship_info($rel);
-        foreach my $rev_rel (keys %$reverse) {
-          if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-            weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
-          } else {
-            weaken($attrs->{related_objects}{$rev_rel} = $self);
-          }
+    # make the fake 'me' rel
+    local $rsrc->{_relationships}{me} = {
+      %{ $rsrc->{_relationships}{$rel} },
+      _original_name => $rel,
+    };
+
+    my $obj_table_alias = lc($rsrc->source_name) . '__row';
+    $obj_table_alias =~ s/\W+/_/g;
+
+    $rel_rset = $rsrc->resultset->search(
+      $self->ident_condition($obj_table_alias),
+      { alias => $obj_table_alias },
+    )->related_resultset('me')->search(undef, $rel_info->{attrs})
+  }
+  else {
+
+    # FIXME - this conditional doesn't seem correct - got to figure out
+    # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
+    # business seems shady - we could simply not query *at all*
+    my $attrs;
+    if ( $jfc eq UNRESOLVABLE_CONDITION ) {
+      $attrs = { %{$rel_info->{attrs}} };
+      my $reverse = $rsrc->reverse_relationship_info($rel);
+      foreach my $rev_rel (keys %$reverse) {
+        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+          weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
+        } else {
+          weaken($attrs->{related_objects}{$rev_rel} = $self);
         }
       }
-
-      $rsrc->related_source($rel)->resultset->search(
-        $cond_res->{join_free_condition},
-        $attrs || $rel_info->{attrs},
-      );
     }
-  };
+
+    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+      $jfc,
+      $attrs || $rel_info->{attrs},
+    );
+  }
+
+  $self->{related_resultsets}{$rel} = $rel_rset;
 }
 
 =head2 search_related
@@ -672,8 +681,11 @@ sub new_related {
     infer_values_based_on => $data,
     rel_name => $rel,
     self_result_object => $self,
-    foreign_alias => $rel,
-    self_alias => 'me',
+
+    # an API where these are optional would be too cumbersome,
+    # instead always pass in some dummy values
+    DUMMY_ALIASPAIR,
+
   )->{inferred_values} );
 }
 
@@ -851,8 +863,11 @@ sub set_from_related {
         +{ $f_obj->get_columns };
       }
     ),
-    foreign_alias => $rel,
-    self_alias => 'me',
+
+    # an API where these are optional would be too cumbersome,
+    # instead always pass in some dummy values
+    DUMMY_ALIASPAIR,
+
   )->{inferred_values} );
 
   return 1;

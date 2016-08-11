@@ -10,6 +10,7 @@ use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
   assemble_collapsing_parser
 );
+use DBIx::Class::_Util 'DUMMY_ALIASPAIR';
 
 use DBIx::Class::Carp;
 
@@ -188,8 +189,10 @@ sub _resolve_collapse {
       rsrc => $self->related_source($rel),
       fk_map => $self->_resolve_relationship_condition(
         rel_name => $rel,
-        self_alias => "\xFE", # irrelevant
-        foreign_alias => "\xFF", # irrelevant
+
+        # an API where these are optional would be too cumbersome,
+        # instead always pass in some dummy values
+        DUMMY_ALIASPAIR,
       )->{identity_map},
     };
   }

@@ -2392,11 +2392,11 @@ sub _resolve_relationship_condition {
     $self->throw_exception("A custom condition coderef can return at most 2 conditions, but $exception_rel_id returned extra values: @extra")
       if @extra;
 
-    if (my $jfc = $ret->{join_free_condition}) {
+    if( $ret->{join_free_condition} ) {
 
       $self->throw_exception (
         "The join-free condition returned for $exception_rel_id must be a hash reference"
-      ) unless ref $jfc eq 'HASH';
+      ) unless ref $ret->{join_free_condition} eq 'HASH';
 
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_result_object}) {
@@ -2422,7 +2422,7 @@ sub _resolve_relationship_condition {
         "The join-free condition returned for $exception_rel_id may only "
       . 'contain keys that are fully qualified column names of the corresponding source '
       . "'$joinfree_alias' (instead it returned '$_')"
-      ) for keys %$jfc;
+      ) for keys %{$ret->{join_free_condition}};
 
       (
         defined blessed($_)
@@ -2434,7 +2434,7 @@ sub _resolve_relationship_condition {
         . 'contain result objects as values - perhaps instead of invoking '
         . '->$something you meant to return ->get_column($something)'
         )
-      ) for values %$jfc;
+      ) for values %{$ret->{join_free_condition}};
 
     }
   }

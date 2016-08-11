@@ -12,7 +12,8 @@ use Scalar::Util qw( blessed reftype );
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
   dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
-  fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
+  fail_on_internal_wantarray fail_on_internal_call
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
@@ -862,8 +863,9 @@ sub find {
           ),
           infer_values_based_on => {},
 
-          self_alias => "\xFE", # irrelevant
-          foreign_alias => "\xFF", # irrelevant
+          # an API where these are optional would be too cumbersome,
+          # instead always pass in some dummy values
+          DUMMY_ALIASPAIR,
         )->{inferred_values} },
       };
     }
@@ -2531,8 +2533,10 @@ sub populate {
 
           $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->_resolve_relationship_condition(
             rel_name => $rel,
-            self_alias => "\xFE", # irrelevant
-            foreign_alias => "\xFF", # irrelevant
+
+            # an API where these are optional would be too cumbersome,
+            # instead always pass in some dummy values
+            DUMMY_ALIASPAIR,
           )->{identity_map} || {} } };
 
         }

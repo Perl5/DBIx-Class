@@ -205,10 +205,15 @@ our @EXPORT_OK = qw(
   is_exception dbic_internal_try dbic_internal_catch visit_namespaces
   quote_sub qsub perlstring serialize deep_clone dump_value uniq
   parent_dir mkdir_p
-  UNRESOLVABLE_CONDITION
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 
 use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
+
+use constant DUMMY_ALIASPAIR => (
+  foreign_alias => "!!!\xFF()!!!_DUMMY_FOREIGN_ALIAS_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFF!!!",
+  self_alias => "!!!\xFE()!!!_DUMMY_SELF_ALIAS_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFE!!!",
+);
 
 # Override forcing no_defer, and adding naming consistency checks
 our %refs_closed_over_by_quote_sub_installed_crefs;
