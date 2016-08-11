@@ -457,12 +457,15 @@ sub _resolve_collapse {
 
         is_single => $relinfo->{$rel}{is_single},
 
-        # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
+        # if there is at least one *inner* reverse relationship ( meaning identity-only )
         # we can safely assume that the child can not exist without us
-        rev_rel_is_optional => ( grep
-          { ref $_->{cond} eq 'HASH' and ($_->{attrs}{join_type}||'') !~ /^left/i }
-          values %{ $self->reverse_relationship_info($rel) },
-        ) ? 0 : 1,
+        rev_rel_is_optional => (
+          ( grep {
+            ($_->{attrs}{join_type}||'') !~ /^left/i
+          } values %{ $self->reverse_relationship_info($rel) } )
+            ? 0
+            : 1
+        ),
 
         # if this is a 1:1 our own collapser can be used as a collapse-map
         # (regardless of left or not)

@@ -17,9 +17,9 @@ use base 'DBIx::Class::ResultSource::RowParser';
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw(
-  UNRESOLVABLE_CONDITION
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
   dbic_internal_try fail_on_internal_call
-  refdesc emit_loud_diag dump_value
+  refdesc emit_loud_diag dump_value serialize bag_eq
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
@@ -1824,85 +1824,111 @@ L</relationship_info>.
 sub reverse_relationship_info {
   my ($self, $rel) = @_;
 
-  my $rel_info = $self->relationship_info($rel)
-    or $self->throw_exception("No such relationship '$rel'");
+  # This may be a partial schema or something else equally esoteric
+  # in which case this will throw
+  #
+  my $other_rsrc = $self->related_source($rel);
+
+  # Some custom rels may not resolve without a $schema
+  #
+  my $our_resolved_relcond = dbic_internal_try {
+    $self->_resolve_relationship_condition(
+      rel_name => $rel,
+
+      # an API where these are optional would be too cumbersome,
+      # instead always pass in some dummy values
+      DUMMY_ALIASPAIR,
+    )
+  };
+
+  # only straight-equality is compared
+  return {}
+    unless $our_resolved_relcond->{identity_map_matches_condition};
+
+  my( $our_registered_source_name, $our_result_class) =
+    ( $self->source_name, $self->result_class );
 
   my $ret = {};
-
-  return $ret unless ((ref $rel_info->{cond}) eq 'HASH');
-
-  my $stripped_cond = $self->__strip_relcond ($rel_info->{cond});
-
-  my $registered_source_name = $self->source_name;
-
-  # this may be a partial schema or something else equally esoteric
-  my $other_rsrc = $self->related_source($rel);
 
   # Get all the relationships for that source that related to this source
   # whose foreign column set are our self columns on $rel and whose self
   # columns are our foreign columns on $rel
   foreach my $other_rel ($other_rsrc->relationships) {
 
+    # this will happen when we have a self-referential class
+    next if (
+      $other_rel eq $rel
+        and
+      $self == $other_rsrc
+    );
+
     # only consider stuff that points back to us
     # "us" here is tricky - if we are in a schema registration, we want
     # to use the source_names, otherwise we will use the actual classes
 
-    # the schema may be partial
-    my $roundtrip_rsrc = dbic_internal_try { $other_rsrc->related_source($other_rel) }
-      or next;
+    my $roundtripped_rsrc;
+    next unless (
 
-    if ($registered_source_name) {
-      next if $registered_source_name ne ($roundtrip_rsrc->source_name || '')
-    }
-    else {
-      next if $self->result_class ne $roundtrip_rsrc->result_class;
-    }
+      # the schema may be partially loaded
+      $roundtripped_rsrc = dbic_internal_try { $other_rsrc->related_source($other_rel) }
 
-    my $other_rel_info = $other_rsrc->relationship_info($other_rel);
-
-    # this can happen when we have a self-referential class
-    next if $other_rel_info eq $rel_info;
-
-    next unless ref $other_rel_info->{cond} eq 'HASH';
-    my $other_stripped_cond = $self->__strip_relcond($other_rel_info->{cond});
-
-    $ret->{$other_rel} = $other_rel_info if (
-      $self->_compare_relationship_keys (
-        [ keys %$stripped_cond ], [ values %$other_stripped_cond ]
-      )
         and
-      $self->_compare_relationship_keys (
-        [ values %$stripped_cond ], [ keys %$other_stripped_cond ]
+
+      (
+
+        (
+          $our_registered_source_name
+            and
+          (
+            $our_registered_source_name
+              eq
+            $roundtripped_rsrc->source_name||''
+          )
+        )
+
+          or
+
+        (
+          $our_result_class
+            eq
+          $roundtripped_rsrc->result_class
+        )
       )
+
+        and
+
+      my $their_resolved_relcond = dbic_internal_try {
+        $other_rsrc->_resolve_relationship_condition(
+          rel_name => $other_rel,
+
+          # an API where these are optional would be too cumbersome,
+          # instead always pass in some dummy values
+          DUMMY_ALIASPAIR,
+        )
+      }
+    );
+
+
+    $ret->{$other_rel} = $other_rsrc->relationship_info($other_rel) if (
+
+      $their_resolved_relcond->{identity_map_matches_condition}
+
+        and
+
+      keys %{ $our_resolved_relcond->{identity_map} }
+        ==
+      keys %{ $their_resolved_relcond->{identity_map} }
+
+        and
+
+      serialize( $our_resolved_relcond->{identity_map} )
+        eq
+      serialize( { reverse %{ $their_resolved_relcond->{identity_map} } } )
+
     );
   }
 
   return $ret;
-}
-
-# all this does is removes the foreign/self prefix from a condition
-sub __strip_relcond {
-  +{
-    map
-      { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
-      keys %{$_[1]}
-  }
-}
-
-sub compare_relationship_keys {
-  carp 'compare_relationship_keys is a private method, stop calling it';
-  my $self = shift;
-  $self->_compare_relationship_keys (@_);
-}
-
-# Returns true if both sets of keynames are the same, false otherwise.
-sub _compare_relationship_keys {
-#  my ($self, $keys1, $keys2) = @_;
-  return
-    join ("\x00", sort @{$_[1]})
-      eq
-    join ("\x00", sort @{$_[2]})
-  ;
 }
 
 # optionally takes either an arrayref of column names, or a hashref of already
@@ -2124,6 +2150,25 @@ sub _pk_depends_on {
   return 1;
 }
 
+sub __strip_relcond :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '__strip_relcond() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
+}
+
+sub compare_relationship_keys :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique( 'compare_relationship_keys() is deprecated, ask on IRC for a better alternative' );
+  bag_eq( $_[1], $_[2] );
+}
+
+sub _compare_relationship_keys :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique( '_compare_relationship_keys() is deprecated, ask on IRC for a better alternative' );
+  bag_eq( $_[1], $_[2] );
+}
+
 sub resolve_condition {
   carp 'resolve_condition is a private method, stop calling it';
   shift->_resolve_condition (@_);
@@ -2259,7 +2304,7 @@ sub _resolve_relationship_condition {
     if $args->{self_alias} eq $args->{foreign_alias};
 
 # TEMP
-  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
+  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name || $self->result_class ]}'";
 
   my $rel_info = $self->relationship_info($args->{rel_name})
 # TEMP
@@ -2462,7 +2507,10 @@ sub _resolve_relationship_condition {
     # construct the crosstable condition and the identity map
     for  (0..$#f_cols) {
       $ret->{condition}{"$args->{foreign_alias}.$f_cols[$_]"} = { -ident => "$args->{self_alias}.$l_cols[$_]" };
-      $ret->{identity_map}{$l_cols[$_]} = $f_cols[$_];
+
+      # explicit value stringification is deliberate - leave no room for
+      # interpretation when comparing sets of keys
+      $ret->{identity_map}{$l_cols[$_]} = "$f_cols[$_]";
     };
 
     if ($args->{foreign_values}) {
@@ -2666,8 +2714,11 @@ sub _resolve_relationship_condition {
           $colinfos->{$lhs}{-source_alias} ne $colinfos->{$rhs_ref->[0]}{-source_alias}
         ) {
           ( $colinfos->{$lhs}{-source_alias} eq $args->{self_alias} )
-            ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = $colinfos->{$rhs_ref->[0]}{-colname} )
-            : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = $colinfos->{$lhs}{-colname} )
+
+            # explicit value stringification is deliberate - leave no room for
+            # interpretation when comparing sets of keys
+            ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = "$colinfos->{$rhs_ref->[0]}{-colname}" )
+            : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = "$colinfos->{$lhs}{-colname}" )
           ;
 
           # well, what do you know!

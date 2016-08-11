@@ -204,7 +204,7 @@ our @EXPORT_OK = qw(
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
   is_exception dbic_internal_try dbic_internal_catch visit_namespaces
-  quote_sub qsub perlstring serialize deep_clone dump_value uniq
+  quote_sub qsub perlstring serialize deep_clone dump_value uniq bag_eq
   parent_dir mkdir_p
   UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
@@ -385,6 +385,34 @@ sub uniq {
       ? $seen{ $numeric_preserving_copy = $_ }++
       : $seen_undef++
   ) } @_;
+}
+
+sub bag_eq ($$) {
+  croak "bag_eq() requiress two arrayrefs as arguments" if (
+    ref($_[0]) ne 'ARRAY'
+      or
+    ref($_[1]) ne 'ARRAY'
+  );
+
+  return '' unless @{$_[0]} == @{$_[1]};
+
+  my( %seen, $numeric_preserving_copy );
+
+  ( defined $_
+    ? $seen{'value' . ( $numeric_preserving_copy = $_ )}++
+    : $seen{'undef'}++
+  ) for @{$_[0]};
+
+  ( defined $_
+    ? $seen{'value' . ( $numeric_preserving_copy = $_ )}--
+    : $seen{'undef'}--
+  ) for @{$_[1]};
+
+  return (
+    (grep { $_ } values %seen)
+      ? ''
+      : 1
+  );
 }
 
 my $dd_obj;
