@@ -363,10 +363,6 @@ matrix:
   # which ones of the above can fail
   allow_failures:
 
-    # FIXME work around https://github.com/travis-ci/travis-ci/issues/6439
-    - perl: 5.18-extras
-    - perl: 5.24.0_thr_qm
-
     # these run with various dev snapshots - allowed to fail
     - perl: cperl-5.24.0_thr_qm
     - perl: cperl-master_thr
