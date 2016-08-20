@@ -348,7 +348,11 @@ sub _normalize_cond_unroll_pairs {
           and
         my $vref = is_plain_value( (values %$rhs)[0] )
       ) {
-        push @conds, { $lhs => { $subop => $$vref } }
+        push @conds, (
+          (length ref $$vref)
+            ? { $lhs => $rhs }
+            : { $lhs => { $subop => $$vref } }
+        );
       }
       else {
         push @conds, { $lhs => $rhs };

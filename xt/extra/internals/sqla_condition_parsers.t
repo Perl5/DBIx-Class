@@ -273,14 +273,17 @@ my @tests = (
       charfield => { -ident => 'foo' },
       name => { '=' => { -value => undef } },
       rank => { '=' => { -ident => 'bar' } },
+      arrayfield => { '>' => { -value => [3,1] } },
     ] },
-    sql => 'WHERE artistid = ? AND charfield = foo AND name IS NULL AND rank = bar',
     normalized => {
       artistid => { -value => [1] },
       name => undef,
       charfield => { '=', { -ident => 'foo' } },
       rank => { '=' => { -ident => 'bar' } },
+      arrayfield => { '>' => { -value => [3,1] } },
     },
+    sql            => 'WHERE artistid = ? AND charfield = foo AND name IS NULL AND rank = bar AND arrayfield > ?',
+    normalized_sql => 'WHERE arrayfield > ? AND artistid = ? AND charfield = foo AND name IS NULL AND rank = bar',
     equality_extract => {
       artistid => [1],
       charfield => { -ident => 'foo' },
@@ -681,5 +684,11 @@ for my $t (@tests) {
     );
   }
 }
+
+# test separately
+is_deeply(
+  normalize_sqla_condition( UNRESOLVABLE_CONDITION ),
+  { -and => [ UNRESOLVABLE_CONDITION ] },
+);
 
 done_testing;
