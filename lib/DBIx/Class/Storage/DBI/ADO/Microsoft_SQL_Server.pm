@@ -8,8 +8,10 @@ use base qw/
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
+
 use DBIx::Class::Carp;
 use DBIx::Class::Storage::DBI::ADO::CursorUtils qw/_normalize_guids _strip_trailing_binary_nulls/;
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use namespace::clean;
 
 __PACKAGE__->cursor_class(
@@ -140,7 +142,7 @@ sub select_single {
     'DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server::Cursor'
   );
 
-  my $col_infos = $self->_resolve_column_info($ident);
+  my $col_infos = fromspec_columns_info($ident);
 
   _normalize_guids($select, $col_infos, \@row, $self);
 

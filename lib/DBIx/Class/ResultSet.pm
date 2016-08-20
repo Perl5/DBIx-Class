@@ -14,6 +14,7 @@ use DBIx::Class::_Util qw(
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
+use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
 
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
@@ -2220,6 +2221,7 @@ sub populate {
   # At this point assume either hashes or arrays
 
   my $rsrc = $self->result_source;
+  my $storage = $rsrc->schema->storage;
 
   if(defined wantarray) {
     my (@results, $guard);
@@ -2228,7 +2230,7 @@ sub populate {
       # column names only, nothing to do
       return if @$data == 1;
 
-      $guard = $rsrc->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 2;
 
       @results = map
@@ -2238,7 +2240,7 @@ sub populate {
     }
     else {
 
-      $guard = $rsrc->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 1;
 
       @results = map { $self->new_result($_)->insert } @$data;
@@ -2452,13 +2454,13 @@ sub populate {
 
 ### start work
   my $guard;
-  $guard = $rsrc->schema->storage->txn_scope_guard
+  $guard = $storage->txn_scope_guard
     if $slices_with_rels;
 
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->schema->storage->_insert_bulk(
+  $storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {
@@ -3269,13 +3271,11 @@ sub related_resultset {
 
     my $attrs = $self->_chain_relationship($rel);
 
-    my $storage = $rsrc->schema->storage;
-
     # Previously this atribute was deleted (instead of being set as it is now)
     # Doing so seems to be harmless in all available test permutations
     # See also 01d59a6a6 and mst's comment below
     #
-    $attrs->{alias} = $storage->relname_to_table_alias(
+    $attrs->{alias} = $rsrc->schema->storage->relname_to_table_alias(
       $rel,
       $attrs->{seen_join}{$rel}
     );
@@ -3299,7 +3299,7 @@ sub related_resultset {
     # the top of the stack, and if not - make sure the chain is inner-joined down
     # to the root.
     #
-    my $switch_branch = $storage->_find_join_path_to_node(
+    my $switch_branch = find_join_path_to_alias(
       $attrs->{from},
       $attrs->{alias},
     );

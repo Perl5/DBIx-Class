@@ -22,6 +22,7 @@ use DBIx::Class::_Util qw(
   refdesc emit_loud_diag
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw( blessed weaken isweak refaddr );
@@ -2285,7 +2286,6 @@ sub _resolve_relationship_condition {
   ;
 
   my $rel_rsrc = $self->related_source($args->{rel_name});
-  my $storage = $self->schema->storage;
 
   if (exists $args->{foreign_values}) {
 
@@ -2583,7 +2583,7 @@ sub _resolve_relationship_condition {
       # there is no way to know who is right and who is left in a cref
       # therefore a full blown resolution call, and figure out the
       # direction a bit further below
-      $colinfos ||= $storage->_resolve_column_info([
+      $colinfos ||= fromspec_columns_info([
         { -alias => $args->{self_alias}, -rsrc => $self },
         { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
       ]);

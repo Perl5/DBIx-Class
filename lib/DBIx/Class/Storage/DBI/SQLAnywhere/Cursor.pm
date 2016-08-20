@@ -5,6 +5,9 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI::Cursor';
 use mro 'c3';
 
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
+use namespace::clean;
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::SQLAnywhere::Cursor - GUID Support for SQL Anywhere
@@ -61,7 +64,7 @@ sub next {
 
   $unpack_guids->(
     $self->args->[1],
-    $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]),
+    $self->{_colinfos} ||= fromspec_columns_info($self->args->[0]),
     \@row,
     $self->storage
   );
@@ -76,7 +79,7 @@ sub all {
 
   $unpack_guids->(
     $self->args->[1],
-    $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]),
+    $self->{_colinfos} ||= fromspec_columns_info($self->args->[0]),
     $_,
     $self->storage
   ) for @rows;
