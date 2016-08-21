@@ -769,36 +769,6 @@ sub _minmax_operator_for_datatype {
   $_[2] ? 'MAX' : 'MIN';
 }
 
-sub _resolve_ident_sources {
-  my ($self, $ident) = @_;
-
-  my $alias2source = {};
-
-  # the reason this is so contrived is that $ident may be a {from}
-  # structure, specifying multiple tables to join
-  if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
-    # this is compat mode for insert/update/delete which do not deal with aliases
-    $alias2source->{me} = $ident;
-  }
-  elsif (ref $ident eq 'ARRAY') {
-
-    for (@$ident) {
-      my $tabinfo;
-      if (ref $_ eq 'HASH') {
-        $tabinfo = $_;
-      }
-      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
-        $tabinfo = $_->[0];
-      }
-
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-rsrc}
-        if ($tabinfo->{-rsrc});
-    }
-  }
-
-  return $alias2source;
-}
-
 # Takes $ident, \@column_names
 #
 # returns { $column_name => \%column_info, ... }
@@ -811,7 +781,34 @@ sub _resolve_column_info {
 
   return {} if $colnames and ! @$colnames;
 
-  my $sources = $self->_resolve_ident_sources($ident);
+  my $sources = (
+    # this is compat mode for insert/update/delete which do not deal with aliases
+    (
+      blessed($ident)
+        and
+      $ident->isa('DBIx::Class::ResultSource')
+    )                                                 ? +{ me => $ident }
+
+    # not a known fromspec - no columns to resolve: return directly
+  : ref($ident) ne 'ARRAY'                            ? return +{}
+
+                                                      : +{
+    # otherwise decompose into alias/rsrc pairs
+      map
+        {
+          ( $_->{-rsrc} and $_->{-alias} )
+            ? ( @{$_}{qw( -alias -rsrc )} )
+            : ()
+        }
+        map
+          {
+            ( ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH' ) ? $_->[0]
+          : ( ref $_ eq 'HASH' )                            ? $_
+                                                            : ()
+          }
+          @$ident
+    }
+  );
 
   $_ = { rsrc => $_, colinfos => $_->columns_info }
     for values %$sources;
@@ -871,54 +868,6 @@ sub _resolve_column_info {
   }
 
   return \%return;
-}
-
-# The DBIC relationship chaining implementation is pretty simple - every
-# new related_relationship is pushed onto the {from} stack, and the {select}
-# window simply slides further in. This means that when we count somewhere
-# in the middle, we got to make sure that everything in the join chain is an
-# actual inner join, otherwise the count will come back with unpredictable
-# results (a resultset may be generated with _some_ rows regardless of if
-# the relation which the $rs currently selects has rows or not). E.g.
-# $artist_rs->cds->count - normally generates:
-# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
-# which actually returns the number of artists * (number of cds || 1)
-#
-# So what we do here is crawl {from}, determine if the current alias is at
-# the top of the stack, and if not - make sure the chain is inner-joined down
-# to the root.
-#
-sub _inner_join_to_node {
-  my ($self, $from, $alias) = @_;
-
-  my $switch_branch = $self->_find_join_path_to_node($from, $alias);
-
-  return $from unless @{$switch_branch||[]};
-
-  # So it looks like we will have to switch some stuff around.
-  # local() is useless here as we will be leaving the scope
-  # anyway, and deep cloning is just too fucking expensive
-  # So replace the first hashref in the node arrayref manually
-  my @new_from = ($from->[0]);
-  my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
-
-  for my $j (@{$from}[1 .. $#$from]) {
-    my $jalias = $j->[0]{-alias};
-
-    if ($sw_idx->{$jalias}) {
-      my %attrs = %{$j->[0]};
-      delete $attrs{-join_type};
-      push @new_from, [
-        \%attrs,
-        @{$j}[ 1 .. $#$j ],
-      ];
-    }
-    else {
-      push @new_from, $j;
-    }
-  }
-
-  return \@new_from;
 }
 
 sub _find_join_path_to_node {
@@ -1097,6 +1046,20 @@ sub _extract_fixed_condition_columns :DBIC_method_is_indirect_sugar {
 
   shift;
   extract_equality_conditions(@_);
+}
+
+sub _resolve_ident_sources :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_resolve_ident_sources() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
+}
+
+sub _inner_join_to_node :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_inner_join_to_node() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
 }
 
 1;

@@ -2642,8 +2642,6 @@ sub _select_args {
   $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
 
 ###
-  #   my $alias2source = $self->_resolve_ident_sources ($ident);
-  #
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial

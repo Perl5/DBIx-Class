@@ -3283,8 +3283,55 @@ sub related_resultset {
     # since this is search_related, and we already slid the select window inwards
     # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
-    # read the comment on top of the actual function to see what this does
-    $attrs->{from} = $storage->_inner_join_to_node( $attrs->{from}, $attrs->{alias} );
+    #
+    # The DBIC relationship chaining implementation is pretty simple - every
+    # new related_relationship is pushed onto the {from} stack, and the {select}
+    # window simply slides further in. This means that when we count somewhere
+    # in the middle, we got to make sure that everything in the join chain is an
+    # actual inner join, otherwise the count will come back with unpredictable
+    # results (a resultset may be generated with _some_ rows regardless of if
+    # the relation which the $rs currently selects has rows or not). E.g.
+    # $artist_rs->cds->count - normally generates:
+    # SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+    # which actually returns the number of artists * (number of cds || 1)
+    #
+    # So what we do here is crawl {from}, determine if the current alias is at
+    # the top of the stack, and if not - make sure the chain is inner-joined down
+    # to the root.
+    #
+    my $switch_branch = $storage->_find_join_path_to_node(
+      $attrs->{from},
+      $attrs->{alias},
+    );
+
+    if ( @{ $switch_branch || [] } ) {
+
+      # So it looks like we will have to switch some stuff around.
+      # local() is useless here as we will be leaving the scope
+      # anyway, and deep cloning is just too fucking expensive
+      # So replace the first hashref in the node arrayref manually
+      my @new_from = $attrs->{from}[0];
+      my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
+
+      for my $j ( @{$attrs->{from}}[ 1 .. $#{$attrs->{from}} ] ) {
+        my $jalias = $j->[0]{-alias};
+
+        if ($sw_idx->{$jalias}) {
+          my %attrs = %{$j->[0]};
+          delete $attrs{-join_type};
+          push @new_from, [
+            \%attrs,
+            @{$j}[ 1 .. $#$j ],
+          ];
+        }
+        else {
+          push @new_from, $j;
+        }
+      }
+
+      $attrs->{from} = \@new_from;
+    }
+
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete $attrs->{result_class};
