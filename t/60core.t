@@ -539,17 +539,6 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
     isa_ok( $new_artist, 'DBIx::Class::Row', '$rs->new gives a row object' );
 }
 
-
-# make sure we got rid of the compat shims
-SKIP: {
-    my $remove_version = 0.083;
-    skip "Remove in $remove_version", 3 if $DBIx::Class::VERSION < $remove_version;
-
-    for (qw/compare_relationship_keys pk_depends_on resolve_condition/) {
-      ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource, removed before $remove_version");
-    }
-}
-
 #------------------------------
 # READ THIS BEFORE "FIXING"
 #------------------------------
