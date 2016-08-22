@@ -6,10 +6,10 @@ use warnings;
 use base qw/DBIx::Class/;
 use mro 'c3';
 
-{
-  package # Hide from PAUSE
-    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
-  use base 'DBIx::Class::Exception';
+BEGIN {
+  no warnings 'once';
+  @DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION::ISA
+    = 'DBIx::Class::Exception';
 }
 
 use DBIx::Class::Carp;

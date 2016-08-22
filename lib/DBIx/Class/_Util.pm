@@ -1,7 +1,8 @@
 package # hide from PAUSE
   DBIx::Class::_Util;
 
-use DBIx::Class::StartupCheck;  # load es early as we can, usually a noop
+# load es early as we can, usually a noop
+use DBIx::Class::StartupCheck;
 
 use warnings;
 use strict;
@@ -172,6 +173,9 @@ use constant SPURIOUS_VERSION_CHECK_WARNINGS => ( DBIx::Class::_ENV_::PERL_VERSI
 # FIXME - this is not supposed to be here
 # Carp::Skip to the rescue soon
 use DBIx::Class::Carp '^DBIx::Class|^DBICTest';
+
+# Ensure it is always there, in case we need to do a $schema-less throw()
+use DBIx::Class::Exception ();
 
 use B ();
 use Carp 'croak';

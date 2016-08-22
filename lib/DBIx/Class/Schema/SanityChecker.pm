@@ -8,7 +8,6 @@ use DBIx::Class::_Util qw(
   describe_class_methods emit_loud_diag
 );
 use DBIx::Class ();
-use DBIx::Class::Exception ();
 use Scalar::Util qw( blessed refaddr );
 use namespace::clean;
 

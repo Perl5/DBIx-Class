@@ -16,7 +16,6 @@ use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use DBIx::Class::_Util 'dbic_internal_try';
-use DBIx::Class::Exception;
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
 use Try::Tiny;

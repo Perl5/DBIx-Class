@@ -4,7 +4,6 @@ package # hide from pause until we figure it all out
 use warnings;
 use strict;
 
-use DBIx::Class::Exception;
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
 use DBIx::Class::_Util qw( is_exception qsub dbic_internal_try );

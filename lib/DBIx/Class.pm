@@ -21,7 +21,6 @@ $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev relea
 use mro 'c3';
 
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
-use DBIx::Class::Exception;
 
 __PACKAGE__->mk_classaccessor(
   _skip_namespace_frames => join( '|', map { '^' . $_ } qw(
