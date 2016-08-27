@@ -69,6 +69,8 @@ Revision history for DBIx::Class
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
         - Fix several corner cases with Many2Many over custom relationships
+        - Fix intermittent failure to infer the CASCADE attributes of relations
+          during deployment_statements()/deploy()
         - Fix corner cases of C3 composition being broken on OLD_MRO (5.8.x)
           only: https://github.com/frioux/DBIx-Class-Helpers/issues/61
 

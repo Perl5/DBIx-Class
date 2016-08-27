@@ -230,9 +230,9 @@ sub parse {
                 $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
             }
 
-            my ($otherrelname, $otherrelationship) = %{ $source->reverse_relationship_info($rel) };
 
             my $cascade;
+            CASCADE_TYPE:
             for my $c (qw/delete update/) {
                 if (exists $rel_info->{attrs}{"on_$c"}) {
                     if ($fk_constraint) {
@@ -243,8 +243,16 @@ sub parse {
                             . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
                     }
                 }
-                elsif (defined $otherrelationship and $otherrelationship->{attrs}{$c eq 'update' ? 'cascade_copy' : 'cascade_delete'}) {
-                    $cascade->{$c} = 'CASCADE';
+                else {
+                  for my $revrelinfo (values %{ $source->reverse_relationship_info($rel) } ) {
+                    ( ( $cascade->{$c} = 'CASCADE' ), next CASCADE_TYPE ) if (
+                      $revrelinfo->{attrs}
+                                  ->{ ($c eq 'update')
+                                      ? 'cascade_copy'
+                                      : 'cascade_delete'
+                                    }
+                    );
+                  }
                 }
             }
 

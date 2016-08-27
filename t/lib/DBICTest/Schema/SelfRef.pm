@@ -20,5 +20,6 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('id');
 
 __PACKAGE__->has_many( aliases => 'DBICTest::Schema::SelfRefAlias' => 'self_ref' );
+__PACKAGE__->has_many( aliases_no_copy => 'DBICTest::Schema::SelfRefAlias' => 'self_ref', { cascade_copy => 0 } );
 
 1;
