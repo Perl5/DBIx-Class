@@ -8,10 +8,16 @@ use base qw/DBIx::Class/;
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util qw(
   UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
-  dbic_internal_try fail_on_internal_call
+  dbic_internal_try dbic_internal_catch fail_on_internal_call
 );
 use DBIx::Class::SQLMaker::Util 'extract_equality_conditions';
 use DBIx::Class::Carp;
+
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
+
 use namespace::clean;
 
 =head1 NAME
@@ -525,8 +531,7 @@ sub related_resultset {
 
   my $relcond_is_freeform = ref $rel_info->{cond} eq 'CODE';
 
-  my $jfc = $rsrc->_resolve_relationship_condition(
-
+  my $rrc_args = {
     rel_name => $rel,
     self_result_object => $self,
 
@@ -545,8 +550,37 @@ sub related_resultset {
     # out of an existing object, with the new source being at the head
     # of the FROM chain. Having a 'me' alias is nothing but expected there
     foreign_alias => 'me',
+  };
 
-  )->{join_free_condition};
+  my $jfc = (
+    # In certain extraordinary circumstances the relationship resolution may
+    # throw (e.g. when walking through elaborate custom conds)
+    # In case the object is "real" (i.e. in_storage) we just go ahead and
+    # let the exception surface. Otherwise we carp and move on.
+    #
+    # The elaborate code-duplicating ternary is there because the xsified
+    # ->in_storage() is orders of magnitude faster than the Try::Tiny-like
+    # construct below ( perl's low level tooling is truly shit :/ )
+    ( $self->in_storage or DBIx::Class::_Util::in_internal_try )
+      ? $rsrc->_resolve_relationship_condition($rrc_args)->{join_free_condition}
+      : dbic_internal_try {
+          $rsrc->_resolve_relationship_condition($rrc_args)->{join_free_condition}
+        }
+        dbic_internal_catch {
+          $unique_carper->(
+            "Resolution of relationship '$rel' failed unexpectedly, "
+          . 'please relay the following error and seek assistance via '
+          . DBIx::Class::_ENV_::HELP_URL . ". Encountered error: $_"
+          );
+
+          # FIXME - this is questionable
+          # force skipping re-resolution, and instead just return an UC rset
+          $relcond_is_freeform = 0;
+
+          # RV
+          undef;
+        }
+  );
 
   my $rel_rset;
 

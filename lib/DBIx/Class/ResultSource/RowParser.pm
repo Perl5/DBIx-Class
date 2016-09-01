@@ -10,9 +10,14 @@ use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
   assemble_collapsing_parser
 );
-use DBIx::Class::_Util 'DUMMY_ALIASPAIR';
+use DBIx::Class::_Util qw( DUMMY_ALIASPAIR dbic_internal_try dbic_internal_catch );
 
 use DBIx::Class::Carp;
+
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
 
 use namespace::clean;
 
@@ -187,13 +192,28 @@ sub _resolve_collapse {
       is_single => ( $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi' ),
       is_inner => ( ( $inf->{attrs}{join_type} || '' ) !~ /^left/i),
       rsrc => $self->related_source($rel),
-      fk_map => $self->_resolve_relationship_condition(
-        rel_name => $rel,
+      fk_map => (
+        dbic_internal_try {
+          $self->_resolve_relationship_condition(
+            rel_name => $rel,
 
-        # an API where these are optional would be too cumbersome,
-        # instead always pass in some dummy values
-        DUMMY_ALIASPAIR,
-      )->{identity_map},
+            # an API where these are optional would be too cumbersome,
+            # instead always pass in some dummy values
+            DUMMY_ALIASPAIR,
+          )->{identity_map},
+        }
+        dbic_internal_catch {
+
+          $unique_carper->(
+            "Resolution of relationship '$rel' failed unexpectedly, "
+          . 'please relay the following error and seek assistance via '
+          . DBIx::Class::_ENV_::HELP_URL . ". Encountered error: $_"
+          );
+
+          # RV
+          +{}
+        }
+      ),
     };
   }
 
