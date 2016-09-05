@@ -4,8 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use namespace::clean;
 
 =head1 NAME
@@ -216,12 +215,13 @@ sub _flate_or_fallback
   my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
   my $method = $parser->can($preferred_method) || sprintf($method_fmt, 'datetime');
 
-  return dbic_internal_try {
+  dbic_internal_try {
     $parser->$method($value);
   }
-  catch {
+  dbic_internal_catch {
     $self->throw_exception ("Error while inflating '$value' for $info->{__dbic_colname} on ${self}: $_")
       unless $info->{datetime_undef_if_invalid};
+
     undef;  # rv
   };
 }

@@ -6,8 +6,7 @@ use Scalar::Util 'reftype';
 use DBI ();
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 
 use namespace::clean -except => 'meta';
 
@@ -293,14 +292,17 @@ Returns 1 on success and undef on failure.
 sub _safely {
   my ($self, $replicant, $name, $code) = @_;
 
-  return dbic_internal_try {
+  dbic_internal_try {
     $code->();
     1;
-  } catch {
+  }
+  dbic_internal_catch {
     $replicant->debugobj->print(sprintf(
       "Exception trying to $name for replicant %s, error is %s",
       $replicant->_dbi_connect_info->[0], $_)
     );
+
+    # rv
     undef;
   };
 }

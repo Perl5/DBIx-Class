@@ -6,7 +6,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 
 use DBICTest;
 
@@ -40,7 +39,7 @@ is $schema->storage->sql_limit_dialect, ($ver >= 9 ? 'RowNumberOver' : 'Top'),
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
-    try { local $^W = 0; $dbh->do("DROP TABLE artist") };
+    eval { local $^W = 0; $dbh->do("DROP TABLE artist") };
     $dbh->do(<<'SQL');
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
@@ -54,7 +53,7 @@ SQL
 
 $schema->storage->dbh_do (sub {
   my ($storage, $dbh) = @_;
-  try { local $^W = 0; $dbh->do("DROP TABLE artist_guid") };
+  eval { local $^W = 0; $dbh->do("DROP TABLE artist_guid") };
   $dbh->do(<<"SQL");
 CREATE TABLE artist_guid (
  artistid UNIQUEIDENTIFIER NOT NULL,
@@ -71,7 +70,7 @@ my $have_max = $ver >= 9; # 2005 and greater
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
-    try { local $^W = 0; $dbh->do("DROP TABLE varying_max_test") };
+    eval { local $^W = 0; $dbh->do("DROP TABLE varying_max_test") };
     $dbh->do("
 CREATE TABLE varying_max_test (
    id INT IDENTITY NOT NULL,
@@ -115,7 +114,7 @@ my $rs1 = $schema->resultset('Artist')->search({}, { order_by => 'artistid' });
 my $rs2 = $schema->resultset('Artist')->search({}, { order_by => 'name' });
 
 while ($rs1->next) {
-  ok try { $rs2->next }, 'multiple active cursors';
+  lives_ok { ok $rs2->next } 'multiple active cursors';
 }
 
 # test bug where ADO blows up if the first bindparam is shorter than the second
@@ -232,14 +231,19 @@ foreach my $size (qw/small large/) {
     $row->discard_changes;
   } 're-selected just-inserted LOBs';
 
-  cmp_ok try { $row->varchar_max },   'eq', $str, 'VARCHAR(MAX) matches';
-  cmp_ok try { $row->nvarchar_max },  'eq', $str, 'NVARCHAR(MAX) matches';
-  cmp_ok try { $row->varbinary_max }, 'eq', $str, 'VARBINARY(MAX) matches';
+  for my $type (qw( varchar nvarchar varbinary ) ) {
+    my $meth = "${type}_max";
+    is(
+      eval { $row->$meth },
+      $str,
+      ( uc $type ) . '(MAX) matches'
+    );
+  }
 }
 
 # test regular blobs
 
-try { local $^W = 0; $schema->storage->dbh->do('DROP TABLE bindtype_test') };
+eval { local $^W = 0; $schema->storage->dbh->do('DROP TABLE bindtype_test') };
 $schema->storage->dbh->do(qq[
 CREATE TABLE bindtype_test
 (
@@ -299,7 +303,7 @@ ok(
 );
 diag $@ if $@;
 
-my $guid = try { $row->artistid }||'';
+my $guid = eval { $row->artistid }||'';
 
 ok(($guid !~ /^{.*?}\z/), 'GUID not enclosed in braces')
   or diag "GUID is: $guid";
@@ -313,29 +317,48 @@ diag $@ if $@;
 my $row_from_db = $schema->resultset('ArtistGUID')
   ->search({ name => 'mtfnpy' })->first;
 
-is try { $row_from_db->artistid }, try { $row->artistid },
-  'PK GUID round trip (via ->search->next)';
+is(
+  eval { $row_from_db->artistid },
+  eval { $row->artistid },
+  'PK GUID round trip (via ->search->next)'
+);
 
-is try { $row_from_db->a_guid }, try { $row->a_guid },
-  'NON-PK GUID round trip (via ->search->next)';
+is(
+  eval { $row_from_db->a_guid },
+  eval { $row->a_guid },
+  'NON-PK GUID round trip (via ->search->next)'
+);
 
-$row_from_db = try { $schema->resultset('ArtistGUID')
-  ->find($row->artistid) };
+$row_from_db = eval {
+  $schema->resultset('ArtistGUID')->find($row->artistid)
+};
 
-is try { $row_from_db->artistid }, try { $row->artistid },
-  'PK GUID round trip (via ->find)';
+is(
+  eval { $row_from_db->artistid },
+  eval { $row->artistid },
+  'PK GUID round trip (via ->find)'
+);
 
-is try { $row_from_db->a_guid }, try { $row->a_guid },
-  'NON-PK GUID round trip (via ->find)';
+is(
+  eval { $row_from_db->a_guid },
+  eval { $row->a_guid },
+  'NON-PK GUID round trip (via ->find)'
+);
 
 ($row_from_db) = $schema->resultset('ArtistGUID')
   ->search({ name => 'mtfnpy' })->all;
 
-is try { $row_from_db->artistid }, try { $row->artistid },
-  'PK GUID round trip (via ->search->all)';
+is(
+  eval { $row_from_db->artistid },
+  eval { $row->artistid },
+  'PK GUID round trip (via ->search->all)'
+);
 
-is try { $row_from_db->a_guid }, try { $row->a_guid },
-  'NON-PK GUID round trip (via ->search->all)';
+is(
+  eval { $row_from_db->a_guid },
+  eval { $row->a_guid },
+  'NON-PK GUID round trip (via ->search->all)'
+);
 
 lives_ok {
   $row = $schema->resultset('ArtistGUID')->create({
@@ -344,15 +367,21 @@ lives_ok {
   });
 } 'created a row with explicit PK GUID';
 
-is try { $row->artistid }, '70171270-4822-4450-81DF-921F99BA3C06',
-  'row has correct PK GUID';
+is(
+  eval { $row->artistid },
+  '70171270-4822-4450-81DF-921F99BA3C06',
+  'row has correct PK GUID'
+);
 
 lives_ok {
   $row->update({ artistid => '70171270-4822-4450-81DF-921F99BA3C07' });
 } "updated row's PK GUID";
 
-is try { $row->artistid }, '70171270-4822-4450-81DF-921F99BA3C07',
-  'row has correct PK GUID';
+is(
+  eval { $row->artistid },
+  '70171270-4822-4450-81DF-921F99BA3C07',
+  'row has correct PK GUID'
+);
 
 lives_ok {
   $row->delete;
@@ -370,8 +399,8 @@ done_testing;
 # clean up our mess
 END {
   local $SIG{__WARN__} = sub {};
-  if (my $dbh = try { $schema->storage->_dbh }) {
-    (try { $dbh->do("DROP TABLE $_") })
+  if (my $dbh = eval { $schema->storage->_dbh }) {
+    (eval { $dbh->do("DROP TABLE $_") })
       for qw/artist artist_guid varying_max_test bindtype_test/;
   }
 

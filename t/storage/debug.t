@@ -14,12 +14,11 @@ BEGIN {
 }
 
 use Test::More;
-use Test::Exception;
-use Try::Tiny;
 use File::Spec;
 
 use DBICTest;
 use DBICTest::Util 'slurp_bytes';
+use DBIx::Class::_Util 'scope_guard';
 
 my $schema = DBICTest->init_schema();
 
@@ -69,15 +68,16 @@ open(STDERRCOPY, '>&STDERR');
 
 my $exception_line_number;
 # STDERR will be closed, no T::B diag in blocks
-my $exception = try {
+my $exception = do {
+  my $restore_guard = scope_guard { open(STDERR, '>&STDERRCOPY') };
   close(STDERR);
-  $exception_line_number = __LINE__ + 1;  # important for test, do not reformat
-  $schema->resultset('CD')->search({})->count;
-} catch {
-  $_
-} finally {
-  # restore STDERR
-  open(STDERR, '>&STDERRCOPY');
+
+  eval {
+    $exception_line_number = __LINE__ + 1;  # important for test, do not reformat
+    $schema->resultset('CD')->search({})->count;
+  };
+
+  my $err = $@;
 };
 
 ok $exception =~ /
@@ -87,19 +87,19 @@ ok $exception =~ /
 /xms
   or diag "Unexpected exception text:\n\n$exception\n";
 
+
 my @warnings;
-$exception = try {
+$exception = do {
   local $SIG{__WARN__} = sub { push @warnings, @_ if $_[0] =~ /character/i };
+  my $restore_guard = scope_guard { close STDERR; open(STDERR, '>&STDERRCOPY') };
   close STDERR;
-  open(STDERR, '>', File::Spec->devnull) or die $!;
-  $schema->resultset('CD')->search({ title => "\x{1f4a9}" })->count;
-  '';
-} catch {
-  $_;
-} finally {
-  # restore STDERR
-  close STDERR;
-  open(STDERR, '>&STDERRCOPY');
+
+  eval {
+    open(STDERR, '>', File::Spec->devnull) or die $!;
+    $schema->resultset('CD')->search({ title => "\x{1f4a9}" })->count;
+  };
+
+  my $err = $@;
 };
 
 die "How did that fail... $exception"

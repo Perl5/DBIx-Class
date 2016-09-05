@@ -6,7 +6,6 @@ use warnings;
 
 use Test::More;
 use Test::Warn;
-use Try::Tiny;
 
 use DBICTest;
 

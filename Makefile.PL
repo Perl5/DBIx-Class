@@ -58,7 +58,6 @@ my $runtime_requires = {
   'namespace::clean'         => '0.24',
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.81',
-  'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required
   # by the MySQL codepath. However this particular version is bundled

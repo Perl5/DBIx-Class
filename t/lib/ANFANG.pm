@@ -112,32 +112,36 @@ $INC{$_} ||= __FILE__ for (qw( ANFANG.pm t/lib/ANFANG.pm ./t/lib/ANFANG.pm ));
       ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
     )
   ) {
-    require Try::Tiny;
-    my $orig = \&Try::Tiny::try;
+    # two levels of if() because of taint mode tangling the %ENV-checks
+    # with the require() call, sigh...
 
-    # in case we loaded warnings.pm / used -w
-    # ( do not do `no warnings ...` as it is also a load )
-    local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /redefined/ };
+    if ( eval { require Try::Tiny } ) {
+      my $orig = \&Try::Tiny::try;
 
-    *Try::Tiny::try = sub (&;@) {
-      my ($fr, $first_pkg) = 0;
-      while( $first_pkg = caller($fr++) ) {
-        last if $first_pkg !~ /^
-          __ANON__
-            |
-          \Q(eval)\E
-        $/x;
-      }
+      # in case we loaded warnings.pm / used -w
+      # ( do not do `no warnings ...` as it is also a load )
+      local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /redefined/ };
 
-      if ($first_pkg =~ /DBIx::Class/) {
-        require Test::Builder;
-        Test::Builder->new->ok(0,
-          'Using try{} within DBIC internals is a mistake - use dbic_internal_try{} instead'
-        );
-      }
+      *Try::Tiny::try = sub (&;@) {
+        my ($fr, $first_pkg) = 0;
+        while( $first_pkg = caller($fr++) ) {
+          last if $first_pkg !~ /^
+            __ANON__
+              |
+            \Q(eval)\E
+          $/x;
+        }
 
-      goto $orig;
-    };
+        if ($first_pkg =~ /DBIx::Class/) {
+          require Test::Builder;
+          Test::Builder->new->ok(0,
+            'Using try{} within DBIC internals is a mistake - use dbic_internal_try{} instead'
+          );
+        }
+
+        goto $orig;
+      };
+    }
   }
 }
 

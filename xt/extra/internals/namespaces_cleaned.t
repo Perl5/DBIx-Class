@@ -159,7 +159,10 @@ for my $mod (@modules) {
     }
 
     # some common import names (these should never ever be methods)
-    for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {
+    for my $f (qw(
+      carp carp_once carp_unique croak confess cluck
+      try catch finally dbic_internal_try dbic_internal_catch
+    )) {
       if ($mod->can($f)) {
         my $via;
         for (reverse @{mro::get_linear_isa($mod)} ) {

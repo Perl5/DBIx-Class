@@ -11,9 +11,11 @@ use base qw/
 use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/blessed weaken/;
-use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try dump_value scope_guard set_subname );
+use DBIx::Class::_Util qw(
+  sigwarn_silencer dbic_internal_try dbic_internal_catch
+  dump_value scope_guard set_subname
+);
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -653,8 +655,9 @@ sub _insert_bulk {
     $guard->commit;
 
     $bulk->_query_end($sql);
-  } catch {
-    $exception = shift;
+  }
+  dbic_internal_catch {
+    $exception = $_;
   };
 
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
@@ -731,11 +734,14 @@ sub _remove_blob_cols_array {
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
-  my @primary_cols = dbic_internal_try
-    { $source->_pri_cols_or_die }
-    catch {
+  my @primary_cols =
+    dbic_internal_try {
+      $source->_pri_cols_or_die
+    }
+    dbic_internal_catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
-    };
+    }
+  ;
 
   my @pks_to_update;
   if (
@@ -766,7 +772,7 @@ sub _insert_blobs {
 
   my @primary_cols = dbic_internal_try
     { $source->_pri_cols_or_die }
-    catch {
+    dbic_internal_catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
     };
 
@@ -819,7 +825,7 @@ sub _insert_blobs {
 
       $sth->func('ct_finish_send') or die $sth->errstr;
     }
-    catch {
+    dbic_internal_catch {
       if ($self->_using_freetds) {
         $self->throw_exception (
           "TEXT/IMAGE operation failed, probably because you are using FreeTDS: $_"

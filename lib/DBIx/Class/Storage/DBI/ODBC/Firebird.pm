@@ -7,8 +7,7 @@ use base qw/
   DBIx::Class::Storage::DBI::Firebird::Common
 /;
 use mro 'c3';
-use Try::Tiny;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use namespace::clean;
 
 =head1 NAME
@@ -52,7 +51,7 @@ sub _exec_svp_rollback {
   dbic_internal_try {
     $self->_dbh->do("ROLLBACK TO SAVEPOINT $name")
   }
-  catch {
+  dbic_internal_catch {
     # Firebird ODBC driver bug, ignore
     if (not /Unable to fetch information about the error/) {
       $self->throw_exception($_);

@@ -15,10 +15,9 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
-use Try::Tiny;
 use namespace::clean;
 
 use base qw(Exporter);
@@ -56,7 +55,8 @@ sub parse {
     if (!ref $dbicschema) {
       dbic_internal_try {
         Class::C3::Componentised->ensure_class_loaded($dbicschema)
-      } catch {
+      }
+      dbic_internal_catch {
         DBIx::Class::Exception->throw("Can't load $dbicschema: $_");
       }
     }

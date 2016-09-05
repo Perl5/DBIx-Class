@@ -5,7 +5,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
 
@@ -144,37 +143,38 @@ EOF
     title => 'my track',
   });
 
-  my $joined_track = try {
-    $schema->resultset('Artist')->search({
+  my $joined_track;
+  lives_ok {
+    $joined_track = $schema->resultset('Artist')->search({
       artistid => $first_artistid,
     }, {
       join => [{ cds => 'tracks' }],
       '+select' => [ 'tracks.title' ],
       '+as'     => [ 'track_title'  ],
     })->next;
-  }
-  catch {
-    diag "Could not execute two-step left join: $_";
-  };
+  } 'Two-step left join executed';
 
-  is try { $joined_track->get_column('track_title') }, 'my track',
-    'two-step left join works';
+  is(
+    eval { $joined_track->get_column('track_title') },
+    'my track',
+    'two-step left join works'
+  );
 
-  $joined_artist = try {
-    $schema->resultset('Track')->search({
+  lives_ok {
+    $joined_artist = $schema->resultset('Track')->search({
       trackid => $track->trackid,
     }, {
       join => [{ cd => 'artist' }],
       '+select' => [ 'artist.name' ],
       '+as'     => [ 'artist_name'  ],
     })->next;
-  }
-  catch {
-    diag "Could not execute two-step inner join: $_";
-  };
+  } 'Two-step inner join executed';
 
-  is try { $joined_artist->get_column('artist_name') }, 'foo',
-    'two-step inner join works';
+  is(
+    eval { $joined_artist->get_column('artist_name') },
+    'foo',
+    'two-step inner join works'
+  );
 
 # test basic transactions
   $schema->txn_do(sub {

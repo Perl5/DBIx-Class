@@ -5,7 +5,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Try::Tiny;
 use DBIx::Class::_Util 'scope_guard';
 
 use DBICTest;
@@ -39,7 +38,7 @@ for my $connect_info (@connect_info) {
 
   my $guard = scope_guard { cleanup($schema) };
 
-  try { local $^W = 0; $schema->storage->dbh->do('DROP TABLE track') };
+  eval { local $^W = 0; $schema->storage->dbh->do('DROP TABLE track') };
   $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE track (
   trackid AUTOINCREMENT PRIMARY KEY,

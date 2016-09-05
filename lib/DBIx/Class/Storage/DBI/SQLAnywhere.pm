@@ -4,9 +4,6 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
-use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
@@ -135,18 +132,11 @@ sub select_single {
   return @row;
 }
 
-# this sub stolen from MSSQL
-
 sub build_datetime_parser {
-  my $self = shift;
-  dbic_internal_try {
-    require DateTime::Format::Strptime;
-  }
-  catch {
-    $self->throw_exception("Couldn't load DateTime::Format::Strptime: $_");
-  };
 
-  return DateTime::Format::Strptime->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
+  require DateTime::Format::Strptime;
+
+  DateTime::Format::Strptime->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
 }
 
 =head2 connect_call_datetime_setup

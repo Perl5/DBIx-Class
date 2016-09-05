@@ -6,7 +6,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 
 use DBICTest;
 
@@ -22,9 +21,9 @@ my $dbh = $schema->storage->dbh;
 is $schema->storage->sql_maker->name_sep, $name_sep,
   'name_sep detection';
 
-my $have_rno = try {
+my $have_rno = eval {
   $dbh->selectrow_array(
-"SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
+    "SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
   );
   1;
 };

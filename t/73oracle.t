@@ -6,7 +6,6 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use Try::Tiny;
 use DBIx::Class::_Util 'set_subname';
 
 use DBICTest;

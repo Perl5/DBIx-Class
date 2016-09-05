@@ -8,7 +8,6 @@ use Test::Exception;
 use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
 use List::Util 'shuffle';
-use Try::Tiny;
 
 use DBICTest;
 
@@ -218,7 +217,11 @@ EOF
     $row = $paged->next;
   } 'paged query survived';
 
-  is try { $row->artistid }, 5, 'correct row from paged query';
+  is(
+    eval { $row->artistid },
+    5,
+    'correct row from paged query'
+  );
 
   # DBD bug - if any unfinished statements are present during
   # DDL manipulation (test blobs below)- a segfault will occur

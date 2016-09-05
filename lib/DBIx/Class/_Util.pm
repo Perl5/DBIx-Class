@@ -202,7 +202,7 @@ our @EXPORT_OK = qw(
   refdesc refcount hrefaddr set_subname get_subname describe_class_methods
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
-  is_exception dbic_internal_try visit_namespaces
+  is_exception dbic_internal_try dbic_internal_catch visit_namespaces
   quote_sub qsub perlstring serialize deep_clone dump_value uniq
   parent_dir mkdir_p
   UNRESOLVABLE_CONDITION
@@ -608,10 +608,10 @@ sub is_exception ($) {
 {
   my $callstack_state;
 
-  # Recreate the logic of try(), while reusing the catch()/finally() as-is
-  #
-  # FIXME: We need to move away from Try::Tiny entirely (way too heavy and
-  # yes, shows up ON TOP of profiles) but this is a batle for another maint
+  # Recreate the logic of Try::Tiny, but without the crazy Sub::Name
+  # invocations and without support for finally() altogether
+  # ( yes, these days Try::Tiny is so "tiny" it shows *ON TOP* of most
+  #   random profiles https://youtu.be/PYCbumw0Fis?t=1919 )
   sub dbic_internal_try (&;@) {
 
     my $try_cref = shift;
@@ -619,30 +619,30 @@ sub is_exception ($) {
 
     for my $arg (@_) {
 
-      if( ref($arg) eq 'Try::Tiny::Catch' ) {
+      croak 'dbic_internal_try() may not be followed by multiple dbic_internal_catch() blocks'
+        if $catch_cref;
 
-        croak 'dbic_internal_try() may not be followed by multiple catch() blocks'
-          if $catch_cref;
+      ($catch_cref = $$arg), next
+        if ref($arg) eq 'DBIx::Class::_Util::Catch';
 
-        $catch_cref = $$arg;
-      }
-      elsif ( ref($arg) eq 'Try::Tiny::Finally' ) {
-        croak 'dbic_internal_try() does not support finally{}';
-      }
-      else {
-        croak(
-          'dbic_internal_try() encountered an unexpected argument '
-        . "'@{[ defined $arg ? $arg : 'UNDEF' ]}' - perhaps "
-        . 'a missing semi-colon before or ' # trailing space important
-        );
-      }
+      croak( 'Mixing dbic_internal_try() with Try::Tiny::catch() is not supported' )
+        if ref($arg) eq 'Try::Tiny::Catch';
+
+      croak( 'dbic_internal_try() does not support finally{}' )
+        if ref($arg) eq 'Try::Tiny::Finally';
+
+      croak(
+        'dbic_internal_try() encountered an unexpected argument '
+      . "'@{[ defined $arg ? $arg : 'UNDEF' ]}' - perhaps "
+      . 'a missing semi-colon before or ' # trailing space important
+      );
     }
 
     my $wantarray = wantarray;
     my $preexisting_exception = $@;
 
     my @ret;
-    my $all_good = eval {
+    my $saul_goodman = eval {
       $@ = $preexisting_exception;
 
       local $callstack_state->{in_internal_try} = 1
@@ -667,7 +667,7 @@ sub is_exception ($) {
     my $exception = $@;
     $@ = $preexisting_exception;
 
-    if ( $all_good ) {
+    if ( $saul_goodman ) {
       return $wantarray ? @ret : $ret[0]
     }
     elsif ( $catch_cref ) {
@@ -679,7 +679,23 @@ sub is_exception ($) {
     return;
   }
 
-  sub in_internal_try { !! $callstack_state->{in_internal_try} }
+  sub dbic_internal_catch (&;@) {
+
+    croak( 'Useless use of bare dbic_internal_catch()' )
+      unless wantarray;
+
+    croak( 'dbic_internal_catch() must receive exactly one argument at end of expression' )
+      if @_ > 1;
+
+    bless(
+      \( $_[0] ),
+      'DBIx::Class::_Util::Catch'
+    ),
+  }
+
+  sub in_internal_try () {
+    !! $callstack_state->{in_internal_try}
+  }
 }
 
 {

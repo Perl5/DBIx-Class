@@ -9,8 +9,7 @@ use base qw/
 /;
 use mro 'c3';
 
-use Try::Tiny;
-use DBIx::Class::_Util qw( dbic_internal_try sigwarn_silencer );
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch sigwarn_silencer );
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
@@ -182,7 +181,7 @@ sub _ping {
     $dbh->do('select 1');
     1;
   }
-  catch {
+  dbic_internal_catch {
     # MSSQL is *really* annoying wrt multiple active resultsets,
     # and this may very well be the reason why the _ping failed
     #

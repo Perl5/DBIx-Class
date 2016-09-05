@@ -141,7 +141,6 @@ BEGIN {
 
     Carp
     namespace::clean
-    Try::Tiny
     Sub::Name
     Sub::Defer
     Sub::Quote

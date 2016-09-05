@@ -7,9 +7,11 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use SQL::Abstract 'is_plain_value';
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer dbic_internal_try);
+use DBIx::Class::_Util qw(
+  modver_gt_or_eq sigwarn_silencer
+  dbic_internal_try dbic_internal_catch
+);
 use DBIx::Class::Carp;
-use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -181,7 +183,7 @@ sub _ping {
 
       $really_not_in_txn = 1;
     }
-    catch {
+    dbic_internal_catch {
       $really_not_in_txn = ( $_[0] =~ qr/transaction within a transaction/
         ? 0
         : undef

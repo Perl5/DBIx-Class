@@ -10,11 +10,10 @@ use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw( blessed reftype );
 use DBIx::Class::_Util qw(
-  dbic_internal_try dump_value
+  dbic_internal_try dbic_internal_catch dump_value
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
-use Try::Tiny;
 
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
@@ -884,7 +883,7 @@ sub find {
           $alias
         );
       }
-      catch {
+      dbic_internal_catch {
         push @fc_exceptions, $_ if $_ =~ /\bFilterColumn\b/;
       };
     }

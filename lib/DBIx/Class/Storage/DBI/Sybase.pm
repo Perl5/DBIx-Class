@@ -2,8 +2,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use namespace::clean;
 
 use base qw/DBIx::Class::Storage::DBI/;
@@ -38,7 +37,8 @@ sub _get_rdbms_name {
     }
 
     $name;  # RV
-  } catch {
+  }
+  dbic_internal_catch {
     $self->throw_exception("Unable to establish connection to determine database type: $_")
   };
 }

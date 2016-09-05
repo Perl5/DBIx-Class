@@ -7,9 +7,9 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use Try::Tiny;
 
 use DBICTest;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
@@ -62,10 +62,10 @@ for my $opts_name (keys %opts) {
     my $opts = $opts{$opts_name}{opts};
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
 
-    try {
+    dbic_internal_try {
       $schema->storage->ensure_connected
     }
-    catch {
+    dbic_internal_catch {
       if ($opts{$opts_name}{required}) {
         die "on_connect_call option '$opts_name' is not functional: $_";
       }
@@ -500,22 +500,35 @@ SQL
           $row = $rs->create({ amount => 100 });
         } 'inserted a money value';
 
-        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 100,
-          'money value round-trip');
+        cmp_ok (
+          ( eval { $rs->find($row->id)->amount } ) || 0,
+          '==',
+          100,
+          'money value round-trip'
+        );
 
         lives_ok {
           $row->update({ amount => 200 });
         } 'updated a money value';
 
-        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 200,
-          'updated money value round-trip');
+        cmp_ok (
+          ( eval { $rs->find($row->id)->amount } ) || 0,
+          '==',
+          200,
+          'updated money value round-trip'
+        );
 
         lives_ok {
           $row->update({ amount => undef });
         } 'updated a money value to NULL';
 
-        is try { $rs->find($row->id)->amount }, undef,
-          'updated money value to NULL round-trip';
+        lives_ok {
+          is(
+            $rs->find($row->id)->amount,
+            undef,
+            'updated money value to NULL round-trip'
+          );
+        }
       }
     }
 

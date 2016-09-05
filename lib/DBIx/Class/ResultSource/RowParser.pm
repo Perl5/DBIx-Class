@@ -6,8 +6,6 @@ use warnings;
 
 use base 'DBIx::Class';
 
-use Try::Tiny;
-
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
   assemble_collapsing_parser

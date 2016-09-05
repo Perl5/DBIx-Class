@@ -6,9 +6,8 @@ use strict;
 
 use DBIx::Class::Carp;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( is_exception qsub dbic_internal_try );
+use DBIx::Class::_Util qw( is_exception qsub dbic_internal_try dbic_internal_catch );
 use Scalar::Util qw(weaken blessed reftype);
-use Try::Tiny;
 use Moo;
 use namespace::clean;
 
@@ -127,7 +126,7 @@ sub _run {
         $txn_begin_ok = 1;
       }
       $cref->( @$args );
-    } catch {
+    } dbic_internal_catch {
       $run_err = $_;
       (); # important, affects @_ below
     };
@@ -159,7 +158,7 @@ sub _run {
           $storage->txn_commit;
           1;
         }
-        catch {
+        dbic_internal_catch {
           $run_err = $_;
         };
       }

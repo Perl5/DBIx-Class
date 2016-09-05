@@ -6,7 +6,6 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
-use Try::Tiny;
 use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION fail_on_internal_call );
 use namespace::clean;
 

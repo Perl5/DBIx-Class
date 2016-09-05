@@ -5,7 +5,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
 
@@ -226,35 +225,54 @@ SQL
     );
     diag $@ if $@;
 
-    my $row_from_db = try { $schema->resultset('ArtistGUID')
-      ->search({ name => 'mtfnpy' })->first }
-      catch { diag $_ };
+    my $row_from_db;
+    lives_ok {
+      $row_from_db = $schema->resultset('ArtistGUID')->search({ name => 'mtfnpy' })->first
+    };
 
-    is try { $row_from_db->artistid }, $row->artistid,
-      'PK GUID round trip (via ->search->next)';
+    is(
+      eval { $row_from_db->artistid },
+      $row->artistid,
+      'PK GUID round trip (via ->search->next)'
+    );
 
-    is try { $row_from_db->a_guid }, $row->a_guid,
-      'NON-PK GUID round trip (via ->search->next)';
+    is(
+      eval { $row_from_db->a_guid },
+      $row->a_guid,
+      'NON-PK GUID round trip (via ->search->next)'
+    );
 
-    $row_from_db = try { $schema->resultset('ArtistGUID')
-      ->find($row->artistid) }
-      catch { diag $_ };
+    lives_ok {
+      $row_from_db = $schema->resultset('ArtistGUID')->find($row->artistid)
+    };
 
-    is try { $row_from_db->artistid }, $row->artistid,
-      'PK GUID round trip (via ->find)';
+    is(
+      eval { $row_from_db->artistid },
+      $row->artistid,
+      'PK GUID round trip (via ->find)'
+    );
 
-    is try { $row_from_db->a_guid }, $row->a_guid,
-      'NON-PK GUID round trip (via ->find)';
+    is(
+      eval { $row_from_db->a_guid },
+      $row->a_guid,
+      'NON-PK GUID round trip (via ->find)'
+    );
 
-    ($row_from_db) = try { $schema->resultset('ArtistGUID')
-      ->search({ name => 'mtfnpy' })->all }
-      catch { diag $_ };
+    lives_ok {
+      ($row_from_db) = $schema->resultset('ArtistGUID')->search({ name => 'mtfnpy' })->all
+    };
 
-    is try { $row_from_db->artistid }, $row->artistid,
-      'PK GUID round trip (via ->search->all)';
+    is(
+      eval { $row_from_db->artistid },
+      $row->artistid,
+      'PK GUID round trip (via ->search->all)'
+    );
 
-    is try { $row_from_db->a_guid }, $row->a_guid,
-      'NON-PK GUID round trip (via ->search->all)';
+    is(
+      eval { $row_from_db->a_guid },
+      $row->a_guid,
+      'NON-PK GUID round trip (via ->search->all)'
+    );
   }
 }
 

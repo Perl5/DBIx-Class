@@ -20,8 +20,6 @@ use Scalar::Util 'reftype';
 use Hash::Merge;
 use List::Util qw( min max );
 use Context::Preserve 'preserve_context';
-use Try::Tiny;
-use DBIx::Class::_Util 'dbic_internal_try';
 
 use namespace::clean -except => 'meta';
 

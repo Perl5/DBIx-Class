@@ -10,11 +10,10 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Context::Preserve 'preserve_context';
-use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use DBIx::Class::_Util qw(
   quote_sub perlstring serialize dump_value
-  dbic_internal_try
+  dbic_internal_try dbic_internal_catch
   detected_reinvoked_destructor scope_guard
   mkdir_p
 );
@@ -1174,7 +1173,7 @@ sub _server_info {
 
     my $server_version = dbic_internal_try {
       $self->_get_server_version
-    } catch {
+    } dbic_internal_catch {
       # driver determination *may* use this codepath
       # in which case we must rethrow
       $self->throw_exception($_) if $self->{_in_determine_driver};
@@ -1469,7 +1468,7 @@ sub _do_connection_actions {
       $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
     }
   }
-  catch {
+  dbic_internal_catch {
     if ( $method_prefix =~ /^connect/ ) {
       # this is an on_connect cycle - we can't just throw while leaving
       # a handle in an undefined state in our storage object
@@ -1619,7 +1618,7 @@ sub _connect {
       $dbh_error_handler_installer->($self, $dbh);
     }
   }
-  catch {
+  dbic_internal_catch {
     $self->throw_exception("DBI Connection failed: $_")
   };
 
@@ -2104,7 +2103,7 @@ sub insert {
         @ir_container = $sth->fetchrow_array;
         $sth->finish;
 
-      } catch {
+      } dbic_internal_catch {
         # Evict the $sth from the cache in case we got here, since the finish()
         # is crucial, at least on older Firebirds, possibly on other engines too
         #
@@ -2446,7 +2445,7 @@ sub _dbh_execute_for_fetch {
       $tuple_status,
     );
   }
-  catch {
+  dbic_internal_catch {
     $err = shift;
   };
 
@@ -2462,7 +2461,7 @@ sub _dbh_execute_for_fetch {
   dbic_internal_try {
     $sth->finish
   }
-  catch {
+  dbic_internal_catch {
     $err = shift unless defined $err
   };
 
@@ -2493,7 +2492,7 @@ sub _dbh_execute_inserts_with_no_binds {
 
     $sth->execute foreach 1..$count;
   }
-  catch {
+  dbic_internal_catch {
     $err = shift;
   };
 
@@ -2501,7 +2500,7 @@ sub _dbh_execute_inserts_with_no_binds {
   dbic_internal_try {
     $sth->finish
   }
-  catch {
+  dbic_internal_catch {
     $err = shift unless defined $err;
   };
 
@@ -2729,7 +2728,7 @@ sub _dbh_columns_info_for {
 
         $result{$col_name} = \%column_info;
       }
-    } catch {
+    } dbic_internal_catch {
       %result = ();
     };
 
@@ -3235,7 +3234,7 @@ sub deploy {
       # do a dbh_do cycle here, as we need some error checking in
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });
-    } catch {
+    } dbic_internal_catch {
       carp qq{$_ (running "${line}")};
     };
     $self->_query_end($line);

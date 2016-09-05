@@ -90,14 +90,25 @@ if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
     return populate_weakregistry ($weak_registry, $obj );
   };
 
-  require Try::Tiny;
-  for my $func (qw/try catch finally/) {
-    my $orig = \&{"Try::Tiny::$func"};
-    *{"Try::Tiny::$func"} = sub (&;@) {
+
+  for my $func (qw( dbic_internal_try dbic_internal_catch )) {
+    my $orig = \&{"DBIx::Class::_Util::$func"};
+    *{"DBIx::Class::_Util"} = sub (&;@) {
       populate_weakregistry( $weak_registry, $_[0] );
       goto $orig;
     }
   }
+
+  if ( eval { require Try::Tiny } ) {
+    for my $func (qw( try catch finally )) {
+      my $orig = \&{"Try::Tiny::$func"};
+      *{"Try::Tiny::$func"} = sub (&;@) {
+        populate_weakregistry( $weak_registry, $_[0] );
+        goto $orig;
+      }
+    }
+  }
+
 
   # Some modules are known to install singletons on-load
   # Load them and empty the registry

@@ -6,11 +6,10 @@ use warnings;
 use base 'DBIx::Class';
 
 use DBIx::Class::Carp;
-use Try::Tiny;
 use Scalar::Util qw( weaken blessed refaddr );
 use DBIx::Class::_Util qw(
   refdesc refcount quote_sub scope_guard
-  is_exception dbic_internal_try
+  is_exception dbic_internal_try dbic_internal_catch
   fail_on_internal_call emit_loud_diag
 );
 use Devel::GlobalDestruction;
@@ -205,7 +204,7 @@ sub _ns_get_rsrc_instance {
 
   return dbic_internal_try {
     $rs_class->result_source
-  } catch {
+  } dbic_internal_catch {
     $me->throw_exception (
       "Attempt to load_namespaces() class $rs_class failed - are you sure this is a real Result Class?: $_"
     );
@@ -914,7 +913,7 @@ sub connection {
   dbic_internal_try {
     $self->ensure_class_loaded ($storage_class);
   }
-  catch {
+  dbic_internal_catch {
     $self->throw_exception(
       "Unable to load storage class ${storage_class}: $_"
     );
@@ -1209,7 +1208,7 @@ This guard was activated starting",
 
       1;
     }
-    catch {
+    dbic_internal_catch {
       # We call this to get the necessary warnings emitted and disregard the RV
       # as it's definitely an exception if we got as far as this catch{} block
       is_exception(
@@ -1674,7 +1673,7 @@ sub compose_connection {
   dbic_internal_try {
     require DBIx::Class::ResultSetProxy;
   }
-  catch {
+  dbic_internal_catch {
     $self->throw_exception
       ("No arguments to load_classes and couldn't load DBIx::Class::ResultSetProxy ($_)")
   };

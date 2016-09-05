@@ -3,7 +3,6 @@ BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use strict;
 use warnings;
 use Test::More;
-use Try::Tiny;
 
 use DBICTest;
 use DBIx::Class::_Util 'dump_value';
@@ -112,7 +111,7 @@ for my $db (sort {
 
   my $schema;
 
-  my $sql_maker = try {
+  my $sql_maker = eval {
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
       quote_names => 1
     });
@@ -140,7 +139,7 @@ for my $db (sort {
     # the SQLT producer has no idea what quotes are :/
     ! grep { $db eq $_ } qw( SYBASE DB2 )
       and
-    my $ddl = try { $schema->deployment_statements }
+    my $ddl = eval { $schema->deployment_statements }
   ) {
     my $quoted_artist = $sql_maker->_quote('artist');
 
