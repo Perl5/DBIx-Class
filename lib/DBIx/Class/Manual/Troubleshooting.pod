@@ -33,6 +33,14 @@ For some reason the table class in question didn't load fully, so the
 ResultSource object for it hasn't been created. Debug this class in
 isolation, then try loading the full schema again.
 
+This is often because you are trying to access result_source_instance
+before the call to table, e.g.
+
+  __PACKAGE__->result_source_instance->view_definition('...');
+  __PACKAGE__->table("page_attributes");
+
+Ensure your call to table is before result_source_instance is accessed.
+
 =head2 Can't get last insert ID under Postgres with serial primary keys
 
 Older L<DBI> and L<DBD::Pg> versions do not handle C<last_insert_id>
