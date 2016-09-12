@@ -505,7 +505,8 @@ sub check_valid_c3_composition {
 
     push @err, {
       class => $class,
-      isa => $desc->{isa},
+      initial_linear_isa => $desc->{linear_isa},
+      current_linear_isa => do { (undef, my @isa) = @{ mro::get_linear_isa($class) }; \@isa },
       initial_mro => $desc->{mro}{type},
       current_mro => mro::get_mro($class),
       affected_methods => $affected_methods,

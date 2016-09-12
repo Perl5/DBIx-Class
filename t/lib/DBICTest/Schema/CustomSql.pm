@@ -5,6 +5,7 @@ use warnings;
 use strict;
 
 use base qw/DBICTest::Schema::Artist/;
+use mro 'c3';
 
 __PACKAGE__->table('dummy');
 
