@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]] ; then
+  echo "This script can not be executed standalone - it can only be source()d" 1>&2
+  exit 1
+fi
+
 # "autodie"
 set -e
 
