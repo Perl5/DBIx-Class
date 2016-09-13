@@ -498,6 +498,38 @@ SQL
           'updated money value to NULL round-trip';
       }
     }
+
+# Test leakage of PK on implicit retrieval
+    {
+
+      my $next_owner = $schema->resultset('Owners')->get_column('id')->max + 1;
+      my $next_book = $schema->resultset('BooksInLibrary')->get_column('id')->max + 1;
+
+      cmp_ok(
+        $next_owner,
+        '!=',
+        $next_book,
+        'Preexisting auto-inc PKs staggered'
+      );
+
+      my $yet_another_owner = $schema->resultset('Owners')->create({ name => 'YAO' });
+      my $yet_another_book;
+      warnings_exist {
+        $yet_another_book = $yet_another_owner->create_related( books => { title => 'YAB' })
+      } qr/Missing value for primary key column 'id' on BooksInLibrary - perhaps you forgot to set its 'is_auto_increment'/;
+
+      is(
+        $yet_another_owner->id,
+        $next_owner,
+        'Expected Owner id'
+      );
+
+      is(
+        $yet_another_book->id,
+        $next_book,
+        'Expected Book id'
+      );
+    }
   }
 }
 

@@ -211,6 +211,9 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     __PACKAGE__->column_info_from_storage(1);
     __PACKAGE__->set_primary_key('id');
 
+    # FIXME - for some reason column_info_from_storage does not properly find
+    # the is_auto_increment setting...
+    __PACKAGE__->column_info('id')->{is_auto_increment} = 1;
   }
   SKIP: {
     skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;

@@ -7,6 +7,9 @@ Revision history for DBIx::Class
           libsqlite: ... WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
 
     * Fixes
+        - Fix silent failure to retrieve a primary key (RT#80283) or worse:
+          returning an incorrect value (RT#115381) in case a rdbms-side autoinc
+          column is declared as PK with the is_auto_increment attribute unset
         - Work around breakage in Hash::Merge by soft-requiring Clone as part
           of the replicated subsystem (RT#124321)
 
