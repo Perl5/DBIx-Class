@@ -13,6 +13,7 @@ Revision history for DBIx::Class
         - Fix docs on how to properly use Moo(se) in ResultSet's, and fix a
           corner case of ->count not functioning properly when the old recipe
           was being used (GH#105)
+        - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
         - Work around breakage in Hash::Merge by soft-requiring Clone as part
           of the replicated subsystem (RT#124321)
 
