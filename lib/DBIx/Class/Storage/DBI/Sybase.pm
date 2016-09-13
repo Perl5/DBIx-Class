@@ -76,27 +76,10 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-# FIXME if the main connection goes stale, does opening another for this statement
-# really determine anything?
-# FIXME (2) THIS MAKES 0 SENSE!!! Need to test later
-  if ($dbh->{syb_no_child_con}) {
-    return dbic_internal_try {
-      $self->_connect->do('select 1');
-      1;
-    }
-    catch {
-      0;
-    };
-  }
-
-  return (
-    (dbic_internal_try {
-      $dbh->do('select 1');
-      1;
-    })
-      ? 1
-      : 0
-  );
+  ( dbic_internal_try { $dbh->do('select 1'); 1 } )
+    ? 1
+    : 0
+  ;
 }
 
 sub _set_max_connect {

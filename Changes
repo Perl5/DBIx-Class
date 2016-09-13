@@ -67,6 +67,7 @@ Revision history for DBIx::Class
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
+        - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
         - Fix several corner cases with Many2Many over custom relationships
         - Fix corner cases of C3 composition being broken on OLD_MRO (5.8.x)
           only: https://github.com/frioux/DBIx-Class-Helpers/issues/61
