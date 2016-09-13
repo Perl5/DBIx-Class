@@ -2001,19 +2001,43 @@ sub insert {
   # they can be fused once again with the final return
   $to_insert = { %$to_insert, %$prefetched_values };
 
-  # FIXME - we seem to assume undef values as non-supplied. This is wrong.
-  # Investigate what does it take to s/defined/exists/
   my %pcols = map { $_ => 1 } $source->primary_columns;
+
   my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
+
   for my $col ($source->columns) {
+
+    # first autoinc wins - this is why ->columns() in-order iteration is important
+    #
+    # FIXME - there ought to be a sanity-check for multiple is_auto_increment settings
+    # or something...
+    #
     if ($col_infos->{$col}{is_auto_increment}) {
+
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
       $autoinc_supplied ||= 1 if defined $to_insert->{$col};
+
       $retrieve_autoinc_col ||= $col unless $autoinc_supplied;
     }
 
     # nothing to retrieve when explicit values are supplied
     next if (
-      defined $to_insert->{$col} and ! is_literal_value($to_insert->{$col})
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
+      defined $to_insert->{$col}
+        and
+      (
+        # not a ref - cheaper to check before a call to is_literal_value()
+        ! length ref $to_insert->{$col}
+          or
+        # not a literal we *MAY* need to pull out ( see check below )
+        ! is_literal_value( $to_insert->{$col} )
+      )
     );
 
     # the 'scalar keys' is a trick to preserve the ->columns declaration order
@@ -2023,6 +2047,35 @@ sub insert {
       $col_infos->{$col}{retrieve_on_insert}
     );
   };
+
+  # corner case of a non-supplied PK which is *not* declared as autoinc
+  if (
+    ! $autoinc_supplied
+      and
+    ! defined $retrieve_autoinc_col
+      and
+    # FIXME - first come-first serve, suboptimal...
+    ($retrieve_autoinc_col) = ( grep
+      {
+        $pcols{$_}
+          and
+        ! $col_infos->{$_}{retrieve_on_insert}
+          and
+        ! defined $col_infos->{$_}{is_auto_increment}
+      }
+      sort
+        { $retrieve_cols{$a} <=> $retrieve_cols{$b} }
+        keys %retrieve_cols
+    )
+  ) {
+    carp_unique(
+      "Missing value for primary key column '$retrieve_autoinc_col' on "
+    . "@{[ $source->source_name ]} - perhaps you forgot to set its "
+    . "'is_auto_increment' attribute during add_columns()? Treating "
+    . "'$retrieve_autoinc_col' implicitly as an autoinc, and attempting "
+    . 'value retrieval'
+    );
+  }
 
   local $self->{_autoinc_supplied_for_op} = $autoinc_supplied;
   local $self->{_perform_autoinc_retrieval} = $retrieve_autoinc_col;

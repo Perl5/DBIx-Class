@@ -19,6 +19,12 @@ __PACKAGE__->has_a(
   update_datetime => 'MyDateStamp',
 );
 
+
+# Disables the implicit autoinc-on-non-supplied-pk behavior
+# (and the warning that goes with it)
+# This is the same behavior as it was pre 0.082900
+__PACKAGE__->column_info('id')->{is_auto_increment} = 0;
+
 sub create_sql {
   # SQLite doesn't support Datetime datatypes.
   return qq{

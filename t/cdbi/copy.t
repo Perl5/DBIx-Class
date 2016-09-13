@@ -18,6 +18,11 @@ use lib 't/cdbi/testlib';
     __PACKAGE__->set_table('Movies');
     __PACKAGE__->columns(All => qw(id title));
 
+    # Disables the implicit autoinc-on-non-supplied-pk behavior
+    # (and the warning that goes with it)
+    # This is the same behavior as it was pre 0.082900
+    __PACKAGE__->column_info('id')->{is_auto_increment} = 0;
+
     sub create_sql {
         return qq{
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,

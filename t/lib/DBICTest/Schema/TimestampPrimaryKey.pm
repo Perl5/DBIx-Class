@@ -12,6 +12,7 @@ __PACKAGE__->add_columns(
   'id' => {
     data_type => 'timestamp',
     default_value => \'current_timestamp',
+    retrieve_on_insert => 1,
   },
 );
 

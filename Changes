@@ -54,6 +54,9 @@ Revision history for DBIx::Class
           result source metadata (RT#107462)
         - Fix incorrect SQL generated with invalid {rows} on complex resultset
           operations, generally more robust handling of rows/offset attrs
+        - Fix silent failure to retrieve a primary key (RT#80283) or worse:
+          returning an incorrect value (RT#115381) in case a rdbms-side autoinc
+          column is declared as PK with the is_auto_increment attribute unset
         - Fix incorrect $storage state on unexpected RDBMS disconnects and
           other failure events, preventing clean reconnection (RT#110429)
         - Make sure exception objects stringifying to '' are properly handled

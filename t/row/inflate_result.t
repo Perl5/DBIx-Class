@@ -20,9 +20,8 @@ my $admin_class = __PACKAGE__ . '::Admin';
 __PACKAGE__->table('users');
 
 __PACKAGE__->add_columns(
-    qw/user_id   email    password
-      firstname lastname active
-      admin/
+  user_id => { retrieve_on_insert => 1 },
+  qw( email password firstname lastname active admin ),
 );
 
 __PACKAGE__->set_primary_key('user_id');
