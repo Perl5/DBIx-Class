@@ -101,7 +101,7 @@ my @cdids = sort $cd_rs->get_column ('cdid')->all;
 
   # add an extra track to one of the cds, and then make sure we can get it on top
   # (check if limit works)
-  my $top_cd = $cd_rs->slice (1,1)->next;
+  my $top_cd = $cd_rs->search({}, { order_by => 'cdid' })->slice (1,1)->next;
   $top_cd->create_related ('tracks', {
     title => 'over the top',
   });

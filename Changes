@@ -73,6 +73,8 @@ Revision history for DBIx::Class
           working with copy() in t/icdt/engine_specific/sybase.t (GH#84)
         - Fix t/54taint.t failing on local::lib's with upgraded Carp on 5.8.*
         - Fix invalid variable names in ResultSource::View examples
+        - Fix missing ORDER BY leading to failures of t/prefetch/grouped.t
+          under upcoming libsqlite (RT#117271)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
