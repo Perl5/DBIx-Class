@@ -12,6 +12,11 @@ no warnings qw/once/;
 use Test::More;
 use Test::Exception;
 
+BEGIN {
+  plan skip_all => 'This test breaking module loading interferes with PERL_UNICODE on perls prior to 5.12'
+    if exists $ENV{PERL_UNICODE} and "$]" < 5.012;
+}
+
 # load before we break require()
 use Scalar::Util();
 use MRO::Compat();

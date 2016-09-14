@@ -185,6 +185,11 @@ if [[ "$CLEANTEST" = "true" ]]; then
 ##### END TEMPORARY WORKAROUNDS
   fi
 
+  # FIXME - work around RT#117844
+  if [[ "$BREWVER" == "5.10.0" ]]; then
+    unset PERL_UNICODE
+  fi
+
   installdeps $HARD_DEPS
 
   run_or_err "Re-configure" "perl Makefile.PL"

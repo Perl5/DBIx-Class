@@ -152,6 +152,9 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     fi
   done
 
+  echo "POISON_ENV: setting PERL_UNICODE=SAD"
+  export PERL_UNICODE=SAD
+
 
 ### emulate a local::lib-like env
 
