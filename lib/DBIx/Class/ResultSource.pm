@@ -2487,7 +2487,7 @@ sub _resolve_relationship_condition {
 
           # FIXME - temporarly force-override
           delete $args->{require_join_free_condition};
-          $ret->{join_free_condition} = UNRESOLVABLE_CONDITION;
+          delete $ret->{join_free_condition};
           last;
         }
       }
@@ -2497,7 +2497,6 @@ sub _resolve_relationship_condition {
     if (@{ $rel_info->{cond} } == 0) {
       $ret = {
         condition => UNRESOLVABLE_CONDITION,
-        join_free_condition => UNRESOLVABLE_CONDITION,
       };
     }
     else {
@@ -2541,7 +2540,7 @@ sub _resolve_relationship_condition {
   if (
     $args->{require_join_free_condition}
       and
-    ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
+    ! defined $ret->{join_free_condition}
   ) {
     $self->throw_exception(
       ucfirst sprintf "$exception_rel_id does not resolve to a %sjoin-free condition fragment",
@@ -2553,11 +2552,7 @@ sub _resolve_relationship_condition {
 
   # we got something back - sanity check and infer values if we can
   my @nonvalues;
-  if (
-    $ret->{join_free_condition}
-      and
-    $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION
-  ) {
+  if( $ret->{join_free_condition} ) {
 
     my $jfc_eqs = extract_equality_conditions(
       $ret->{join_free_condition},
@@ -2569,7 +2564,7 @@ sub _resolve_relationship_condition {
         push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
       }
       else {
-        # a join_free_condoition is fully qualified by definition
+        # a join_free_condition is fully qualified by definition
         my ($col) = $_ =~ /\.(.+)/ or carp_unique(
           'Internal error - extract_equality_conditions() returned a '
         . "non-fully-qualified key '$_'. *Please* file a bugreport "

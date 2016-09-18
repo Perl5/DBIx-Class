@@ -63,10 +63,6 @@ sub add_relationship_accessor {
 
             and
 
-          $jfc ne DBIx::Class::_Util::UNRESOLVABLE_CONDITION
-
-            and
-
           grep { not defined $_ } values %%$jfc
         );
 

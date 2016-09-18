@@ -545,11 +545,14 @@ sub related_resultset {
 
   my $rel_rset;
 
-  if (
-    ! $jfc
-      and
-    $relcond_is_freeform
-  ) {
+  if( defined $jfc ) {
+
+    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+      $jfc,
+      $rel_info->{attrs},
+    );
+  }
+  elsif( $relcond_is_freeform ) {
 
     # A WHOREIFFIC hack to reinvoke the entire condition resolution
     # with the correct alias. Another way of doing this involves a
@@ -577,25 +580,19 @@ sub related_resultset {
   }
   else {
 
-    # FIXME - this conditional doesn't seem correct - got to figure out
-    # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
-    # business seems shady - we could simply not query *at all*
-    my $attrs;
-    if ( $jfc eq UNRESOLVABLE_CONDITION ) {
-      $attrs = { %{$rel_info->{attrs}} };
-      my $reverse = $rsrc->reverse_relationship_info($rel);
-      foreach my $rev_rel (keys %$reverse) {
-        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-          weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
-        } else {
-          weaken($attrs->{related_objects}{$rev_rel} = $self);
-        }
-      }
-    }
+    my $attrs = { %{$rel_info->{attrs}} };
+    my $reverse = $rsrc->reverse_relationship_info($rel);
+
+    # FIXME - this loop doesn't seem correct - got to figure out
+    # at some point what exactly it does.
+    ( ( $reverse->{$_}{attrs}{accessor}||'') eq 'multi' )
+      ? weaken( $attrs->{related_objects}{$_}[0] = $self )
+      : weaken( $attrs->{related_objects}{$_}    = $self )
+    for keys %$reverse;
 
     $rel_rset = $rsrc->related_source($rel)->resultset->search(
-      $jfc,
-      $attrs || $rel_info->{attrs},
+      UNRESOLVABLE_CONDITION, # guards potential use of the $rs in the future
+      $attrs,
     );
   }
 
