@@ -10,7 +10,7 @@ use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw( blessed reftype );
 use DBIx::Class::_Util qw(
-  dbic_internal_try dbic_internal_catch dump_value
+  dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
   fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
@@ -2288,7 +2288,18 @@ sub populate {
                 or
               ref $data->[$i][$_->{pos}] eq 'HASH'
                 or
-              ( defined blessed $data->[$i][$_->{pos}] and $data->[$i][$_->{pos}]->isa('DBIx::Class::Row') )
+              (
+                defined blessed $data->[$i][$_->{pos}]
+                  and
+                $data->[$i][$_->{pos}]->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                    ||
+                  emit_loud_diag(
+                    confess => 1,
+                    msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                  )
+                )
+              )
             )
               and
             1
@@ -2296,7 +2307,18 @@ sub populate {
 
             # moar sanity check... sigh
             for ( ref $data->[$i][$_->{pos}] eq 'ARRAY' ? @{$data->[$i][$_->{pos}]} : $data->[$i][$_->{pos}] ) {
-              if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+              if (
+                defined blessed $_
+                  and
+                $_->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                    ||
+                  emit_loud_diag(
+                    confess => 1,
+                    msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                  )
+                )
+              ) {
                 carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
                 return my $throwaway = $self->populate(@_);
               }
@@ -2338,7 +2360,18 @@ sub populate {
               or
             ref $data->[$i]{$_} eq 'HASH'
               or
-            ( defined blessed $data->[$i]{$_} and $data->[$i]{$_}->isa('DBIx::Class::Row') )
+            (
+              defined blessed $data->[$i]{$_}
+                and
+              $data->[$i]{$_}->isa(
+                $DBIx::Class::ResultSource::__expected_result_class_isa
+                  ||
+                emit_loud_diag(
+                  confess => 1,
+                  msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                )
+              )
+            )
           )
             and
           1
@@ -2346,7 +2379,18 @@ sub populate {
 
           # moar sanity check... sigh
           for ( ref $data->[$i]{$_} eq 'ARRAY' ? @{$data->[$i]{$_}} : $data->[$i]{$_} ) {
-            if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+            if (
+              defined blessed $_
+                and
+              $_->isa(
+                $DBIx::Class::ResultSource::__expected_result_class_isa
+                  ||
+                emit_loud_diag(
+                  confess => 1,
+                  msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                )
+              )
+            ) {
               carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
               return my $throwaway = $self->populate(@_);
             }

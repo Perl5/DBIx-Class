@@ -1754,9 +1754,7 @@ sub _gen_sql_bind {
     $op eq 'select'
       and
     grep {
-      length ref $_->[1]
-        and
-      blessed($_->[1])
+      defined blessed($_->[1])
         and
       $_->[1]->isa('DateTime')
     } @$bind

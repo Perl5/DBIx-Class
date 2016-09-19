@@ -31,6 +31,13 @@ use DBIx::Class::ResultSet;
 
 use namespace::clean;
 
+# This global is present for the afaik nonexistent, but nevertheless possible
+# case of folks using stock ::ResultSet with a completely custom Result-class
+# hierarchy, not derived from DBIx::Class::Row at all
+# Instead of patching stuff all over the place - this would be one convenient
+# place to override things if need be
+our $__expected_result_class_isa = 'DBIx::Class::Row';
+
 my @hashref_attributes = qw(
   source_info resultset_attributes
   _columns _unique_constraints _relationships
@@ -2265,11 +2272,15 @@ sub _resolve_relationship_condition {
 
   $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
 
-  $self->throw_exception( "Argument 'self_result_object' must be an object inheriting from DBIx::Class::Row" )
+  $self->throw_exception( "Argument 'self_result_object' must be an object inheriting from '$__expected_result_class_isa'" )
     if (
       exists $args->{self_result_object}
         and
-      ( ! defined blessed $args->{self_result_object} or ! $args->{self_result_object}->isa('DBIx::Class::Row') )
+      (
+        ! defined blessed $args->{self_result_object}
+          or
+        ! $args->{self_result_object}->isa( $__expected_result_class_isa )
+      )
     )
   ;
 
@@ -2284,8 +2295,8 @@ sub _resolve_relationship_condition {
     }
     elsif (defined blessed $args->{foreign_values}) {
 
-      $self->throw_exception( "Objects supplied as 'foreign_values' ($args->{foreign_values}) must inherit from DBIx::Class::Row" )
-        unless $args->{foreign_values}->isa('DBIx::Class::Row');
+      $self->throw_exception( "Objects supplied as 'foreign_values' ($args->{foreign_values}) must inherit from '$__expected_result_class_isa'" )
+        unless $args->{foreign_values}->isa( $__expected_result_class_isa );
 
       carp_unique(
         "Objects supplied as 'foreign_values' ($args->{foreign_values}) "
@@ -2399,11 +2410,9 @@ sub _resolve_relationship_condition {
       ) for keys %$jfc;
 
       (
-        length ref $_
-          and
         defined blessed($_)
           and
-        $_->isa('DBIx::Class::Row')
+        $_->isa( $__expected_result_class_isa )
           and
         $self->throw_exception (
           "The join-free condition returned for $exception_rel_id may not "

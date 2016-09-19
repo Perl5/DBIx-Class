@@ -356,7 +356,7 @@ sub insert {
     my $rel_obj = $related_stuff{$rel_name};
 
     if (! $self->{_rel_in_storage}{$rel_name}) {
-      next unless (blessed $rel_obj && $rel_obj->isa('DBIx::Class::Row'));
+      next unless (blessed $rel_obj && $rel_obj->isa(__PACKAGE__));
 
       next unless $rsrc->_pk_depends_on(
                     $rel_name, { $rel_obj->get_columns }
@@ -441,7 +441,7 @@ sub insert {
       : $related_stuff{$rel_name}
     ;
 
-    if (@cands && blessed $cands[0] && $cands[0]->isa('DBIx::Class::Row')
+    if (@cands && blessed $cands[0] && $cands[0]->isa(__PACKAGE__)
     ) {
       my $reverse = $rsrc->reverse_relationship_info($rel_name);
       foreach my $obj (@cands) {
