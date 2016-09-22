@@ -480,7 +480,8 @@ sub update {
   $where ||= $self->where();
   $set ||= $self->set();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}) );
+  $resultset = $resultset->search_rs( $where )
+    if $where;
 
   my $count = $resultset->count();
   print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
@@ -511,7 +512,8 @@ sub delete {
   $where ||= $self->where();
   $attrs ||= $self->attrs();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $resultset = $resultset->search_rs( ($where||{}), ($attrs||()) )
+    if $where or $attrs;
 
   my $count = $resultset->count();
   print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
@@ -542,7 +544,8 @@ sub select {
   $where ||= $self->where();
   $attrs ||= $self->attrs();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $resultset = $resultset->search_rs( ($where||{}), ($attrs||()) )
+    if $where or $attrs;
 
   my @data;
   my @columns = $resultset->result_source->columns();

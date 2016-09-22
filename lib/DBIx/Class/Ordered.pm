@@ -249,7 +249,7 @@ sub previous_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $psib = $self->previous_siblings->search(
+    my $psib = $self->previous_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column } },
     )->single;
@@ -270,7 +270,7 @@ sub first_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $fsib = $self->previous_siblings->search(
+    my $fsib = $self->previous_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-asc' => $position_column } },
     )->single;
@@ -290,7 +290,7 @@ if the current object is the last one.
 sub next_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
-    my $nsib = $self->next_siblings->search(
+    my $nsib = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-asc' => $position_column } },
     )->single;
@@ -310,7 +310,7 @@ sibling.
 sub last_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
-    my $lsib = $self->next_siblings->search(
+    my $lsib = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column } },
     )->single;
@@ -323,7 +323,7 @@ sub _last_sibling_posval {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $cursor = $self->next_siblings->search(
+    my $cursor = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column }, select => $position_column },
     )->cursor;
@@ -423,7 +423,7 @@ sub move_to {
       $self->store_column(
         $position_column,
         (  $rsrc->resultset
-                 ->search($self->_storage_ident_condition, { rows => 1, columns => $position_column })
+                 ->search_rs($self->_storage_ident_condition, { rows => 1, columns => $position_column })
                   ->cursor
                    ->next
         )[0] || $self->throw_exception(
@@ -775,7 +775,7 @@ sub _shift_siblings {
         $ord = 'desc';
     }
 
-    my $shift_rs = $self->_group_rs-> search ({ $position_column => { -between => \@between } });
+    my $shift_rs = $self->_group_rs-> search_rs ({ $position_column => { -between => \@between } });
 
     # some databases (sqlite, pg, perhaps others) are dumb and can not do a
     # blanket increment/decrement without violating a unique constraint.
@@ -791,7 +791,7 @@ sub _shift_siblings {
     ) {
         my $clean_rs = $rsrc->resultset;
 
-        for ( $shift_rs->search (
+        for ( $shift_rs->search_rs (
           {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
         )->cursor->all ) {
           my $pos = shift @$_;

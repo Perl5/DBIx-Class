@@ -390,7 +390,9 @@ L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
 
-sub search {
+sub search :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my $rs = shift->search_rs( @_ );
 
   return $rs->all
@@ -932,7 +934,7 @@ sub find {
   }
 
   # Run the query, passing the result_class since it should propagate for find
-  my $rs = $self->search ($final_cond, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search_rs( $final_cond, {result_class => $self->result_class, %$attrs} );
   if ($rs->_resolved_attrs->{collapse}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1609,7 +1611,7 @@ C<< $rs->search ($cond, \%attrs)->count >>
 
 sub count {
   my $self = shift;
-  return $self->search(@_)->count if @_ and defined $_[0];
+  return $self->search_rs(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
   my $attrs = { %{ $self->_resolved_attrs } };
@@ -1657,7 +1659,7 @@ the same single value obtainable via L</count>.
 
 sub count_rs {
   my $self = shift;
-  return $self->search(@_)->count_rs if @_;
+  return $self->search_rs(@_)->count_rs if @_;
 
   # this may look like a lack of abstraction (count() does about the same)
   # but in fact an _rs *must* use a subquery for the limits, as the
@@ -1784,7 +1786,7 @@ sub _count_subq_rs {
   return $rsrc->resultset_class
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
-                 ->search ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
+                 ->search_rs ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
                   ->get_column ('count');
 }
 
@@ -2015,7 +2017,7 @@ sub _rs_update_delete {
           }
         }
 
-        $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
+        $subrs = $subrs->search_rs({}, { group_by => $attrs->{columns} });
       }
 
       $guard = $storage->txn_scope_guard;
@@ -2543,10 +2545,10 @@ sub populate {
 
         }
 
-        $colinfo->{$rel}{rs}->search({ map # only so that we inherit them values properly, no actual search
+        $colinfo->{$rel}{rs}->search_rs({ map # only so that we inherit them values properly, no actual search
           {
             $_ => { '=' =>
-              ( $main_proto_rs ||= $rsrc->resultset->search($main_proto) )
+              ( $main_proto_rs ||= $rsrc->resultset->search_rs($main_proto) )
                 ->get_column( $colinfo->{$rel}{fk_map}{$_} )
                  ->as_query
             }
@@ -3575,7 +3577,7 @@ sub _chain_relationship {
     # Nuke the prefetch (if any) before the new $rs attrs
     # are resolved (prefetch is useless - we are wrapping
     # a subquery anyway).
-    my $rs_copy = $self->search;
+    my $rs_copy = $self->search_rs;
     $rs_copy->{attrs}{join} = $self->_merge_joinpref_attr (
       $rs_copy->{attrs}{join},
       delete $rs_copy->{attrs}{prefetch},

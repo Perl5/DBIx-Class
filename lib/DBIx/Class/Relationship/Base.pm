@@ -586,7 +586,7 @@ sub related_resultset {
 
   if( defined $jfc ) {
 
-    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+    $rel_rset = $rsrc->related_source($rel)->resultset->search_rs(
       $jfc,
       $rel_info->{attrs},
     );
@@ -612,10 +612,10 @@ sub related_resultset {
     my $obj_table_alias = lc($rsrc->source_name) . '__row';
     $obj_table_alias =~ s/\W+/_/g;
 
-    $rel_rset = $rsrc->resultset->search(
+    $rel_rset = $rsrc->resultset->search_rs(
       $self->ident_condition($obj_table_alias),
       { alias => $obj_table_alias },
-    )->related_resultset('me')->search(undef, $rel_info->{attrs})
+    )->related_resultset('me')->search_rs(undef, $rel_info->{attrs})
   }
   else {
 
@@ -630,7 +630,7 @@ sub related_resultset {
       : weaken( $attrs->{related_objects}{$_}    = $self )
     for keys %$reverse;
 
-    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+    $rel_rset = $rsrc->related_source($rel)->resultset->search_rs(
       UNRESOLVABLE_CONDITION, # guards potential use of the $rs in the future
       $attrs,
     );

@@ -1144,12 +1144,20 @@ sub fail_on_internal_call {
     @fr2 = CORE::caller(@fr2 ? 3 : 2)
       and
     # if the frame that called us is an indirect itself - nothing to see here
-    ! grep
+    (! grep
       { $_ eq 'DBIC_method_is_indirect_sugar' }
       do {
         no strict 'refs';
         attributes::get( \&{ $fr2[3] })
       }
+    )
+      and
+    (
+      $fr->[3] ne 'DBIx::Class::ResultSet::search'
+        or
+      # these are explicit wantarray-passthrough callsites for search() due to old silly API choice
+      $fr2[3] !~ /^DBIx::Class::Ordered::(?: _group_rs | (?: _ | next_ | previous_ )? siblings )/x
+    )
   ) {
 
     my $argdesc;

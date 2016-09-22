@@ -514,7 +514,7 @@ sub _resultset {
       }
     }
 
-    $self->{_parent_resultset}->search(undef, {
+    $self->{_parent_resultset}->search_rs(undef, {
       columns => { $self->{_as} => $select }
     });
   };
