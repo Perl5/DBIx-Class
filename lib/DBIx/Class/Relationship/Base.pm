@@ -8,8 +8,9 @@ use base qw/DBIx::Class/;
 use Scalar::Util qw/weaken blessed/;
 use DBIx::Class::_Util qw(
   UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
-  fail_on_internal_call
+  dbic_internal_try fail_on_internal_call
 );
+use DBIx::Class::SQLMaker::Util 'extract_equality_conditions';
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -530,7 +531,11 @@ sub related_resultset {
     self_result_object => $self,
 
     # an extra sanity check guard
-    require_join_free_condition => ! $relcond_is_freeform,
+    require_join_free_condition => !!(
+      ! $relcond_is_freeform
+        and
+      $self->in_storage
+    ),
 
     # an API where these are optional would be too cumbersome,
     # instead always pass in some dummy values
@@ -585,6 +590,7 @@ sub related_resultset {
 
     # FIXME - this loop doesn't seem correct - got to figure out
     # at some point what exactly it does.
+    # See also the FIXME at the end of new_related()
     ( ( $reverse->{$_}{attrs}{accessor}||'') eq 'multi' )
       ? weaken( $attrs->{related_objects}{$_}[0] = $self )
       : weaken( $attrs->{related_objects}{$_}    = $self )
@@ -674,16 +680,94 @@ your storage until you call L<DBIx::Class::Row/insert> on it.
 sub new_related {
   my ($self, $rel, $data) = @_;
 
-  $self->related_resultset($rel)->new_result( $self->result_source->_resolve_relationship_condition (
-    infer_values_based_on => $data,
+  $self->throw_exception(
+    "Result object instantiation requires a hashref as argument"
+  ) unless ref $data eq 'HASH';
+
+  my $rsrc = $self->result_source;
+  my $rel_rsrc = $rsrc->related_source($rel);
+
+###
+### This section deliberately does not rely on require_join_free_values,
+### as quite often the resulting related object is useless without the
+### contents of $data mixed in. Originally this code was part of
+### resolve_relationship_condition() but given it has a single, very
+### context-specific call-site it made no sense to expose it to end users.
+###
+
+  my $rel_resolution = $rsrc->_resolve_relationship_condition (
     rel_name => $rel,
     self_result_object => $self,
 
-    # an API where these are optional would be too cumbersome,
-    # instead always pass in some dummy values
-    DUMMY_ALIASPAIR,
+    # In case we are *not* in_storage it is ok to treat failed resolution as an empty hash
+    # This happens e.g. as a result of various in-memory related graph of objects
+    require_join_free_condition => !! $self->in_storage,
 
-  )->{inferred_values} );
+    # dummy aliases with deliberately known lengths, so that we can
+    # quickly strip them below if needed
+    foreign_alias => 'F',
+    self_alias    => 'S',
+  );
+
+  my $rel_values =
+    $rel_resolution->{join_free_values}
+      ||
+    { map { substr( $_, 2 ) => $rel_resolution->{join_free_condition}{$_} } keys %{ $rel_resolution->{join_free_condition} } }
+  ;
+
+  # mix everything together
+  my $amalgamated_values = {
+    %{
+      # in case we got back join_free_values - they already have passed the extractor
+      $rel_resolution->{join_free_values}
+        ? $rel_values
+        : extract_equality_conditions(
+          $rel_values,
+          'consider_nulls'
+        )
+    },
+    %$data,
+  };
+
+  # cleanup possible rogue { somecolumn => [ -and => 1,2 ] }
+  ($amalgamated_values->{$_}||'') eq UNRESOLVABLE_CONDITION
+    and
+  delete $amalgamated_values->{$_}
+    for keys %$amalgamated_values;
+
+  if( my @nonvalues = grep { ! exists $amalgamated_values->{$_} } keys %$rel_values ) {
+
+    $self->throw_exception(
+      "Unable to complete value inferrence - relationship '$rel' "
+    . "on source '@{[ $rsrc->source_name ]}' results "
+    . 'in expression(s) instead of definitive values: '
+    . do {
+        # FIXME - used for diag only, but still icky
+        my $sqlm =
+          dbic_internal_try { $rsrc->schema->storage->sql_maker }
+            ||
+          (
+            require DBIx::Class::SQLMaker
+              and
+            DBIx::Class::SQLMaker->new
+          )
+        ;
+        local $sqlm->{quote_char};
+        local $sqlm->{_dequalify_idents} = 1;
+        ($sqlm->_recurse_where({ map { $_ => $rel_values->{$_} } @nonvalues }))[0]
+      }
+    );
+  }
+
+  # And more complications - in case the relationship did not resolve
+  # we *have* to loop things through search_related ( essentially re-resolving
+  # everything we did so far, but with different type of handholding )
+  # FIXME - this is still a mess, just a *little* better than it was
+  # See also the FIXME at the end of related_resultset()
+  exists $rel_resolution->{join_free_values}
+    ? $rel_rsrc->result_class->new({ -result_source => $rel_rsrc, %$amalgamated_values })
+    : $self->related_resultset($rel)->new_result( $amalgamated_values )
+  ;
 }
 
 =head2 create_related
@@ -830,7 +914,7 @@ sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
 
   $self->set_columns( $self->result_source->_resolve_relationship_condition (
-    infer_values_based_on => {},
+    require_join_free_values => 1,
     rel_name => $rel,
     foreign_values => (
       # maintain crazy set_from_related interface
@@ -865,7 +949,7 @@ sub set_from_related {
     # instead always pass in some dummy values
     DUMMY_ALIASPAIR,
 
-  )->{inferred_values} );
+  )->{join_free_values} );
 
   return 1;
 }

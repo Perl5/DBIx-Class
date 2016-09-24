@@ -836,6 +836,7 @@ sub find {
         %$call_cond,
 
         %{ $rsrc->_resolve_relationship_condition(
+          require_join_free_values => 1,
           rel_name => $key,
           foreign_values => (
             (! defined blessed $foreign_val) ? $foreign_val : do {
@@ -861,12 +862,11 @@ sub find {
               +{ $foreign_val->get_columns };
             }
           ),
-          infer_values_based_on => {},
 
           # an API where these are optional would be too cumbersome,
           # instead always pass in some dummy values
           DUMMY_ALIASPAIR,
-        )->{inferred_values} },
+        )->{join_free_values} },
       };
     }
   }

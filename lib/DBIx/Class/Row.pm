@@ -1194,14 +1194,14 @@ sub copy {
     $copied->{$_->ID}++ or $_->copy(
 
       $foreign_vals ||= $rsrc->_resolve_relationship_condition(
-        infer_values_based_on => {},
+        require_join_free_values => 1,
         rel_name => $rel_name,
         self_result_object => $new,
 
         # an API where these are optional would be too cumbersome,
         # instead always pass in some dummy values
         DUMMY_ALIASPAIR,
-      )->{inferred_values}
+      )->{join_free_values}
 
     ) for $self->related_resultset($rel_name)->all;
   }

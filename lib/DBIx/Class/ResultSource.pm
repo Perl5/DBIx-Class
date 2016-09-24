@@ -2278,17 +2278,16 @@ Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 # self_alias            => (scalar)
 # self_result_object    => (either not supplied or a result object)
 # require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
-# infer_values_based_on => (either not supplied or a hashref, implies require_join_free_condition)
+# require_join_free_values => (boolean, throws on failure to return an equality-only JF-cond, implies require_join_free_condition)
 #
 ## returns a hash
 # condition           => (a valid *likely fully qualified* sqla cond structure)
 # identity_map        => (a hashref of foreign-to-self *unqualified* column equality names)
 # identity_map_matches_condition => (boolean, indicates whether the entire condition is expressed in the identity-map)
 # join_free_condition => (a valid *fully qualified* sqla cond structure, maybe unset)
-# inferred_values     => (in case of an available join_free condition, this is a hashref of
-#                         *unqualified* column/value *EQUALITY* pairs, representing an amalgamation
-#                         of the JF-cond parse and infer_values_based_on
-#                         always either complete or unset)
+# join_free_values    => (IFF the returned join_free_condition contains only exact values (no expressions)
+#                         this would be a hashref of identical join_free_condition, except with all column
+#                         names *unqualified* )
 #
 sub _resolve_relationship_condition {
   my $self = shift;
@@ -2318,10 +2317,7 @@ sub _resolve_relationship_condition {
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
     if exists $args->{self_result_object} and exists $args->{foreign_values};
 
-  $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
-    if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
-
-  $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
+  $args->{require_join_free_condition} ||= !!$args->{require_join_free_values};
 
   $self->throw_exception( "Argument 'self_result_object' must be an object inheriting from '$__expected_result_class_isa'" )
     if (
@@ -2514,32 +2510,45 @@ sub _resolve_relationship_condition {
     };
 
     if ($args->{foreign_values}) {
-      $ret->{join_free_condition}{"$args->{self_alias}.$l_cols[$_]"} = $args->{foreign_values}{$f_cols[$_]}
+      $ret->{join_free_condition}{"$args->{self_alias}.$l_cols[$_]"}
+        = $ret->{join_free_values}{$l_cols[$_]}
+          = $args->{foreign_values}{$f_cols[$_]}
         for 0..$#f_cols;
     }
     elsif (defined $args->{self_result_object}) {
 
-      for my $i (0..$#l_cols) {
-        if ( $args->{self_result_object}->has_column_loaded($l_cols[$i]) ) {
-          $ret->{join_free_condition}{"$args->{foreign_alias}.$f_cols[$i]"} = $args->{self_result_object}->get_column($l_cols[$i]);
-        }
-        else {
-          $self->throw_exception(sprintf
-            "Unable to resolve relationship '%s' from object '%s': column '%s' not "
-          . 'loaded from storage (or not passed to new() prior to insert()). You '
-          . 'probably need to call ->discard_changes to get the server-side defaults '
-          . 'from the database.',
-            $args->{rel_name},
-            $args->{self_result_object},
-            $l_cols[$i],
-          ) if $args->{self_result_object}->in_storage;
+      # FIXME - compat block due to inconsistency of get_columns() vs has_column_loaded()
+      # The former returns cached-in related single rels, while the latter is doing what
+      # it says on the tin. Thus the more logical "get all columns and barf if something
+      # is missing" is a non-starter, and we move through each column one by one :/
 
-          # FIXME - temporarly force-override
-          delete $args->{require_join_free_condition};
-          delete $ret->{join_free_condition};
-          last;
-        }
-      }
+      $args->{self_result_object}->has_column_loaded( $l_cols[$_] )
+
+            ? $ret->{join_free_condition}{"$args->{foreign_alias}.$f_cols[$_]"}
+                = $ret->{join_free_values}{$f_cols[$_]}
+                  = $args->{self_result_object}->get_column( $l_cols[$_] )
+
+    : $args->{self_result_object}->in_storage
+
+            ? $self->throw_exception(sprintf
+                "Unable to resolve relationship '%s' from object '%s': column '%s' not "
+              . 'loaded from storage (or not passed to new() prior to insert()). You '
+            . 'probably need to call ->discard_changes to get the server-side defaults '
+            . 'from the database',
+              $args->{rel_name},
+              $args->{self_result_object},
+              $l_cols[$_],
+            )
+
+      # non-resolvable yet not in storage - give it a pass
+      # FIXME - while this is what the code has done for ages, it doesn't seem right :(
+            : (
+              delete $ret->{join_free_condition},
+              delete $ret->{join_free_values},
+              last
+            )
+
+        for 0 .. $#l_cols;
     }
   }
   elsif (ref $rel_info->{cond} eq 'ARRAY') {
@@ -2562,7 +2571,7 @@ sub _resolve_relationship_condition {
           $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
             if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
 
-          # we are discarding inferred_values from individual 'OR' branches here
+          # we are discarding join_free_values from individual 'OR' branches here
           # see @nonvalues checks below
           $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
         }
@@ -2599,9 +2608,14 @@ sub _resolve_relationship_condition {
     );
   }
 
-  # we got something back - sanity check and infer values if we can
+  # we got something back (not from a static cond) - sanity check and infer values if we can
+  # ( in case of a static cond join_free_values is already pre-populated for us )
   my @nonvalues;
-  if( $ret->{join_free_condition} ) {
+  if(
+    $ret->{join_free_condition}
+      and
+    ! $ret->{join_free_values}
+  ) {
 
     my $jfc_eqs = extract_equality_conditions(
       $ret->{join_free_condition},
@@ -2621,45 +2635,43 @@ sub _resolve_relationship_condition {
         );
 
         if (exists $jfc_eqs->{$_} and ($jfc_eqs->{$_}||'') ne UNRESOLVABLE_CONDITION) {
-          $ret->{inferred_values}{$col} = $jfc_eqs->{$_};
+          $ret->{join_free_values}{$col} = $jfc_eqs->{$_};
         }
-        elsif ( !$args->{infer_values_based_on} or ! exists $args->{infer_values_based_on}{$col} ) {
+        else {
           push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
         }
       }
     }
 
     # all or nothing
-    delete $ret->{inferred_values} if @nonvalues;
+    delete $ret->{join_free_values} if @nonvalues;
   }
 
-  # did the user explicitly ask
-  if ($args->{infer_values_based_on}) {
 
-    $self->throw_exception(sprintf (
-      "Unable to complete value inferrence - $exception_rel_id results in expression(s) instead of definitive values: %s",
-      do {
-        # FIXME - used for diag only, but still icky
-        my $sqlm =
-          dbic_internal_try { $self->schema->storage->sql_maker }
-            ||
-          (
-            require DBIx::Class::SQLMaker
-              and
-            DBIx::Class::SQLMaker->new
-          )
-        ;
-        local $sqlm->{quote_char};
-        local $sqlm->{_dequalify_idents} = 1;
-        ($sqlm->_recurse_where({ -and => \@nonvalues }))[0]
-      }
-    )) if @nonvalues;
+  # throw only if the user explicitly asked
+  $args->{require_join_free_values}
+    and
+  @nonvalues
+    and
+  $self->throw_exception(
+    "Unable to complete value inferrence - $exception_rel_id results in expression(s) instead of definitive values: "
+  . do {
+      # FIXME - used for diag only, but still icky
+      my $sqlm =
+        dbic_internal_try { $self->schema->storage->sql_maker }
+          ||
+        (
+          require DBIx::Class::SQLMaker
+            and
+          DBIx::Class::SQLMaker->new
+        )
+      ;
+      local $sqlm->{quote_char};
+      local $sqlm->{_dequalify_idents} = 1;
+      ($sqlm->_recurse_where({ -and => \@nonvalues }))[0]
+    }
+  );
 
-    $ret->{inferred_values} ||= {};
-
-    $ret->{inferred_values}{$_} = $args->{infer_values_based_on}{$_}
-      for keys %{$args->{infer_values_based_on}};
-  }
 
   my $identity_map_incomplete;
 
@@ -2746,6 +2758,11 @@ sub _resolve_relationship_condition {
     if $ret->{identity_map};
 
 
+  # cleanup before final return, easier to eyeball
+  ! defined $ret->{$_} and delete $ret->{$_}
+    for keys %$ret;
+
+
   # FIXME - temporary, to fool the idiotic check in SQLMaker::_join_condition
   $ret->{condition} = { -and => [ $ret->{condition} ] } unless (
     $ret->{condition} eq UNRESOLVABLE_CONDITION
@@ -2772,10 +2789,14 @@ sub _resolve_relationship_condition {
 
     local $sqlm->{_dequalify_idents} = 1;
 
-    my ($cond_as_sql, $identmap_as_sql) = map
-      { join ' : ', map { defined $_ ? $_ : '{UNDEF}' } $sqlm->_recurse_where($_) }
+    my ( $cond_as_sql, $jf_cond_as_sql, $jf_vals_as_sql, $identmap_as_sql ) = map
+      { join ' : ', map {
+        ref $_ eq 'ARRAY' ? $_->[1]
+      : defined $_        ? $_
+                          : '{UNDEF}'
+      } $sqlm->_recurse_where($_) }
       (
-        $ret->{condition},
+        ( map { $ret->{$_} } qw( condition join_free_condition join_free_values ) ),
 
         { map {
           # inverse because of how the idmap is declared
@@ -2783,6 +2804,7 @@ sub _resolve_relationship_condition {
         } keys %{$ret->{identity_map}} },
       )
     ;
+
 
     emit_loud_diag(
       confess => 1,
@@ -2798,7 +2820,34 @@ sub _resolve_relationship_condition {
         $identmap_as_sql,
         dump_value( $rel_info->{cond} ),
       ),
-    ) if ( $ret->{identity_map_matches_condition} xor ( $cond_as_sql eq $identmap_as_sql ) );
+    ) if (
+      $ret->{identity_map_matches_condition}
+        xor
+      ( $cond_as_sql eq $identmap_as_sql )
+    );
+
+
+    emit_loud_diag(
+      confess => 1,
+      msg => sprintf (
+        "Resolution of %s produced inconsistent metadata:\n\n"
+      . "returned 'join_free_condition' rendered as de-qualified SQL: %s\n"
+      . "returned 'join_free_values' rendered as de-qualified SQL:    %s\n\n"
+      . "The condition declared on the misclassified relationship is: %s ",
+        $exception_rel_id,
+        $jf_cond_as_sql,
+        $jf_vals_as_sql,
+        dump_value( $rel_info->{cond} ),
+      ),
+    ) if (
+      exists $ret->{join_free_condition}
+        and
+      (
+        exists $ret->{join_free_values}
+          xor
+        ( $jf_cond_as_sql eq $jf_vals_as_sql )
+      )
+    );
   }
 
   $ret;
