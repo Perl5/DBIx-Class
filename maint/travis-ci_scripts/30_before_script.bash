@@ -141,8 +141,15 @@ else
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
+  parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/dbsrgits/perl-pperl.git
+
+  # FIXME - temp workaround for RT#117959
+  if ! perl -M5.008004 -e1 &>/dev/null ; then
+    parallel_installdeps_notest DateTime::Locale@1.06
+    parallel_installdeps_notest DateTime::TimeZone@2.02
+    parallel_installdeps_notest DateTime@1.38
+  fi
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
