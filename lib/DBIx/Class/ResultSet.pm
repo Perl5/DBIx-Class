@@ -3506,7 +3506,7 @@ but because we isolated the group by into a subselect the above works.
 sub as_subselect_rs {
   my $self = shift;
 
-  my $attrs = $self->_resolved_attrs;
+  my $alias = $self->current_source_alias;
 
   my $fresh_rs = (ref $self)->new (
     $self->result_source
@@ -3518,11 +3518,11 @@ sub as_subselect_rs {
 
   return $fresh_rs->search( {}, {
     from => [{
-      $attrs->{alias} => $self->as_query,
-      -alias  => $attrs->{alias},
+      $alias => $self->as_query,
+      -alias  => $alias,
       -rsrc   => $self->result_source,
     }],
-    alias => $attrs->{alias},
+    alias => $alias,
   });
 }
 
