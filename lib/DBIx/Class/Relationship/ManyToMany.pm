@@ -7,9 +7,10 @@ use warnings;
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw( quote_sub perlstring );
 
-# FIXME - this souldn't be needed
-my $cu;
-BEGIN { $cu = \&carp_unique }
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
 
 use namespace::clean;
 
@@ -82,7 +83,7 @@ EOC
     my @extra_meth_qsub_args = (
       {
         '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
-        '$carp_unique' => \$cu,
+        '$carp_unique' => \$unique_carper,
       },
       { attributes => [
         'DBIC_method_is_indirect_sugar',

@@ -9,11 +9,14 @@ use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
 use Scalar::Util qw( blessed reftype );
+use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
   dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
-  fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
+  fail_on_internal_wantarray fail_on_internal_call
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
+use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
 
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
@@ -776,7 +779,6 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
 
-  my $rsrc = $self->result_source;
 
   my $constraint_name;
   if (exists $attrs->{key}) {
@@ -788,6 +790,8 @@ sub find {
 
   # Parse out the condition from input
   my $call_cond;
+
+  my $rsrc = $self->result_source;
 
   if (ref $_[0] eq 'HASH') {
     $call_cond = { %{$_[0]} };
@@ -811,25 +815,59 @@ sub find {
   }
 
   # process relationship data if any
+  my $rel_list;
+
   for my $key (keys %$call_cond) {
     if (
+      # either a structure or a result-ish object
       length ref($call_cond->{$key})
         and
-      my $relinfo = $rsrc->relationship_info($key)
+      ( $rel_list ||= { map { $_ => 1 } $rsrc->relationships } )
+        ->{$key}
         and
-      # implicitly skip has_many's (likely MC)
-      ( ref( my $val = delete $call_cond->{$key} ) ne 'ARRAY' )
+      ! is_literal_value( $call_cond->{$key} )
+        and
+      # implicitly skip has_many's (likely MC), via the delete()
+      ( ref( my $foreign_val = delete $call_cond->{$key} ) ne 'ARRAY' )
     ) {
-      my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
-        $relinfo->{cond}, $val, $key, $key
-      );
 
-      $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
-         if $crosstable or ref($rel_cond) ne 'HASH';
+      # FIXME: it seems wrong that relationship conditions take precedence...?
+      $call_cond = {
+        %$call_cond,
 
-      # supplement condition
-      # relationship conditions take precedence (?)
-      @{$call_cond}{keys %$rel_cond} = values %$rel_cond;
+        %{ $rsrc->resolve_relationship_condition(
+          require_join_free_values => 1,
+          rel_name => $key,
+          foreign_values => (
+            (! defined blessed $foreign_val) ? $foreign_val : do {
+
+              my $f_result_class = $rsrc->related_source($key)->result_class;
+
+              unless( $foreign_val->isa($f_result_class) ) {
+
+                $self->throw_exception(
+                  'Objects supplied to find() must inherit from '
+                . "'$DBIx::Class::ResultSource::__expected_result_class_isa'"
+                ) unless $foreign_val->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                );
+
+                carp_unique(
+                  "Objects supplied to find() via '$key' usually should inherit from "
+                . "the related ResultClass ('$f_result_class'), perhaps you've made "
+                . 'a mistake?'
+                );
+              }
+
+              +{ $foreign_val->get_columns };
+            }
+          ),
+
+          # an API where these are optional would be too cumbersome,
+          # instead always pass in some dummy values
+          DUMMY_ALIASPAIR,
+        )->{join_free_values} },
+      };
     }
   }
 
@@ -2220,6 +2258,7 @@ sub populate {
   # At this point assume either hashes or arrays
 
   my $rsrc = $self->result_source;
+  my $storage = $rsrc->schema->storage;
 
   if(defined wantarray) {
     my (@results, $guard);
@@ -2228,7 +2267,7 @@ sub populate {
       # column names only, nothing to do
       return if @$data == 1;
 
-      $guard = $rsrc->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 2;
 
       @results = map
@@ -2238,7 +2277,7 @@ sub populate {
     }
     else {
 
-      $guard = $rsrc->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 1;
 
       @results = map { $self->new_result($_)->insert } @$data;
@@ -2452,13 +2491,13 @@ sub populate {
 
 ### start work
   my $guard;
-  $guard = $rsrc->schema->storage->txn_scope_guard
+  $guard = $storage->txn_scope_guard
     if $slices_with_rels;
 
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->schema->storage->_insert_bulk(
+  $storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {
@@ -2492,10 +2531,12 @@ sub populate {
 
           $colinfo->{$rel}{rs} = $rsrc->related_source($rel)->resultset;
 
-          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->_resolve_relationship_condition(
+          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->resolve_relationship_condition(
             rel_name => $rel,
-            self_alias => "\xFE", # irrelevant
-            foreign_alias => "\xFF", # irrelevant
+
+            # an API where these are optional would be too cumbersome,
+            # instead always pass in some dummy values
+            DUMMY_ALIASPAIR,
           )->{identity_map} || {} } };
 
         }
@@ -3269,13 +3310,11 @@ sub related_resultset {
 
     my $attrs = $self->_chain_relationship($rel);
 
-    my $storage = $rsrc->schema->storage;
-
     # Previously this atribute was deleted (instead of being set as it is now)
     # Doing so seems to be harmless in all available test permutations
     # See also 01d59a6a6 and mst's comment below
     #
-    $attrs->{alias} = $storage->relname_to_table_alias(
+    $attrs->{alias} = $rsrc->schema->storage->relname_to_table_alias(
       $rel,
       $attrs->{seen_join}{$rel}
     );
@@ -3283,8 +3322,55 @@ sub related_resultset {
     # since this is search_related, and we already slid the select window inwards
     # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
-    # read the comment on top of the actual function to see what this does
-    $attrs->{from} = $storage->_inner_join_to_node( $attrs->{from}, $attrs->{alias} );
+    #
+    # The DBIC relationship chaining implementation is pretty simple - every
+    # new related_relationship is pushed onto the {from} stack, and the {select}
+    # window simply slides further in. This means that when we count somewhere
+    # in the middle, we got to make sure that everything in the join chain is an
+    # actual inner join, otherwise the count will come back with unpredictable
+    # results (a resultset may be generated with _some_ rows regardless of if
+    # the relation which the $rs currently selects has rows or not). E.g.
+    # $artist_rs->cds->count - normally generates:
+    # SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+    # which actually returns the number of artists * (number of cds || 1)
+    #
+    # So what we do here is crawl {from}, determine if the current alias is at
+    # the top of the stack, and if not - make sure the chain is inner-joined down
+    # to the root.
+    #
+    my $switch_branch = find_join_path_to_alias(
+      $attrs->{from},
+      $attrs->{alias},
+    );
+
+    if ( @{ $switch_branch || [] } ) {
+
+      # So it looks like we will have to switch some stuff around.
+      # local() is useless here as we will be leaving the scope
+      # anyway, and deep cloning is just too fucking expensive
+      # So replace the first hashref in the node arrayref manually
+      my @new_from = $attrs->{from}[0];
+      my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
+
+      for my $j ( @{$attrs->{from}}[ 1 .. $#{$attrs->{from}} ] ) {
+        my $jalias = $j->[0]{-alias};
+
+        if ($sw_idx->{$jalias}) {
+          my %attrs = %{$j->[0]};
+          delete $attrs{-join_type};
+          push @new_from, [
+            \%attrs,
+            @{$j}[ 1 .. $#$j ],
+          ];
+        }
+        else {
+          push @new_from, $j;
+        }
+      }
+
+      $attrs->{from} = \@new_from;
+    }
+
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete $attrs->{result_class};

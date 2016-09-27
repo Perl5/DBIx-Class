@@ -4,6 +4,9 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
+use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
 __PACKAGE__->sql_limit_dialect ('RowNumberOver');
@@ -110,7 +113,7 @@ sub select_single {
 
   my ($ident, $select) = @_;
 
-  my $col_info = $self->_resolve_column_info($ident);
+  my $col_info = fromspec_columns_info($ident);
 
   for my $select_idx (0..$#$select) {
     my $selected = $select->[$select_idx];

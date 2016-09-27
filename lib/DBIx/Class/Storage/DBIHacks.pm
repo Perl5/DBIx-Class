@@ -33,6 +33,10 @@ use DBIx::Class::_Util qw(
   dump_value fail_on_internal_call
 );
 use DBIx::Class::SQLMaker::Util 'extract_equality_conditions';
+use DBIx::Class::ResultSource::FromSpec::Util qw(
+  fromspec_columns_info
+  find_join_path_to_alias
+);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -167,7 +171,7 @@ sub _adjust_select_args_for_complex_prefetch {
     unless $root_node;
 
   # use the heavy duty resolver to take care of aliased/nonaliased naming
-  my $colinfo = $self->_resolve_column_info($inner_attrs->{from});
+  my $colinfo = fromspec_columns_info($inner_attrs->{from});
   my $selected_root_columns;
 
   for my $i (0 .. $#{$outer_attrs->{select}}) {
@@ -444,7 +448,7 @@ sub _resolve_aliastypes_from_select_args {
   }
 
   # get a column to source/alias map (including unambiguous unqualified ones)
-  my $colinfo = $self->_resolve_column_info ($attrs->{from});
+  my $colinfo = fromspec_columns_info($attrs->{from});
 
   # set up a botched SQLA
   my $sql_maker = $self->sql_maker;
@@ -633,7 +637,7 @@ sub _resolve_aliastypes_from_select_args {
 sub _group_over_selection {
   my ($self, $attrs) = @_;
 
-  my $colinfos = $self->_resolve_column_info ($attrs->{from});
+  my $colinfos = fromspec_columns_info($attrs->{from});
 
   my (@group_by, %group_index);
 
@@ -769,181 +773,6 @@ sub _minmax_operator_for_datatype {
   $_[2] ? 'MAX' : 'MIN';
 }
 
-sub _resolve_ident_sources {
-  my ($self, $ident) = @_;
-
-  my $alias2source = {};
-
-  # the reason this is so contrived is that $ident may be a {from}
-  # structure, specifying multiple tables to join
-  if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
-    # this is compat mode for insert/update/delete which do not deal with aliases
-    $alias2source->{me} = $ident;
-  }
-  elsif (ref $ident eq 'ARRAY') {
-
-    for (@$ident) {
-      my $tabinfo;
-      if (ref $_ eq 'HASH') {
-        $tabinfo = $_;
-      }
-      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
-        $tabinfo = $_->[0];
-      }
-
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-rsrc}
-        if ($tabinfo->{-rsrc});
-    }
-  }
-
-  return $alias2source;
-}
-
-# Takes $ident, \@column_names
-#
-# returns { $column_name => \%column_info, ... }
-# also note: this adds -result_source => $rsrc to the column info
-#
-# If no columns_names are supplied returns info about *all* columns
-# for all sources
-sub _resolve_column_info {
-  my ($self, $ident, $colnames) = @_;
-
-  return {} if $colnames and ! @$colnames;
-
-  my $sources = $self->_resolve_ident_sources($ident);
-
-  $_ = { rsrc => $_, colinfos => $_->columns_info }
-    for values %$sources;
-
-  my (%seen_cols, @auto_colnames);
-
-  # compile a global list of column names, to be able to properly
-  # disambiguate unqualified column names (if at all possible)
-  for my $alias (keys %$sources) {
-    (
-      ++$seen_cols{$_}{$alias}
-        and
-      ! $colnames
-        and
-      push @auto_colnames, "$alias.$_"
-    ) for keys %{ $sources->{$alias}{colinfos} };
-  }
-
-  $colnames ||= [
-    @auto_colnames,
-    ( grep { keys %{$seen_cols{$_}} == 1 } keys %seen_cols ),
-  ];
-
-  my %return;
-  for (@$colnames) {
-    my ($colname, $source_alias) = reverse split /\./, $_;
-
-    my $assumed_alias =
-      $source_alias
-        ||
-      # if the column was seen exactly once - we know which rsrc it came from
-      (
-        $seen_cols{$colname}
-          and
-        keys %{$seen_cols{$colname}} == 1
-          and
-        ( %{$seen_cols{$colname}} )[0]
-      )
-        ||
-      next
-    ;
-
-    $self->throw_exception(
-      "No such column '$colname' on source " . $sources->{$assumed_alias}{rsrc}->source_name
-    ) unless $seen_cols{$colname}{$assumed_alias};
-
-    $return{$_} = {
-      %{ $sources->{$assumed_alias}{colinfos}{$colname} },
-      -result_source => $sources->{$assumed_alias}{rsrc},
-      -source_alias => $assumed_alias,
-      -fq_colname => "$assumed_alias.$colname",
-      -colname => $colname,
-    };
-
-    $return{"$assumed_alias.$colname"} = $return{$_}
-      unless $source_alias;
-  }
-
-  return \%return;
-}
-
-# The DBIC relationship chaining implementation is pretty simple - every
-# new related_relationship is pushed onto the {from} stack, and the {select}
-# window simply slides further in. This means that when we count somewhere
-# in the middle, we got to make sure that everything in the join chain is an
-# actual inner join, otherwise the count will come back with unpredictable
-# results (a resultset may be generated with _some_ rows regardless of if
-# the relation which the $rs currently selects has rows or not). E.g.
-# $artist_rs->cds->count - normally generates:
-# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
-# which actually returns the number of artists * (number of cds || 1)
-#
-# So what we do here is crawl {from}, determine if the current alias is at
-# the top of the stack, and if not - make sure the chain is inner-joined down
-# to the root.
-#
-sub _inner_join_to_node {
-  my ($self, $from, $alias) = @_;
-
-  my $switch_branch = $self->_find_join_path_to_node($from, $alias);
-
-  return $from unless @{$switch_branch||[]};
-
-  # So it looks like we will have to switch some stuff around.
-  # local() is useless here as we will be leaving the scope
-  # anyway, and deep cloning is just too fucking expensive
-  # So replace the first hashref in the node arrayref manually
-  my @new_from = ($from->[0]);
-  my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
-
-  for my $j (@{$from}[1 .. $#$from]) {
-    my $jalias = $j->[0]{-alias};
-
-    if ($sw_idx->{$jalias}) {
-      my %attrs = %{$j->[0]};
-      delete $attrs{-join_type};
-      push @new_from, [
-        \%attrs,
-        @{$j}[ 1 .. $#$j ],
-      ];
-    }
-    else {
-      push @new_from, $j;
-    }
-  }
-
-  return \@new_from;
-}
-
-sub _find_join_path_to_node {
-  my ($self, $from, $target_alias) = @_;
-
-  # subqueries and other oddness are naturally not supported
-  return undef if (
-    ref $from ne 'ARRAY'
-      ||
-    ref $from->[0] ne 'HASH'
-      ||
-    ! defined $from->[0]{-alias}
-  );
-
-  # no path - the head is the alias
-  return [] if $from->[0]{-alias} eq $target_alias;
-
-  for my $i (1 .. $#$from) {
-    return $from->[$i][0]{-join_path} if ( ($from->[$i][0]{-alias}||'') eq $target_alias );
-  }
-
-  # something else went quite wrong
-  return undef;
-}
-
 sub _extract_order_criteria {
   my ($self, $order_by, $sql_maker) = @_;
 
@@ -997,7 +826,7 @@ sub _order_by_is_stable {
     ( $where ? keys %{ extract_equality_conditions( $where ) } : () ),
   ) or return 0;
 
-  my $colinfo = $self->_resolve_column_info($ident, \@cols);
+  my $colinfo = fromspec_columns_info($ident, \@cols);
 
   return keys %$colinfo
     ? $self->_columns_comprise_identifying_set( $colinfo,  \@cols )
@@ -1027,7 +856,7 @@ sub _columns_comprise_identifying_set {
 sub _extract_colinfo_of_stable_main_source_order_by_portion {
   my ($self, $attrs) = @_;
 
-  my $nodes = $self->_find_join_path_to_node($attrs->{from}, $attrs->{alias});
+  my $nodes = find_join_path_to_alias($attrs->{from}, $attrs->{alias});
 
   return unless defined $nodes;
 
@@ -1042,7 +871,7 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
     map { values %$_ } @$nodes,
   ) };
 
-  my $colinfos = $self->_resolve_column_info($attrs->{from});
+  my $colinfos = fromspec_columns_info($attrs->{from});
 
   my ($colinfos_to_return, $seen_main_src_cols);
 
@@ -1083,6 +912,20 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
   ]) ? $colinfos_to_return : ();
 }
 
+sub _resolve_column_info :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_resolve_column_info() is deprecated, ask on IRC for a better alternative");
+
+  fromspec_columns_info( @_[1,2] );
+}
+
+sub _find_join_path_to_node :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_find_join_path_to_node() is deprecated, ask on IRC for a better alternative");
+
+  find_join_path_to_alias( @_[1,2] );
+}
+
 sub _collapse_cond :DBIC_method_is_indirect_sugar {
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   carp_unique("_collapse_cond() is deprecated, ask on IRC for a better alternative");
@@ -1097,6 +940,20 @@ sub _extract_fixed_condition_columns :DBIC_method_is_indirect_sugar {
 
   shift;
   extract_equality_conditions(@_);
+}
+
+sub _resolve_ident_sources :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_resolve_ident_sources() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
+}
+
+sub _inner_join_to_node :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_inner_join_to_node() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
 }
 
 1;

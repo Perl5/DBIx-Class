@@ -2,9 +2,12 @@ package DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server::Cursor;
 
 use strict;
 use warnings;
+
 use base 'DBIx::Class::Storage::DBI::Cursor';
 use mro 'c3';
+
 use DBIx::Class::Storage::DBI::ADO::CursorUtils qw/_normalize_guids _strip_trailing_binary_nulls/;
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use namespace::clean;
 
 =head1 NAME
@@ -42,7 +45,7 @@ sub next {
 
   my @row = $self->next::method(@_);
 
-  $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]);
+  $self->{_colinfos} ||= fromspec_columns_info($self->args->[0]);
 
   _normalize_guids(
     $self->args->[1],
@@ -66,7 +69,7 @@ sub all {
 
   my @rows = $self->next::method(@_);
 
-  $self->{_colinfos} ||= $self->storage->_resolve_column_info($self->args->[0]);
+  $self->{_colinfos} ||= fromspec_columns_info($self->args->[0]);
 
   for (@rows) {
     _normalize_guids(

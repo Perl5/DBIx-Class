@@ -2,12 +2,15 @@ package DBIx::Class::Storage::DBI::ADO::MS_Jet;
 
 use strict;
 use warnings;
+
 use base qw/
   DBIx::Class::Storage::DBI::ADO
   DBIx::Class::Storage::DBI::ACCESS
 /;
 use mro 'c3';
+
 use DBIx::Class::Storage::DBI::ADO::CursorUtils '_normalize_guids';
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use namespace::clean;
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::ADO::MS_Jet::Cursor');
@@ -104,7 +107,7 @@ sub select_single {
   return @row unless
     $self->cursor_class->isa('DBIx::Class::Storage::DBI::ADO::MS_Jet::Cursor');
 
-  my $col_infos = $self->_resolve_column_info($ident);
+  my $col_infos = fromspec_columns_info($ident);
 
   _normalize_guids($select, $col_infos, \@row, $self);
 

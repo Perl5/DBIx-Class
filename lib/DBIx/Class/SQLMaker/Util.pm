@@ -346,7 +346,7 @@ sub _normalize_cond_unroll_pairs {
       if (ref $rhs eq 'HASH' and ! keys %$rhs) {
         # FIXME - SQLA seems to be doing... nothing...?
       }
-      # normalize top level -ident, for saner extract_fixed_condition_columns code
+      # normalize top level -ident, for saner extract_equality_conditions() code
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
         push @conds, { $lhs => { '=', $rhs } };
       }

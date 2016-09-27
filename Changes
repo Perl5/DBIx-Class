@@ -40,6 +40,9 @@ Revision history for DBIx::Class
           of Schema/Result/ResultSet classes loudly alerting the end user to
           potential extremely hard-to-diagnose pitfalls ( RT#93976, also fully
           addresses https://blog.afoolishmanifesto.com/posts/mros-and-you/ )
+        - A new low-level API for relationship resolution is available as an
+          official method ( $rsrc->resolve_relationship_condition ). This is
+          mainly of interest to builders of reflection tools
         - InflateColumn::DateTime now accepts the ecosystem-standard option
           'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
         - Massively optimised literal SQL snippet scanner - fixes all known
@@ -68,6 +71,8 @@ Revision history for DBIx::Class
           create()/populate()
         - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
         - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
+        - Fix some corner cases of non-fatal failures during relationship
+          resolution showing up as hard errors
         - Fix several corner cases with Many2Many over custom relationships
         - Fix intermittent failure to infer the CASCADE attributes of relations
           during deployment_statements()/deploy()

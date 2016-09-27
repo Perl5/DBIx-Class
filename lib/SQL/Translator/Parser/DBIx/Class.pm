@@ -15,7 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch bag_eq );
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
 use namespace::clean;
@@ -155,13 +155,11 @@ sub parse {
 
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
-            if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
-                $table->add_constraint(
-                            type             => 'unique',
-                            name             => $uniq,
-                            fields           => $unique_constraints{$uniq}
-                );
-            }
+            $table->add_constraint(
+                type             => 'unique',
+                name             => $uniq,
+                fields           => $unique_constraints{$uniq}
+            ) unless bag_eq( \@primary, $unique_constraints{$uniq} );
         }
 
         my @rels = $source->relationships();
@@ -177,6 +175,11 @@ sub parse {
             my $rel_info = $source->relationship_info($rel);
 
             # Ignore any rel cond that isn't a straight hash
+            #
+            # FIXME - this can be done *WAY* better via the recolcond resolver
+            # but no time to think through the implications for deploy() at
+            # the moment. Grep for {identity_map_matches_condition} for ideas
+            # how to improve this, and the /^\w+\.(\w+)$/ crap below
             next unless ref $rel_info->{cond} eq 'HASH';
 
             my $relsource = dbic_internal_try { $source->related_source($rel) };
@@ -227,7 +230,7 @@ sub parse {
             # this is supposed to indicate a has_one/might_have...
             # where's the introspection!!?? :)
             else {
-                $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
+                $fk_constraint = ! bag_eq( \@keys, \@primary );
             }
 
 

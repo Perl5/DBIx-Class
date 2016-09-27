@@ -11,6 +11,7 @@ use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Context::Preserve 'preserve_context';
 use SQL::Abstract qw(is_plain_value is_literal_value);
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use DBIx::Class::_Util qw(
   quote_sub perlstring serialize dump_value
   dbic_internal_try dbic_internal_catch
@@ -1775,7 +1776,8 @@ sub _resolve_bindattrs {
   my $resolve_bindinfo = sub {
     #my $infohash = shift;
 
-    $colinfos ||= { %{ $self->_resolve_column_info($ident) } };
+    # shallow copy to preempt autoviv
+    $colinfos ||= { %{ fromspec_columns_info($ident) } };
 
     my $ret;
     if (my $col = $_[0]->{dbic_colname}) {
@@ -2642,8 +2644,6 @@ sub _select_args {
   $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
 
 ###
-  #   my $alias2source = $self->_resolve_ident_sources ($ident);
-  #
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial

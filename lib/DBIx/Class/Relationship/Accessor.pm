@@ -46,21 +46,24 @@ sub add_relationship_accessor {
       else {
         my $rsrc = $self->result_source;
 
-        my $relcond = $rsrc->_resolve_relationship_condition(
-          rel_name => %1$s,
-          foreign_alias => %1$s,
-          self_alias => 'me',
-          self_result_object => $self,
-        );
+        my $jfc;
 
         return undef if (
-          $relcond->{join_free_condition}
-            and
-          $relcond->{join_free_condition} ne DBIx::Class::_Util::UNRESOLVABLE_CONDITION
-            and
-          scalar grep { not defined $_ } values %%{ $relcond->{join_free_condition} || {} }
-            and
+
           $rsrc->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
+
+            and
+
+          $jfc = ( $rsrc->resolve_relationship_condition(
+            rel_name => %1$s,
+            foreign_alias => %1$s,
+            self_alias => 'me',
+            self_result_object => $self,
+          )->{join_free_condition} || {} )
+
+            and
+
+          grep { not defined $_ } values %%$jfc
         );
 
         my $val = $self->related_resultset( %1$s )->single;

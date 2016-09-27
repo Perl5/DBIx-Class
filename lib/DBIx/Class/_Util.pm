@@ -52,6 +52,7 @@ BEGIN {
         DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
         DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
         DBIC_ASSERT_NO_FAILING_SANITY_CHECKS
+        DBIC_ASSERT_NO_INCONSISTENT_RELATIONSHIP_RESOLUTION
         DBIC_STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE
         DBIC_STRESSTEST_COLUMN_INFO_UNAWARE_STORAGE
       )
@@ -203,12 +204,17 @@ our @EXPORT_OK = qw(
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
   is_exception dbic_internal_try dbic_internal_catch visit_namespaces
-  quote_sub qsub perlstring serialize deep_clone dump_value uniq
+  quote_sub qsub perlstring serialize deep_clone dump_value uniq bag_eq
   parent_dir mkdir_p
-  UNRESOLVABLE_CONDITION
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 
 use constant UNRESOLVABLE_CONDITION => \ '1 = 0';
+
+use constant DUMMY_ALIASPAIR => (
+  foreign_alias => "!!!\xFF()!!!_DUMMY_FOREIGN_ALIAS_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFF!!!",
+  self_alias => "!!!\xFE()!!!_DUMMY_SELF_ALIAS_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFE!!!",
+);
 
 # Override forcing no_defer, and adding naming consistency checks
 our %refs_closed_over_by_quote_sub_installed_crefs;
@@ -379,6 +385,34 @@ sub uniq {
       ? $seen{ $numeric_preserving_copy = $_ }++
       : $seen_undef++
   ) } @_;
+}
+
+sub bag_eq ($$) {
+  croak "bag_eq() requiress two arrayrefs as arguments" if (
+    ref($_[0]) ne 'ARRAY'
+      or
+    ref($_[1]) ne 'ARRAY'
+  );
+
+  return '' unless @{$_[0]} == @{$_[1]};
+
+  my( %seen, $numeric_preserving_copy );
+
+  ( defined $_
+    ? $seen{'value' . ( $numeric_preserving_copy = $_ )}++
+    : $seen{'undef'}++
+  ) for @{$_[0]};
+
+  ( defined $_
+    ? $seen{'value' . ( $numeric_preserving_copy = $_ )}--
+    : $seen{'undef'}--
+  ) for @{$_[1]};
+
+  return (
+    (grep { $_ } values %seen)
+      ? ''
+      : 1
+  );
 }
 
 my $dd_obj;

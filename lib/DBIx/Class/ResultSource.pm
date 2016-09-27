@@ -17,11 +17,12 @@ use base 'DBIx::Class::ResultSource::RowParser';
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util qw(
-  UNRESOLVABLE_CONDITION
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
   dbic_internal_try fail_on_internal_call
-  refdesc emit_loud_diag
+  refdesc emit_loud_diag dump_value serialize bag_eq
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Scalar::Util qw( blessed weaken isweak refaddr );
@@ -1823,85 +1824,111 @@ L</relationship_info>.
 sub reverse_relationship_info {
   my ($self, $rel) = @_;
 
-  my $rel_info = $self->relationship_info($rel)
-    or $self->throw_exception("No such relationship '$rel'");
+  # This may be a partial schema or something else equally esoteric
+  # in which case this will throw
+  #
+  my $other_rsrc = $self->related_source($rel);
+
+  # Some custom rels may not resolve without a $schema
+  #
+  my $our_resolved_relcond = dbic_internal_try {
+    $self->resolve_relationship_condition(
+      rel_name => $rel,
+
+      # an API where these are optional would be too cumbersome,
+      # instead always pass in some dummy values
+      DUMMY_ALIASPAIR,
+    )
+  };
+
+  # only straight-equality is compared
+  return {}
+    unless $our_resolved_relcond->{identity_map_matches_condition};
+
+  my( $our_registered_source_name, $our_result_class) =
+    ( $self->source_name, $self->result_class );
 
   my $ret = {};
-
-  return $ret unless ((ref $rel_info->{cond}) eq 'HASH');
-
-  my $stripped_cond = $self->__strip_relcond ($rel_info->{cond});
-
-  my $registered_source_name = $self->source_name;
-
-  # this may be a partial schema or something else equally esoteric
-  my $other_rsrc = $self->related_source($rel);
 
   # Get all the relationships for that source that related to this source
   # whose foreign column set are our self columns on $rel and whose self
   # columns are our foreign columns on $rel
   foreach my $other_rel ($other_rsrc->relationships) {
 
+    # this will happen when we have a self-referential class
+    next if (
+      $other_rel eq $rel
+        and
+      $self == $other_rsrc
+    );
+
     # only consider stuff that points back to us
     # "us" here is tricky - if we are in a schema registration, we want
     # to use the source_names, otherwise we will use the actual classes
 
-    # the schema may be partial
-    my $roundtrip_rsrc = dbic_internal_try { $other_rsrc->related_source($other_rel) }
-      or next;
+    my $roundtripped_rsrc;
+    next unless (
 
-    if ($registered_source_name) {
-      next if $registered_source_name ne ($roundtrip_rsrc->source_name || '')
-    }
-    else {
-      next if $self->result_class ne $roundtrip_rsrc->result_class;
-    }
+      # the schema may be partially loaded
+      $roundtripped_rsrc = dbic_internal_try { $other_rsrc->related_source($other_rel) }
 
-    my $other_rel_info = $other_rsrc->relationship_info($other_rel);
-
-    # this can happen when we have a self-referential class
-    next if $other_rel_info eq $rel_info;
-
-    next unless ref $other_rel_info->{cond} eq 'HASH';
-    my $other_stripped_cond = $self->__strip_relcond($other_rel_info->{cond});
-
-    $ret->{$other_rel} = $other_rel_info if (
-      $self->_compare_relationship_keys (
-        [ keys %$stripped_cond ], [ values %$other_stripped_cond ]
-      )
         and
-      $self->_compare_relationship_keys (
-        [ values %$stripped_cond ], [ keys %$other_stripped_cond ]
+
+      (
+
+        (
+          $our_registered_source_name
+            and
+          (
+            $our_registered_source_name
+              eq
+            $roundtripped_rsrc->source_name||''
+          )
+        )
+
+          or
+
+        (
+          $our_result_class
+            eq
+          $roundtripped_rsrc->result_class
+        )
       )
+
+        and
+
+      my $their_resolved_relcond = dbic_internal_try {
+        $other_rsrc->resolve_relationship_condition(
+          rel_name => $other_rel,
+
+          # an API where these are optional would be too cumbersome,
+          # instead always pass in some dummy values
+          DUMMY_ALIASPAIR,
+        )
+      }
+    );
+
+
+    $ret->{$other_rel} = $other_rsrc->relationship_info($other_rel) if (
+
+      $their_resolved_relcond->{identity_map_matches_condition}
+
+        and
+
+      keys %{ $our_resolved_relcond->{identity_map} }
+        ==
+      keys %{ $their_resolved_relcond->{identity_map} }
+
+        and
+
+      serialize( $our_resolved_relcond->{identity_map} )
+        eq
+      serialize( { reverse %{ $their_resolved_relcond->{identity_map} } } )
+
     );
   }
 
   return $ret;
-}
-
-# all this does is removes the foreign/self prefix from a condition
-sub __strip_relcond {
-  +{
-    map
-      { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
-      keys %{$_[1]}
-  }
-}
-
-sub compare_relationship_keys {
-  carp 'compare_relationship_keys is a private method, stop calling it';
-  my $self = shift;
-  $self->_compare_relationship_keys (@_);
-}
-
-# Returns true if both sets of keynames are the same, false otherwise.
-sub _compare_relationship_keys {
-#  my ($self, $keys1, $keys2) = @_;
-  return
-    join ("\x00", sort @{$_[1]})
-      eq
-    join ("\x00", sort @{$_[2]})
-  ;
 }
 
 # optionally takes either an arrayref of column names, or a hashref of already
@@ -2069,7 +2096,7 @@ sub _resolve_join {
                -alias => $as,
                -relation_chain_depth => ( $seen->{-relation_chain_depth} || 0 ) + 1,
              },
-             $self->_resolve_relationship_condition(
+             $self->resolve_relationship_condition(
                rel_name => $join,
                self_alias => $alias,
                foreign_alias => $as,
@@ -2123,18 +2150,48 @@ sub _pk_depends_on {
   return 1;
 }
 
-sub resolve_condition {
-  carp 'resolve_condition is a private method, stop calling it';
+sub __strip_relcond :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '__strip_relcond() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
+}
+
+sub compare_relationship_keys :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique( 'compare_relationship_keys() is deprecated, ask on IRC for a better alternative' );
+  bag_eq( $_[1], $_[2] );
+}
+
+sub _compare_relationship_keys :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique( '_compare_relationship_keys() is deprecated, ask on IRC for a better alternative' );
+  bag_eq( $_[1], $_[2] );
+}
+
+sub _resolve_relationship_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp() - has been on CPAN for less than 2 years
+  carp '_resolve_relationship_condition() is deprecated - see resolve_relationship_condition() instead';
+
+  shift->resolve_relationship_condition(@_);
+}
+
+sub resolve_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp() - has been discouraged forever
+  carp 'resolve_condition() is deprecated - see resolve_relationship_condition() instead';
+
   shift->_resolve_condition (@_);
 }
 
-sub _resolve_condition {
-#  carp_unique sprintf
-#    '_resolve_condition is a private method, and moreover is about to go '
-#  . 'away. Please contact the development team at %s if you believe you '
-#  . 'have a genuine use for this method, in order to discuss alternatives.',
-#    DBIx::Class::_ENV_::HELP_URL,
-#  ;
+sub _resolve_condition :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  # carp_unique() - the interface replacing it only became reality in Sep 2016
+  carp_unique '_resolve_condition() is deprecated - see resolve_relationship_condition() instead';
 
 #######################
 ### API Design? What's that...? (a backwards compatible shim, kill me now)
@@ -2159,6 +2216,10 @@ sub _resolve_condition {
         $is_objlike[$_] = 0;
         $res_args[$_] = '__gremlins__';
       }
+      # more compat
+      elsif( $_ == 0 and $res_args[0]->isa( $__expected_result_class_isa ) ) {
+        $res_args[0] = { $res_args[0]->get_columns };
+      }
     }
     else {
       $res_args[$_] ||= {};
@@ -2182,21 +2243,21 @@ sub _resolve_condition {
   };
 
   # Allowing passing relconds different than the relationshup itself is cute,
-  # but likely dangerous. Remove that from the (still unofficial) API of
-  # _resolve_relationship_condition, and instead make it "hard on purpose"
+  # but likely dangerous. Remove that from the API of resolve_relationship_condition,
+  # and instead make it "hard on purpose"
   local $self->relationship_info( $args->{rel_name} )->{cond} = $cond if defined $cond;
 
 #######################
 
   # now it's fucking easy isn't it?!
-  my $rc = $self->_resolve_relationship_condition( $args );
+  my $rc = $self->resolve_relationship_condition( $args );
 
   my @res = (
     ( $rc->{join_free_condition} || $rc->{condition} ),
     ! $rc->{join_free_condition},
   );
 
-  # _resolve_relationship_condition always returns qualified cols even in the
+  # resolve_relationship_condition always returns qualified cols even in the
   # case of join_free_condition, but nothing downstream expects this
   if ($rc->{join_free_condition} and ref $res[0] eq 'HASH') {
     $res[0] = { map
@@ -2218,34 +2279,73 @@ our $UNRESOLVABLE_CONDITION = UNRESOLVABLE_CONDITION;
 # we are moving to a constant
 Internals::SvREADONLY($UNRESOLVABLE_CONDITION => 1);
 
-# Resolves the passed condition to a concrete query fragment and extra
-# metadata
-#
-## self-explanatory API, modeled on the custom cond coderef:
-# rel_name              => (scalar)
-# foreign_alias         => (scalar)
-# foreign_values        => (either not supplied, or a hashref, or a foreign ResultObject (to be ->get_columns()ed), or plain undef )
-# self_alias            => (scalar)
-# self_result_object    => (either not supplied or a result object)
-# require_join_free_condition => (boolean, throws on failure to construct a JF-cond)
-# infer_values_based_on => (either not supplied or a hashref, implies require_join_free_condition)
-#
-## returns a hash
-# condition           => (a valid *likely fully qualified* sqla cond structure)
-# identity_map        => (a hashref of foreign-to-self *unqualified* column equality names)
-# join_free_condition => (a valid *fully qualified* sqla cond structure, maybe unset)
-# inferred_values     => (in case of an available join_free condition, this is a hashref of
-#                         *unqualified* column/value *EQUALITY* pairs, representing an amalgamation
-#                         of the JF-cond parse and infer_values_based_on
-#                         always either complete or unset)
-#
-sub _resolve_relationship_condition {
+=head2 resolve_relationship_condition
+
+NOTE: You generally B<SHOULD NOT> need to use this functionality... until you
+do. The API description is terse on purpose. If the text below doesn't make
+sense right away (based on the context which prompted you to look here) it is
+almost certain you are reaching for the wrong tool. Please consider asking for
+advice in any of the support channels before proceeding.
+
+=over 4
+
+=item Arguments: C<\%args> as shown below (C<B<*>> denotes mandatory args):
+
+  * rel_name                    => $string
+
+  * foreign_alias               => $string
+
+  * self_alias                  => $string
+
+    foreign_values              => \%column_value_pairs
+
+    self_result_object          => $ResultObject
+
+    require_join_free_condition => $bool ( results in exception on failure to construct a JF-cond )
+
+    require_join_free_values    => $bool ( results in exception on failure to return an equality-only JF-cond )
+
+=item Return Value: C<\%resolution_result> as shown below (C<B<*>> denotes always-resent parts of the result):
+
+  * condition                      => $sqla_condition ( always present, valid, *likely* fully qualified, SQL::Abstract-compatible structure )
+
+    identity_map                   => \%foreign_to_self_equailty_map ( list of declared-equal foreign/self *unqualified* column names )
+
+    identity_map_matches_condition => $bool ( indicates whether the entire condition is expressed within the identity_map )
+
+    join_free_condition            => \%sqla_condition_fully_resolvable_via_foreign_table
+                                      ( always a hash, all keys guaranteed to be valid *fully qualified* columns )
+
+    join_free_values               => \%unqalified_version_of_join_free_condition
+                                      ( IFF the returned join_free_condition contains only exact values (no expressions), this would be
+                                        a hashref identical to join_free_condition, except with all column names *unqualified* )
+
+=back
+
+This is the low-level method used to convert a declared relationship into
+various parameters consumed by higher level functions. It is provided as a
+stable official API, as the logic it encapsulates grew incredibly complex with
+time. While calling this method directly B<is generally discouraged>, you
+absolutely B<should be using it> in codepaths containing the moral equivalent
+of:
+
+  ...
+  if( ref $some_rsrc->relationship_info($somerel)->{cond} eq 'HASH' ) {
+    ...
+  }
+  ...
+
+=cut
+
+# TODO - expand the documentation above, too terse
+
+sub resolve_relationship_condition {
   my $self = shift;
 
   my $args = { ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ };
 
   for ( qw( rel_name self_alias foreign_alias ) ) {
-    $self->throw_exception("Mandatory argument '$_' to _resolve_relationship_condition() is not a plain string")
+    $self->throw_exception("Mandatory argument '$_' to resolve_relationship_condition() is not a plain string")
       if !defined $args->{$_} or length ref $args->{$_};
   }
 
@@ -2253,7 +2353,7 @@ sub _resolve_relationship_condition {
     if $args->{self_alias} eq $args->{foreign_alias};
 
 # TEMP
-  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name ]}'";
+  my $exception_rel_id = "relationship '$args->{rel_name}' on source '@{[ $self->source_name || $self->result_class ]}'";
 
   my $rel_info = $self->relationship_info($args->{rel_name})
 # TEMP
@@ -2267,10 +2367,7 @@ sub _resolve_relationship_condition {
   $self->throw_exception("No practical way to resolve $exception_rel_id between two data structures")
     if exists $args->{self_result_object} and exists $args->{foreign_values};
 
-  $self->throw_exception( "Argument to infer_values_based_on must be a hash" )
-    if exists $args->{infer_values_based_on} and ref $args->{infer_values_based_on} ne 'HASH';
-
-  $args->{require_join_free_condition} ||= !!$args->{infer_values_based_on};
+  $args->{require_join_free_condition} ||= !!$args->{require_join_free_values};
 
   $self->throw_exception( "Argument 'self_result_object' must be an object inheriting from '$__expected_result_class_isa'" )
     if (
@@ -2285,69 +2382,79 @@ sub _resolve_relationship_condition {
   ;
 
   my $rel_rsrc = $self->related_source($args->{rel_name});
-  my $storage = $self->schema->storage;
 
-  if (exists $args->{foreign_values}) {
+  if (
+    exists $args->{foreign_values}
+      and
+    (
+      ref $args->{foreign_values} eq 'HASH'
+        or
+      $self->throw_exception(
+        "Argument 'foreign_values' must be a hash reference"
+      )
+    )
+      and
+    keys %{$args->{foreign_values}}
+  ) {
 
-    if (! defined $args->{foreign_values} ) {
-      # fallback: undef => {}
-      $args->{foreign_values} = {};
-    }
-    elsif (defined blessed $args->{foreign_values}) {
+    my ($col_idx, $rel_idx) = map
+      { { map { $_ => 1 } $rel_rsrc->$_ } }
+      qw( columns relationships )
+    ;
 
-      $self->throw_exception( "Objects supplied as 'foreign_values' ($args->{foreign_values}) must inherit from '$__expected_result_class_isa'" )
-        unless $args->{foreign_values}->isa( $__expected_result_class_isa );
+    my $equivalencies;
 
-      carp_unique(
-        "Objects supplied as 'foreign_values' ($args->{foreign_values}) "
-      . "usually should inherit from the related ResultClass ('@{[ $rel_rsrc->result_class ]}'), "
-      . "perhaps you've made a mistake invoking the condition resolver?"
-      ) unless $args->{foreign_values}->isa($rel_rsrc->result_class);
-
-      $args->{foreign_values} = { $args->{foreign_values}->get_columns };
-    }
-    elsif ( ref $args->{foreign_values} eq 'HASH' ) {
-
-      # re-build {foreign_values} excluding identically named rels
-      if( keys %{$args->{foreign_values}} ) {
-
-        my ($col_idx, $rel_idx) = map
-          { { map { $_ => 1 } $rel_rsrc->$_ } }
-          qw( columns relationships )
-        ;
-
-        my $equivalencies = extract_equality_conditions(
-          $args->{foreign_values},
-          'consider nulls',
-        );
-
-        $args->{foreign_values} = { map {
-          # skip if relationship *and* a non-literal ref
-          # this means a multicreate stub was passed in
+    # re-build {foreign_values} excluding refs as follows
+    # ( hot codepath: intentionally convoluted )
+    #
+    $args->{foreign_values} = { map {
+      (
+        $_ !~ /^-/
+          or
+        $self->throw_exception(
+          "The key '$_' supplied as part of 'foreign_values' during "
+         . 'relationship resolution must be a column name, not a function'
+        )
+      )
+        and
+      (
+        # skip if relationship ( means a multicreate stub was passed in )
+        # skip if literal ( can't infer anything about it )
+        # or plain throw if nonequiv yet not literal
+        (
+          length ref $args->{foreign_values}{$_}
+            and
           (
             $rel_idx->{$_}
-              and
-            length ref $args->{foreign_values}{$_}
-              and
-            ! is_literal_value($args->{foreign_values}{$_})
+              or
+            is_literal_value($args->{foreign_values}{$_})
+              or
+            (
+              (
+                ! exists(
+                  ( $equivalencies ||= extract_equality_conditions( $args->{foreign_values}, 'consider nulls' ) )
+                    ->{$_}
+                )
+                  or
+                ($equivalencies->{$_}||'') eq UNRESOLVABLE_CONDITION
+              )
+                and
+              $self->throw_exception(
+                "Resolution of relationship '$args->{rel_name}' failed: "
+              . "supplied value for foreign column '$_' is not a direct "
+              . 'equivalence expression'
+              )
+            )
           )
-            ? ()
-            : ( $_ => (
-                ! $col_idx->{$_}
-                  ? $self->throw_exception( "Key '$_' supplied as 'foreign_values' is not a column on related source '@{[ $rel_rsrc->source_name ]}'" )
-              : ( !exists $equivalencies->{$_} or ($equivalencies->{$_}||'') eq UNRESOLVABLE_CONDITION )
-                  ? $self->throw_exception( "Value supplied for '...{foreign_values}{$_}' is not a direct equivalence expression" )
-              : $args->{foreign_values}{$_}
-            ))
-        } keys %{$args->{foreign_values}} };
-      }
-    }
-    else {
-      $self->throw_exception(
-        "Argument 'foreign_values' must be either an object inheriting from '@{[ $rel_rsrc->result_class ]}', "
-      . "or a hash reference, or undef"
-      );
-    }
+        )                             ? ()
+      : $col_idx->{$_}                ? ( $_ => $args->{foreign_values}{$_} )
+                                      : $self->throw_exception(
+            "The key '$_' supplied as part of 'foreign_values' during "
+           . 'relationship resolution is not a column on related source '
+           . "'@{[ $rel_rsrc->source_name ]}'"
+          )
+      )
+    } keys %{$args->{foreign_values}} };
   }
 
   my $ret;
@@ -2377,11 +2484,11 @@ sub _resolve_relationship_condition {
     $self->throw_exception("A custom condition coderef can return at most 2 conditions, but $exception_rel_id returned extra values: @extra")
       if @extra;
 
-    if (my $jfc = $ret->{join_free_condition}) {
+    if( $ret->{join_free_condition} ) {
 
       $self->throw_exception (
         "The join-free condition returned for $exception_rel_id must be a hash reference"
-      ) unless ref $jfc eq 'HASH';
+      ) unless ref $ret->{join_free_condition} eq 'HASH';
 
       my ($joinfree_alias, $joinfree_source);
       if (defined $args->{self_result_object}) {
@@ -2407,7 +2514,7 @@ sub _resolve_relationship_condition {
         "The join-free condition returned for $exception_rel_id may only "
       . 'contain keys that are fully qualified column names of the corresponding source '
       . "'$joinfree_alias' (instead it returned '$_')"
-      ) for keys %$jfc;
+      ) for keys %{$ret->{join_free_condition}};
 
       (
         defined blessed($_)
@@ -2419,7 +2526,7 @@ sub _resolve_relationship_condition {
         . 'contain result objects as values - perhaps instead of invoking '
         . '->$something you meant to return ->get_column($something)'
         )
-      ) for values %$jfc;
+      ) for values %{$ret->{join_free_condition}};
 
     }
   }
@@ -2446,61 +2553,76 @@ sub _resolve_relationship_condition {
     # construct the crosstable condition and the identity map
     for  (0..$#f_cols) {
       $ret->{condition}{"$args->{foreign_alias}.$f_cols[$_]"} = { -ident => "$args->{self_alias}.$l_cols[$_]" };
-      $ret->{identity_map}{$l_cols[$_]} = $f_cols[$_];
+
+      # explicit value stringification is deliberate - leave no room for
+      # interpretation when comparing sets of keys
+      $ret->{identity_map}{$l_cols[$_]} = "$f_cols[$_]";
     };
 
     if ($args->{foreign_values}) {
-      $ret->{join_free_condition}{"$args->{self_alias}.$l_cols[$_]"} = $args->{foreign_values}{$f_cols[$_]}
+      $ret->{join_free_condition}{"$args->{self_alias}.$l_cols[$_]"}
+        = $ret->{join_free_values}{$l_cols[$_]}
+          = $args->{foreign_values}{$f_cols[$_]}
         for 0..$#f_cols;
     }
     elsif (defined $args->{self_result_object}) {
 
-      for my $i (0..$#l_cols) {
-        if ( $args->{self_result_object}->has_column_loaded($l_cols[$i]) ) {
-          $ret->{join_free_condition}{"$args->{foreign_alias}.$f_cols[$i]"} = $args->{self_result_object}->get_column($l_cols[$i]);
-        }
-        else {
-          $self->throw_exception(sprintf
-            "Unable to resolve relationship '%s' from object '%s': column '%s' not "
-          . 'loaded from storage (or not passed to new() prior to insert()). You '
-          . 'probably need to call ->discard_changes to get the server-side defaults '
-          . 'from the database.',
-            $args->{rel_name},
-            $args->{self_result_object},
-            $l_cols[$i],
-          ) if $args->{self_result_object}->in_storage;
+      # FIXME - compat block due to inconsistency of get_columns() vs has_column_loaded()
+      # The former returns cached-in related single rels, while the latter is doing what
+      # it says on the tin. Thus the more logical "get all columns and barf if something
+      # is missing" is a non-starter, and we move through each column one by one :/
 
-          # FIXME - temporarly force-override
-          delete $args->{require_join_free_condition};
-          $ret->{join_free_condition} = UNRESOLVABLE_CONDITION;
-          last;
-        }
-      }
+      $args->{self_result_object}->has_column_loaded( $l_cols[$_] )
+
+            ? $ret->{join_free_condition}{"$args->{foreign_alias}.$f_cols[$_]"}
+                = $ret->{join_free_values}{$f_cols[$_]}
+                  = $args->{self_result_object}->get_column( $l_cols[$_] )
+
+    : $args->{self_result_object}->in_storage
+
+            ? $self->throw_exception(sprintf
+                "Unable to resolve relationship '%s' from object '%s': column '%s' not "
+              . 'loaded from storage (or not passed to new() prior to insert()). You '
+            . 'probably need to call ->discard_changes to get the server-side defaults '
+            . 'from the database',
+              $args->{rel_name},
+              $args->{self_result_object},
+              $l_cols[$_],
+            )
+
+      # non-resolvable yet not in storage - give it a pass
+      # FIXME - while this is what the code has done for ages, it doesn't seem right :(
+            : (
+              delete $ret->{join_free_condition},
+              delete $ret->{join_free_values},
+              last
+            )
+
+        for 0 .. $#l_cols;
     }
   }
   elsif (ref $rel_info->{cond} eq 'ARRAY') {
     if (@{ $rel_info->{cond} } == 0) {
       $ret = {
         condition => UNRESOLVABLE_CONDITION,
-        join_free_condition => UNRESOLVABLE_CONDITION,
       };
     }
     else {
       my @subconds = map {
         local $rel_info->{cond} = $_;
-        $self->_resolve_relationship_condition( $args );
+        $self->resolve_relationship_condition( $args );
       } @{ $rel_info->{cond} };
 
       if( @{ $rel_info->{cond} } == 1 ) {
         $ret = $subconds[0];
       }
       else {
-        # we are discarding inferred values here... likely incorrect...
-        # then again - the entire thing is an OR, so we *can't* use them anyway
         for my $subcond ( @subconds ) {
           $self->throw_exception('Either all or none of the OR-condition members must resolve to a join-free condition')
             if ( $ret and ( $ret->{join_free_condition} xor $subcond->{join_free_condition} ) );
 
+          # we are discarding join_free_values from individual 'OR' branches here
+          # see @nonvalues checks below
           $subcond->{$_} and push @{$ret->{$_}}, $subcond->{$_} for (qw(condition join_free_condition));
         }
       }
@@ -2510,10 +2632,23 @@ sub _resolve_relationship_condition {
     $self->throw_exception ("Can't handle condition $rel_info->{cond} for $exception_rel_id yet :(");
   }
 
+
+  # Explicit normalization pass
+  # ( nobody really knows what a CODE can return )
+  # Explicitly leave U_C alone - it would be normalized
+  # to an { -and => [ U_C ] }
+  defined $ret->{$_}
+    and
+  $ret->{$_} ne UNRESOLVABLE_CONDITION
+    and
+  $ret->{$_} = normalize_sqla_condition($ret->{$_})
+    for qw(condition join_free_condition);
+
+
   if (
     $args->{require_join_free_condition}
       and
-    ( ! $ret->{join_free_condition} or $ret->{join_free_condition} eq UNRESOLVABLE_CONDITION )
+    ! defined $ret->{join_free_condition}
   ) {
     $self->throw_exception(
       ucfirst sprintf "$exception_rel_id does not resolve to a %sjoin-free condition fragment",
@@ -2523,51 +2658,72 @@ sub _resolve_relationship_condition {
     );
   }
 
-  # we got something back - sanity check and infer values if we can
+  # we got something back (not from a static cond) - sanity check and infer values if we can
+  # ( in case of a static cond join_free_values is already pre-populated for us )
   my @nonvalues;
-  if (
+  if(
     $ret->{join_free_condition}
       and
-    $ret->{join_free_condition} ne UNRESOLVABLE_CONDITION
-      and
-    my $jfc = normalize_sqla_condition( $ret->{join_free_condition} )
+    ! $ret->{join_free_values}
   ) {
 
-    my $jfc_eqs = extract_equality_conditions( $jfc, 'consider_nulls' );
+    my $jfc_eqs = extract_equality_conditions(
+      $ret->{join_free_condition},
+      'consider_nulls'
+    );
 
-    if (keys %$jfc_eqs) {
-
-      for (keys %$jfc) {
-        # $jfc is fully qualified by definition
-        my ($col) = $_ =~ /\.(.+)/;
+    for( keys %{ $ret->{join_free_condition} } ) {
+      if( $_ =~ /^-/ ) {
+        push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
+      }
+      else {
+        # a join_free_condition is fully qualified by definition
+        my ($col) = $_ =~ /\.(.+)/ or carp_unique(
+          'Internal error - extract_equality_conditions() returned a '
+        . "non-fully-qualified key '$_'. *Please* file a bugreport "
+        . "including your definition of $exception_rel_id"
+        );
 
         if (exists $jfc_eqs->{$_} and ($jfc_eqs->{$_}||'') ne UNRESOLVABLE_CONDITION) {
-          $ret->{inferred_values}{$col} = $jfc_eqs->{$_};
+          $ret->{join_free_values}{$col} = $jfc_eqs->{$_};
         }
-        elsif ( !$args->{infer_values_based_on} or ! exists $args->{infer_values_based_on}{$col} ) {
-          push @nonvalues, $col;
+        else {
+          push @nonvalues, { $_ => $ret->{join_free_condition}{$_} };
         }
       }
-
-      # all or nothing
-      delete $ret->{inferred_values} if @nonvalues;
     }
+
+    # all or nothing
+    delete $ret->{join_free_values} if @nonvalues;
   }
 
-  # did the user explicitly ask
-  if ($args->{infer_values_based_on}) {
 
-    $self->throw_exception(sprintf (
-      "Unable to complete value inferrence - custom $exception_rel_id returns conditions instead of values for column(s): %s",
-      map { "'$_'" } @nonvalues
-    )) if @nonvalues;
+  # throw only if the user explicitly asked
+  $args->{require_join_free_values}
+    and
+  @nonvalues
+    and
+  $self->throw_exception(
+    "Unable to complete value inferrence - $exception_rel_id results in expression(s) instead of definitive values: "
+  . do {
+      # FIXME - used for diag only, but still icky
+      my $sqlm =
+        dbic_internal_try { $self->schema->storage->sql_maker }
+          ||
+        (
+          require DBIx::Class::SQLMaker
+            and
+          DBIx::Class::SQLMaker->new
+        )
+      ;
+      local $sqlm->{quote_char};
+      local $sqlm->{_dequalify_idents} = 1;
+      ($sqlm->_recurse_where({ -and => \@nonvalues }))[0]
+    }
+  );
 
 
-    $ret->{inferred_values} ||= {};
-
-    $ret->{inferred_values}{$_} = $args->{infer_values_based_on}{$_}
-      for keys %{$args->{infer_values_based_on}};
-  }
+  my $identity_map_incomplete;
 
   # add the identities based on the main condition
   # (may already be there, since easy to calculate on the fly in the HASH case)
@@ -2575,32 +2731,60 @@ sub _resolve_relationship_condition {
 
     my $col_eqs = extract_equality_conditions($ret->{condition});
 
+    $identity_map_incomplete++ if (
+      $ret->{condition} eq UNRESOLVABLE_CONDITION
+        or
+      (
+        keys %{$ret->{condition}}
+          !=
+        keys %$col_eqs
+      )
+    );
+
     my $colinfos;
     for my $lhs (keys %$col_eqs) {
+
+      # start with the assumption it won't work
+      $identity_map_incomplete++;
 
       next if $col_eqs->{$lhs} eq UNRESOLVABLE_CONDITION;
 
       # there is no way to know who is right and who is left in a cref
       # therefore a full blown resolution call, and figure out the
       # direction a bit further below
-      $colinfos ||= $storage->_resolve_column_info([
+      $colinfos ||= fromspec_columns_info([
         { -alias => $args->{self_alias}, -rsrc => $self },
         { -alias => $args->{foreign_alias}, -rsrc => $rel_rsrc },
       ]);
 
       next unless $colinfos->{$lhs};  # someone is engaging in witchcraft
 
-      if ( my $rhs_ref = is_literal_value( $col_eqs->{$lhs} ) ) {
-
+      if( my $rhs_ref =
+        (
+          ref $col_eqs->{$lhs} eq 'HASH'
+            and
+          keys %{$col_eqs->{$lhs}} == 1
+            and
+          exists $col_eqs->{$lhs}{-ident}
+        )
+          ? [ $col_eqs->{$lhs}{-ident} ]  # repack to match the RV of is_literal_value
+          : is_literal_value( $col_eqs->{$lhs} )
+      ) {
         if (
           $colinfos->{$rhs_ref->[0]}
             and
           $colinfos->{$lhs}{-source_alias} ne $colinfos->{$rhs_ref->[0]}{-source_alias}
         ) {
           ( $colinfos->{$lhs}{-source_alias} eq $args->{self_alias} )
-            ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = $colinfos->{$rhs_ref->[0]}{-colname} )
-            : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = $colinfos->{$lhs}{-colname} )
+
+            # explicit value stringification is deliberate - leave no room for
+            # interpretation when comparing sets of keys
+            ? ( $ret->{identity_map}{$colinfos->{$lhs}{-colname}} = "$colinfos->{$rhs_ref->[0]}{-colname}" )
+            : ( $ret->{identity_map}{$colinfos->{$rhs_ref->[0]}{-colname}} = "$colinfos->{$lhs}{-colname}" )
           ;
+
+          # well, what do you know!
+          $identity_map_incomplete--;
         }
       }
       elsif (
@@ -2620,9 +2804,101 @@ sub _resolve_relationship_condition {
     }
   }
 
+  $ret->{identity_map_matches_condition} = ($identity_map_incomplete ? 0 : 1)
+    if $ret->{identity_map};
+
+
+  # cleanup before final return, easier to eyeball
+  ! defined $ret->{$_} and delete $ret->{$_}
+    for keys %$ret;
+
+
   # FIXME - temporary, to fool the idiotic check in SQLMaker::_join_condition
-  $ret->{condition} = { -and => [ $ret->{condition} ] }
-    unless $ret->{condition} eq UNRESOLVABLE_CONDITION;
+  $ret->{condition} = { -and => [ $ret->{condition} ] } unless (
+    $ret->{condition} eq UNRESOLVABLE_CONDITION
+      or
+    (
+      ref $ret->{condition} eq 'HASH'
+        and
+      grep { $_ =~ /^-/ } keys %{$ret->{condition}}
+    )
+  );
+
+
+  if( DBIx::Class::_ENV_::ASSERT_NO_INCONSISTENT_RELATIONSHIP_RESOLUTION ) {
+
+    my $sqlm =
+      dbic_internal_try { $self->schema->storage->sql_maker }
+        ||
+      (
+        require DBIx::Class::SQLMaker
+          and
+        DBIx::Class::SQLMaker->new
+      )
+    ;
+
+    local $sqlm->{_dequalify_idents} = 1;
+
+    my ( $cond_as_sql, $jf_cond_as_sql, $jf_vals_as_sql, $identmap_as_sql ) = map
+      { join ' : ', map {
+        ref $_ eq 'ARRAY' ? $_->[1]
+      : defined $_        ? $_
+                          : '{UNDEF}'
+      } $sqlm->_recurse_where($_) }
+      (
+        ( map { $ret->{$_} } qw( condition join_free_condition join_free_values ) ),
+
+        { map {
+          # inverse because of how the idmap is declared
+          $ret->{identity_map}{$_} => { -ident => $_ }
+        } keys %{$ret->{identity_map}} },
+      )
+    ;
+
+
+    emit_loud_diag(
+      confess => 1,
+      msg => sprintf (
+        "Resolution of %s produced inconsistent metadata:\n\n"
+      . "returned value of 'identity_map_matches_condition':    %s\n"
+      . "returned 'condition' rendered as de-qualified SQL:     %s\n"
+      . "returned 'identity_map' rendered as de-qualified SQL:  %s\n\n"
+      . "The condition declared on the misclassified relationship is: %s ",
+        $exception_rel_id,
+        ( $ret->{identity_map_matches_condition} || 0 ),
+        $cond_as_sql,
+        $identmap_as_sql,
+        dump_value( $rel_info->{cond} ),
+      ),
+    ) if (
+      $ret->{identity_map_matches_condition}
+        xor
+      ( $cond_as_sql eq $identmap_as_sql )
+    );
+
+
+    emit_loud_diag(
+      confess => 1,
+      msg => sprintf (
+        "Resolution of %s produced inconsistent metadata:\n\n"
+      . "returned 'join_free_condition' rendered as de-qualified SQL: %s\n"
+      . "returned 'join_free_values' rendered as de-qualified SQL:    %s\n\n"
+      . "The condition declared on the misclassified relationship is: %s ",
+        $exception_rel_id,
+        $jf_cond_as_sql,
+        $jf_vals_as_sql,
+        dump_value( $rel_info->{cond} ),
+      ),
+    ) if (
+      exists $ret->{join_free_condition}
+        and
+      (
+        exists $ret->{join_free_values}
+          xor
+        ( $jf_cond_as_sql eq $jf_vals_as_sql )
+      )
+    );
+  }
 
   $ret;
 }

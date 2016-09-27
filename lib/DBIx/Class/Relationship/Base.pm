@@ -6,7 +6,18 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken blessed/;
-use DBIx::Class::_Util qw( UNRESOLVABLE_CONDITION fail_on_internal_call );
+use DBIx::Class::_Util qw(
+  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
+  dbic_internal_try dbic_internal_catch fail_on_internal_call
+);
+use DBIx::Class::SQLMaker::Util 'extract_equality_conditions';
+use DBIx::Class::Carp;
+
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
+
 use namespace::clean;
 
 =head1 NAME
@@ -513,83 +524,119 @@ sub related_resultset {
 
   my ($self, $rel) = @_;
 
-  return $self->{related_resultsets}{$rel} = do {
+  my $rsrc = $self->result_source;
 
-    my $rsrc = $self->result_source;
+  my $rel_info = $rsrc->relationship_info($rel)
+    or $self->throw_exception( "No such relationship '$rel'" );
 
-    my $rel_info = $rsrc->relationship_info($rel)
-      or $self->throw_exception( "No such relationship '$rel'" );
+  my $relcond_is_freeform = ref $rel_info->{cond} eq 'CODE';
 
-    my $cond_res = $rsrc->_resolve_relationship_condition(
-      rel_name => $rel,
-      self_result_object => $self,
+  my $rrc_args = {
+    rel_name => $rel,
+    self_result_object => $self,
 
-      # this may look weird, but remember that we are making a resultset
-      # out of an existing object, with the new source being at the head
-      # of the FROM chain. Having a 'me' alias is nothing but expected there
-      foreign_alias => 'me',
-
-      self_alias => "!!!\xFF()!!!_SHOULD_NEVER_BE_SEEN_IN_USE_!!!()\xFF!!!",
-
-      # not strictly necessary, but shouldn't hurt either
-      require_join_free_condition => !!(ref $rel_info->{cond} ne 'CODE'),
-    );
-
-    # keep in mind that the following if() block is part of a do{} - no return()s!!!
-    if (
-      ! $cond_res->{join_free_condition}
+    # an extra sanity check guard
+    require_join_free_condition => !!(
+      ! $relcond_is_freeform
         and
-      ref $rel_info->{cond} eq 'CODE'
-    ) {
+      $self->in_storage
+    ),
 
-      # A WHOREIFFIC hack to reinvoke the entire condition resolution
-      # with the correct alias. Another way of doing this involves a
-      # lot of state passing around, and the @_ positions are already
-      # mapped out, making this crap a less icky option.
-      #
-      # The point of this exercise is to retain the spirit of the original
-      # $obj->search_related($rel) where the resulting rset will have the
-      # root alias as 'me', instead of $rel (as opposed to invoking
-      # $rs->search_related)
+    # an API where these are optional would be too cumbersome,
+    # instead always pass in some dummy values
+    DUMMY_ALIASPAIR,
 
-      # make the fake 'me' rel
-      local $rsrc->{_relationships}{me} = {
-        %{ $rsrc->{_relationships}{$rel} },
-        _original_name => $rel,
-      };
-
-      my $obj_table_alias = lc($rsrc->source_name) . '__row';
-      $obj_table_alias =~ s/\W+/_/g;
-
-      $rsrc->resultset->search(
-        $self->ident_condition($obj_table_alias),
-        { alias => $obj_table_alias },
-      )->related_resultset('me')->search(undef, $rel_info->{attrs})
-    }
-    else {
-
-      # FIXME - this conditional doesn't seem correct - got to figure out
-      # at some point what it does. Also the entire UNRESOLVABLE_CONDITION
-      # business seems shady - we could simply not query *at all*
-      my $attrs;
-      if ( $cond_res->{join_free_condition} eq UNRESOLVABLE_CONDITION ) {
-        $attrs = { %{$rel_info->{attrs}} };
-        my $reverse = $rsrc->reverse_relationship_info($rel);
-        foreach my $rev_rel (keys %$reverse) {
-          if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
-            weaken($attrs->{related_objects}{$rev_rel}[0] = $self);
-          } else {
-            weaken($attrs->{related_objects}{$rev_rel} = $self);
-          }
-        }
-      }
-
-      $rsrc->related_source($rel)->resultset->search(
-        $cond_res->{join_free_condition},
-        $attrs || $rel_info->{attrs},
-      );
-    }
+    # this may look weird, but remember that we are making a resultset
+    # out of an existing object, with the new source being at the head
+    # of the FROM chain. Having a 'me' alias is nothing but expected there
+    foreign_alias => 'me',
   };
+
+  my $jfc = (
+    # In certain extraordinary circumstances the relationship resolution may
+    # throw (e.g. when walking through elaborate custom conds)
+    # In case the object is "real" (i.e. in_storage) we just go ahead and
+    # let the exception surface. Otherwise we carp and move on.
+    #
+    # The elaborate code-duplicating ternary is there because the xsified
+    # ->in_storage() is orders of magnitude faster than the Try::Tiny-like
+    # construct below ( perl's low level tooling is truly shit :/ )
+    ( $self->in_storage or DBIx::Class::_Util::in_internal_try )
+      ? $rsrc->resolve_relationship_condition($rrc_args)->{join_free_condition}
+      : dbic_internal_try {
+          $rsrc->resolve_relationship_condition($rrc_args)->{join_free_condition}
+        }
+        dbic_internal_catch {
+          $unique_carper->(
+            "Resolution of relationship '$rel' failed unexpectedly, "
+          . 'please relay the following error and seek assistance via '
+          . DBIx::Class::_ENV_::HELP_URL . ". Encountered error: $_"
+          );
+
+          # FIXME - this is questionable
+          # force skipping re-resolution, and instead just return an UC rset
+          $relcond_is_freeform = 0;
+
+          # RV
+          undef;
+        }
+  );
+
+  my $rel_rset;
+
+  if( defined $jfc ) {
+
+    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+      $jfc,
+      $rel_info->{attrs},
+    );
+  }
+  elsif( $relcond_is_freeform ) {
+
+    # A WHOREIFFIC hack to reinvoke the entire condition resolution
+    # with the correct alias. Another way of doing this involves a
+    # lot of state passing around, and the @_ positions are already
+    # mapped out, making this crap a less icky option.
+    #
+    # The point of this exercise is to retain the spirit of the original
+    # $obj->search_related($rel) where the resulting rset will have the
+    # root alias as 'me', instead of $rel (as opposed to invoking
+    # $rs->search_related)
+
+    # make the fake 'me' rel
+    local $rsrc->{_relationships}{me} = {
+      %{ $rsrc->{_relationships}{$rel} },
+      _original_name => $rel,
+    };
+
+    my $obj_table_alias = lc($rsrc->source_name) . '__row';
+    $obj_table_alias =~ s/\W+/_/g;
+
+    $rel_rset = $rsrc->resultset->search(
+      $self->ident_condition($obj_table_alias),
+      { alias => $obj_table_alias },
+    )->related_resultset('me')->search(undef, $rel_info->{attrs})
+  }
+  else {
+
+    my $attrs = { %{$rel_info->{attrs}} };
+    my $reverse = $rsrc->reverse_relationship_info($rel);
+
+    # FIXME - this loop doesn't seem correct - got to figure out
+    # at some point what exactly it does.
+    # See also the FIXME at the end of new_related()
+    ( ( $reverse->{$_}{attrs}{accessor}||'') eq 'multi' )
+      ? weaken( $attrs->{related_objects}{$_}[0] = $self )
+      : weaken( $attrs->{related_objects}{$_}    = $self )
+    for keys %$reverse;
+
+    $rel_rset = $rsrc->related_source($rel)->resultset->search(
+      UNRESOLVABLE_CONDITION, # guards potential use of the $rs in the future
+      $attrs,
+    );
+  }
+
+  $self->{related_resultsets}{$rel} = $rel_rset;
 }
 
 =head2 search_related
@@ -667,13 +714,94 @@ your storage until you call L<DBIx::Class::Row/insert> on it.
 sub new_related {
   my ($self, $rel, $data) = @_;
 
-  $self->related_resultset($rel)->new_result( $self->result_source->_resolve_relationship_condition (
-    infer_values_based_on => $data,
+  $self->throw_exception(
+    "Result object instantiation requires a hashref as argument"
+  ) unless ref $data eq 'HASH';
+
+  my $rsrc = $self->result_source;
+  my $rel_rsrc = $rsrc->related_source($rel);
+
+###
+### This section deliberately does not rely on require_join_free_values,
+### as quite often the resulting related object is useless without the
+### contents of $data mixed in. Originally this code was part of
+### resolve_relationship_condition() but given it has a single, very
+### context-specific call-site it made no sense to expose it to end users.
+###
+
+  my $rel_resolution = $rsrc->resolve_relationship_condition (
     rel_name => $rel,
     self_result_object => $self,
-    foreign_alias => $rel,
-    self_alias => 'me',
-  )->{inferred_values} );
+
+    # In case we are *not* in_storage it is ok to treat failed resolution as an empty hash
+    # This happens e.g. as a result of various in-memory related graph of objects
+    require_join_free_condition => !! $self->in_storage,
+
+    # dummy aliases with deliberately known lengths, so that we can
+    # quickly strip them below if needed
+    foreign_alias => 'F',
+    self_alias    => 'S',
+  );
+
+  my $rel_values =
+    $rel_resolution->{join_free_values}
+      ||
+    { map { substr( $_, 2 ) => $rel_resolution->{join_free_condition}{$_} } keys %{ $rel_resolution->{join_free_condition} } }
+  ;
+
+  # mix everything together
+  my $amalgamated_values = {
+    %{
+      # in case we got back join_free_values - they already have passed the extractor
+      $rel_resolution->{join_free_values}
+        ? $rel_values
+        : extract_equality_conditions(
+          $rel_values,
+          'consider_nulls'
+        )
+    },
+    %$data,
+  };
+
+  # cleanup possible rogue { somecolumn => [ -and => 1,2 ] }
+  ($amalgamated_values->{$_}||'') eq UNRESOLVABLE_CONDITION
+    and
+  delete $amalgamated_values->{$_}
+    for keys %$amalgamated_values;
+
+  if( my @nonvalues = grep { ! exists $amalgamated_values->{$_} } keys %$rel_values ) {
+
+    $self->throw_exception(
+      "Unable to complete value inferrence - relationship '$rel' "
+    . "on source '@{[ $rsrc->source_name ]}' results "
+    . 'in expression(s) instead of definitive values: '
+    . do {
+        # FIXME - used for diag only, but still icky
+        my $sqlm =
+          dbic_internal_try { $rsrc->schema->storage->sql_maker }
+            ||
+          (
+            require DBIx::Class::SQLMaker
+              and
+            DBIx::Class::SQLMaker->new
+          )
+        ;
+        local $sqlm->{quote_char};
+        local $sqlm->{_dequalify_idents} = 1;
+        ($sqlm->_recurse_where({ map { $_ => $rel_values->{$_} } @nonvalues }))[0]
+      }
+    );
+  }
+
+  # And more complications - in case the relationship did not resolve
+  # we *have* to loop things through search_related ( essentially re-resolving
+  # everything we did so far, but with different type of handholding )
+  # FIXME - this is still a mess, just a *little* better than it was
+  # See also the FIXME at the end of related_resultset()
+  exists $rel_resolution->{join_free_values}
+    ? $rel_rsrc->result_class->new({ -result_source => $rel_rsrc, %$amalgamated_values })
+    : $self->related_resultset($rel)->new_result( $amalgamated_values )
+  ;
 }
 
 =head2 create_related
@@ -819,13 +947,43 @@ L<update|DBIx::Class::Row/update> to update them in the storage.
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
 
-  $self->set_columns( $self->result_source->_resolve_relationship_condition (
-    infer_values_based_on => {},
+  $self->set_columns( $self->result_source->resolve_relationship_condition (
+    require_join_free_values => 1,
     rel_name => $rel,
-    foreign_values => $f_obj,
-    foreign_alias => $rel,
-    self_alias => 'me',
-  )->{inferred_values} );
+    foreign_values => (
+      # maintain crazy set_from_related interface
+      #
+      ( ! defined $f_obj )          ? +{}
+    : ( ! defined blessed $f_obj )  ? $f_obj
+                                    : do {
+
+        my $f_result_class = $self->result_source->related_source($rel)->result_class;
+
+        unless( $f_obj->isa($f_result_class) ) {
+
+          $self->throw_exception(
+            'Object supplied to set_from_related() must inherit from '
+          . "'$DBIx::Class::ResultSource::__expected_result_class_isa'"
+          ) unless $f_obj->isa(
+            $DBIx::Class::ResultSource::__expected_result_class_isa
+          );
+
+          carp_unique(
+            'Object supplied to set_from_related() usually should inherit from '
+          . "the related ResultClass ('$f_result_class'), perhaps you've made "
+          . 'a mistake?'
+          );
+        }
+
+        +{ $f_obj->get_columns };
+      }
+    ),
+
+    # an API where these are optional would be too cumbersome,
+    # instead always pass in some dummy values
+    DUMMY_ALIASPAIR,
+
+  )->{join_free_values} );
 
   return 1;
 }
