@@ -556,7 +556,9 @@ sub update {
   my %to_update = $self->get_dirty_columns
     or return $self;
 
-  $self->throw_exception( "Not in database" ) unless $self->in_storage;
+  $self->throw_exception(
+    'Result object not marked in_storage: an update() operation is not possible'
+  ) unless $self->in_storage;
 
   my $rows = $self->result_source->schema->storage->update(
     $self->result_source, \%to_update, $self->_storage_ident_condition
@@ -618,7 +620,9 @@ See also L<DBIx::Class::ResultSet/delete>.
 sub delete {
   my $self = shift;
   if (ref $self) {
-    $self->throw_exception( "Not in database" ) unless $self->in_storage;
+    $self->throw_exception(
+      'Result object not marked in_storage: a delete() operation is not possible'
+    ) unless $self->in_storage;
 
     $self->result_source->schema->storage->delete(
       $self->result_source, $self->_storage_ident_condition
