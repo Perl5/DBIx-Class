@@ -63,6 +63,11 @@ sub mk_group_accessors {
       }
     }
   }
+  elsif( $type eq 'inherited_ro_instance' ) {
+    DBIx::Class::Exception->throw(
+      "The 'inherted_ro_instance' CAG group has been retired - use 'inherited' instead"
+    );
+  }
 }
 
 sub get_component_class {

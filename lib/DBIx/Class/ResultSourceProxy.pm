@@ -25,15 +25,25 @@ use namespace::clean;
 # instance, and there is *ZERO EFFORT* made to synchronize them...
 # FIXME: Due to the above marking this as a rsrc_proxy method is also out
 # of the question...
-__PACKAGE__->mk_group_accessors('inherited_ro_instance' => 'source_name');
+# FIXME: this used to be a sub-type of inherited ( to see run:
+# `git log -Sinherited_ro_instance lib/DBIx/Class/ResultSourceProxy.pm` )
+# however given the lack of any sync effort as described above *anyway*,
+# it makes no sense to guard for erroneous use at a non-trivial cost in
+# performance (and may end up in the way of future optimizations as per
+# https://github.com/vovkasm/Class-Accessor-Inherited-XS/issues/2#issuecomment-243246924 )
+__PACKAGE__->mk_group_accessors( inherited => 'source_name');
 
-sub get_inherited_ro_instance { $_[0]->get_inherited($_[1]) }
-
-sub set_inherited_ro_instance {
-  $_[0]->throw_exception ("Cannot set '$_[1]' on an instance")
-    if length ref $_[0];
-
-  $_[0]->set_inherited( $_[1], $_[2] );
+# The marking with indirect_sugar will cause warnings to be issued in darkpan code
+# (though extremely unlikely)
+sub get_inherited_ro_instance :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    "The 'inherted_ro_instance' CAG group has been retired - use 'inherited' instead"
+  );
+}
+sub set_inherited_ro_instance :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    "The 'inherted_ro_instance' CAG group has been retired - use 'inherited' instead"
+  );
 }
 
 sub add_columns :DBIC_method_is_bypassable_resultsource_proxy {

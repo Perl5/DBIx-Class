@@ -9,7 +9,6 @@ use DBIx::Class::ResultSource::Table;
 use Scalar::Util 'blessed';
 use namespace::clean;
 
-# FIXME - both of these *PROBABLY* need to be 'inherited_ro_instance' type
 __PACKAGE__->mk_classaccessor(table_class => 'DBIx::Class::ResultSource::Table');
 # FIXME: Doesn't actually do anything yet!
 __PACKAGE__->mk_group_accessors( inherited => 'table_alias' );
