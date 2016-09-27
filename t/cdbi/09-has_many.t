@@ -50,7 +50,7 @@ eval { my $pj = Film->add_to_actors(\%pj_data) };
 like $@, qr/class/, "add_to_actors must be object method";
 
 eval { my $pj = $btaste->add_to_actors(%pj_data) };
-like $@, qr/Result object instantiation requires a single hashref argument/, "add_to_actors takes hash";
+like $@, qr/Result object instantiation requires a hashref as argument/, "add_to_actors takes hash";
 
 ok(
   my $pj = $btaste->add_to_actors(

@@ -218,7 +218,10 @@ sub search {
 }
 
 sub new_related {
-  return shift->search_related(shift)->new_result(@_);
+  $_[0]->throw_exception("Calling new_related() as a class method is not supported")
+    unless length ref $_[0];
+
+  shift->next::method(@_);
 }
 
 =head1 FURTHER QUESTIONS?
