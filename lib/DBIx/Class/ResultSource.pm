@@ -1883,7 +1883,7 @@ sub reverse_relationship_info {
 sub __strip_relcond {
   +{
     map
-      { map { /^ (?:foreign|self) \. (\w+) $/x } ($_, $_[1]{$_}) }
+      { map { /^ (?:foreign|self) \. (.+) $/x } ($_, $_[1]{$_}) }
       keys %{$_[1]}
   }
 }
