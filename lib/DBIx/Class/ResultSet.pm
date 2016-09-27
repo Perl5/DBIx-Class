@@ -3504,6 +3504,21 @@ but because we isolated the group by into a subselect the above works.
 =cut
 
 sub as_subselect_rs {
+
+  # FIXME - remove at some point in the future (2018-ish)
+  wantarray
+    and
+  carp_unique(
+    'Starting with DBIC@0.082900 as_subselect_rs() always returns a ResultSet '
+  . 'instance regardless of calling context. Please force scalar() context to '
+  . 'silence this warning'
+  )
+    and
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY
+    and
+  my $sog = fail_on_internal_wantarray
+  ;
+
   my $self = shift;
 
   my $alias = $self->current_source_alias;
@@ -3516,7 +3531,7 @@ sub as_subselect_rs {
   delete $fresh_rs->{cond};
   delete @{$fresh_rs->{attrs}}{qw/where bind/};
 
-  return $fresh_rs->search( {}, {
+  $fresh_rs->search_rs( {}, {
     from => [{
       $alias => $self->as_query,
       -alias  => $alias,

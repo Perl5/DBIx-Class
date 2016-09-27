@@ -40,6 +40,13 @@ while (my $r = $rs_title->next) {
 
 is_deeply (\@all_titles, \@nexted_titles, 'next works');
 
+my @list_ctx;
+warnings_exist {
+  @list_ctx = $rs_year->func_rs('DISTINCT');
+} [qr/\Qfunc_rs() always returns a ResultSet instance regardless of calling context/];
+is( scalar @list_ctx, 1, 'wantarray context does not affect func_rs');
+isa_ok( $list_ctx[0], 'DBIx::Class::ResultSet' );
+isa_ok( scalar( $rs_year->func_rs('DISTINCT') ), 'DBIx::Class::ResultSet' );
 is_deeply( [ sort $rs_year->func('DISTINCT') ], [ 1997, 1998, 1999, 2001 ],  "wantarray context okay");
 ok ($max_year->next == $rs_year->max, q/get_column (\'FUNC') ok/);
 

@@ -448,7 +448,21 @@ sub func_rs {
     $rs = $rs->as_subselect_rs;
   }
 
-  $rs->search( undef, {
+  # FIXME - remove at some point in the future (2018-ish)
+  wantarray
+    and
+  carp_unique(
+    'Starting with DBIC@0.082900 func_rs() always returns a ResultSet '
+  . 'instance regardless of calling context. Please force scalar() context to '
+  . 'silence this warning'
+  )
+    and
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY
+    and
+  my $sog = fail_on_internal_wantarray
+  ;
+
+  $rs->search_rs( undef, {
     columns => { $self->{_as} => { $function => $select } }
   } );
 }
