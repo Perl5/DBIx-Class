@@ -70,13 +70,8 @@ EOW
 
 
     quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth ), @main_meth_qsub_args;
-
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-
-      my $rs = shift->%s( @_ );
-
-      wantarray ? $rs->all : $rs;
+      shift->%s( @_ )->search;
 EOC
 
 
