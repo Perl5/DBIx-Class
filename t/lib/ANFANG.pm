@@ -16,7 +16,7 @@ our $anfang_loaded;
 
 # this allows the obscure but possible call case to behave correctly:
 #
-#   perl -Mt::lib::ANFANG -e 'do "./t/lib/ANFANG.pm" or die ( $@ || $! )'
+#   perl -It/lib -MANFANG -e 'do "./t/lib/ANFANG.pm" or die ( $@ || $! )'
 #
 return 1 if $anfang_loaded;
 

@@ -1,5 +1,5 @@
 my $test_ddl_fn     = 't/lib/sqlite.sql';
-my @test_ddl_cmd    = qw( -I lib -Mt::lib::ANFANG -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
+my @test_ddl_cmd    = qw( -I lib -I t/lib -MANFANG -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
 
 my $example_ddl_fn  = 'examples/Schema/db/example.sql';
 my $example_db_fn   = 'examples/Schema/db/example.db';

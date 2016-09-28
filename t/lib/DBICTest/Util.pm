@@ -376,7 +376,7 @@ sub can_alloc_MB ($) {
 
   local ( $!, $^E, $?, $@ );
 
-  system( $perl, qw( -Mt::lib::ANFANG -e ), <<'EOS', $arg );
+  system( $perl, qw( -It/lib -MANFANG -e ), <<'EOS', $arg );
 $0 = 'malloc_canary';
 my $tail_character_of_reified_megastring = substr( ( join '', map chr, 0..255 ) x (4 * 1024 * $ARGV[0]), -1 );
 EOS

@@ -20,7 +20,7 @@ use warnings;
 
 # there is talk of possible perl compilations where -T is fatal or just
 # doesn't work. We don't want to have the user deal with that.
-BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
+BEGIN { unless ($INC{'DBICTest/WithTaint.pm'}) {
 
   if ( $^O eq 'MSWin32' and $^X =~ /\x20/ ) {
     print "1..0 # SKIP Running this test on Windows with spaces within the perl executable path (\$^X) is not possible due to https://rt.perl.org/Ticket/Display.html?id=123907\n";
@@ -56,7 +56,7 @@ BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
     exit 0;
   }
 
-  exec( $perl, qw( -I. -Mt::lib::DBICTest::WithTaint -T ), __FILE__ );
+  exec( $perl, qw( -It/lib -MDBICTest::WithTaint -T ), __FILE__ );
 }}
 
 # We need to specify 'lib' here as well because even if it was already in
