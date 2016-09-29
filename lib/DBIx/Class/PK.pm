@@ -5,6 +5,9 @@ use warnings;
 
 use base qw/DBIx::Class::Row/;
 
+use DBIx::Class::_Util 'fail_on_internal_call';
+use namespace::clean;
+
 =head1 NAME
 
 DBIx::Class::PK - Primary Key class
@@ -27,12 +30,16 @@ a class method.
 
 =cut
 
-sub id {
-  my ($self) = @_;
-  $self->throw_exception( "Can't call id() as a class method" )
-    unless ref $self;
-  my @id_vals = $self->_ident_values;
-  return (wantarray ? @id_vals : $id_vals[0]);
+sub id :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  $_[0]->throw_exception( "Can't call id() as a class method" )
+    unless ref $_[0];
+
+  wantarray
+    ? $_[0]->_ident_values
+    : ($_[0]->_ident_values)[0]   # FIXME - horrible horrible legacy crap
+  ;
 }
 
 sub _ident_values {

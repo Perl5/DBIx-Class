@@ -360,7 +360,11 @@ sub check_no_indirect_method_overrides {
     for (@$method_stack) {
 
       push @$nonsugar_methods, $_ and next
-        unless $_->{attributes}{DBIC_method_is_indirect_sugar};
+        unless(
+          $_->{attributes}{DBIC_method_is_indirect_sugar}
+            or
+          $_->{attributes}{DBIC_method_is_generated_from_resultsource_metadata}
+        );
 
       push @err, {
         overridden => {

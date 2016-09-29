@@ -1130,6 +1130,10 @@ sub fail_on_internal_call {
   {
     package DB;
     $fr = [ CORE::caller(1) ];
+
+    # screwing with $DB::args is rather volatile - be extra careful
+    no warnings 'uninitialized';
+
     $argdesc =
       ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
     : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
