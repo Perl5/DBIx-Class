@@ -48,7 +48,6 @@ BEGIN {
       { substr($_, 5) => !!( $ENV{$_} ) }
       qw(
         DBIC_SHUFFLE_UNORDERED_RESULTSETS
-        DBIC_ASSERT_NO_INTERNAL_WANTARRAY
         DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
         DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
         DBIC_ASSERT_NO_FAILING_SANITY_CHECKS
@@ -198,8 +197,7 @@ BEGIN { *deep_clone = \&Storable::dclone }
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
-  fail_on_internal_wantarray fail_on_internal_call
+  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt fail_on_internal_call
   refdesc refcount hrefaddr set_subname get_subname describe_class_methods
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
@@ -1072,58 +1070,6 @@ sub mkdir_p ($) {
   File::Path::mkpath([ "$_[0]" ]);  # File::Path does not like objects
 }
 
-
-{
-  my $list_ctx_ok_stack_marker;
-
-  sub fail_on_internal_wantarray () {
-    return if $list_ctx_ok_stack_marker;
-
-    if (! defined wantarray) {
-      croak('fail_on_internal_wantarray() needs a tempvar to save the stack marker guard');
-    }
-
-    my $cf = 1;
-    while ( ( (CORE::caller($cf+1))[3] || '' ) =~ / :: (?:
-
-      # these are public API parts that alter behavior on wantarray
-      search | search_related | slice | search_literal
-
-        |
-
-      # these are explicitly prefixed, since we only recognize them as valid
-      # escapes when they come from the guts of CDBICompat
-      CDBICompat .*? :: (?: search_where | retrieve_from_sql | retrieve_all )
-
-    ) $/x ) {
-      $cf++;
-    }
-
-    my ($fr, $want, $argdesc);
-    {
-      package DB;
-      $fr = [ CORE::caller($cf) ];
-      $want = ( CORE::caller($cf-1) )[5];
-      $argdesc = ref $DB::args[0]
-        ? DBIx::Class::_Util::refdesc($DB::args[0])
-        : 'non '
-      ;
-    };
-
-    if (
-      $want and $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
-    ) {
-      DBIx::Class::Exception->throw( sprintf (
-        "Improper use of %s instance in list context at %s line %d\n\n    Stacktrace starts",
-        $argdesc, @{$fr}[1,2]
-      ), 'with_stacktrace');
-    }
-
-    weaken( $list_ctx_ok_stack_marker = my $mark = [] );
-
-    $mark;
-  }
-}
 
 sub fail_on_internal_call {
   my $fr = [ CORE::caller(1) ];

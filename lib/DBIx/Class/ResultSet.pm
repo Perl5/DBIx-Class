@@ -12,8 +12,7 @@ use Scalar::Util qw( blessed reftype );
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
   dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
-  fail_on_internal_wantarray fail_on_internal_call
-  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
+  fail_on_internal_call UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
@@ -392,27 +391,24 @@ L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 =cut
 
 sub search {
-  my $self = shift;
-  my $rs = $self->search_rs( @_ );
+  my $rs = shift->search_rs( @_ );
 
-  if (wantarray) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-    return $rs->all;
-  }
-  elsif (defined wantarray) {
-    return $rs;
-  }
-  else {
-    # we can be called by a relationship helper, which in
-    # turn may be called in void context due to some braindead
-    # overload or whatever else the user decided to be clever
-    # at this particular day. Thus limit the exception to
-    # external code calls only
-    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
-      if (caller)[0] !~ /^\QDBIx::Class::/;
+  return $rs->all
+    if wantarray;
 
-    return ();
-  }
+  return $rs
+    if defined wantarray;
+
+  # we can be called by a relationship helper, which in
+  # turn may be called in void context due to some braindead
+  # overload or whatever else the user decided to be clever
+  # at this particular day. Thus limit the exception to
+  # external code calls only
+  $rs->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
+    if (caller)[0] !~ /^\QDBIx::Class::/;
+
+  # we are in void ctx here, but just in case
+  return ();
 }
 
 =head2 search_rs
@@ -699,7 +695,9 @@ Example of how to use C<search> instead of C<search_literal>
 
 =cut
 
-sub search_literal {
+sub search_literal :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $sql, @bind) = @_;
   my $attr;
   if ( @bind && ref($bind[-1]) eq 'HASH' ) {
@@ -1192,7 +1190,9 @@ instead. An example conversion is:
 
 =cut
 
-sub search_like {
+sub search_like :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my $class = shift;
   carp_unique (
     'search_like() is deprecated and will be removed in DBIC version 0.09.'
@@ -1223,7 +1223,9 @@ three records, call:
 
 =cut
 
-sub slice {
+sub slice :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $min, $max) = @_;
   my $attrs = {}; # = { %{ $self->{attrs} || {} } };
   $attrs->{offset} = $self->{attrs}{offset} || 0;
@@ -3512,12 +3514,7 @@ sub as_subselect_rs {
     'Starting with DBIC@0.082900 as_subselect_rs() always returns a ResultSet '
   . 'instance regardless of calling context. Please force scalar() context to '
   . 'silence this warning'
-  )
-    and
-  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY
-    and
-  my $sog = fail_on_internal_wantarray
-  ;
+  );
 
   my $self = shift;
 

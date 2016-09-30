@@ -5,7 +5,7 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw( fail_on_internal_wantarray fail_on_internal_call );
+use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
 
 =head1 NAME
@@ -414,12 +414,10 @@ sub func :DBIC_method_is_indirect_sugar{
   #my ($self,$function) = @_;
   my $cursor = $_[0]->func_rs($_[1])->cursor;
 
-  if( wantarray ) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-    return map { $_->[ 0 ] } $cursor->all;
-  }
-
-  return ( $cursor->next )[ 0 ];
+  wantarray
+    ? map { $_->[ 0 ] } $cursor->all
+    : ( $cursor->next )[ 0 ]
+  ;
 }
 
 =head2 func_rs
@@ -455,12 +453,7 @@ sub func_rs {
     'Starting with DBIC@0.082900 func_rs() always returns a ResultSet '
   . 'instance regardless of calling context. Please force scalar() context to '
   . 'silence this warning'
-  )
-    and
-  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY
-    and
-  my $sog = fail_on_internal_wantarray
-  ;
+  );
 
   $rs->search_rs( undef, {
     columns => { $self->{_as} => { $function => $select } }
