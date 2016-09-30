@@ -1126,38 +1126,7 @@ sub mkdir_p ($) {
 }
 
 sub fail_on_internal_call {
-  my ($fr, $argdesc);
-  {
-    package DB;
-    $fr = [ CORE::caller(1) ];
-
-    # screwing with $DB::args is rather volatile - be extra careful
-    no warnings 'uninitialized';
-
-    $argdesc =
-      ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
-    : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
-    : $DB::args[0] . ''
-    ;
-  };
-
-  my @fr2;
-  # need to make allowance for a proxy-yet-direct call
-  my $check_fr = (
-    $fr->[0] eq 'DBIx::Class::ResultSourceProxy'
-      and
-    @fr2 = (CORE::caller(2))
-      and
-    (
-      ( $fr->[3] =~ /([^:])+$/ )[0]
-        eq
-      ( $fr2[3] =~ /([^:])+$/ )[0]
-    )
-  )
-    ? \@fr2
-    : $fr
-  ;
-
+  my $fr = [ CORE::caller(1) ];
 
   die "\nMethod $fr->[3] is not marked with the 'DBIC_method_is_indirect_sugar' attribute\n\n" unless (
 
@@ -1194,12 +1163,36 @@ sub fail_on_internal_call {
   );
 
 
+  my @fr2;
+  # need to make allowance for a proxy-yet-direct call
+  # or for an exception wrapper
+  $fr = \@fr2 if (
+    (
+      $fr->[3] eq '(eval)'
+        and
+      @fr2 = (CORE::caller(2))
+    )
+      or
+    (
+      $fr->[0] eq 'DBIx::Class::ResultSourceProxy'
+        and
+      @fr2 = (CORE::caller(2))
+        and
+      (
+        ( $fr->[3] =~ /([^:])+$/ )[0]
+          eq
+        ( $fr2[3] =~ /([^:])+$/ )[0]
+      )
+    )
+  );
+
+
   if (
     defined $fr->[0]
       and
-    $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
+    $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and
-    $check_fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+    $fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
       and
     # one step higher
     @fr2 = CORE::caller(@fr2 ? 3 : 2)
@@ -1212,6 +1205,24 @@ sub fail_on_internal_call {
         attributes::get( \&{ $fr2[3] })
       }
   ) {
+
+    my $argdesc;
+
+    {
+      package DB;
+
+      my @throwaway = caller( @fr2 ? 2 : 1 );
+
+      # screwing with $DB::args is rather volatile - be extra careful
+      no warnings 'uninitialized';
+
+      $argdesc =
+        ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
+      : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
+      : $DB::args[0] . ''
+      ;
+    };
+
     DBIx::Class::Exception->throw( sprintf (
       "Illegal internal call of indirect proxy-method %s() with argument '%s': examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
       $fr->[3], $argdesc, @{$fr}[1,2], ( $fr->[6] || do {
