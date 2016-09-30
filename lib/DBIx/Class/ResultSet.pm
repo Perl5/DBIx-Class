@@ -12,8 +12,7 @@ use Scalar::Util qw( blessed reftype );
 use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
   dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
-  fail_on_internal_wantarray fail_on_internal_call
-  UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
+  fail_on_internal_call UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
 use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
 use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
@@ -391,28 +390,27 @@ L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
 
-sub search {
-  my $self = shift;
-  my $rs = $self->search_rs( @_ );
+sub search :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
-  if (wantarray) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-    return $rs->all;
-  }
-  elsif (defined wantarray) {
-    return $rs;
-  }
-  else {
-    # we can be called by a relationship helper, which in
-    # turn may be called in void context due to some braindead
-    # overload or whatever else the user decided to be clever
-    # at this particular day. Thus limit the exception to
-    # external code calls only
-    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
-      if (caller)[0] !~ /^\QDBIx::Class::/;
+  my $rs = shift->search_rs( @_ );
 
-    return ();
-  }
+  return $rs->all
+    if wantarray;
+
+  return $rs
+    if defined wantarray;
+
+  # we can be called by a relationship helper, which in
+  # turn may be called in void context due to some braindead
+  # overload or whatever else the user decided to be clever
+  # at this particular day. Thus limit the exception to
+  # external code calls only
+  $rs->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
+    if (caller)[0] !~ /^\QDBIx::Class::/;
+
+  # we are in void ctx here, but just in case
+  return ();
 }
 
 =head2 search_rs
@@ -699,7 +697,9 @@ Example of how to use C<search> instead of C<search_literal>
 
 =cut
 
-sub search_literal {
+sub search_literal :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $sql, @bind) = @_;
   my $attr;
   if ( @bind && ref($bind[-1]) eq 'HASH' ) {
@@ -934,7 +934,7 @@ sub find {
   }
 
   # Run the query, passing the result_class since it should propagate for find
-  my $rs = $self->search ($final_cond, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search_rs( $final_cond, {result_class => $self->result_class, %$attrs} );
   if ($rs->_resolved_attrs->{collapse}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1192,7 +1192,9 @@ instead. An example conversion is:
 
 =cut
 
-sub search_like {
+sub search_like :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my $class = shift;
   carp_unique (
     'search_like() is deprecated and will be removed in DBIC version 0.09.'
@@ -1223,7 +1225,9 @@ three records, call:
 
 =cut
 
-sub slice {
+sub slice :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $min, $max) = @_;
   my $attrs = {}; # = { %{ $self->{attrs} || {} } };
   $attrs->{offset} = $self->{attrs}{offset} || 0;
@@ -1607,7 +1611,7 @@ C<< $rs->search ($cond, \%attrs)->count >>
 
 sub count {
   my $self = shift;
-  return $self->search(@_)->count if @_ and defined $_[0];
+  return $self->search_rs(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
   my $attrs = { %{ $self->_resolved_attrs } };
@@ -1655,7 +1659,7 @@ the same single value obtainable via L</count>.
 
 sub count_rs {
   my $self = shift;
-  return $self->search(@_)->count_rs if @_;
+  return $self->search_rs(@_)->count_rs if @_;
 
   # this may look like a lack of abstraction (count() does about the same)
   # but in fact an _rs *must* use a subquery for the limits, as the
@@ -1782,7 +1786,7 @@ sub _count_subq_rs {
   return $rsrc->resultset_class
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
-                 ->search ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
+                 ->search_rs ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
                   ->get_column ('count');
 }
 
@@ -2013,7 +2017,7 @@ sub _rs_update_delete {
           }
         }
 
-        $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
+        $subrs = $subrs->search_rs({}, { group_by => $attrs->{columns} });
       }
 
       $guard = $storage->txn_scope_guard;
@@ -2541,10 +2545,10 @@ sub populate {
 
         }
 
-        $colinfo->{$rel}{rs}->search({ map # only so that we inherit them values properly, no actual search
+        $colinfo->{$rel}{rs}->search_rs({ map # only so that we inherit them values properly, no actual search
           {
             $_ => { '=' =>
-              ( $main_proto_rs ||= $rsrc->resultset->search($main_proto) )
+              ( $main_proto_rs ||= $rsrc->resultset->search_rs($main_proto) )
                 ->get_column( $colinfo->{$rel}{fk_map}{$_} )
                  ->as_query
             }
@@ -3504,6 +3508,16 @@ but because we isolated the group by into a subselect the above works.
 =cut
 
 sub as_subselect_rs {
+
+  # FIXME - remove at some point in the future (2018-ish)
+  wantarray
+    and
+  carp_unique(
+    'Starting with DBIC@0.082900 as_subselect_rs() always returns a ResultSet '
+  . 'instance regardless of calling context. Please force scalar() context to '
+  . 'silence this warning'
+  );
+
   my $self = shift;
 
   my $alias = $self->current_source_alias;
@@ -3516,7 +3530,7 @@ sub as_subselect_rs {
   delete $fresh_rs->{cond};
   delete @{$fresh_rs->{attrs}}{qw/where bind/};
 
-  return $fresh_rs->search( {}, {
+  $fresh_rs->search_rs( {}, {
     from => [{
       $alias => $self->as_query,
       -alias  => $alias,
@@ -3563,7 +3577,7 @@ sub _chain_relationship {
     # Nuke the prefetch (if any) before the new $rs attrs
     # are resolved (prefetch is useless - we are wrapping
     # a subquery anyway).
-    my $rs_copy = $self->search;
+    my $rs_copy = $self->search_rs;
     $rs_copy->{attrs}{join} = $self->_merge_joinpref_attr (
       $rs_copy->{attrs}{join},
       delete $rs_copy->{attrs}{prefetch},

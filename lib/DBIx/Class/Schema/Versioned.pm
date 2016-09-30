@@ -543,7 +543,7 @@ sub get_db_version
 
     my $vtable = $self->{vschema}->resultset('Table');
     my $version = dbic_internal_try {
-      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+      $vtable->search_rs({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
     };
@@ -771,7 +771,7 @@ sub _source_exists
   my ($self, $rs) = @_;
 
   ( dbic_internal_try {
-    $rs->search( UNRESOLVABLE_CONDITION )->cursor->next;
+    $rs->search_rs( UNRESOLVABLE_CONDITION )->cursor->next;
     1;
   } )
     ? 1

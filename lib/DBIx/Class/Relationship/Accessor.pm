@@ -160,7 +160,6 @@ EOC
 
     quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
       DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
       shift->related_resultset(%s)->search( @_ )
 EOC
 

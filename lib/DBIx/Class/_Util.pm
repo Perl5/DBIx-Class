@@ -48,7 +48,6 @@ BEGIN {
       { substr($_, 5) => !!( $ENV{$_} ) }
       qw(
         DBIC_SHUFFLE_UNORDERED_RESULTSETS
-        DBIC_ASSERT_NO_INTERNAL_WANTARRAY
         DBIC_ASSERT_NO_INTERNAL_INDIRECT_CALLS
         DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
         DBIC_ASSERT_NO_FAILING_SANITY_CHECKS
@@ -198,8 +197,7 @@ BEGIN { *deep_clone = \&Storable::dclone }
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
-  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
-  fail_on_internal_wantarray fail_on_internal_call
+  sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt fail_on_internal_call
   refdesc refcount hrefaddr set_subname get_subname describe_class_methods
   scope_guard detected_reinvoked_destructor emit_loud_diag
   true false
@@ -1073,87 +1071,8 @@ sub mkdir_p ($) {
 }
 
 
-{
-  my $list_ctx_ok_stack_marker;
-
-  sub fail_on_internal_wantarray () {
-    return if $list_ctx_ok_stack_marker;
-
-    if (! defined wantarray) {
-      croak('fail_on_internal_wantarray() needs a tempvar to save the stack marker guard');
-    }
-
-    my $cf = 1;
-    while ( ( (CORE::caller($cf+1))[3] || '' ) =~ / :: (?:
-
-      # these are public API parts that alter behavior on wantarray
-      search | search_related | slice | search_literal
-
-        |
-
-      # these are explicitly prefixed, since we only recognize them as valid
-      # escapes when they come from the guts of CDBICompat
-      CDBICompat .*? :: (?: search_where | retrieve_from_sql | retrieve_all )
-
-    ) $/x ) {
-      $cf++;
-    }
-
-    my ($fr, $want, $argdesc);
-    {
-      package DB;
-      $fr = [ CORE::caller($cf) ];
-      $want = ( CORE::caller($cf-1) )[5];
-      $argdesc = ref $DB::args[0]
-        ? DBIx::Class::_Util::refdesc($DB::args[0])
-        : 'non '
-      ;
-    };
-
-    if (
-      $want and $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
-    ) {
-      DBIx::Class::Exception->throw( sprintf (
-        "Improper use of %s instance in list context at %s line %d\n\n    Stacktrace starts",
-        $argdesc, @{$fr}[1,2]
-      ), 'with_stacktrace');
-    }
-
-    weaken( $list_ctx_ok_stack_marker = my $mark = [] );
-
-    $mark;
-  }
-}
-
 sub fail_on_internal_call {
-  my ($fr, $argdesc);
-  {
-    package DB;
-    $fr = [ CORE::caller(1) ];
-    $argdesc =
-      ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
-    : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
-    : $DB::args[0] . ''
-    ;
-  };
-
-  my @fr2;
-  # need to make allowance for a proxy-yet-direct call
-  my $check_fr = (
-    $fr->[0] eq 'DBIx::Class::ResultSourceProxy'
-      and
-    @fr2 = (CORE::caller(2))
-      and
-    (
-      ( $fr->[3] =~ /([^:])+$/ )[0]
-        eq
-      ( $fr2[3] =~ /([^:])+$/ )[0]
-    )
-  )
-    ? \@fr2
-    : $fr
-  ;
-
+  my $fr = [ CORE::caller(1) ];
 
   die "\nMethod $fr->[3] is not marked with the 'DBIC_method_is_indirect_sugar' attribute\n\n" unless (
 
@@ -1190,13 +1109,74 @@ sub fail_on_internal_call {
   );
 
 
+  my @fr2;
+  # need to make allowance for a proxy-yet-direct call
+  # or for an exception wrapper
+  $fr = \@fr2 if (
+    (
+      $fr->[3] eq '(eval)'
+        and
+      @fr2 = (CORE::caller(2))
+    )
+      or
+    (
+      $fr->[0] eq 'DBIx::Class::ResultSourceProxy'
+        and
+      @fr2 = (CORE::caller(2))
+        and
+      (
+        ( $fr->[3] =~ /([^:])+$/ )[0]
+          eq
+        ( $fr2[3] =~ /([^:])+$/ )[0]
+      )
+    )
+  );
+
+
   if (
     defined $fr->[0]
       and
-    $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
+    $fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and
-    $check_fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+    $fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+      and
+    # one step higher
+    @fr2 = CORE::caller(@fr2 ? 3 : 2)
+      and
+    # if the frame that called us is an indirect itself - nothing to see here
+    (! grep
+      { $_ eq 'DBIC_method_is_indirect_sugar' }
+      do {
+        no strict 'refs';
+        attributes::get( \&{ $fr2[3] })
+      }
+    )
+      and
+    (
+      $fr->[3] ne 'DBIx::Class::ResultSet::search'
+        or
+      # these are explicit wantarray-passthrough callsites for search() due to old silly API choice
+      $fr2[3] !~ /^DBIx::Class::Ordered::(?: _group_rs | (?: _ | next_ | previous_ )? siblings )/x
+    )
   ) {
+
+    my $argdesc;
+
+    {
+      package DB;
+
+      my @throwaway = caller( @fr2 ? 2 : 1 );
+
+      # screwing with $DB::args is rather volatile - be extra careful
+      no warnings 'uninitialized';
+
+      $argdesc =
+        ( not defined $DB::args[0] )  ? 'UNAVAILABLE'
+      : ( length ref $DB::args[0] )   ? DBIx::Class::_Util::refdesc($DB::args[0])
+      : $DB::args[0] . ''
+      ;
+    };
+
     DBIx::Class::Exception->throw( sprintf (
       "Illegal internal call of indirect proxy-method %s() with argument '%s': examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
       $fr->[3], $argdesc, @{$fr}[1,2], ( $fr->[6] || do {

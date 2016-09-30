@@ -1521,15 +1521,16 @@ L<DBIx::Class::ResultSet/ATTRIBUTES>.
 =cut
 
 sub get_from_storage {
-    my $self = shift @_;
-    my $attrs = shift @_;
-    my $resultset = $self->result_source->resultset;
+    my $self = shift;
 
-    if(defined $attrs) {
-      $resultset = $resultset->search(undef, $attrs);
-    }
-
-    return $resultset->find($self->_storage_ident_condition);
+    # with or without attrs?
+    (
+      defined( $_[0] )
+        ? $self->result_source->resultset->search_rs( undef, $_[0] )
+        : $self->result_source->resultset
+    )->find(
+      $self->_storage_ident_condition
+    );
 }
 
 =head2 discard_changes

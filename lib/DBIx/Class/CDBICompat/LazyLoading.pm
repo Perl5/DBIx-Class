@@ -8,9 +8,8 @@ use base 'DBIx::Class';
 
 sub resultset_instance {
   my $self = shift;
-  my $rs = $self->next::method(@_);
-  $rs = $rs->search(undef, { columns => [ $self->columns('Essential') ] });
-  return $rs;
+  $self->next::method(@_)
+        ->search_rs(undef, { columns => [ $self->columns('Essential') ] });
 }
 
 

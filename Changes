@@ -27,6 +27,8 @@ Revision history for DBIx::Class
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored
           afterwards. Instead an exception (detailing the fix) is thrown.
+        - Change func_rs() and as_subselect_rs() to properly ignore list
+          context (i.e. wantarray). Both were implemented broken from day 1 :/
         - Increased checking for the correctness of the is_nullable attribute
           within the prefetch result parser may highlight previously unknown
           mismatches between your codebase and data source
