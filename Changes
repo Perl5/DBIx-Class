@@ -34,6 +34,9 @@ Revision history for DBIx::Class
           arrayref) now emits a deprecation warning
         - Calling the getter $rsrc->from("argument") now throws an exception
           instead of silently discarding the argument
+        - search() calls with an empty select list are deprecated. While DBIC
+          will still issue a SELECT * ..., it now warns given there is nothing
+          higher up in the stack prepared to interpret the result
 
     * New Features
         - DBIC now performs a range of sanity checks on the entire hierarchy

@@ -16,7 +16,7 @@ use DBIx::Class::_Util qw(
   quote_sub perlstring serialize dump_value
   dbic_internal_try dbic_internal_catch
   detected_reinvoked_destructor scope_guard
-  mkdir_p
+  mkdir_p UNRESOLVABLE_CONDITION
 );
 use namespace::clean;
 
@@ -2733,7 +2733,9 @@ sub _dbh_columns_info_for {
     return \%result if keys %result;
   }
 
-  my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
+  my $sth = $dbh->prepare(
+    $self->sql_maker->select( $table, \'*', UNRESOLVABLE_CONDITION )
+  );
   $sth->execute;
 
 ### The acrobatics with lc names is necessary to support both the legacy

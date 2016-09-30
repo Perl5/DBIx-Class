@@ -499,7 +499,11 @@ sub _resolve_aliastypes_from_select_args {
       grep
         { $_ !~ / \A \s* \( \s* SELECT \s+ .+? \s+ FROM \s+ .+? \) \s* \z /xsi }
         map
-          { ($sql_maker->_recurse_fields($_))[0] }
+          {
+            length ref $_
+              ? ($sql_maker->_recurse_fields($_))[0]
+              : $sql_maker->_quote($_)
+          }
           @{$attrs->{select}}
     ],
     ordering => [ map

@@ -737,16 +737,22 @@ sub _subqueried_limit_attrs {
     my $s = $rs_attrs->{select}[$i];
     my $sql_alias = (ref $s) eq 'HASH' ? $s->{-as} : undef;
 
-    # we throw away the @bind here deliberately
-    my ($sql_sel) = $self->_recurse_fields ($s);
+    my ($sql_sel) = length ref $s
+      # we throw away the @bind here deliberately
+      ? $self->_recurse_fields( $s )
+      : $self->_quote( $s )
+    ;
 
     push @sel, {
       arg => $s,
       sql => $sql_sel,
-      unquoted_sql => do {
-        local $self->{quote_char};
-        ($self->_recurse_fields ($s))[0]; # ignore binds again
-      },
+      unquoted_sql => ( length ref $s
+        ? do {
+          local $self->{quote_char};
+          ($self->_recurse_fields ($s))[0]; # ignore binds again
+        }
+        : $s
+      ),
       as =>
         $sql_alias
           ||

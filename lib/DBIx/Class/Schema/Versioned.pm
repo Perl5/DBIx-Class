@@ -216,7 +216,7 @@ use warnings;
 use base 'DBIx::Class::Schema';
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try UNRESOLVABLE_CONDITION );
 use Scalar::Util 'weaken';
 use namespace::clean;
 
@@ -771,7 +771,7 @@ sub _source_exists
   my ($self, $rs) = @_;
 
   ( dbic_internal_try {
-    $rs->search(\'1=0')->cursor->next;
+    $rs->search( UNRESOLVABLE_CONDITION )->cursor->next;
     1;
   } )
     ? 1
