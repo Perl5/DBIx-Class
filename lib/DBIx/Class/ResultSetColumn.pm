@@ -151,12 +151,10 @@ one value.
 =cut
 
 sub next {
-  my $self = shift;
+  #my $self = shift;
 
   # using cursor so we don't inflate anything
-  my ($row) = $self->_resultset->cursor->next;
-
-  return $row;
+  ($_[0]->_resultset->cursor->next)[0];
 }
 
 =head2 all
@@ -178,10 +176,10 @@ than result objects.
 =cut
 
 sub all {
-  my $self = shift;
+  #my $self = shift;
 
   # using cursor so we don't inflate anything
-  return map { $_->[0] } $self->_resultset->cursor->all;
+  map { $_->[0] } $_[0]->_resultset->cursor->all;
 }
 
 =head2 reset
@@ -202,9 +200,10 @@ Much like L<DBIx::Class::ResultSet/reset>.
 =cut
 
 sub reset {
-  my $self = shift;
-  $self->_resultset->cursor->reset;
-  return $self;
+  #my $self = shift;
+
+  $_[0]->_resultset->reset;
+  $_[0];
 }
 
 =head2 first
@@ -224,14 +223,13 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 =cut
 
-sub first {
-  my $self = shift;
+sub first :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   # using cursor so we don't inflate anything
-  $self->_resultset->cursor->reset;
-  my ($row) = $self->_resultset->cursor->next;
-
-  return $row;
+  my $cursor = $_[0]->_resultset->cursor;
+  $cursor->reset;
+  ($cursor->next)[0];
 }
 
 =head2 single
@@ -251,14 +249,14 @@ is issued before discarding the cursor.
 =cut
 
 sub single {
-  my $self = shift;
+  #my $self = shift;
 
-  my $attrs = $self->_resultset->_resolved_attrs;
-  my ($row) = $self->_resultset->result_source->schema->storage->select_single(
+  my $rs = $_[0]->_resultset;
+
+  my $attrs = $rs->_resolved_attrs;
+  ($rs->result_source->schema->storage->select_single(
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
-  );
-
-  return $row;
+  ))[0];
 }
 
 =head2 min
@@ -410,9 +408,11 @@ value. Produces the following SQL:
 
 =cut
 
-sub func {
-  my ($self,$function) = @_;
-  my $cursor = $self->func_rs($function)->cursor;
+sub func :DBIC_method_is_indirect_sugar{
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
+  #my ($self,$function) = @_;
+  my $cursor = $_[0]->func_rs($_[1])->cursor;
 
   if( wantarray ) {
     DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;

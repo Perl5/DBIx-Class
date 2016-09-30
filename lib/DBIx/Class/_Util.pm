@@ -1196,6 +1196,17 @@ sub fail_on_internal_call {
     $check_fr->[0] =~ /^(?:DBIx::Class|DBICx::)/
       and
     $check_fr->[1] !~ /\b(?:CDBICompat|ResultSetProxy)\b/  # no point touching there
+      and
+    # one step higher
+    @fr2 = CORE::caller(@fr2 ? 3 : 2)
+      and
+    # if the frame that called us is an indirect itself - nothing to see here
+    ! grep
+      { $_ eq 'DBIC_method_is_indirect_sugar' }
+      do {
+        no strict 'refs';
+        attributes::get( \&{ $fr2[3] })
+      }
   ) {
     DBIx::Class::Exception->throw( sprintf (
       "Illegal internal call of indirect proxy-method %s() with argument '%s': examine the last lines of the proxy method deparse below to determine what to call directly instead at %s on line %d\n\n%s\n\n    Stacktrace starts",
