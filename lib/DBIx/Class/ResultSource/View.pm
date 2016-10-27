@@ -67,8 +67,8 @@ case replaces the view name in a FROM clause in a subselect.
 
 =head1 EXAMPLES
 
-Having created the MyApp::Schema::Year2000CDs schema as shown in the SYNOPSIS
-above, you can then:
+Having created the MyApp::Schema::Result::Year2000CDs schema as shown in the
+SYNOPSIS above, you can then:
 
   $y2000_cds = $schema->resultset('Year2000CDs')
                       ->search()
