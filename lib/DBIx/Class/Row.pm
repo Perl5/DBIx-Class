@@ -1228,7 +1228,7 @@ Set a raw value for a column without marking it as changed. This
 method is used internally by L</set_column> which you should probably
 be using.
 
-This is the lowest level at which data is set on a result object,
+This is the lowest level at which data is set on a result object;
 extend this method to catch all data setting methods.
 
 =cut
