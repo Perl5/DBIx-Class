@@ -45,12 +45,12 @@ for my $i (0, 1) {
   $artist_rset_after = $cd_rset->related_resultset('artist');
 
   is scalar $cd_rset, 1, 'Track should belong to a CD';
-  is scalar @{ $cd_rset->get_cache // [] }, 1, 'CD cache should contain one item';
+  is scalar @{ $cd_rset->get_cache || [] }, 1, 'CD cache should contain one item';
 
   is scalar $cd_rset->related_resultset('artist'), 1, 'Track should belong to an Artist';
 
   # The following fails when DBIx::Class::ResultSet::set_cache does not clear related resultsets
-  is scalar @{ $artist_rset_after->get_cache // [] }, 1, 'Artist cache should contain one item';
+  is scalar @{ $artist_rset_after->get_cache || [] }, 1, 'Artist cache should contain one item';
 }
 
 done_testing;
