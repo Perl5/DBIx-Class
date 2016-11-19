@@ -1546,6 +1546,11 @@ that were originally loaded in the source class via
 L<load_components|Class::C3::Componentised/load_components( @comps )>.
 Any overloaded methods in the original source class will not run.
 
+Setting the result_class with this method will change the class only for
+this resultset instance. Setting the result_class using the C<search>
+C<%attrs> hash will change the class for this resultset and any
+resultset chained from this resultset.
+
 =cut
 
 sub result_class {
@@ -4664,6 +4669,12 @@ L<DBIx::Class::Manual::Cookbook>.
 Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
 ... FOR SHARED. If \$scalar is passed, this is taken directly and embedded in the
 query.
+
+=head2 result_class
+
+Set the result_class attribute for this resultset and any resultset chained
+from this resultset. This differs from using the L</result_class> accessor:
+The accessor is not chained and only applies to the current resultset.
 
 =head1 PREFETCHING
 
