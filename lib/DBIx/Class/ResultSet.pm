@@ -4602,7 +4602,7 @@ E.g.
 
 or with an in-place function in which case literal SQL is required:
 
-  having => \[ 'count(employee) >= ?', 100 ]
+  having => \[ 'count(employee) >= ?', [ {} => 100 ] ]
 
 =head2 distinct
 
