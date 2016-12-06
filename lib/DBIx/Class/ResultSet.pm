@@ -554,6 +554,36 @@ sub search_rs {
   return $rs;
 }
 
+=head2 rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+Returns the resultset.  Useful for forcing scalar context on search methods.
+
+ my %cd_rs_by_year = (
+     2000 => $cd_rs->search({ year => 2000 })->rs,
+     2001 => $cd_rs->search({ year => 2001 })->rs
+ );
+
+is equivalent to:
+
+ my %cd_rs_by_year = (
+     2000 => $cd_rs->search_rs({ year => 2000 }),
+     2001 => $cd_rs->search_rs({ year => 2001 })
+ );
+
+=cut
+
+sub rs {
+    return shift;
+}
+
 my $dark_sel_dumper;
 sub _normalize_selection {
   my ($self, $attrs) = @_;
