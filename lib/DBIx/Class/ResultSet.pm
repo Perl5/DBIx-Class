@@ -3220,6 +3220,14 @@ sub set_cache {
   my ( $self, $data ) = @_;
   $self->throw_exception("set_cache requires an arrayref")
       if defined($data) && (ref $data ne 'ARRAY');
+
+  # If set_cache is called after a related resultset has been created,
+  # we expect subsequent calls to related_resultset to include cached
+  # results (if they are present on the objects in $data).
+  #
+  # This won't be true if we've cached the related_resultsets already,
+  # so clear them.
+  $self->{related_resultsets} = {};
   $self->{all_cache} = $data;
 }
 
