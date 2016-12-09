@@ -269,7 +269,7 @@ sub load_namespaces {
       if($preset_resultset_class && $preset_resultset_class ne 'DBIx::Class::ResultSet') {
         if($found_resultset_class && $found_resultset_class ne $preset_resultset_class) {
           carp "We found ResultSet class '$found_resultset_class' matching '$results_by_source_name->{$source_name}', but it seems "
-             . "that you had already set the '$results_by_source_name->{$source_name}' resultet to '$preset_resultset_class' instead";
+             . "that you had already set the '$results_by_source_name->{$source_name}' resultset to '$preset_resultset_class' instead";
         }
       }
       # elsif - there may be *no* default_resultset_class, in which case we fallback to
