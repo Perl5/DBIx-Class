@@ -34,14 +34,22 @@ from a massive resultset, while skipping the creation of fancy result objects.
 Specifying this class as a C<result_class> for a resultset will change C<< $rs->next >>
 to return a plain data hash-ref (or a list of such hash-refs if C<< $rs->all >> is used).
 
-There are two ways of applying this class to a resultset:
+There are three ways of applying this class to a resultset:
 
 =over
 
 =item *
 
-Specify C<< $rs->result_class >> on a specific resultset to affect only that
-resultset (and any chained off of it); or
+Specify C<< $rs->result_class >> on a specific resultset to affect only
+that resultset object (if you are going to immediately call C<find>,
+C<next>, C<all>, or another result method).
+
+=item *
+
+Specify C<< $rs->search({}, { result_class => '...' }) >> to affect this
+resultset and any further resultset objects created from this one. Use
+this if you are chaining additional calls to C<search> and want the final
+results to be hash-refs.
 
 =item *
 
