@@ -37,7 +37,7 @@ DBIx::Class::Relationship - Inter-table relationships
   ## Using relationships
   $schema->resultset('Actor')->find({ id => 1})->roles();
   $schema->resultset('Role')->find({ id => 1 })->actorroles->search_related('actor', { Name => 'Fred' });
-  $schema->resultset('Actor')->add_to_roles({ Name => 'Sherlock Holmes'});
+  $schema->resultset('Actor')->find({ id => 1 })->add_to_roles({ Name => 'Sherlock Holmes'});
 
 See L<DBIx::Class::Manual::Cookbook> for more.
 
