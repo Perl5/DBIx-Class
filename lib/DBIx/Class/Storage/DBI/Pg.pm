@@ -266,6 +266,23 @@ sub deployment_statements {
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
+sub is_replicating {
+    my $repl = 'select pg_last_xlog_receive_location() AS replicating';
+    my $status = shift->_get_dbh->selectrow_hashref($repl);
+    return 1 if defined $status->{replicating};
+    return 0;
+}
+
+sub lag_behind_master {
+    my $repl = 'SELECT '
+        .'CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() '
+        .'THEN 0 '
+        .'ELSE EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp())'
+        .'END AS log_delay';
+    my $status = shift->_get_dbh->selectrow_hashref($repl);
+    return $status->{log_delay};
+}
+
 1;
 
 __END__
