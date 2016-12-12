@@ -1301,6 +1301,27 @@ sub create_ddl_dir {
   $self->storage->create_ddl_dir($self, @_);
 }
 
+=head2 output_files
+
+=over 4
+
+=item Arguments: $file
+
+=item Return Value: $file1, $file2, ...
+
+=back
+
+Returns names of files that were written to by the L</create_ddl_dir> method.
+
+=cut
+
+sub output_files {
+    my $self = shift;
+    my $of = $self->{output_files} ||= [];
+    push @$of, @_ if defined $file;
+    return @$of;
+}
+
 =head2 ddl_filename
 
 =over 4

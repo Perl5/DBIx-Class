@@ -3044,6 +3044,7 @@ sub create_ddl_dir {
 
     my $file;
     my $filename = $schema->ddl_filename($db, $version, $dir);
+    $schema->output_files($filename);
     if (-e $filename && ($version eq $schema_version )) {
       # if we are dumping the current version, overwrite the DDL
       carp "Overwriting existing DDL file - $filename";
