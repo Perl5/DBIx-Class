@@ -13,6 +13,21 @@ my $schema = DBICTest->init_schema();
 lives_ok (sub {
   my $rs = $schema->resultset( 'CD' )->search(
     {
+      -and => [
+        \'`last_track`.`title` IS NULL',
+      ],
+    },
+    {
+      'join' => 'last_track',
+    }
+  );
+
+  my @executed = $rs->all();
+}, 'Literal join with quotes');
+
+lives_ok (sub {
+  my $rs = $schema->resultset( 'CD' )->search(
+    {
       'producer.name'   => 'blah',
       'producer_2.name' => 'foo',
     },
