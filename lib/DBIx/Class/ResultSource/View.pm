@@ -50,6 +50,11 @@ A view has a L</view_definition>, which contains a SQL query. The query can
 only have parameters if L</is_virtual> is set to true. It may contain JOINs,
 sub selects and any other SQL your database supports.
 
+For virtual views the column names returned by the view definition SQL
+must match the names in
+L<add_columns|DBIx::Class::ResultSource/add_columns>, while for
+non-vritual views the order must match.
+
 View definition SQL is deployed to your database on
 L<DBIx::Class::Schema/deploy> unless you set L</is_virtual> to true.
 
