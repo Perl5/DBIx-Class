@@ -1694,6 +1694,8 @@ need to be quoted in the SQL queries. This is done by passing in the
 C<quote_names> attribute into the connect_info when connecting a schema.
 
 This will automatically determine which quotes are required for your RDBMS.
+This is sugar for the C<quote_char> and C<name_sep> properties and should
+set them correctly for your RDBMS.
 
 This is generally done like this with,
 L<DBIx::Class::Schema/connect>:
