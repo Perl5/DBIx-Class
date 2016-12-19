@@ -1690,22 +1690,14 @@ customers as above.
 =head2 Setting quoting for the generated SQL
 
 If the database contains column names with spaces and/or reserved words, they
-need to be quoted in the SQL queries. This is done using:
+need to be quoted in the SQL queries. This is done by passing in the
+C<quote_names> attribute into the connect_info when connecting a schema.
 
- $schema->storage->sql_maker->quote_char([ qw/[ ]/] );
- $schema->storage->sql_maker->name_sep('.');
+This will automatically determine which quotes are required for your RDBMS.
+This is sugar for the C<quote_char> and C<name_sep> properties and should
+set them correctly for your RDBMS.
 
-The first sets the quote characters. Either a pair of matching
-brackets, or a C<"> or C<'>:
-
- $schema->storage->sql_maker->quote_char('"');
-
-Check the documentation of your database for the correct quote
-characters to use. C<name_sep> needs to be set to allow the SQL
-generator to put the quotes the correct place, and defaults to
-C<.> if not supplied.
-
-In most cases you should set these as part of the arguments passed to
+This is generally done like this with,
 L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
@@ -1713,21 +1705,54 @@ L<DBIx::Class::Schema/connect>:
   'db_user',
   'db_password',
   {
-    quote_char => '"',
-    name_sep   => '.'
+    quote_names => 1,
   }
  )
 
-In some cases, quoting will be required for all users of a schema. To enforce
-this, you can also overload the C<connection> method for your schema class:
+Turning quoting on is generally a good idea, and there is even a helper
+to allow you to do it without requiring explicit configuration.
 
- sub connection {
-     my $self = shift;
-     my $rv = $self->next::method( @_ );
-     $rv->storage->sql_maker->quote_char([ qw/[ ]/ ]);
-     $rv->storage->sql_maker->name_sep('.');
-     return $rv;
- }
+See L<DBIx::Class::Helper::Schema::QuoteNames>.
+
+Turning quoting on does mean that all terms assumed to be identifiers will
+be quoted.  This means that you need to be careful with complex expressions
+used on the left hand side where identifiers are assumed.  A query like this
+would work without quoting on.
+
+ return $self->search(undef, {
+   '+columns' => [
+     { items => 'sum(items.quantity)',
+   ]
+ });
+
+With it on the whole chunk would get encoded and so you would end up with
+an error complaining that the field C<"sum(items.quantity)"> does not exist.
+
+There are several ways to resolve this, often there is a data structure that
+SQL Abstract can interpret into the function call, in this case
+C<< { sum => 'items.quantity' } >> is equivalent.
+
+Here are some examples, including using literal SQL by passing in a string
+reference.
+
+ return $self->search(undef, {
+   join => ['items'],
+   '+columns' => [
+     { items => { sum => 'items.quantity', -as => 'items' }},
+     { lines => { count => 'items.quantity', -as => 'lines' }},
+     { total => \'sum(items.quantity*items.per_item*(1+items.vat)) as total' },
+   ],
+ });
+
+If you need to provide variables where there is an identifier take a look at the
+L</Using SQL functions on the left hand side of a comparison>.
+
+Also note that the opposite is possible too.  If you need to use an identier on
+the right side you can use the construct C<< { -ident => 'column' } >>
+
+For example,
+
+ return $self->search({ col1 => { -ident => 'col2' }});
 
 =head2 Working with PostgreSQL array types
 
