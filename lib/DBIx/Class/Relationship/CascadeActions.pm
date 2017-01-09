@@ -26,8 +26,6 @@ sub delete {
   if (@cascade) {
     my $guard = $source->schema->txn_scope_guard;
 
-    my $ret = $self->next::method(@rest);
-
     foreach my $rel (@cascade) {
       if( my $rel_rs = dbic_internal_try { $self->related_resultset($rel) } ) {
         $rel_rs->delete_all;
@@ -36,6 +34,8 @@ sub delete {
         next;
       }
     }
+
+    my $ret = $self->next::method(@rest);
 
     $guard->commit;
     return $ret;
