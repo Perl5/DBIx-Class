@@ -1,3 +1,6 @@
+TEST
+
+
 2005-04-16 by mst
   - ResultSource objects caching ->resultset causes interesting problems
   - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
