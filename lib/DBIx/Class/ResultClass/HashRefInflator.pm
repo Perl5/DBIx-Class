@@ -26,6 +26,16 @@ DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
    ...
  }
 
+ # when querying, the search method allows you to specify the result_class as a parameter
+ my $rs = $schema->resultset('CD')->search({}, 
+ {   
+    columns => [qw/.../],
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+ });
+ while (my $hashref = $rs->next) {
+    ...
+ }
+
 =head1 DESCRIPTION
 
 DBIx::Class is faster than older ORMs like Class::DBI but it still isn't
