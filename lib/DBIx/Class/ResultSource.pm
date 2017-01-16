@@ -2076,7 +2076,7 @@ sub _resolve_join {
     );
 
     my $rel_info = $self->relationship_info($join)
-      or $self->throw_exception("No such relationship $join on " . $self->source_name);
+      or $self->throw_exception("No such relationship '$join' on " . $self->source_name);
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,

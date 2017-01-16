@@ -527,7 +527,7 @@ sub related_resultset {
   my $rsrc = $self->result_source;
 
   my $rel_info = $rsrc->relationship_info($rel)
-    or $self->throw_exception( "No such relationship '$rel'" );
+    or $self->throw_exception( "No such relationship '$rel' on " . $rsrc->source_name );
 
   my $relcond_is_freeform = ref $rel_info->{cond} eq 'CODE';
 
