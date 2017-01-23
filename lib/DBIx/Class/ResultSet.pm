@@ -669,7 +669,7 @@ sub _stack_cond {
 
 B<CAVEAT>: C<search_literal> is provided for Class::DBI compatibility and
 should only be used in that context. C<search_literal> is a convenience
-method. It is equivalent to calling C<< $schema->search(\[]) >>, but if you
+method. It is equivalent to calling C<< $rs->search(\[]) >>, but if you
 want to ensure columns are bound correctly, use L</search>.
 
 See L<DBIx::Class::Manual::Cookbook/SEARCHING> and
