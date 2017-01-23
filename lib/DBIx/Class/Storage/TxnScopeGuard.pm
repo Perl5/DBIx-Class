@@ -42,7 +42,7 @@ sub new {
 sub commit {
   my $self = shift;
 
-  $self->{storage}->throw_exception("Refusing to execute multiple commits on scope guard $self")
+  $self->{storage}->throw_exception("Refusing to execute multiple commit/rollbacks on scope guard $self")
     if $self->{inactivated};
 
   # FIXME - this assumption may be premature: a commit may fail and a rollback
@@ -52,6 +52,16 @@ sub commit {
   # address RT#107159, but this *MUST* be reevaluated later.
   $self->{inactivated} = 1;
   $self->{storage}->txn_commit;
+}
+
+sub rollback {
+  my $self = shift;
+  
+  $self->{storage}->throw_exception("Refusing to execute multiple commit/rollbacks on scope guard $self")
+    if $self->{inactivated};
+  
+  $self->{inactivated} = 1;
+  $self->{storage}->txn_rollback;
 }
 
 sub DESTROY {
@@ -148,6 +158,12 @@ L<DBIx::Class::Storage> object as its only argument.
 Commit the transaction, and stop guarding the scope. If this method is not
 called and this object goes out of scope (e.g. an exception is thrown) then
 the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
+
+=head2 rollback
+
+Roll back the transaction, and stop guarding the scope. You can use this to
+avoid the warning when the scope guard goes out of scope, for deliberate
+rollbacks.
 
 =cut
 

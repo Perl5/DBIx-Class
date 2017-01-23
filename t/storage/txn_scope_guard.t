@@ -57,7 +57,24 @@ use DBICTest;
 
     ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
-  }, 'rollback successful withot exception');
+  }, 'rollback successful without exception');
+  
+  lives_ok (sub {
+    # this weird assignment is to stop perl <= 5.8.9 leaking $schema on nested sub{}s
+    my $s = $schema;
+
+    warnings_are ( sub {
+      my $guard = $schema->txn_scope_guard;
+      $schema->resultset('Artist')->create({
+        name => 'Death Cab for Cutie',
+      });
+      inner($schema, 0);
+      $guard->rollback;
+    }, [], 'Deliberate rollback without warning');
+
+    ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+
+  }, 'rollback successful without exception');
 
   sub outer {
     my ($schema, $fatal) = @_;
