@@ -298,6 +298,8 @@ my $method_dispatch = {
     _dbi_attrs_for_bind
     bind_attribute_by_data_type
     transaction_depth
+    deferred_rollback
+    _throw_deferred_rollback
     _dbh
     _select_args
     _dbh_execute_for_fetch
