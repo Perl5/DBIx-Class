@@ -225,11 +225,18 @@ my %fk_constraints = (
   # CD
   cd => [
     {
-      'display' => 'cd->artist',
-      'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
-      'selftable' => 'cd', 'foreigntable' => 'artist',
-      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
+      'display' => 'cd->single_track',
+      'name' => 'cd_fk_single_track', 'index_name' => 'cd_idx_single_track',
+      'selftable' => 'cd', 'foreigntable' => 'track',
+      'selfcols'  => ['single_track'], 'foreigncols' => ['trackid'],
+      on_delete => 'CASCADE', on_update => '', deferrable => 1,
+    },
+    {
+      'display' => 'cd->genreid',
+      'name' => 'cd_fk_genreid', 'index_name' => 'cd_idx_genreid',
+      'selftable' => 'cd', 'foreigntable' => 'genre',
+      'selfcols'  => ['genreid'], 'foreigncols' => ['genreid'],
+      on_delete => 'SET NULL', on_update => 'CASCADE', deferrable => 1,
     },
   ],
 
