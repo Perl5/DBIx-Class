@@ -81,32 +81,42 @@ my $schema = DBICTest->init_schema();
 }
 
 sub check_cols_of {
-    my ($dbic_obj, $datahashref) = @_;
+    my ($dbic_obj, $datahashref, $prefetch, $prefix) = @_;
+
+    $prefetch ||= [];
+    $prefix ||= '';
+    my %prefetch; @prefetch{@$prefetch} = ();
 
     foreach my $col (keys %$datahashref) {
         # plain column
         if (not ref ($datahashref->{$col}) ) {
-            is ($datahashref->{$col}, $dbic_obj->get_column($col), 'same value');
+            is ($datahashref->{$col}, $dbic_obj->get_column($col), "value for $prefix$col");
         }
         # related table entry (belongs_to)
         elsif (ref ($datahashref->{$col}) eq 'HASH') {
-            check_cols_of($dbic_obj->$col, $datahashref->{$col});
+            delete $prefetch{$col};
+            check_cols_of($dbic_obj->$col, $datahashref->{$col}, [], "$col.");
         }
         # multiple related entries (has_many)
         elsif (ref ($datahashref->{$col}) eq 'ARRAY') {
+            delete $prefetch{$col};
             my @dbic_reltable = $dbic_obj->$col;
             my @hashref_reltable = @{$datahashref->{$col}};
 
-            is (scalar @hashref_reltable, scalar @dbic_reltable, 'number of related entries');
+            is (scalar @hashref_reltable, scalar @dbic_reltable, "number of related $col");
 
             # for my $index (0..scalar @hashref_reltable) {
             for my $index (0..scalar @dbic_reltable) {
                 my $dbic_reltable_obj       = $dbic_reltable[$index];
                 my $hashref_reltable_entry  = $hashref_reltable[$index];
 
-                check_cols_of($dbic_reltable_obj, $hashref_reltable_entry);
+                check_cols_of($dbic_reltable_obj, $hashref_reltable_entry, [], "$col\[$index\].");
             }
         }
+    }
+    if (@$prefetch) {
+        is 0+(keys %prefetch), 0, "prefetched " . join ", ", @$prefetch
+          or diag "missed: " . join ", ", keys %prefetch;
     }
 }
 
@@ -136,7 +146,7 @@ for my $index (0 .. $#hashrefinf) {
     my $dbic_obj    = $dbic[$index];
     my $datahashref = $hashrefinf[$index];
 
-    check_cols_of($dbic_obj, $datahashref);
+    check_cols_of($dbic_obj, $datahashref, [qw(artist tracks)]);
 }
 
 # sometimes for ultra-mega-speed you want to fetch columns in esoteric ways
