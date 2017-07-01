@@ -94,6 +94,9 @@ my $test_requires = {
   # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
   # remove and do a manual glob-collection if n::c is no longer a dep
   'Package::Stash'           => '0.28',
+
+  # Why isn't that neccessary in t/86sqlt.t?
+  'SQL::Translator'          => 0,
 };
 
 # if the user has this env var set and no SQLT installed, tests will fail
