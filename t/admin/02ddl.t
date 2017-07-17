@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( admin deploy );
 
 use strict;
@@ -7,11 +8,9 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
-use Path::Class;
-
-use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
+use DBICTest::Util 'rm_rf';
 
 use DBIx::Class::Admin;
 
@@ -25,12 +24,12 @@ my @connect_info = (
   undef,
   { on_connect_do => 'PRAGMA synchronous = OFF' },
 );
-my $ddl_dir = dir(qw/t var/, "admin_ddl-$$");
+my $ddl_dir = "t/var/admin_ddl-$$";
 
 { # create the schema
 
 #  make sure we are  clean
-clean_dir($ddl_dir);
+cleanup();
 
 
 my $admin = DBIx::Class::Admin->new(
@@ -49,7 +48,7 @@ lives_ok {
 
 { # upgrade schema
 
-clean_dir($ddl_dir);
+cleanup();
 require DBICVersion_v1;
 
 my $admin = DBIx::Class::Admin->new(
@@ -91,7 +90,7 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 
 { # install
 
-clean_dir($ddl_dir);
+cleanup();
 
 my $admin = DBIx::Class::Admin->new(
   schema_class  => 'DBICVersion::Schema',
@@ -114,14 +113,13 @@ warnings_exist ( sub {
 is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 }
 
-sub clean_dir {
-  my ($dir) = @_;
-  $dir->rmtree if -d $dir;
+sub cleanup {
+  rm_rf $ddl_dir if -d $ddl_dir;
   unlink $db_fn;
 }
 
 END {
-  clean_dir($ddl_dir);
+  cleanup();
 }
 
 done_testing;

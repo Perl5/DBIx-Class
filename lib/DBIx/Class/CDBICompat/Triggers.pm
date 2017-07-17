@@ -3,6 +3,9 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+
+use base 'DBIx::Class';
+
 use Class::Trigger;
 
 sub insert {

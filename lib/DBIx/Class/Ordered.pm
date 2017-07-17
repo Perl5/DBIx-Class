@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use base qw( DBIx::Class );
 
-use List::Util 'first';
+use DBIx::Class::_Util qw( bag_eq fail_on_internal_call );
 use namespace::clean;
 
 =head1 NAME
@@ -109,7 +109,7 @@ positional value of each record.  Defaults to "position".
 
 =cut
 
-__PACKAGE__->mk_classdata( 'position_column' => 'position' );
+__PACKAGE__->mk_classaccessor( 'position_column' => 'position' );
 
 =head2 grouping_column
 
@@ -121,7 +121,7 @@ ordered lists within the same table.
 
 =cut
 
-__PACKAGE__->mk_classdata( 'grouping_column' );
+__PACKAGE__->mk_group_accessors( inherited => 'grouping_column' );
 
 =head2 null_position_value
 
@@ -136,7 +136,7 @@ indeed start from 0.
 
 =cut
 
-__PACKAGE__->mk_classdata( 'null_position_value' => 0 );
+__PACKAGE__->mk_classaccessor( 'null_position_value' => 0 );
 
 =head2 siblings
 
@@ -146,13 +146,28 @@ __PACKAGE__->mk_classdata( 'null_position_value' => 0 );
 Returns an B<ordered> resultset of all other objects in the same
 group excluding the one you called it on.
 
+Underneath calls L<DBIx::Class::ResultSet/search>, and therefore returns
+objects by implicitly invoking L<C<< ->all() >>|DBIx::Class::ResultSet/all>
+in list context.
+
 The ordering is a backwards-compatibility artifact - if you need
 a resultset with no ordering applied use C<_siblings>
 
 =cut
+
 sub siblings {
-    my $self = shift;
-    return $self->_siblings->search ({}, { order_by => $self->position_column } );
+    #my $self = shift;
+
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+      and
+    wantarray
+      and
+    ! eval { fail_on_internal_call; 1 }
+      and
+    die "ILLEGAL LIST CONTEXT INVOCATION: $@";
+
+    # *MUST* be context sensitive due to legacy (DO NOT call search_rs)
+    $_[0]->_siblings->search ({}, { order_by => $_[0]->position_column } );
 }
 
 =head2 previous_siblings
@@ -163,15 +178,29 @@ sub siblings {
 Returns a resultset of all objects in the same group
 positioned before the object on which this method was called.
 
+Underneath calls L<DBIx::Class::ResultSet/search>, and therefore returns
+objects by implicitly invoking L<C<< ->all() >>|DBIx::Class::ResultSet/all>
+in list context.
+
 =cut
 sub previous_siblings {
     my $self = shift;
     my $position_column = $self->position_column;
     my $position = $self->get_column ($position_column);
-    return ( defined $position
+
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+      and
+    wantarray
+      and
+    ! eval { fail_on_internal_call; 1 }
+      and
+    die "ILLEGAL LIST CONTEXT INVOCATION: $@";
+
+    # *MUST* be context sensitive due to legacy (DO NOT call search_rs)
+    defined( $position )
         ? $self->_siblings->search ({ $position_column => { '<', $position } })
         : $self->_siblings
-    );
+    ;
 }
 
 =head2 next_siblings
@@ -182,15 +211,29 @@ sub previous_siblings {
 Returns a resultset of all objects in the same group
 positioned after the object on which this method was called.
 
+Underneath calls L<DBIx::Class::ResultSet/search>, and therefore returns
+objects by implicitly invoking L<C<< ->all() >>|DBIx::Class::ResultSet/all>
+in list context.
+
 =cut
 sub next_siblings {
     my $self = shift;
     my $position_column = $self->position_column;
     my $position = $self->get_column ($position_column);
-    return ( defined $position
+
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+      and
+    wantarray
+      and
+    ! eval { fail_on_internal_call; 1 }
+      and
+    die "ILLEGAL LIST CONTEXT INVOCATION: $@";
+
+    # *MUST* be context sensitive due to legacy (DO NOT call search_rs)
+    defined( $position )
         ? $self->_siblings->search ({ $position_column => { '>', $position } })
         : $self->_siblings
-    );
+    ;
 }
 
 =head2 previous_sibling
@@ -206,12 +249,12 @@ sub previous_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $psib = $self->previous_siblings->search(
+    my $psib = $self->previous_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column } },
     )->single;
 
-    return defined $psib ? $psib : 0;
+    return defined( $psib ) ? $psib : 0;
 }
 
 =head2 first_sibling
@@ -227,12 +270,12 @@ sub first_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $fsib = $self->previous_siblings->search(
+    my $fsib = $self->previous_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-asc' => $position_column } },
     )->single;
 
-    return defined $fsib ? $fsib : 0;
+    return defined( $fsib ) ? $fsib : 0;
 }
 
 =head2 next_sibling
@@ -247,12 +290,12 @@ if the current object is the last one.
 sub next_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
-    my $nsib = $self->next_siblings->search(
+    my $nsib = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-asc' => $position_column } },
     )->single;
 
-    return defined $nsib ? $nsib : 0;
+    return defined( $nsib ) ? $nsib : 0;
 }
 
 =head2 last_sibling
@@ -267,12 +310,12 @@ sibling.
 sub last_sibling {
     my $self = shift;
     my $position_column = $self->position_column;
-    my $lsib = $self->next_siblings->search(
+    my $lsib = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column } },
     )->single;
 
-    return defined $lsib ? $lsib : 0;
+    return defined( $lsib ) ? $lsib : 0;
 }
 
 # an optimized method to get the last sibling position value without inflating a result object
@@ -280,13 +323,12 @@ sub _last_sibling_posval {
     my $self = shift;
     my $position_column = $self->position_column;
 
-    my $cursor = $self->next_siblings->search(
+    my $cursor = $self->next_siblings->search_rs(
         {},
         { rows => 1, order_by => { '-desc' => $position_column }, select => $position_column },
     )->cursor;
 
-    my ($pos) = $cursor->next;
-    return $pos;
+    ($cursor->next)[0];
 }
 
 =head2 move_previous
@@ -367,8 +409,10 @@ sub move_to {
 
     my $position_column = $self->position_column;
 
+    my $rsrc = $self->result_source;
+
     my $is_txn;
-    if ($is_txn = $self->result_source->schema->storage->transaction_depth) {
+    if ($is_txn = $rsrc->schema->storage->transaction_depth) {
       # Reload position state from storage
       # The thinking here is that if we are in a transaction, it is
       # *more likely* the object went out of sync due to resultset
@@ -378,9 +422,8 @@ sub move_to {
 
       $self->store_column(
         $position_column,
-        ( $self->result_source
-                ->resultset
-                 ->search($self->_storage_ident_condition, { rows => 1, columns => $position_column })
+        (  $rsrc->resultset
+                 ->search_rs($self->_storage_ident_condition, { rows => 1, columns => $position_column })
                   ->cursor
                    ->next
         )[0] || $self->throw_exception(
@@ -403,7 +446,7 @@ sub move_to {
       return 0;
     }
 
-    my $guard = $is_txn ? undef : $self->result_source->schema->txn_scope_guard;
+    my $guard = $is_txn ? undef : $rsrc->schema->txn_scope_guard;
 
     my ($direction, @between);
     if ( $from_position < $to_position ) {
@@ -418,7 +461,7 @@ sub move_to {
     my $new_pos_val = $self->_position_value ($to_position);  # record this before the shift
 
     # we need to null-position the moved row if the position column is part of a constraint
-    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $self->result_source->unique_constraints }} ) ) ) {
+    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
       $self->_ordered_internal_update({ $position_column => $self->null_position_value });
     }
 
@@ -564,7 +607,7 @@ sub update {
   if (! keys %$changed_ordering_cols) {
     return $self->next::method( undef, @_ );
   }
-  elsif (defined first { exists $changed_ordering_cols->{$_} } @group_columns ) {
+  elsif (grep { exists $changed_ordering_cols->{$_} } @group_columns ) {
     $self->move_to_group(
       # since the columns are already re-set the _grouping_clause is correct
       # move_to_group() knows how to get the original storage values
@@ -614,7 +657,11 @@ sub delete {
 # add the current position/group to the things we track old values for
 sub _track_storage_value {
   my ($self, $col) = @_;
-  return $self->next::method($col) || defined first { $_ eq $col } ($self->position_column, $self->_grouping_columns);
+  return (
+    $self->next::method($col)
+      ||
+    grep { $_ eq $col } ($self->position_column, $self->_grouping_columns)
+  );
 }
 
 =head1 METHODS FOR EXTENDING ORDERED
@@ -678,7 +725,7 @@ L</_next_position_value> below. Defaults to 1.
 
 =cut
 
-__PACKAGE__->mk_classdata( '_initial_position_value' => 1 );
+__PACKAGE__->mk_classaccessor( '_initial_position_value' => 1 );
 
 =head2 _next_position_value
 
@@ -728,7 +775,7 @@ sub _shift_siblings {
         $ord = 'desc';
     }
 
-    my $shift_rs = $self->_group_rs-> search ({ $position_column => { -between => \@between } });
+    my $shift_rs = $self->_group_rs-> search_rs ({ $position_column => { -between => \@between } });
 
     # some databases (sqlite, pg, perhaps others) are dumb and can not do a
     # blanket increment/decrement without violating a unique constraint.
@@ -740,11 +787,11 @@ sub _shift_siblings {
     local $rsrc->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
     my @pcols = $rsrc->primary_columns;
     if (
-      first { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
+      grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) )
     ) {
         my $clean_rs = $rsrc->resultset;
 
-        for ( $shift_rs->search (
+        for ( $shift_rs->search_rs (
           {}, { order_by => { "-$ord", $position_column }, select => [$position_column, @pcols] }
         )->cursor->all ) {
           my $pos = shift @$_;
@@ -760,8 +807,18 @@ sub _shift_siblings {
 # This method returns a resultset containing all members of the row
 # group (including the row itself).
 sub _group_rs {
-    my $self = shift;
-    return $self->result_source->resultset->search({$self->_grouping_clause()});
+    #my $self = shift;
+
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+      and
+    wantarray
+      and
+    ! eval { fail_on_internal_call; 1 }
+      and
+    die "ILLEGAL LIST CONTEXT INVOCATION: $@";
+
+    # *MUST* be context sensitive due to legacy (DO NOT call search_rs)
+    $_[0]->result_source->resultset->search({ $_[0]->_grouping_clause() });
 }
 
 # Returns an unordered resultset of all objects in the same group
@@ -770,7 +827,17 @@ sub _siblings {
     my $self = shift;
     my $position_column = $self->position_column;
     my $pos;
-    return defined ($pos = $self->get_column($position_column))
+
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+      and
+    wantarray
+      and
+    ! eval { fail_on_internal_call; 1 }
+      and
+    die "ILLEGAL LIST CONTEXT INVOCATION: $@";
+
+    # *MUST* be context sensitive due to legacy (DO NOT call search_rs)
+    defined( $pos = $self->get_column($position_column) )
         ? $self->_group_rs->search(
             { $position_column => { '!=' => $pos } },
           )
@@ -813,17 +880,26 @@ sub _is_in_group {
     my ($self, $other) = @_;
     my $current = {$self->_grouping_clause};
 
-    no warnings qw/uninitialized/;
-
-    return 0 if (
-        join ("\x00", sort keys %$current)
-            ne
-        join ("\x00", sort keys %$other)
-    );
-    for my $key (keys %$current) {
-        return 0 if $current->{$key} ne $other->{$key};
-    }
-    return 1;
+    (
+      bag_eq(
+        [ keys %$current ],
+        [ keys %$other ],
+      )
+        and
+      ! grep {
+        (
+          defined( $current->{$_} )
+            xor
+          defined( $other->{$_} )
+        )
+          or
+        (
+          defined $current->{$_}
+            and
+          $current->{$_} ne $other->{$_}
+        )
+      } keys %$other
+    ) ? 1 : 0;
 }
 
 # This is a short-circuited method, that is used internally by this
@@ -839,9 +915,8 @@ sub _is_in_group {
 # you are doing use this method which bypasses any hooks introduced by
 # this module.
 sub _ordered_internal_update {
-    my $self = shift;
-    local $self->result_source->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
-    return $self->update (@_);
+    local $_[0]->result_source->schema->{_ORDERED_INTERNAL_UPDATE} = 1;
+    shift->update (@_);
 }
 
 1;

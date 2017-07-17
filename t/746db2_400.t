@@ -1,11 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_db2_400';
 
 use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::Optional::Dependencies ();
-use lib qw(t/lib);
+
 use DBICTest;
 
 # Probably best to pass the DBQ option in the DSN to specify a specific

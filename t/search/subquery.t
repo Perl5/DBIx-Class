@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 use DBIx::Class::_Util 'sigwarn_silencer';

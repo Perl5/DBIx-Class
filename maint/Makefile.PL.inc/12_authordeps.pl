@@ -1,6 +1,6 @@
 my ($optdep_msg, $opt_testdeps);
 
-if ($args->{skip_author_deps}) {
+unless ($args->{with_optdeps}) {
   $optdep_msg = <<'EOW';
 
 ******************************************************************************
@@ -9,8 +9,12 @@ if ($args->{skip_author_deps}) {
 *** IGNORING AUTHOR MODE: no optional test dependencies will be forced.    ***
 ***                                                                        ***
 *** If you are using this checkout with the intention of submitting a DBIC ***
-*** patch, you are *STRONGLY ENCOURAGED* to install all dependencies, so   ***
-*** that every possible unit-test will run.                                ***
+*** patch you may want to aim at running more tests by re-configuring via: ***
+***                                                                        ***
+***  perl Makefile.PL --with-optdeps                                       ***
+***                                                                        ***
+*** which will install all optional dependencies. This is not a mandatory  ***
+*** step - the extensive CI setup will likely catch your mistakes anyway.  ***
 ***                                                                        ***
 ******************************************************************************
 ******************************************************************************
@@ -23,8 +27,8 @@ else {
 ******************************************************************************
 ******************************************************************************
 ***                                                                        ***
-*** AUTHOR MODE: all optional test dependencies converted to hard requires ***
-***       ( to disable re-run Makefile.PL with --skip-author-deps )        ***
+*** --with-optdeps specified: converting all optional test dependencies to ***
+*** hard requires ( to disable re-run Makefile.PL without options )        ***
 ***                                                                        ***
 ******************************************************************************
 ******************************************************************************
@@ -116,7 +120,7 @@ END {
     unlink 'Makefile';
     exit 1;
   }
-  my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
+  my $meta = do { local (@ARGV, $/) = 'META.yml'; <> };
 
   $meta =~ /^\Qname: DBIx-Class\E$/m or do {
     warn "Seemingly malformed META.yml...?\n";

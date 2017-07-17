@@ -9,22 +9,67 @@ use warnings;
 use Carp ();
 $Carp::Internal{ (__PACKAGE__) }++;
 
+use Scalar::Util ();
+
+# Because... sigh
+# There are cases out there where a user provides a can() that won't actually
+# work as perl intends it. Since this is a reporting library, we *have* to be
+# extra paranoid ( e.g. https://rt.cpan.org/Ticket/Display.html?id=90715 )
+sub __safe_can ($$) {
+  local $@;
+  local $SIG{__DIE__} if $SIG{__DIE__};
+
+  my $cref;
+  eval {
+    $cref = $_[0]->can( $_[1] );
+
+    # in case the can() isn't an actual UNIVERSAL::can()
+    die "Return value of $_[0]" . "->can(q($_[1])) is true yet not a code reference...\n"
+      if $cref and Scalar::Util::reftype($cref) ne 'CODE';
+
+    1;
+  } or do {
+    undef $cref;
+
+    # can not use DBIC::_Util::emit_loud_diag - it uses us internally
+    printf STDERR
+      "\n$0: !!! INTERNAL PANIC !!!\nClass '%s' implements or inherits a broken can() - PLEASE FIX ASAP!: %s\n\n",
+      ( length ref $_[0] ? ref $_[0] : $_[0] ),
+      $@,
+    ;
+  };
+
+  $cref;
+}
+
 sub __find_caller {
   my ($skip_pattern, $class) = @_;
 
   my $skip_class_data = $class->_skip_namespace_frames
-    if ($class and $class->can('_skip_namespace_frames'));
+    if ($class and __safe_can($class, '_skip_namespace_frames') );
 
   $skip_pattern = qr/$skip_pattern|$skip_class_data/
     if $skip_class_data;
 
   my $fr_num = 1; # skip us and the calling carp*
 
-  my (@f, $origin);
+  my (@f, $origin, $eval_src);
   while (@f = CORE::caller($fr_num++)) {
 
-    next if
-      ( $f[3] eq '(eval)' or $f[3] =~ /::__ANON__$/ );
+    undef $eval_src;
+
+    next if (
+      $f[2] == 0
+        or
+      # there is no value reporting a sourceless eval frame
+      (
+        ( $f[3] eq '(eval)' or $f[1] =~ /^\(eval \d+\)$/ )
+          and
+        not defined ( $eval_src = (CORE::caller($fr_num))[6] )
+      )
+        or
+      $f[3] =~ /::__ANON__$/
+    );
 
     $origin ||= (
       $f[3] =~ /^ (.+) :: ([^\:]+) $/x
@@ -40,7 +85,7 @@ sub __find_caller {
     ) ? $f[3] : undef;
 
     if (
-      $f[0]->can('_skip_namespace_frames')
+      __safe_can( $f[0], '_skip_namespace_frames' )
         and
       my $extra_skip = $f[0]->_skip_namespace_frames
     ) {
@@ -51,7 +96,7 @@ sub __find_caller {
   }
 
   my $site = @f # if empty - nothing matched - full stack
-    ? "at $f[1] line $f[2]"
+    ? ( "at $f[1] line $f[2]" . ( $eval_src ? "\n    === BEGIN $f[1]\n$eval_src\n    === END $f[1]" : '' ) )
     : Carp::longmess()
   ;
 

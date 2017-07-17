@@ -26,7 +26,7 @@ __PACKAGE__->add_columns
           'size' => '20'
           },
       );
-__PACKAGE__->set_primary_key('version');
+__PACKAGE__->result_source_instance->set_primary_key('version');
 
 package # Hide from PAUSE
   DBIx::Class::Version::TableCompat;
@@ -41,13 +41,20 @@ __PACKAGE__->add_columns
           'data_type' => 'VARCHAR',
           },
       );
-__PACKAGE__->set_primary_key('Version');
+__PACKAGE__->result_source_instance->set_primary_key('Version');
 
 package # Hide from PAUSE
   DBIx::Class::Version;
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
+
+# no point sanity checking, unless we are running asserts
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    ? 'DBIx::Class::Schema::SanityChecker'
+    : ''
+);
 
 __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
 
@@ -56,6 +63,13 @@ package # Hide from PAUSE
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
+
+# no point sanity checking, unless we are running asserts
+__PACKAGE__->schema_sanity_checker(
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    ? 'DBIx::Class::Schema::SanityChecker'
+    : ''
+);
 
 __PACKAGE__->register_class('TableCompat', 'DBIx::Class::Version::TableCompat');
 
@@ -202,16 +216,17 @@ use warnings;
 use base 'DBIx::Class::Schema';
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'dbic_internal_try';
-use Time::HiRes qw/gettimeofday/;
+use DBIx::Class::_Util qw( dbic_internal_try UNRESOLVABLE_CONDITION );
 use Scalar::Util 'weaken';
 use namespace::clean;
 
-__PACKAGE__->mk_classdata('_filedata');
-__PACKAGE__->mk_classdata('upgrade_directory');
-__PACKAGE__->mk_classdata('backup_directory');
-__PACKAGE__->mk_classdata('do_backup');
-__PACKAGE__->mk_classdata('do_diff_on_init');
+__PACKAGE__->mk_group_accessors( inherited => qw(
+  _filedata
+  upgrade_directory
+  backup_directory
+  do_backup
+  do_diff_on_init
+) );
 
 
 =head1 METHODS
@@ -528,7 +543,7 @@ sub get_db_version
 
     my $vtable = $self->{vschema}->resultset('Table');
     my $version = dbic_internal_try {
-      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+      $vtable->search_rs({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
     };
@@ -590,10 +605,15 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  weaken (my $w_self = $self );
+  weaken (my $w_storage = $self->storage );
 
-  $self->{vschema} = DBIx::Class::Version->connect(sub { $w_self->storage->dbh });
-  my $conn_attrs = $self->storage->_dbic_connect_attributes || {};
+  $self->{vschema} = DBIx::Class::Version->clone->connection(
+    sub { $w_storage->dbh },
+
+    # proxy some flags from the main storage
+    { map { $_ => $w_storage->$_ } qw( unsafe ) },
+  );
+  my $conn_attrs = $w_storage->_dbic_connect_attributes || {};
 
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -602,11 +622,11 @@ sub _on_connect
 
   # check for legacy versions table and move to new if exists
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = DBIx::Class::VersionCompat->connect(sub { $w_self->storage->dbh })->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->clone->connection(sub { $w_storage->dbh })->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->new_result({ installed => $_->Installed, version => $_->Version })->insert } $vtable_compat->all;
-      $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+      $w_storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
 
@@ -642,6 +662,7 @@ sub _create_db_to_schema_diff {
     return;
   }
 
+  require DBIx::Class::Optional::Dependencies;
   if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for('deploy') ) {
     $self->throw_exception("Unable to proceed without $missing");
   }
@@ -710,7 +731,8 @@ sub _set_db_version {
   # not possible to format the string sanely, as the column is a varchar(20).
   # The 'v' character is added to the front of the string, so that any version
   # formatted by this new function will sort _after_ any existing 200... strings.
-  my @tm = gettimeofday();
+  require Time::HiRes;
+  my @tm = Time::HiRes::gettimeofday();
   my @dt = gmtime ($tm[0]);
   my $o = $vtable->new_result({
     version => $version,
@@ -749,7 +771,7 @@ sub _source_exists
   my ($self, $rs) = @_;
 
   ( dbic_internal_try {
-    $rs->search(\'1=0')->cursor->next;
+    $rs->search_rs( UNRESOLVABLE_CONDITION )->cursor->next;
     1;
   } )
     ? 1

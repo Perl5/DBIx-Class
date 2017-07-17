@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -7,7 +9,7 @@ BEGIN { $ENV{DBIC_TRACE} = 0 }
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use lib 't/lib';
+
 use DBICTest;
 use DBIx::Class::Carp;
 

@@ -90,7 +90,7 @@ of the internals is simply not worth the performance cost.
 =head2 Relationship to L<Data::Query (DQ)|Data::Query>
 
 When initial work on DQ was taking place, the tools in L<::Storage::DBIHacks
-|http://github.com/dbsrgits/dbix-class/blob/current/blead/lib/DBIx/Class/Storage/DBIHacks.pm>
+|http://github.com/dbsrgits/dbix-class/blob/master/lib/DBIx/Class/Storage/DBIHacks.pm>
 were only beginning to take shape, and it wasn't clear how important they will
 become further down the road. In fact the I<regexing all over the place> was
 considered an ugly stop-gap, and even a couple of highly entertaining talks
@@ -130,8 +130,9 @@ use base qw/
 /;
 use mro 'c3';
 
-use Sub::Name 'subname';
 use DBIx::Class::Carp;
+use DBIx::Class::_Util 'set_subname';
+use SQL::Abstract 'is_literal_value';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
@@ -161,12 +162,12 @@ BEGIN {
   # that use DBIx::Class::Carp/DBIx::Class::Exception instead of plain Carp
   no warnings qw/redefine/;
 
-  *SQL::Abstract::belch = subname 'SQL::Abstract::belch' => sub (@) {
+  *SQL::Abstract::belch = set_subname 'SQL::Abstract::belch' => sub (@) {
     my($func) = (caller(1))[3];
     carp "[$func] Warning: ", @_;
   };
 
-  *SQL::Abstract::puke = subname 'SQL::Abstract::puke' => sub (@) {
+  *SQL::Abstract::puke = set_subname 'SQL::Abstract::puke' => sub (@) {
     my($func) = (caller(1))[3];
     __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
   };
@@ -191,7 +192,7 @@ sub _assert_bindval_matches_bindtype () { 1 };
 
 # poor man's de-qualifier
 sub _quote {
-  $_[0]->next::method( ( $_[0]{_dequalify_idents} and ! ref $_[1] )
+  $_[0]->next::method( ( $_[0]{_dequalify_idents} and defined $_[1] and ! ref $_[1] )
     ? $_[1] =~ / ([^\.]+) $ /x
     : $_[1]
   );
@@ -209,8 +210,28 @@ sub _where_op_NEST {
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
+  ($fields, @{$self->{select_bind}}) = length ref $fields
+    ? $self->_recurse_fields( $fields )
+    : $self->_quote( $fields )
+  ;
 
-  ($fields, @{$self->{select_bind}}) = $self->_recurse_fields($fields);
+  # Override the default behavior of SQL::Abstract - SELECT * makes
+  # no sense in the context of DBIC (and has resulted in several
+  # tricky debugging sessions in the past)
+  not length $fields
+    and
+# FIXME - some day we need to enable this, but too many things break
+# ( notably S::L )
+#  # Random value selected by a fair roll of dice
+#  # In seriousness - this has to be a number, as it is much more
+#  # palatable to random engines in a SELECT list
+#  $fields = 42
+#    and
+  carp_unique (
+    "ResultSets with an empty selection are deprecated (you almost certainly "
+  . "did not mean to do that): if this is indeed your intent you must "
+  . "explicitly supply \\'*' to your search()"
+  );
 
   if (defined $offset) {
     $self->throw_exception('A supplied offset must be a non-negative integer')
@@ -327,20 +348,31 @@ sub insert {
 
 sub _recurse_fields {
   my ($self, $fields) = @_;
-  my $ref = ref $fields;
-  return $self->_quote($fields) unless $ref;
-  return $$fields if $ref eq 'SCALAR';
 
-  if ($ref eq 'ARRAY') {
-    my (@select, @bind);
-    for my $field (@$fields) {
-      my ($select, @new_bind) = $self->_recurse_fields($field);
-      push @select, $select;
-      push @bind, @new_bind;
-    }
+  if( not length ref $fields ) {
+    return $self->_quote( $fields );
+  }
+
+  elsif( my $lit = is_literal_value( $fields ) ) {
+    return @$lit
+  }
+
+  elsif( ref $fields eq 'ARRAY' ) {
+    my (@select, @bind, @bind_fragment);
+
+    (
+      ( $select[ $#select + 1 ], @bind_fragment ) = length ref $_
+        ? $self->_recurse_fields( $_ )
+        : $self->_quote( $_ )
+    ),
+    ( push @bind, @bind_fragment )
+      for @$fields;
+
     return (join(', ', @select), @bind);
   }
-  elsif ($ref eq 'HASH') {
+
+  # FIXME - really crappy handling of functions
+  elsif ( ref $fields eq 'HASH') {
     my %hash = %$fields;  # shallow copy
 
     my $as = delete $hash{-as};   # if supplied
@@ -348,34 +380,41 @@ sub _recurse_fields {
     my ($func, $rhs, @toomany) = %hash;
 
     # there should be only one pair
-    if (@toomany) {
-      $self->throw_exception( "Malformed select argument - too many keys in hash: " . join (',', keys %$fields ) );
-    }
+    $self->throw_exception(
+      "Malformed select argument - too many keys in hash: " . join (',', keys %$fields )
+    ) if @toomany;
 
-    if (lc ($func) eq 'distinct' && ref $rhs eq 'ARRAY' && @$rhs > 1) {
-      $self->throw_exception (
-        'The select => { distinct => ... } syntax is not supported for multiple columns.'
-       .' Instead please use { group_by => [ qw/' . (join ' ', @$rhs) . '/ ] }'
-       .' or { select => [ qw/' . (join ' ', @$rhs) . '/ ], distinct => 1 }'
-      );
-    }
-
-    my ($rhs_sql, @rhs_bind) = $self->_recurse_fields($rhs);
-    my $select = sprintf ('%s( %s )%s',
-      $self->_sqlcase($func),
-      $rhs_sql,
-      $as
-        ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
-        : ''
+    $self->throw_exception (
+      'The select => { distinct => ... } syntax is not supported for multiple columns.'
+     .' Instead please use { group_by => [ qw/' . (join ' ', @$rhs) . '/ ] }'
+     .' or { select => [ qw/' . (join ' ', @$rhs) . '/ ], distinct => 1 }'
+    ) if (
+      lc ($func) eq 'distinct'
+        and
+      ref $rhs eq 'ARRAY'
+        and
+      @$rhs > 1
     );
 
-    return ($select, @rhs_bind);
+    my ($rhs_sql, @rhs_bind) = length ref $rhs
+      ? $self->_recurse_fields($rhs)
+      : $self->_quote($rhs)
+    ;
+
+    return(
+      sprintf( '%s( %s )%s',
+        $self->_sqlcase($func),
+        $rhs_sql,
+        $as
+          ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
+          : ''
+      ),
+      @rhs_bind
+    );
   }
-  elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    return @{$$fields};
-  }
+
   else {
-    $self->throw_exception( $ref . qq{ unexpected in _recurse_fields()} );
+    $self->throw_exception( ref($fields) . ' unexpected in _recurse_fields()' );
   }
 }
 

@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 BEGIN {
   if ( "$]" < 5.010) {
 
@@ -16,7 +18,7 @@ BEGIN {
     # we want to do this here, in the very beginning, before even
     # warnings/strict are loaded
 
-    unshift @INC, 't/lib';
+
     require DBICTest::Util::OverrideRequire;
 
     DBICTest::Util::OverrideRequire::override_global_require( sub {
@@ -35,20 +37,16 @@ use warnings;
 
 use Test::More;
 
-use lib 't/lib';
-
 use DBICTest;
 use File::Find;
-use File::Spec;
-use B qw/svref_2object/;
-use Package::Stash;
+use DBIx::Class::_Util qw( get_subname describe_class_methods );
 
 # makes sure we can load at least something
 use DBIx::Class;
 use DBIx::Class::Carp;
 
 my @modules = grep {
-  my ($mod) = $_ =~ /(.+)/;
+  my $mod = $_;
 
   # not all modules are loadable at all times
   do {
@@ -65,8 +63,7 @@ my @modules = grep {
 # have an exception table for old and/or weird code we are not sure
 # we *want* to clean in the first place
 my $skip_idx = { map { $_ => 1 } (
-  (grep { /^DBIx::Class::CDBICompat/ } @modules), # too crufty to touch
-  'SQL::Translator::Producer::DBIx::Class::File', # ditto
+  'SQL::Translator::Producer::DBIx::Class::File', # too crufty to touch
 
   # not sure how to handle type libraries
   'DBIx::Class::Storage::DBI::Replicated::Types',
@@ -83,16 +80,12 @@ my $skip_idx = { map { $_ => 1 } (
   # utility classes, not part of the inheritance chain
   'DBIx::Class::Optional::Dependencies',
   'DBIx::Class::ResultSource::RowParser::Util',
+  'DBIx::Class::ResultSource::FromSpec::Util',
+  'DBIx::Class::SQLMaker::Util',
   'DBIx::Class::_Util',
 ) };
 
 my $has_moose = eval { require Moose::Util };
-
-Sub::Defer::undefer_all();
-
-# can't use Class::Inspector for the mundane parts as it does not
-# distinguish imports from anything else, what a crock of...
-# Moose is not always available either - hence just do it ourselves
 
 my $seen; #inheritance means we will see the same method multiple times
 
@@ -100,10 +93,13 @@ for my $mod (@modules) {
   SKIP: {
     skip "$mod exempt from namespace checks",1 if $skip_idx->{$mod};
 
-    my %all_method_like = (map
-      { %{Package::Stash->new($_)->get_all_symbols('CODE')} }
-      (reverse @{mro::get_linear_isa($mod)})
-    );
+    my %all_method_like =
+      map
+        { $_->[0]{name} => $mod->can( $_->[0]{name} ) }
+        grep
+          { $_->[0]{via_class} ne 'UNIVERSAL' }
+          values %{ describe_class_methods($mod)->{methods} }
+    ;
 
     my %parents = map { $_ => 1 } @{mro::get_linear_isa($mod)};
 
@@ -119,15 +115,14 @@ for my $mod (@modules) {
       # overload is a funky thing - it is not cleaned, and its imports are named funny
       next if $name =~ /^\(/;
 
-      my $gv = svref_2object($all_method_like{$name})->GV;
-      my $origin = $gv->STASH->NAME;
+      my ($origin, $cv_name) = get_subname($all_method_like{$name});
 
-      is ($gv->NAME, $name, "Properly named $name method at $origin" . ($origin eq $mod
+      is ($cv_name, $name, "Properly named $name method at $origin" . ($origin eq $mod
         ? ''
         : " (inherited by $mod)"
       ));
 
-      next if $seen->{"${origin}:${name}"}++;
+      next if $seen->{"${origin}::${name}"}++;
 
       if ($origin eq $mod) {
         pass ("$name is a native $mod method");
@@ -150,6 +145,9 @@ for my $mod (@modules) {
         # exception time
         if (
           ( $name eq 'import' and $via = 'Exporter' )
+            or
+          # jesus christ nobody had any idea how to design an interface back then
+          ( $name =~ /_trigger/ and $via = 'Class::Trigger' )
         ) {
           pass("${mod}::${name} is a valid uncleaned import from ${name}");
         }
@@ -162,7 +160,10 @@ for my $mod (@modules) {
     }
 
     # some common import names (these should never ever be methods)
-    for my $f (qw/carp carp_once carp_unique croak confess cluck try catch finally/) {
+    for my $f (qw(
+      carp carp_once carp_unique croak confess cluck
+      try catch finally dbic_internal_try dbic_internal_catch
+    )) {
       if ($mod->can($f)) {
         my $via;
         for (reverse @{mro::get_linear_isa($mod)} ) {
@@ -188,9 +189,11 @@ sub find_modules {
   find( {
     wanted => sub {
       -f $_ or return;
+      $_ =~ m|lib/DBIx/Class/_TempExtlib| and return;
       s/\.pm$// or return;
       s/^ (?: lib | blib . (?:lib|arch) ) . //x;
-      push @modules, join ('::', File::Spec->splitdir($_));
+      s/[\/\\]/::/g;
+      push @modules, ( $_ =~ /(.+)/ );
     },
     no_chdir => 1,
   }, (

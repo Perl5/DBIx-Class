@@ -8,7 +8,9 @@ use strict;
 # leaving the compat layer as-is, something may in fact depend on that
 use warnings FATAL => 'all';
 
-*pager = \&page;
+use base 'DBIx::Class';
+
+sub pager { shift->page(@_) }
 
 sub page {
   my $class = shift;

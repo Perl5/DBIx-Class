@@ -116,7 +116,12 @@ sub STORABLE_thaw {
       $self->schema( $s );
     }
     else {
-      $rs->source_name( $self->source_moniker );
+      # FIXME do not use accessor here - will trigger the divergent meta logic
+      # Ideally this should be investigated and fixed properly, but the
+      # codepath is so obscure, and the trigger point (t/52leaks.t) so bizarre
+      # that... meh.
+      $rs->{source_name} = $self->source_moniker;
+
       $rs->{_detached_thaw} = 1;
       $self->_detached_source( $rs );
     }

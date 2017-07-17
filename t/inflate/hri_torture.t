@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Deep;
-use lib qw(t/lib);
+
 use DBICTest;
 
 # More tests like this in t/prefetch/manual.t
@@ -38,6 +40,7 @@ $schema->resultset('CD')->create({
       title => 'Oxygene',
       year => 1976,
       artist => { name => 'JMJ' },
+      artwork => {},
       tracks => [
         { title => 'o2', position => 2},  # the position should not be needed here, bug in MC
       ],
@@ -326,6 +329,43 @@ cmp_deeply
     }
   ],
   'collapsing 1:1:1:M:M chain ' . $rs->result_class,
+;
+
+cmp_deeply
+  [ $rs->search_rs (
+    {
+      'tracks.title' => 'e2',
+      'cds.title' => 'Oxygene',
+    },
+    {
+      collapse => 1,
+      join => [
+        'tracks',
+        { single_track => { cd => 'mandatory_artwork' } },
+        { artist => { cds => 'mandatory_artwork'} },
+      ],
+      columns => {
+        cdid                                      => 'cdid',
+        'single_track.cd.mandatory_artwork.cd_id' => 'mandatory_artwork.cd_id',
+        'artist.cds.mandatory_artwork.cd_id'      => 'mandatory_artwork_2.cd_id',
+      },
+    },
+  )->all ],
+  [
+    {
+      cdid => 3,
+      single_track => {
+        cd => {
+          mandatory_artwork => { cd_id => 2 },
+        },
+      },
+      artist => {
+        cds => [
+          { mandatory_artwork => { cd_id => 2 } }
+        ]
+      },
+    },
+  ],
 ;
 
 }

@@ -12,6 +12,11 @@ __PACKAGE__->columns('Essential', qw( Title ));
 __PACKAGE__->columns('Directors', qw( Director CoDirector ));
 __PACKAGE__->columns('Other',     qw( Rating NumExplodingSheep HasVomit ));
 
+# Disables the implicit autoinc-on-non-supplied-pk behavior
+# (and the warning that goes with it)
+# This is the same behavior as it was pre 0.082900
+__PACKAGE__->column_info('title')->{is_auto_increment} = 0;
+
 sub create_sql {
   return qq{
     title                   VARCHAR(255),

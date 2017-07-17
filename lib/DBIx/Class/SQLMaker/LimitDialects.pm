@@ -3,9 +3,6 @@ package DBIx::Class::SQLMaker::LimitDialects;
 use warnings;
 use strict;
 
-use List::Util 'first';
-use namespace::clean;
-
 # constants are used not only here, but also in comparison tests
 sub __rows_bindtype () {
   +{ sqlt_datatype => 'integer' }
@@ -278,7 +275,7 @@ EOS
   if (
     $rs_attrs->{order_by}
       and
-    $rs_attrs->{result_source}->storage->_order_by_is_stable(
+    $rs_attrs->{result_source}->schema->storage->_order_by_is_stable(
       @{$rs_attrs}{qw/from order_by where/}
     )
   ) {
@@ -543,7 +540,7 @@ sub _GenericSubQ {
   . 'main-table-based order criteria.'
   ) unless $rs_attrs->{order_by};
 
-  my $usable_order_colinfo = $main_rsrc->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
+  my $usable_order_colinfo = $main_rsrc->schema->storage->_extract_colinfo_of_stable_main_source_order_by_portion(
     $rs_attrs
   );
 
@@ -740,16 +737,22 @@ sub _subqueried_limit_attrs {
     my $s = $rs_attrs->{select}[$i];
     my $sql_alias = (ref $s) eq 'HASH' ? $s->{-as} : undef;
 
-    # we throw away the @bind here deliberately
-    my ($sql_sel) = $self->_recurse_fields ($s);
+    my ($sql_sel) = length ref $s
+      # we throw away the @bind here deliberately
+      ? $self->_recurse_fields( $s )
+      : $self->_quote( $s )
+    ;
 
     push @sel, {
       arg => $s,
       sql => $sql_sel,
-      unquoted_sql => do {
-        local $self->{quote_char};
-        ($self->_recurse_fields ($s))[0]; # ignore binds again
-      },
+      unquoted_sql => ( length ref $s
+        ? do {
+          local $self->{quote_char};
+          ($self->_recurse_fields ($s))[0]; # ignore binds again
+        }
+        : $s
+      ),
       as =>
         $sql_alias
           ||

@@ -2,8 +2,9 @@ package DBIx::Class::ResultSetManager;
 use strict;
 use warnings;
 use base 'DBIx::Class';
-use Sub::Name ();
-use Class::Inspector;
+
+use DBIx::Class::_Util qw( set_subname describe_class_methods );
+use namespace::clean;
 
 warn "DBIx::Class::ResultSetManager never left experimental status and
 has now been DEPRECATED. This module will be deleted in 09000 so please
@@ -27,8 +28,9 @@ appropriate My::Schema::ResultSet::* classes for it to pick up.";
 
 =cut
 
-__PACKAGE__->mk_classdata($_)
-  for qw/ base_resultset_class table_resultset_class_suffix /;
+__PACKAGE__->mk_group_accessors(inherited => qw(
+  base_resultset_class table_resultset_class_suffix
+));
 __PACKAGE__->base_resultset_class('DBIx::Class::ResultSet');
 __PACKAGE__->table_resultset_class_suffix('::_resultset');
 
@@ -53,16 +55,22 @@ sub _register_attributes {
     my $cache = $self->_attr_cache;
     return if keys %$cache == 0;
 
-    foreach my $meth (@{Class::Inspector->methods($self) || []}) {
-        my $attrs = $cache->{$self->can($meth)};
-        next unless $attrs;
-        if ($attrs->[0] eq 'ResultSet') {
-            no strict 'refs';
-            my $resultset_class = $self->_setup_resultset_class;
-            my $name = join '::',$resultset_class, $meth;
-            *$name = Sub::Name::subname $name, $self->can($meth);
-            delete ${"${self}::"}{$meth};
-        }
+    for my $meth(
+      map
+        { $_->{name} }
+        grep
+          { $_->{attributes}{ResultSet} }
+          map
+            { $_->[0] }
+            values %{ describe_class_methods( ref $self || $self )->{methods} }
+    ) {
+        # This codepath is extremely old, miht as well keep it running
+        # as-is with no room for surprises
+        no strict 'refs';
+        my $resultset_class = $self->_setup_resultset_class;
+        my $name = join '::',$resultset_class, $meth;
+        *$name = set_subname $name, $self->can($meth);
+        delete ${"${self}::"}{$meth};
     }
 }
 
@@ -80,12 +88,11 @@ sub _register_resultset_class {
     my $self = shift;
     my $resultset_class = $self . $self->table_resultset_class_suffix;
     no strict 'refs';
-    if (@{"$resultset_class\::ISA"}) {
-        $self->result_source_instance->resultset_class($resultset_class);
-    } else {
-        $self->result_source_instance->resultset_class
-          ($self->base_resultset_class);
-    }
+    $self->result_source->resultset_class(
+      ( scalar @{"${resultset_class}::ISA"} )
+        ? $resultset_class
+        : $self->base_resultset_class
+    );
 }
 
 =head1 FURTHER QUESTIONS?

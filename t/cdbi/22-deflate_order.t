@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat test_rdbms_mysql Time::Piece::MySQL>=0 );
 
 $| = 1;

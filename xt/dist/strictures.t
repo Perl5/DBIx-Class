@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_strictures';
 
 use warnings;
@@ -7,7 +8,7 @@ use Test::More;
 use File::Find;
 use File::Spec;
 use Config;
-use lib 't/lib';
+
 use DBICTest;
 
 # The rationale is - if we can load all our optdeps
@@ -23,9 +24,9 @@ my $missing_groupdeps_present = grep
 # don't test syntax when RT#106935 is triggered (mainly CI)
 # FIXME - remove when RT is resolved
 my $tainted_relpath = (
-  length $ENV{PATH}
+  DBIx::Class::_ENV_::TAINT_MODE
     and
-  ${^TAINT}
+  length $ENV{PATH}
     and
   grep
     { ! File::Spec->file_name_is_absolute($_) }
@@ -40,9 +41,17 @@ find({
     return if m{^(?:
       maint/Makefile.PL.inc/.+                        # all the maint inc snippets are auto-strictured
         |
+      t/lib/DBICTest/WithTaint.pm                     # no stictures by design (trips up local::lib on older perls)
+        |
       t/lib/DBICTest/Util/OverrideRequire.pm          # no stictures by design (load order sensitive)
         |
-      lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load spee sensitive)
+      t/lib/ANFANG.pm                                 # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/Optional/Dependencies.pm         # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/StartupCheck.pm                  # no stictures by design (load speed sensitive)
+        |
+      lib/DBIx/Class/_TempExtlib/.+
     )$}x;
 
     my $f = $_;

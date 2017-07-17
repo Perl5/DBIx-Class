@@ -12,15 +12,34 @@ no warnings qw/once/;
 use Test::More;
 use Test::Exception;
 
+BEGIN {
+  plan skip_all => 'This test breaking module loading interferes with PERL_UNICODE on perls prior to 5.12'
+    if exists $ENV{PERL_UNICODE} and "$]" < 5.012;
+}
+
 # load before we break require()
 use Scalar::Util();
 use MRO::Compat();
 use Carp 'confess';
 use List::Util 'shuffle';
+use Config;
 
 SKIP: {
-  skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1 if $ENV{PERL5OPT};
-  skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1 if $ENV{RELEASE_TESTING};
+  skip 'Lean load pattern testing makes no sense with TempExtlib', 1
+    if grep { $_ =~ /TempExtlib/ } @INC;
+
+  skip 'Lean load pattern testing unsafe with $ENV{PERL5OPT}', 1
+    if $ENV{PERL5OPT};
+
+  skip 'Lean load pattern testing unsafe with sitecustomize.pl', 1
+    if grep { $_ =~ m| \/ sitecustomize\.pl $ |x } keys %INC;
+
+  skip 'Lean load pattern testing useless with $ENV{RELEASE_TESTING}', 1
+    if $ENV{RELEASE_TESTING};
+
+  skip 'Lean load pattern testing useless under cperl', 1
+    if $Config{usecperl};
+
   is_deeply
     $inc_before,
     [],

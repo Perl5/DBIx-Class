@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 
-use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema();
@@ -351,5 +353,16 @@ is_same_sql_bind(
   q/UPDATE [group] SET [name] = ?, [order] = ?/, [ ['name' => 'Bill'], ['order' => '12'] ],
   'bracket quoted table names for UPDATE'
 );
+
+
+# Warning and sane behavior on ... select => [] ...
+warnings_exist {
+  local $TODO = "Some day we need to stop issuing implicit SELECT *";
+  is_same_sql_bind(
+    $schema->resultset("Artist")->search({}, { columns => [] })->as_query,
+    '( SELECT 42 FROM [artist] [me] )',
+    [],
+  );
+} qr/\QResultSets with an empty selection are deprecated (you almost certainly did not mean to do that): if this is indeed your intent you must explicitly supply/;
 
 done_testing;

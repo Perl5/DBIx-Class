@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mssql_sybase';
 
 use strict;
@@ -6,7 +7,8 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Scalar::Util 'weaken';
-use lib qw(t/lib);
+use DBIx::Class::_Util 'sigwarn_silencer';
+
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
@@ -202,7 +204,7 @@ SQL
     $schema->storage->_get_dbh->disconnect;
 
 
-    lives_and {
+    lives_ok {
       $wrappers->{$wrapper}->( sub {
         $rs_cp->create({ amount => 900 + $_ }) for 1..3;
       });
@@ -228,11 +230,16 @@ SQL
 
     weaken(my $a_rs_cp = $artist_rs);
 
-    local $TODO = 'Transaction handling with multiple active statements will '
-                 .'need eager cursor support.'
-      unless $wrapper eq 'no_transaction';
+    $wrapper ne 'no_transaction'
+      and
+    (
+      local $TODO = 'Transaction handling with multiple active statements will '
+                   .'need eager cursor support.',
 
-    lives_and {
+      local local $SIG{__WARN__} = sigwarn_silencer qr/disconnect invalidates .+? active statement/
+    );
+
+    lives_ok {
       my @results;
 
       $wrappers->{$wrapper}->( sub {

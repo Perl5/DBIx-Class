@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
@@ -62,7 +64,7 @@ $rs->next;
 my @objs = $rs->all;
 is (@objs, $initial_artists_cnt + 3, '->all resets everything correctly');
 is ( ($rs->cursor->next)[0], 1, 'Cursor auto-rewound after all()');
-is ($rs->{_stashed_rows}, undef, 'Nothing else left in $rs stash');
+ok (! @{ $rs->{_stashed_rows} || [] }, 'Nothing else left in $rs stash');
 
 my $unordered_rs = $rs->search({}, { order_by => 'cds.title' });
 

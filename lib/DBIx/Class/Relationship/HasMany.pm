@@ -16,7 +16,7 @@ sub has_many {
 
   unless (ref $cond) {
 
-    my $pri = $class->result_source_instance->_single_pri_col_or_die;
+    my $pri = $class->result_source->_single_pri_col_or_die;
 
     my ($f_key,$guess);
     if (defined $cond && length $cond) {
@@ -30,7 +30,7 @@ sub has_many {
 
 # FIXME - this check needs to be moved to schema-composition time...
 #    # only perform checks if the far side appears already loaded
-#    if (my $f_rsrc = dbic_internal_try { $f_class->result_source_instance } ) {
+#    if (my $f_rsrc = dbic_internal_try { $f_class->result_source } ) {
 #      $class->throw_exception(
 #        "No such column '$f_key' on foreign class ${f_class} ($guess)"
 #      ) if !$f_rsrc->has_column($f_key);

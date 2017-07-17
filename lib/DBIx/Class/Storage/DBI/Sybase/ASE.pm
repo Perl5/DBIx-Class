@@ -11,12 +11,11 @@ use base qw/
 use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/blessed weaken/;
-use List::Util 'first';
-use Sub::Name();
-use Data::Dumper::Concise 'Dumper';
-use Try::Tiny;
 use Context::Preserve 'preserve_context';
-use DBIx::Class::_Util qw( sigwarn_silencer dbic_internal_try );
+use DBIx::Class::_Util qw(
+  sigwarn_silencer dbic_internal_try dbic_internal_catch
+  dump_value scope_guard set_subname
+);
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('GenericSubQ');
@@ -166,7 +165,7 @@ for my $method (@also_proxy_to_extra_storages) {
 
   my $replaced = __PACKAGE__->can($method);
 
-  *{$method} = Sub::Name::subname $method => sub {
+  *{$method} = set_subname $method => sub {
     my $self = shift;
     $self->_writer_storage->$replaced(@_) if $self->_writer_storage;
     $self->_bulk_storage->$replaced(@_)   if $self->_bulk_storage;
@@ -250,7 +249,9 @@ sub connect_call_blob_setup {
 sub _is_lob_column {
   my ($self, $source, $column) = @_;
 
-  return $self->_is_lob_type($source->column_info($column)->{data_type});
+  return $self->_is_lob_type(
+    $source->columns_info([$column])->{$column}{data_type}
+  );
 }
 
 sub _prep_for_execute {
@@ -360,15 +361,28 @@ sub insert {
   # try to insert explicit 'DEFAULT's instead (except for identity, timestamp
   # and computed columns)
   if (not %$to_insert) {
+
+    my $ci;
+    # same order as add_columns
     for my $col ($source->columns) {
       next if $col eq $identity_col;
 
-      my $info = $source->column_info($col);
+      my $info = ( $ci ||= $source->columns_info )->{$col};
 
-      next if ref $info->{default_value} eq 'SCALAR'
-        || (exists $info->{data_type} && (not defined $info->{data_type}));
-
-      next if $info->{data_type} && $info->{data_type} =~ /^timestamp\z/i;
+      next if (
+        ref $info->{default_value} eq 'SCALAR'
+          or
+        (
+          exists $info->{data_type}
+            and
+          ! defined $info->{data_type}
+        )
+          or
+        (
+          ( $info->{data_type} || '' )
+            =~ /^timestamp\z/i
+        )
+      );
 
       $to_insert->{$col} = \'DEFAULT';
     }
@@ -448,10 +462,10 @@ sub update {
     if (keys %$fields) {
 
       # Now set the identity update flags for the actual update
-      local $self->{_autoinc_supplied_for_op} = (first
+      local $self->{_autoinc_supplied_for_op} = grep
         { $_->{is_auto_increment} }
         values %{ $source->columns_info([ keys %$fields ]) }
-      ) ? 1 : 0;
+      ;
 
       my $next = $self->next::can;
       my $args = \@_;
@@ -466,10 +480,10 @@ sub update {
   }
   else {
     # Set the identity update flags for the actual update
-    local $self->{_autoinc_supplied_for_op} = (first
+    local $self->{_autoinc_supplied_for_op} = grep
       { $_->{is_auto_increment} }
       values %{ $source->columns_info([ keys %$fields ]) }
-    ) ? 1 : 0;
+    ;
 
     return $self->next::method(@_);
   }
@@ -481,17 +495,14 @@ sub _insert_bulk {
 
   my $columns_info = $source->columns_info;
 
-  my $identity_col =
-    first { $columns_info->{$_}{is_auto_increment} }
+  my ($identity_col) =
+    grep { $columns_info->{$_}{is_auto_increment} }
       keys %$columns_info;
 
   # FIXME - this is duplication from DBI.pm. When refactored towards
   # the LobWriter this can be folded back where it belongs.
-  local $self->{_autoinc_supplied_for_op} =
-    (first { $_ eq $identity_col } @$cols)
-      ? 1
-      : 0
-  ;
+  local $self->{_autoinc_supplied_for_op}
+    = grep { $_ eq $identity_col } @$cols;
 
   my $use_bulk_api =
     $self->_bulk_storage &&
@@ -554,7 +565,7 @@ sub _insert_bulk {
   my @source_columns = $source->columns;
 
   # bcp identity index is 1-based
-  my $identity_idx = first { $source_columns[$_] eq $identity_col } (0..$#source_columns);
+  my ($identity_idx) = grep { $source_columns[$_] eq $identity_col } (0..$#source_columns);
   $identity_idx = defined $identity_idx ? $identity_idx + 1 : 0;
 
   my @new_data;
@@ -581,7 +592,7 @@ sub _insert_bulk {
 # This ignores any data conversion errors detected by the client side libs, as
 # they are usually harmless.
   my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
-    Sub::Name::subname _insert_bulk_cslib_errhandler => sub {
+    set_subname _insert_bulk_cslib_errhandler => sub {
       my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
 
       return 1 if $errno == 36;
@@ -644,8 +655,9 @@ sub _insert_bulk {
     $guard->commit;
 
     $bulk->_query_end($sql);
-  } catch {
-    $exception = shift;
+  }
+  dbic_internal_catch {
+    $exception = $_;
   };
 
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
@@ -722,11 +734,14 @@ sub _remove_blob_cols_array {
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
-  my @primary_cols = dbic_internal_try
-    { $source->_pri_cols_or_die }
-    catch {
+  my @primary_cols =
+    dbic_internal_try {
+      $source->_pri_cols_or_die
+    }
+    dbic_internal_catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
-    };
+    }
+  ;
 
   my @pks_to_update;
   if (
@@ -757,7 +772,7 @@ sub _insert_blobs {
 
   my @primary_cols = dbic_internal_try
     { $source->_pri_cols_or_die }
-    catch {
+    dbic_internal_catch {
       $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
     };
 
@@ -781,9 +796,15 @@ sub _insert_blobs {
     if (not $sth) {
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
-        . (Dumper \%where)
+        . dump_value \%where
       );
     }
+
+    # FIXME - it is not clear if this is needed at all. But it's been
+    # there since 2009 ( d867eedaa ), might as well let sleeping dogs
+    # lie... sigh.
+    weaken( my $wsth = $sth );
+    my $g = scope_guard { $wsth->finish if $wsth };
 
     dbic_internal_try {
       do {
@@ -804,7 +825,7 @@ sub _insert_blobs {
 
       $sth->func('ct_finish_send') or die $sth->errstr;
     }
-    catch {
+    dbic_internal_catch {
       if ($self->_using_freetds) {
         $self->throw_exception (
           "TEXT/IMAGE operation failed, probably because you are using FreeTDS: $_"
@@ -813,9 +834,6 @@ sub _insert_blobs {
       else {
         $self->throw_exception($_);
       }
-    }
-    finally {
-      $sth->finish if $sth;
     };
   }
 }

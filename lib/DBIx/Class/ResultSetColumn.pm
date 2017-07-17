@@ -5,11 +5,8 @@ use warnings;
 
 use base 'DBIx::Class';
 use DBIx::Class::Carp;
-use DBIx::Class::_Util 'fail_on_internal_wantarray';
+use DBIx::Class::_Util 'fail_on_internal_call';
 use namespace::clean;
-
-# not importing first() as it will clash with our own method
-use List::Util ();
 
 =head1 NAME
 
@@ -56,7 +53,7 @@ sub new {
   # (to create a new column definition on-the-fly).
   my $as_list = $orig_attrs->{as} || [];
   my $select_list = $orig_attrs->{select} || [];
-  my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
+  my ($as_index) = grep { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
   my $colmap;
@@ -154,12 +151,10 @@ one value.
 =cut
 
 sub next {
-  my $self = shift;
+  #my $self = shift;
 
   # using cursor so we don't inflate anything
-  my ($row) = $self->_resultset->cursor->next;
-
-  return $row;
+  ($_[0]->_resultset->cursor->next)[0];
 }
 
 =head2 all
@@ -181,10 +176,10 @@ than result objects.
 =cut
 
 sub all {
-  my $self = shift;
+  #my $self = shift;
 
   # using cursor so we don't inflate anything
-  return map { $_->[0] } $self->_resultset->cursor->all;
+  map { $_->[0] } $_[0]->_resultset->cursor->all;
 }
 
 =head2 reset
@@ -205,9 +200,10 @@ Much like L<DBIx::Class::ResultSet/reset>.
 =cut
 
 sub reset {
-  my $self = shift;
-  $self->_resultset->cursor->reset;
-  return $self;
+  #my $self = shift;
+
+  $_[0]->_resultset->reset;
+  $_[0];
 }
 
 =head2 first
@@ -227,14 +223,13 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 =cut
 
-sub first {
-  my $self = shift;
+sub first :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
   # using cursor so we don't inflate anything
-  $self->_resultset->cursor->reset;
-  my ($row) = $self->_resultset->cursor->next;
-
-  return $row;
+  my $cursor = $_[0]->_resultset->cursor;
+  $cursor->reset;
+  ($cursor->next)[0];
 }
 
 =head2 single
@@ -254,14 +249,14 @@ is issued before discarding the cursor.
 =cut
 
 sub single {
-  my $self = shift;
+  #my $self = shift;
 
-  my $attrs = $self->_resultset->_resolved_attrs;
-  my ($row) = $self->_resultset->result_source->storage->select_single(
+  my $rs = $_[0]->_resultset;
+
+  my $attrs = $rs->_resolved_attrs;
+  ($rs->result_source->schema->storage->select_single(
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
-  );
-
-  return $row;
+  ))[0];
 }
 
 =head2 min
@@ -281,8 +276,9 @@ resultset (or C<undef> if there are none).
 
 =cut
 
-sub min {
-  return shift->func('MIN');
+sub min :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('MIN');
 }
 
 =head2 min_rs
@@ -301,7 +297,10 @@ Wrapper for ->func_rs for function MIN().
 
 =cut
 
-sub min_rs { return shift->func_rs('MIN') }
+sub min_rs :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('MIN')
+}
 
 =head2 max
 
@@ -320,8 +319,9 @@ resultset (or C<undef> if there are none).
 
 =cut
 
-sub max {
-  return shift->func('MAX');
+sub max :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('MAX');
 }
 
 =head2 max_rs
@@ -340,7 +340,10 @@ Wrapper for ->func_rs for function MAX().
 
 =cut
 
-sub max_rs { return shift->func_rs('MAX') }
+sub max_rs :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('MAX')
+}
 
 =head2 sum
 
@@ -359,8 +362,9 @@ the resultset. Use on varchar-like columns at your own risk.
 
 =cut
 
-sub sum {
-  return shift->func('SUM');
+sub sum :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func('SUM');
 }
 
 =head2 sum_rs
@@ -379,7 +383,10 @@ Wrapper for ->func_rs for function SUM().
 
 =cut
 
-sub sum_rs { return shift->func_rs('SUM') }
+sub sum_rs :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  $_[0]->func_rs('SUM')
+}
 
 =head2 func
 
@@ -401,16 +408,16 @@ value. Produces the following SQL:
 
 =cut
 
-sub func {
-  my ($self,$function) = @_;
-  my $cursor = $self->func_rs($function)->cursor;
+sub func :DBIC_method_is_indirect_sugar{
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
-  if( wantarray ) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-    return map { $_->[ 0 ] } $cursor->all;
-  }
+  #my ($self,$function) = @_;
+  my $cursor = $_[0]->func_rs($_[1])->cursor;
 
-  return ( $cursor->next )[ 0 ];
+  wantarray
+    ? map { $_->[ 0 ] } $cursor->all
+    : ( $cursor->next )[ 0 ]
+  ;
 }
 
 =head2 func_rs
@@ -439,7 +446,16 @@ sub func_rs {
     $rs = $rs->as_subselect_rs;
   }
 
-  $rs->search( undef, {
+  # FIXME - remove at some point in the future (2018-ish)
+  wantarray
+    and
+  carp_unique(
+    'Starting with DBIC@0.082900 func_rs() always returns a ResultSet '
+  . 'instance regardless of calling context. Please force scalar() context to '
+  . 'silence this warning'
+  );
+
+  $rs->search_rs( undef, {
     columns => { $self->{_as} => { $function => $select } }
   } );
 }
@@ -494,11 +510,11 @@ sub _resultset {
         # collapse the selector to a literal so that it survives the distinct parse
         # if it turns out to be an aggregate - at least the user will get a proper exception
         # instead of silent drop of the group_by altogether
-        $select = \[ $rsrc->storage->sql_maker->_recurse_fields($select) ];
+        $select = \[ $rsrc->schema->storage->sql_maker->_recurse_fields($select) ];
       }
     }
 
-    $self->{_parent_resultset}->search(undef, {
+    $self->{_parent_resultset}->search_rs(undef, {
       columns => { $self->{_as} => $select }
     });
   };

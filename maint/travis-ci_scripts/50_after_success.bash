@@ -11,6 +11,9 @@ export HARNESS_OPTIONS="j$VCPU_USE"
 
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
+
+  [[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
+
   # FIXME - Devel::Cover (brought by Test::Strict, but soon needed anyway)
   # does not test cleanly on 5.8.7 - just get it directly
   if perl -M5.008007 -e1 &>/dev/null && ! perl -M5.008008 -e1 &>/dev/null; then
@@ -24,13 +27,19 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
 
+  # FIXME - workaround for RT#117855/RT#117856
+  if [[ -n "$PERL_UNICODE" ]] ; then
+    parallel_installdeps_notest Text::CSV
+  fi
+
   # FIXME Change when Moose goes away
   installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
-  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
+  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL && make dist"
   tarball_assembled=1
 
 elif [[ "$CLEANTEST" != "true" ]] ; then
+
   parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
 
   run_or_err "Attempt to build a dist from original checkout" "make dist"
@@ -88,9 +97,11 @@ if [[ -n "$tarball_assembled" ]] ; then
       export $e=""
     done
 
+    # FIXME - for some reason a plain `cpan .` does not work in this case
+    # no time to investigate
     run_or_err \
       "Attempt to configure/test/build/install dist using latest CPAN@$(perl -MCPAN -e 'print CPAN->VERSION')" \
-      "cpan ."
+      "perl -MCPAN -e 'install( q{.} )'"
 
   else
     run_or_err \

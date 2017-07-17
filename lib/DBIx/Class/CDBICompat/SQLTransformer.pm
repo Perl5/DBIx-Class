@@ -3,6 +3,8 @@ package DBIx::Class::CDBICompat::SQLTransformer;
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 =head1 NAME
 
 DBIx::Class::CDBICompat::SQLTransformer - Transform SQL

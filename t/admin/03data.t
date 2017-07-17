@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'admin';
 
 use strict;
@@ -6,7 +7,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use lib 't/lib';
+
 use DBICTest;
 
 use DBIx::Class::Admin;
@@ -18,9 +19,13 @@ use DBIx::Class::Admin;
     sqlite_use_file => 1,
   );
 
+  my $storage = $schema->storage;
+  $storage = $storage->master
+    if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
+
   my $admin = DBIx::Class::Admin->new(
     schema_class=> "DBICTest::Schema",
-    connect_info => $schema->storage->connect_info(),
+    connect_info => $storage->connect_info(),
     quiet  => 1,
     _confirm=>1,
   );

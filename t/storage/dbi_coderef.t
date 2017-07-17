@@ -1,8 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
+BEGIN { $ENV{DBICTEST_VIA_REPLICATED} = 0 }
+
 use Test::More;
-use lib qw(t/lib);
+
 use DBICTest;
 
 plan tests => 1;

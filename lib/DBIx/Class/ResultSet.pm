@@ -2,19 +2,20 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class/;
+
+use base 'DBIx::Class';
+
 use DBIx::Class::Carp;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultClass::HashRefInflator;
-use Scalar::Util qw/blessed weaken reftype/;
+use Scalar::Util qw( blessed reftype );
+use SQL::Abstract 'is_literal_value';
 use DBIx::Class::_Util qw(
-  dbic_internal_try
-  fail_on_internal_wantarray fail_on_internal_call UNRESOLVABLE_CONDITION
+  dbic_internal_try dbic_internal_catch dump_value emit_loud_diag
+  fail_on_internal_call UNRESOLVABLE_CONDITION DUMMY_ALIASPAIR
 );
-use Try::Tiny;
-
-# not importing first() as it will clash with our own method
-use List::Util ();
+use DBIx::Class::SQLMaker::Util qw( normalize_sqla_condition extract_equality_conditions );
+use DBIx::Class::ResultSource::FromSpec::Util 'find_join_path_to_alias';
 
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
@@ -389,28 +390,27 @@ L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
 
-sub search {
-  my $self = shift;
-  my $rs = $self->search_rs( @_ );
+sub search :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
 
-  if (wantarray) {
-    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = fail_on_internal_wantarray;
-    return $rs->all;
-  }
-  elsif (defined wantarray) {
-    return $rs;
-  }
-  else {
-    # we can be called by a relationship helper, which in
-    # turn may be called in void context due to some braindead
-    # overload or whatever else the user decided to be clever
-    # at this particular day. Thus limit the exception to
-    # external code calls only
-    $self->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
-      if (caller)[0] !~ /^\QDBIx::Class::/;
+  my $rs = shift->search_rs( @_ );
 
-    return ();
-  }
+  return $rs->all
+    if wantarray;
+
+  return $rs
+    if defined wantarray;
+
+  # we can be called by a relationship helper, which in
+  # turn may be called in void context due to some braindead
+  # overload or whatever else the user decided to be clever
+  # at this particular day. Thus limit the exception to
+  # external code calls only
+  $rs->throw_exception ('->search is *not* a mutator, calling it in void context makes no sense')
+    if (caller)[0] !~ /^\QDBIx::Class::/;
+
+  # we are in void ctx here, but just in case
+  return ();
 }
 
 =head2 search_rs
@@ -466,7 +466,7 @@ sub search_rs {
   # see if we can keep the cache (no $rs changes)
   my $cache;
   my %safe = (alias => 1, cache => 1);
-  if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
+  if ( ! grep { !$safe{$_} } keys %$call_attrs and (
     ! defined $call_cond
       or
     ref $call_cond eq 'HASH' && ! keys %$call_cond
@@ -490,9 +490,8 @@ sub search_rs {
     my @selector_attrs = qw/select as columns cols +select +as +columns include_columns/;
 
     # reset the current selector list if new selectors are supplied
-    if (List::Util::first { exists $call_attrs->{$_} } qw/columns cols select as/) {
-      delete @{$old_attrs}{(@selector_attrs, '_dark_selector')};
-    }
+    delete @{$old_attrs}{(@selector_attrs, '_dark_selector')}
+      if grep { exists $call_attrs->{$_} } qw(columns cols select as);
 
     # Normalize the new selector list (operates on the passed-in attr structure)
     # Need to do it on every chain instead of only once on _resolved_attrs, in
@@ -554,7 +553,6 @@ sub search_rs {
   return $rs;
 }
 
-my $dark_sel_dumper;
 sub _normalize_selection {
   my ($self, $attrs) = @_;
 
@@ -619,11 +617,10 @@ sub _normalize_selection {
           else {
             $attrs->{_dark_selector} = {
               plus_stage => $pref,
-              string => ($dark_sel_dumper ||= do {
-                  require Data::Dumper::Concise;
-                  Data::Dumper::Concise::DumperObject()->Indent(0);
-                })->Values([$_])->Dump
-              ,
+              string => do {
+                local $Data::Dumper::Indent = 0;
+                dump_value $_;
+              },
             };
             last SELECTOR;
           }
@@ -657,17 +654,15 @@ sub _stack_cond {
     (ref $_ eq 'HASH' and ! keys %$_)
   ) and $_ = undef for ($left, $right);
 
-  # either one of the two undef
-  if ( (defined $left) xor (defined $right) ) {
-    return defined $left ? $left : $right;
-  }
-  # both undef
-  elsif ( ! defined $left ) {
-    return undef
-  }
-  else {
-    return $self->result_source->schema->storage->_collapse_cond({ -and => [$left, $right] });
-  }
+  return(
+    # either one of the two undef
+    ( (defined $left) xor (defined $right) )  ? ( defined $left ? $left : $right )
+
+    # both undef
+  : ( ! defined $left )                       ? undef
+
+                                              : { -and => [$left, $right] }
+  );
 }
 
 =head2 search_literal
@@ -702,7 +697,9 @@ Example of how to use C<search> instead of C<search_literal>
 
 =cut
 
-sub search_literal {
+sub search_literal :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $sql, @bind) = @_;
   my $attr;
   if ( @bind && ref($bind[-1]) eq 'HASH' ) {
@@ -780,9 +777,8 @@ See also L</find_or_create> and L</update_or_create>.
 
 sub find {
   my $self = shift;
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
 
-  my $rsrc = $self->result_source;
 
   my $constraint_name;
   if (exists $attrs->{key}) {
@@ -794,6 +790,8 @@ sub find {
 
   # Parse out the condition from input
   my $call_cond;
+
+  my $rsrc = $self->result_source;
 
   if (ref $_[0] eq 'HASH') {
     $call_cond = { %{$_[0]} };
@@ -817,25 +815,59 @@ sub find {
   }
 
   # process relationship data if any
+  my $rel_list;
+
   for my $key (keys %$call_cond) {
     if (
+      # either a structure or a result-ish object
       length ref($call_cond->{$key})
         and
-      my $relinfo = $rsrc->relationship_info($key)
+      ( $rel_list ||= { map { $_ => 1 } $rsrc->relationships } )
+        ->{$key}
         and
-      # implicitly skip has_many's (likely MC)
-      (ref (my $val = delete $call_cond->{$key}) ne 'ARRAY' )
+      ! is_literal_value( $call_cond->{$key} )
+        and
+      # implicitly skip has_many's (likely MC), via the delete()
+      ( ref( my $foreign_val = delete $call_cond->{$key} ) ne 'ARRAY' )
     ) {
-      my ($rel_cond, $crosstable) = $rsrc->_resolve_condition(
-        $relinfo->{cond}, $val, $key, $key
-      );
 
-      $self->throw_exception("Complex condition via relationship '$key' is unsupported in find()")
-         if $crosstable or ref($rel_cond) ne 'HASH';
+      # FIXME: it seems wrong that relationship conditions take precedence...?
+      $call_cond = {
+        %$call_cond,
 
-      # supplement condition
-      # relationship conditions take precedence (?)
-      @{$call_cond}{keys %$rel_cond} = values %$rel_cond;
+        %{ $rsrc->resolve_relationship_condition(
+          require_join_free_values => 1,
+          rel_name => $key,
+          foreign_values => (
+            (! defined blessed $foreign_val) ? $foreign_val : do {
+
+              my $f_result_class = $rsrc->related_source($key)->result_class;
+
+              unless( $foreign_val->isa($f_result_class) ) {
+
+                $self->throw_exception(
+                  'Objects supplied to find() must inherit from '
+                . "'$DBIx::Class::ResultSource::__expected_result_class_isa'"
+                ) unless $foreign_val->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                );
+
+                carp_unique(
+                  "Objects supplied to find() via '$key' usually should inherit from "
+                . "the related ResultClass ('$f_result_class'), perhaps you've made "
+                . 'a mistake?'
+                );
+              }
+
+              +{ $foreign_val->get_columns };
+            }
+          ),
+
+          # an API where these are optional would be too cumbersome,
+          # instead always pass in some dummy values
+          DUMMY_ALIASPAIR,
+        )->{join_free_values} },
+      };
     }
   }
 
@@ -844,7 +876,7 @@ sub find {
   if (defined $constraint_name) {
     $final_cond = $self->_qualify_cond_columns (
 
-      $self->result_source->_minimal_valueset_satisfying_constraint(
+      $rsrc->_minimal_valueset_satisfying_constraint(
         constraint_name => $constraint_name,
         values => ($self->_merge_with_rscond($call_cond))[0],
         carp_on_nulls => 1,
@@ -881,15 +913,15 @@ sub find {
 
       dbic_internal_try {
         push @unique_queries, $self->_qualify_cond_columns(
-          $self->result_source->_minimal_valueset_satisfying_constraint(
+          $rsrc->_minimal_valueset_satisfying_constraint(
             constraint_name => $c_name,
             values => ($self->_merge_with_rscond($call_cond))[0],
-            columns_info => ($ci ||= $self->result_source->columns_info),
+            columns_info => ($ci ||= $rsrc->columns_info),
           ),
           $alias
         );
       }
-      catch {
+      dbic_internal_catch {
         push @fc_exceptions, $_ if $_ =~ /\bFilterColumn\b/;
       };
     }
@@ -902,7 +934,7 @@ sub find {
   }
 
   # Run the query, passing the result_class since it should propagate for find
-  my $rs = $self->search ($final_cond, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search_rs( $final_cond, {result_class => $self->result_class, %$attrs} );
   if ($rs->_resolved_attrs->{collapse}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -990,7 +1022,8 @@ See also L</search_related_rs>.
 
 =cut
 
-sub search_related {
+sub search_related :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search(@_);
 }
 
@@ -1001,7 +1034,8 @@ it guarantees a resultset, even in list context.
 
 =cut
 
-sub search_related_rs {
+sub search_related_rs :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->related_resultset(shift)->search_rs(@_);
 }
 
@@ -1025,7 +1059,7 @@ sub cursor {
 
   return $self->{cursor} ||= do {
     my $attrs = $self->_resolved_attrs;
-    $self->result_source->storage->select(
+    $self->result_source->schema->storage->select(
       $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
     );
   };
@@ -1098,7 +1132,7 @@ sub single {
     }
   }
 
-  my $data = [ $self->result_source->storage->select_single(
+  my $data = [ $self->result_source->schema->storage->select_single(
     $attrs->{from}, $attrs->{select},
     $attrs->{where}, $attrs
   )];
@@ -1125,9 +1159,7 @@ Returns a L<DBIx::Class::ResultSetColumn> instance for a column of the ResultSet
 =cut
 
 sub get_column {
-  my ($self, $column) = @_;
-  my $new = DBIx::Class::ResultSetColumn->new($self, $column);
-  return $new;
+  DBIx::Class::ResultSetColumn->new(@_);
 }
 
 =head2 search_like
@@ -1160,14 +1192,16 @@ instead. An example conversion is:
 
 =cut
 
-sub search_like {
+sub search_like :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my $class = shift;
   carp_unique (
     'search_like() is deprecated and will be removed in DBIC version 0.09.'
    .' Instead use ->search({ x => { -like => "y%" } })'
    .' (note the outer pair of {}s - they are important!)'
   );
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $query = ref $_[0] eq 'HASH' ? { %{shift()} }: {@_};
   $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
   return $class->search($query, { %$attrs });
@@ -1191,7 +1225,9 @@ three records, call:
 
 =cut
 
-sub slice {
+sub slice :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+
   my ($self, $min, $max) = @_;
   my $attrs = {}; # = { %{ $self->{attrs} || {} } };
   $attrs->{offset} = $self->{attrs}{offset} || 0;
@@ -1415,7 +1451,7 @@ sub _construct_results {
           : '@$rows = map { $inflator_cref->($res_class, $rsrc, { %s } ) } @$rows'
         ),
         ( join (', ', map { "\$infmap->[$_] => \$_->[$_]" } 0..$#$infmap ) )
-      );
+      ) . '; 1' or die;
     }
   }
   else {
@@ -1425,60 +1461,30 @@ sub _construct_results {
       :                                           'classic_nonpruning'
     ;
 
-    # $args and $attrs to _mk_row_parser are separated to delineate what is
-    # core collapser stuff and what is dbic $rs specific
-    @{$self->{_row_parser}{$parser_type}}{qw(cref nullcheck)} = $rsrc->_mk_row_parser({
-      eval => 1,
-      inflate_map => $infmap,
-      collapse => $attrs->{collapse},
-      premultiplied => $attrs->{_main_source_premultiplied},
-      hri_style => $self->{_result_inflator}{is_hri},
-      prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
-    }, $attrs) unless $self->{_row_parser}{$parser_type}{cref};
+    unless( $self->{_row_parser}{$parser_type}{cref} ) {
 
-    # column_info metadata historically hasn't been too reliable.
-    # We need to start fixing this somehow (the collapse resolver
-    # can't work without it). Add an explicit check for the *main*
-    # result, hopefully this will gradually weed out such errors
-    #
-    # FIXME - this is a temporary kludge that reduces performance
-    # It is however necessary for the time being
-    my ($unrolled_non_null_cols_to_check, $err);
+      # $args and $attrs to _mk_row_parser are separated to delineate what is
+      # core collapser stuff and what is dbic $rs specific
+      $self->{_row_parser}{$parser_type}{src} = $rsrc->_mk_row_parser({
+        inflate_map => $infmap,
+        collapse => $attrs->{collapse},
+        premultiplied => $attrs->{_main_source_premultiplied},
+        hri_style => $self->{_result_inflator}{is_hri},
+        prune_null_branches => $self->{_result_inflator}{is_hri} || $self->{_result_inflator}{is_core_row},
+      }, $attrs);
 
-    if (my $check_non_null_cols = $self->{_row_parser}{$parser_type}{nullcheck} ) {
+      $self->{_row_parser}{$parser_type}{cref} = do {
+        package # hide form PAUSE
+          DBIx::Class::__GENERATED_ROW_PARSER__;
 
-      $err =
-        'Collapse aborted due to invalid ResultSource metadata - the following '
-      . 'selections are declared non-nullable but NULLs were retrieved: '
-      ;
-
-      my @violating_idx;
-      COL: for my $i (@$check_non_null_cols) {
-        ! defined $_->[$i] and push @violating_idx, $i and next COL for @$rows;
-      }
-
-      $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
-        if @violating_idx;
-
-      $unrolled_non_null_cols_to_check = join (',', @$check_non_null_cols);
-
-      utf8::upgrade($unrolled_non_null_cols_to_check)
-        if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
+        eval $self->{_row_parser}{$parser_type}{src};
+      } || die $@;
     }
 
-    my $next_cref =
-      ($did_fetch_all or ! $attrs->{collapse})  ? undef
-    : defined $unrolled_non_null_cols_to_check  ? eval sprintf <<'EOS', $unrolled_non_null_cols_to_check
-sub {
-  # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
-  my @r = $cursor->next or return;
-  if (my @violating_idx = grep { ! defined $r[$_] } (%s) ) {
-    $self->throw_exception( $err . join (', ', map { "'$infmap->[$_]'" } @violating_idx ) )
-  }
-  \@r
-}
-EOS
-    : sub {
+    # this needs to close over the *current* cursor, hence why it is not cached above
+    my $next_cref = ($did_fetch_all or ! $attrs->{collapse})
+      ? undef
+      : sub {
         # FIXME SUBOPTIMAL - we can do better, cursor->next/all (well diff. methods) should return a ref
         my @r = $cursor->next or return;
         \@r
@@ -1487,8 +1493,24 @@ EOS
 
     $self->{_row_parser}{$parser_type}{cref}->(
       $rows,
-      $next_cref ? ( $next_cref, $self->{_stashed_rows} = [] ) : (),
+      $next_cref,
+      ( $self->{_stashed_rows} = [] ),
+      ( my $null_violations = {} ),
     );
+
+    $self->throw_exception(
+      'Collapse aborted - the following columns are declared (or defaulted to) '
+    . 'non-nullable within DBIC but NULLs were retrieved from storage: '
+    . join( ', ', map { "'$infmap->[$_]'" } sort { $a <=> $b } keys %$null_violations )
+    . ' within data row ' . dump_value({
+      map {
+        $infmap->[$_] =>
+          ( ! defined $self->{_stashed_rows}[0][$_] or length $self->{_stashed_rows}[0][$_] < 50 )
+            ? $self->{_stashed_rows}[0][$_]
+            : substr( $self->{_stashed_rows}[0][$_], 0, 50 ) . '...'
+      } 0 .. $#{$self->{_stashed_rows}[0]}
+    })
+    ) if keys %$null_violations;
 
     # simple in-place substitution, does not regrow $rows
     if ($self->{_result_inflator}{is_core_row}) {
@@ -1589,7 +1611,7 @@ C<< $rs->search ($cond, \%attrs)->count >>
 
 sub count {
   my $self = shift;
-  return $self->search(@_)->count if @_ and defined $_[0];
+  return $self->search_rs(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
   my $attrs = { %{ $self->_resolved_attrs } };
@@ -1637,7 +1659,7 @@ the same single value obtainable via L</count>.
 
 sub count_rs {
   my $self = shift;
-  return $self->search(@_)->count_rs if @_;
+  return $self->search_rs(@_)->count_rs if @_;
 
   # this may look like a lack of abstraction (count() does about the same)
   # but in fact an _rs *must* use a subquery for the limits, as the
@@ -1666,7 +1688,7 @@ sub _count_rs {
   # overwrite the selector (supplied by the storage)
   $rsrc->resultset_class->new($rsrc, {
     %$tmp_attrs,
-    select => $rsrc->storage->_count_select ($rsrc, $attrs),
+    select => $rsrc->schema->storage->_count_select ($rsrc, $attrs),
     as => 'count',
   })->get_column ('count');
 }
@@ -1697,7 +1719,7 @@ sub _count_subq_rs {
   # Calculate subquery selector
   if (my $g = $sub_attrs->{group_by}) {
 
-    my $sql_maker = $rsrc->storage->sql_maker;
+    my $sql_maker = $rsrc->schema->storage->sql_maker;
 
     # necessary as the group_by may refer to aliased functions
     my $sel_index;
@@ -1764,7 +1786,7 @@ sub _count_subq_rs {
   return $rsrc->resultset_class
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
-                 ->search ({}, { columns => { count => $rsrc->storage->_count_select ($rsrc, $attrs) } })
+                 ->search_rs ({}, { columns => { count => $rsrc->schema->storage->_count_select ($rsrc, $attrs) } })
                   ->get_column ('count');
 }
 
@@ -1787,7 +1809,10 @@ with the passed arguments, then L</count>.
 
 =cut
 
-sub count_literal { shift->search_literal(@_)->count; }
+sub count_literal :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->search_literal(@_)->count
+}
 
 =head2 all
 
@@ -1864,7 +1889,8 @@ an object for the first result (or C<undef> if the resultset is empty).
 
 =cut
 
-sub first {
+sub first :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return $_[0]->reset->next;
 }
 
@@ -1904,7 +1930,7 @@ sub _rs_update_delete {
       $storage->_prune_unused_joins ($attrs);
 
     # any non-pruneable non-local restricting joins imply subq
-    $needs_subq = defined List::Util::first { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
+    $needs_subq = grep { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
   }
 
   # check if the head is composite (by now all joins are thrown out unless $needs_subq)
@@ -1921,7 +1947,7 @@ sub _rs_update_delete {
     # a condition containing 'me' or other table prefixes will not work
     # at all. Tell SQLMaker to dequalify idents via a gross hack.
     $cond = do {
-      my $sqla = $rsrc->storage->sql_maker;
+      my $sqla = $rsrc->schema->storage->sql_maker;
       local $sqla->{_dequalify_idents} = 1;
       \[ $sqla->_recurse_where($self->{cond}) ];
     };
@@ -1991,7 +2017,7 @@ sub _rs_update_delete {
           }
         }
 
-        $subrs = $subrs->search({}, { group_by => $attrs->{columns} });
+        $subrs = $subrs->search_rs({}, { group_by => $attrs->{columns} });
       }
 
       $guard = $storage->txn_scope_guard;
@@ -2235,6 +2261,9 @@ sub populate {
   # FIXME - no cref handling
   # At this point assume either hashes or arrays
 
+  my $rsrc = $self->result_source;
+  my $storage = $rsrc->schema->storage;
+
   if(defined wantarray) {
     my (@results, $guard);
 
@@ -2242,7 +2271,7 @@ sub populate {
       # column names only, nothing to do
       return if @$data == 1;
 
-      $guard = $self->result_source->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 2;
 
       @results = map
@@ -2252,7 +2281,7 @@ sub populate {
     }
     else {
 
-      $guard = $self->result_source->schema->storage->txn_scope_guard
+      $guard = $storage->txn_scope_guard
         if @$data > 1;
 
       @results = map { $self->new_result($_)->insert } @$data;
@@ -2266,7 +2295,6 @@ sub populate {
   # this means we have to walk the data structure twice
   # whether we want this or not
   # jnap, I hate you ;)
-  my $rsrc = $self->result_source;
   my $rel_info = { map { $_ => $rsrc->relationship_info($_) } $rsrc->relationships };
 
   my ($colinfo, $colnames, $slices_with_rels);
@@ -2303,7 +2331,18 @@ sub populate {
                 or
               ref $data->[$i][$_->{pos}] eq 'HASH'
                 or
-              ( defined blessed $data->[$i][$_->{pos}] and $data->[$i][$_->{pos}]->isa('DBIx::Class::Row') )
+              (
+                defined blessed $data->[$i][$_->{pos}]
+                  and
+                $data->[$i][$_->{pos}]->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                    ||
+                  emit_loud_diag(
+                    confess => 1,
+                    msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                  )
+                )
+              )
             )
               and
             1
@@ -2311,7 +2350,18 @@ sub populate {
 
             # moar sanity check... sigh
             for ( ref $data->[$i][$_->{pos}] eq 'ARRAY' ? @{$data->[$i][$_->{pos}]} : $data->[$i][$_->{pos}] ) {
-              if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+              if (
+                defined blessed $_
+                  and
+                $_->isa(
+                  $DBIx::Class::ResultSource::__expected_result_class_isa
+                    ||
+                  emit_loud_diag(
+                    confess => 1,
+                    msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                  )
+                )
+              ) {
                 carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
                 return my $throwaway = $self->populate(@_);
               }
@@ -2353,7 +2403,18 @@ sub populate {
               or
             ref $data->[$i]{$_} eq 'HASH'
               or
-            ( defined blessed $data->[$i]{$_} and $data->[$i]{$_}->isa('DBIx::Class::Row') )
+            (
+              defined blessed $data->[$i]{$_}
+                and
+              $data->[$i]{$_}->isa(
+                $DBIx::Class::ResultSource::__expected_result_class_isa
+                  ||
+                emit_loud_diag(
+                  confess => 1,
+                  msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                )
+              )
+            )
           )
             and
           1
@@ -2361,7 +2422,18 @@ sub populate {
 
           # moar sanity check... sigh
           for ( ref $data->[$i]{$_} eq 'ARRAY' ? @{$data->[$i]{$_}} : $data->[$i]{$_} ) {
-            if ( defined blessed $_ and $_->isa('DBIx::Class::Row' ) ) {
+            if (
+              defined blessed $_
+                and
+              $_->isa(
+                $DBIx::Class::ResultSource::__expected_result_class_isa
+                  ||
+                emit_loud_diag(
+                  confess => 1,
+                  msg => 'Global $DBIx::Class::ResultSource::__expected_result_class_isa unexpectedly unset...'
+                )
+              )
+            ) {
               carp_unique("Fast-path populate() with supplied related objects is not possible - falling back to regular create()");
               return my $throwaway = $self->populate(@_);
             }
@@ -2423,13 +2495,13 @@ sub populate {
 
 ### start work
   my $guard;
-  $guard = $rsrc->schema->storage->txn_scope_guard
+  $guard = $storage->txn_scope_guard
     if $slices_with_rels;
 
 ### main source data
   # FIXME - need to switch entirely to a coderef-based thing,
   # so that large sets aren't copied several times... I think
-  $rsrc->storage->_insert_bulk(
+  $storage->_insert_bulk(
     $rsrc,
     [ @$colnames, sort keys %$rs_data ],
     [ map {
@@ -2463,18 +2535,20 @@ sub populate {
 
           $colinfo->{$rel}{rs} = $rsrc->related_source($rel)->resultset;
 
-          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->_resolve_relationship_condition(
+          $colinfo->{$rel}{fk_map} = { reverse %{ $rsrc->resolve_relationship_condition(
             rel_name => $rel,
-            self_alias => "\xFE", # irrelevant
-            foreign_alias => "\xFF", # irrelevant
+
+            # an API where these are optional would be too cumbersome,
+            # instead always pass in some dummy values
+            DUMMY_ALIASPAIR,
           )->{identity_map} || {} } };
 
         }
 
-        $colinfo->{$rel}{rs}->search({ map # only so that we inherit them values properly, no actual search
+        $colinfo->{$rel}{rs}->search_rs({ map # only so that we inherit them values properly, no actual search
           {
             $_ => { '=' =>
-              ( $main_proto_rs ||= $rsrc->resultset->search($main_proto) )
+              ( $main_proto_rs ||= $rsrc->resultset->search_rs($main_proto) )
                 ->get_column( $colinfo->{$rel}{fk_map}{$_} )
                  ->as_query
             }
@@ -2580,11 +2654,8 @@ Passes the hashref of input on to L<DBIx::Class::Row/new>.
 sub new_result {
   my ($self, $values) = @_;
 
-  $self->throw_exception( "new_result takes only one argument - a hashref of values" )
-    if @_ > 2;
-
-  $self->throw_exception( "Result object instantiation requires a hashref as argument" )
-    unless (ref $values eq 'HASH');
+  $self->throw_exception( "Result object instantiation requires a single hashref argument" )
+    if @_ > 2 or ref $values ne 'HASH';
 
   my ($merged_cond, $cols_from_relations) = $self->_merge_with_rscond($values);
 
@@ -2634,7 +2705,7 @@ sub _merge_with_rscond {
     @cols_from_relations = keys %{ $implied_data || {} };
   }
   else {
-    my $eqs = $self->result_source->schema->storage->_extract_fixed_condition_columns($self->{cond}, 'consider_nulls');
+    my $eqs = extract_equality_conditions( $self->{cond}, 'consider_nulls' );
     $implied_data = { map {
       ( ($eqs->{$_}||'') eq UNRESOLVABLE_CONDITION ) ? () : ( $_ => $eqs->{$_} )
     } keys %$eqs };
@@ -2748,7 +2819,7 @@ sub as_query {
 
   my $attrs = { %{ $self->_resolved_attrs } };
 
-  my $aq = $self->result_source->storage->_select_args_to_query (
+  my $aq = $self->result_source->schema->storage->_select_args_to_query (
     $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
   );
 
@@ -2794,7 +2865,7 @@ all in the call to C<find_or_new>, even when set to C<undef>.
 
 sub find_or_new {
   my $self     = shift;
-  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs    = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
   if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
     return $row;
@@ -2883,7 +2954,7 @@ L</new>.
 
 =cut
 
-sub create {
+sub create :DBIC_method_is_indirect_sugar {
   #my ($self, $col_data) = @_;
   DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
   return shift->new_result(shift)->insert;
@@ -2963,7 +3034,7 @@ database!
 
 sub find_or_create {
   my $self     = shift;
-  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs    = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
   if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
     return $row;
@@ -3029,7 +3100,7 @@ database!
 
 sub update_or_create {
   my $self = shift;
-  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $attrs = (@_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {});
   my $cond = ref $_[0] eq 'HASH' ? shift : {@_};
 
   my $row = $self->find($cond, $attrs);
@@ -3092,7 +3163,7 @@ See also L</find>, L</find_or_create> and L</find_or_new>.
 
 sub update_or_new {
     my $self  = shift;
-    my $attrs = ( @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {} );
+    my $attrs = ( @_ > 1 && ref $_[-1] eq 'HASH' ? pop(@_) : {} );
     my $cond  = ref $_[0] eq 'HASH' ? shift : {@_};
 
     my $row = $self->find( $cond, $attrs );
@@ -3201,7 +3272,7 @@ sub is_paged {
 
 sub is_ordered {
   my ($self) = @_;
-  return scalar $self->result_source->storage->_extract_order_criteria($self->{attrs}{order_by});
+  return scalar $self->result_source->schema->storage->_extract_order_criteria($self->{attrs}{order_by});
 }
 
 =head2 related_resultset
@@ -3243,13 +3314,11 @@ sub related_resultset {
 
     my $attrs = $self->_chain_relationship($rel);
 
-    my $storage = $rsrc->schema->storage;
-
     # Previously this atribute was deleted (instead of being set as it is now)
     # Doing so seems to be harmless in all available test permutations
     # See also 01d59a6a6 and mst's comment below
     #
-    $attrs->{alias} = $storage->relname_to_table_alias(
+    $attrs->{alias} = $rsrc->schema->storage->relname_to_table_alias(
       $rel,
       $attrs->{seen_join}{$rel}
     );
@@ -3257,8 +3326,55 @@ sub related_resultset {
     # since this is search_related, and we already slid the select window inwards
     # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
-    # read the comment on top of the actual function to see what this does
-    $attrs->{from} = $storage->_inner_join_to_node( $attrs->{from}, $attrs->{alias} );
+    #
+    # The DBIC relationship chaining implementation is pretty simple - every
+    # new related_relationship is pushed onto the {from} stack, and the {select}
+    # window simply slides further in. This means that when we count somewhere
+    # in the middle, we got to make sure that everything in the join chain is an
+    # actual inner join, otherwise the count will come back with unpredictable
+    # results (a resultset may be generated with _some_ rows regardless of if
+    # the relation which the $rs currently selects has rows or not). E.g.
+    # $artist_rs->cds->count - normally generates:
+    # SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+    # which actually returns the number of artists * (number of cds || 1)
+    #
+    # So what we do here is crawl {from}, determine if the current alias is at
+    # the top of the stack, and if not - make sure the chain is inner-joined down
+    # to the root.
+    #
+    my $switch_branch = find_join_path_to_alias(
+      $attrs->{from},
+      $attrs->{alias},
+    );
+
+    if ( @{ $switch_branch || [] } ) {
+
+      # So it looks like we will have to switch some stuff around.
+      # local() is useless here as we will be leaving the scope
+      # anyway, and deep cloning is just too fucking expensive
+      # So replace the first hashref in the node arrayref manually
+      my @new_from = $attrs->{from}[0];
+      my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
+
+      for my $j ( @{$attrs->{from}}[ 1 .. $#{$attrs->{from}} ] ) {
+        my $jalias = $j->[0]{-alias};
+
+        if ($sw_idx->{$jalias}) {
+          my %attrs = %{$j->[0]};
+          delete $attrs{-join_type};
+          push @new_from, [
+            \%attrs,
+            @{$j}[ 1 .. $#$j ],
+          ];
+        }
+        else {
+          push @new_from, $j;
+        }
+      }
+
+      $attrs->{from} = \@new_from;
+    }
+
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete $attrs->{result_class};
@@ -3392,9 +3508,19 @@ but because we isolated the group by into a subselect the above works.
 =cut
 
 sub as_subselect_rs {
+
+  # FIXME - remove at some point in the future (2018-ish)
+  wantarray
+    and
+  carp_unique(
+    'Starting with DBIC@0.082900 as_subselect_rs() always returns a ResultSet '
+  . 'instance regardless of calling context. Please force scalar() context to '
+  . 'silence this warning'
+  );
+
   my $self = shift;
 
-  my $attrs = $self->_resolved_attrs;
+  my $alias = $self->current_source_alias;
 
   my $fresh_rs = (ref $self)->new (
     $self->result_source
@@ -3404,13 +3530,13 @@ sub as_subselect_rs {
   delete $fresh_rs->{cond};
   delete @{$fresh_rs->{attrs}}{qw/where bind/};
 
-  return $fresh_rs->search( {}, {
+  $fresh_rs->search_rs( {}, {
     from => [{
-      $attrs->{alias} => $self->as_query,
-      -alias  => $attrs->{alias},
+      $alias => $self->as_query,
+      -alias  => $alias,
       -rsrc   => $self->result_source,
     }],
-    alias => $attrs->{alias},
+    alias => $alias,
   });
 }
 
@@ -3451,7 +3577,7 @@ sub _chain_relationship {
     # Nuke the prefetch (if any) before the new $rs attrs
     # are resolved (prefetch is useless - we are wrapping
     # a subquery anyway).
-    my $rs_copy = $self->search;
+    my $rs_copy = $self->search_rs;
     $rs_copy->{attrs}{join} = $self->_merge_joinpref_attr (
       $rs_copy->{attrs}{join},
       delete $rs_copy->{attrs}{prefetch},
@@ -3544,10 +3670,13 @@ sub _resolved_attrs {
       if ( $attrs->{rows} =~ /[^0-9]/ or $attrs->{rows} <= 0 );
   }
 
+  # normalize where condition
+  $attrs->{where} = normalize_sqla_condition( $attrs->{where} )
+    if $attrs->{where};
 
   # default selection list
   $attrs->{columns} = [ $source->columns ]
-    unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;
+    unless grep { exists $attrs->{$_} } qw/columns cols select as/;
 
   # merge selectors together
   for (qw/columns select as/) {
@@ -3708,7 +3837,7 @@ sub _resolved_attrs {
         if (
           ! $attrs->{_main_source_premultiplied}
             and
-          ! List::Util::first { ! $_->[0]{-is_single} } @fromlist
+          ! grep { ! $_->[0]{-is_single} } @fromlist
         ) {
           $attrs->{collapse} = 0;
         }
@@ -3730,7 +3859,7 @@ sub _resolved_attrs {
     else {
       $attrs->{_grouped_by_distinct} = 1;
       # distinct affects only the main selection part, not what prefetch may add below
-      ($attrs->{group_by}, my $new_order) = $source->storage->_group_over_selection($attrs);
+      ($attrs->{group_by}, my $new_order) = $source->schema->storage->_group_over_selection($attrs);
 
       # FIXME possibly ignore a rewritten order_by (may turn out to be an issue)
       # The thinking is: if we are collapsing the subquerying prefetch engine will
@@ -3938,7 +4067,7 @@ sub _merge_joinpref_attr {
           },
           ARRAY => sub {
             return $_[1] if !defined $_[0];
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [$_[0], @{$_[1]}]
           },
           HASH  => sub {
@@ -3951,7 +4080,7 @@ sub _merge_joinpref_attr {
         ARRAY => {
           SCALAR => sub {
             return $_[0] if !defined $_[1];
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [@{$_[0]}, $_[1]]
           },
           ARRAY => sub {
@@ -3964,7 +4093,7 @@ sub _merge_joinpref_attr {
           HASH => sub {
             return [ $_[1] ] if ! @{$_[0]};
             return $_[0] if !keys %{$_[1]};
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [ @{$_[0]}, $_[1] ];
           },
         },
@@ -3979,7 +4108,7 @@ sub _merge_joinpref_attr {
             return [] if !keys %{$_[0]} and !@{$_[1]};
             return [ $_[0] ] if !@{$_[1]};
             return $_[1] if !keys %{$_[0]};
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [ $_[0], @{$_[1]} ];
           },
           HASH => sub {

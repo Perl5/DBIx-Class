@@ -5,11 +5,12 @@ use strict;
 use warnings;
 
 use DBIx::Class::Carp;
-use DBIx::Class::_Util qw(fail_on_internal_wantarray quote_sub);
+use DBIx::Class::_Util qw( quote_sub perlstring );
 
-# FIXME - this souldn't be needed
-my $cu;
-BEGIN { $cu = \&carp_unique }
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
 
 use namespace::clean;
 
@@ -56,38 +57,66 @@ EOW
       }
     }
 
-    my $qsub_attrs = {
-      '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
-      '$carp_unique' => \$cu,
-    };
+    my @main_meth_qsub_args = (
+      {},
+      { attributes => [
+        'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_sugar'
+        ),
+      ] },
+    );
 
-    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', $rel, $f_rel ), $qsub_attrs;
+
+    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth ), @main_meth_qsub_args;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->%s( @_ )->search;
+EOC
+
+
+    my @extra_meth_qsub_args = (
+      {
+        '$rel_attrs' => \{ alias => $f_rel, %{ $rel_attrs||{} } },
+        '$carp_unique' => \$unique_carper,
+      },
+      { attributes => [
+        'DBIC_method_is_indirect_sugar',
+        ( keys( %{$rel_attrs||{}} )
+          ? 'DBIC_method_is_m2m_extra_sugar_with_attrs'
+          : 'DBIC_method_is_m2m_extra_sugar'
+        ),
+      ] },
+    );
+
+
+    quote_sub "${class}::${rs_meth}", sprintf( <<'EOC', map { perlstring $_ } ( "${class}::${meth}", $rel, $f_rel ) ), @extra_meth_qsub_args;
+
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+        and
+      # allow nested calls from our ->many_to_many, see comment below
+      ( (CORE::caller(1))[3] ne %s )
+        and
+      DBIx::Class::_Util::fail_on_internal_call;
 
       # this little horror is there replicating a deprecation from
       # within search_rs() itself
-      shift->search_related_rs( q{%1$s} )
-            ->search_related_rs(
-              q{%2$s},
-              undef,
-              ( @_ > 1 and ref $_[-1] eq 'HASH' )
-                ? { %%$rel_attrs, %%{ pop @_ } }
-                : $rel_attrs
-            )->search_rs(@_)
+      shift->related_resultset( %s )
+            ->related_resultset( %s )
+             ->search_rs (
+               undef,
+               ( @_ > 1 and ref $_[-1] eq 'HASH' )
+                 ? { %%$rel_attrs, %%{ pop @_ } }
+                 : $rel_attrs
+             )->search_rs(@_)
       ;
 EOC
 
-
-    quote_sub "${class}::${meth}", sprintf( <<'EOC', $rs_meth );
-
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-
-      my $rs = shift->%s( @_ );
-
-      wantarray ? $rs->all : $rs;
-EOC
+    # the above is the only indirect method, the 3 below have too much logic
+    shift @{$extra_meth_qsub_args[1]{attributes}};
 
 
-    quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), $qsub_attrs;
+    quote_sub "${class}::${add_meth}", sprintf( <<'EOC', $add_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       ( @_ >= 2 and @_ <= 3 ) or $_[0]->throw_exception(
         "'%1$s' expects an object or hashref to link to, and an optional hashref of link data"
@@ -101,7 +130,7 @@ EOC
 
       my $guard;
 
-      # the API needs is always expected to return the far object, possibly
+      # the API is always expected to return the far object, possibly
       # creating it in the process
       if( not defined Scalar::Util::blessed( $far_obj ) ) {
 
@@ -131,7 +160,7 @@ EOC
 EOC
 
 
-    quote_sub "${class}::${set_meth}", sprintf( <<'EOC', $set_meth, $add_meth, $rel, $f_rel ), $qsub_attrs;
+    quote_sub "${class}::${set_meth}", sprintf( <<'EOC', $set_meth, $add_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       my $self = shift;
 
@@ -153,7 +182,7 @@ EOC
       ) if (
         @_ > 1
           or
-        ( @_ and ref $_[0] ne 'HASH' )
+        ( defined $_[0] and ref $_[0] ne 'HASH' )
       );
 
       my $guard;
@@ -164,13 +193,13 @@ EOC
 
       # if there is a where clause in the attributes, ensure we only delete
       # rows that are within the where restriction
-      $self->search_related(
-        q{%3$s},
-        ( $rel_attrs->{where}
-          ? ( $rel_attrs->{where}, { join => q{%4$s} } )
-          : ()
-        )
-      )->delete;
+      $self->related_resultset( q{%3$s} )
+            ->search_rs(
+              ( $rel_attrs->{where}
+                ? ( $rel_attrs->{where}, { join => q{%4$s} } )
+                : ()
+              )
+            )->delete;
 
       # add in the set rel objects
       $self->%2$s(
@@ -182,12 +211,16 @@ EOC
 EOC
 
 
-    quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel );
+    # the last method needs no captures - just kill it all with fire
+    $extra_meth_qsub_args[0] = {};
+
+
+    quote_sub "${class}::${remove_meth}", sprintf( <<'EOC', $remove_meth, $rel, $f_rel ), @extra_meth_qsub_args;
 
       $_[0]->throw_exception("'%1$s' expects an object")
         unless defined Scalar::Util::blessed( $_[1] );
 
-      $_[0]->search_related_rs( q{%2$s} )
+      $_[0]->related_resultset( q{%2$s} )
             ->search_rs( $_[1]->ident_condition( q{%3$s} ), { join => q{%3$s} } )
              ->delete;
 EOC

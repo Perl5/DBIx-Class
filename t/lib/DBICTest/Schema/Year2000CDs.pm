@@ -6,6 +6,11 @@ use strict;
 
 use base qw/DBICTest::Schema::CD/;
 
+# FIXME not entirely sure *why* this particular bit trips up tests
+# and even more mysteriously: only a single oracle test...
+# Running out of time and no local Oracle so can't investigate :/
+use mro 'c3';
+
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 __PACKAGE__->table('year2000cds');
 

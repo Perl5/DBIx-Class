@@ -5,6 +5,8 @@ use warnings;
 use strict;
 
 use base 'DBICTest::BaseResult';
+use mro 'c3';
+
 use DBICTest::Util 'check_customcond_args';
 
 __PACKAGE__->table('artist');

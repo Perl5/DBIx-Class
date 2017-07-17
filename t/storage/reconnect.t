@@ -1,13 +1,13 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
-use FindBin;
 use B::Deparse;
-use File::Copy 'move';
 use Scalar::Util 'weaken';
 use Test::More;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $db_orig = DBICTest->_sqlite_dbfilename;
@@ -16,11 +16,21 @@ my $db_tmp  = "$db_orig.tmp";
 # Set up the "usual" sqlite for DBICTest
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
-my $exception_action_count;
-$schema->exception_action(sub {
-  $exception_action_count++;
+my $exception_callback_count;
+my $ea = $schema->exception_action(sub {
+  $exception_callback_count++;
   die @_;
 });
+
+
+# No, this is not a great idea.
+# Yes, people do it anyway.
+# Might as well test that we have fixed it for good, by never invoking
+# a potential __DIE__ handler in internal_try() stacks. In cases of regular
+# exceptions we expect *both* the exception action *AND* the __DIE__ to
+# fire once
+$SIG{__DIE__} = sub { &$ea };
+
 
 # Make sure we're connected by doing something
 my @art = $schema->resultset("Artist")->search({ }, { order_by => { -desc => 'name' }});
@@ -46,7 +56,7 @@ cmp_ok(@art_two, '==', 3, "Three artists returned");
 ### Now, disconnect the dbh, and move the db file;
 # create a new one full of garbage, prevent SQLite from connecting.
 $schema->storage->_dbh->disconnect;
-move( $db_orig, $db_tmp )
+rename( $db_orig, $db_tmp )
   or die "failed to move $db_orig to $db_tmp: $!";
 open my $db_file, '>', $db_orig;
 print $db_file 'THIS IS NOT A REAL DATABASE';
@@ -65,7 +75,7 @@ ok (! $schema->storage->connected, 'We are not connected' );
 
 ### Now, move the db file back to the correct name
 unlink($db_orig) or die "could not delete $db_orig: $!";
-move( $db_tmp, $db_orig )
+rename( $db_tmp, $db_orig )
   or die "could not move $db_tmp to $db_orig: $!";
 
 ### Try the operation again... this time, it should succeed
@@ -98,7 +108,7 @@ for my $ctx (keys %$ctx_map) {
 
   # start disconnected and then connected
   $schema->storage->disconnect;
-  $exception_action_count = 0;
+  $exception_callback_count = 0;
 
   for (1, 2) {
     my $disarmed;
@@ -115,7 +125,7 @@ for my $ctx (keys %$ctx_map) {
     }, @$args) });
   }
 
-  is( $exception_action_count, 0, 'exception_action never called' );
+  is( $exception_callback_count, 0, 'neither exception_action nor $SIG{__DIE__} ever called' );
 };
 
 # make sure RT#110429 does not recur on manual DBI-side disconnect
@@ -149,7 +159,7 @@ for my $cref (
   note( "Testing with " . B::Deparse->new->coderef2text($cref) );
 
   $schema->storage->disconnect;
-  $exception_action_count = 0;
+  $exception_callback_count = 0;
 
   ok( !$schema->storage->connected, 'Not connected' );
 
@@ -164,13 +174,13 @@ for my $cref (
 
   is( $schema->storage->transaction_depth, undef, "Depth expectedly unknown after failed rollbacks" );
 
-  is( $exception_action_count, 1, "exception_action called only once" );
+  is( $exception_callback_count, 2, 'exception_action and $SIG{__DIE__} called only once each' );
 }
 
 # check exception_action under tenacious disconnect
 {
   $schema->storage->disconnect;
-  $exception_action_count = 0;
+  $exception_callback_count = 0;
 
   throws_ok { $schema->txn_do(sub {
     $schema->storage->_dbh->disconnect;
@@ -178,7 +188,7 @@ for my $cref (
     $schema->resultset('Artist')->next;
   })} qr/prepare on inactive database handle/;
 
-  is( $exception_action_count, 1, "exception_action called only once" );
+  is( $exception_callback_count, 2, 'exception_action and $SIG{__DIE__} called only once each' );
 }
 
 # check that things aren't crazy with a non-violent disconnect

@@ -3,6 +3,9 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+
+use base 'DBIx::Class';
+
 use DBIx::Class::_Util 'detected_reinvoked_destructor';
 use namespace::clean;
 

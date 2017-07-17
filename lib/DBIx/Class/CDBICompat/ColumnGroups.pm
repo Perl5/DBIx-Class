@@ -3,14 +3,16 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Sub::Name ();
-use List::Util ();
 
 use base qw/DBIx::Class::Row/;
 
+use List::Util ();
+use DBIx::Class::_Util 'set_subname';
+use namespace::clean;
+
 __PACKAGE__->mk_classdata('_column_groups' => { });
 
-sub columns {
+sub columns :DBIC_method_is_bypassable_resultsource_proxy {
   my $proto = shift;
   my $class = ref $proto || $proto;
   my $group = shift || "All";
@@ -32,9 +34,9 @@ sub _add_column_group {
   $class->_register_column_group($group => @cols);
 }
 
-sub add_columns {
+sub add_columns :DBIC_method_is_bypassable_resultsource_proxy {
   my ($class, @cols) = @_;
-  $class->result_source_instance->add_columns(@cols);
+  $class->result_source->add_columns(@cols);
 }
 
 sub _register_column_group {
@@ -83,7 +85,23 @@ sub _register_column_group {
 
     no strict 'refs';
     my $existing_accessor = *{$class .'::'. $name}{CODE};
-    return $existing_accessor && !$our_accessors{$existing_accessor};
+
+    return(
+      defined $existing_accessor
+        and
+      ! $our_accessors{$existing_accessor}
+        and
+      # under 5.8 mro the CODE slot may simply be a "cached method"
+      ! (
+        DBIx::Class::_ENV_::OLD_MRO
+          and
+        grep {
+          $_ ne $class
+            and
+          ( $Class::C3::MRO{$_} || {} )->{methods}{$name}
+        } @{mro::get_linear_isa($class)}
+      )
+    )
   }
 
   sub _deploy_accessor {
@@ -95,7 +113,7 @@ sub _register_column_group {
       no strict 'refs';
       no warnings 'redefine';
       my $fullname = join '::', $class, $name;
-      *$fullname = Sub::Name::subname $fullname, $accessor;
+      *$fullname = set_subname $fullname, $accessor;
     }
 
     $our_accessors{$accessor}++;
@@ -121,20 +139,16 @@ sub _mk_group_accessors {
 
     ($name, $field) = @$field if ref $field;
 
-    my $accessor = $class->$maker($group, $field);
-    my $alias = "_${name}_accessor";
-
-    # warn "  $field $alias\n";
-    {
-      no strict 'refs';
-
-      $class->_deploy_accessor($name,  $accessor);
-      $class->_deploy_accessor($alias, $accessor);
+    for( $name, "_${name}_accessor" ) {
+      $class->_deploy_accessor(
+        $_,
+        $class->$maker($group, $field, $_)
+      );
     }
   }
 }
 
-sub all_columns { return shift->result_source_instance->columns; }
+sub all_columns { return shift->result_source->columns; }
 
 sub primary_column {
   my ($class) = @_;

@@ -1,10 +1,13 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 no warnings 'exiting';
 
 use Test::More;
 use Test::Deep;
-use lib qw(t/lib);
+use Test::Exception;
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema(no_populate => 1);
@@ -37,6 +40,7 @@ $schema->resultset('CD')->create({
       title => 'Oxygene',
       year => 1976,
       artist => { name => 'JMJ' },
+      artwork => {},
       tracks => [
         { title => 'o2', position => 2},  # the position should not be needed here, bug in MC
       ],
@@ -467,6 +471,49 @@ INFTYPE: for ('', '(native inflator)') {
     ],
     "Expected output of collapsing 1:M with empty root selection $native_inflator",
   );
+
+  cmp_structures (
+    rs_contents( $schema->resultset ('CD')->search_rs (
+      {
+        'tracks.title' => 'e2',
+        'cds.title' => 'Oxygene',
+      },
+      {
+        collapse => 1,
+        join => [
+          'tracks',
+          { single_track => { cd => 'mandatory_artwork' } },
+          { artist => { cds => 'mandatory_artwork'} },
+        ],
+        columns => {
+          cdid                                      => 'cdid',
+          'single_track.cd.mandatory_artwork.cd_id' => 'mandatory_artwork.cd_id',
+          'artist.cds.mandatory_artwork.cd_id'      => 'mandatory_artwork_2.cd_id',
+        },
+      },
+    )),
+    [[
+      { cdid => 3 },
+      {
+        single_track => [
+          undef,
+          { cd => [
+            undef,
+            { mandatory_artwork => [ { cd_id => 2 } ] }
+          ] }
+        ],
+        artist => [
+          undef,
+          { cds => [
+            [
+              undef,
+              { mandatory_artwork => [ { cd_id => 2 } ] }
+            ]
+          ] },
+        ],
+      }
+    ]],
+  );
 }
 
 sub null_branch {
@@ -502,6 +549,7 @@ sub cmp_structures {
   cmp_deeply($left, $right, $msg||()) or next INFTYPE;
 }
 
+
 {
   package DBICTest::_DoubleResult;
 
@@ -528,5 +576,19 @@ is_deeply(
     order_by => [qw(me.cdid tracks.title)],
   })->all_hri}) x 2 ],
 );
+
+
+{
+  package DBICTest::_DieTrying;
+
+  sub inflate_result {
+    die "nyah nyah nyah";
+  }
+}
+
+throws_ok {
+  $schema->resultset('CD')->search({}, { result_class => 'DBICTest::_DieTrying' })->all
+} qr/nyah nyah nyah/, 'Exception in custom inflate_result propagated correctly';
+
 
 done_testing;

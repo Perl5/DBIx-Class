@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -7,7 +9,7 @@ use Test::Warn;
 use Time::HiRes 'time';
 use Math::BigInt;
 
-use lib qw(t/lib);
+
 use DBICTest;
 use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt );
 
@@ -94,6 +96,11 @@ DDL
 }
 
 # test blank begin/svp/commit/begin cycle
+#
+# need to prime this for exotic testing scenarios
+# before testing for lack of warnings
+modver_gt_or_eq('DBD::SQLite', '1.33');
+
 warnings_are {
   my $schema = DBICTest->init_schema( no_populate => 1 );
   my $rs = $schema->resultset('Artist');

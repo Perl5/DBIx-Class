@@ -5,8 +5,9 @@ use strict;
 use warnings;
 
 use Scalar::Util qw/weaken/;
+use namespace::clean;
 
-use base qw/Class::Data::Inheritable/;
+use base 'DBIx::Class';
 
 __PACKAGE__->mk_classdata('purge_object_index_every' => 1000);
 __PACKAGE__->mk_classdata('live_object_index' => { });

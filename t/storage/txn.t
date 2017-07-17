@@ -1,10 +1,16 @@
+# Test is sufficiently involved to *want* to run with "maximum paranoia"
+BEGIN { $ENV{DBICTEST_OLD_MRO_SANITY_CHECK_ASSERTIONS} = 1 }
+
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use lib qw(t/lib);
+use Errno ();
+
 use DBICTest;
 
 my $code = sub {
@@ -208,12 +214,11 @@ sub _test_forking_action {
 
   SKIP: for my $count (1 .. 5) {
 
-    skip 'Weird DBI General Protection Faults, skip forking tests (RT#63104)', 5
+    skip 'FIXME: Weird DBI General Protection Faults, skip forking tests (RT#63104)', 5
       if $^O eq 'MSWin32';
 
     my $pid = fork();
     if( ! defined $pid ) {
-
       skip "EAGAIN encountered, your system is likely bogged down: skipping forking test", 1
         if $! == Errno::EAGAIN();
 

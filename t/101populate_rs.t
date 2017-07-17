@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 ## ----------------------------------------------------------------------------
 ## Tests for the $resultset->populate method.
 ##
@@ -14,7 +16,7 @@ use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
 
 

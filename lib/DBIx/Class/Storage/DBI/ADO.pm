@@ -6,8 +6,7 @@ use strict;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-use Sub::Name;
-use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq );
+use DBIx::Class::_Util qw( sigwarn_silencer modver_gt_or_eq set_subname );
 use namespace::clean;
 
 =head1 NAME
@@ -48,7 +47,7 @@ sub _init {
       no warnings 'redefine';
       my $disconnect = *DBD::ADO::db::disconnect{CODE};
 
-      *DBD::ADO::db::disconnect = subname 'DBD::ADO::db::disconnect' => sub {
+      *DBD::ADO::db::disconnect = set_subname 'DBD::ADO::db::disconnect' => sub {
         local $SIG{__WARN__} = sigwarn_silencer(
           qr/Not a Win32::OLE object|uninitialized value/
         );

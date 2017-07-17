@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'id_shortener';
 
 use strict;
@@ -5,8 +6,8 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Data::Dumper::Concise;
-use lib qw(t/lib);
+
+use DBIx::Class::_Util 'dump_value';
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::Oracle;
 
@@ -67,7 +68,7 @@ for my $case (@handle_tests) {
         sub {
             ( $stmt, @bind ) = $sqla_oracle->_recurse_where( $case->{connect_by} );
             is_same_sql_bind( $stmt, \@bind, $case->{stmt}, $case->{bind},$msg )
-              || diag "Search term:\n" . Dumper $case->{connect_by};
+              || diag "Search term:\n" . dump_value $case->{connect_by};
         }
     ,sprintf("lives is ok from '%s'",$msg));
 }

@@ -144,6 +144,16 @@ my $dbic_reqs = {
     },
   },
 
+  ic_file => {
+    req => {
+      'Path::Class' => '0.18',
+    },
+    pod => {
+      title => 'DBIx::Class::InflateColumn::File (Deprecated)',
+      desc => 'Modules required for the deprecated L<DBIx::Class::InflateColumn::File>',
+    },
+  },
+
   ic_dt => {
     req => {
       'DateTime' => '0.55',
@@ -168,7 +178,6 @@ my $dbic_reqs = {
 
   cdbicompat => {
     req => {
-      'Class::Data::Inheritable' => '0',
       'Class::Trigger' => '0',
       'DBIx::ContextualFetch' => '0',
       'Clone' => '0.32',
@@ -861,7 +870,9 @@ sub skip_without {
   if ( my $err = $self->req_missing_for($groups) ) {
     my ($fn, $ln) = (caller(0))[1,2];
     $tb->skip("block in $fn around line $ln requires $err");
-    local $^W = 0;
+
+    BEGIN { ${^WARNING_BITS} = "" }
+
     last SKIP;
   }
 
@@ -1144,6 +1155,9 @@ sub _errorlist_for_modreqs {
     my $v = $reqs->{$m};
 
     if (! exists $req_unavailability_cache{$m}{$v} ) {
+      # masking this off is important, as it may very well be
+      # a transient error
+      local $SIG{__DIE__} if $SIG{__DIE__};
       local $@;
       eval( "require $m;" . ( $v ? "$m->VERSION(q($v))" : '' ) );
       $req_unavailability_cache{$m}{$v} = $@;
@@ -1204,16 +1218,12 @@ sub _gen_pod {
 "\n\n---------------------------------------------------------------------\n"
   ;
 
-  # do not ask for a recent version, use 1.x API calls
-  # this *may* execute on a smoker with old perl or whatnot
-  require File::Path;
-
   (my $modfn = __PACKAGE__ . '.pm') =~ s|::|/|g;
 
   (my $podfn = "$pod_dir/$modfn") =~ s/\.pm$/\.pod/;
-  (my $dir = $podfn) =~ s|/[^/]+$||;
 
-  File::Path::mkpath([$dir]);
+  require DBIx::Class::_Util;
+  DBIx::Class::_Util::mkdir_p( DBIx::Class::_Util::parent_dir( $podfn ) );
 
   my $sqltver = $class->req_list_for('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";

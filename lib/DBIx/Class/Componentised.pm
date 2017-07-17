@@ -7,6 +7,7 @@ use warnings;
 use base 'Class::C3::Componentised';
 use mro 'c3';
 
+use DBIx::Class::_Util 'get_subname';
 use DBIx::Class::Carp '^DBIx::Class|^Class::C3::Componentised';
 use namespace::clean;
 
@@ -54,8 +55,7 @@ sub inject_base {
           or next;
 
         if ($sc ne $base_store_column) {
-          require B;
-          my $definer = B::svref_2object($sc)->STASH->NAME;
+          my ($definer) = get_subname($sc);
           push @broken, ($definer eq $existing_comp)
             ? $existing_comp
             : "$existing_comp (via $definer)"

@@ -1,12 +1,14 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_file );
+
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
-
 
 use DBICTest;
 use DBICTest::Schema;
+use File::Temp ();
 use File::Compare;
 use Path::Class qw/file/;
 
@@ -19,8 +21,6 @@ use Path::Class qw/file/;
   use warnings;
   use base qw/DBICTest::BaseResult/;
 
-  use File::Temp qw/tempdir/;
-
   __PACKAGE__->load_components (qw/InflateColumn::File/);
   __PACKAGE__->table('file_columns');
 
@@ -29,7 +29,7 @@ use Path::Class qw/file/;
     file => {
       data_type        => 'varchar',
       is_file_column   => 1,
-      file_column_path => tempdir(CLEANUP => 1),
+      file_column_path => File::Temp->newdir( CLEANUP => 1, DIR => DBICTest::Util::tmpdir() ),
       size             => 255
     }
   );

@@ -4,9 +4,9 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
+use base 'DBIx::Class';
 
-__PACKAGE__->mk_classdata('__AutoCommit');
+__PACKAGE__->mk_group_accessors( inherited => '__AutoCommit' );
 
 sub set_column {
   my $self = shift;

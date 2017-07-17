@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use lib qw(t/lib);
+
 use DBICTest;
 use DBIx::Class::_Util qw(sigwarn_silencer serialize);
 use Math::BigInt;

@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 no warnings 'once';
@@ -12,44 +14,45 @@ BEGIN {
 }
 
 use Test::More;
-use Test::Exception;
-use Try::Tiny;
 use File::Spec;
-use lib qw(t/lib);
+
 use DBICTest;
-use Path::Class qw/file/;
+use DBICTest::Util 'slurp_bytes';
+use DBIx::Class::_Util 'scope_guard';
 
 my $schema = DBICTest->init_schema();
 
-my $lfn = file("t/var/sql-$$.log");
-unlink $lfn or die $!
-  if -e $lfn;
+my $log_fn = "t/var/sql-$$.log";
+unlink $log_fn or die $! if -e $log_fn;
 
 # make sure we are testing the vanilla debugger and not ::PrettyPrint
 require DBIx::Class::Storage::Statistics;
 $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 
 ok ( $schema->storage->debug(1), 'debug' );
-$schema->storage->debugfh($lfn->openw);
-$schema->storage->debugfh->autoflush(1);
-$schema->resultset('CD')->count;
+{
+  open my $dbgfh, '>', $log_fn or die $!;
+  $schema->storage->debugfh($dbgfh);
+  $schema->storage->debugfh->autoflush(1);
+  $schema->resultset('CD')->count;
+  $schema->storage->debugfh(undef);
+}
 
-my @loglines = $lfn->slurp;
+my @loglines = slurp_bytes $log_fn;
 is (@loglines, 1, 'one line of log');
 like($loglines[0], qr/^SELECT COUNT/, 'File log via debugfh success');
 
-$schema->storage->debugfh(undef);
 
 {
-  local $ENV{DBIC_TRACE} = "=$lfn";
-  unlink $lfn;
+  local $ENV{DBIC_TRACE} = "=$log_fn";
+  unlink $log_fn;
 
   $schema->resultset('CD')->count;
 
   my $schema2 = DBICTest->init_schema(no_deploy => 1);
   $schema2->storage->_do_query('SELECT 1'); # _do_query() logs via standard mechanisms
 
-  my @loglines = $lfn->slurp;
+  my @loglines = slurp_bytes $log_fn;
   is(@loglines, 2, '2 lines of log');
   like($loglines[0], qr/^SELECT COUNT/, 'Env log from schema1 success');
   like($loglines[1], qr/^SELECT 1:/, 'Env log from schema2 success');
@@ -58,22 +61,23 @@ $schema->storage->debugfh(undef);
 }
 
 END {
-  unlink $lfn;
+  unlink $log_fn if $log_fn;
 }
 
 open(STDERRCOPY, '>&STDERR');
 
 my $exception_line_number;
 # STDERR will be closed, no T::B diag in blocks
-my $exception = try {
+my $exception = do {
+  my $restore_guard = scope_guard { open(STDERR, '>&STDERRCOPY') };
   close(STDERR);
-  $exception_line_number = __LINE__ + 1;  # important for test, do not reformat
-  $schema->resultset('CD')->search({})->count;
-} catch {
-  $_
-} finally {
-  # restore STDERR
-  open(STDERR, '>&STDERRCOPY');
+
+  eval {
+    $exception_line_number = __LINE__ + 1;  # important for test, do not reformat
+    $schema->resultset('CD')->search({})->count;
+  };
+
+  my $err = $@;
 };
 
 ok $exception =~ /
@@ -83,19 +87,19 @@ ok $exception =~ /
 /xms
   or diag "Unexpected exception text:\n\n$exception\n";
 
+
 my @warnings;
-$exception = try {
+$exception = do {
   local $SIG{__WARN__} = sub { push @warnings, @_ if $_[0] =~ /character/i };
+  my $restore_guard = scope_guard { close STDERR; open(STDERR, '>&STDERRCOPY') };
   close STDERR;
-  open(STDERR, '>', File::Spec->devnull) or die $!;
-  $schema->resultset('CD')->search({ title => "\x{1f4a9}" })->count;
-  '';
-} catch {
-  $_;
-} finally {
-  # restore STDERR
-  close STDERR;
-  open(STDERR, '>&STDERRCOPY');
+
+  eval {
+    open(STDERR, '>', File::Spec->devnull) or die $!;
+    $schema->resultset('CD')->search({ title => "\x{1f4a9}" })->count;
+  };
+
+  my $err = $@;
 };
 
 die "How did that fail... $exception"

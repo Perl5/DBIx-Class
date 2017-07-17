@@ -11,9 +11,9 @@ BEGIN {
   @initial_INC = @INC;
 }
 
-BEGIN {
-  unshift @INC, 't/lib';
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 
+BEGIN {
   if ( "$]" < 5.010) {
 
     # Pre-5.10 perls pollute %INC on unsuccesfull module
@@ -48,6 +48,15 @@ use strict;
 use warnings;
 
 use Test::More 'no_plan';
+
+# Things happen... unfortunately
+$SIG{__DIE__} = sub {
+  die $_[0] unless defined $^S and ! $^S;
+
+  diag "Something horrible happened while assembling the diag data\n$_[0]";
+  exit 0;
+};
+
 use Config;
 use File::Find 'find';
 use Digest::MD5 ();
@@ -57,7 +66,7 @@ use List::Util 'max';
 use ExtUtils::MakeMaker;
 
 use DBICTest::RunMode;
-use DBICTest::Util 'visit_namespaces';
+use DBIx::Class::_Util 'visit_namespaces';
 use DBIx::Class::Optional::Dependencies;
 
 my $known_paths = {
@@ -167,6 +176,8 @@ find({
   wanted => sub {
     -f $_ or return;
 
+    $_ =~ m|lib/DBIx/Class/_TempExtlib| and return;
+
     # can't just `require $fn`, as we need %INC to be
     # populated properly
     my ($mod) = $_ =~ /^ lib [\/\\] (.+) \.pm $/x
@@ -192,6 +203,7 @@ my $load_weights = {
 
 my @known_modules = sort
   { ($load_weights->{$b}||0) <=> ($load_weights->{$a}||0) }
+  qw( Data::Dumper ),
   keys %{
     DBIx::Class::Optional::Dependencies->req_list_for([
       grep
@@ -410,9 +422,10 @@ my $max_ver_len = max map
 ;
 my $max_marker_len = max map { length $_ } ( '$INC[999]', keys %$seen_markers );
 
+# Note - must be less than 76 chars wide to account for the diag() prefix
 my $discl = <<'EOD';
 
-List of loadable modules within both the core and *OPTIONAL* dependency chains
+List of loadable modules within both *OPTIONAL* and core dependency chains
 present on this system (modules sourced from ./blib, ./lib, ./t, and ./xt
 with versions identical to their parent namespace were omitted for brevity)
 
@@ -498,6 +511,11 @@ $final_out .= "=============================\n$discl\n\n";
 
 diag $final_out;
 
+# *very* large printouts may not finish flushing before the test exits
+# injecting a <testname> ... ok in the middle of the diag
+# http://www.cpantesters.org/cpan/report/fbdac74c-35ca-11e6-ab41-c893a58a4b8c
+select( undef, undef, undef, 0.2 );
+
 exit 0;
 
 
@@ -521,12 +539,18 @@ sub abs_unix_path {
 
   # File::Spec's rel2abs does not resolve symlinks
   # we *need* to look at the filesystem to be sure
-  my $abs_fn = abs_path($_[0]);
+  #
+  # But looking at the FS for non-existing basenames *may*
+  # throw on some OSes so be extra paranoid:
+  # http://www.cpantesters.org/cpan/report/26a6e42f-6c23-1014-b7dd-5cd275d8a230
+  #
+  my $abs_fn = eval { abs_path($_[0]) } || '';
 
-  if ( $^O eq 'MSWin32' and $abs_fn ) {
+  if ( $abs_fn and $^O eq 'MSWin32' ) {
 
     # sometimes we can get a short/longname mix, normalize everything to longnames
-    $abs_fn = Win32::GetLongPathName($abs_fn);
+    $abs_fn = Win32::GetLongPathName($abs_fn)
+      if -e $abs_fn;
 
     # Fixup (native) slashes in Config not matching (unixy) slashes in INC
     $abs_fn =~ s|\\|/|g;
@@ -540,7 +564,7 @@ sub shorten_fn {
 
   my $abs_fn = abs_unix_path($fn);
 
-  if (my $p = subpath_of_known_path( $fn ) ) {
+  if ($abs_fn and my $p = subpath_of_known_path( $fn ) ) {
     $abs_fn =~ s| (?<! / ) $|/|x
       if -d $abs_fn;
 
@@ -597,12 +621,21 @@ sub module_found_at_inc_index {
 
   my $fn = module_notional_filename($mod);
 
-  for my $i ( 0 .. $#$inc_dirs ) {
+  # trust INC if it specifies an existing path
+  if( -f ( my $existing_path = abs_unix_path( $INC{$fn} ) ) ) {
+    for my $i ( 0 .. $#$inc_dirs ) {
 
-    # searching from here on out won't mean anything
-    # FIXME - there is actually a way to interrogate this safely, but
-    # that's a fight for another day
-    return undef if length ref $inc_dirs->[$i];
+      # searching from here on out won't mean anything
+      # FIXME - there is actually a way to interrogate this safely, but
+      # that's a fight for another day
+      return undef if length ref $inc_dirs->[$i];
+
+      return $i
+        if 0 == index( $existing_path, abs_unix_path( $inc_dirs->[$i] ) . '/' );
+    }
+  }
+
+  for my $i ( 0 .. $#$inc_dirs ) {
 
     if (
       -d $inc_dirs->[$i]

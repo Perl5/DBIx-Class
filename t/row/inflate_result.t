@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 package My::Schema::Result::User;
@@ -18,9 +20,8 @@ my $admin_class = __PACKAGE__ . '::Admin';
 __PACKAGE__->table('users');
 
 __PACKAGE__->add_columns(
-    qw/user_id   email    password
-      firstname lastname active
-      admin/
+  user_id => { retrieve_on_insert => 1 },
+  qw( email password firstname lastname active admin ),
 );
 
 __PACKAGE__->set_primary_key('user_id');
@@ -58,7 +59,7 @@ sub do_admin_stuff {
 
 package My::Schema;
 
-use base qw/DBIx::Class::Schema/;
+use base qw/DBICTest::BaseSchema/;
 
 My::Schema->register_class( Admin => 'My::Schema::Result::User::Admin' );
 My::Schema->register_class( User  => 'My::Schema::Result::User' );

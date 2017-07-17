@@ -7,8 +7,7 @@ use mro 'c3';
 use DBIx::Class::Carp;
 use Scope::Guard ();
 use Context::Preserve 'preserve_context';
-use List::Util 'first';
-use DBIx::Class::_Util qw( modver_gt_or_eq_and_lt dbic_internal_try );
+use DBIx::Class::_Util qw( modver_gt_or_eq modver_gt_or_eq_and_lt dbic_internal_try );
 use namespace::clean;
 
 __PACKAGE__->sql_limit_dialect ('RowNum');
@@ -118,8 +117,9 @@ sub deployment_statements {
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
   my @ids = ();
+  my $ci = $source->columns_info(\@columns);
   foreach my $col (@columns) {
-    my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+    my $seq = ( $ci->{$col}{sequence} ||= $self->get_autoinc_seq($source,$col));
     my $id = $self->_sequence_fetch( 'CURRVAL', $seq );
     push @ids, $id;
   }
@@ -286,7 +286,7 @@ sub _dbh_execute {
   my ($self, $sql, $bind) = @_[0,2,3];
 
   # Turn off sth caching for multi-part LOBs. See _prep_for_execute below
-  local $self->{disable_sth_caching} = 1 if first {
+  local $self->{disable_sth_caching} = 1 if grep {
     ($_->[0]{_ora_lob_autosplit_part}||0)
       >
     (__cache_queries_with_max_lob_parts - 1)
@@ -298,11 +298,12 @@ sub _dbh_execute {
   return shift->$next(@_)
     if $self->transaction_depth;
 
-  # cheat the blockrunner we are just about to create
-  # we do want to rerun things regardless of outer state
-  local $self->{_in_do_block};
+  # Cheat the blockrunner we are just about to create:
+  # We *do* want to rerun things regardless of outer state
+  local $self->{_in_do_block}
+    if $self->{_in_do_block};
 
-  return DBIx::Class::Storage::BlockRunner->new(
+  DBIx::Class::Storage::BlockRunner->new(
     storage => $self,
     wrap_txn => 0,
     retry_handler => sub {
@@ -326,10 +327,12 @@ sub _dbh_execute {
 }
 
 sub _dbh_execute_for_fetch {
-  #my ($self, $sth, $tuple_status, @extra) = @_;
+  #my ($self, $source, $sth, $proto_bind, $cols, $data) = @_;
 
-  # DBD::Oracle warns loudly on partial execute_for_fetch failures
-  local $_[1]->{PrintWarn} = 0;
+  # Older DBD::Oracle warns loudly on partial execute_for_fetch failures
+  # before https://metacpan.org/source/PYTHIAN/DBD-Oracle-1.28/Changes#L7-9
+  local $_[2]->{PrintWarn} = 0
+    unless modver_gt_or_eq( 'DBD::Oracle', '1.28' );
 
   shift->next::method(@_);
 }

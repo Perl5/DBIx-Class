@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'deploy';
 
 use strict;
@@ -10,7 +11,6 @@ use Test::Warn;
 use Test::Exception;
 use Scalar::Util ();
 
-use lib qw(t/lib);
 use DBICTest;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
@@ -125,6 +125,15 @@ my $idx_exceptions = {
         my $idx_test = join("\x00", $index->fields);
         isnt ( $pk_test, $idx_test, "no additional index for the primary columns exists in $source_name");
     }
+
+    my $deferrables = grep {
+            $_->name eq 'track_cd_position'
+        and $_->type eq 'UNIQUE'
+        and $_->deferrable == 1
+      }
+      get_table($sqlt_schema, $schema, 'Track')->get_constraints;
+
+    is ($deferrables, 1, "a deferrable unique constraint called track_cd_position exists on Track");
   }
 }
 
@@ -196,7 +205,7 @@ lives_ok (sub {
 {
   package DBICTest::PartialSchema;
 
-  use base qw/DBIx::Class::Schema/;
+  use base qw/DBICTest::BaseSchema/;
 
   __PACKAGE__->load_classes(
     { 'DBICTest::Schema' => [qw/

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_pg';
 
 use strict;
@@ -6,13 +7,10 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use Sub::Name;
 use Config;
-use DBIx::Class::Optional::Dependencies ();
-use lib qw(t/lib);
 use DBICTest;
 use SQL::Abstract 'is_literal_value';
-use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::_Util qw( is_exception set_subname );
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
@@ -81,9 +79,14 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   : (0)
 ) {
 
-  no warnings qw/once redefine/;
+  # doing it here instead of the actual class to keep the main thing under dfs
+  # and thus keep catching false positives (so far none, but one never knows)
+  mro::set_mro("DBICTest::Schema", "c3");
+
   my $old_connection = DBICTest::Schema->can('connection');
-  local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+
+  no warnings qw/once redefine/;
+  local *DBICTest::Schema::connection = set_subname 'DBICTest::Schema::connection' => sub {
     my $s = shift->$old_connection(@_);
     $s->storage->_use_insert_returning ($use_insert_returning);
     $s;
@@ -193,6 +196,9 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     __PACKAGE__->column_info_from_storage(1);
     __PACKAGE__->set_primary_key('id');
 
+    # FIXME - for some reason column_info_from_storage does not properly find
+    # the is_auto_increment setting...
+    __PACKAGE__->column_info('id')->{is_auto_increment} = 1;
   }
   SKIP: {
     skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;

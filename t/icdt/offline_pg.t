@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt_pg );
 
 use strict;
@@ -5,7 +6,7 @@ use warnings;
 
 use Test::More;
 use Test::Warn;
-use lib qw(t/lib);
+
 use DBICTest;
 
 DBICTest::Schema->load_classes('EventTZPg');
@@ -21,6 +22,13 @@ DBICTest::Schema->load_classes('EventTZPg');
 
   my $parser = $s->storage->datetime_parser;
   is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+
+  my $colinfo = $s->source('EventTZPg')->column_info('created_on');
+  is (
+    $colinfo->{timezone},
+    $colinfo->{time_zone},
+    'Legacy timezone key is still present in colinfo',
+  );
 
   ok (!$s->storage->_dbh, 'still not connected');
 }

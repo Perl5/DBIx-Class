@@ -1,13 +1,14 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_podcoverage';
 
 use warnings;
 use strict;
 
 use Test::More;
-use List::Util 'first';
 use Module::Runtime 'require_module';
-use lib qw(t/lib maint/.Generated_Pod/lib);
+use lib 'maint/.Generated_Pod/lib';
 use DBICTest;
+use DBIx::Class::Schema::SanityChecker;
 use namespace::clean;
 
 # this has already been required but leave it here for CPANTS static analysis
@@ -29,10 +30,7 @@ require Test::Pod::Coverage;
 my $exceptions = {
     'DBIx::Class' => {
         ignore => [qw/
-            MODIFY_CODE_ATTRIBUTES
             component_base_class
-            mk_classdata
-            mk_classaccessor
         /]
     },
     'DBIx::Class::Optional::Dependencies' => {
@@ -57,6 +55,7 @@ my $exceptions = {
             store_column
             get_column
             get_columns
+            get_dirty_columns
             has_column_loaded
         /],
     },
@@ -69,6 +68,10 @@ my $exceptions = {
             resolve_prefetch
             STORABLE_freeze
             STORABLE_thaw
+            get_rsrc_instance_specific_attribute
+            set_rsrc_instance_specific_attribute
+            get_rsrc_instance_specific_handler
+            set_rsrc_instance_specific_handler
         /],
     },
     'DBIx::Class::ResultSet' => {
@@ -100,6 +103,11 @@ my $exceptions = {
             connection
         /]
     },
+    'DBIx::Class::Schema::SanityChecker' => {
+        ignore => [ map {
+          qr/^ (?: check_${_} | format_${_}_errors ) $/x
+        } @{ DBIx::Class::Schema::SanityChecker->available_checks } ]
+    },
 
     'DBIx::Class::Admin'        => {
         ignore => [ qw/
@@ -113,6 +121,8 @@ my $exceptions = {
             disconnect_call_do_sql
         /]
     },
+
+    'DBIx::Class::_TempExtlib*'                     => { skip => 1 },
 
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
@@ -165,7 +175,7 @@ foreach my $module (@modules) {
   SKIP: {
 
     my ($match) =
-      first { $module =~ $_ }
+      grep { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 
@@ -177,9 +187,10 @@ foreach my $module (@modules) {
 
     # build parms up from ignore list
     my $parms = {};
-    $parms->{trustme} =
-      [ map { qr/^$_$/ } @{ $ex->{ignore} } ]
-        if exists($ex->{ignore});
+    $parms->{trustme} = [ map
+      { ref $_ eq 'Regexp' ? $_ : qr/^\Q$_\E$/ }
+      @{ $ex->{ignore} }
+    ] if exists($ex->{ignore});
 
     # run the test with the potentially modified parm set
     Test::Pod::Coverage::pod_coverage_ok($module, $parms, "$module POD coverage");

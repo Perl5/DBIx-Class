@@ -3,10 +3,7 @@ package DBIx::Class::ResultSource::Table;
 use strict;
 use warnings;
 
-use DBIx::Class::ResultSet;
-
-use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/ResultSource/);
+use base 'DBIx::Class::ResultSource';
 
 =head1 NAME
 
@@ -26,7 +23,10 @@ Returns the FROM entry for the table (i.e. the table name)
 
 =cut
 
-sub from { shift->name; }
+sub from {
+  $_[0]->throw_exception('from() is not a setter method') if @_ > 1;
+  $_[0]->name;
+}
 
 =head1 FURTHER QUESTIONS?
 

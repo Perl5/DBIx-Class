@@ -1,8 +1,10 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More;
-use lib 't/lib';
+
 use DBICTest;
 
 # Once upon a time there was a problem with a leaking $sth

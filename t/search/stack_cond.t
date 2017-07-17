@@ -1,14 +1,14 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
+
+use DBIx::Class::_Util 'dump_value';
 use DBICTest ':DiffSQL';
 use SQL::Abstract qw(is_plain_value is_literal_value);
 use List::Util 'shuffle';
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Useqq = 1;
 $Data::Dumper::Indent = 0;
 
 my $schema = DBICTest->init_schema();
@@ -72,9 +72,7 @@ for my $c (
       SELECT me.title
         FROM cd me
       WHERE
-        ( genreid != 42 OR genreid IS NULL )
-          AND
-        ( genreid != 42 OR genreid IS NULL )
+        ( genreid IS NULL OR genreid != 42 )
           AND
         title != bar
           AND
@@ -85,7 +83,7 @@ for my $c (
         year $c->{sql}
     )",
     \@bind,
-    'Double condition correctly collapsed for steps' . Dumper \@query_steps,
+    'Double condition correctly collapsed for steps:' . join( '', map { "\n\t" . dump_value($_) } @query_steps ),
   );
 }
 

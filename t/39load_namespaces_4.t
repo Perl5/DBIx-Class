@@ -1,8 +1,10 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest; # do not remove even though it is not used
 
 plan tests => 6;
@@ -11,7 +13,7 @@ my $warnings;
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICNSTest;
-    use base qw/DBIx::Class::Schema/;
+    use base qw/DBICTest::BaseSchema/;
     __PACKAGE__->load_namespaces( default_resultset_class => 'RSBase' );
 };
 ok(!$@) or diag $@;

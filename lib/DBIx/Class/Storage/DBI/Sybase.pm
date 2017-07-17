@@ -2,8 +2,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use namespace::clean;
 
 use base qw/DBIx::Class::Storage::DBI/;
@@ -38,7 +37,8 @@ sub _get_rdbms_name {
     }
 
     $name;  # RV
-  } catch {
+  }
+  dbic_internal_catch {
     $self->throw_exception("Unable to establish connection to determine database type: $_")
   };
 }
@@ -76,27 +76,10 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-# FIXME if the main connection goes stale, does opening another for this statement
-# really determine anything?
-# FIXME (2) THIS MAKES 0 SENSE!!! Need to test later
-  if ($dbh->{syb_no_child_con}) {
-    return dbic_internal_try {
-      $self->_connect->do('select 1');
-      1;
-    }
-    catch {
-      0;
-    };
-  }
-
-  return (
-    (dbic_internal_try {
-      $dbh->do('select 1');
-      1;
-    })
-      ? 1
-      : 0
-  );
+  ( dbic_internal_try { $dbh->do('select 1'); 1 } )
+    ? 1
+    : 0
+  ;
 }
 
 sub _set_max_connect {

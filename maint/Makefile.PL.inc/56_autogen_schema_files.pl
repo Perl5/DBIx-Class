@@ -1,9 +1,8 @@
-require File::Spec;
-my $test_ddl_fn     = File::Spec->catfile(qw( t lib sqlite.sql ));
-my @test_ddl_cmd    = qw( -I lib -I t/lib -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
+my $test_ddl_fn     = 't/lib/sqlite.sql';
+my @test_ddl_cmd    = qw( -I lib -I t/lib -MANFANG -- maint/gen_sqlite_schema_files --schema-class DBICTest::Schema );
 
-my $example_ddl_fn  = File::Spec->catfile(qw( examples Schema db example.sql ));
-my $example_db_fn   = File::Spec->catfile(qw( examples Schema db example.db ));
+my $example_ddl_fn  = 'examples/Schema/db/example.sql';
+my $example_db_fn   = 'examples/Schema/db/example.db';
 my @example_ddl_cmd = qw( -I lib -I examples/Schema -- maint/gen_sqlite_schema_files --schema-class MyApp::Schema );
 my @example_pop_cmd = qw( -I lib -I examples/Schema -- examples/Schema/insertdb.pl );
 
@@ -23,6 +22,7 @@ if ( DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
 
   # if we don't do it some git tools (e.g. gitk) get confused that the
   # ddl file is modified, when it clearly isn't
+  require File::Spec;
   system('git status --porcelain >' . File::Spec->devnull);
 }
 

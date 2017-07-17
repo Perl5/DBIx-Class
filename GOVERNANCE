@@ -1,0 +1,125 @@
+DBIx::Class Core Team and Voting System
+
+Non normative section:
+
+DBIx::Class originally operated under a BDFL system, but one where it was
+expected that an informal core team would be maintained, and that where
+consensus could not be pre-assumed, the core team and/or the user base
+would be consulted publically such that measured decisions could be made.
+
+This document is intended to formalise a form of this system, while still
+providing room for the system to adapt later as required.
+
+It is intended that this system provides confidence to the user base that
+decisions will be made in the open and that their wishes will be taken into
+account.
+
+It is also intended that this system allows business as usual to happen
+without unnecessary red tape.
+
+It is not intended that this system becomes the primary decision making
+process in and of itself; instead, it is intended that this system is used
+to ratify consensus as formed by discussion, and only sparingly as a tie
+breaking system when consensus cannot be reached.
+
+Normative section:
+
+Terms: VM - Voting Member - part of the benevolent dictatorship
+       LS - List Subscriber - a subscriber to the mailing list
+       LAV - List Aggregate Vote - the aggregate vote of the non-VM LSes
+
+Voting Members are:
+
+  Matt S Trout (mst) cpan:MSTROUT
+  Dagfinn Ilmari Mansaker (ilmari) cpan:ILMARI
+  Frew Schmidt (frew) cpan:FREW
+  Jess Robinson (castaway) cpan:JROBINSON
+
+PAUSE release perms are to be held by:
+
+  Matt S Trout (mst) cpan:MSTROUT
+  Dagfinn Ilmari Mansaker (ilmari) cpan:ILMARI
+  Frew Schmidt (frew) cpan:FREW
+  Jess Robinson (castaway) cpan:JROBINSON
+
+First come permissions are to be held by FREW.
+
+(the above two lists may or may not be identical at any given time)
+
+A resolution must be proposed and then successfully voted upon to:
+
+  - Make a PAUSE-indexed (i.e. non-dev) release of DBIx::Class
+  - Make changes to the master and blead branches of the repository
+  - Amend this document
+
+This document is currently in bootstrap phase, and as such no merges will be
+made to master or blead until this sentence is removed.
+
+A resolution that amends the 'PAUSE release perms' list is to be assumed to
+also intend the permission within PAUSE itself to be updated accordingly.
+
+Adding or removing entries from the list of situations requiring resolutions
+is absolutely a valid topic for resolutions.
+
+A resolution may be proposed for reasons including, but not limited to:
+
+  - Force/revert/block a branch merge
+  - Add/remove a commit bit
+  - Resolve a design discussion
+  - Anything you like, under the assumption frivolous proposals will be
+    voted down naturally anyway
+
+Merges to topic branches and similar actions that do not have a resolution
+attached may be made at the discretion of those with ability to do so, but
+a developer unsure if the merge will be uncontroversial is expected to ping
+the list first so a vote can be called if people believe it to be required.
+
+Rules that restrict this "ask unless you're sure" trust-by-default position
+are also absolutely a valid topic for resolutions.
+
+Resolution proposal:
+
+A resolution is proposed by starting a new thread entitled 'PROPOSAL: ...'
+
+A resolution must be seconded before it is voted upon.
+
+If a VM makes or seconds a proposal, they are required to abstain from
+voting upon it.
+
+If a non-VM LS makes or seconds a proposal, no such restriction applies.
+
+Resolution voting:
+
+Once a proposal is seconded, the initial proposer may start a new thread
+entitled 'VOTE: ...' (voting does not automatically begin after seconding
+in case other feedback leads the proposer to wish to alter and re-present
+their proposal).
+
+Each VM may cast one vote, either +1, -1 or abstain.
+
+Each non-VM LS may post +1 or -1, and the aggregate of those form the LAV.
+
+Voting closes after 72h from when the proposal was first posted.
+
+A resolution passes if the VM total is at least +1 and the LAV is
+non-negative, to avoid requiring the list members to expend time to vote on
+business as usual while still providing them a veto.
+
+Resolution forcing:
+
+If a resolution gains a positive LAV, but is voted down by the VMs, a force
+vote may be proposed. This requires two list members who did not propose or
+second the initial resolution to propose and second the force vote.
+
+A force vote also lasts 72h, and is LAV-only. If it receives at least 25%
+more +1s than -1s, the resolution passes no matter the VM vote.
+
+This mechanism is not intended to be needed on a regular basis, but exists
+to permit the list to forcibly recall a VM if they believe it to be necessary.
+
+Once a resolution has passed, the resolution will be carried out by those with
+the power to do so.  It will not be reverted without a new resolution
+amending or reversing the decision of the previous once.
+
+Passed resolutions will be recorded in a RESOLUTIONS file maintained next
+to this document.

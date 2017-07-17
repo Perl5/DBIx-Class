@@ -1,22 +1,21 @@
+BEGIN {
+  delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY};
+  do "./t/lib/ANFANG.pm" or die ( $@ || $! )
+}
+
 use warnings;
 use strict;
-
-BEGIN { delete $ENV{DBICTEST_VERSION_WARNS_INDISCRIMINATELY} }
 
 use DBIx::Class::_Util 'sigwarn_silencer';
 use if DBIx::Class::_ENV_::BROKEN_FORK, 'threads';
 
 use Test::More;
 use File::Find;
-use Time::HiRes 'sleep';
-
-
-use lib 't/lib';
 
 my $worker = sub {
   my $fn = shift;
 
-  if (my @offenders = grep { $_ !~ m{DBIx/Class/(?:_Util|Carp)\.pm} } grep { $_ =~ /(^|\/)DBI/ } keys %INC) {
+  if (my @offenders = grep { $_ !~ m{DBIx/Class/(?:_Util|Carp|Exception|StartupCheck)\.pm} } grep { $_ =~ /(^|\/)DBI/ } keys %INC) {
     die "Wtf - DBI* modules present in %INC: @offenders";
   }
 
@@ -35,7 +34,7 @@ find({
     if (DBIx::Class::_ENV_::BROKEN_FORK) {
       # older perls crash if threads are spawned way too quickly, sleep for 100 msecs
       my $t = threads->create(sub { $worker->($_) });
-      sleep 0.1;
+      select( undef, undef, undef, 0.1);
       is ($t->join, 42, "Thread loading $_ did not finish successfully")
         || diag ($t->can('error') ? $t->error : 'threads.pm too old to retrieve the error :(' );
     }

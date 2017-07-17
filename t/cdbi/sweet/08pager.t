@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
 
 use strict;
@@ -5,7 +6,7 @@ use warnings;
 
 use Test::More;
 
-use lib 't/lib';
+
 use DBICTest;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat CDBICompat::Pager/);

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_oracle';
 
 use strict;
@@ -5,10 +6,8 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use Sub::Name;
-use Try::Tiny;
+use DBIx::Class::_Util 'set_subname';
 
-use lib qw(t/lib);
 use DBICTest;
 
 $ENV{NLS_SORT} = "BINARY";
@@ -109,9 +108,14 @@ my $schema;
 for my $use_insert_returning ($test_server_supports_insert_returning ? (1,0) : (0) ) {
   for my $force_ora_joins ($test_server_supports_only_orajoins ? (0) : (0,1) ) {
 
-    no warnings qw/once redefine/;
+    # doing it here instead of the actual class to keep the main thing under dfs
+    # and thus keep catching false positives (so far none, but one never knows)
+    mro::set_mro("DBICTest::Schema", "c3");
+
     my $old_connection = DBICTest::Schema->can('connection');
-    local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+
+    no warnings qw/once redefine/;
+    local *DBICTest::Schema::connection = set_subname 'DBICTest::Schema::connection' => sub {
       my $s = shift->$old_connection (@_);
       $s->storage->_use_insert_returning ($use_insert_returning);
       $s->storage->sql_maker_class('DBIx::Class::SQLMaker::OracleJoins') if $force_ora_joins;
@@ -473,7 +477,7 @@ sub _run_tests {
     #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
     # Oracle Database Reference 10g Release 2 (10.2)
     #   http://download.oracle.com/docs/cd/B19306_01/server.102/b14237/statviews_2107.htm#sthref1297
-    todo_skip "On Oracle8i all_triggers view is empty, i don't yet know why...", 1
+    todo_skip "FIXME: On Oracle8i all_triggers view is empty, i don't yet know why...", 1
       if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
     my $schema2 = $schema->connect($dsn2, $user2, $pass2, $opt);

@@ -6,7 +6,6 @@ use warnings;
 use base 'DBIx::Class::Cursor';
 
 use Scalar::Util qw(refaddr weaken);
-use List::Util 'shuffle';
 use DBIx::Class::_Util qw( detected_reinvoked_destructor dbic_internal_try );
 use namespace::clean;
 
@@ -73,7 +72,7 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
     return $self;
   }
 
-  sub CLONE {
+  sub DBIx::Class::__DBI_Cursor_iThreads_handler__::CLONE {
     for (keys %cursor_registry) {
       # once marked we no longer care about them, hence no
       # need to keep in the registry, left alone renumber the
@@ -183,12 +182,14 @@ sub all {
 
   (undef, $sth) = $self->storage->_select( @{$self->{args}} );
 
-  return (
+  (
     DBIx::Class::_ENV_::SHUFFLE_UNORDERED_RESULTSETS
       and
     ! $self->{attrs}{order_by}
+      and
+    require List::Util
   )
-    ? shuffle @{$sth->fetchall_arrayref}
+    ? List::Util::shuffle( @{$sth->fetchall_arrayref} )
     : @{$sth->fetchall_arrayref}
   ;
 }

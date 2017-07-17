@@ -4,6 +4,8 @@ package # hide form PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 =head1 NAME
 
 DBIx::Class::CDBICompat::AbstractSearch - Emulates Class::DBI::AbstractSearch

@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 =head1 NAME
 
 DBIx::Class::CDBICompat::NoObjectIndex - Defines empty methods for object indexing. They do nothing

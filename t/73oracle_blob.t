@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_oracle';
 
 use strict;
@@ -5,10 +6,6 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use Sub::Name;
-use Try::Tiny;
-
-use lib qw(t/lib);
 
 use DBICTest::Schema::BindType;
 BEGIN {
@@ -107,10 +104,14 @@ SKIP: {
       'multi-part LOB equality query was not cached',
     ) if $size eq 'large';
     is @objs, 1, 'One row found matching on both LOBs';
-    ok (try { $objs[0]->blob }||'' eq "blob:$str", 'blob inserted/retrieved correctly');
-    ok (try { $objs[0]->clob }||'' eq "clob:$str", 'clob inserted/retrieved correctly');
-    ok (try { $objs[0]->clb2 }||'' eq "clb2:$str", "clb2 inserted correctly");
-    ok (try { $objs[0]->blb2 }||'' eq "blb2:$str", "blb2 inserted correctly");
+
+    for my $type (qw( blob clob clb2 blb2 )) {
+      is (
+        eval { $objs[0]->$type },
+        "$type:$str",
+        "$type inserted/retrieved correctly"
+      );
+    }
 
     {
       local $TODO = '-like comparison on blobs not tested before ora 10 (fails on 8i)'
@@ -140,10 +141,14 @@ SKIP: {
 
     @objs = $rs->search({ blob => "updated blob", clob => 'updated clob' })->all;
     is @objs, 1, 'found updated row';
-    ok (try { $objs[0]->blob }||'' eq "updated blob", 'blob updated/retrieved correctly');
-    ok (try { $objs[0]->clob }||'' eq "updated clob", 'clob updated/retrieved correctly');
-    ok (try { $objs[0]->clb2 }||'' eq "updated clb2", "clb2 updated correctly");
-    ok (try { $objs[0]->blb2 }||'' eq "updated blb2", "blb2 updated correctly");
+
+    for my $type (qw( blob clob clb2 blb2 )) {
+      is (
+        eval { $objs[0]->$type },
+        "updated $type",
+        "$type updated/retrieved correctly"
+      );
+    }
 
     lives_ok {
       $rs->search({ id => $id  })
@@ -152,8 +157,14 @@ SKIP: {
 
     @objs = $rs->search({ blob => 're-updated blob', clob => 're-updated clob' })->all;
     is @objs, 1, 'found updated row';
-    ok (try { $objs[0]->blob }||'' eq 're-updated blob', 'blob updated/retrieved correctly');
-    ok (try { $objs[0]->clob }||'' eq 're-updated clob', 'clob updated/retrieved correctly');
+
+    for my $type (qw( blob clob )) {
+      is (
+        eval { $objs[0]->$type },
+        "re-updated $type",
+        "$type updated/retrieved correctly"
+      );
+    }
 
     lives_ok {
       $rs->search({ blob => "re-updated blob", clob => "re-updated clob" })

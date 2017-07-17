@@ -61,7 +61,7 @@ it. See resolve_class below.
 
 =cut
 
-__PACKAGE__->mk_classdata('class_resolver' =>
+__PACKAGE__->mk_classaccessor('class_resolver' =>
                           'DBIx::Class::ClassResolver::PassThrough');
 
 =begin hidden
@@ -101,7 +101,7 @@ sub setup_schema_instance {
   my $class = shift;
   my $schema = {};
   bless $schema, 'DBIx::Class::Schema';
-  $class->mk_classdata('schema_instance' => $schema);
+  $class->mk_classaccessor('schema_instance' => $schema);
 }
 
 =begin hidden
@@ -176,7 +176,7 @@ native L<DBIx::Class::ResultSet> system.
 =cut
 
 sub resultset_instance {
-  $_[0]->result_source_instance->resultset
+  $_[0]->result_source->resultset
 }
 
 =begin hidden
@@ -189,12 +189,12 @@ Returns an instance of the result source for this class
 
 =cut
 
-__PACKAGE__->mk_classdata('_result_source_instance' => []);
+__PACKAGE__->mk_classaccessor('_result_source_instance' => []);
 
 # Yep. this is horrific. Basically what's happening here is that
 # (with good reason) DBIx::Class::Schema copies the result source for
 # registration. Because we have a retarded setup order forced on us we need
-# to actually make our ->result_source_instance -be- the source used, and we
+# to actually make our ->result_source -be- the source used, and we
 # need to get the source name and schema into ourselves. So this makes it
 # happen.
 
@@ -222,15 +222,14 @@ sub result_source_instance {
   }
 
   my($source, $result_class) = @{$class->_result_source_instance};
-  return unless blessed $source;
+  return undef unless blessed $source;
 
   if ($result_class ne $class) {  # new class
     # Give this new class its own source and register it.
-    $source = $source->new({
-        %$source,
+    $source = $source->clone(
         source_name  => $class,
         result_class => $class
-    } );
+    );
     $class->_result_source_instance([$source, $class]);
     $class->_maybe_attach_source_to_schema($source);
   }

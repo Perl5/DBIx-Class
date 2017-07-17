@@ -3,14 +3,20 @@ package DBICTest::Util::LeakTracer;
 use warnings;
 use strict;
 
+use ANFANG;
 use Carp;
 use Scalar::Util qw(isweak weaken blessed reftype);
-use DBIx::Class::_Util qw(refcount hrefaddr refdesc);
-use DBIx::Class::Optional::Dependencies;
-use Data::Dumper::Concise;
-use DBICTest::Util qw( stacktrace visit_namespaces );
+use DBIx::Class::_Util qw(refcount hrefaddr refdesc dump_value visit_namespaces);
+use DBICTest::RunMode;
+use DBICTest::Util 'stacktrace';
 use constant {
-  CV_TRACING => !DBICTest::RunMode->is_plain && DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
+  CV_TRACING => !!(
+    !DBICTest::RunMode->is_plain
+      &&
+    require DBIx::Class::Optional::Dependencies
+      &&
+    DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy')
+  ),
 };
 
 use base 'Exporter';
@@ -42,17 +48,23 @@ sub populate_weakregistry {
       for keys %$reg;
   }
 
+  return $target if (
+    DBIx::Class::_ENV_::BROKEN_WEAK_SCALARREF_VALUES
+      and
+    ref $target eq 'SCALAR'
+  );
+
   if (! defined $weak_registry->{$refaddr}{weakref}) {
+
+    # replace slot entirely
     $weak_registry->{$refaddr} = {
       stacktrace => stacktrace(1),
       weakref => $target,
     };
 
-    # on perl < 5.8.3 sometimes a weaken can throw (can't find RT)
-    # so guard against that unlikely event
-    local $@;
-    eval { weaken( $weak_registry->{$refaddr}{weakref} ); $refs_traced++ }
-      or delete $weak_registry->{$refaddr};
+    weaken( $weak_registry->{$refaddr}{weakref} );
+
+    $refs_traced++;
   }
 
   my $desc = refdesc $target;
@@ -66,7 +78,7 @@ sub populate_weakregistry {
 }
 
 # Regenerate the slots names on a thread spawn
-sub CLONE {
+sub DBICTest::__LeakTracer_iThreads_handler__::CLONE {
   my @individual_regs = grep { scalar keys %{$_||{}} } values %reg_of_regs;
   %reg_of_regs = ();
 
@@ -127,6 +139,7 @@ sub visit_refs {
 
     my $type = reftype $r;
 
+    local $SIG{__DIE__} if $SIG{__DIE__};
     local $@;
     eval {
       if ($type eq 'HASH') {
@@ -148,7 +161,16 @@ sub visit_refs {
         } values %{ scalar PadWalker::closed_over($r) } ] }); # scalar due to RT#92269
       }
       1;
-    } or warn "Could not descend into @{[ refdesc $r ]}: $@\n";
+    } or (
+      # this is some bizarre old DBI autosplit thing, no point mentioning it
+      $@ !~ m{ ^Can't \s locate \s (?:
+        auto/DBI/FIRSTKEY.al
+          |
+        \Qobject method "FIRSTKEY" via package "DBI"\E
+      )}x
+        and
+      warn "Could not descend into @{[ refdesc $r ]}: $@\n"
+    );
   }
   $visited_cnt;
 }
@@ -237,13 +259,13 @@ sub assert_empty_weakregistry {
 
   # the symtable walk is very expensive
   # if we are $quiet (running in an END block) we do not really need to be
-  # that thorough - can get by with only %Sub::Quote::QUOTED
+  # that thorough - can get by with our own registry
   delete $weak_registry->{$_} for $quiet
     ? do {
       my $refs = {};
       visit_refs (
         # only look at the closed over stuffs
-        refs => [ grep { length ref $_ } map { values %{$_->[2]} } grep { ref $_ eq 'ARRAY' } values %Sub::Quote::QUOTED ],
+        refs => [ values %DBIx::Class::_Util::refs_closed_over_by_quote_sub_installed_crefs ],
         seen_refs => $refs,
         action => sub { 1 },
       );
@@ -271,7 +293,7 @@ sub assert_empty_weakregistry {
           ref($weak_registry->{$addr}{weakref}) eq 'CODE'
             and
           B::svref_2object($weak_registry->{$addr}{weakref})->XSUB
-        ) ? '__XSUB__' : Dumper( $weak_registry->{$addr}{weakref} )
+        ) ? '__XSUB__' : dump_value $weak_registry->{$addr}{weakref}
       ;
     };
 

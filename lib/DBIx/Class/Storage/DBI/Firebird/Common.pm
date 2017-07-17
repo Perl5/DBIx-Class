@@ -4,8 +4,6 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
-use List::Util 'first';
-use namespace::clean;
 
 =head1 NAME
 
@@ -56,6 +54,8 @@ sub _dbh_get_autoinc_seq {
   $table_name    = $self->sql_maker->quote_char ? $table_name : uc($table_name);
 
   local $dbh->{LongReadLen} = 100000;
+
+  # FIXME - this is likely *WRONG*
   local $dbh->{LongTruncOk} = 1;
 
   my $sth = $dbh->prepare(<<'EOF');
@@ -80,7 +80,7 @@ EOF
       $generator = uc $generator unless $quoted;
 
       return $generator
-        if first {
+        if grep {
           $self->sql_maker->quote_char ? ($_ eq $col) : (uc($_) eq uc($col))
         } @trig_cols;
     }

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw(deploy test_rdbms_mysql);
 
 use strict;
@@ -7,13 +8,11 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use Path::Class;
-use File::Copy;
 use Time::HiRes qw/time sleep/;
 
-use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::_Util 'sigwarn_silencer';
+use DBIx::Class::_Util qw( sigwarn_silencer mkdir_p );
+use DBICTest::Util 'rm_rf';
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -25,20 +24,25 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 # in case it came from the env
 $ENV{DBIC_NO_VERSION_CHECK} = 0;
 
+# FIXME - work around RT#113965 in combination with -T on older perls:
+# the non-deparsing XS portion of D::D gets confused by some of the IO
+# handles trapped in the debug object of DBIC. What a mess.
+$Data::Dumper::Deparse = 1;
+
 use_ok('DBICVersion_v1');
 
 my $version_table_name = 'dbix_class_schema_versions';
 my $old_table_name = 'SchemaVersions';
 
-my $ddl_dir = dir(qw/t var/, "versioning_ddl-$$");
-$ddl_dir->mkpath unless -d $ddl_dir;
+my $ddl_dir = "t/var/versioning_ddl-$$";
+mkdir_p $ddl_dir unless -d $ddl_dir;
 
 my $fn = {
-    v1 => $ddl_dir->file ('DBICVersion-Schema-1.0-MySQL.sql'),
-    v2 => $ddl_dir->file ('DBICVersion-Schema-2.0-MySQL.sql'),
-    v3 => $ddl_dir->file ('DBICVersion-Schema-3.0-MySQL.sql'),
-    trans_v12 => $ddl_dir->file ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
-    trans_v23 => $ddl_dir->file ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
+    v1 => "$ddl_dir/DBICVersion-Schema-1.0-MySQL.sql",
+    v2 => "$ddl_dir/DBICVersion-Schema-2.0-MySQL.sql",
+    v3 => "$ddl_dir/DBICVersion-Schema-3.0-MySQL.sql",
+    trans_v12 => "$ddl_dir/DBICVersion-Schema-1.0-2.0-MySQL.sql",
+    trans_v23 => "$ddl_dir/DBICVersion-Schema-2.0-3.0-MySQL.sql",
 };
 
 my $schema_v1 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
@@ -282,10 +286,37 @@ is
   ), 3, "Expected number of connections at end of script"
 ;
 
-END {
-  unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
-    $ddl_dir->rmtree;
+# Test custom HandleError setting on an in-memory instance
+{
+  my $custom_handler = sub { die $_[0] };
+
+  # try to setup a custom error handle without unsafe set -- should
+  # fail, same behavior as regular Schema
+  throws_ok {
+    DBICVersion::Schema->connect( 'dbi:SQLite::memory:', undef, undef, {
+      HandleError => $custom_handler,
+      ignore_version => 1,
+    })->deploy;
   }
+    qr/Refusing clobbering of \{HandleError\} installed on externally supplied DBI handle/,
+    'HandleError with unsafe not set causes an exception'
+  ;
+
+  # now try it with unsafe set -- should work (see RT #113741)
+  my $s = DBICVersion::Schema->connect( 'dbi:SQLite::memory:', undef, undef, {
+    unsafe => 1,
+    HandleError => $custom_handler,
+    ignore_version => 1,
+  });
+
+  $s->deploy;
+
+  is $s->storage->dbh->{HandleError}, $custom_handler, 'Handler properly set on main schema';
+  is $s->{vschema}->storage->dbh->{HandleError}, $custom_handler, 'Handler properly set on version subschema';
+}
+
+END {
+  rm_rf $ddl_dir unless $ENV{DBICTEST_KEEP_VERSIONING_DDL};
 }
 
 done_testing;

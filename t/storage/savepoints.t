@@ -1,11 +1,14 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer scope_guard);
+use DBIx::Class::Optional::Dependencies;
+use DBIx::Class::_Util qw(sigwarn_silencer scope_guard);
+use Scalar::Util 'weaken';
 
-use lib qw(t/lib);
 use DBICTest;
 
 {
@@ -35,13 +38,10 @@ for ('', keys %$env2optdep) { SKIP: {
   my $prefix;
 
   if ($prefix = $_) {
+
+    DBIx::Class::Optional::Dependencies->skip_without($env2optdep->{$prefix});
+
     my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
-    skip ("Skipping tests with $prefix: set \$ENV{${prefix}_DSN} _USER and _PASS", 1)
-      unless $dsn;
-
-    skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
-      unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 
     $schema = DBICTest::Schema->connect ($dsn,$user,$pass,{ auto_savepoint => 1 });
 
@@ -228,15 +228,6 @@ for ('', keys %$env2optdep) { SKIP: {
 
   is_deeply( $schema->storage->savepoints, [], 'All savepoints forgotten' );
 
-SKIP: {
-  skip "Reading inexplicably fails on very old replicated DBD::SQLite<1.33", 1 if (
-    $ENV{DBICTEST_VIA_REPLICATED}
-      and
-    $prefix eq 'SQLite Internal DB'
-      and
-    ! modver_gt_or_eq('DBD::SQLite', '1.33')
-  );
-
   ok($ars->search({ name => 'in_outer_transaction' })->first,
     'commit from outer transaction');
   ok($ars->search({ name => 'in_outer_transaction2' })->first,
@@ -246,7 +237,20 @@ SKIP: {
   is $ars->search({ name => 'in_inner_transaction_rolling_back' })->first,
     undef,
     'rollback from inner transaction';
-}
+
+  # make sure a fresh txn will work after above
+  $schema->storage->txn_do(sub { ok "noop" } );
+
+### Make sure non-existend savepoint release doesn't infloop itself
+  {
+    weaken( my $s = $schema );
+
+    throws_ok {
+      $s->storage->txn_do(sub { $s->svp_release('wibble') })
+    } qr/Savepoint 'wibble' does not exist/,
+      "Calling svp_release on a non-existant savepoint throws expected error"
+    ;
+  }
 
 ### cleanupz
   $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") });
@@ -255,8 +259,6 @@ SKIP: {
 done_testing;
 
 END {
-  local $SIG{__WARN__} = sigwarn_silencer( qr/Internal transaction state of handle/ )
-    unless modver_gt_or_eq('DBD::SQLite', '1.33');
   eval { $schema->storage->dbh_do(sub { $_[1]->do("DROP TABLE artist") }) } if defined $schema;
   undef $schema;
 }

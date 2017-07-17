@@ -9,43 +9,46 @@ use DBIx::Class::ResultSource::Table;
 use Scalar::Util 'blessed';
 use namespace::clean;
 
-__PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
-
-__PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do
-                                          # anything yet!
+__PACKAGE__->mk_classaccessor(table_class => 'DBIx::Class::ResultSource::Table');
+# FIXME: Doesn't actually do anything yet!
+__PACKAGE__->mk_group_accessors( inherited => 'table_alias' );
 
 sub _init_result_source_instance {
     my $class = shift;
 
-    $class->mk_classdata('result_source_instance')
-        unless $class->can('result_source_instance');
+    $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] )
+      unless $class->can('result_source_instance');
 
-    my $table = $class->result_source_instance;
-    my $class_has_table_instance = ($table and $table->result_class eq $class);
-    return $table if $class_has_table_instance;
+    # might be pre-made for us courtesy of DBIC::DB::result_source_instance()
+    my $rsrc = $class->result_source_instance;
+
+    return $rsrc
+      if $rsrc and $rsrc->result_class eq $class;
 
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 
-    if( $table ) {
-        $table = $table_class->new({
-            %$table,
+    if( $rsrc ) {
+        #
+        # NOTE! - not using clone() here and *NOT* marking source as derived
+        # from the one already existing on the class (if any)
+        #
+        $rsrc = $table_class->new({
+            %$rsrc,
             result_class => $class,
             source_name => undef,
             schema => undef
         });
     }
     else {
-        $table = $table_class->new({
+        $rsrc = $table_class->new({
             name            => undef,
             result_class    => $class,
             source_name     => undef,
         });
     }
 
-    $class->result_source_instance($table);
-
-    return $table;
+    $class->result_source_instance($rsrc);
 }
 
 =head1 NAME
@@ -78,30 +81,60 @@ Gets or sets the table name.
 =cut
 
 sub table {
+  return $_[0]->result_source->name unless @_ > 1;
+
   my ($class, $table) = @_;
-  return $class->result_source_instance->name unless $table;
 
   unless (blessed $table && $table->isa($class->table_class)) {
+
+    my $ancestor = $class->can('result_source_instance')
+      ? $class->result_source_instance
+      : undef
+    ;
+
+    # Folks calling ->table on a class *might* expect the name
+    # to shift everywhere, but that can't happen
+    # So what we do is mark the ancestor as "dirty"
+    # even though it will have no "derived" link to the one we
+    # will use afterwards
+    if(
+      defined $ancestor
+        and
+      $ancestor->name ne $table
+        and
+      scalar $ancestor->__derived_instances
+    ) {
+      # Trigger the "descendants are dirty" logic, without giving
+      # it an explicit externally-callable interface
+      # This is ugly as sin, but likely saner in the long run
+      local $ancestor->{__in_rsrc_setter_callstack} = 1
+        unless $ancestor->{__in_rsrc_setter_callstack};
+      my $old_name = $ancestor->name;
+      $ancestor->set_rsrc_instance_specific_attribute( name => "\0" );
+      $ancestor->set_rsrc_instance_specific_attribute( name => $old_name );
+    }
+
 
     my $table_class = $class->table_class;
     $class->ensure_class_loaded($table_class);
 
+
+    # NOTE! - not using clone() here and *NOT* marking source as derived
+    # from the one already existing on the class (if any)
+    # This is logically sound as we are operating at class-level, and is
+    # in fact necessary, as otherwise any base-class with a "dummy" table
+    # will be marked as an ancestor of everything
     $table = $table_class->new({
-        $class->can('result_source_instance')
-          ? %{$class->result_source_instance||{}}
-          : ()
-        ,
+        %{ $ancestor || {} },
         name => $table,
         result_class => $class,
     });
   }
 
-  $class->mk_classdata('result_source_instance')
+  $class->mk_group_accessors( inherited => [ result_source_instance => '_result_source' ] )
     unless $class->can('result_source_instance');
 
-  $class->result_source_instance($table);
-
-  return $class->result_source_instance->name;
+  $class->result_source_instance($table)->name;
 }
 
 =head2 table_class

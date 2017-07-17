@@ -1,10 +1,13 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use lib qw(t/lib);
+use Scalar::Util 'weaken';
+
 use DBICTest;
 
 # Set up the "usual" sqlite for DBICTest
@@ -100,20 +103,35 @@ for my $ap (qw(
 
   # make sure an exception_action can replace $@ with an antipattern
   $schema->exception_action(sub { die $ap->new });
-  warnings_like {
+  warnings_exist {
     eval { $throw->() };
     isa_ok $@, $ap;
   } $exp_warn, 'proper warning on antipattern encountered within exception_action';
 
   # and make sure that the rethrow works
   $schema->exception_action(sub { die @_ });
-  warnings_like {
+  warnings_exist {
     eval {
       $schema->txn_do (sub { die $ap->new });
     };
 
     isa_ok $@, $ap;
   } $exp_warn, 'Proper warning on encountered antipattern';
+}
+
+# ensure we do not get into an infloop
+{
+  weaken( my $s = $schema );
+
+  $schema->exception_action(sub{
+    $s->throw_exception(@_)
+  });
+
+  throws_ok {
+    $schema->storage->dbh_do(sub {
+      $_[1]->do('wgwfwfwghawhjsejsethjwetjesjesjsejsetjes')
+    } )
+  } qr/syntax error/i;
 }
 
 done_testing;

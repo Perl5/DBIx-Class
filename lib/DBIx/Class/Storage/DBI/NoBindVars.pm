@@ -7,9 +7,6 @@ use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
 use DBIx::Class::SQLMaker::LimitDialects;
-use List::Util qw/first/;
-
-use namespace::clean;
 
 =head1 NAME
 

@@ -87,15 +87,14 @@ L<DBIx::Class::DateTime::Epoch>
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
 
-  my $colinfo = $self->column_info($col);
+  my $colinfo = $self->result_source->columns_info([$col])->{$col};
 
   $self->throw_exception("InflateColumn can not be used on a column with a declared FilterColumn filter")
     if defined $colinfo->{_filter_info} and $self->isa('DBIx::Class::FilterColumn');
 
-  $self->throw_exception("No such column $col to inflate")
-    unless $self->has_column($col);
   $self->throw_exception("inflate_column needs attr hashref")
     unless ref $attrs eq 'HASH';
+
   $colinfo->{_inflate_info} = $attrs;
   my $acc = $colinfo->{accessor};
   $self->mk_group_accessors('inflated_column' => [ (defined $acc ? $acc : $col), $col]);
@@ -111,8 +110,7 @@ sub _inflated_column {
     is_literal_value($value) #that would be a not-yet-reloaded literal update
   );
 
-  my $info = $self->result_source->column_info($col)
-    or $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_inflate_info};
 
@@ -133,8 +131,7 @@ sub _deflated_column {
     is_literal_value($value)
   );
 
-  my $info = $self->result_source->column_info($col) or
-    $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_inflate_info};
 
@@ -160,7 +157,7 @@ sub get_inflated_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not an inflated column")
-    unless exists $self->result_source->column_info($col)->{_inflate_info};
+    unless exists $self->result_source->columns_info->{$col}{_inflate_info};
 
   # we take care of keeping things in sync
   return $self->{_inflated_column}{$col}

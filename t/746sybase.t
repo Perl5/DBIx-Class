@@ -1,14 +1,15 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_ase';
 
 use strict;
 use warnings;
 no warnings 'uninitialized';
 
+use Config;
 use Test::More;
 use Test::Exception;
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-use lib qw(t/lib);
 use DBICTest;
 
 my @storage_types = (
@@ -627,6 +628,7 @@ if (Test::Builder->new->is_passing and $ENV{LC_ALL} and $ENV{LC_ALL} ne 'C') {
   local $ENV{DBICTEST_SYBASE_SUBTEST_RERUN} = 1;
 
   local $ENV{PATH};
+  local $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
   my @cmd = map { $_ =~ /(.+)/ } ($^X, __FILE__);
 
   # this is cheating, and may even hang here and there (testing on windows passed fine)

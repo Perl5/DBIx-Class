@@ -9,14 +9,14 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
-use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
-use Try::Tiny;
 use SQL::Abstract qw(is_plain_value is_literal_value);
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use DBIx::Class::_Util qw(
-  quote_sub perlstring serialize
-  dbic_internal_try
+  quote_sub perlstring serialize dump_value
+  dbic_internal_try dbic_internal_catch
   detected_reinvoked_destructor scope_guard
+  mkdir_p UNRESOLVABLE_CONDITION
 );
 use namespace::clean;
 
@@ -251,7 +251,7 @@ sub new {
     undef;
   }
 
-  sub CLONE {
+  sub DBIx::Class::__DBI_Storage_iThreads_handler__::CLONE {
     # As per DBI's recommendation, DBIC disconnects all handles as
     # soon as possible (DBIC will reconnect only on demand from within
     # the thread)
@@ -903,10 +903,8 @@ sub disconnect {
 
   my $g = scope_guard {
 
-    {
-      local $@ if DBIx::Class::_ENV_::UNSTABLE_DOLLARAT;
-      eval { $self->_dbh->disconnect };
-    }
+    defined( $self->_dbh )
+      and dbic_internal_try { $self->_dbh->disconnect };
 
     $self->_dbh(undef);
     $self->_dbh_details({});
@@ -1176,7 +1174,7 @@ sub _server_info {
 
     my $server_version = dbic_internal_try {
       $self->_get_server_version
-    } catch {
+    } dbic_internal_catch {
       # driver determination *may* use this codepath
       # in which case we must rethrow
       $self->throw_exception($_) if $self->{_in_determine_driver};
@@ -1306,7 +1304,9 @@ sub _determine_driver {
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
     my $started_connected = 0;
-    local $self->{_in_determine_driver} = 1;
+
+    local $self->{_in_determine_driver} = 1
+      unless $self->{_in_determine_driver};
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;
@@ -1321,7 +1321,17 @@ sub _determine_driver {
       if ($driver) {
         my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
         if ($self->load_optional_class($storage_class)) {
-          mro::set_mro($storage_class, 'c3');
+
+          no strict 'refs';
+          mro::set_mro($storage_class, 'c3') if
+            (
+              ${"${storage_class}::__INITIAL_MRO_UPON_DBIC_LOAD__"}
+                ||= mro::get_mro($storage_class)
+            )
+              ne
+            'c3'
+          ;
+
           bless $self, $storage_class;
           $self->_rebless();
         }
@@ -1378,7 +1388,16 @@ sub _extract_driver_from_connect_info {
     # try to use dsn to not require being connected, the driver may still
     # force a connection later in _rebless to determine version
     # (dsn may not be supplied at all if all we do is make a mock-schema)
-    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:([^:]+):/i;
+    #
+    # Use the same regex as the one used by DBI itself (even if the use of
+    # \w is odd given unicode):
+    # https://metacpan.org/source/TIMB/DBI-1.634/DBI.pm#L621
+    #
+    # DO NOT use https://metacpan.org/source/TIMB/DBI-1.634/DBI.pm#L559-566
+    # as there is a long-standing precedent of not loading DBI.pm until the
+    # very moment we are actually connecting
+    #
+    ($drv) = ($self->_dbi_connect_info->[0] || '') =~ /^dbi:(\w*)/i;
     $drv ||= $ENV{DBI_DRIVER};
   }
 
@@ -1420,12 +1439,10 @@ sub _get_rdbms_name { shift->_dbh_get_info('SQL_DBMS_NAME') }
 sub _warn_undetermined_driver {
   my ($self, $msg) = @_;
 
-  require Data::Dumper::Concise;
-
   carp_once ($msg . ' While we will attempt to continue anyway, the results '
   . 'are likely to be underwhelming. Please upgrade DBIC, and if this message '
   . "does not go away, file a bugreport including the following info:\n"
-  . Data::Dumper::Concise::Dumper($self->_describe_connection)
+  . dump_value $self->_describe_connection
   );
 }
 
@@ -1452,7 +1469,7 @@ sub _do_connection_actions {
       $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
     }
   }
-  catch {
+  dbic_internal_catch {
     if ( $method_prefix =~ /^connect/ ) {
       # this is an on_connect cycle - we can't just throw while leaving
       # a handle in an undefined state in our storage object
@@ -1602,7 +1619,7 @@ sub _connect {
       $dbh_error_handler_installer->($self, $dbh);
     }
   }
-  catch {
+  dbic_internal_catch {
     $self->throw_exception("DBI Connection failed: $_")
   };
 
@@ -1737,10 +1754,8 @@ sub _gen_sql_bind {
       and
     $op eq 'select'
       and
-    first {
-      length ref $_->[1]
-        and
-      blessed($_->[1])
+    grep {
+      defined blessed($_->[1])
         and
       $_->[1]->isa('DateTime')
     } @$bind
@@ -1761,7 +1776,8 @@ sub _resolve_bindattrs {
   my $resolve_bindinfo = sub {
     #my $infohash = shift;
 
-    $colinfos ||= { %{ $self->_resolve_column_info($ident) } };
+    # shallow copy to preempt autoviv
+    $colinfos ||= { %{ fromspec_columns_info($ident) } };
 
     my $ret;
     if (my $col = $_[0]->{dbic_colname}) {
@@ -1807,7 +1823,7 @@ sub _format_for_trace {
 
   map {
     defined( $_ && $_->[1] )
-      ? qq{'$_->[1]'}
+      ? sprintf( "'%s'", "$_->[1]" )  # because overload
       : q{NULL}
   } @{$_[1] || []};
 }
@@ -1984,19 +2000,43 @@ sub insert {
   # they can be fused once again with the final return
   $to_insert = { %$to_insert, %$prefetched_values };
 
-  # FIXME - we seem to assume undef values as non-supplied. This is wrong.
-  # Investigate what does it take to s/defined/exists/
   my %pcols = map { $_ => 1 } $source->primary_columns;
+
   my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
+
   for my $col ($source->columns) {
+
+    # first autoinc wins - this is why ->columns() in-order iteration is important
+    #
+    # FIXME - there ought to be a sanity-check for multiple is_auto_increment settings
+    # or something...
+    #
     if ($col_infos->{$col}{is_auto_increment}) {
+
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
       $autoinc_supplied ||= 1 if defined $to_insert->{$col};
+
       $retrieve_autoinc_col ||= $col unless $autoinc_supplied;
     }
 
     # nothing to retrieve when explicit values are supplied
     next if (
-      defined $to_insert->{$col} and ! is_literal_value($to_insert->{$col})
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
+      defined $to_insert->{$col}
+        and
+      (
+        # not a ref - cheaper to check before a call to is_literal_value()
+        ! length ref $to_insert->{$col}
+          or
+        # not a literal we *MAY* need to pull out ( see check below )
+        ! is_literal_value( $to_insert->{$col} )
+      )
     );
 
     # the 'scalar keys' is a trick to preserve the ->columns declaration order
@@ -2006,6 +2046,35 @@ sub insert {
       $col_infos->{$col}{retrieve_on_insert}
     );
   };
+
+  # corner case of a non-supplied PK which is *not* declared as autoinc
+  if (
+    ! $autoinc_supplied
+      and
+    ! defined $retrieve_autoinc_col
+      and
+    # FIXME - first come-first serve, suboptimal...
+    ($retrieve_autoinc_col) = ( grep
+      {
+        $pcols{$_}
+          and
+        ! $col_infos->{$_}{retrieve_on_insert}
+          and
+        ! defined $col_infos->{$_}{is_auto_increment}
+      }
+      sort
+        { $retrieve_cols{$a} <=> $retrieve_cols{$b} }
+        keys %retrieve_cols
+    )
+  ) {
+    carp_unique(
+      "Missing value for primary key column '$retrieve_autoinc_col' on "
+    . "@{[ $source->source_name ]} - perhaps you forgot to set its "
+    . "'is_auto_increment' attribute during add_columns()? Treating "
+    . "'$retrieve_autoinc_col' implicitly as an autoinc, and attempting "
+    . 'value retrieval'
+    );
+  }
 
   local $self->{_autoinc_supplied_for_op} = $autoinc_supplied;
   local $self->{_perform_autoinc_retrieval} = $retrieve_autoinc_col;
@@ -2034,7 +2103,7 @@ sub insert {
         @ir_container = $sth->fetchrow_array;
         $sth->finish;
 
-      } catch {
+      } dbic_internal_catch {
         # Evict the $sth from the cache in case we got here, since the finish()
         # is crucial, at least on older Firebirds, possibly on other engines too
         #
@@ -2201,13 +2270,12 @@ sub _insert_bulk {
       $msg,
       $cols->[$c_idx],
       do {
-        require Data::Dumper::Concise;
         local $Data::Dumper::Maxdepth = 5;
-        Data::Dumper::Concise::Dumper ({
+        dump_value {
           map { $cols->[$_] =>
             $data->[$r_idx][$_]
           } 0..$#$cols
-        }),
+        };
       }
     );
   };
@@ -2377,7 +2445,7 @@ sub _dbh_execute_for_fetch {
       $tuple_status,
     );
   }
-  catch {
+  dbic_internal_catch {
     $err = shift;
   };
 
@@ -2393,7 +2461,7 @@ sub _dbh_execute_for_fetch {
   dbic_internal_try {
     $sth->finish
   }
-  catch {
+  dbic_internal_catch {
     $err = shift unless defined $err
   };
 
@@ -2404,10 +2472,9 @@ sub _dbh_execute_for_fetch {
     $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper::Concise;
     $self->throw_exception(sprintf "execute_for_fetch() aborted with '%s' at populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      Data::Dumper::Concise::Dumper( { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) } ),
+      dump_value { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) },
     );
   }
 
@@ -2425,7 +2492,7 @@ sub _dbh_execute_inserts_with_no_binds {
 
     $sth->execute foreach 1..$count;
   }
-  catch {
+  dbic_internal_catch {
     $err = shift;
   };
 
@@ -2433,7 +2500,7 @@ sub _dbh_execute_inserts_with_no_binds {
   dbic_internal_try {
     $sth->finish
   }
-  catch {
+  dbic_internal_catch {
     $err = shift unless defined $err;
   };
 
@@ -2577,8 +2644,6 @@ sub _select_args {
   $orig_attrs->{_last_sqlmaker_alias_map} = $attrs->{_aliastypes};
 
 ###
-  #   my $alias2source = $self->_resolve_ident_sources ($ident);
-  #
   # This would be the point to deflate anything found in $attrs->{where}
   # (and leave $attrs->{bind} intact). Problem is - inflators historically
   # expect a result object. And all we have is a resultsource (it is trivial
@@ -2661,14 +2726,16 @@ sub _dbh_columns_info_for {
 
         $result{$col_name} = \%column_info;
       }
-    } catch {
+    } dbic_internal_catch {
       %result = ();
     };
 
     return \%result if keys %result;
   }
 
-  my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
+  my $sth = $dbh->prepare(
+    $self->sql_maker->select( $table, \'*', UNRESOLVABLE_CONDITION )
+  );
   $sth->execute;
 
 ### The acrobatics with lc names is necessary to support both the legacy
@@ -2937,20 +3004,18 @@ them.
 sub create_ddl_dir {
   my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
-  unless ($dir) {
-    carp "No directory given, using ./\n";
-    $dir = './';
-  } else {
-      -d $dir
-        or
-      (require File::Path and File::Path::mkpath (["$dir"]))  # mkpath does not like objects (i.e. Path::Class::Dir)
-        or
-      $self->throw_exception(
-        "Failed to create '$dir': " . ($! || $@ || 'error unknown')
-      );
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')) {
+    $self->throw_exception("Can't create a ddl file without $missing");
   }
 
-  $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
+  if (!$dir) {
+    carp "No directory given, using ./\n";
+    $dir = './';
+  }
+  else {
+    mkdir_p( $dir ) unless -d $dir;
+  }
 
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
   $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
@@ -2965,10 +3030,6 @@ sub create_ddl_dir {
     quote_identifiers => $self->sql_maker->_quoting_enabled,
     %{$sqltargs || {}}
   };
-
-  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')) {
-    $self->throw_exception("Can't create a ddl file without $missing");
-  }
 
   my $sqlt = SQL::Translator->new( $sqltargs );
 
@@ -3108,6 +3169,11 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
+
+  $self->throw_exception(
+    'Calling deployment_statements() in void context makes no sense'
+  ) unless defined wantarray;
+
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
@@ -3123,6 +3189,7 @@ sub deployment_statements {
       return join('', @rows);
   }
 
+  require DBIx::Class::Optional::Dependencies;
   if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') ) {
     $self->throw_exception("Can't deploy without a pregenerated 'ddl_dir' directory or $missing");
   }
@@ -3167,7 +3234,7 @@ sub deploy {
       # do a dbh_do cycle here, as we need some error checking in
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });
-    } catch {
+    } dbic_internal_catch {
       carp qq{$_ (running "${line}")};
     };
     $self->_query_end($line);

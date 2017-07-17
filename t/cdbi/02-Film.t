@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
 
 use strict;
@@ -32,7 +33,7 @@ is(Film->__driver, "SQLite", "Driver set correctly");
 }
 
 eval { my $duh = Film->insert; };
-like $@, qr/Result object instantiation requires a hashref as argument/, "needs a hashref";
+like $@, qr/Result object instantiation requires a single hashref argument/, "needs a hashref";
 
 ok +Film->create_test_film;
 

@@ -9,13 +9,10 @@ use namespace::clean;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
-  my $colinfo = $self->column_info($col);
+  my $colinfo = $self->result_source->columns_info([$col])->{$col};
 
   $self->throw_exception("FilterColumn can not be used on a column with a declared InflateColumn inflator")
     if defined $colinfo->{_inflate_info} and $self->isa('DBIx::Class::InflateColumn');
-
-  $self->throw_exception("No such column $col to filter")
-    unless $self->has_column($col);
 
   $self->throw_exception('filter_column expects a hashref of filter specifications')
     unless ref $attrs eq 'HASH';
@@ -34,8 +31,7 @@ sub _column_from_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->result_source->column_info($col)
-    or $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_filter_info};
 
@@ -49,8 +45,7 @@ sub _column_to_storage {
 
   return $value if is_literal_value($value);
 
-  my $info = $self->result_source->column_info($col) or
-    $self->throw_exception("No column info for $col");
+  my $info = $self->result_source->columns_info([$col])->{$col};
 
   return $value unless exists $info->{_filter_info};
 
@@ -63,7 +58,7 @@ sub get_filtered_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not a filtered column")
-    unless exists $self->result_source->column_info($col)->{_filter_info};
+    unless exists $self->result_source->columns_info->{$col}{_filter_info};
 
   return $self->{_filtered_column}{$col}
     if exists $self->{_filtered_column}{$col};
@@ -78,11 +73,13 @@ sub get_filtered_column {
 sub get_column {
   my ($self, $col) = @_;
 
-  if (exists $self->{_filtered_column}{$col}) {
-    return $self->{_column_data}{$col} ||= $self->_column_to_storage (
-      $col, $self->{_filtered_column}{$col}
-    );
-  }
+  ! exists $self->{_column_data}{$col}
+    and
+  exists $self->{_filtered_column}{$col}
+    and
+  $self->{_column_data}{$col} = $self->_column_to_storage (
+    $col, $self->{_filtered_column}{$col}
+  );
 
   return $self->next::method ($col);
 }
@@ -99,6 +96,22 @@ sub get_columns {
   ;
 
   $self->next::method (@_);
+}
+
+# and *another* separate codepath, argh!
+sub get_dirty_columns {
+  my $self = shift;
+
+  $self->{_dirty_columns}{$_}
+    and
+  ! exists $self->{_column_data}{$_}
+    and
+  $self->{_column_data}{$_} = $self->_column_to_storage (
+    $_, $self->{_filtered_column}{$_}
+  )
+    for keys %{$self->{_filtered_column}||{}};
+
+  $self->next::method(@_);
 }
 
 sub store_column {

@@ -18,10 +18,8 @@ use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSc
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
-use List::Util qw/min max reduce/;
+use List::Util qw( min max );
 use Context::Preserve 'preserve_context';
-use Try::Tiny;
-use DBIx::Class::_Util 'dbic_internal_try';
 
 use namespace::clean -except => 'meta';
 
@@ -343,6 +341,8 @@ my $method_dispatch = {
     _dbh_details
     _dbh_get_info
     _get_rdbms_name
+    _get_server_version
+    _server_info
 
     _determine_connector_driver
     _extract_driver_from_connect_info
@@ -376,7 +376,8 @@ my $method_dispatch = {
   )],
 };
 
-if (DBIx::Class::_ENV_::DBICTEST) {
+# this only happens during DBIC-internal testing
+if ( $INC{"t/lib/ANFANG.pm"} ) {
 
   my $seen;
   for my $type (keys %$method_dispatch) {
@@ -405,7 +406,10 @@ if (DBIx::Class::_ENV_::DBICTEST) {
 for my $method (@{$method_dispatch->{unimplemented}}) {
   __PACKAGE__->meta->add_method($method, sub {
     my $self = shift;
-    $self->throw_exception("$method() must not be called on ".(blessed $self).' objects');
+    $self->throw_exception(
+      "$method() may not be called on '@{[ blessed $self ]}' objects, "
+    . 'call it on a specific pool instance instead'
+    );
   });
 }
 
@@ -692,19 +696,13 @@ sub execute_reliably {
   my $self = shift;
   my $coderef = shift;
 
-  unless( ref $coderef eq 'CODE') {
-    $self->throw_exception('Second argument must be a coderef');
-  }
+  $self->throw_exception('Second argument must be a coderef')
+    unless( ref $coderef eq 'CODE');
 
   ## replace the current read handler for the remainder of the scope
   local $self->{read_handler} = $self->master;
 
-  my $args = \@_;
-  return dbic_internal_try {
-    $coderef->(@$args);
-  } catch {
-    $self->throw_exception("coderef returned an error: $_");
-  };
+  &$coderef;
 }
 
 =head2 set_reliable_storage
@@ -1052,35 +1050,6 @@ sub _ping {
   my $self = shift;
 
   return min map $_->_ping, $self->all_storages;
-}
-
-# not using the normalized_version, because we want to preserve
-# version numbers much longer than the conventional xxx.yyyzzz
-my $numify_ver = sub {
-  my $ver = shift;
-  my @numparts = split /\D+/, $ver;
-  my $format = '%d.' . (join '', ('%06d') x (@numparts - 1));
-
-  return sprintf $format, @numparts;
-};
-sub _server_info {
-  my $self = shift;
-
-  if (not $self->_dbh_details->{info}) {
-    $self->_dbh_details->{info} = (
-      reduce { $a->[0] < $b->[0] ? $a : $b }
-      map [ $numify_ver->($_->{dbms_version}), $_ ],
-      map $_->_server_info, $self->all_storages
-    )->[1];
-  }
-
-  return $self->next::method;
-}
-
-sub _get_server_version {
-  my $self = shift;
-
-  return $self->_server_info->{dbms_version};
 }
 
 =head1 GOTCHAS

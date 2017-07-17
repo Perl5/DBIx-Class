@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt test_rdbms_ase );
 
 use strict;
@@ -5,8 +6,8 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use DBIx::Class::_Util 'scope_guard';
-use lib qw(t/lib);
+use DBIx::Class::_Util qw( scope_guard set_subname );
+
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
@@ -93,7 +94,7 @@ SQL
           %$create_extra,
         }));
     ok( $row = $schema->resultset($source)
-      ->search({ $pk => $row->$pk }, { select => [$col] })
+      ->search({ $pk => $row->$pk }, { select => [$pk, $col] })
       ->first
     );
     is( $row->$col, $dt, "$type roundtrip" );
@@ -101,6 +102,46 @@ SQL
     cmp_ok( $row->$col->nanosecond, '==', $sample_dt->{nanosecond},
       'DateTime fractional portion roundtrip' )
       if exists $sample_dt->{nanosecond};
+
+    # Testing an ugly half-solution
+    #
+    # copy() uses get_columns()
+    #
+    # The values should survive a roundtrip also, but they don't
+    # because the Sybase ICDT setup is asymmetric
+    # One *has* to force an inflation/deflation cycle to make the
+    # values usable to the database
+    #
+    # This can be done by marking the columns as dirty, and there
+    # are tests for this already in t/inflate/serialize.t
+    #
+    # But even this isn't enough - one has to reload the RDBMS-formatted
+    # values once done, otherwise the copy is just as useless... sigh
+    #
+    # Adding the test here to validate the technique works
+    # UGH!
+    {
+      no warnings 'once';
+      local *DBICTest::BaseResult::copy = set_subname 'DBICTest::BaseResult::copy' => sub {
+        my $self = shift;
+
+        $self->make_column_dirty($_) for keys %{{ $self->get_inflated_columns }};
+
+        my $cp = $self->next::method(@_);
+
+        $cp->discard_changes({ columns => [ keys %{{ $cp->get_columns }} ] });
+      };
+      Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
+
+      my $cp = $row->copy;
+      ok( $cp->in_storage );
+      is( $cp->$col, $dt, "$type copy logical roundtrip" );
+
+      $cp->discard_changes({ select => [ $pk, $col ] });
+      is( $cp->$col, $dt, "$type copy server roundtrip" );
+    }
+
+    Class::C3->reinitialize if DBIx::Class::_ENV_::OLD_MRO;
   }
 
   # test a computed datetime column

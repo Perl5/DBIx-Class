@@ -7,9 +7,11 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use SQL::Abstract 'is_plain_value';
-use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer dbic_internal_try);
+use DBIx::Class::_Util qw(
+  modver_gt_or_eq sigwarn_silencer
+  dbic_internal_try dbic_internal_catch
+);
 use DBIx::Class::Carp;
-use Try::Tiny;
 use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
@@ -63,7 +65,7 @@ Even if you upgrade DBIx::Class (which works around the bug starting from
 version 0.08210) you may still have corrupted/incorrect data in your database.
 DBIx::Class warned about this condition for several years, hoping to give
 anyone affected sufficient notice of the potential issues. The warning was
-removed in version 0.082900.
+removed in 2015/v0.082820.
 
 =back
 
@@ -123,22 +125,17 @@ sub _exec_svp_rollback {
   my ($self, $name) = @_;
 
   $self->_dbh->do("ROLLBACK TO SAVEPOINT $name");
-}
 
-# older SQLite has issues here too - both of these are in fact
-# completely benign warnings (or at least so say the tests)
-sub _exec_txn_rollback {
-  local $SIG{__WARN__} = sigwarn_silencer( qr/rollback ineffective/ )
-    unless $DBD::SQLite::__DBIC_TXN_SYNC_SANE__;
-
-  shift->next::method(@_);
-}
-
-sub _exec_txn_commit {
-  local $SIG{__WARN__} = sigwarn_silencer( qr/commit ineffective/ )
-    unless $DBD::SQLite::__DBIC_TXN_SYNC_SANE__;
-
-  shift->next::method(@_);
+  # resync state for older DBD::SQLite (RT#67843)
+  # https://github.com/DBD-SQLite/DBD-SQLite/commit/9b3cdbf
+  if (
+    ! modver_gt_or_eq('DBD::SQLite', '1.33')
+      and
+    $self->_dbh->FETCH('AutoCommit')
+  ) {
+    $self->_dbh->STORE('AutoCommit', 0);
+    $self->_dbh->STORE('BegunWork', 1);
+  }
 }
 
 sub _ping {
@@ -186,7 +183,7 @@ sub _ping {
 
       $really_not_in_txn = 1;
     }
-    catch {
+    dbic_internal_catch {
       $really_not_in_txn = ( $_[0] =~ qr/transaction within a transaction/
         ? 0
         : undef

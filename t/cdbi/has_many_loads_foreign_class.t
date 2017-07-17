@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
 
 use strict;
@@ -6,11 +7,11 @@ use warnings;
 use Test::More;
 
 use lib 't/cdbi/testlib';
+use DBICTest::Util 'class_seems_loaded';
 use Director;
 
 # Test that has_many() will load the foreign class
-require Class::Inspector;
-ok !Class::Inspector->loaded( 'Film' );
+ok ! class_seems_loaded('Film'), 'Start non-loaded';
 ok eval { Director->has_many( films => 'Film' ); 1; } or diag $@;
 
 my $shan_hua = Director->create({

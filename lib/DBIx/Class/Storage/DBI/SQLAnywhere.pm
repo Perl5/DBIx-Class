@@ -4,9 +4,8 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
-use List::Util 'first';
 use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::ResultSource::FromSpec::Util 'fromspec_columns_info';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/_identity/);
@@ -50,8 +49,8 @@ sub _prefetch_autovalues {
 
   my $values = $self->next::method(@_);
 
-  my $identity_col =
-    first { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
+  my ($identity_col) =
+    grep { $colinfo->{$_}{is_auto_increment} } keys %$colinfo;
 
 # user might have an identity PK without is_auto_increment
 #
@@ -114,7 +113,7 @@ sub select_single {
 
   my ($ident, $select) = @_;
 
-  my $col_info = $self->_resolve_column_info($ident);
+  my $col_info = fromspec_columns_info($ident);
 
   for my $select_idx (0..$#$select) {
     my $selected = $select->[$select_idx];
@@ -136,18 +135,11 @@ sub select_single {
   return @row;
 }
 
-# this sub stolen from MSSQL
-
 sub build_datetime_parser {
-  my $self = shift;
-  dbic_internal_try {
-    require DateTime::Format::Strptime;
-  }
-  catch {
-    $self->throw_exception("Couldn't load DateTime::Format::Strptime: $_");
-  };
 
-  return DateTime::Format::Strptime->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
+  require DateTime::Format::Strptime;
+
+  DateTime::Format::Strptime->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
 }
 
 =head2 connect_call_datetime_setup

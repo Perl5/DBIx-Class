@@ -3,12 +3,13 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use base 'Class::Data::Inheritable';
+use base 'DBIx::Class';
 
 use Clone;
 use DBIx::Class::CDBICompat::Relationship;
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(quote_sub perlstring);
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('__meta_info' => {});
 
@@ -65,7 +66,7 @@ sub _declare_has_a {
   }
   else {
     $self->belongs_to($col, $f_class);
-    $rel_info = $self->result_source_instance->relationship_info($col);
+    $rel_info = $self->result_source->relationship_info($col);
   }
 
   $rel_info->{args} = \%args;
@@ -109,14 +110,14 @@ sub has_many {
 
   if( !$f_key and !@f_method ) {
       $class->ensure_class_loaded($f_class);
-      my $f_source = $f_class->result_source_instance;
+      my $f_source = $f_class->result_source;
       ($f_key) = grep { $f_source->relationship_info($_)->{class} eq $class }
                       $f_source->relationships;
   }
 
   $class->next::method($rel, $f_class, $f_key, $args);
 
-  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  my $rel_info = $class->result_source->relationship_info($rel);
   $args->{mapping}      = \@f_method;
   $args->{foreign_key}  = $f_key;
   $rel_info->{args} = $args;
@@ -127,8 +128,13 @@ sub has_many {
   );
 
   if (@f_method) {
-    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel), { '$rf' => \sub { my $o = shift; $o = $o->$_ for @f_method; $o } };
-      my $rs = shift->search_related( %s => @_);
+    my @qsub_args = (
+      { '$rf' => \sub { my $o = shift; $o = $o->$_ for @f_method; $o } },
+      { attributes => [ 'DBIC_method_is_generated_from_resultsource_metadata' ] },
+    );
+
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel), @qsub_args;
+      my $rs = shift->related_resultset(%s)->search_rs( @_);
       $rs->{attrs}{record_filter} = $rf;
       return (wantarray ? $rs->all : $rs);
 EOC
@@ -149,7 +155,7 @@ sub might_have {
                                 { proxy => \@columns });
   }
 
-  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  my $rel_info = $class->result_source->relationship_info($rel);
   $rel_info->{args}{import} = \@columns;
 
   $class->_extend_meta(
@@ -193,7 +199,7 @@ sub meta_info {
 sub search {
   my $self = shift;
   my $attrs = {};
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+  if (@_ > 1 && ref $_[-1] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
   my $where = (@_ ? ((@_ == 1) ? ((ref $_[0] eq "HASH") ? { %{+shift} } : shift)
@@ -212,7 +218,10 @@ sub search {
 }
 
 sub new_related {
-  return shift->search_related(shift)->new_result(shift);
+  $_[0]->throw_exception("Calling new_related() as a class method is not supported")
+    unless length ref $_[0];
+
+  shift->next::method(@_);
 }
 
 =head1 FURTHER QUESTIONS?

@@ -1,8 +1,14 @@
+BEGIN { $ENV{DBICTEST_ANFANG_DEFANG} = 1 }
+
 use warnings;
 use strict;
 
 use Test::More;
 use File::Find;
+
+use lib 't/lib';
+use DBICTest; # for the lock
+use DBICTest::Util 'slurp_bytes';
 
 my $boilerplate_headings = q{
 =head1 FURTHER QUESTIONS?
@@ -23,8 +29,9 @@ find({
 
     return unless -f $fn;
     return unless $fn =~ / \. (?: pm | pod ) $ /ix;
+    return if $fn =~ qr{\Qlib/DBIx/Class/_TempExtlib/};
 
-    my $data = do { local (@ARGV, $/) = $fn; <> };
+    my $data = slurp_bytes $fn;
 
     if ($data !~ /^=head1 NAME/m) {
 

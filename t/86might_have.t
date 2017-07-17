@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Warn;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
@@ -38,7 +40,7 @@ warning_like {
     { "foreign.id" => "self.link" },
   );
 }
-  qr{"might_have/has_one" must not be on columns with is_nullable set to true},
+  qr{'might_have'/'has_one' must not be used on columns with is_nullable set to true},
   'might_have should warn if the self.id column is nullable';
 
 {

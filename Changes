@@ -1,63 +1,143 @@
+Current Known Issues / Regressions
+  - Breaks DBIx::Class::ResultSet::WithMetaData (fix pending in RT#104602)
+  - Breaks DBIx::Class::Tree::NestedSet (fix pending in RT#114440)
+
 Revision history for DBIx::Class
 
     * Notable Changes and Deprecations
+        - The entire class hierarchy now explicitly sets the 'c3' mro, even
+          in cases where load_components was not used. Extensive testing led
+          the maintainer believe this is safe, but this is a very complex
+          area and reality may turn out to be different. If **ANYHTING** at
+          all seems out of place, please file a report at once
+        - The unique constraint info (including the primary key columns) is no
+          longer shared between related (class and schema-level) ResultSource
+          instances. If your app stops working with no obvious pointers, set
+          DBIC_ASSERT_NO_ERRONEOUS_METAINSTANCE_USE=1 to obtain extra info
         - Neither exception_action() nor $SIG{__DIE__} handlers are invoked
           on recoverable errors. This ensures that the retry logic is fully
           insulated from changes in control flow, as the handlers are only
           invoked when an error is leaving the DBIC internals to be handled by
           the caller (n.b. https://github.com/PerlDancer/Dancer2/issues/1125)
+          (also fixes the previously rejected RT#63874)
+        - Overrides of ResultSourceProxy-provided methods are no longer skipped
+          silently: a one-per-callsite warning is issued any time this tricky
+          situation is encoutered https://is.gd/dbic_rsrcproxy_methodattr
         - $result->related_resultset() no longer passes extra arguments to
           an underlying search_rs(), as by design these arguments would be
           used only on the first call to ->related_resultset(), and ignored
           afterwards. Instead an exception (detailing the fix) is thrown.
+        - Change func_rs() and as_subselect_rs() to properly ignore list
+          context (i.e. wantarray). Both were implemented broken from day 1 :/
+        - Increased checking for the correctness of the is_nullable attribute
+          within the prefetch result parser may highlight previously unknown
+          mismatches between your codebase and data source
         - Calling the set_* many-to-many helper with a list (instead of an
           arrayref) now emits a deprecation warning
+        - Calling the getter $rsrc->from("argument") now throws an exception
+          instead of silently discarding the argument
+        - search() calls with an empty select list are deprecated. While DBIC
+          will still issue a SELECT * ..., it now warns given there is nothing
+          higher up in the stack prepared to interpret the result
 
     * New Features
-        - When using non-scalars (e.g. arrays) as literal bind values it is no
-          longer necessary to explicitly specify a bindtype (this turned out
-          to be a mostly useless overprotection)
+        - DBIC now performs a range of sanity checks on the entire hierarchy
+          of Schema/Result/ResultSet classes loudly alerting the end user to
+          potential extremely hard-to-diagnose pitfalls ( RT#93976, also fully
+          addresses https://blog.afoolishmanifesto.com/posts/mros-and-you/ )
+        - A new low-level API for relationship resolution is available as an
+          official method ( $rsrc->resolve_relationship_condition ). This is
+          mainly of interest to builders of reflection tools
+        - InflateColumn::DateTime now accepts the ecosystem-standard option
+          'time_zone', in addition to the DBIC-only 'timezone' (GH#28)
+        - Massively optimised literal SQL snippet scanner - fixes all known
+          slowdowns ( in some cases 50x ) of very complex prefetch/selects
         - DBIx::Class::Optional::Dependencies now properly understands
           combinations of requirements and does the right thing with e.g.
           ->req_list_for([qw( rdbms_oracle ic_dt )]) bringing in the Oracle
           specific DateTime::Format dependencies
 
     * Fixes
-        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
-          notably on_connect* failures now properly abort the entire connect
+        - Fix regresion (0.082800) of certain calls being presented stale
+          result source metadata (RT#107462)
         - Fix incorrect SQL generated with invalid {rows} on complex resultset
           operations, generally more robust handling of rows/offset attrs
+        - Fix silent failure to retrieve a primary key (RT#80283) or worse:
+          returning an incorrect value (RT#115381) in case a rdbms-side autoinc
+          column is declared as PK with the is_auto_increment attribute unset
         - Fix incorrect $storage state on unexpected RDBMS disconnects and
           other failure events, preventing clean reconnection (RT#110429)
-        - Ensure leaving an exception stack via Return::MultiLevel or something
-          similar produces a large warning
         - Make sure exception objects stringifying to '' are properly handled
           and warned about (GH#15)
+        - Fix incorrect data returned in a corner case of partial-select HRI
+          invocation (no known manifestations of this bug in the field, see
+          commit message for description of exact failure scenario)
         - Fix corner case of stringify-only overloaded objects being used in
           create()/populate()
-        - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
-          of a transaction with deferred FK checks: a guard is now inactivated
-          immediately before the commit is attempted (RT#107159)
-        - Work around unreliable $sth->finish() on INSERT ... RETURNING within
-          DBD::Firebird on some compiler/driver combinations (RT#110979)
+        - Fix spurious warning on MSSQL cursor invalidation retries (RT#102166)
+        - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
+        - Fix some corner cases of non-fatal failures during relationship
+          resolution showing up as hard errors
         - Fix several corner cases with Many2Many over custom relationships
-        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
-          autoinc value when inserting rows containing blobs (GH#82)
+        - Fix intermittent failure to infer the CASCADE attributes of relations
+          during deployment_statements()/deploy()
+        - Fix corner cases of C3 composition being broken on OLD_MRO (5.8.x)
+          only: https://github.com/frioux/DBIx-Class-Helpers/issues/61
 
     * Misc
+        - Add explicit test for pathological example of asymmetric IC::DT setup
+          working with copy() in t/icdt/engine_specific/sybase.t (GH#84)
+        - Fix t/54taint.t failing on local::lib's with upgraded Carp on 5.8.*
         - Fix invalid variable names in ResultSource::View examples
-        - Typo fixes from downstream debian packagers (RT#112007)
+        - Fix missing ORDER BY leading to failures of t/prefetch/grouped.t
+          under upcoming libsqlite (RT#117271)
         - Skip tests in a way more intelligent and speedy manner when optional
           dependencies are missing
         - Make the Optional::Dependencies error messages cpanm-friendly
         - Incompatibly change values (not keys) of the hash returned by
           Optional::Dependencies::req_group_list (no known users in the wild)
-        - Protect tests and codebase from incomplete caller() overrides, like
-          e.g. RT#32640
         - Stop using bare $] throughout - protects the codebase from issues
           similar (but likely not limited to) P5#72210
         - Config::Any is no longer a core dep, but instead is migrated to a new
           optdep group 'config_file_reader'
+
+0.082840 2016-06-20 07:02 (UTC)
+    * New Features
+        - When using non-scalars (e.g. arrays) as literal bind values it is no
+          longer necessary to explicitly specify a bindtype (this turned out
+          to be a mostly useless overprotection)
+
+    * Fixes
+        - Ensure leaving an exception stack via Return::MultiLevel or something
+          similar produces a large warning
+        - Another relatively invasive set of ::FilterColumn changes, covering
+          potential data loss (RT#111567). Please run your regression tests!
+        - Ensure failing on_connect* / on_disconnect* are dealt with properly,
+          notably on_connect* failures now properly abort the entire connect
+        - Fix use of ::Schema::Versioned combined with a user-supplied
+          $dbh->{HandleError} (GH#101)
+        - Fix parsing of DSNs containing driver arguments (GH#99)
+        - Fix silencing of exceptions thrown by custom inflate_result() methods
+        - Fix complex prefetch when ordering over foreign boolean columns
+          ( Pg can't MAX(boolcol) despite being able to ORDER BY boolcol )
+        - Fix infinite loop on ->svp_release("nonexistent_savepoint") (GH#97)
+        - Fix spurious ROLLBACK statements when a TxnScopeGuard fails a commit
+          of a transaction with deferred FK checks: a guard is now inactivated
+          immediately before the commit is attempted (RT#107159)
+        - Fix the Sybase ASE storage incorrectly attempting to retrieve an
+          autoinc value when inserting rows containing blobs (GH#82)
+        - Remove spurious exception warping in ::Replicated::execute_reliably
+          (RT#113339)
+        - Work around unreliable $sth->finish() on INSERT ... RETURNING within
+          DBD::Firebird on some compiler/driver combinations (RT#110979)
+        - Fix leaktest failures with upcoming version of Sub::Quote
+        - Really fix savepoint rollbacks on older DBD::SQLite (fix in 0.082800
+          was not sufficient to cover up RT#67843)
+
+    * Misc
+        - Test suite is now officially certified to work under very high random
+          parallelism: META x_parallel_test_certified set to true accordingly
+        - Typo fixes from downstream debian packagers (RT#112007)
 
 0.082821 2016-02-11 17:58 (UTC)
     * Fixes

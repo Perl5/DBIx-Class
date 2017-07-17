@@ -1,16 +1,54 @@
 package # hide from PAUSE
     DBICTest;
 
+# load early so that `perl -It/lib -MDBICTest` keeps  working
+use ANFANG;
+
 use strict;
 use warnings;
 
-use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
-use DBICTest::Schema;
+
+# this noop trick initializes the STDOUT, so that the TAP::Harness
+# issued IO::Select->can_read calls (which are blocking wtf wtf wtf)
+# keep spinning and scheduling jobs
+# This results in an overall much smoother job-queue drainage, since
+# the Harness blocks less
+# (ideally this needs to be addressed in T::H, but a quick patchjob
+# broke everything so tabling it for now)
+BEGIN {
+  # FIXME - there probably is some way to determine a harness run (T::H or
+  # prove) but I do not know it offhand, especially on older environments
+  # Go with the safer option
+  if ($INC{'Test/Builder.pm'}) {
+    select( ( select(\*STDOUT), $|=1 )[0] );
+    print STDOUT "#\n";
+  }
+}
+
+
+use DBICTest::Util qw(
+  local_umask slurp_bytes tmpdir await_flock
+  dbg DEBUG_TEST_CONCURRENCY_LOCKS PEEPEENESS
+);
 use DBICTest::Util::LeakTracer qw/populate_weakregistry assert_empty_weakregistry/;
-use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard );
+
+# The actual ASSERT logic is in BaseSchema for pesky load-order reasons
+# Hence run this through once, *before* DBICTest::Schema and friends load
+BEGIN {
+  if (
+    DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE
+      or
+    DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+  ) {
+    require DBIx::Class::Row;
+    require DBICTest::BaseSchema;
+    DBICTest::BaseSchema->connect( sub {} );
+  }
+}
+
+use DBICTest::Schema;
+use DBIx::Class::_Util qw( detected_reinvoked_destructor scope_guard modver_gt_or_eq );
 use Carp;
-use Path::Class::File ();
-use File::Spec;
 use Fcntl qw/:DEFAULT :flock/;
 use Config;
 
@@ -20,9 +58,12 @@ DBICTest - Library to be used by DBIx::Class test scripts
 
 =head1 SYNOPSIS
 
-  use lib qw(t/lib);
-  use DBICTest;
+  BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
+  use warnings;
+  use strict;
   use Test::More;
+  use DBICTest;
 
   my $schema = DBICTest->init_schema();
 
@@ -80,7 +121,7 @@ our ($global_lock_fh, $global_exclusive_lock);
 sub import {
     my $self = shift;
 
-    my $lockpath = DBICTest::RunMode->tmpdir->file('_dbictest_global.lock');
+    my $lockpath = tmpdir . '_dbictest_global.lock';
 
     {
       my $u = local_umask(0); # so that the file opens as 666, and any user can lock
@@ -125,36 +166,21 @@ sub import {
 }
 
 END {
-    # referencing here delays destruction even more
-    if ($global_lock_fh) {
-      DEBUG_TEST_CONCURRENCY_LOCKS > 1
-        and dbg "Release @{[ $global_exclusive_lock ? 'EXCLUSIVE' : 'SHARED' ]} global lock (END)";
-      1;
-    }
+  # referencing here delays destruction even more
+  if ($global_lock_fh) {
+    DEBUG_TEST_CONCURRENCY_LOCKS > 1
+      and dbg "Release @{[ $global_exclusive_lock ? 'EXCLUSIVE' : 'SHARED' ]} global lock (END)";
+    1;
+  }
+
+  _cleanup_dbfile();
 }
 
-{
-    my $dir = Path::Class::File->new(__FILE__)->dir->parent->subdir('var');
-    $dir->mkpath unless -d "$dir";
-    $dir = "$dir";
+sub _sqlite_dbfilename {
+  my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
+  $holder = $$ if $holder == -1;
 
-    sub _sqlite_dbfilename {
-        my $holder = $ENV{DBICTEST_LOCK_HOLDER} || $$;
-        $holder = $$ if $holder == -1;
-
-        # useful for missing cleanup debugging
-        #if ( $holder == $$) {
-        #  my $x = $0;
-        #  $x =~ s/\//#/g;
-        #  $holder .= "-$x";
-        #}
-
-        return "$dir/DBIxClass-$holder.db";
-    }
-
-    END {
-        _cleanup_dbfile();
-    }
+  return "t/var/DBIxClass-$holder.db";
 }
 
 $SIG{INT} = sub { _cleanup_dbfile(); exit 1 };
@@ -253,7 +279,7 @@ sub __mk_disconnect_guard {
 
   return if (
     # this perl leaks handles, delaying DESTROY, can't work right
-    DBIx::Class::_ENV_::PEEPEENESS
+    PEEPEENESS
       or
     ! -f $db_file
   );
@@ -264,7 +290,7 @@ sub __mk_disconnect_guard {
 
   my $clan_connect_caller = '*UNKNOWN*';
   my $i;
-  while ( my ($pack, $file, $line) = caller(++$i) ) {
+  while ( my ($pack, $file, $line) = CORE::caller(++$i) ) {
     next if $file eq __FILE__;
     next if $pack =~ /^DBIx::Class|^Try::Tiny/;
     $clan_connect_caller = "$file line $line";
@@ -338,8 +364,11 @@ sub init_schema {
     my $schema;
 
     if (
-      $ENV{DBICTEST_VIA_REPLICATED} &&=
-        ( !$args{storage_type} && !defined $args{sqlite_use_file} )
+      $ENV{DBICTEST_VIA_REPLICATED} &&= (
+        !$args{storage_type}
+          &&
+        ( ! defined $args{sqlite_use_file} or $args{sqlite_use_file} )
+      )
     ) {
       $args{storage_type} = ['::DBI::Replicated', { balancer_type => '::Random' }];
       $args{sqlite_use_file} = 1;
@@ -363,8 +392,19 @@ sub init_schema {
     if ( !$args{no_connect} ) {
       $schema->connection(@dsn);
 
-      $schema->storage->connect_replicants(\@dsn)
-        if $ENV{DBICTEST_VIA_REPLICATED};
+      if( $ENV{DBICTEST_VIA_REPLICATED} ) {
+
+        # add explicit ReadOnly=1 if we can support it
+        $dsn[0] =~ /^dbi:SQLite:/i
+          and
+        require DBD::SQLite
+          and
+        modver_gt_or_eq('DBD::SQLite', '1.49_05')
+          and
+        $dsn[0] =~ s/^dbi:SQLite:/dbi:SQLite(ReadOnly=1):/i;
+
+        $schema->storage->connect_replicants(\@dsn);
+      }
     }
 
     if ( !$args{no_deploy} ) {
@@ -412,9 +452,7 @@ sub deploy_schema {
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
         $schema->deploy($args);
     } else {
-        my $filename = Path::Class::File->new(__FILE__)->dir
-          ->file('sqlite.sql')->stringify;
-        my $sql = do { local (@ARGV, $/) = $filename ; <> };
+        my $sql = slurp_bytes( 't/lib/sqlite.sql' );
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
             $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";

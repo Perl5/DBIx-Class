@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -5,7 +7,7 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use lib qw(t/lib);
+use DBICTest::Util 'PEEPEENESS';
 use DBICTest;
 
 for my $conn_args (
@@ -22,7 +24,8 @@ for my $conn_args (
     );
 
     my $storage = $s->storage;
-    $storage = $storage->master if $ENV{DBICTEST_VIA_REPLICATED};
+    $storage = $storage->master
+      if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
     ok( ! $storage->connected, 'Starting unconnected' );
 
@@ -47,7 +50,8 @@ for my $conn_args (
   my $s = DBICTest->init_schema( no_deploy => 1, @$conn_args );
 
   my $storage = $s->storage;
-  $storage = $storage->master if $ENV{DBICTEST_VIA_REPLICATED};
+  $storage = $storage->master
+    if $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
   my $desc = "broken on_disconnect action @{[ explain $conn_args ]}";
 
@@ -93,9 +97,8 @@ throws_ok (
 # exception fallback:
 
 SKIP: {
-  if ( !!DBIx::Class::_ENV_::PEEPEENESS ) {
-    skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1;
-  }
+  skip "Your perl version $] appears to leak like a sieve - skipping garbage collected \$schema test", 1
+    if PEEPEENESS;
 
   undef ($schema);
   throws_ok (

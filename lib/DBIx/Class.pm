@@ -1,5 +1,8 @@
 package DBIx::Class;
 
+# important to load early
+use DBIx::Class::_Util;
+
 use strict;
 use warnings;
 
@@ -11,63 +14,27 @@ our $VERSION;
 # $VERSION declaration must stay up here, ahead of any other package
 # declarations, as to not confuse various modules attempting to determine
 # this ones version, whether that be s.c.o. or Module::Metadata, etc
-$VERSION = '0.082899_15';
+$VERSION = '0.082899_25';
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
-use DBIx::Class::_Util;
 use mro 'c3';
 
-use DBIx::Class::Optional::Dependencies;
-
 use base qw/DBIx::Class::Componentised DBIx::Class::AccessorGroup/;
-use DBIx::Class::StartupCheck;
-use DBIx::Class::Exception;
 
-__PACKAGE__->mk_group_accessors(inherited => '_skip_namespace_frames');
-__PACKAGE__->_skip_namespace_frames('^DBIx::Class|^SQL::Abstract|^Try::Tiny|^Class::Accessor::Grouped|^Context::Preserve|^Moose::Meta::');
-
-# FIXME - this is not really necessary, and is in
-# fact going to slow things down a bit
-# However it is the right thing to do in order to get
-# various install bases to highlight their brokenness
-# Remove at some unknown point in the future
-#
-# The oddball BEGIN is there for... reason unknown
-# It does make non-segfaulty difference on pre-5.8.5 perls, so shrug
-BEGIN {
-  sub DESTROY { &DBIx::Class::_Util::detected_reinvoked_destructor };
-}
-
-sub mk_classdata {
-  shift->mk_classaccessor(@_);
-}
-
-sub mk_classaccessor {
-  my $self = shift;
-  $self->mk_group_accessors('inherited', $_[0]);
-  $self->set_inherited(@_) if @_ > 1;
-}
+__PACKAGE__->mk_classaccessor(
+  _skip_namespace_frames => join( '|', map { '^' . $_ } qw(
+    DBIx::Class
+    SQL::Abstract
+    SQL::Translator
+    Try::Tiny
+    Class::Accessor::Grouped
+    Context::Preserve
+    Moose::Meta::
+  )),
+);
 
 sub component_base_class { 'DBIx::Class' }
-
-sub MODIFY_CODE_ATTRIBUTES {
-  my ($class,$code,@attrs) = @_;
-  $class->mk_classdata('__attr_cache' => {})
-    unless $class->can('__attr_cache');
-  $class->__attr_cache->{$code} = [@attrs];
-  return ();
-}
-
-sub _attr_cache {
-  my $self = shift;
-  my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-
-  return {
-    %$cache,
-    %{ $self->maybe::next::method || {} },
-  };
-}
 
 # *DO NOT* change this URL nor the identically named =head1 below
 # it is linked throughout the ecosystem
@@ -291,7 +258,7 @@ accessible at the following locations:
 =item * Travis-CI log: L<https://travis-ci.org/dbsrgits/dbix-class/builds>
 
 =for html
-&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
+&#x21AA; Bleeding edge dev CI status: <img src="https://secure.travis-ci.org/dbsrgits/dbix-class.png?branch=master"></img>
 
 =back
 

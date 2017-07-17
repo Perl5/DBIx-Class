@@ -4,9 +4,9 @@ use warnings;
 use strict;
 
 use MyApp::Schema;
+use DBIx::Class::_Util 'parent_dir';
 
-use Path::Class 'file';
-my $db_fn = file($INC{'MyApp/Schema.pm'})->dir->parent->file('db/example.db');
+my $db_fn = parent_dir( $INC{'MyApp/Schema.pm'} ) . '../db/example.db';
 
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
 # driver, e.g perldoc L<DBD::mysql>.

@@ -47,6 +47,7 @@ Pod::Inherit->new({
       lib/DBIx/Class/DB.pm
       lib/DBIx/Class/CDBICompat/
       lib/DBIx/Class/CDBICompat.pm
+      lib/DBIx/Class/_TempExtlib/
    ),
    # skip the ::Storage:: family for now
    qw(

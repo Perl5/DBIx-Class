@@ -5,9 +5,8 @@ unlink 'README' if -f 'README';
 # and simply appends them on *LAST*-come *FIRST*-serve basis.
 # This allows us to inject extra depenencies for standard EUMM targets
 
-require File::Spec;
-my $dir = File::Spec->catdir(qw(maint .Generated_Pod));
-my $r_fn = File::Spec->catfile($dir, 'README');
+my $dir = 'maint/.Generated_Pod';
+my $r_fn = "$dir/README";
 
 my $start_file = sub {
   my $fn = $mm_proto->quote_literal(shift);
@@ -32,8 +31,9 @@ dbic_clonedir_gen_readme : dbic_distdir_gen_dbic_pod
 create_distdir : dbic_distdir_regen_license
 
 dbic_distdir_regen_license :
-@{[ $start_file->( File::Spec->catfile( Meta->name . '-' . Meta->version, 'LICENSE') ) ]}
+@{[ $start_file->( Meta->name . '-' . Meta->version . '/LICENSE' ) ]}
 \t@{[ $mm_proto->oneliner('cat', ['-MExtUtils::Command']) ]} LICENSE >> \$(DISTVNAME)/LICENSE
+@{[ $crlf_fixup->('$(DISTVNAME)/LICENSE') ]}
 
 EOP
 

@@ -1,6 +1,8 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
-use lib qw(t/lib);
+
 use DBICTest;
 use Test::More;
 use Test::Exception;
@@ -75,6 +77,10 @@ delete @ENV{qw(DBI_DSN DBI_DRIVER)};
 
 $schema = DBICTest::Schema->connect("dbi:SQLite:$dbname");
 lives_ok { count_sheep($schema) } 'SQLite passed to connect_info';
+isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
+
+$schema = DBICTest::Schema->connect("dbi:SQLite(ReadOnly=1):$dbname");
+lives_ok { count_sheep($schema) } 'SQLite passed to connect_info despite extra arguments present';
 isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
 
 $ENV{DBI_DRIVER} = 'SQLite';

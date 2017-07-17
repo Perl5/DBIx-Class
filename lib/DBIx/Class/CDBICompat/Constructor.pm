@@ -8,6 +8,7 @@ use base 'DBIx::Class::CDBICompat::ImaDBI';
 
 use Carp;
 use DBIx::Class::_Util qw(quote_sub perlstring);
+use namespace::clean;
 
 __PACKAGE__->set_sql(Retrieve => <<'');
 SELECT __ESSENTIAL__

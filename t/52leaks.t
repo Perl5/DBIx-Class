@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 # work around brain damage in PPerl (yes, it has to be a global)
 $SIG{__WARN__} = sub {
   warn @_ unless $_[0] =~ /\QUse of "goto" to jump into a construct is deprecated/
@@ -21,16 +23,17 @@ use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
+BEGIN {
+  require DBICTest::Util;
+  plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
+    if DBICTest::Util::PEEPEENESS();
+}
+
 use DBICTest::RunMode;
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry visit_refs);
 use Scalar::Util qw(weaken blessed reftype);
 use DBIx::Class::_Util qw(hrefaddr sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt);
-BEGIN {
-  plan skip_all => "Your perl version $] appears to leak like a sieve - skipping test"
-    if DBIx::Class::_ENV_::PEEPEENESS;
-}
-
+use DBIx::Class::Optional::Dependencies;
 
 my $TB = Test::More->builder;
 if ($ENV{DBICTEST_IN_PERSISTENT_ENV}) {
@@ -56,6 +59,7 @@ my $has_dt;
 
 # Skip the heavy-duty leak tracing when just doing an install
 # or when having Moose crap all over everything
+# FIXME - remove when Replicated gets off Moose
 if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
 
   # redefine the bless override so that we can catch each and every object created
@@ -86,14 +90,25 @@ if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
     return populate_weakregistry ($weak_registry, $obj );
   };
 
-  require Try::Tiny;
-  for my $func (qw/try catch finally/) {
-    my $orig = \&{"Try::Tiny::$func"};
-    *{"Try::Tiny::$func"} = sub (&;@) {
+
+  for my $func (qw( dbic_internal_try dbic_internal_catch )) {
+    my $orig = \&{"DBIx::Class::_Util::$func"};
+    *{"DBIx::Class::_Util"} = sub (&;@) {
       populate_weakregistry( $weak_registry, $_[0] );
       goto $orig;
     }
   }
+
+  if ( eval { require Try::Tiny } ) {
+    for my $func (qw( try catch finally )) {
+      my $orig = \&{"Try::Tiny::$func"};
+      *{"Try::Tiny::$func"} = sub (&;@) {
+        populate_weakregistry( $weak_registry, $_[0] );
+        goto $orig;
+      }
+    }
+  }
+
 
   # Some modules are known to install singletons on-load
   # Load them and empty the registry
@@ -101,11 +116,10 @@ if ( !$ENV{DBICTEST_VIA_REPLICATED} and !DBICTest::RunMode->is_plain ) {
   # this loads the DT armada
   $has_dt = DBIx::Class::Optional::Dependencies->req_ok_for([qw( test_rdbms_sqlite ic_dt )]);
 
-  require Errno;
   require DBI;
   require DBD::SQLite;
-  require FileHandle;
   require Moo;
+  require Math::BigInt;
 
   %$weak_registry = ();
 }
@@ -441,6 +455,10 @@ for my $addr (keys %$weak_registry) {
     # T::B 2.0 has result objects and other fancyness
     delete $weak_registry->{$addr};
   }
+  # remove this when IO::Dir is gone from SQLT
+  elsif ($INC{"IO/Dir.pm"} and $names =~ /^Class::Struct::Tie_ISA/m) {
+    delete $weak_registry->{$addr};
+  }
   elsif ($names =~ /^Hash::Merge/m) {
     # only clear one object of a specific behavior - more would indicate trouble
     delete $weak_registry->{$addr}
@@ -453,6 +471,15 @@ for my $addr (keys %$weak_registry) {
     # the latter is possible yet terrible: https://github.com/dbsrgits/dbix-class/blob/v0.082820/t/lib/DBICTest/Util/LeakTracer.pm#L113-L117
     delete $weak_registry->{$addr}
       unless $cleared->{bheos_pptiehinthashfieldhash}++;
+  }
+  elsif (
+    $names =~ /^Data::Dumper/m
+      and
+    $weak_registry->{$addr}{stacktrace} =~ /\bDBIx::Class::SQLMaker::Util::lax_serialize\b/
+  ) {
+    # only clear one object of a specific behavior - more would indicate trouble
+    delete $weak_registry->{$addr}
+      unless $cleared->{dd_lax_serializer}++;
   }
   elsif ($names =~ /^DateTime::TimeZone::UTC/m) {
     # DT is going through a refactor it seems - let it leak zones for now
@@ -531,6 +558,9 @@ SKIP: {
     if modver_gt_or_eq_and_lt( 'Test::More', '1.200', '1.301001_099' );
 
   local $ENV{DBICTEST_IN_PERSISTENT_ENV} = 1;
+  local $ENV{DBICTEST_ANFANG_DEFANG} = 1;
+
+  require File::Spec;
 
   $persistence_tests = {
     PPerl => {

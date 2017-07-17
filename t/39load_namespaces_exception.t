@@ -1,15 +1,17 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest; # do not remove even though it is not used
 
 plan tests => 1;
 
 eval {
     package DBICNSTest;
-    use base qw/DBIx::Class::Schema/;
+    use base qw/DBICTest::BaseSchema/;
     __PACKAGE__->load_namespaces(
         result_namespace => 'Bogus',
         resultset_namespace => 'RSet',

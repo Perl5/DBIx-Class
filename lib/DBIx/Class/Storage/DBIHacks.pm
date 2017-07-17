@@ -5,7 +5,7 @@ package   #hide from PAUSE
 # This module contains code supporting a battery of special cases and tests for
 # many corner cases pushing the envelope of what DBIC can do. When work on
 # these utilities began in mid 2009 (51a296b402c) it wasn't immediately obvious
-# that these pieces, despite their misleading on-first-sighe-flakiness, will
+# that these pieces, despite their misleading on-first-sight-flakiness, will
 # become part of the generic query rewriting machinery of DBIC, allowing it to
 # both generate and process queries representing incredibly complex sets with
 # reasonable efficiency.
@@ -28,10 +28,15 @@ use warnings;
 use base 'DBIx::Class::Storage';
 use mro 'c3';
 
-use List::Util 'first';
 use Scalar::Util 'blessed';
-use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
-use SQL::Abstract qw(is_plain_value is_literal_value);
+use DBIx::Class::_Util qw(
+  dump_value fail_on_internal_call
+);
+use DBIx::Class::SQLMaker::Util 'extract_equality_conditions';
+use DBIx::Class::ResultSource::FromSpec::Util qw(
+  fromspec_columns_info
+  find_join_path_to_alias
+);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -166,7 +171,7 @@ sub _adjust_select_args_for_complex_prefetch {
     unless $root_node;
 
   # use the heavy duty resolver to take care of aliased/nonaliased naming
-  my $colinfo = $self->_resolve_column_info($inner_attrs->{from});
+  my $colinfo = fromspec_columns_info($inner_attrs->{from});
   my $selected_root_columns;
 
   for my $i (0 .. $#{$outer_attrs->{select}}) {
@@ -229,7 +234,8 @@ sub _adjust_select_args_for_complex_prefetch {
   my $inner_subq = do {
 
     # must use it here regardless of user requests (vastly gentler on optimizer)
-    local $self->{_use_join_optimizer} = 1;
+    local $self->{_use_join_optimizer} = 1
+      unless $self->{_use_join_optimizer};
 
     # throw away multijoins since we def. do not care about those inside the subquery
     # $inner_aliastypes *will* be redefined at this point
@@ -344,7 +350,7 @@ sub _adjust_select_args_for_complex_prefetch {
     ) {
       push @outer_from, $j
     }
-    elsif (first { $_->{$alias} } @outer_nonselecting_chains ) {
+    elsif (grep { $_->{$alias} } @outer_nonselecting_chains ) {
       push @outer_from, $j;
       $may_need_outer_group_by ||= $outer_aliastypes->{multiplying}{$alias} ? 1 : 0;
     }
@@ -442,7 +448,7 @@ sub _resolve_aliastypes_from_select_args {
   }
 
   # get a column to source/alias map (including unambiguous unqualified ones)
-  my $colinfo = $self->_resolve_column_info ($attrs->{from});
+  my $colinfo = fromspec_columns_info($attrs->{from});
 
   # set up a botched SQLA
   my $sql_maker = $self->sql_maker;
@@ -493,7 +499,11 @@ sub _resolve_aliastypes_from_select_args {
       grep
         { $_ !~ / \A \s* \( \s* SELECT \s+ .+? \s+ FROM \s+ .+? \) \s* \z /xsi }
         map
-          { ($sql_maker->_recurse_fields($_))[0] }
+          {
+            length ref $_
+              ? ($sql_maker->_recurse_fields($_))[0]
+              : $sql_maker->_quote($_)
+          }
           @{$attrs->{select}}
     ],
     ordering => [ map
@@ -513,9 +523,9 @@ sub _resolve_aliastypes_from_select_args {
   ( $_ = join ' ', map {
 
     ( ! defined $_ )  ? ()
-  : ( length ref $_ ) ? (require Data::Dumper::Concise && $self->throw_exception(
-                          "Unexpected ref in scan-plan: " . Data::Dumper::Concise::Dumper($_)
-                        ))
+  : ( length ref $_ ) ? $self->throw_exception(
+                          "Unexpected ref in scan-plan: " . dump_value $_
+                        )
   : ( $_ =~ /^\s*$/ ) ? ()
                       : $_
 
@@ -631,7 +641,7 @@ sub _resolve_aliastypes_from_select_args {
 sub _group_over_selection {
   my ($self, $attrs) = @_;
 
-  my $colinfos = $self->_resolve_column_info ($attrs->{from});
+  my $colinfos = fromspec_columns_info($attrs->{from});
 
   my (@group_by, %group_index);
 
@@ -720,6 +730,8 @@ sub _group_over_selection {
       # for DESC, and group_by the root columns. The end result should be
       # exactly what we expect
       #
+
+      # both populated on the first loop over $o_idx
       $sql_maker ||= $self->sql_maker;
       $order_chunks ||= [
         map { ref $_ eq 'ARRAY' ? $_ : [ $_ ] } $sql_maker->_order_by_chunks($attrs->{order_by})
@@ -731,7 +743,7 @@ sub _group_over_selection {
       # to an ordering alias into a MIN/MAX
       $new_order_by[$o_idx] = \[
         sprintf( '%s( %s )%s',
-          ($is_desc ? 'MAX' : 'MIN'),
+          $self->_minmax_operator_for_datatype($chunk_ci->{data_type}, $is_desc),
           $chunk,
           ($is_desc ? ' DESC' : ''),
         ),
@@ -759,179 +771,10 @@ sub _group_over_selection {
   );
 }
 
-sub _resolve_ident_sources {
-  my ($self, $ident) = @_;
+sub _minmax_operator_for_datatype {
+  #my ($self, $datatype, $want_max) = @_;
 
-  my $alias2source = {};
-
-  # the reason this is so contrived is that $ident may be a {from}
-  # structure, specifying multiple tables to join
-  if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
-    # this is compat mode for insert/update/delete which do not deal with aliases
-    $alias2source->{me} = $ident;
-  }
-  elsif (ref $ident eq 'ARRAY') {
-
-    for (@$ident) {
-      my $tabinfo;
-      if (ref $_ eq 'HASH') {
-        $tabinfo = $_;
-      }
-      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
-        $tabinfo = $_->[0];
-      }
-
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-rsrc}
-        if ($tabinfo->{-rsrc});
-    }
-  }
-
-  return $alias2source;
-}
-
-# Takes $ident, \@column_names
-#
-# returns { $column_name => \%column_info, ... }
-# also note: this adds -result_source => $rsrc to the column info
-#
-# If no columns_names are supplied returns info about *all* columns
-# for all sources
-sub _resolve_column_info {
-  my ($self, $ident, $colnames) = @_;
-
-  return {} if $colnames and ! @$colnames;
-
-  my $sources = $self->_resolve_ident_sources($ident);
-
-  $_ = { rsrc => $_, colinfos => $_->columns_info }
-    for values %$sources;
-
-  my (%seen_cols, @auto_colnames);
-
-  # compile a global list of column names, to be able to properly
-  # disambiguate unqualified column names (if at all possible)
-  for my $alias (keys %$sources) {
-    (
-      ++$seen_cols{$_}{$alias}
-        and
-      ! $colnames
-        and
-      push @auto_colnames, "$alias.$_"
-    ) for keys %{ $sources->{$alias}{colinfos} };
-  }
-
-  $colnames ||= [
-    @auto_colnames,
-    ( grep { keys %{$seen_cols{$_}} == 1 } keys %seen_cols ),
-  ];
-
-  my %return;
-  for (@$colnames) {
-    my ($colname, $source_alias) = reverse split /\./, $_;
-
-    my $assumed_alias =
-      $source_alias
-        ||
-      # if the column was seen exactly once - we know which rsrc it came from
-      (
-        $seen_cols{$colname}
-          and
-        keys %{$seen_cols{$colname}} == 1
-          and
-        ( %{$seen_cols{$colname}} )[0]
-      )
-        ||
-      next
-    ;
-
-    $self->throw_exception(
-      "No such column '$colname' on source " . $sources->{$assumed_alias}{rsrc}->source_name
-    ) unless $seen_cols{$colname}{$assumed_alias};
-
-    $return{$_} = {
-      %{ $sources->{$assumed_alias}{colinfos}{$colname} },
-      -result_source => $sources->{$assumed_alias}{rsrc},
-      -source_alias => $assumed_alias,
-      -fq_colname => "$assumed_alias.$colname",
-      -colname => $colname,
-    };
-
-    $return{"$assumed_alias.$colname"} = $return{$_}
-      unless $source_alias;
-  }
-
-  return \%return;
-}
-
-# The DBIC relationship chaining implementation is pretty simple - every
-# new related_relationship is pushed onto the {from} stack, and the {select}
-# window simply slides further in. This means that when we count somewhere
-# in the middle, we got to make sure that everything in the join chain is an
-# actual inner join, otherwise the count will come back with unpredictable
-# results (a resultset may be generated with _some_ rows regardless of if
-# the relation which the $rs currently selects has rows or not). E.g.
-# $artist_rs->cds->count - normally generates:
-# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
-# which actually returns the number of artists * (number of cds || 1)
-#
-# So what we do here is crawl {from}, determine if the current alias is at
-# the top of the stack, and if not - make sure the chain is inner-joined down
-# to the root.
-#
-sub _inner_join_to_node {
-  my ($self, $from, $alias) = @_;
-
-  my $switch_branch = $self->_find_join_path_to_node($from, $alias);
-
-  return $from unless @{$switch_branch||[]};
-
-  # So it looks like we will have to switch some stuff around.
-  # local() is useless here as we will be leaving the scope
-  # anyway, and deep cloning is just too fucking expensive
-  # So replace the first hashref in the node arrayref manually
-  my @new_from = ($from->[0]);
-  my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
-
-  for my $j (@{$from}[1 .. $#$from]) {
-    my $jalias = $j->[0]{-alias};
-
-    if ($sw_idx->{$jalias}) {
-      my %attrs = %{$j->[0]};
-      delete $attrs{-join_type};
-      push @new_from, [
-        \%attrs,
-        @{$j}[ 1 .. $#$j ],
-      ];
-    }
-    else {
-      push @new_from, $j;
-    }
-  }
-
-  return \@new_from;
-}
-
-sub _find_join_path_to_node {
-  my ($self, $from, $target_alias) = @_;
-
-  # subqueries and other oddness are naturally not supported
-  return undef if (
-    ref $from ne 'ARRAY'
-      ||
-    ref $from->[0] ne 'HASH'
-      ||
-    ! defined $from->[0]{-alias}
-  );
-
-  # no path - the head is the alias
-  return [] if $from->[0]{-alias} eq $target_alias;
-
-  for my $i (1 .. $#$from) {
-    return $from->[$i][0]{-join_path} if ( ($from->[$i][0]{-alias}||'') eq $target_alias );
-  }
-
-  # something else went quite wrong
-  return undef;
+  $_[2] ? 'MAX' : 'MIN';
 }
 
 sub _extract_order_criteria {
@@ -984,10 +827,10 @@ sub _order_by_is_stable {
 
   my @cols = (
     ( map { $_->[0] } $self->_extract_order_criteria($order_by) ),
-    ( $where ? keys %{ $self->_extract_fixed_condition_columns($where) } : () ),
+    ( $where ? keys %{ extract_equality_conditions( $where ) } : () ),
   ) or return 0;
 
-  my $colinfo = $self->_resolve_column_info($ident, \@cols);
+  my $colinfo = fromspec_columns_info($ident, \@cols);
 
   return keys %$colinfo
     ? $self->_columns_comprise_identifying_set( $colinfo,  \@cols )
@@ -1017,7 +860,7 @@ sub _columns_comprise_identifying_set {
 sub _extract_colinfo_of_stable_main_source_order_by_portion {
   my ($self, $attrs) = @_;
 
-  my $nodes = $self->_find_join_path_to_node($attrs->{from}, $attrs->{alias});
+  my $nodes = find_join_path_to_alias($attrs->{from}, $attrs->{alias});
 
   return unless defined $nodes;
 
@@ -1032,7 +875,7 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
     map { values %$_ } @$nodes,
   ) };
 
-  my $colinfos = $self->_resolve_column_info($attrs->{from});
+  my $colinfos = fromspec_columns_info($attrs->{from});
 
   my ($colinfos_to_return, $seen_main_src_cols);
 
@@ -1049,9 +892,9 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
       if $colinfo->{-source_alias} eq $attrs->{alias};
   }
 
-  # FIXME the condition may be singling out things on its own, so we
-  # conceivable could come back wi "stable-ordered by nothing"
-  # not confient enough in the parser yet, so punt for the time being
+  # FIXME: the condition may be singling out things on its own, so we
+  # conceivably could come back with "stable-ordered by nothing"
+  # not confident enough in the parser yet, so punt for the time being
   return unless $seen_main_src_cols;
 
   my $main_src_fixed_cols_from_cond = [ $attrs->{where}
@@ -1062,7 +905,7 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
           ? $colinfos->{$_}{-colname}
           : ()
       }
-      keys %{ $self->_extract_fixed_condition_columns($attrs->{where}) }
+      keys %{ extract_equality_conditions( $attrs->{where} ) }
     )
     : ()
   ];
@@ -1073,435 +916,48 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
   ]) ? $colinfos_to_return : ();
 }
 
-# Attempts to flatten a passed in SQLA condition as much as possible towards
-# a plain hashref, *without* altering its semantics. Required by
-# create/populate being able to extract definitive conditions from preexisting
-# resultset {where} stacks
-#
-# FIXME - while relatively robust, this is still imperfect, one of the first
-# things to tackle when we get access to a formalized AST. Note that this code
-# is covered by a *ridiculous* amount of tests, so starting with porting this
-# code would be a rather good exercise
-sub _collapse_cond {
-  my ($self, $where, $where_is_anded_array) = @_;
+sub _resolve_column_info :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_resolve_column_info() is deprecated, ask on IRC for a better alternative");
 
-  my $fin;
-
-  if (! $where) {
-    return;
-  }
-  elsif ($where_is_anded_array or ref $where eq 'HASH') {
-
-    my @pairs;
-
-    my @pieces = $where_is_anded_array ? @$where : $where;
-    while (@pieces) {
-      my $chunk = shift @pieces;
-
-      if (ref $chunk eq 'HASH') {
-        for (sort keys %$chunk) {
-
-          # Match SQLA 1.79 behavior
-          unless( length $_ ) {
-            is_literal_value($chunk->{$_})
-              ? carp 'Hash-pairs consisting of an empty string with a literal are deprecated, use -and => [ $literal ] instead'
-              : $self->throw_exception("Supplying an empty left hand side argument is not supported in hash-pairs")
-            ;
-          }
-
-          push @pairs, $_ => $chunk->{$_};
-        }
-      }
-      elsif (ref $chunk eq 'ARRAY') {
-        push @pairs, -or => $chunk
-          if @$chunk;
-      }
-      elsif ( ! length ref $chunk) {
-
-        # Match SQLA 1.79 behavior
-        $self->throw_exception("Supplying an empty left hand side argument is not supported in array-pairs")
-          if $where_is_anded_array and (! defined $chunk or ! length $chunk);
-
-        push @pairs, $chunk, shift @pieces;
-      }
-      else {
-        push @pairs, '', $chunk;
-      }
-    }
-
-    return unless @pairs;
-
-    my @conds = $self->_collapse_cond_unroll_pairs(\@pairs)
-      or return;
-
-    # Consolidate various @conds back into something more compact
-    for my $c (@conds) {
-      if (ref $c ne 'HASH') {
-        push @{$fin->{-and}}, $c;
-      }
-      else {
-        for my $col (sort keys %$c) {
-
-          # consolidate all -and nodes
-          if ($col =~ /^\-and$/i) {
-            push @{$fin->{-and}},
-              ref $c->{$col} eq 'ARRAY' ? @{$c->{$col}}
-            : ref $c->{$col} eq 'HASH' ? %{$c->{$col}}
-            : { $col => $c->{$col} }
-            ;
-          }
-          elsif ($col =~ /^\-/) {
-            push @{$fin->{-and}}, { $col => $c->{$col} };
-          }
-          elsif (exists $fin->{$col}) {
-            $fin->{$col} = [ -and => map {
-              (ref $_ eq 'ARRAY' and ($_->[0]||'') =~ /^\-and$/i )
-                ? @{$_}[1..$#$_]
-                : $_
-              ;
-            } ($fin->{$col}, $c->{$col}) ];
-          }
-          else {
-            $fin->{$col} = $c->{$col};
-          }
-        }
-      }
-    }
-  }
-  elsif (ref $where eq 'ARRAY') {
-    # we are always at top-level here, it is safe to dump empty *standalone* pieces
-    my $fin_idx;
-
-    for (my $i = 0; $i <= $#$where; $i++ ) {
-
-      # Match SQLA 1.79 behavior
-      $self->throw_exception(
-        "Supplying an empty left hand side argument is not supported in array-pairs"
-      ) if (! defined $where->[$i] or ! length $where->[$i]);
-
-      my $logic_mod = lc ( ($where->[$i] =~ /^(\-(?:and|or))$/i)[0] || '' );
-
-      if ($logic_mod) {
-        $i++;
-        $self->throw_exception("Unsupported top-level op/arg pair: [ $logic_mod => $where->[$i] ]")
-          unless ref $where->[$i] eq 'HASH' or ref $where->[$i] eq 'ARRAY';
-
-        my $sub_elt = $self->_collapse_cond({ $logic_mod => $where->[$i] })
-          or next;
-
-        my @keys = keys %$sub_elt;
-        if ( @keys == 1 and $keys[0] !~ /^\-/ ) {
-          $fin_idx->{ "COL_$keys[0]_" . serialize $sub_elt } = $sub_elt;
-        }
-        else {
-          $fin_idx->{ "SER_" . serialize $sub_elt } = $sub_elt;
-        }
-      }
-      elsif (! length ref $where->[$i] ) {
-        my $sub_elt = $self->_collapse_cond({ @{$where}[$i, $i+1] })
-          or next;
-
-        $fin_idx->{ "COL_$where->[$i]_" . serialize $sub_elt } = $sub_elt;
-        $i++;
-      }
-      else {
-        $fin_idx->{ "SER_" . serialize $where->[$i] } = $self->_collapse_cond( $where->[$i] ) || next;
-      }
-    }
-
-    if (! $fin_idx) {
-      return;
-    }
-    elsif ( keys %$fin_idx == 1 ) {
-      $fin = (values %$fin_idx)[0];
-    }
-    else {
-      my @or;
-
-      # at this point everything is at most one level deep - unroll if needed
-      for (sort keys %$fin_idx) {
-        if ( ref $fin_idx->{$_} eq 'HASH' and keys %{$fin_idx->{$_}} == 1 ) {
-          my ($l, $r) = %{$fin_idx->{$_}};
-
-          if (
-            ref $r eq 'ARRAY'
-              and
-            (
-              ( @$r == 1 and $l =~ /^\-and$/i )
-                or
-              $l =~ /^\-or$/i
-            )
-          ) {
-            push @or, @$r
-          }
-
-          elsif (
-            ref $r eq 'HASH'
-              and
-            keys %$r == 1
-              and
-            $l =~ /^\-(?:and|or)$/i
-          ) {
-            push @or, %$r;
-          }
-
-          else {
-            push @or, $l, $r;
-          }
-        }
-        else {
-          push @or, $fin_idx->{$_};
-        }
-      }
-
-      $fin->{-or} = \@or;
-    }
-  }
-  else {
-    # not a hash not an array
-    $fin = { -and => [ $where ] };
-  }
-
-  # unroll single-element -and's
-  while (
-    $fin->{-and}
-      and
-    @{$fin->{-and}} < 2
-  ) {
-    my $and = delete $fin->{-and};
-    last if @$and == 0;
-
-    # at this point we have @$and == 1
-    if (
-      ref $and->[0] eq 'HASH'
-        and
-      ! grep { exists $fin->{$_} } keys %{$and->[0]}
-    ) {
-      $fin = {
-        %$fin, %{$and->[0]}
-      };
-    }
-    else {
-      $fin->{-and} = $and;
-      last;
-    }
-  }
-
-  # compress same-column conds found in $fin
-  for my $col ( grep { $_ !~ /^\-/ } keys %$fin ) {
-    next unless ref $fin->{$col} eq 'ARRAY' and ($fin->{$col}[0]||'') =~ /^\-and$/i;
-    my $val_bag = { map {
-      (! defined $_ )                          ? ( UNDEF => undef )
-    : ( ! length ref $_ or is_plain_value $_ ) ? ( "VAL_$_" => $_ )
-    : ( ( 'SER_' . serialize $_ ) => $_ )
-    } @{$fin->{$col}}[1 .. $#{$fin->{$col}}] };
-
-    if (keys %$val_bag == 1 ) {
-      ($fin->{$col}) = values %$val_bag;
-    }
-    else {
-      $fin->{$col} = [ -and => map { $val_bag->{$_} } sort keys %$val_bag ];
-    }
-  }
-
-  return keys %$fin ? $fin : ();
+  fromspec_columns_info( @_[1,2] );
 }
 
-sub _collapse_cond_unroll_pairs {
-  my ($self, $pairs) = @_;
+sub _find_join_path_to_node :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_find_join_path_to_node() is deprecated, ask on IRC for a better alternative");
 
-  my @conds;
-
-  while (@$pairs) {
-    my ($lhs, $rhs) = splice @$pairs, 0, 2;
-
-    if (! length $lhs) {
-      push @conds, $self->_collapse_cond($rhs);
-    }
-    elsif ( $lhs =~ /^\-and$/i ) {
-      push @conds, $self->_collapse_cond($rhs, (ref $rhs eq 'ARRAY'));
-    }
-    elsif ( $lhs =~ /^\-or$/i ) {
-      push @conds, $self->_collapse_cond(
-        (ref $rhs eq 'HASH') ? [ map { $_ => $rhs->{$_} } sort keys %$rhs ] : $rhs
-      );
-    }
-    else {
-      if (ref $rhs eq 'HASH' and ! keys %$rhs) {
-        # FIXME - SQLA seems to be doing... nothing...?
-      }
-      # normalize top level -ident, for saner extract_fixed_condition_columns code
-      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
-        push @conds, { $lhs => { '=', $rhs } };
-      }
-      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-value} and is_plain_value $rhs->{-value}) {
-        push @conds, { $lhs => $rhs->{-value} };
-      }
-      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}) {
-        if ( length ref $rhs->{'='} and is_literal_value $rhs->{'='} ) {
-          push @conds, { $lhs => $rhs };
-        }
-        else {
-          for my $p ($self->_collapse_cond_unroll_pairs([ $lhs => $rhs->{'='} ])) {
-
-            # extra sanity check
-            if (keys %$p > 1) {
-              require Data::Dumper::Concise;
-              local $Data::Dumper::Deepcopy = 1;
-              $self->throw_exception(
-                "Internal error: unexpected collapse unroll:"
-              . Data::Dumper::Concise::Dumper { in => { $lhs => $rhs }, out => $p }
-              );
-            }
-
-            my ($l, $r) = %$p;
-
-            push @conds, (
-              ! length ref $r
-                or
-              # the unroller recursion may return a '=' prepended value already
-              ref $r eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}
-                or
-              is_plain_value($r)
-            )
-              ? { $l => $r }
-              : { $l => { '=' => $r } }
-            ;
-          }
-        }
-      }
-      elsif (ref $rhs eq 'ARRAY') {
-        # some of these conditionals encounter multi-values - roll them out using
-        # an unshift, which will cause extra looping in the while{} above
-        if (! @$rhs ) {
-          push @conds, { $lhs => [] };
-        }
-        elsif ( ($rhs->[0]||'') =~ /^\-(?:and|or)$/i ) {
-          $self->throw_exception("Value modifier not followed by any values: $lhs => [ $rhs->[0] ] ")
-            if  @$rhs == 1;
-
-          if( $rhs->[0] =~ /^\-and$/i ) {
-            unshift @$pairs, map { $lhs => $_ } @{$rhs}[1..$#$rhs];
-          }
-          # if not an AND then it's an OR
-          elsif(@$rhs == 2) {
-            unshift @$pairs, $lhs => $rhs->[1];
-          }
-          else {
-            push @conds, { $lhs => [ @{$rhs}[1..$#$rhs] ] };
-          }
-        }
-        elsif (@$rhs == 1) {
-          unshift @$pairs, $lhs => $rhs->[0];
-        }
-        else {
-          push @conds, { $lhs => $rhs };
-        }
-      }
-      # unroll func + { -value => ... }
-      elsif (
-        ref $rhs eq 'HASH'
-          and
-        ( my ($subop) = keys %$rhs ) == 1
-          and
-        length ref ((values %$rhs)[0])
-          and
-        my $vref = is_plain_value( (values %$rhs)[0] )
-      ) {
-        push @conds, { $lhs => { $subop => $$vref } }
-      }
-      else {
-        push @conds, { $lhs => $rhs };
-      }
-    }
-  }
-
-  return @conds;
+  find_join_path_to_alias( @_[1,2] );
 }
 
-# Analyzes a given condition and attempts to extract all columns
-# with a definitive fixed-condition criteria. Returns a hashref
-# of k/v pairs suitable to be passed to set_columns(), with a
-# MAJOR CAVEAT - multi-value (contradictory) equalities are still
-# represented as a reference to the UNRESOVABLE_CONDITION constant
-# The reason we do this is that some codepaths only care about the
-# codition being stable, as opposed to actually making sense
-#
-# The normal mode is used to figure out if a resultset is constrained
-# to a column which is part of a unique constraint, which in turn
-# allows us to better predict how ordering will behave etc.
-#
-# With the optional "consider_nulls" boolean argument, the function
-# is instead used to infer inambiguous values from conditions
-# (e.g. the inheritance of resultset conditions on new_result)
-#
-sub _extract_fixed_condition_columns {
-  my ($self, $where, $consider_nulls) = @_;
-  my $where_hash = $self->_collapse_cond($_[1]);
+sub _collapse_cond :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_collapse_cond() is deprecated, ask on IRC for a better alternative");
 
-  my $res = {};
-  my ($c, $v);
-  for $c (keys %$where_hash) {
-    my $vals;
+  shift;
+  DBIx::Class::SQLMaker::Util::normalize_sqla_condition(@_);
+}
 
-    if (!defined ($v = $where_hash->{$c}) ) {
-      $vals->{UNDEF} = $v if $consider_nulls
-    }
-    elsif (
-      ref $v eq 'HASH'
-        and
-      keys %$v == 1
-    ) {
-      if (exists $v->{-value}) {
-        if (defined $v->{-value}) {
-          $vals->{"VAL_$v->{-value}"} = $v->{-value}
-        }
-        elsif( $consider_nulls ) {
-          $vals->{UNDEF} = $v->{-value};
-        }
-      }
-      # do not need to check for plain values - _collapse_cond did it for us
-      elsif(
-        length ref $v->{'='}
-          and
-        (
-          ( ref $v->{'='} eq 'HASH' and keys %{$v->{'='}} == 1 and exists $v->{'='}{-ident} )
-            or
-          is_literal_value($v->{'='})
-        )
-       ) {
-        $vals->{ 'SER_' . serialize $v->{'='} } = $v->{'='};
-      }
-    }
-    elsif (
-      ! length ref $v
-        or
-      is_plain_value ($v)
-    ) {
-      $vals->{"VAL_$v"} = $v;
-    }
-    elsif (ref $v eq 'ARRAY' and ($v->[0]||'') eq '-and') {
-      for ( @{$v}[1..$#$v] ) {
-        my $subval = $self->_extract_fixed_condition_columns({ $c => $_ }, 'consider nulls');  # always fish nulls out on recursion
-        next unless exists $subval->{$c};  # didn't find anything
-        $vals->{
-          ! defined $subval->{$c}                                        ? 'UNDEF'
-        : ( ! length ref $subval->{$c} or is_plain_value $subval->{$c} ) ? "VAL_$subval->{$c}"
-        : ( 'SER_' . serialize $subval->{$c} )
-        } = $subval->{$c};
-      }
-    }
+sub _extract_fixed_condition_columns :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  carp_unique("_extract_fixed_condition_columns() is deprecated, ask on IRC for a better alternative");
 
-    if (keys %$vals == 1) {
-      ($res->{$c}) = (values %$vals)
-        unless !$consider_nulls and exists $vals->{UNDEF};
-    }
-    elsif (keys %$vals > 1) {
-      $res->{$c} = UNRESOLVABLE_CONDITION;
-    }
-  }
+  shift;
+  extract_equality_conditions(@_);
+}
 
-  $res;
+sub _resolve_ident_sources :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_resolve_ident_sources() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
+}
+
+sub _inner_join_to_node :DBIC_method_is_indirect_sugar {
+  DBIx::Class::Exception->throw(
+    '_inner_join_to_node() has been removed with no replacement, '
+  . 'ask for advice on IRC if this affected you'
+  );
 }
 
 1;

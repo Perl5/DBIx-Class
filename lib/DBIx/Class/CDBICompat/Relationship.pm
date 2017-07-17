@@ -4,7 +4,10 @@ package
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 use DBIx::Class::_Util 'quote_sub';
+use namespace::clean;
 
 =head1 NAME
 

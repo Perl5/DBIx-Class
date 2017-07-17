@@ -14,10 +14,6 @@
 
 #
 # Smoke all branches except for blocked* and wip/*
-#
-# Additionally master does not smoke with bleadperl
-# ( implemented in maint/travis-ci_scripts/10_before_install.bash )
-#
 branches:
   except:
     - /^wip\//
@@ -35,7 +31,7 @@ notifications:
 
   email:
     recipients:
-      - ribasushi@cpan.org
+      - CPAN-CI@leporine.io
     on_success: change
     on_failure: always
 
@@ -74,23 +70,28 @@ matrix:
     # In genereal it is strongly recommended to keep things on the older
     # version indefinitely - there is little value in-depth smoking on
     # more recent software stacks
+    # Add moderate (not complete) poisoning, as these will run on PR-related
+    # builds, therefore contributors will get notified about *most* issues
     - perl: "5.8"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     - perl: "5.10"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     - perl: "5.22-extras"
       sudo: required
       dist: precise
       env:
         - CLEANTEST=false
+        - POISON_ENV=true
 
     # CLEANTEST of minimum supported with non-tracing poisoning, single thread (hence the sudo)
     - perl: "5.8.3_nt_mb"
@@ -143,6 +144,7 @@ matrix:
     - perl: "5.8.8_thr"
       sudo: required
       dist: precise
+      group: legacy
       env:
         - VCPU_USE=1
         - CLEANTEST=false
@@ -190,8 +192,8 @@ matrix:
       dist: precise
       env:
         - CLEANTEST=false
-        - POISON_ENV=true
         - DBIC_TRACE=1
+        - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
         - BREWVER=5.16.3
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
@@ -207,8 +209,50 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
+    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO CPERL BELOW
+    # allows for easier side-by-side comparison
+    # vcpu=1 for even more stable results
+    - perl: "5.24.0_thr_qm"
+      # explicit new infra spec preparing for a future forced upgrade
+      # also need to pull in a sufficiently new compiler for quadmath.h
+      sudo: required
+      dist: trusty
+      env:
+        - VCPU_USE=1
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=5.24.0
+        - BREWOPTS="-Duseithreads -Dusequadmath"
+
     ###
     # Start of the allow_failures block
+
+    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO STOCK 5.latest.comparable ABOVE
+    # allows for easier side-by-side comparison
+    # vcpu=1 for even more stable results
+    - perl: "cperl-5.24.0_thr_qm"
+      # explicit new infra spec preparing for a future forced upgrade
+      # also need to pull in a sufficiently new compiler for quadmath.h
+      sudo: required
+      dist: trusty
+      env:
+        - VCPU_USE=1
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=cperl-5.24.0
+        - BREWOPTS="-Duseithreads -Dusequadmath"
+
+    - perl: "cperl-master_thr"
+      sudo: false
+      dist: precise
+      env:
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=cperl-master
+        - BREWOPTS="-Duseithreads -Dusedevel"
 
     # threaded oldest possible with blead CPAN
     - perl: "devcpan_5.8.1_thr_mb"
@@ -320,6 +364,8 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
+    - perl: cperl-5.24.0_thr_qm
+    - perl: cperl-master_thr
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb
@@ -371,12 +417,12 @@ before_script:
   # need to invoke the after_failure script manually
   # because 'after_failure' runs only after 'script' fails
   #
-  - maint/getstatus maint/travis-ci_scripts/30_before_script.bash
+  - maint/getstatus /bin/bash maint/travis-ci_scripts/30_before_script.bash
 
 script:
   # Run actual tests
   #
-  - maint/getstatus maint/travis-ci_scripts/40_script.bash
+  - maint/getstatus /bin/bash maint/travis-ci_scripts/40_script.bash
 
 ###
 ### Set -e back, work around https://github.com/travis-ci/travis-ci/issues/3533
@@ -386,14 +432,14 @@ script:
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
-  - maint/getstatus maint/travis-ci_scripts/50_after_success.bash
+  - maint/getstatus /bin/bash maint/travis-ci_scripts/50_after_success.bash || ( /bin/bash maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
 
 after_failure:
   # Final sysinfo printout on fail
   #
-  - maint/getstatus maint/travis-ci_scripts/50_after_failure.bash
+  - maint/getstatus /bin/bash maint/travis-ci_scripts/50_after_failure.bash
 
 after_script:
   # No tasks yet
   #
-  #- maint/getstatus maint/travis-ci_scripts/60_after_script.bash
+  #- maint/getstatus /bin/bash maint/travis-ci_scripts/60_after_script.bash

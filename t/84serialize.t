@@ -1,9 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
 use Storable qw(dclone freeze nfreeze thaw);
 use Scalar::Util qw/refaddr/;
@@ -58,8 +60,10 @@ my %stores = (
 
 );
 
-if ($ENV{DBICTEST_MEMCACHED}) {
-  if (DBIx::Class::Optional::Dependencies->req_ok_for ('test_memcached')) {
+SKIP: {
+    require DBIx::Class::Optional::Dependencies;
+    DBIx::Class::Optional::Dependencies->skip_without('test_memcached');
+
     my $memcached = Cache::Memcached->new(
       { servers => [ $ENV{DBICTEST_MEMCACHED} ] }
     );
@@ -72,20 +76,7 @@ if ($ENV{DBICTEST_MEMCACHED}) {
       local $DBIx::Class::ResultSourceHandle::thaw_schema = $schema;
       return $memcached->get($key);
     };
-  }
-  else {
-    SKIP: {
-      skip 'Memcached tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_memcached'), 1;
-    }
-  }
 }
-else {
-  SKIP: {
-    skip 'Set $ENV{DBICTEST_MEMCACHED} to run the memcached serialization tests', 1;
-  }
-}
-
-
 
 for my $name (keys %stores) {
 

@@ -24,7 +24,16 @@ sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
 
   if ($acc_type eq 'single') {
-    quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel);
+
+    my @qsub_args = ( {}, {
+      attributes => [qw(
+        DBIC_method_is_single_relationship_accessor
+        DBIC_method_is_generated_from_resultsource_metadata
+      )]
+    });
+
+
+    quote_sub "${class}::${rel}" => sprintf(<<'EOC', perlstring $rel), @qsub_args;
       my $self = shift;
 
       if (@_) {
@@ -35,24 +44,29 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{%1$s};
       }
       else {
-        my $relcond = $self->result_source->_resolve_relationship_condition(
-          rel_name => %1$s,
-          foreign_alias => %1$s,
-          self_alias => 'me',
-          self_result_object => $self,
-        );
+        my $rsrc = $self->result_source;
+
+        my $jfc;
 
         return undef if (
-          $relcond->{join_free_condition}
+
+          $rsrc->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
+
             and
-          $relcond->{join_free_condition} ne DBIx::Class::_Util::UNRESOLVABLE_CONDITION
+
+          $jfc = ( $rsrc->resolve_relationship_condition(
+            rel_name => %1$s,
+            foreign_alias => %1$s,
+            self_alias => 'me',
+            self_result_object => $self,
+          )->{join_free_condition} || {} )
+
             and
-          scalar grep { not defined $_ } values %%{ $relcond->{join_free_condition} || {} }
-            and
-          $self->result_source->relationship_info(%1$s)->{attrs}{undef_on_null_fk}
+
+          grep { not defined $_ } values %%$jfc
         );
 
-        my $val = $self->search_related( %1$s )->single;
+        my $val = $self->related_resultset( %1$s )->single;
         return $val unless $val;  # $val instead of undef so that null-objects can go through
 
         return $self->{_relationship_data}{%1$s} = $val;
@@ -60,15 +74,18 @@ sub add_relationship_accessor {
 EOC
   }
   elsif ($acc_type eq 'filter') {
-    $class->throw_exception("No such column '$rel' to filter")
-       unless $class->has_column($rel);
 
-    my $f_class = $class->relationship_info($rel)->{class};
+    my $rsrc = $class->result_source_instance;
+
+    $rsrc->throw_exception("No such column '$rel' to filter")
+       unless $rsrc->has_column($rel);
+
+    my $f_class = $rsrc->relationship_info($rel)->{class};
 
     $class->inflate_column($rel, {
       inflate => sub {
         my ($val, $self) = @_;
-        return $self->find_or_new_related($rel, {}, {});
+        return $self->find_or_new_related($rel, {});
       },
       deflate => sub {
         my ($val, $self) = @_;
@@ -93,15 +110,76 @@ EOC
         return $pk_val;
       },
     });
+
+
+    # god this is horrible...
+    my $acc =
+      $rsrc->columns_info->{$rel}{accessor}
+        ||
+      $rel
+    ;
+
+    # because CDBI may elect to never make an accessor at all...
+    if( my $main_cref = $class->can($acc) ) {
+
+      attributes->import(
+        $class,
+        $main_cref,
+        qw(
+          DBIC_method_is_filter_relationship_accessor
+          DBIC_method_is_generated_from_resultsource_metadata
+        ),
+      );
+
+      if( my $extra_cref = $class->can("_${acc}_accessor") ) {
+        attributes->import(
+          $class,
+          $extra_cref,
+          qw(
+            DBIC_method_is_filter_relationship_extra_accessor
+            DBIC_method_is_generated_from_resultsource_metadata
+          ),
+        );
+      }
+    }
   }
   elsif ($acc_type eq 'multi') {
 
-    quote_sub "${class}::${rel}_rs", "shift->search_related_rs( $rel => \@_ )";
-    quote_sub "${class}::add_to_${rel}", "shift->create_related( $rel => \@_ )";
-    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel );
-      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_WANTARRAY and my $sog = DBIx::Class::_Util::fail_on_internal_wantarray;
-      shift->search_related( %s => @_ )
+
+    my @qsub_args = (
+      {},
+      {
+        attributes => [qw(
+          DBIC_method_is_multi_relationship_accessor
+          DBIC_method_is_generated_from_resultsource_metadata
+          DBIC_method_is_indirect_sugar
+        )]
+      },
+    );
+
+
+    quote_sub "${class}::${rel}", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->related_resultset(%s)->search( @_ )
 EOC
+
+
+    $qsub_args[1]{attributes}[0]
+      =~ s/^DBIC_method_is_multi_relationship_accessor$/DBIC_method_is_multi_relationship_extra_accessor/
+    or die "Unexpected attr '$qsub_args[1]{attributes}[0]' ...";
+
+
+    quote_sub "${class}::${rel}_rs", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->related_resultset(%s)->search_rs( @_ )
+EOC
+
+
+    quote_sub "${class}::add_to_${rel}", sprintf( <<'EOC', perlstring $rel ), @qsub_args;
+      DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and DBIx::Class::_Util::fail_on_internal_call;
+      shift->create_related( %s => @_ );
+EOC
+
   }
   else {
     $class->throw_exception("No such relationship accessor type '$acc_type'");

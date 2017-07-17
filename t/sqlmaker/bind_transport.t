@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -5,7 +7,7 @@ use Test::More;
 use Test::Exception;
 use Math::BigInt;
 
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::LimitDialects;
 
@@ -15,6 +17,17 @@ my ($ROWS, $OFFSET) = (
 );
 
 my $schema = DBICTest->init_schema();
+
+$schema->is_executed_sql_bind(
+  sub { $schema->resultset('Artist')->find( Math::BigInt->new(42) ) },
+  [
+    [
+      'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE me.artistid = ?',
+      [ { dbic_colname => "me.artistid", sqlt_datatype => "integer" }
+        => Math::BigInt->new(42) ],
+    ]
+  ]
+);
 
 my $rs = $schema->resultset('CD')->search({ -and => [
   'me.artist' => { '!=', '666' },

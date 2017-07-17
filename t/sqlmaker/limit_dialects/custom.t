@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Warn;
 
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 
 # This is legacy stuff from SQL::Absract::Limit

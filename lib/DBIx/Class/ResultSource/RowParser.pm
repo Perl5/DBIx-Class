@@ -6,15 +6,18 @@ use warnings;
 
 use base 'DBIx::Class';
 
-use Try::Tiny;
-use List::Util qw(first max);
-
 use DBIx::Class::ResultSource::RowParser::Util qw(
   assemble_simple_parser
   assemble_collapsing_parser
 );
+use DBIx::Class::_Util qw( DUMMY_ALIASPAIR dbic_internal_try dbic_internal_catch );
 
 use DBIx::Class::Carp;
+
+# FIXME - this should go away
+# instead Carp::Skip should export usable keywords or something like that
+my $unique_carper;
+BEGIN { $unique_carper = \&carp_unique }
 
 use namespace::clean;
 
@@ -122,8 +125,6 @@ sub _mk_row_parser {
     },
   );
 
-  my $check_null_columns;
-
   my $src = (! $args->{collapse} ) ? assemble_simple_parser(\%common) : do {
     my $collapse_map = $self->_resolve_collapse ({
       # FIXME
@@ -141,9 +142,6 @@ sub _mk_row_parser {
       premultiplied => $args->{premultiplied},
     });
 
-    $check_null_columns = $collapse_map->{-identifying_columns}
-      if @{$collapse_map->{-identifying_columns}};
-
     assemble_collapsing_parser({
       %common,
       collapse_map => $collapse_map,
@@ -153,10 +151,7 @@ sub _mk_row_parser {
   utf8::upgrade($src)
     if DBIx::Class::_ENV_::STRESSTEST_UTF8_UPGRADE_GENERATED_COLLAPSER_SOURCE;
 
-  return (
-    $args->{eval} ? ( eval "sub $src" || die $@ ) : $src,
-    $check_null_columns,
-  );
+  $src;
 }
 
 
@@ -178,13 +173,13 @@ sub _resolve_collapse {
     $args->{_is_top_level} = 1;
   };
 
-  my ($my_cols, $rel_cols);
+  my ($my_cols, $rel_cols, $native_cols);
   for (keys %{$args->{as}}) {
     if ($_ =~ /^ ([^\.]+) \. (.+) /x) {
       $rel_cols->{$1}{$2} = 1;
     }
     else {
-      $my_cols->{$_} = {};  # important for ||='s below
+      $native_cols->{$_} = $my_cols->{$_} = {};  # important for ||='s below
     }
   }
 
@@ -197,11 +192,28 @@ sub _resolve_collapse {
       is_single => ( $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi' ),
       is_inner => ( ( $inf->{attrs}{join_type} || '' ) !~ /^left/i),
       rsrc => $self->related_source($rel),
-      fk_map => $self->_resolve_relationship_condition(
-        rel_name => $rel,
-        self_alias => "\xFE", # irrelevant
-        foreign_alias => "\xFF", # irrelevant
-      )->{identity_map},
+      fk_map => (
+        dbic_internal_try {
+          $self->resolve_relationship_condition(
+            rel_name => $rel,
+
+            # an API where these are optional would be too cumbersome,
+            # instead always pass in some dummy values
+            DUMMY_ALIASPAIR,
+          )->{identity_map},
+        }
+        dbic_internal_catch {
+
+          $unique_carper->(
+            "Resolution of relationship '$rel' failed unexpectedly, "
+          . 'please relay the following error and seek assistance via '
+          . DBIx::Class::_ENV_::HELP_URL . ". Encountered error: $_"
+          );
+
+          # RV
+          +{}
+        }
+      ),
     };
   }
 
@@ -225,7 +237,7 @@ sub _resolve_collapse {
   if ( ! $args->{_parent_info}{underdefined} and ! $args->{_parent_info}{rev_rel_is_optional} ) {
     for my $col ( values %{$args->{_parent_info}{rel_condition} || {}} ) {
       next if exists $my_cols->{$col};
-      $my_cols->{$col} = { via_collapse => $args->{_parent_info}{collapse_on_idcols} };
+      $my_cols->{$col} = {};
       $assumed_from_parent->{columns}{$col}++;
     }
   }
@@ -240,9 +252,50 @@ sub _resolve_collapse {
 
   # first try to reuse the parent's collapser (i.e. reuse collapser over 1:1)
   # (makes for a leaner coderef later)
-  unless ($collapse_map->{-identifying_columns}) {
+  if(
+    ! $collapse_map->{-identifying_columns}
+      and
+    $args->{_parent_info}{collapser_reusable}
+  ) {
     $collapse_map->{-identifying_columns} = $args->{_parent_info}{collapse_on_idcols}
-      if $args->{_parent_info}{collapser_reusable};
+  }
+
+  # Still don't know how to collapse - in case we are a *single* relationship
+  # AND our parent is defined AND we have any *native* non-nullable pieces: then
+  # we are still good to go
+  # NOTE: it doesn't matter if the nonnullable set is unique or not - it will be
+  # made unique by the parents identifying cols
+  if(
+    ! $collapse_map->{-identifying_columns}
+      and
+    $args->{_parent_info}{is_single}
+      and
+    @{ $args->{_parent_info}{collapse_on_idcols} }
+      and
+    ( my @native_nonnull_cols = grep {
+      $native_cols->{$_}{colinfo}
+        and
+      ! $native_cols->{$_}{colinfo}{is_nullable}
+    } keys %$native_cols )
+  ) {
+
+    $collapse_map->{-identifying_columns} = [ __unique_numlist(
+      @{ $args->{_parent_info}{collapse_on_idcols}||[] },
+
+      # FIXME - we don't really need *all* of the columns, $our_nonnull_cols[0]
+      # is sufficient. However map the entire thing to engage the extra nonnull
+      # explicit checks, just to be on the safe side
+      # Remove some day in the future
+      (map
+        {
+          $common_args->{_as_fq_idx}{join ('.',
+            @{$args->{_rel_chain}}[1 .. $#{$args->{_rel_chain}}],
+            $_,
+          )}
+        }
+        @native_nonnull_cols
+      ),
+    )];
   }
 
   # Still don't know how to collapse - try to resolve based on our columns (plus already inserted FK bridges)
@@ -371,7 +424,14 @@ sub _resolve_collapse {
       # coderef later
       $collapse_map->{-identifying_columns} = [];
       $collapse_map->{-identifying_columns_variants} = [ sort {
-        (scalar @$a) <=> (scalar @$b) or max(@$a) <=> max(@$b)
+        (scalar @$a) <=> (scalar @$b)
+          or
+        (
+          # Poor man's max()
+          ( sort { $b <=> $a } @$a )[0]
+            <=>
+          ( sort { $b <=> $a } @$b )[0]
+        )
       } @collapse_sets ];
     }
   }
@@ -402,7 +462,6 @@ sub _resolve_collapse {
     @{ $collapse_map->{-identifying_columns} },
   )];
 
-  my @id_sets;
   for my $rel (sort keys %$relinfo) {
 
     $collapse_map->{$rel} = $relinfo->{$rel}{rsrc}->_resolve_collapse ({
@@ -416,12 +475,17 @@ sub _resolve_collapse {
 
         is_optional => ! $relinfo->{$rel}{is_inner},
 
-        # if there is at least one *inner* reverse relationship which is HASH-based (equality only)
+        is_single => $relinfo->{$rel}{is_single},
+
+        # if there is at least one *inner* reverse relationship ( meaning identity-only )
         # we can safely assume that the child can not exist without us
-        rev_rel_is_optional => ( first
-          { ref $_->{cond} eq 'HASH' and ($_->{attrs}{join_type}||'') !~ /^left/i }
-          values %{ $self->reverse_relationship_info($rel) },
-        ) ? 0 : 1,
+        rev_rel_is_optional => (
+          ( grep {
+            ($_->{attrs}{join_type}||'') !~ /^left/i
+          } values %{ $self->reverse_relationship_info($rel) } )
+            ? 0
+            : 1
+        ),
 
         # if this is a 1:1 our own collapser can be used as a collapse-map
         # (regardless of left or not)

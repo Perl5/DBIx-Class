@@ -4,9 +4,11 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::ContextualFetch;
-use DBIx::Class::_Util qw(quote_sub perlstring);
 
-use base qw(Class::Data::Inheritable);
+use base 'DBIx::Class';
+
+use DBIx::Class::_Util qw(quote_sub perlstring);
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('sql_transformer_class' =>
                           'DBIx::Class::CDBICompat::SQLTransformer');
@@ -50,9 +52,12 @@ sub sth_to_objects {
 
   $sth->execute(@$execute_args);
 
-  my @ret;
+  my (@ret, $rsrc);
   while (my $row = $sth->fetchrow_hashref) {
-    push(@ret, $class->inflate_result($class->result_source_instance, $row));
+    push(@ret, $class->inflate_result(
+      ( $rsrc ||= $class->result_source ),
+      $row
+    ));
   }
 
   return @ret;

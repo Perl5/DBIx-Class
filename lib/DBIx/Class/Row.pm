@@ -6,8 +6,10 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
-use List::Util 'first';
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw(
+  dbic_internal_try fail_on_internal_call
+  DUMMY_ALIASPAIR
+);
 use DBIx::Class::Carp;
 use SQL::Abstract qw( is_literal_value is_plain_value );
 
@@ -191,13 +193,13 @@ sub new {
       $rsrc ||= $h->resolve;
     }
 
-    $new->result_source($rsrc) if $rsrc;
+    $new->result_source_instance($rsrc) if $rsrc;
 
     if (my $col_from_rel = delete $attrs->{-cols_from_relations}) {
       @{$new->{_ignore_at_insert}={}}{@$col_from_rel} = ();
     }
 
-    my ($related,$inflated);
+    my( $related, $inflated, $colinfos );
 
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key} and ! is_literal_value($attrs->{$key}) ) {
@@ -259,9 +261,8 @@ sub new {
           next;
         }
         elsif (
-          $rsrc->has_column($key)
-            and
-          $rsrc->column_info($key)->{_inflate_info}
+          ( $colinfos ||= $rsrc->columns_info )
+           ->{$key}{_inflate_info}
         ) {
           $inflated->{$key} = $attrs->{$key};
           next;
@@ -344,7 +345,7 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $rsrc;
 
-  my $storage = $rsrc->storage;
+  my $storage = $rsrc->schema->storage;
 
   my $rollback_guard;
 
@@ -358,7 +359,7 @@ sub insert {
     my $rel_obj = $related_stuff{$rel_name};
 
     if (! $self->{_rel_in_storage}{$rel_name}) {
-      next unless (blessed $rel_obj && $rel_obj->isa('DBIx::Class::Row'));
+      next unless (blessed $rel_obj && $rel_obj->isa(__PACKAGE__));
 
       next unless $rsrc->_pk_depends_on(
                     $rel_name, { $rel_obj->get_columns }
@@ -373,8 +374,7 @@ sub insert {
       my $existing;
 
       # if there are no keys - nothing to search for
-      if (keys %$them and $existing = $self->result_source
-                                           ->related_source($rel_name)
+      if (keys %$them and $existing = $rsrc->related_source($rel_name)
                                            ->resultset
                                            ->find($them)
       ) {
@@ -419,7 +419,14 @@ sub insert {
           or
         (defined $current_rowdata{$_} xor defined $returned_cols->{$_})
           or
-        (defined $current_rowdata{$_} and $current_rowdata{$_} ne $returned_cols->{$_})
+        (
+          defined $current_rowdata{$_}
+            and
+          # one of the few spots doing forced-stringification
+          # needed to work around objects with defined stringification
+          # but *without* overloaded comparison (ugh!)
+          "$current_rowdata{$_}" ne "$returned_cols->{$_}"
+        )
       );
   }
 
@@ -437,7 +444,7 @@ sub insert {
       : $related_stuff{$rel_name}
     ;
 
-    if (@cands && blessed $cands[0] && $cands[0]->isa('DBIx::Class::Row')
+    if (@cands && blessed $cands[0] && $cands[0]->isa(__PACKAGE__)
     ) {
       my $reverse = $rsrc->reverse_relationship_info($rel_name);
       foreach my $obj (@cands) {
@@ -549,9 +556,11 @@ sub update {
   my %to_update = $self->get_dirty_columns
     or return $self;
 
-  $self->throw_exception( "Not in database" ) unless $self->in_storage;
+  $self->throw_exception(
+    'Result object not marked in_storage: an update() operation is not possible'
+  ) unless $self->in_storage;
 
-  my $rows = $self->result_source->storage->update(
+  my $rows = $self->result_source->schema->storage->update(
     $self->result_source, \%to_update, $self->_storage_ident_condition
   );
   if ($rows == 0) {
@@ -611,9 +620,11 @@ See also L<DBIx::Class::ResultSet/delete>.
 sub delete {
   my $self = shift;
   if (ref $self) {
-    $self->throw_exception( "Not in database" ) unless $self->in_storage;
+    $self->throw_exception(
+      'Result object not marked in_storage: a delete() operation is not possible'
+    ) unless $self->in_storage;
 
-    $self->result_source->storage->delete(
+    $self->result_source->schema->storage->delete(
       $self->result_source, $self->_storage_ident_condition
     );
 
@@ -621,12 +632,9 @@ sub delete {
     $self->in_storage(0);
   }
   else {
-    my $rsrc = dbic_internal_try { $self->result_source_instance }
-      or $self->throw_exception("Can't do class delete without a ResultSource instance");
-
-    my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
+    my $attrs = @_ > 1 && ref $_[-1] eq 'HASH' ? { %{pop(@_)} } : {};
     my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
-    $rsrc->resultset->search(@_)->delete;
+    $self->result_source->resultset->search_rs(@_)->delete;
   }
   return $self;
 }
@@ -892,15 +900,18 @@ sub get_inflated_columns {
 sub _is_column_numeric {
     my ($self, $column) = @_;
 
-    return undef unless $self->result_source->has_column($column);
+    my $rsrc;
 
-    my $colinfo = $self->result_source->column_info ($column);
+    return undef
+      unless ( $rsrc = $self->result_source )->has_column($column);
+
+    my $colinfo = $rsrc->columns_info->{$column};
 
     # cache for speed (the object may *not* have a resultsource instance)
     if (
       ! defined $colinfo->{is_numeric}
         and
-      my $storage = dbic_internal_try { $self->result_source->schema->storage }
+      my $storage = dbic_internal_try { $rsrc->schema->storage }
     ) {
       $colinfo->{is_numeric} =
         $storage->is_datatype_numeric ($colinfo->{data_type})
@@ -1026,7 +1037,10 @@ sub _eq_column_values {
 # value tracked between column changes and commitment to storage
 sub _track_storage_value {
   my ($self, $col) = @_;
-  return defined first { $col eq $_ } ($self->result_source->primary_columns);
+  return scalar grep
+    { $col eq $_ }
+    $self->result_source->primary_columns
+  ;
 }
 
 =head2 set_columns
@@ -1088,7 +1102,9 @@ See also L<DBIx::Class::Relationship::Base/set_from_related>.
 
 sub set_inflated_columns {
   my ( $self, $upd ) = @_;
-  my $rsrc;
+
+  my ($rsrc, $colinfos);
+
   foreach my $key (keys %$upd) {
     if (ref $upd->{$key}) {
       $rsrc ||= $self->result_source;
@@ -1106,9 +1122,11 @@ sub set_inflated_columns {
         );
       }
       elsif (
-        $rsrc->has_column($key)
-          and
-        exists $rsrc->column_info($key)->{_inflate_info}
+        exists( (
+          ( $colinfos ||= $rsrc->columns_info )->{$key}
+            ||
+          {}
+        )->{_inflate_info} )
       ) {
         $self->set_inflated_column($key, delete $upd->{$key});
       }
@@ -1160,7 +1178,7 @@ sub copy {
   my $new = { _column_data => $col_data };
   bless $new, ref $self;
 
-  $new->result_source($rsrc);
+  $new->result_source_instance($rsrc);
   $new->set_inflated_columns($changes);
   $new->insert;
 
@@ -1179,16 +1197,17 @@ sub copy {
 
     $copied->{$_->ID}++ or $_->copy(
 
-      $foreign_vals ||= $rsrc->_resolve_relationship_condition(
-        infer_values_based_on => {},
+      $foreign_vals ||= $rsrc->resolve_relationship_condition(
+        require_join_free_values => 1,
         rel_name => $rel_name,
         self_result_object => $new,
 
-        self_alias => "\xFE", # irrelevant
-        foreign_alias => "\xFF", # irrelevant,
-      )->{inferred_values}
+        # an API where these are optional would be too cumbersome,
+        # instead always pass in some dummy values
+        DUMMY_ALIASPAIR,
+      )->{join_free_values}
 
-    ) for $self->search_related($rel_name)->all;
+    ) for $self->related_resultset($rel_name)->all;
   }
   return $new;
 }
@@ -1221,17 +1240,13 @@ sub store_column {
   $self->throw_exception( "set_column called for ${column} without value" )
     if @_ < 3;
 
-  return $self->{_column_data}{$column} = $value
-    unless length ref $value and my $vref = is_plain_value( $value );
-
-  # if we are dealing with a value/ref - there are a couple possibilities
-  # unpack the underlying piece of data and stringify all objects explicitly
-  # ( to accomodate { -value => ... } and guard against overloaded objects
-  # with defined stringification AND fallback => 0 (ugh!)
-  $self->{_column_data}{$column} = defined blessed $$vref
-    ? "$$vref"
-    : $$vref
-  ;
+  my $vref;
+  $self->{_column_data}{$column} = (
+    # unpack potential { -value => "foo" }
+    ( length ref $value and $vref = is_plain_value( $value ) )
+      ? $$vref
+      : $value
+  );
 }
 
 =head2 inflate_result
@@ -1352,7 +1367,10 @@ Alias for L</update_or_insert>
 
 =cut
 
-sub insert_or_update { shift->update_or_insert(@_) }
+sub insert_or_update :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->update_or_insert(@_);
+}
 
 sub update_or_insert {
   my $self = shift;
@@ -1419,22 +1437,23 @@ Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 
 =cut
 
-sub result_source {
-  $_[0]->throw_exception( 'result_source can be called on instances only' )
-    unless ref $_[0];
-
+sub result_source :DBIC_method_is_indirect_sugar {
+  # While getter calls are routed through here for sensible exception text
+  # it makes no sense to have setters do the same thing
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS
+    and
   @_ > 1
-    ? $_[0]->{_result_source} = $_[1]
+    and
+  fail_on_internal_call;
 
-    # note this is a || not a ||=, the difference is important
-    : $_[0]->{_result_source} || do {
-        $_[0]->can('result_source_instance')
-          ? $_[0]->result_source_instance
-          : $_[0]->throw_exception(
-            "No result source instance registered for @{[ ref $_[0] ]}, did you forget to call @{[ ref $_[0] ]}->table(...) ?"
-          )
-      }
-  ;
+  # this is essentially a `shift->result_source_instance(@_)` with handholding
+  &{
+    $_[0]->can('result_source_instance')
+      ||
+    $_[0]->throw_exception(
+      "No ResultSource instance registered for '@{[ $_[0] ]}', did you forget to call @{[ ref $_[0] || $_[0] ]}->table(...) ?"
+    )
+  };
 }
 
 =head2 register_column
@@ -1502,15 +1521,16 @@ L<DBIx::Class::ResultSet/ATTRIBUTES>.
 =cut
 
 sub get_from_storage {
-    my $self = shift @_;
-    my $attrs = shift @_;
-    my $resultset = $self->result_source->resultset;
+    my $self = shift;
 
-    if(defined $attrs) {
-      $resultset = $resultset->search(undef, $attrs);
-    }
-
-    return $resultset->find($self->_storage_ident_condition);
+    # with or without attrs?
+    (
+      defined( $_[0] )
+        ? $self->result_source->resultset->search_rs( undef, $_[0] )
+        : $self->result_source->resultset
+    )->find(
+      $self->_storage_ident_condition
+    );
 }
 
 =head2 discard_changes
@@ -1581,8 +1601,9 @@ sub throw_exception {
   my $self=shift;
 
   if (
-    ref $self
+    ! DBIx::Class::_Util::in_internal_try
       and
+    # FIXME - the try is 99% superfluous, but just in case
     my $rsrc = dbic_internal_try { $self->result_source_instance }
   ) {
     $rsrc->throw_exception(@_)

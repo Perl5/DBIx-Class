@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( ic_dt _rdbms_mssql_common );
 
 use strict;
@@ -5,9 +6,8 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
 use DBIx::Class::_Util 'scope_guard';
-use lib qw(t/lib);
+
 use DBICTest;
 
 my @tdeps = qw( test_rdbms_mssql_odbc test_rdbms_mssql_sybase test_rdbms_mssql_ado );
@@ -55,7 +55,7 @@ for my $connect_info (@connect_info) {
   my $guard = scope_guard { cleanup($schema) };
 
   # $^W because DBD::ADO is a piece of crap
-  try { local $^W = 0; $schema->storage->dbh->do("DROP TABLE track") };
+  eval { local $^W = 0; $schema->storage->dbh->do("DROP TABLE track") };
   $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE track (
  trackid INT IDENTITY PRIMARY KEY,
@@ -64,14 +64,14 @@ CREATE TABLE track (
  last_updated_at DATETIME,
 )
 SQL
-  try { local $^W = 0; $schema->storage->dbh->do("DROP TABLE event_small_dt") };
+  eval { local $^W = 0; $schema->storage->dbh->do("DROP TABLE event_small_dt") };
   $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE event_small_dt (
  id INT IDENTITY PRIMARY KEY,
  small_dt SMALLDATETIME,
 )
 SQL
-  try { local $^W = 0; $schema->storage->dbh->do("DROP TABLE event") };
+  eval { local $^W = 0; $schema->storage->dbh->do("DROP TABLE event") };
   $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE event (
    id int IDENTITY(1,1) NOT NULL,

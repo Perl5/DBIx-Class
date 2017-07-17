@@ -4,12 +4,14 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 sub _attrs {
   my ($self, @atts) = @_;
   return @{$self->{_column_data}}{@atts};
 }
 
-*_attr = \&_attrs;
+sub _attr { shift->_attrs(@_) }
 
 sub _attribute_store {
   my $self   = shift;

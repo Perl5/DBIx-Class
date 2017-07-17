@@ -15,11 +15,9 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use DBIx::Class::_Util 'dbic_internal_try';
-use DBIx::Class::Exception;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch bag_eq );
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
-use Try::Tiny;
 use namespace::clean;
 
 use base qw(Exporter);
@@ -57,7 +55,8 @@ sub parse {
     if (!ref $dbicschema) {
       dbic_internal_try {
         Class::C3::Componentised->ensure_class_loaded($dbicschema)
-      } catch {
+      }
+      dbic_internal_catch {
         DBIx::Class::Exception->throw("Can't load $dbicschema: $_");
       }
     }
@@ -127,6 +126,10 @@ sub parse {
                                        name => $table_name,
                                        type => 'TABLE',
                                        );
+
+        my $ci = $source->columns_info;
+
+        # same order as add_columns
         foreach my $col ($source->columns)
         {
             # assuming column_info in dbic is the same as DBI (?)
@@ -137,7 +140,7 @@ sub parse {
               is_auto_increment => 0,
               is_foreign_key => 0,
               is_nullable => 0,
-              %{$source->column_info($col)}
+              %{$ci->{$col} || {}}
             );
             if ($colinfo{is_nullable}) {
               $colinfo{default} = '' unless exists $colinfo{default};
@@ -150,15 +153,14 @@ sub parse {
 
         $table->primary_key(@primary) if @primary;
 
-        my %unique_constraints = $source->unique_constraints;
-        foreach my $uniq (sort keys %unique_constraints) {
-            if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
-                $table->add_constraint(
-                            type             => 'unique',
-                            name             => $uniq,
-                            fields           => $unique_constraints{$uniq}
-                );
-            }
+        my $unique_constraints = $source->unique_constraints_info;
+        foreach my $uniq (sort keys %$unique_constraints) {
+            $table->add_constraint(
+                %{ $unique_constraints->{$uniq}->{sqlt_extra} || {} },
+                type             => 'unique',
+                name             => $uniq,
+                fields           => $unique_constraints->{$uniq}->{columns}
+            ) unless bag_eq( \@primary, $unique_constraints->{$uniq}->{columns} );
         }
 
         my @rels = $source->relationships();
@@ -174,6 +176,11 @@ sub parse {
             my $rel_info = $source->relationship_info($rel);
 
             # Ignore any rel cond that isn't a straight hash
+            #
+            # FIXME - this can be done *WAY* better via the recolcond resolver
+            # but no time to think through the implications for deploy() at
+            # the moment. Grep for {identity_map_matches_condition} for ideas
+            # how to improve this, and the /^\w+\.(\w+)$/ crap below
             next unless ref $rel_info->{cond} eq 'HASH';
 
             my $relsource = dbic_internal_try { $source->related_source($rel) };
@@ -224,12 +231,12 @@ sub parse {
             # this is supposed to indicate a has_one/might_have...
             # where's the introspection!!?? :)
             else {
-                $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
+                $fk_constraint = ! bag_eq( \@keys, \@primary );
             }
 
-            my ($otherrelname, $otherrelationship) = %{ $source->reverse_relationship_info($rel) };
 
             my $cascade;
+            CASCADE_TYPE:
             for my $c (qw/delete update/) {
                 if (exists $rel_info->{attrs}{"on_$c"}) {
                     if ($fk_constraint) {
@@ -240,8 +247,16 @@ sub parse {
                             . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
                     }
                 }
-                elsif (defined $otherrelationship and $otherrelationship->{attrs}{$c eq 'update' ? 'cascade_copy' : 'cascade_delete'}) {
-                    $cascade->{$c} = 'CASCADE';
+                else {
+                  for my $revrelinfo (values %{ $source->reverse_relationship_info($rel) } ) {
+                    ( ( $cascade->{$c} = 'CASCADE' ), next CASCADE_TYPE ) if (
+                      $revrelinfo->{attrs}
+                                  ->{ ($c eq 'update')
+                                      ? 'cascade_copy'
+                                      : 'cascade_delete'
+                                    }
+                    );
+                  }
                 }
             }
 

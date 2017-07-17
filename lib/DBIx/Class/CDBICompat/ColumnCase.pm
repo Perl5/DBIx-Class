@@ -4,14 +4,16 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base 'DBIx::Class';
+
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
   return $class->next::method($group => map lc, @cols);
 }
 
-sub add_columns {
+sub add_columns :DBIC_method_is_bypassable_resultsource_proxy {
   my ($class, @cols) = @_;
-  return $class->result_source_instance->add_columns(map lc, @cols);
+  return $class->result_source->add_columns(map lc, @cols);
 }
 
 sub has_a {

@@ -1,8 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
+use Test::Warn;
+
 use DBICTest;
 my $schema = DBICTest->init_schema();
 
@@ -20,9 +23,12 @@ is($programming_perl->id, 1, 'select from a resultset with find_or_create for ex
 
 # and inserts?
 my $see_spot;
-$see_spot = eval { $owner->books->find_or_create({ title => "See Spot Run" }) };
-if ($@) { print $@ }
-ok(!$@, 'find_or_create on resultset with attribute for non-existent entry did not throw');
+$see_spot = eval {
+  warnings_exist {
+    $owner->books->find_or_create({ title => "See Spot Run" })
+  } qr/Missing value for primary key column 'id' on BooksInLibrary - perhaps you forgot to set its 'is_auto_increment'/;
+};
+is ($@, '',  'find_or_create on resultset with attribute for non-existent entry did not throw');
 ok(defined $see_spot, 'successfully did insert on resultset with attribute for non-existent entry');
 
 my $see_spot_rs = $owner->books->search({ title => "See Spot Run" });

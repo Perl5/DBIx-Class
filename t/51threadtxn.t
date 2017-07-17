@@ -1,4 +1,6 @@
-# README: If you set the env var to a number greater than 10,
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
+# README: If you set the env var to a number greater than 5,
 #   we will use that many children
 
 use Config;
@@ -26,12 +28,14 @@ plan skip_all => 'DBIC does not actively support threads before perl 5.8.5'
   if "$]" < 5.008005;
 
 use Scalar::Util 'weaken';
-use lib qw(t/lib);
+use Time::HiRes qw(time sleep);
+use List::Util 'max';
+
 use DBICTest;
 
 my $num_children = $ENV{DBICTEST_THREAD_STRESS} || 1;
-if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
-   $num_children = 10;
+if($num_children !~ /^[0-9]+$/ || $num_children < 5) {
+   $num_children = 5;
 }
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
@@ -57,11 +61,23 @@ eval {
 };
 ok(!$@) or diag "Creation eval failed: $@";
 
+# sleep until this spot so everything starts simultaneously
+# add "until turn of second" for prettier display
+my $t = int( time() ) + 4;
+
 my @children;
 while(@children < $num_children) {
 
     my $newthread = async {
         my $tid = threads->tid;
+
+        sleep( max( 0.1, $t - time ) );
+
+        # FIXME if we do not stagger the threads, sparks fly due to CXSA
+        sleep ( $tid / 10 ) if "$]" < 5.012;
+
+        note ("Thread $tid starting work at " . time() );
+
         weaken(my $weak_schema = $schema);
         weaken(my $weak_parent_rs = $parent_rs);
         $schema->txn_do(sub {
@@ -71,7 +87,8 @@ while(@children < $num_children) {
                 $weak_schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
             }
         });
-        sleep(1);  # tasty crashes without this
+
+        sleep (0.2); # without this many tasty crashes even on latest perls
     };
     die "Thread creation failed: $! $@" if !defined $newthread;
     push(@children, $newthread);
@@ -95,5 +112,10 @@ while(@children) {
 ok(1, "Made it to the end");
 
 $schema->storage->dbh->do("DROP TABLE cd");
+
+# Too many threading bugs on exit, none of which have anything to do with
+# the actual stuff we test
+$ENV{DBICTEST_DIRTY_EXIT} = 1
+  if "$]" < 5.012;
 
 done_testing;

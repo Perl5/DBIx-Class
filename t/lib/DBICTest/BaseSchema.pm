@@ -6,20 +6,83 @@ use warnings;
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
-use Time::HiRes 'sleep';
-use DBIx::Class::_Util 'scope_guard';
+use IO::Handle ();
+use DBIx::Class::_Util qw( emit_loud_diag scope_guard set_subname get_subname );
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
-use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use DBICTest::Util qw( local_umask tmpdir await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
+use Scalar::Util qw( refaddr weaken );
+use Devel::GlobalDestruction ();
 use namespace::clean;
 
-if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
-  __PACKAGE__->exception_action( sub {
+# Unless we are running assertions there is no value in checking ourselves
+# during regular tests - the CI will do it for us
+#
+if (
+  DBIx::Class::_ENV_::ASSERT_NO_FAILING_SANITY_CHECKS
+    and
+  # full-blown 5.8 sanity-checking is waaaaaay too slow, even for CI
+  (
+    ! DBIx::Class::_ENV_::OLD_MRO
+      or
+    # still run a couple test with this, even on 5.8
+    $ENV{DBICTEST_OLD_MRO_SANITY_CHECK_ASSERTIONS}
+  )
+) {
 
-    my ( $fr_num, $disarmed, $throw_exception_fr_num );
+  __PACKAGE__->schema_sanity_checker('DBIx::Class::Schema::SanityChecker');
+
+  # Repeat the check on going out of scope (will catch weird runtime tinkering)
+  # Add only in case we will be using it, as it slows tests down
+  eval <<'EOD' or die $@;
+
+  sub DESTROY {
+    if (
+      ! Devel::GlobalDestruction::in_global_destruction()
+        and
+      my $checker = $_[0]->schema_sanity_checker
+    ) {
+      $checker->perform_schema_sanity_checks($_[0]);
+    }
+
+    # *NOT* using next::method here - it (currently) will confuse Class::C3
+    # in some obscure cases ( 5.8 naturally )
+    shift->SUPER::DESTROY();
+  }
+
+  1;
+
+EOD
+
+}
+else {
+  # otherwise just unset the default
+  __PACKAGE__->schema_sanity_checker('');
+}
+
+
+if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
+  my $ea = __PACKAGE__->exception_action( sub {
+
+    # Can not rely on $^S here at all - the exception_action
+    # itself is always called in an eval so that the goto-guard
+    # can work (see 7cb35852)
+
+    my ( $fr_num, $disarmed, $throw_exception_fr_num, $eval_fr_num );
     while( ! $disarmed and my @fr = caller(++$fr_num) ) {
 
       $throw_exception_fr_num ||= (
-        $fr[3] eq 'DBIx::Class::ResultSource::throw_exception'
+        $fr[3] =~ /^DBIx::Class::(?:ResultSource|Schema|Storage|Exception)::throw(?:_exception)?$/
+          and
+        # there may be evals in the throwers themselves - skip those
+        ( $eval_fr_num ) = ( undef )
+          and
+        $fr_num
+      );
+
+      # now that the above stops un-setting us, we can find the first
+      # ineresting eval
+      $eval_fr_num ||= (
+        $fr[3] eq '(eval)'
           and
         $fr_num
       );
@@ -52,10 +115,41 @@ if( $ENV{DBICTEST_ASSERT_NO_SPURIOUS_EXCEPTION_ACTION} ) {
       '',
       '  You almost certainly used eval/try instead of dbic_internal_try()',
       "  Adjust *one* of the eval-ish constructs in the callstack starting" . DBICTest::Util::stacktrace($throw_exception_fr_num||())
-    ) unless $disarmed;
+    ) if (
+      ! $disarmed
+        and
+      (
+        $eval_fr_num
+          or
+        ! $throw_exception_fr_num
+      )
+    );
 
     DBIx::Class::Exception->throw( $_[0] );
-  })
+  });
+
+  my $interesting_ns_rx = qr/^ (?: main$ | DBIx::Class:: | DBICTest:: ) /x;
+
+  # hard-set $SIG{__DIE__} to the class-wide exception_action
+  # with a little escape preceeding it
+  $SIG{__DIE__} = sub {
+
+    # without this there would be false positives everywhere :(
+    die @_ if (
+      # blindly rethrow if nobody is waiting for us
+      ( defined $^S and ! $^S )
+        or
+      (caller(0))[0] !~ $interesting_ns_rx
+        or
+      (
+        caller(0) eq 'main'
+          and
+        ( (caller(1))[0] || '' ) !~ $interesting_ns_rx
+      )
+    );
+
+    &$ea;
+  };
 }
 
 sub capture_executed_sql_bind {
@@ -170,7 +264,19 @@ END {
   }
 }
 
-my $weak_registry = {};
+my ( $weak_registry, $assertion_arounds ) = ( {}, {} );
+
+sub DBICTest::__RsrcRedefiner_iThreads_handler__::CLONE {
+  if( DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE ) {
+    %$assertion_arounds = map {
+      (defined $_)
+        ? ( refaddr($_) => $_ )
+        : ()
+    } values %$assertion_arounds;
+
+    weaken($_) for values %$assertion_arounds;
+  }
+}
 
 sub connection {
   my $self = shift->next::method(@_);
@@ -204,7 +310,7 @@ sub connection {
       and
     ref($_[0]) ne 'CODE'
       and
-    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite \: (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
+    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
   ) {
 
     my $locktype;
@@ -216,12 +322,18 @@ sub connection {
       # we need to work with a forced fresh clone so that we do not upset any state
       # of the main $schema (some tests examine it quite closely)
       local $SIG{__WARN__} = sub {};
+      local $SIG{__DIE__} if $SIG{__DIE__};
       local $@;
 
       # this will either give us an undef $locktype or will determine things
       # properly with a default ( possibly connecting in the process )
       eval {
-        my $s = ref($self)->connect(@{$self->storage->connect_info})->storage;
+        my $cur_storage = $self->storage;
+
+        $cur_storage = $cur_storage->master
+          if $cur_storage->isa('DBIx::Class::Storage::DBI::Replicated');
+
+        my $s = ref($self)->connect(@{$cur_storage->connect_info})->storage;
 
         $locktype = $s->sqlt_type || 'generic';
 
@@ -243,7 +355,7 @@ sub connection {
 
       undef $locker;
 
-      my $lockpath = DBICTest::RunMode->tmpdir->file("_dbictest_$locktype.lock");
+      my $lockpath = tmpdir . "_dbictest_$locktype.lock";
 
       DEBUG_TEST_CONCURRENCY_LOCKS
         and dbg "Waiting for $locktype LOCK: $lockpath...";
@@ -273,7 +385,7 @@ sub connection {
 
         for (1..50) {
           kill (0, $old_pid) or last;
-          sleep 0.1;
+          select( undef, undef, undef, 0.1 );
         }
 
         DEBUG_TEST_CONCURRENCY_LOCKS
@@ -310,6 +422,169 @@ sub connection {
       }],
     ]);
   }
+
+  #
+  # Check an explicit level of indirection: makes sure that folks doing
+  # use `base "DBIx::Class::Core"; __PACKAGE__->add_column("foo")`
+  # will see the correct error message
+  #
+  # In the future this all is likely to be folded into a single method in
+  # some way, but that's a fight for another maint
+  #
+  if( DBIx::Class::_ENV_::ASSERT_NO_ERRONEOUS_METAINSTANCE_USE ) {
+
+    for my $class_of_interest (
+      'DBIx::Class::Row',
+      map { $self->class($_) } ($self->sources)
+    ) {
+
+      my $orig_rsrc = $class_of_interest->can('result_source')
+        or die "How did we get here?!";
+
+      unless ( $assertion_arounds->{refaddr $orig_rsrc} ) {
+
+        my ($origin) = get_subname($orig_rsrc);
+
+        no warnings 'redefine';
+        no strict 'refs';
+
+        *{"${origin}::result_source"} = my $replacement = set_subname "${origin}::result_source" => sub {
+
+
+          @_ > 1
+            and
+          (CORE::caller(0))[1] !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+            and
+          emit_loud_diag(
+            msg => 'Incorrect indirect call of result_source() as setter must be changed to result_source_instance()',
+            confess => 1,
+          );
+
+
+          grep {
+            ! (CORE::caller($_))[7]
+              and
+            ( (CORE::caller($_))[3] || '' ) eq '(eval)'
+              and
+            ( (CORE::caller($_))[1] || '' ) !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+          } (0..2)
+            and
+          # these evals are legit
+          ( (CORE::caller(4))[3] || '' ) !~ /^ (?:
+            DBIx::Class::Schema::_ns_get_rsrc_instance
+              |
+            DBIx::Class::Relationship::BelongsTo::belongs_to
+              |
+            DBIx::Class::Relationship::HasOne::_has_one
+              |
+            Class::C3::Componentised::.+
+          ) $/x
+            and
+          emit_loud_diag(
+            # not much else we can do (aside from exit(1) which is too obnoxious)
+            msg => 'Incorrect call of result_source() in an eval',
+            emit_dups => 1,
+          );
+
+
+          &$orig_rsrc;
+        };
+
+        weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
+
+        attributes->import(
+          $origin,
+          $replacement,
+          attributes::get($orig_rsrc)
+        );
+      }
+
+
+      # no rsrc_instance to mangle
+      next if $class_of_interest eq 'DBIx::Class::Row';
+
+
+      my $orig_rsrc_instance = $class_of_interest->can('result_source_instance')
+        or die "How did we get here?!";
+
+      # Do the around() per definition-site as result_source_instance is a CAG inherited cref
+      unless ( $assertion_arounds->{refaddr $orig_rsrc_instance} ) {
+
+        my ($origin) = get_subname($orig_rsrc_instance);
+
+        no warnings 'redefine';
+        no strict 'refs';
+
+        *{"${origin}::result_source_instance"} = my $replacement = set_subname "${origin}::result_source_instance" => sub {
+
+
+          @_ == 1
+            and
+          # special cased as we do not care whether there is a source
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Schema::_register_source'
+            and
+          # special case because I am paranoid
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Row::throw_exception'
+            and
+          ( (CORE::caller(1))[3] || '' ) !~ / ^ DBIx::Class:: (?:
+            Row::result_source
+              |
+            Row::throw_exception
+              |
+            ResultSourceProxy::Table:: (?: _init_result_source_instance | table )
+              |
+            ResultSourceHandle::STORABLE_thaw
+          ) $ /x
+            and
+          (CORE::caller(0))[1] !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+            and
+          emit_loud_diag(
+            msg => 'Incorrect direct call of result_source_instance() as getter must be changed to result_source()',
+            confess => 1
+          );
+
+
+          grep {
+            ! (CORE::caller($_))[7]
+              and
+            ( (CORE::caller($_))[3] || '' ) eq '(eval)'
+              and
+            ( (CORE::caller($_))[1] || '' ) !~ / (?: ^ | [\/\\] ) x?t [\/\\] .+? \.t $ /x
+          } (0..2)
+            and
+          # special cased as we do not care whether there is a source
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Schema::_register_source'
+            and
+          # special case because I am paranoid
+          ( (CORE::caller(4))[3] || '' ) ne 'DBIx::Class::Row::throw_exception'
+            and
+          # special case for Storable, which in turn calls from an eval
+          ( (CORE::caller(1))[3] || '' ) ne 'DBIx::Class::ResultSourceHandle::STORABLE_thaw'
+            and
+          emit_loud_diag(
+            # not much else we can do (aside from exit(1) which is too obnoxious)
+            msg => 'Incorrect call of result_source_instance() in an eval',
+            skip_frames => 1,
+            emit_dups => 1,
+          );
+
+          &$orig_rsrc_instance;
+        };
+
+        weaken( $assertion_arounds->{refaddr $replacement} = $replacement );
+
+        attributes->import(
+          $origin,
+          $replacement,
+          attributes::get($orig_rsrc_instance)
+        );
+      }
+    }
+
+    Class::C3::initialize if DBIx::Class::_ENV_::OLD_MRO;
+  }
+  #
+  # END Check an explicit level of indirection
 
   return $self;
 }

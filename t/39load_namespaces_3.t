@@ -1,16 +1,18 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
 
-use lib qw(t/lib);
+
 use DBICTest; # do not remove even though it is not used
 
 lives_ok (sub {
   warnings_exist ( sub {
       package DBICNSTestOther;
-      use base qw/DBIx::Class::Schema/;
+      use base qw/DBICTest::BaseSchema/;
       __PACKAGE__->load_namespaces(
           result_namespace => [ '+DBICNSTest::Rslt', '+DBICNSTest::OtherRslt' ],
           resultset_namespace => '+DBICNSTest::RSet',

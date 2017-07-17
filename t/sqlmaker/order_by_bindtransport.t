@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
-use Data::Dumper::Concise;
-use lib qw(t/lib);
+
+use DBIx::Class::_Util 'dump_value';
 use DBICTest ':DiffSQL';
 
 sub test_order {
@@ -41,7 +43,7 @@ sub test_order {
               ? map { [ { dbic_colname => $_->[0] } => $_->[1] ] } @{ $args->{bind} }
               : ()
         ],
-      ) || diag Dumper $args->{order_by};
+      ) || diag dump_value $args->{order_by};
     };
 }
 

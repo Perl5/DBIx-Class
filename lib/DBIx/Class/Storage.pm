@@ -6,18 +6,17 @@ use warnings;
 use base qw/DBIx::Class/;
 use mro 'c3';
 
-{
-  package # Hide from PAUSE
-    DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
-  use base 'DBIx::Class::Exception';
+BEGIN {
+  no warnings 'once';
+  @DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION::ISA
+    = 'DBIx::Class::Exception';
 }
 
 use DBIx::Class::Carp;
 use DBIx::Class::Storage::BlockRunner;
 use Scalar::Util qw/blessed weaken/;
 use DBIx::Class::Storage::TxnScopeGuard;
-use DBIx::Class::_Util 'dbic_internal_try';
-use Try::Tiny;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch fail_on_internal_call );
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/debug schema transaction_depth auto_savepoint savepoints/);
@@ -25,7 +24,10 @@ __PACKAGE__->mk_group_accessors(component_class => 'cursor_class');
 
 __PACKAGE__->cursor_class('DBIx::Class::Cursor');
 
-sub cursor { shift->cursor_class(@_); }
+sub cursor :DBIC_method_is_indirect_sugar {
+  DBIx::Class::_ENV_::ASSERT_NO_INTERNAL_INDIRECT_CALLS and fail_on_internal_call;
+  shift->cursor_class(@_);
+}
 
 =head1 NAME
 
@@ -149,7 +151,7 @@ For example,
   my $rs;
   try {
     $rs = $schema->txn_do($coderef);
-  } catch {
+  } dbic_internal_catch {
     my $error = shift;
     # Transaction failed
     die "something terrible has happened!"
@@ -317,7 +319,7 @@ sub __delicate_rollback {
   dbic_internal_try {
     $self->txn_rollback; 1
   }
-  catch {
+  dbic_internal_catch {
 
     $rbe = $_;
 
@@ -431,12 +433,15 @@ sub svp_release {
 
   if (defined $name) {
     my @stack = @{ $self->savepoints };
-    my $svp;
+    my $svp = '';
 
-    do { $svp = pop @stack } until $svp eq $name;
+    while( $svp ne $name ) {
 
-    $self->throw_exception ("Savepoint '$name' does not exist")
-      unless $svp;
+      $self->throw_exception ("Savepoint '$name' does not exist")
+        unless @stack;
+
+      $svp = pop @stack;
+    }
 
     $self->savepoints(\@stack); # put back what's left
   }
@@ -577,13 +582,14 @@ sub debugobj {
 
       if ($profile =~ /^\.?\//) {
 
+        require DBIx::Class::Optional::Dependencies;
         if ( my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('config_file_reader') ) {
           $self->throw_exception("Unable to parse TRACE_PROFILE config file '$profile' without $missing");
         }
 
         my $cfg = dbic_internal_try {
           Config::Any->load_files({ files => [$profile], use_ext => 1 });
-        } catch {
+        } dbic_internal_catch {
           # sanitize the error message a bit
           $_ =~ s/at \s+ .+ Storage\.pm \s line \s \d+ $//x;
           $self->throw_exception("Failure processing \$ENV{DBIC_TRACE_PROFILE}: $_");
@@ -609,7 +615,7 @@ sub debugobj {
       # a better fix. This is another yak to shave... :(
       dbic_internal_try {
         DBIx::Class::Storage::Debug::PrettyPrint->new(@pp_args);
-      } catch {
+      } dbic_internal_catch {
         $self->throw_exception($_);
       }
     }

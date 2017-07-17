@@ -5,24 +5,59 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
-# The prereq-install stage will not work with both POISON and DEVREL
+# The DEVREL_DEPS prereq-install stage won't mix with MVDT
 # DEVREL wins
-if [[ "$DEVREL_DEPS" = "true" ]] ; then
-  export POISON_ENV=""
+if [[ "$DEVREL_DEPS" == "true" ]] ; then
+  export MVDT=""
 fi
 
-# FIXME - this is a kludge in place of proper MDV testing. For the time
+# Need a shitton of patches to run on cperl (luckily all provided)
+if is_cperl ; then
+
+  run_or_err "Downloading and installing cperl distroprefs" '
+    wget -qO- https://github.com/rurban/distroprefs/archive/master.tar.gz |\
+    tar -C $HOME/.cpan --strip-components 1 -zx distroprefs-master/prefs distroprefs-master/sources
+  '
+
+  # Argh -DFORTIFY_INC!!!
+  # FIXME - remove when M::I is gone
+  export PERL5LIB="$PERL5LIB:."
+
+  # Also need to have YAML in place, otherwise the distroprefs are not readable
+  # work around https://github.com/perl11/cperl/issues/155#issuecomment-224862978
+  perl -MYAML -e1 &>/dev/null || installdeps YAML
+
+fi
+
+
+# announce what are we running
+echo_err "$(ci_vm_state_text)"
+
+
+# FIXME - this is a kludge in place of proper MVDT testing. For the time
 # being simply use the minimum versions of our DBI/DBDstack, to avoid
 # fuckups like 0.08260 (went unnoticed for 5 months)
-if [[ "$POISON_ENV" = "true" ]] ; then
+if [[ "$MVDT" == "true" ]] ; then
 
   # use url-spec for DBI due to https://github.com/miyagawa/cpanminus/issues/328
   if [[ "$CLEANTEST" != "true" ]] || perl -M5.013003 -e1 &>/dev/null ; then
     # the fulltest may re-upgrade DBI, be conservative only on cleantests
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
+    fi
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
+
+    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
+      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz"
+    fi
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite
@@ -32,23 +67,36 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   else
     parallel_installdeps_notest DBD::SQLite@1.29
   fi
+fi
 
-  # also try minimal tested installs *without* a compiler
-  if [[ "$CLEANTEST" = "true" ]]; then
+#
+# try minimal fully tested installs *without* a compiler (with some exceptions of course)
+if [[ "$BREAK_CC" == "true" ]] ; then
 
-    # Clone and P::S::XS are both bugs
-    # File::Spec can go away as soon as I dump Path::Class
-    # File::Path is there because of RT#107392 (sigh)
-    # List::Util can be excised after that as well (need to make my own max() routine for older perls)
+  [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
 
-    installdeps Sub::Name Clone Package::Stash::XS \
-                $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
-                $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" )
+  # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
+  #
+  # DEVREL_DEPS means our installer is cpanm, which will respect failures
+  # and the like, so stuff soft-failing (failed deps that are not in fact
+  # needed) will not fly. Add *EVEN MORE* stuff that needs a compiler
+  #
+  # FIXME - the PathTools 3.47 is to work around https://rt.cpan.org/Ticket/Display.html?id=107392
+  #
+  installdeps Sub::Name Clone Package::Stash::XS \
+              $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
+              $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
+              $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
 
-    mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
-    run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
-               "ln -s /bin/false $HOME/bin/cc"
-  fi
+  mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
+  run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
+             "ln -s /bin/false $HOME/bin/cc"
+
+  # FIXME: working around RT#113682, and some other unfiled bugs
+  installdeps Module::Build Devel::GlobalDestruction Class::Accessor::Grouped
+
+  run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
+             "ln -fs /bin/true $HOME/bin/cc"
 fi
 
 if [[ "$CLEANTEST" = "true" ]]; then
@@ -57,7 +105,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # the point is to have a *really* clean perl (the ones
   # we build are guaranteed to be clean, without side
   # effects from travis preinstalls)
-
+  #
   # trick cpanm into executing true as shell - we just need the find+unpack
   [[ -d ~/.cpanm/latest-build/DBIx-Class-*/inc ]] || run_or_err "Downloading latest stable DBIC inc/ from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
@@ -86,18 +134,22 @@ else
 
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
-  # (e.g. once Carp is upgraded there's no more Carp::Heavy,
-  # while a File::Path upgrade may cause a parallel EUMM run to fail)
+  # (e.g. once Carp is upgraded there's no more Carp::Heavy)
   #
-  parallel_installdeps_notest File::Path
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest File::Spec Module::Runtime
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
-  parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
+  parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/dbsrgits/perl-pperl.git
+
+  # FIXME - temp workaround for RT#117959
+  if ! perl -M5.008004 -e1 &>/dev/null ; then
+    parallel_installdeps_notest DateTime::Locale@1.06
+    parallel_installdeps_notest DateTime::TimeZone@2.02
+    parallel_installdeps_notest DateTime@1.38
+  fi
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
@@ -114,12 +166,11 @@ else
   fi
 fi
 
-# generate the makefile which will have different deps depending on
-# the runmode and envvars set above
-run_or_err "Configure on current branch" "perl Makefile.PL"
 
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
+
+  run_or_err "Configure on current branch" "perl Makefile.PL"
 
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
@@ -141,17 +192,40 @@ if [[ "$CLEANTEST" = "true" ]]; then
 ##### END TEMPORARY WORKAROUNDS
   fi
 
+  # FIXME - work around RT#117844
+  if [[ "$BREWVER" == "5.10.0" ]]; then
+    unset PERL_UNICODE
+  fi
+
   installdeps $HARD_DEPS
+
+  run_or_err "Re-configure" "perl Makefile.PL"
 
 else
 
-  parallel_installdeps_notest "$(make listdeps | sort -R)"
+  run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
+  # FIXME - evil evil work around for https://github.com/Manwar/Test-Strict/issues/17
+  if perl -M5.025 -e1 &>/dev/null; then
+    mkdir -p "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel"
+    cat <<MyDevelCover > "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel/Cover.pm"
+package Devel::Cover;
+our \$VERSION = 0.43;
+1;
+MyDevelCover
+  fi
+
+  # if we are smoking devrels - make sure we upgrade everything we know about
+  if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    parallel_installdeps_notest "$(make listalldeps | sort -R)"
+  else
+    parallel_installdeps_notest "$(make listdeps | sort -R)"
+  fi
+
+  run_or_err "Re-configure with --with-optdeps" "perl Makefile.PL --with-optdeps"
 fi
 
 echo_err "$(tstamp) Dependency installation finished"
-
-run_or_err "Re-configure" "perl Makefile.PL"
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
@@ -163,8 +237,8 @@ if [[ -n "$(make listdeps)" ]] ; then
   exit 1
 fi
 
-# check that our MDV somewhat works
-if [[ "$POISON_ENV" = "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
+# check that our MVDT somewhat works
+if [[ "$MVDT" == "true" ]] && ( perl -MDBD::SQLite\ 1.38 -e1 || perl -MDBI\ 1.615 -e1 ) &>/dev/null ; then
   echo_err "Something went wrong - higher versions of DBI and/or DBD::SQLite than we expected"
   exit 1
 fi
@@ -174,9 +248,6 @@ if [[ "$CLEANTEST" = "true" ]] && perl -MModule::Build::Tiny -e1 &>/dev/null ; t
   exit 1
 fi
 
-# announce what are we running
 echo_err "
 ===================== DEPENDENCY CONFIGURATION COMPLETE =====================
-$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)
-
-$(ci_vm_state_text)"
+$(tstamp) Configuration phase seems to have taken $(date -ud "@$SECONDS" '+%H:%M:%S') (@$SECONDS)"

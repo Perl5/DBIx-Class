@@ -42,33 +42,22 @@ my $runtime_requires = {
 ###
   'DBI'                      => '1.57',
 
-  # on older versions first() leaks
-  # for the time being make it a hard dep - when we get
-  # rid of Sub::Name will revisit this (possibility is
-  # to use Devel::HideXS to force the pure-perl version
-  # or something like that)
-  'List::Util'               => '1.16',
-
   # XS (or XS-dependent) libs
   'Sub::Name'                => '0.04',
 
   # pure-perl (FatPack-able) libs
   'Class::Accessor::Grouped' => '0.10012',
   'Class::C3::Componentised' => '1.0009',
-  'Class::Inspector'         => '1.24',
   'Context::Preserve'        => '0.01',
-  'Data::Dumper::Concise'    => '2.020',
   'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0.09',
   'Hash::Merge'              => '0.12',
-  'Moo'                      => '2.000',
+  'Moo'                      => '2.002002',
   'MRO::Compat'              => '0.12',
   'Module::Find'             => '0.07',
   'namespace::clean'         => '0.24',
-  'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.81',
-  'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required
   # by the MySQL codepath. However this particular version is bundled
@@ -86,9 +75,14 @@ my $test_requires = {
   'Test::Warn'               => '0.21',
   'Test::More'               => '0.94',
 
-  # this is already a dep of n::c, but just in case - used by t/55namespaces_cleaned.t
-  # remove and do a manual glob-collection if n::c is no longer a dep
-  'Package::Stash'           => '0.28',
+  # This has a bug in the caller() override, ideally we need go get rid
+  # of it entirely, but that's for another maint
+  #
+  # FIXME - this does protect tests, but does *NOT* protect the rest of
+  # DBIC itself from a faulty caller() override. Something more substantial
+  # needs to be done in the guts of DBIC::Carp
+  #
+  'Sub::Uplevel'             => '0.19',
 
   # needed for testing only, not for operation
   # we will move away from this dep eventually, perhaps to DBD::CSV or something
@@ -99,7 +93,7 @@ my $test_requires = {
 # tests will fail
 # Note - these are added as test_requires *directly*, so they get properly
 # excluded on META.yml cleansing (even though no dist can be created from this)
-# we force these reqs regarless of author_deps, worst case scenario they will
+# we force these reqs regarless of --with-optdeps, worst case scenario they will
 # be specified twice
 #
 # also note that we *do* set dynamic_config => 0, as these are the only things
@@ -205,10 +199,10 @@ sub invoke_author_mode {
     config => [qw/gnu_getopt bundling_override no_ignore_case pass_through/]
   );
   my $args = {
-    skip_author_deps => undef,
+    with_optdeps => undef,
   };
   $getopt->getoptions($args, qw/
-    skip_author_deps|skip-author-deps
+    with_optdeps|with-optdeps
   /);
   if (@ARGV) {
     warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
@@ -236,15 +230,10 @@ sub invoke_author_mode {
     "\t" . $mm_proto->oneliner( qq(\$ENV{PERLIO}='unix' and system( \$^X, qw( -MExtUtils::Command -e dos2unix -- ), $targets ) ) );
   };
 
-  # we are in the process of (re)writing the makefile - some things we
-  # call below very well may fail
-  local $ENV{DBICTEST_NO_MAKEFILE_VERIFICATION} = 1;
-
-  require File::Spec;
   # string-eval, not do(), because we need to provide the
   # $mm_proto, $reqs and $*_requires lexicals to the included file
   # (some includes *do* modify $reqs above)
-  for my $inc (sort glob ( File::Spec->catfile('maint', 'Makefile.PL.inc', '*') ) ) {
+  for my $inc (sort glob ( 'maint/Makefile.PL.inc/*' ) ) {
     my $src = do { local (@ARGV, $/) = $inc; <> } or die $!;
     eval "use warnings; use strict; $src" or die sprintf
       "Failed execution of %s: %s\n",

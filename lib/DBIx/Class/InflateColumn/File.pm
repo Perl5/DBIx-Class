@@ -2,10 +2,17 @@ package DBIx::Class::InflateColumn::File;
 
 use strict;
 use warnings;
+
+# check deps
+BEGIN {
+  require DBIx::Class::Optional::Dependencies;
+  if (my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('ic_file') ) {
+    die "The following extra modules are required for DBIx::Class::InflateColumn::File: $missing\n";
+  }
+}
+
 use base 'DBIx::Class';
-use File::Path;
 use File::Copy;
-use Path::Class;
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -18,7 +25,6 @@ carp 'InflateColumn::File has entered a deprecation cycle. This component '
     .'DBIx::Class::InflateColumn::FS. You can set the environment variable '
     .'DBIC_IC_FILE_NOWARN to a true value to disable  this warning.'
 unless $ENV{DBIC_IC_FILE_NOWARN};
-
 
 
 __PACKAGE__->load_components(qw/InflateColumn/);
@@ -43,7 +49,7 @@ sub register_column {
 sub _file_column_file {
     my ($self, $column, $filename) = @_;
 
-    my $column_info = $self->result_source->column_info($column);
+    my $column_info = $self->result_source->columns_info->{$column};
 
     return unless $column_info->{is_file_column};
 
@@ -68,7 +74,7 @@ sub delete {
 
     for ( keys %$colinfos ) {
         if ( $colinfos->{$_}{is_file_column} ) {
-            rmtree( [$self->_file_column_file($_)->dir], 0, 0 );
+            $self->_file_column_file($_)->dir->rmtree;
             last; # if we've deleted one, we've deleted them all
         }
     }
@@ -116,7 +122,7 @@ sub _save_file_column {
     return unless ref $value;
 
     my $fs_file = $self->_file_column_file($column, $value->{filename});
-    mkpath [$fs_file->dir];
+    $fs_file->dir->mkpath;
 
     # File::Copy doesn't like Path::Class (or any for that matter) objects,
     # thus ->stringify (http://rt.perl.org/rt3/Public/Bug/Display.html?id=59650)

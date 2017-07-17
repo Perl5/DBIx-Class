@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]] ; then
+  echo "This script can not be executed standalone - it can only be source()d" 1>&2
+  exit 1
+fi
+
 # "autodie"
 set -e
 
@@ -14,6 +19,14 @@ if [[ "$TRAVIS" != "true" ]] ; then
 fi
 
 tstamp() { echo -n "[$(date '+%H:%M:%S')]" ; }
+
+CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
+
+CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
+
+have_sudo() { sudo /bin/true &>/dev/null ; }
+
+is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
 
 ci_vm_state_text() {
   echo "
@@ -91,7 +104,7 @@ apt_install() {
   # flatten
   pkgs="$@"
 
-  run_or_err "Installing Debian APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
+  run_or_err "Installing APT packages: $pkgs" "sudo apt-get install --allow-unauthenticated  --no-install-recommends -y $pkgs"
 }
 
 extract_prereqs() {
@@ -135,6 +148,8 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
+  is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
   # one module spec per line
   MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
@@ -165,7 +180,7 @@ parallel_installdeps_notest() {
     "
 }
 
-export -f parallel_installdeps_notest run_or_err echo_err tstamp
+export -f parallel_installdeps_notest run_or_err echo_err tstamp is_cperl have_sudo CPAN_is_sane CPAN_supports_BUILDPL
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
@@ -194,6 +209,8 @@ installdeps() {
 
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
+    is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
+
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
     $LASTCMD 2>&1 || return 1
@@ -321,10 +338,3 @@ purge_sitelib() {
 
   fi
 }
-
-
-CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
-
-CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
-
-have_sudo() { sudo /bin/true &>/dev/null ; }

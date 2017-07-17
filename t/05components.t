@@ -1,13 +1,21 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 
-use lib qw(t/lib);
+
 use DBICTest;
-use DBICTest::ForeignComponent;
+
+{
+  package DBICTest::SomeResult;
+  use base 'DBIx::Class::Core';
+  __PACKAGE__->table("boguz");
+}
 
 #   Tests if foreign component was loaded by calling foreign's method
-ok( DBICTest::ForeignComponent->foreign_test_method, 'foreign component' );
+ok( ! $INC{"DBICTest/ForeignComponent.pm"}, "DBICTest::ForeignComponent not yet loaded" );
+ok( DBICTest::SomeResult->result_class("DBICTest::ForeignComponent")->foreign_test_method, 'foreign component loaded correctly' );
 
 #   Test for inject_base to filter out duplicates
 {   package DBICTest::_InjectBaseTest;

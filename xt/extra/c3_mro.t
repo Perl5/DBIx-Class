@@ -1,15 +1,27 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use warnings;
 use strict;
 
 use Test::More;
+use DBICTest;
+use DBIx::Class::Optional::Dependencies;
+use DBIx::Class::_Util 'uniq';
 
-use lib qw(t/lib);
-use DBICTest; # do not remove even though it is not used (pulls in MRO::Compat if needed)
+my @global_ISA_tail = qw(
+  DBIx::Class
+  DBIx::Class::Componentised
+  Class::C3::Componentised
+  DBIx::Class::AccessorGroup
+  DBIx::Class::MethodAttributes
+  Class::Accessor::Grouped
+);
 
 {
   package AAA;
 
   use base "DBIx::Class::Core";
+  use mro 'c3';
 }
 
 {
@@ -36,6 +48,31 @@ ok (! $@, "Correctly skipped injecting a direct parent of class BBB");
 eval { mro::get_linear_isa('CCC'); };
 ok (! $@, "Correctly skipped injecting an indirect parent of class BBB");
 
+
+my $art = DBICTest->init_schema->resultset("Artist")->next;
+
+check_ancestry($_) for uniq map
+  { length ref $_ ? ref $_ : $_ }
+  (
+    $art,
+    $art->result_source,
+    $art->result_source->resultset,
+    ( map
+      { $_, $_->result_class, $_->resultset_class }
+      map
+        { $art->result_source->schema->source($_) }
+        $art->result_source->schema->sources
+    ),
+    qw( AAA BBB CCC ),
+    ((! DBIx::Class::Optional::Dependencies->req_ok_for('cdbicompat') ) ? () : do {
+      unshift @INC, 't/cdbi/testlib';
+      map { eval "require $_" or die $@; $_ } qw(
+        Film Lazy Actor ActorAlias ImplicitInflate
+      );
+    }),
+  )
+;
+
 use DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 
 is_deeply (
@@ -49,12 +86,7 @@ is_deeply (
     DBIx::Class::Storage::DBI
     DBIx::Class::Storage::DBIHacks
     DBIx::Class::Storage
-    DBIx::Class
-    DBIx::Class::Componentised
-    Class::C3::Componentised
-    DBIx::Class::AccessorGroup
-    Class::Accessor::Grouped
-  /],
+  /, @global_ISA_tail],
   'Correctly ordered ISA of DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server'
 );
 
@@ -73,6 +105,35 @@ if ( "$]" >= 5.010 ) {
   # Class::C3::Componentised loads MRO::Compat unconditionally to satisfy
   # the assumption that once Class::C3::X is loaded, so is Class::C3
   #ok (! $INC{'MRO/Compat.pm'}, 'No MRO::Compat loaded on perl 5.10+');
+}
+
+sub check_ancestry {
+  my $class = shift;
+
+  die "Expecting classname" if length ref $class;
+
+  my @linear_ISA = @{ mro::get_linear_isa($class) };
+
+  # something is *VERY* wrong, the splice below won't make it
+  unless (@linear_ISA > @global_ISA_tail) {
+    fail(
+      "Unexpectedly shallow \@ISA for class '$class': "
+    . join ', ', map { "'$_'" } @linear_ISA
+    );
+    return;
+  }
+
+  is_deeply (
+    [ splice @linear_ISA, ($#linear_ISA - $#global_ISA_tail) ],
+    \@global_ISA_tail,
+    "Correct end of \@ISA for '$class'"
+  );
+
+  is(
+    mro::get_mro($class),
+    'c3',
+    "Expected mro on class '$class' automatically set",
+  );
 }
 
 done_testing;

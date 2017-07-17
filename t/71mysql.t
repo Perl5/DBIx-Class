@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mysql';
 
 use strict;
@@ -11,7 +12,7 @@ use B::Deparse;
 use DBI::Const::GetInfoType;
 use Scalar::Util qw/weaken/;
 
-use lib qw(t/lib);
+use DBICTest::Util 'PEEPEENESS';
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
@@ -410,7 +411,7 @@ ZEROINSEARCH: {
 
     {
       local $TODO = "Perl $] is known to leak like a sieve"
-        if DBIx::Class::_ENV_::PEEPEENESS;
+        if PEEPEENESS;
 
       ok (! defined $orig_dbh, 'Parent $dbh handle is gone');
     }
@@ -434,7 +435,7 @@ ZEROINSEARCH: {
 
     {
       local $TODO = "Perl $] is known to leak like a sieve"
-        if DBIx::Class::_ENV_::PEEPEENESS;
+        if PEEPEENESS;
 
       ok (! defined $orig_dbh, 'DBIC operation triggered reconnect - old $dbh is gone');
     }

@@ -1,3 +1,8 @@
+# Test is sufficiently involved to *want* to run with "maximum paranoia"
+BEGIN { $ENV{DBICTEST_OLD_MRO_SANITY_CHECK_ASSERTIONS} = 1 }
+
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -8,7 +13,7 @@ use Test::Exception;
 use List::Util 'shuffle';
 use DBIx::Class::_Util 'sigwarn_silencer';
 
-use lib qw(t/lib);
+
 use DBICTest;
 
 # Test txn_scope_guard
@@ -137,6 +142,11 @@ require DBICTest::AntiPattern::NullObject;
     }
   };
 
+
+  # we are driving manually here, do not allow interference
+  local $SIG{__DIE__} if $SIG{__DIE__};
+
+
   no warnings 'redefine';
   local *DBIx::Class::Storage::DBI::txn_rollback = sub { die 'die die my darling' };
   Class::C3->reinitialize() if DBIx::Class::_ENV_::OLD_MRO;
@@ -230,31 +240,6 @@ require DBICTest::AntiPattern::NullObject;
 
   local $TODO = 'RT#74994 *STILL* not fixed';
   is(scalar @w, 0, 'no warnings \o/');
-}
-
-# ensure Devel::StackTrace-refcapture-like effects are countered
-{
-  my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
-  my $g = $s->txn_scope_guard;
-
-  my @arg_capture;
-  {
-    local $SIG{__WARN__} = sub {
-      package DB;
-      my $frnum;
-      while (my @f = CORE::caller(++$frnum) ) {
-        push @arg_capture, @DB::args;
-      }
-    };
-
-    undef $g;
-    1;
-  }
-
-  warnings_exist
-    { @arg_capture = () }
-    qr/\QPreventing *MULTIPLE* DESTROY() invocations on DBIx::Class::Storage::TxnScopeGuard/
-  ;
 }
 
 done_testing;

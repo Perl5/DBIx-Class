@@ -1,12 +1,14 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use lib qw(t/lib);
+
 use DBICTest;
-use Data::Dumper;
+use DBIx::Class::_Util 'dump_value';
 
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
@@ -16,7 +18,7 @@ is(
   ref($storage),
   'DBIx::Class::Storage::DBI::SQLite',
   'Storage reblessed correctly into DBIx::Class::Storage::DBI::SQLite'
-) unless $ENV{DBICTEST_VIA_REPLICATED};
+) unless $storage->isa('DBIx::Class::Storage::DBI::Replicated');
 
 throws_ok {
     $schema->storage->throw_exception('test_exception_42');
@@ -53,7 +55,6 @@ throws_ok {
     $schema->storage->disconnect for 1,2;
   };
 }
-
 
 # testing various invocations of connect_info ([ ... ])
 
@@ -155,8 +156,7 @@ for my $type (keys %$invocations) {
 
   # we can not use a cloner portably because of the coderef
   # so compare dumps instead
-  local $Data::Dumper::Sortkeys = 1;
-  my $arg_dump = Dumper ($invocations->{$type}{args});
+  my $arg_dump = dump_value $invocations->{$type}{args};
 
   warnings_exist (
     sub { $storage->connect_info ($invocations->{$type}{args}) },
@@ -164,7 +164,11 @@ for my $type (keys %$invocations) {
     'Warned about ignored attributes',
   );
 
-  is ($arg_dump, Dumper ($invocations->{$type}{args}), "$type didn't modify passed arguments");
+  is (
+    $arg_dump,
+    dump_value $invocations->{$type}{args},
+    "$type didn't modify passed arguments",
+  );
 
   is_deeply ($storage->_dbi_connect_info, $invocations->{$type}{dbi_connect_info}, "$type produced correct _dbi_connect_info");
   ok ( (not $storage->auto_savepoint and not $storage->unsafe), "$type correctly ignored extra hashref");
@@ -179,7 +183,8 @@ for my $type (keys %$invocations) {
 # make sure connection-less storages do not throw on _determine_driver
 # but work with ENV at the same time
 SKIP: for my $env_dsn (undef, (DBICTest->_database)[0] ) {
-  skip 'Subtest relies on being connected to SQLite', 1
+
+  skip 'This set of tests relies on being connected to SQLite', 1
     if $env_dsn and $env_dsn !~ /\:SQLite\:/;
 
   local $ENV{DBI_DSN} = $env_dsn || '';

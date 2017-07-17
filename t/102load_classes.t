@@ -1,15 +1,17 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
 
-use lib 't/lib';
+
 use DBICTest;
 
 my $warnings;
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICTest::Schema;
-    use base qw/DBIx::Class::Schema/;
+    use base qw/DBICTest::BaseSchema/;
     __PACKAGE__->load_classes;
 };
 ok(!$@, 'Loaded all loadable classes') or diag $@;

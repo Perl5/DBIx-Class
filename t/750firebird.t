@@ -1,3 +1,5 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
@@ -6,8 +8,7 @@ use Test::Exception;
 use DBIx::Class::Optional::Dependencies ();
 use DBIx::Class::_Util 'scope_guard';
 use List::Util 'shuffle';
-use Try::Tiny;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my $env2optdep = {
@@ -26,8 +27,6 @@ plan skip_all => join (' ',
   'and "nonpkid_seq" and the trigger "artist_bi".',
 ) unless grep { $ENV{"${_}_DSN"} } keys %$env2optdep;
 
-# tests stolen from 749sybase_asa.t
-
 # Example DSNs:
 # dbi:Firebird:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
 # dbi:InterBase:db=/var/lib/firebird/2.5/data/hlaghdb.fdb
@@ -39,11 +38,9 @@ my $schema;
 
 for my $prefix (shuffle keys %$env2optdep) { SKIP: {
 
-  skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
-    unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
+  DBIx::Class::Optional::Dependencies->skip_without( $env2optdep->{$prefix} );
 
   my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
-
   note "Testing with ${prefix}_DSN";
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
@@ -220,7 +217,11 @@ EOF
     $row = $paged->next;
   } 'paged query survived';
 
-  is try { $row->artistid }, 5, 'correct row from paged query';
+  is(
+    eval { $row->artistid },
+    5,
+    'correct row from paged query'
+  );
 
   # DBD bug - if any unfinished statements are present during
   # DDL manipulation (test blobs below)- a segfault will occur

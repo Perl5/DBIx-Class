@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
 use Test::More;
 use Test::Exception;
 use Test::Warn;
-use lib qw(t/lib);
+
 use DBICTest ':DiffSQL';
 
 my $schema = DBICTest->init_schema();
@@ -137,22 +139,6 @@ throws_ok {
     $new_bookmark->new_related( no_such_rel => {} );
 } qr/No such relationship 'no_such_rel'/, 'creating in uknown rel throws';
 
-{
-  local $TODO = "relationship checking needs fixing";
-  # try to add a bogus relationship using the wrong cols
-  throws_ok {
-      DBICTest::Schema::Artist->add_relationship(
-          tracks => 'DBICTest::Schema::Track',
-          { 'foreign.cd' => 'self.cdid' }
-      );
-  } qr/Unknown column/, 'failed when creating a rel with invalid key, ok';
-}
-
-# another bogus relationship using no join condition
-throws_ok {
-    DBICTest::Schema::Artist->add_relationship( tracks => 'DBICTest::Track' );
-} qr/join condition/, 'failed when creating a rel without join condition, ok';
-
 # many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
 my @producers = $cd->producers(undef, { order_by => 'producerid'} );
@@ -209,7 +195,8 @@ warnings_like {
   qr/\Qsearch( %condition ) is deprecated/
 ], 'Warning properly bubbled from search()';
 
-$cd->set_producers([$schema->resultset('Producer')->all]);
+# the undef-attr-arg at the end is deliberate: this is what FormFu does
+$cd->set_producers([$schema->resultset('Producer')->all], undef);
 is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(\@objs) count ok' );
 $cd->set_producers([$schema->resultset('Producer')->find(1)]);
@@ -279,7 +266,11 @@ is($undir_maps->count, 1, 'found 1 undirected map for artist 2');
 {
   my $artist_to_mangle = $schema->resultset('Artist')->find(2);
 
-  $artist_to_mangle->set_from_related( artist_undirected_maps => { id1 => 42 } );
+  throws_ok {
+    $artist_to_mangle->set_from_related( artist_undirected_maps => { id1 => 42 } )
+  } qr/\QUnable to complete value inferrence - relationship 'artist_undirected_maps' on source 'Artist' results in expression(s) instead of definitive values: ( artistid = ? OR artistid IS NULL )/,
+    'Expected exception on unresovable set_from_related'
+  ;
 
   ok( ! $artist_to_mangle->is_changed, 'Unresolvable set_from_related did not alter object' );
 

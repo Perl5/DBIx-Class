@@ -1,7 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 
-use lib 't/lib';
+
 use DBICTest; # do not remove even though it is not used
 use Test::More tests => 8;
 
@@ -30,7 +32,7 @@ sub _verify_sources {
   eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICNSTest::RtBug41083;
-    use base 'DBIx::Class::Schema';
+    use base 'DBICTest::BaseSchema';
     __PACKAGE__->load_namespaces(
       result_namespace => 'Result_A',
       resultset_namespace => 'ResultSet_A',
@@ -50,7 +52,7 @@ sub _verify_sources {
   eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
     package DBICNSTest::RtBug41083;
-    use base 'DBIx::Class::Schema';
+    use base 'DBICTest::BaseSchema';
     __PACKAGE__->load_namespaces(
       default_resultset_class => 'ResultSet'
     );

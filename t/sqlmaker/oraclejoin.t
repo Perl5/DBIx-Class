@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'id_shortener';
 
 use strict;
@@ -5,7 +6,6 @@ use warnings;
 
 use Test::More;
 
-use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 use DBIx::Class::SQLMaker::OracleJoins;
 

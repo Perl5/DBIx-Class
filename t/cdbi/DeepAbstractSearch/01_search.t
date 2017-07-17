@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => qw( cdbicompat Class::DBI::Plugin::DeepAbstractSearch>=0 );
 
 use strict;
@@ -5,7 +6,6 @@ use warnings;
 
 use Test::More;
 
-use lib 't/lib';
 use DBICTest;
 
 my $DB = DBICTest->_sqlite_dbname(sqlite_use_file => 1);;
@@ -19,6 +19,24 @@ my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 0 });
 package Music::DBI;
 use base qw(DBIx::Class::CDBICompat);
 use Class::DBI::Plugin::DeepAbstractSearch;
+
+BEGIN {
+  # offset the warning from DBIx::Class::Schema on 5.8
+  # keep the ::Schema default as-is otherwise
+  DBIx::Class::_ENV_::OLD_MRO
+    and
+  ( eval <<'EOS' or die $@ );
+
+  sub setup_schema_instance {
+    my $s = shift->next::method(@_);
+    $s->schema_sanity_checker('');
+    $s;
+  }
+
+  1;
+EOS
+}
+
 __PACKAGE__->connection(@DSN);
 
 my $sql = <<'SQL_END';

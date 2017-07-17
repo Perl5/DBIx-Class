@@ -1,10 +1,11 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_pod';
 
 use warnings;
 use strict;
 
 use Test::More;
-use lib qw(t/lib);
+
 use DBICTest;
 
 # this has already been required but leave it here for CPANTS static analysis

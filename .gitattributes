@@ -1,15 +1,15 @@
-*.pm        eol=lf
-*.t         eol=lf
-*.pod       eol=lf
-*.pod.proto eol=lf
-*.pl        eol=lf
-*.PL        eol=lf
-*.bash      eol=lf
-*.json      eol=lf
-*.yml       eol=lf
-*.sql       eol=lf
+*.pm        eol=lf linguist-language=Perl
+*.t         eol=lf linguist-language=Perl
+*.pod       eol=lf linguist-language=Pod
+*.pod.proto eol=lf linguist-language=Pod
+*.pl        eol=lf linguist-language=Perl
+*.PL        eol=lf linguist-language=Perl
+*.bash      eol=lf linguist-language=Shell
+*.json      eol=lf linguist-language=JSON
+*.yml       eol=lf linguist-language=YAML
+*.sql       eol=lf linguist-language=SQL
 /*          eol=lf
-/script/*   eol=lf
+/script/*   eol=lf linguist-language=Perl
 /maint/*    eol=lf
 
 *         text=auto

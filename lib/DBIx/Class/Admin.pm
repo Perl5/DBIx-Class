@@ -92,7 +92,7 @@ sub _build_schema {
   my ($self)  = @_;
 
   $self->connect_info->[3]{ignore_version} = 1;
-  return $self->schema_class->connect(@{$self->connect_info});
+  return $self->schema_class->clone->connection(@{$self->connect_info});
 }
 
 =head2 resultset
@@ -340,7 +340,13 @@ sub create {
 
   my $schema = $self->schema();
 
-  $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
+  $schema->create_ddl_dir(
+    $sqlt_type,
+    (defined $schema->schema_version ? $schema->schema_version : ""),
+    $self->sql_dir,
+    $preversion,
+    $sqlt_args,
+  );
 }
 
 
@@ -474,7 +480,8 @@ sub update {
   $where ||= $self->where();
   $set ||= $self->set();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}) );
+  $resultset = $resultset->search_rs( $where )
+    if $where;
 
   my $count = $resultset->count();
   print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
@@ -505,7 +512,8 @@ sub delete {
   $where ||= $self->where();
   $attrs ||= $self->attrs();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $resultset = $resultset->search_rs( ($where||{}), ($attrs||()) )
+    if $where or $attrs;
 
   my $count = $resultset->count();
   print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
@@ -536,7 +544,8 @@ sub select {
   $where ||= $self->where();
   $attrs ||= $self->attrs();
   my $resultset = $self->schema->resultset($rs);
-  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $resultset = $resultset->search_rs( ($where||{}), ($attrs||()) )
+    if $where or $attrs;
 
   my @data;
   my @columns = $resultset->result_source->columns();

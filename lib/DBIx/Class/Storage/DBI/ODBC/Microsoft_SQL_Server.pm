@@ -8,8 +8,7 @@ use base qw/
 /;
 use mro 'c3';
 use Scalar::Util 'reftype';
-use Try::Tiny;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -233,7 +232,8 @@ sub _run_connection_actions {
         local $dbh->{RaiseError} = 1;
         local $dbh->{PrintError} = 0;
         $dbh->do('SELECT @@IDENTITY');
-      } catch {
+      }
+      dbic_internal_catch {
         $self->throw_exception (
           'Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2).'
          . (

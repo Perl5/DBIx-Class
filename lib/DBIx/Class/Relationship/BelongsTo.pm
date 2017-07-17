@@ -6,8 +6,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use Try::Tiny;
-use DBIx::Class::_Util 'dbic_internal_try';
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 use namespace::clean;
 
 our %_pod_inherit_config =
@@ -39,16 +38,16 @@ sub belongs_to {
 
     $class->throw_exception(
       "No such column '$f_key' declared yet on ${class} ($guess)"
-    )  unless $class->has_column($f_key);
+    )  unless $class->result_source->has_column($f_key);
 
     $class->ensure_class_loaded($f_class);
     my $f_rsrc = dbic_internal_try {
-      $f_class->result_source_instance;
+      $f_class->result_source;
     }
-    catch {
+    dbic_internal_catch {
       $class->throw_exception(
         "Foreign class '$f_class' does not seem to be a Result class "
-      . "(or it simply did not load entirely due to a circular relation chain)"
+      . "(or it simply did not load entirely due to a circular relation chain): $_"
       );
     };
 
@@ -81,7 +80,7 @@ sub belongs_to {
       and
     (keys %$cond)[0] =~ /^foreign\./
       and
-    $class->has_column($rel)
+    $class->result_source->has_column($rel)
   ) ? 'filter' : 'single';
 
   my $fk_columns = ($acc_type eq 'single' and ref $cond eq 'HASH')

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_db2';
 
 use strict;
@@ -5,8 +6,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
-use lib qw(t/lib);
+
 use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_DB2_${_}" } qw/DSN USER PASS/};
@@ -21,9 +21,9 @@ my $dbh = $schema->storage->dbh;
 is $schema->storage->sql_maker->name_sep, $name_sep,
   'name_sep detection';
 
-my $have_rno = try {
+my $have_rno = eval {
   $dbh->selectrow_array(
-"SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
+    "SELECT row_number() OVER (ORDER BY 1) FROM sysibm${name_sep}sysdummy1"
   );
   1;
 };

@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'cdbicompat';
 
 use strict;
@@ -117,7 +118,7 @@ sub fail_with_bad_object {
         NumExplodingSheep => 23
       }
     );
-  } qr/isn't a Director/;
+  } qr/is not a column on related source 'Director'/;
 }
 
 package Foo;

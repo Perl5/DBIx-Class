@@ -4,7 +4,7 @@ use File::Glob();
 # leftovers in old checkouts
 unlink 'lib/DBIx/Class/Optional/Dependencies.pod'
   if -f 'lib/DBIx/Class/Optional/Dependencies.pod';
-File::Path::rmtree( File::Glob::bsd_glob('.generated_pod'), { verbose => 0 } )
+File::Path::rmtree([ '.generated_pod' ])
   if -d '.generated_pod';
 
 my $pod_dir = 'maint/.Generated_Pod';
@@ -12,7 +12,7 @@ my $ver = Meta->version;
 
 # cleanup the generated pod dir (again - kill leftovers from old checkouts)
 if (-d $pod_dir) {
-  File::Path::rmtree( File::Glob::bsd_glob("$pod_dir/*"), { verbose => 0 } );
+  File::Path::rmtree([ File::Glob::bsd_glob("$pod_dir/*") ]);
 }
 else {
   mkdir $pod_dir or die "Unable to create $pod_dir: $!";
@@ -22,10 +22,17 @@ else {
 {
   print "Regenerating Optional/Dependencies.pod\n";
 
-  # this should always succeed - hence no error checking
-  # if someone breaks OptDeps - travis should catch it
-  require DBIx::Class::Optional::Dependencies;
-  DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
+  eval {
+    require DBIx::Class::Optional::Dependencies;
+    DBIx::Class::Optional::Dependencies->_gen_pod ($ver, "$pod_dir/lib");
+    1;
+  }
+    or
+  printf ("FAILED!!! Subsequent `make dist` will fail. %s\n",
+    $ENV{DBICDIST_DEBUG}
+      ? "Full error: $@"
+      : 'Re-run with $ENV{DBICDIST_DEBUG} set for more info'
+  );
 
   postamble <<"EOP";
 
@@ -95,7 +102,7 @@ EOP
 
 # generate the DBIx/Class.pod only during distdir
 {
-  my $dist_pod_fn = File::Spec->catfile($pod_dir, qw(lib DBIx Class.pod));
+  my $dist_pod_fn = "$pod_dir/lib/DBIx/Class.pod";
 
   postamble <<"EOP";
 
@@ -105,15 +112,18 @@ dbic_distdir_gen_dbic_pod :
 
 \tperldoc -u lib/DBIx/Class.pm > $dist_pod_fn
 \t@{[ $mm_proto->oneliner(
-  "s!^.*?this line is replaced with the author list.*! qq{List of the awesome contributors who made DBIC v$ver possible\n\n} . qx(\$^X -Ilib maint/gen_pod_authors)!me",
-  [qw( -0777 -p -i )]
+  "s!^.*?this line is replaced with the author list.*! qq{List of the awesome contributors who made DBIC v$ver possible\\n\\n} . qx(\$^X -Ilib maint/gen_pod_authors)!me",
+  [qw( -0777 -p -i.arghwin32 )]
 ) ]} $dist_pod_fn
+\t\$(RM_F) $dist_pod_fn.arghwin32
 
 create_distdir : dbic_distdir_defang_authors
 
 # Remove the maintainer-only warning (be nice ;)
 dbic_distdir_defang_authors :
-\t@{[ $mm_proto->oneliner('s/ ^ \s* \# \s* \*\*\* .+ \n ( ^ \s* \# \s*? \n )? //xmg', [qw( -0777 -p -i )] ) ]} \$(DISTVNAME)/AUTHORS
+\t@{[ $mm_proto->oneliner('s/ ^ \s* \# \s* \*\*\* .+ \n ( ^ \s* \# \s*? \n )? //xmg', [qw( -0777 -p -i.arghwin32 )] ) ]} \$(DISTVNAME)/AUTHORS
+@{[ $crlf_fixup->( '$(DISTVNAME)/AUTHORS' ) ]}
+\t\$(RM_F) \$(DISTVNAME)/AUTHORS.arghwin32
 
 EOP
 }
@@ -146,7 +156,7 @@ clonedir_post_generate_files : dbic_clonedir_copy_generated_pod
 dbic_clonedir_copy_generated_pod :
 \t\$(RM_F) $pod_dir.packlist
 \t@{[
-  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => File::Spec->curdir(), write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
+  $mm_proto->oneliner("install([ from_to => {q($pod_dir) => './', write => q($pod_dir.packlist)}, verbose => 0, uninstall_shadows => 0, skip => [] ])", ['-MExtUtils::Install'])
 ]}
 
 EOP

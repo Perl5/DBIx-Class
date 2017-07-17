@@ -1,10 +1,12 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
-use Data::Dumper::Concise;
-use Try::Tiny;
-use lib qw(t/lib);
+
 use DBICTest;
+use DBIx::Class::_Util 'dump_value';
+$Data::Dumper::Indent = 0;
 
 my %expected = (
   'DBIx::Class::Storage::DBI'                    =>
@@ -50,14 +52,17 @@ my %expected = (
 );
 
 for my $class (keys %expected) { SKIP: {
-  eval "require ${class}"
-    or skip "Skipping test of quotes for $class due to missing dependencies", 1;
+
+  eval "require ${class}" or do {
+    note "Failed load of $class:\n\n$@\n\n";
+    skip "Skipping test of quotes for $class due to missing compile-time dependencies", 1;
+  };
 
   my $mapping = $expected{$class};
   my ($quote_char, $name_sep) = @$mapping{qw/quote_char name_sep/};
   my $instance = $class->new;
 
-  my $quote_char_text = dumper($quote_char);
+  my $quote_char_text = dump_value $quote_char;
 
   if (exists $mapping->{quote_char}) {
     is_deeply $instance->sql_quote_char, $quote_char,
@@ -106,7 +111,7 @@ for my $db (sort {
 
   my $schema;
 
-  my $sql_maker = try {
+  my $sql_maker = eval {
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
       quote_names => 1
     });
@@ -117,7 +122,7 @@ for my $db (sort {
   my ($exp_quote_char, $exp_name_sep) =
     @{$expected{$dbs{$db}}}{qw/quote_char name_sep/};
 
-  my ($quote_char_text, $name_sep_text) = map { dumper($_) }
+  my ($quote_char_text, $name_sep_text) = map { dump_value $_ }
     ($exp_quote_char, $exp_name_sep);
 
   is_deeply $sql_maker->quote_char,
@@ -134,7 +139,7 @@ for my $db (sort {
     # the SQLT producer has no idea what quotes are :/
     ! grep { $db eq $_ } qw( SYBASE DB2 )
       and
-    my $ddl = try { $schema->deployment_statements }
+    my $ddl = eval { $schema->deployment_statements }
   ) {
     my $quoted_artist = $sql_maker->_quote('artist');
 
@@ -143,13 +148,3 @@ for my $db (sort {
 }
 
 done_testing;
-
-sub dumper {
-  my $val = shift;
-
-  my $dd = DumperObject;
-  $dd->Indent(0);
-  return $dd->Values([ $val ])->Dump;
-}
-
-1;

@@ -1,9 +1,9 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
+
 use strict;
 use warnings;
 use Test::More;
-use Time::HiRes qw/gettimeofday/;
 
-use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 
 our $src_count = 100;
@@ -27,7 +27,7 @@ EOM
 {
   package DBICTest::NS::Stress::Schema;
 
-  use base qw/DBIx::Class::Schema/;
+  use base qw/DBICTest::BaseSchema/;
 
   sub _findallmod {
     return $_[1] eq ( __PACKAGE__ . '::Result' )
@@ -39,10 +39,7 @@ EOM
 
 is (DBICTest::NS::Stress::Schema->sources, 0, 'Start with no sources');
 
-
-note gettimeofday . ":\tload_namespaces start";
 DBICTest::NS::Stress::Schema->load_namespaces;
-note gettimeofday . ":\tload_namespaces finished";
 
 is (DBICTest::NS::Stress::Schema->sources, $src_count, 'All sources attached');
 

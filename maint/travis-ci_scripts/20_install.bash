@@ -1,10 +1,15 @@
 #!/bin/bash
 
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]] ; then
+  echo "This script can not be executed standalone - it can only be source()d" 1>&2
+  exit 1
+fi
+
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then return ; fi
 
 # we need a mirror that both has the standard index and a backpan version rolled
 # into one, due to MDV testing
-CPAN_MIRROR="http://cpan.metacpan.org/"
+export CPAN_MIRROR="http://cpan.metacpan.org/"
 
 PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 
@@ -31,19 +36,37 @@ if [[ -n "$BREWVER" ]] ; then
 
   BREWSRC="$BREWVER"
 
-  if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
+  if is_cperl; then
+    if [[ "$BREWVER" == "cperl-master" ]] ; then
+      git clone --single-branch --depth=1 --branch=master https://github.com/perl11/cperl /tmp/cperl-master
+      BREWSRC="/tmp/cperl-master"
+    else
+      # FFS perlbrew ( see http://wollmers-perl.blogspot.de/2015/10/install-cperl-with-perlbrew.html )
+      wget -qO- https://github.com/perl11/cperl/archive/$BREWVER.tar.gz > /tmp/cperl-$BREWVER.tar.gz
+      BREWSRC="/tmp/cperl-$BREWVER.tar.gz"
+    fi
+  elif [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
     BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
   fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
 
-  # can not do 'perlbrew uss' in the run_or_err subshell above, or a $()
-  # furthermore `perlbrew use` returns 0 regardless of whether the perl is
-  # found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
-  perlbrew use $BREWVER
+  # FIXME work around https://github.com/perl11/cperl/issues/144
+  # (still affecting 5.22.3)
+  if is_cperl && ! [[ -f ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] ; then
+    ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl || /bin/true
+  fi
 
-  if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]] ; then
+  # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
+  # furthermore some versions of `perlbrew use` return 0 regardless of whether
+  # the perl is found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
+  perlbrew use $BREWVER || /bin/true
+
+  if \
+    ! [[ -x ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] \
+  ||  [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]]
+  then
     echo_err "Unable to switch to $BREWVER - compilation failed...?"
     echo_err "$LASTOUT"
     exit 1
@@ -55,6 +78,13 @@ elif [[ "$CLEANTEST" == "true" ]] && [[ "$POISON_ENV" != "true" ]] ; then
   purge_sitelib
 fi
 
+if [[ "$POISON_ENV" = "true" ]] ; then
+  # create a perlbrew-specific local lib
+  perlbrew lib create travis-local
+  perlbrew use "$( perlbrew use | grep -oP '(?<=Currently using ).+' )@travis-local"
+  echo_err "POISON_ENV active - adding a local lib: $(perlbrew use)"
+fi
+
 # configure CPAN.pm - older versions go into an endless loop
 # when trying to autoconf themselves
 CPAN_CFG_SCRIPT="
@@ -63,7 +93,7 @@ CPAN_CFG_SCRIPT="
   *CPAN::FirstTime::conf_sites = sub {};
   CPAN::Config->load;
   \$CPAN::Config->{urllist} = [qw{ $CPAN_MIRROR }];
-  \$CPAN::Config->{halt_on_failure} = 1;
+  \$CPAN::Config->{halt_on_failure} = $( is_cperl && echo -n 0 || echo -n 1 );
   CPAN::Config->commit;
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
@@ -85,6 +115,17 @@ fi
 
 # poison the environment
 if [[ "$POISON_ENV" = "true" ]] ; then
+
+  toggle_vars=( MVDT )
+
+  [[ "$CLEANTEST" == "true" ]] && toggle_vars+=( BREAK_CC )
+
+  for var in "${toggle_vars[@]}"  ; do
+    if [[ -z "${!var}" ]] ; then
+      export $var=true
+      echo "POISON_ENV: setting $var to 'true'"
+    fi
+  done
 
   # look through lib, find all mentioned DBIC* ENVvars and set them to true and see if anything explodes
   toggle_booleans=( $( grep -ohP '\bDBIC_[0-9_A-Z]+' -r lib/ --exclude-dir Optional | sort -u | grep -vP '^(DBIC_TRACE(_PROFILE)?|DBIC_.+_DEBUG)$' ) )
@@ -111,8 +152,12 @@ if [[ "$POISON_ENV" = "true" ]] ; then
     fi
   done
 
+  echo "POISON_ENV: setting PERL_UNICODE=SAD"
+  export PERL_UNICODE=SAD
+
 
 ### emulate a local::lib-like env
+
   # trick cpanm into executing true as shell - we just need the find+unpack
   run_or_err "Downloading latest stable DBIC from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
@@ -124,7 +169,6 @@ if [[ "$POISON_ENV" = "true" ]] ; then
 
   # perldoc -l <mod> searches $(pwd)/lib in addition to PERL5LIB etc, hence the cd /
   echo_err "Latest stable DBIC (without deps) locatable via \$PERL5LIB at $(cd / && perldoc -l DBIx::Class)"
-
 fi
 
 if [[ "$CLEANTEST" != "true" ]] ; then

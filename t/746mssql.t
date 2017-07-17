@@ -1,3 +1,4 @@
+BEGIN { do "./t/lib/ANFANG.pm" or die ( $@ || $! ) }
 use DBIx::Class::Optional::Dependencies -skip_all_without => 'test_rdbms_mssql_odbc';
 
 use strict;
@@ -5,10 +6,10 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Try::Tiny;
+use Test::Warn;
 
-use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
@@ -61,10 +62,10 @@ for my $opts_name (keys %opts) {
     my $opts = $opts{$opts_name}{opts};
     $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
 
-    try {
+    dbic_internal_try {
       $schema->storage->ensure_connected
     }
-    catch {
+    dbic_internal_catch {
       if ($opts{$opts_name}{required}) {
         die "on_connect_call option '$opts_name' is not functional: $_";
       }
@@ -97,11 +98,35 @@ SQL
 
     ok(($new->artistid||0) > 0, "Auto-PK worked for $opts_name");
 
-# Test multiple active statements
-    SKIP: {
-      skip 'not a multiple active statements configuration', 1
-        if $opts_name eq 'plain';
+# Test graceful error handling if not supporting multiple active statements
+    if( $opts_name eq 'plain' ) {
 
+      # keep the first cursor alive (as long as $rs is alive)
+      my $rs = $schema->resultset("Artist");
+
+      my $a1 = $rs->next;
+
+      my $a2;
+
+      warnings_are {
+        # second cursor, invalidates $rs, but it doesn't
+        # matter as long as we do not try to use it
+        $a2 = $schema->resultset("Artist")->next;
+      } [], 'No warning on retry due to previous cursor invalidation';
+
+      is_deeply(
+        { $a1->get_columns },
+        { $a2->get_columns },
+        'Same data',
+      );
+
+      dies_ok {
+        $rs->next;
+      } 'Invalid cursor did not silently return garbage';
+    }
+
+# Test multiple active statements
+    else {
       $schema->storage->ensure_connected;
 
       lives_ok {
@@ -475,23 +500,68 @@ SQL
           $row = $rs->create({ amount => 100 });
         } 'inserted a money value';
 
-        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 100,
-          'money value round-trip');
+        cmp_ok (
+          ( eval { $rs->find($row->id)->amount } ) || 0,
+          '==',
+          100,
+          'money value round-trip'
+        );
 
         lives_ok {
           $row->update({ amount => 200 });
         } 'updated a money value';
 
-        cmp_ok ((try { $rs->find($row->id)->amount })||0, '==', 200,
-          'updated money value round-trip');
+        cmp_ok (
+          ( eval { $rs->find($row->id)->amount } ) || 0,
+          '==',
+          200,
+          'updated money value round-trip'
+        );
 
         lives_ok {
           $row->update({ amount => undef });
         } 'updated a money value to NULL';
 
-        is try { $rs->find($row->id)->amount }, undef,
-          'updated money value to NULL round-trip';
+        lives_ok {
+          is(
+            $rs->find($row->id)->amount,
+            undef,
+            'updated money value to NULL round-trip'
+          );
+        }
       }
+    }
+
+# Test leakage of PK on implicit retrieval
+    {
+
+      my $next_owner = $schema->resultset('Owners')->get_column('id')->max + 1;
+      my $next_book = $schema->resultset('BooksInLibrary')->get_column('id')->max + 1;
+
+      cmp_ok(
+        $next_owner,
+        '!=',
+        $next_book,
+        'Preexisting auto-inc PKs staggered'
+      );
+
+      my $yet_another_owner = $schema->resultset('Owners')->create({ name => 'YAO' });
+      my $yet_another_book;
+      warnings_exist {
+        $yet_another_book = $yet_another_owner->create_related( books => { title => 'YAB' })
+      } qr/Missing value for primary key column 'id' on BooksInLibrary - perhaps you forgot to set its 'is_auto_increment'/;
+
+      is(
+        $yet_another_owner->id,
+        $next_owner,
+        'Expected Owner id'
+      );
+
+      is(
+        $yet_another_book->id,
+        $next_book,
+        'Expected Book id'
+      );
     }
   }
 }

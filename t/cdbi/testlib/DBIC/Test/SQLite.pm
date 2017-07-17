@@ -39,10 +39,26 @@ table, and tie it to the class.
 # change too much
 BEGIN { $ENV{DBIC_SHUFFLE_UNORDERED_RESULTSETS} = 0 }
 
-use lib 't/lib';
 use DBICTest;
 
 use base qw/DBIx::Class/;
+
+BEGIN {
+  # offset the warning from DBIx::Class::Schema on 5.8
+  # keep the ::Schema default as-is otherwise
+  DBIx::Class::_ENV_::OLD_MRO
+    and
+  ( eval <<'EOS' or die $@ );
+
+  sub setup_schema_instance {
+    my $s = shift->next::method(@_);
+    $s->schema_sanity_checker('');
+    $s;
+  }
+
+  1;
+EOS
+}
 
 __PACKAGE__->load_components(qw/CDBICompat Core DB/);
 

@@ -1,10 +1,26 @@
+BEGIN { $ENV{DBICTEST_ANFANG_DEFANG} = 1 }
+
+# When in taint mode, PERL5LIB is ignored (but *not* unset)
+# Put it back in INC so that local-lib users can actually
+# run this test. Use lib.pm instead of an @INC unshift as
+# it will correctly add any arch subdirs encountered
+#
+# Yes, this is a lazy solution: adding -I args in the exec below is the
+# more sensible approach, but no time to properly do it at present
+use Config;
+use lib (
+  grep { length }
+    map { split /\Q$Config{path_sep}\E/, (/^(.*)$/)[0] }  # untainting regex
+      grep { defined }
+        @ENV{qw(PERL5LIB PERLLIB)}  # precedence preserved by lib
+);
+
 use strict;
 use warnings;
-use Config;
 
 # there is talk of possible perl compilations where -T is fatal or just
 # doesn't work. We don't want to have the user deal with that.
-BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
+BEGIN { unless ($INC{'DBICTest/WithTaint.pm'}) {
 
   if ( $^O eq 'MSWin32' and $^X =~ /\x20/ ) {
     print "1..0 # SKIP Running this test on Windows with spaces within the perl executable path (\$^X) is not possible due to https://rt.perl.org/Ticket/Display.html?id=123907\n";
@@ -40,20 +56,8 @@ BEGIN { unless ($INC{'t/lib/DBICTest/WithTaint.pm'}) {
     exit 0;
   }
 
-  exec( $perl, qw( -I. -Mt::lib::DBICTest::WithTaint -T ), __FILE__ );
+  exec( $perl, qw( -It/lib -MDBICTest::WithTaint -T ), __FILE__ );
 }}
-
-# When in taint mode, PERL5LIB is ignored (but *not* unset)
-# Put it back in INC so that local-lib users can actually
-# run this test. Use lib.pm instead of an @INC unshift as
-# it will correctly add any arch subdirs encountered
-
-use lib (
-  grep { length }
-    map { split /\Q$Config{path_sep}\E/, (/^(.*)$/)[0] }  # untainting regex
-      grep { defined }
-        @ENV{qw(PERL5LIB PERLLIB)}  # precedence preserved by lib
-);
 
 # We need to specify 'lib' here as well because even if it was already in
 # @INC, the above will have put our local::lib in front of it, so now an
