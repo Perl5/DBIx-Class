@@ -4,6 +4,7 @@ Current Known Issues / Regressions
 
 Revision history for DBIx::Class
 
+0.082899_15 2017-10-05 03:55 (UTC)
     * Notable Changes and Deprecations
         - The entire class hierarchy now explicitly sets the 'c3' mro, even
           in cases where load_components was not used. Extensive testing led
