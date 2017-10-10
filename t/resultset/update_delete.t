@@ -64,9 +64,11 @@ my $fks = $schema->resultset ('FourKeys')->search (
   }, { join => { fourkeys_to_twokeys => 'twokeys' }}
 );
 
+my $read_count = 0;
 is ($fks->count, 4, 'Joined FourKey count correct (2x2)');
 $schema->is_executed_sql_bind( sub {
-  $fks->update ({ read_count => \ 'read_count + 1' })
+  $fks->update ({ read_count => \ 'read_count + 1' });
+  $read_count++;
 }, [[
   'UPDATE fourkeys
    SET read_count = read_count + 1
@@ -76,8 +78,8 @@ $schema->is_executed_sql_bind( sub {
   'c',
 ]], 'Correct update-SQL with multijoin with pruning' );
 
-is ($fa->discard_changes->read_count, 11, 'Update ran only once on discard-join resultset');
-is ($fb->discard_changes->read_count, 21, 'Update ran only once on discard-join resultset');
+is ($fa->discard_changes->read_count, 10 + $read_count, 'Update ran only once on discard-join resultset');
+is ($fb->discard_changes->read_count, 20 + $read_count, 'Update ran only once on discard-join resultset');
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 # make the multi-join stick
@@ -86,7 +88,8 @@ my $fks_multi = $fks->search(
   { order_by => [ $fks->result_source->primary_columns ] },
 );
 $schema->is_executed_sql_bind( sub {
-  $fks_multi->update ({ read_count => \ 'read_count + 1' })
+  $fks_multi->update ({ read_count => \ 'read_count + 1' });
+  $read_count++;
 }, [
   [ 'BEGIN' ],
   [
@@ -113,8 +116,8 @@ $schema->is_executed_sql_bind( sub {
   [ 'COMMIT' ],
 ], 'Correct update-SQL with multijoin without pruning' );
 
-is ($fa->discard_changes->read_count, 12, 'Update ran only once on joined resultset');
-is ($fb->discard_changes->read_count, 22, 'Update ran only once on joined resultset');
+is ($fa->discard_changes->read_count, 10 + $read_count, 'Update ran only once on joined resultset');
+is ($fb->discard_changes->read_count, 20 + $read_count, 'Update ran only once on joined resultset');
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 $schema->is_executed_sql_bind( sub {
@@ -142,6 +145,7 @@ $schema->is_executed_sql_bind( sub {
 
 
 # try the same sql with forced multicolumn in
+my $multicolumn_in = 0;
 $schema->is_executed_sql_bind( sub {
 
   my $orig_umi = $schema->storage->_use_multicolumn_in;
@@ -151,8 +155,11 @@ $schema->is_executed_sql_bind( sub {
 
   $schema->storage->_use_multicolumn_in(1);
 
-  # this can't actually execute on sqlite
-  eval { $fks_multi->update ({ read_count => \ 'read_count + 1' }) };
+  # this can't actually execute on sqlite < 3.14
+  eval {
+    $fks_multi->update ({ read_count => \ 'read_count + 1' });
+    $read_count++; $multicolumn_in++;
+  };
 }, [[
   'UPDATE fourkeys
     SET read_count = read_count + 1
@@ -176,8 +183,15 @@ $schema->is_executed_sql_bind( sub {
   'c',
 ]], 'Correct update-SQL with multicolumn in support' );
 
+if ($multicolumn_in) {
+  is ($fa->discard_changes->read_count, 10 + $read_count, 'Update ran only once on joined resultset');
+  is ($fb->discard_changes->read_count, 20 + $read_count, 'Update ran only once on joined resultset');
+  is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+}
+
 $schema->is_executed_sql_bind( sub {
   $fks->search({ 'twokeys.artist' => { '!=' => 666 } })->update({ read_count => \ 'read_count + 1' });
+  $read_count++;
 }, [
   [ 'BEGIN' ],
   [
@@ -204,8 +218,8 @@ $schema->is_executed_sql_bind( sub {
   [ 'COMMIT' ],
 ], 'Correct update-SQL with premultiplied restricting join without pruning' );
 
-is ($fa->discard_changes->read_count, 13, 'Update ran only once on joined resultset');
-is ($fb->discard_changes->read_count, 23, 'Update ran only once on joined resultset');
+is ($fa->discard_changes->read_count, 10 + $read_count, 'Update ran only once on joined resultset');
+is ($fb->discard_changes->read_count, 20 + $read_count, 'Update ran only once on joined resultset');
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 #
