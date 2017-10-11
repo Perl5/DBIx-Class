@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use DBIx::Class::Carp;
-use namespace::clean;
 
 carp 'Setting of storage_type is redundant as connections through DBD::Sybase'
     .' are now properly recognized and reblessed into the appropriate subclass'
@@ -17,6 +16,8 @@ carp 'Setting of storage_type is redundant as connections through DBD::Sybase'
 
 use base qw/DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server/;
 use mro 'c3';
+
+use namespace::clean;
 
 1;
 

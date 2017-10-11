@@ -18,9 +18,10 @@ use DBIx::Class::Carp qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch bag_eq );
 use Class::C3::Componentised;
 use Scalar::Util 'blessed';
-use namespace::clean;
 
 use base qw(Exporter);
+
+use namespace::clean;
 
 @EXPORT_OK = qw(parse);
 
