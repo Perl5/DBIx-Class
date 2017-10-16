@@ -841,7 +841,8 @@ sub find {
           foreign_values => (
             (! defined blessed $foreign_val) ? $foreign_val : do {
 
-              my $f_result_class = $rsrc->related_source($key)->result_class;
+              my $f_rsrc = $rsrc->related_source($key);
+              my $f_result_class = $f_rsrc->result_class;
 
               unless( $foreign_val->isa($f_result_class) ) {
 
@@ -859,7 +860,22 @@ sub find {
                 );
               }
 
-              +{ $foreign_val->get_columns };
+              my $fvals = { $foreign_val->get_columns };
+
+              # The very low level resolve_relationship_condition() deliberately contains
+              # extra logic to ensure that it isn't passed garbage. Unfortunately we can
+              # get into a situation where an object *has* extra columns on it, which
+              # the interface of ->get_columns is obligated to return. In order not to
+              # compromise the sanity checks within r_r_c, simply do a cleanup pass here,
+              # and in 2 other spots within the codebase to keep things consistent
+              #
+              # FIXME - perhaps this should warn, but that's a battle for another day
+              #
+              +{ map {
+                exists $fvals->{$_}
+                  ? ( $_ => $fvals->{$_} )
+                  : ()
+              } $f_rsrc->columns };
             }
           ),
 

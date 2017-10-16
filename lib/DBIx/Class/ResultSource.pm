@@ -2218,7 +2218,22 @@ sub _resolve_condition :DBIC_method_is_indirect_sugar {
       }
       # more compat
       elsif( $_ == 0 and $res_args[0]->isa( $__expected_result_class_isa ) ) {
-        $res_args[0] = { $res_args[0]->get_columns };
+        my $fvals = { $res_args[0]->get_columns };
+
+        # The very low level resolve_relationship_condition() deliberately contains
+        # extra logic to ensure that it isn't passed garbage. Unfortunately we can
+        # get into a situation where an object *has* extra columns on it, which
+        # the interface of ->get_columns is obligated to return. In order not to
+        # compromise the sanity checks within r_r_c, simply do a cleanup pass here,
+        # and in 2 other spots within the codebase to keep things consistent
+        #
+        # FIXME - perhaps this should warn, but that's a battle for another day
+        #
+        $res_args[0] = { map {
+          exists $fvals->{$_}
+            ? ( $_ => $fvals->{$_} )
+            : ()
+        } $res_args[0]->result_source->columns };
       }
     }
     else {
