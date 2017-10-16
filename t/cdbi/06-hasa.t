@@ -118,7 +118,7 @@ sub fail_with_bad_object {
         NumExplodingSheep => 23
       }
     );
-  } qr/is not a column on related source 'Director'/;
+  } qr/isn't a Director/;
 }
 
 package Foo;

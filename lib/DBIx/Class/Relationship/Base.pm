@@ -957,7 +957,8 @@ sub set_from_related {
     : ( ! defined blessed $f_obj )  ? $f_obj
                                     : do {
 
-        my $f_result_class = $self->result_source->related_source($rel)->result_class;
+        my $f_result_source = $self->result_source->related_source($rel);
+        my $f_result_class = $f_result_source->result_class;
 
         unless( $f_obj->isa($f_result_class) ) {
 
@@ -975,7 +976,22 @@ sub set_from_related {
           );
         }
 
-        +{ $f_obj->get_columns };
+        my $fvals = { $f_obj->get_columns };
+
+        # The very low level resolve_relationship_condition() deliberately contains
+        # extra logic to ensure that it isn't passed garbage. Unfortunately we can
+        # get into a situation where an object *has* extra columns on it, which
+        # the interface of ->get_columns is obligated to return. In order not to
+        # compromise the sanity checks within r_r_c, simply do a cleanup pass here,
+        # and in 2 other spots within the codebase to keep things consistent
+        #
+        # FIXME - perhaps this should warn, but that's a battle for another day
+        #
+        +{ map {
+          exists $fvals->{$_}
+            ? ( $_ => $fvals->{$_} )
+            : ()
+        } $f_result_source->columns };
       }
     ),
 
