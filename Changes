@@ -5,11 +5,6 @@ Current Known Issues / Regressions
 Revision history for DBIx::Class
 
     * Notable Changes and Deprecations
-        - The entire class hierarchy now explicitly sets the 'c3' mro, even
-          in cases where load_components was not used. Extensive testing led
-          the maintainer believe this is safe, but this is a very complex
-          area and reality may turn out to be different. If **ANYHTING** at
-          all seems out of place, please file a report at once
         - The unique constraint info (including the primary key columns) is no
           longer shared between related (class and schema-level) ResultSource
           instances. If your app stops working with no obvious pointers, set
