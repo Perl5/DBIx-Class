@@ -3,9 +3,10 @@ package DBIx::Class::Storage::DBI::Sybase;
 use strict;
 use warnings;
 use DBIx::Class::_Util qw( dbic_internal_try dbic_internal_catch );
-use namespace::clean;
 
 use base qw/DBIx::Class::Storage::DBI/;
+
+use namespace::clean;
 
 =head1 NAME
 
