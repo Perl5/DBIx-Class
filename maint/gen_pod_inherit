@@ -65,6 +65,7 @@ Pod::Inherit->new({
       DBIx::Class::Componentised
       Class::C3::Componentised
       DBIx::Class::AccessorGroup
+      DBIx::Class::MethodAttributes
       Class::Accessor::Grouped
       Moose::Object
       Exporter
