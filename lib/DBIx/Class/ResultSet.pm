@@ -3001,8 +3001,12 @@ subsequently result in spurious row creation.
 B<Note>: Because find_or_create() reads from the database and then
 possibly inserts based on the result, this method is subject to a race
 condition. Another process could create a record in the table after
-the find has completed and before the create has started. To avoid
-this problem, use find_or_create() inside a transaction.
+the find has completed and before the create has started.
+Using find_or_create() inside a transaction I<does not> fix this problem -
+if another process created the row after the transaction started, then when
+the transaction with the newly-created row is committed, that insert
+will either result in a duplicate row, or fail due to uniqueness
+constraints.
 
 B<Note>: Take care when using C<find_or_create> with a table having
 columns with default values that you intend to be automatically
