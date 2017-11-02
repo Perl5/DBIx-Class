@@ -1146,7 +1146,7 @@ sub single {
 
 =over 4
 
-=item Arguments: L<$cond?|DBIx::Class::SQLMaker>
+=item Arguments: $column
 
 =item Return Value: L<$resultsetcolumn|DBIx::Class::ResultSetColumn>
 
