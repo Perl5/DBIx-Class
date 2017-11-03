@@ -509,7 +509,7 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
     like $@, qr/violates foreign key constraint/i,
       "Still expected exception on deferred failure at commit time";
 
-  } [], 'No warnings on deferred rollback';
+  } [qr/SET CONSTRAINTS can only be used in transaction blocks/], 'No warnings on deferred rollback';
 }
 
 done_testing;
