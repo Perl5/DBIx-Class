@@ -146,4 +146,54 @@ is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
   }
 }
 
+{
+  my %required_create_args = (
+    starts_at => "2012-01-01",
+    created_on => "2012-01-01",
+    varchar_datetime => DateTime->new(year => 2016, month => 01, day => 01),
+  );
+
+# create with DateTime
+  my $created = $schema->resultset('Event')->create({ %required_create_args });
+  $created->varchar_datetime; # make sure inflated
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2016-01-01", "varchar_datetime has correct datetime";
+
+# create with scalar
+  $created = $schema->resultset('Event')->create({ %required_create_args, varchar_datetime => "2016-01-01" });
+  $created->varchar_datetime; # make sure inflated
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2016-01-01", "varchar_datetime has correct datetime";
+
+# update via column with DateTime
+  $created = $schema->resultset('Event')->create({ %required_create_args });
+  $created->varchar_datetime; # make sure inflated
+  $created->varchar_datetime(DateTime->new(year => 2017, month => 01, day => 01));
+  $created->update;
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2017-01-01", "varchar_datetime has correct datetime";
+
+# update via column with scalar
+  $created = $schema->resultset('Event')->create({ %required_create_args });
+  $created->varchar_datetime; # make sure inflated
+  $created->varchar_datetime("2017-01-01");
+  $created->update;
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2017-01-01", "varchar_datetime has correct datetime";
+
+# update directly with DateTime
+  $created = $schema->resultset('Event')->create({ %required_create_args });
+  $created->varchar_datetime; # make sure inflated
+  $created->update({varchar_datetime => DateTime->new(year => 2017, month => 01, day => 01)});
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2017-01-01", "varchar_datetime has correct datetime";
+
+# update directly with scalar
+  $created = $schema->resultset('Event')->create({ %required_create_args });
+  $created->varchar_datetime; # make sure inflated
+  $created->update({varchar_datetime => "2017-01-01"});
+  isa_ok $created->varchar_datetime, "DateTime", "varchar_datetime accessor is a datetime";
+  is $created->varchar_datetime->date, "2017-01-01", "varchar_datetime has correct datetime";
+};
+
 done_testing;
