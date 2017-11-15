@@ -2122,7 +2122,7 @@ sub insert {
   }
   else {
     # pull in PK if needed and then everything else
-    if (my @missing_pri = grep { $pcols{$_} } keys %retrieve_cols) {
+    if (my @missing_pri = grep { $pcols{$_} && ($col_infos->{$_}->{'is_auto_increment'} || $col_infos->{$_}->{'retrieve_on_insert' }) } keys %retrieve_cols) {
 
       $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
         unless $self->can('last_insert_id');
