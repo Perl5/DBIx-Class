@@ -52,9 +52,6 @@ A resolution must be proposed and then successfully voted upon to:
   - Make changes to the master and blead branches of the repository
   - Amend this document
 
-This document is currently in bootstrap phase, and as such no merges will be
-made to master or blead until this sentence is removed.
-
 A resolution that amends the 'PAUSE release perms' list is to be assumed to
 also intend the permission within PAUSE itself to be updated accordingly.
 
