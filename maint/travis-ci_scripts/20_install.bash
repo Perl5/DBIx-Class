@@ -11,6 +11,15 @@ PERL_CPANM_OPT="$PERL_CPANM_OPT --mirror $CPAN_MIRROR"
 # do not set PERLBREW_CPAN_MIRROR - not all backpan-like mirrors have the perl tarballs
 export PERL_MM_USE_DEFAULT=1 PERL_MM_NONINTERACTIVE=1 PERL_AUTOINSTALL_PREFER_CPAN=1 HARNESS_TIMER=1 MAKEFLAGS="-j$VCPU_USE"
 
+
+# FIXME - eventually this should no longer be needed
+# Upgrade perlbrew in-place so that `blead` can be installed
+if [[ "$BREWVER" == "blead" ]] ; then
+  run_or_err "Upgrading in-place current $(perlbrew --version)" \
+    "perlbrew self-upgrade"
+fi
+
+
 # try CPAN's latest offering if requested
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
@@ -157,7 +166,7 @@ if [[ "$POISON_ENV" = "true" ]] ; then
   run_or_err "Downloading latest stable DBIC from CPAN" \
     "SHELL=/bin/true cpanm --look DBIx::Class"
 
-  # move it somewhere as following cpanm will clobber it
+  # move it somewhere as following cpanm invocations will clobber it
   run_or_err "Moving latest stable DBIC from CPAN to /tmp" "mv ~/.cpanm/latest-build/DBIx-Class-*/lib /tmp/stable_dbic_lib"
 
   export PERL5LIB="/tmp/stable_dbic_lib:$PERL5LIB"
