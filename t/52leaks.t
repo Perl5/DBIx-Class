@@ -451,7 +451,7 @@ for my $addr (keys %$weak_registry) {
     # there is one tied lexical which stays alive until GC time
     # https://metacpan.org/source/ETHER/B-Hooks-EndOfScope-0.15/lib/B/Hooks/EndOfScope/PP/FieldHash.pm#L24
     # simply ignore it here, instead of teaching the leaktracer to examine ties
-    # the latter is possible yet terrible: https://github.com/dbsrgits/dbix-class/blob/v0.082820/t/lib/DBICTest/Util/LeakTracer.pm#L113-L117
+    # the latter is possible yet terrible: https://metacpan.org/source/RIBASUSHI/DBIx-Class-0.082840/t/lib/DBICTest/Util/LeakTracer.pm#L113-117
     delete $weak_registry->{$addr}
       unless $cleared->{bheos_pptiehinthashfieldhash}++;
   }

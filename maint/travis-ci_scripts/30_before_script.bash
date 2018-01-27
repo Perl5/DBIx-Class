@@ -144,20 +144,20 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger DateTime::Format::Builder Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/dbsrgits/perl-pperl.git
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/ribasushi/patchup-Perl5-PPerl.git
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
   # https://github.com/pilcrow/perl-dbd-interbase
   if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
-    parallel_installdeps_notest git://github.com/dbsrgits/perl-dbd-interbase.git
+    parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-InterBase.git
   fi
 
   # SCGI does not install under < 5.8.8 perls nor under parallel make
   # FIXME: The 5.8.8 thing is likely fixable, something to do with
   # #define speedy_new(s,n,t) Newx(s,n,t)
   if perl -M5.008008 -e 1 &>/dev/null ; then
-    MAKEFLAGS="" bash -c "parallel_installdeps_notest git://github.com/dbsrgits/cgi-speedycgi.git"
+    MAKEFLAGS="" bash -c "parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-CGI-SpeedyCGI.git"
   fi
 fi
 

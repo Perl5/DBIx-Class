@@ -39,9 +39,8 @@ resources 'license' => 'http://dev.perl.org/licenses/';
 
 # misc resources
 abstract_from 'lib/DBIx/Class.pm';
-resources 'homepage'    => 'http://www.dbix-class.org/';
 resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
-resources 'repository'  => 'https://github.com/dbsrgits/DBIx-Class';
+resources 'repository'  => 'https://github.com/Perl5/DBIx-Class';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class';
 

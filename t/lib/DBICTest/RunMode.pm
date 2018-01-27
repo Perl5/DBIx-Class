@@ -210,7 +210,7 @@ sub is_author {
 
 sub is_smoker {
   return
-    ( ($ENV{TRAVIS}||'') eq 'true' and ($ENV{TRAVIS_REPO_SLUG}||'') eq 'dbsrgits/dbix-class' )
+    ( ($ENV{TRAVIS}||'') eq 'true' and ($ENV{TRAVIS_REPO_SLUG}||'') eq 'Perl5/DBIx-Class' )
       ||
     ( $ENV{AUTOMATED_TESTING} && ! $ENV{PERL5_CPANM_IS_RUNNING} && ! $ENV{RELEASE_TESTING} )
   ;

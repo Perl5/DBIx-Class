@@ -184,7 +184,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
       #
       run_or_err "Fetching and building Firebird ODBC driver" '
         cd "$(mktemp -d)"
-        wget -qO- https://github.com/dbsrgits/Firebird-ODBC-driver/archive/2.0.2.153.tar.gz | tar -zx --strip-components 1
+        wget -qO- https://github.com/ribasushi/patchup-Firebird-ODBC-driver/archive/2.0.2.153.tar.gz | tar -zx --strip-components 1
         cd Builds/Gcc.lin
         perl -p -i -e "s|/usr/lib64|/usr/lib/x86_64-linux-gnu|g" ../makefile.environ
         make -f makefile.linux

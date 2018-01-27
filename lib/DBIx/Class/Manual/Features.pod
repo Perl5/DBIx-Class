@@ -15,7 +15,7 @@ features, to entire database support.
 Currently (June 9, 2010) 6 active branches (committed to
 in the last two weeks) in git.  Last release (0.08122)
 had 14 new features, and 16 bug fixes.  Of course that
-L<ebbs and flows|http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=blob;f=Changes>.)
+L<ebbs and flows|https://metacpan.org/changes/distribution/DBIx-Class>.)
 
 =head2 Responsive Community
 

@@ -399,7 +399,7 @@ sub connect_call_datetime_setup {
 }
 
 ### Note originally by Ron "Quinn" Straight <quinnfazigu@gmail.org>
-### http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git;a=commitdiff;h=5db2758de644d53e07cd3e05f0e9037bf40116fc
+### https://github.com/Perl5/DBIx-Class/commit/5db2758de6
 #
 # Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
 # with the driver assuming your input is the deprecated LONG type if you
