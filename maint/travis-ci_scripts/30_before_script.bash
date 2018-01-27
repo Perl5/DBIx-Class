@@ -155,6 +155,16 @@ fi
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
 
+  # FIXME - test latest DBD::SQLite in all *unspecified* cases, and also work around unavailability
+  # of test fix on CPAN: https://github.com/DBD-SQLite/DBD-SQLite/commit/7b949c35a
+
+    # need to get a DBI in case we don't have it
+    ! CPAN_is_sane && ! perl -MDBI -e1 &>/dev/null && installdeps DBI
+
+    # if we installed something already - roll with it
+    perl -MDBD::SQLite -e1 &>/dev/null || installdeps I/IS/ISHIGAKI/DBD-SQLite-1.55_07.tar.gz
+  # END SQLite FIXME
+
   run_or_err "Configure on current branch" "perl Makefile.PL"
 
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)

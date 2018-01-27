@@ -206,7 +206,7 @@ my $load_weights = {
 
 my @known_modules = sort
   { ($load_weights->{$b}||0) <=> ($load_weights->{$a}||0) }
-  qw( Data::Dumper ),
+  qw( Data::Dumper DBD::SQLite ),
   map
     { $_ => 1 }
     map
