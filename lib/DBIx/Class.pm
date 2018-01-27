@@ -310,7 +310,7 @@ The fine folks nudging the project in a particular direction:
 
 =over
 
-B<ribasushi>: Peter Rabbitson <ribasushi@cpan.org>
+B<ribasushi>: Peter Rabbitson <ribasushi@leporine.io>
 (present day maintenance and controlled evolution)
 
 B<castaway>: Jess Robinson <castaway@desert-island.me.uk>

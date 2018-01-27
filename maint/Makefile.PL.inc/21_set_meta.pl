@@ -1,7 +1,7 @@
 # principal author list is kinda mandated by spec, luckily is rather static
 author 'mst: Matt S Trout <mst@shadowcat.co.uk> (project founder - original idea, architecture and implementation)';
 author 'castaway: Jess Robinson <castaway@desert-island.me.uk> (lions share of the reference documentation and manuals)';
-author 'ribasushi: Peter Rabbitson <ribasushi@cpan.org> (present day maintenance and controlled evolution)';
+author 'ribasushi: Peter Rabbitson <ribasushi@leporine.io> (present day maintenance and controlled evolution)';
 
 # pause sanity
 Meta->{values}{x_authority} = 'cpan:RIBASUSHI';
