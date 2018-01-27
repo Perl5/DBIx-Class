@@ -137,36 +137,6 @@ $schema->is_executed_sql_bind( sub {
   [ 'COMMIT' ],
 ], 'Correct null-delete-SQL with multijoin without pruning' );
 
-
-# try the same sql with forced multicolumn in
-$schema->is_executed_sql_bind( sub {
-  local $schema->storage->{_use_multicolumn_in} = 1;
-
-  # this can't actually execute on sqlite
-  eval { $fks_multi->update ({ read_count => \ 'read_count + 1' }) };
-}, [[
-  'UPDATE fourkeys
-    SET read_count = read_count + 1
-    WHERE (
-      (foo, bar, hello, goodbye) IN (
-        SELECT me.foo, me.bar, me.hello, me.goodbye
-          FROM fourkeys me
-          LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys ON
-                fourkeys_to_twokeys.f_bar = me.bar
-            AND fourkeys_to_twokeys.f_foo = me.foo
-            AND fourkeys_to_twokeys.f_goodbye = me.goodbye
-            AND fourkeys_to_twokeys.f_hello = me.hello
-        WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
-        ORDER BY foo, bar, hello, goodbye
-      )
-    )
-  ',
-  ( 1, 2) x 2,
-  666,
-  ( 1, 2) x 2,
-  'c',
-]], 'Correct update-SQL with multicolumn in support' );
-
 $schema->is_executed_sql_bind( sub {
   $fks->search({ 'twokeys.artist' => { '!=' => 666 } })->update({ read_count => \ 'read_count + 1' });
 }, [

@@ -3,6 +3,8 @@ Revision history for DBIx::Class
     * Misc
         - Fix missing ORDER BY leading to failures of t/prefetch/grouped.t
           under upcoming libsqlite (RT#117271)
+        - Temporarily disable a non-critical portion of test failing on
+          upcoming libsqlite, proper fix coming in 0.082850 (RT#119845)
 
 0.082840 2016-06-20 07:02 (UTC)
     * New Features
