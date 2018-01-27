@@ -3,6 +3,7 @@
 use warnings;
 use strict;
 
+use lib '.';
 use MyApp::Schema;
 
 use Path::Class 'file';

@@ -2,6 +2,13 @@ use strict;
 use warnings;
 
 use 5.008001;
+
+
+# Work around one of the most damaging "improvements" made
+# during the modern-perl-era
+BEGIN { push @INC, '.' unless grep { $_ eq '.' } @INC }
+
+
 use inc::Module::Install 1.06;
 BEGIN { makemaker_args( NORECURS => 1 ) } # needs to happen early for old EUMM
 

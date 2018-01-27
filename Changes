@@ -8,6 +8,8 @@ Revision history for DBIx::Class
         - Add test workaround for ( largely irrelevant ) RT#120129
         - Add temporary test-workaround for a devrel of DBD::SQLite
           RT#124227 / https://twitter.com/dbix_class/status/957271153751527424
+        - Add workaround for one of the most damaging "improvements" made
+          during the modern-perl-era (RT#120827)
 
 0.082840 2016-06-20 07:02 (UTC)
     * New Features

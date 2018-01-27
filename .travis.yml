@@ -204,6 +204,18 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
+    - perl: "5.26.1_thr_qm"
+      # explicit new infra spec preparing for a future forced upgrade
+      # also need to pull in a sufficiently new compiler for quadmath.h
+      sudo: required
+      dist: trusty
+      env:
+        - CLEANTEST=true
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=5.26.1
+        - BREWOPTS="-Duseithreads -Dusequadmath"
+
     # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO CPERL BELOW
     # allows for easier side-by-side comparison
     # vcpu=1 for even more stable results

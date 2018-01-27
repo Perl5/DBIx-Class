@@ -91,6 +91,12 @@ CPAN_CFG_SCRIPT="
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"
 
 
+# FIXME: eventually this shoudln't be needed, sigh...
+perl -M5.026 -e1 &>/dev/null && \
+  run_or_err "Upgrade cpanm to work around perl's .-in-@INC breakage" \
+    "perlbrew install-cpanm -f"
+
+
 # These envvars are always set, more *maybe* below
 export DBIC_SHUFFLE_UNORDERED_RESULTSETS=1
 
