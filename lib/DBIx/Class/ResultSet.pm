@@ -20,6 +20,9 @@ BEGIN {
   *__HM_DEDUP = sub () { 0 };
 }
 
+# FIXME - get rid of this
+use Hash::Merge ();
+
 use namespace::clean;
 
 use overload
@@ -3888,7 +3891,6 @@ sub _merge_joinpref_attr {
 
   sub _merge_attr {
     $hm ||= do {
-      require Hash::Merge;
       my $hm = Hash::Merge->new;
 
       $hm->specify_behavior({

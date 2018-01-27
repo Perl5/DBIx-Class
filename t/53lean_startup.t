@@ -111,6 +111,7 @@ BEGIN {
     Sub::Defer
     Sub::Quote
 
+    Hash::Merge
     Scalar::Util
     List::Util
     Storable
@@ -143,7 +144,6 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     DBI
-    Hash::Merge
   ));
 
   my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');

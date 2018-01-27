@@ -164,6 +164,12 @@ if [[ "$CLEANTEST" = "true" ]]; then
       # DBD::SQLite reasonably wants DBI at config time
       perl -MDBI -e1 &>/dev/null || HARD_DEPS="DBI $HARD_DEPS"
 
+      # Hash::Merge caught up to my prediction made in 2014
+      # install its "deps" manually for the time being,
+      # likely won't have a chance any time soon to remove H::M
+      # from the larger depchain
+      HARD_DEPS="Clone::Choose $HARD_DEPS"
+
     fi
 
 ##### END TEMPORARY WORKAROUNDS
