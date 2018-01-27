@@ -3,6 +3,11 @@
 # "autodie"
 set -e
 
+# FIXME: Work around travis IO capture bugs
+# https://github.com/travis-ci/travis-ci/issues/8973
+# https://github.com/travis-ci/travis-ci/issues/8920
+perl -MFcntl -e 'fcntl( $_, F_SETFL, 0 ) for \*STDOUT, \*STDERR'
+
 TEST_STDERR_LOG=/tmp/dbictest.stderr
 TIMEOUT_CMD="/usr/bin/timeout --kill-after=16m --signal=TERM 15m"
 
