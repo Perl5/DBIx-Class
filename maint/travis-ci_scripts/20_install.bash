@@ -40,27 +40,12 @@ if [[ -n "$BREWVER" ]] ; then
 
   BREWSRC="$BREWVER"
 
-  if is_cperl; then
-    if [[ "$BREWVER" == "cperl-master" ]] ; then
-      git clone --single-branch --depth=1 --branch=master https://github.com/perl11/cperl /tmp/cperl-master
-      BREWSRC="/tmp/cperl-master"
-    else
-      # FFS perlbrew ( see http://wollmers-perl.blogspot.de/2015/10/install-cperl-with-perlbrew.html )
-      wget -qO- https://github.com/perl11/cperl/archive/$BREWVER.tar.gz > /tmp/cperl-$BREWVER.tar.gz
-      BREWSRC="/tmp/cperl-$BREWVER.tar.gz"
-    fi
-  elif [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
+  if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
     BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
   fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
-
-  # FIXME work around https://github.com/perl11/cperl/issues/144
-  # (still affecting 5.22.3)
-  if is_cperl && ! [[ -f ~/perl5/perlbrew/perls/$BREWVER/bin/perl ]] ; then
-    ln -s ~/perl5/perlbrew/perls/$BREWVER/bin/cperl ~/perl5/perlbrew/perls/$BREWVER/bin/perl
-  fi
 
   # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
   # furthermore some versions of `perlbrew use` return 0 regardless of whether
@@ -94,7 +79,7 @@ CPAN_CFG_SCRIPT="
   *CPAN::FirstTime::conf_sites = sub {};
   CPAN::Config->load;
   \$CPAN::Config->{urllist} = [qw{ $CPAN_MIRROR }];
-  \$CPAN::Config->{halt_on_failure} = $( is_cperl && echo -n 0 || echo -n 1 );
+  \$CPAN::Config->{halt_on_failure} = 1;
   CPAN::Config->commit;
 "
 run_or_err "Configuring CPAN.pm" "perl -e '$CPAN_CFG_SCRIPT'"

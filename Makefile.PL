@@ -9,6 +9,20 @@ use 5.008001;
 BEGIN { push @INC, '.' unless grep { $_ eq '.' } @INC }
 
 
+# For the time being simply generate UNKNOWN cperl test reports
+# I would *LOVE* to be able to support it seamlessly, but with
+# rurban adamant that CPAN ought to be gentrified... pity.
+# https://irclog.perlgeek.de/perl11/2016-06-08#i_12624929 ( 06:57 ~ 09:34 )
+BEGIN {
+  die <<'EOE' if $^V =~ /c/;
+
+Currently DBIx::Class is not attempting to be compatible with CPerl
+For more info: https://irclog.perlgeek.de/perl11/2016-06-08#i_12624929
+
+EOE
+}
+
+
 use inc::Module::Install 1.06;
 BEGIN { makemaker_args( NORECURS => 1 ) } # needs to happen early for old EUMM
 

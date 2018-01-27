@@ -26,8 +26,6 @@ CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
 
 have_sudo() { sudo /bin/true &>/dev/null ; }
 
-is_cperl() { [[ "$BREWVER" =~ $( echo -n "^cperl-" ) ]] ; }
-
 ci_vm_state_text() {
   echo "
 ========================== CI System information ============================
@@ -148,8 +146,6 @@ extract_prereqs() {
 parallel_installdeps_notest() {
   if [[ -z "$@" ]] ; then return; fi
 
-  is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
-
   # one module spec per line
   MODLIST="$(printf '%s\n' "$@" | sort -R)"
 
@@ -180,7 +176,7 @@ parallel_installdeps_notest() {
     "
 }
 
-export -f parallel_installdeps_notest run_or_err echo_err tstamp is_cperl have_sudo CPAN_is_sane CPAN_supports_BUILDPL
+export -f parallel_installdeps_notest run_or_err echo_err tstamp have_sudo CPAN_is_sane CPAN_supports_BUILDPL
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi
@@ -209,11 +205,10 @@ installdeps() {
 
 _dep_inst_with_test() {
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    is_cperl && echo_err "cpanminus is not yet usable on cperl" && exit 1
-
     # --dev is already part of CPANM_OPT
     LASTCMD="$TIMEOUT_CMD cpanm $@"
     $LASTCMD 2>&1 || return 1
+
   else
     LASTCMD="$TIMEOUT_CMD cpan $@"
     $LASTCMD 2>&1 || return 1

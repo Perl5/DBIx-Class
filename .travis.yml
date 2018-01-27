@@ -216,50 +216,9 @@ matrix:
         - BREWVER=5.26.1
         - BREWOPTS="-Duseithreads -Dusequadmath"
 
-    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO CPERL BELOW
-    # allows for easier side-by-side comparison
-    # vcpu=1 for even more stable results
-    - perl: "5.22.2_thr_qm"
-      # explicit new infra spec preparing for a future forced upgrade
-      # also need to pull in a sufficiently new compiler for quadmath.h
-      sudo: required
-      dist: trusty
-      env:
-        - VCPU_USE=1
-        - CLEANTEST=true
-        - POISON_ENV=true
-        - MVDT=false
-        - BREWVER=5.22.2
-        - BREWOPTS="-Duseithreads -Dusequadmath"
 
     ###
     # Start of the allow_failures block
-
-    # MAKE SURE TO KEEP THE FLAGS IDENTICAL TO STOCK 5.latest.comparable ABOVE
-    # allows for easier side-by-side comparison
-    # vcpu=1 for even more stable results
-    - perl: "cperl-5.22.3_thr_qm"
-      # explicit new infra spec preparing for a future forced upgrade
-      # also need to pull in a sufficiently new compiler for quadmath.h
-      sudo: required
-      dist: trusty
-      env:
-        - VCPU_USE=1
-        - CLEANTEST=true
-        - POISON_ENV=true
-        - MVDT=false
-        - BREWVER=cperl-5.22.3
-        - BREWOPTS="-Duseithreads -Dusequadmath"
-
-    - perl: "cperl-master_thr"
-      sudo: false
-      dist: precise
-      env:
-        - CLEANTEST=true
-        - POISON_ENV=true
-        - MVDT=false
-        - BREWVER=cperl-master
-        - BREWOPTS="-Duseithreads"
 
     # threaded oldest possible with blead CPAN
     - perl: "devcpan_5.8.1_thr_mb"
@@ -371,8 +330,6 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
-    - perl: cperl-5.22.3_thr_qm
-    - perl: cperl-master_thr
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb

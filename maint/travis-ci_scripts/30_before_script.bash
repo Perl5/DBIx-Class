@@ -11,24 +11,6 @@ if [[ "$DEVREL_DEPS" == "true" ]] ; then
   export MVDT=""
 fi
 
-# Need a shitton of patches to run on cperl (luckily all provided)
-if is_cperl ; then
-
-  run_or_err "Downloading and installing cperl distroprefs" '
-    wget -qO- https://github.com/rurban/distroprefs/archive/master.tar.gz |\
-    tar -C $HOME/.cpan --strip-components 1 -zx distroprefs-master/prefs distroprefs-master/sources
-  '
-
-  # Argh -DFORTIFY_INC!!!
-  # FIXME - remove when M::I is gone
-  export PERL5LIB="$PERL5LIB:."
-
-  # Also need to have YAML in place, otherwise the distroprefs are not readable
-  # work around https://github.com/perl11/cperl/issues/155#issuecomment-224862978
-  perl -MYAML -e1 &>/dev/null || installdeps YAML
-
-fi
-
 
 # announce what are we running
 echo_err "$(ci_vm_state_text)"
