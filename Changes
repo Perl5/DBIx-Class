@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Misc
+        - Fix missing ORDER BY leading to failures of t/prefetch/grouped.t
+          under upcoming libsqlite (RT#117271)
+
 0.082840 2016-06-20 07:02 (UTC)
     * New Features
         - When using non-scalars (e.g. arrays) as literal bind values it is no
