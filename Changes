@@ -6,6 +6,8 @@ Revision history for DBIx::Class
         - Temporarily disable a non-critical portion of test failing on
           upcoming libsqlite, proper fix coming in 0.082850 (RT#119845)
         - Add test workaround for ( largely irrelevant ) RT#120129
+        - Add temporary test-workaround for a devrel of DBD::SQLite
+          RT#124227 / https://twitter.com/dbix_class/status/957271153751527424
 
 0.082840 2016-06-20 07:02 (UTC)
     * New Features
