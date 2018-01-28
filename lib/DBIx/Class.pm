@@ -74,6 +74,20 @@ sub DBIx::Class::_ENV_::HELP_URL () {
 
 __END__
 
+# This is the only file where an explicit =encoding is needed,
+# as the distbuild-time injected author list is utf8 encoded
+# Without this pod2text output is less than ideal
+#
+# A bit regarding selection/compatiblity:
+# Before 5.8.7 UTF-8 was == utf8, both behaving like the (lax) utf8 we know today
+# Then https://www.nntp.perl.org/group/perl.unicode/2004/12/msg2705.html happened
+# Encode way way before 5.8.0 supported UTF-8: https://metacpan.org/source/DANKOGAI/Encode-1.00/lib/Encode/Supported.pod#L44
+# so it is safe for the oldest toolchains.
+# Additionally we inject all the utf8 programattically and test its well-formedness
+# so all is well
+#
+=encoding UTF-8
+
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.

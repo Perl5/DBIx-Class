@@ -10,6 +10,7 @@ Revision history for DBIx::Class
           RT#124227 / https://twitter.com/dbix_class/status/957271153751527424
         - Add workaround for one of the most damaging "improvements" made
           during the modern-perl-era (RT#120827)
+        - Fix malformed README file encoding (RT#122028)
 
 0.082840 2016-06-20 07:02 (UTC)
     * New Features
