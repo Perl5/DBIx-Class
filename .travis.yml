@@ -330,6 +330,7 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
+    - perl: 5.18-extras
     - perl: devcpan_5.8.1_thr_mb
     - perl: devcpan_5.8.1
     - perl: devcpan_5.8.3_mb
