@@ -384,9 +384,9 @@ script:
   - set -e
 
 after_success:
-  # Disabled
+  # Check if we can assemble a dist properly if not in CLEANTEST
   #
-  #- maint/getstatus maint/travis-ci_scripts/50_after_success.bash
+  - maint/getstatus /bin/bash maint/travis-ci_scripts/50_after_success.bash || ( /bin/bash maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
 
 after_failure:
   # Final sysinfo printout on fail

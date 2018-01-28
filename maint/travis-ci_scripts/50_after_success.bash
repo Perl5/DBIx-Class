@@ -27,14 +27,42 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
 
-  # FIXME Change when Moose goes away
-  installdeps Moose $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
+  parallel_installdeps_notest "Module::Install@1.15"
 
-  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL && make dist"
+  # FIXME Change when Moose goes away
+  installdeps \
+    Moose \
+    $(perl -Ilib -MDBIx::Class -e '
+      print join " ", map
+        { keys %{DBIx::Class::Optional::Dependencies->req_list_for($_) } }
+        qw(
+          dist_dir
+          deploy
+          test_pod
+          test_podcoverage
+          test_whitespace
+          test_strictures
+        )
+    ')
+
+  run_or_err "Attempt to build a dist" "rm -rf inc/ && perl Makefile.PL --skip-author-deps && make dist"
   tarball_assembled=1
 
 elif [[ "$CLEANTEST" != "true" ]] ; then
-  parallel_installdeps_notest $(perl -Ilib -MDBIx::Class::Optional::Dependencies=-list_missing,dist_dir)
+  parallel_installdeps_notest \
+    "Module::Install@1.15" \
+    $(perl -Ilib -MDBIx::Class -e '
+      print join " ", map
+        { keys %{DBIx::Class::Optional::Dependencies->req_list_for($_) } }
+        qw(
+          dist_dir
+          deploy
+          test_pod
+          test_podcoverage
+          test_whitespace
+          test_strictures
+        )
+    ')
 
   run_or_err "Attempt to build a dist from original checkout" "make dist"
   tarball_assembled=1

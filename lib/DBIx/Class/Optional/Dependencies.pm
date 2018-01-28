@@ -619,6 +619,7 @@ my $reqs = {
 
   dist_dir => {
     req => {
+      %$admin_script,
       %$test_and_dist_json_any,
       'ExtUtils::MakeMaker' => '6.64',
       'Pod::Inherit'        => '0.91',
