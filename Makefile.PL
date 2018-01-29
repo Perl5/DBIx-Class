@@ -145,7 +145,7 @@ tests_recursive ('xt') if (
   (
     ( $ENV{TRAVIS}||'' ) eq 'true'
       and
-    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
+    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/DBIx-Class$|
   )
     or
   ( $ENV{AUTOMATED_TESTING} and ! $ENV{PERL5_CPANM_IS_RUNNING} and ! $ENV{RELEASE_TESTING} )

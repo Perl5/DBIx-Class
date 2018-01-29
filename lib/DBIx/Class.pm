@@ -122,8 +122,6 @@ list is sorted by "fastest response time"):
 
 =item * Twitter: L<https://www.twitter.com/dbix_class>
 
-=item * Web Site: L<http://www.dbix-class.org/>
-
 =back
 
 =head1 SYNOPSIS

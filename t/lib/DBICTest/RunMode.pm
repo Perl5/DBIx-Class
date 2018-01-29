@@ -220,7 +220,7 @@ sub is_ci {
   return (
     ($ENV{TRAVIS}||'') eq 'true'
       and
-    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/dbix-class$|
+    ($ENV{TRAVIS_REPO_SLUG}||'') =~ m|\w+/DBIx-Class$|
   )
 }
 
