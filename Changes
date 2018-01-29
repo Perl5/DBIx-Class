@@ -1,6 +1,11 @@
 Revision history for DBIx::Class
 
+
+0.082841 2018-01-29 08:10 (UTC)
+    * Test-suite fixup changes only - no reason to upgrade, wait for 0.082850
+
     * Misc
+        - Unblock DBD::SQLite (RT#118395)
         - Fix missing ORDER BY leading to failures of t/prefetch/grouped.t
           under upcoming libsqlite (RT#117271)
         - Temporarily disable a non-critical portion of test failing on
