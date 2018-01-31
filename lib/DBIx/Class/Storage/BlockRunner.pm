@@ -92,6 +92,10 @@ sub run {
 
   my $storage = $self->storage;
 
+  # Don't get into the tangle of code below if we already know the storage is
+  # trying to rollback.
+  $storage->_throw_deferred_rollback if $storage->deferred_rollback;
+
   return $cref->( @_ ) if (
     $storage->{_in_do_block}
       and
@@ -152,6 +156,14 @@ sub _run {
           $delta_txn,
           $cref,
         ) unless $delta_txn == 1 and $cur_depth == 0;
+      }
+      elsif ($storage->deferred_rollback) {
+        # This means the inner code called 'rollback' in a case where savepoints
+        # weren't enabled, and then caught the exception.
+        carp 'A deferred rollback is in effect, but you exited a transaction-wrapped '
+           . 'block cleanly which normally implies "commit". '
+           . "You're getting a rollback instead.";
+        $storage->__delicate_rollback;
       }
       else {
         dbic_internal_try {

@@ -379,6 +379,47 @@ my $fail_code = sub {
   throws_ok( sub { $schema->txn_rollback }, 'DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION', 'got proper nested rollback exception' );
 }
 
+# Nested rollback should never result in a commit
+{
+  use Try::Tiny;
+  my $schema = DBICTest->init_schema();
+
+  is( $schema->storage->transaction_depth, 0, 'txn depth starts at 0');
+
+  my $artist = $schema->resultset('Artist')->find(3);
+
+  # This simulates a situation that might happen if a routine tries performing
+  # database work, but it fails, and then the code that called it wants
+  # to perform additional database work.  (like logging the exception to the DB)
+  my $code_with_error_handling= sub {
+    my $artist= shift;
+    try {
+      $schema->txn_do($fail_code, $artist);
+    } catch {
+      $code->($artist, 'catch code inserts records');
+    };
+  };
+
+  # ...and this simulates code that doesn't realize that wrapping the previous
+  # with a transaction causes it to break, because it can't perform a partial
+  # rollback of the first step.
+  # It should probably be an exception instead of a warning, but that could
+  # break existing code...
+  warnings_like( sub { $schema->txn_do($code_with_error_handling, $artist); },
+    qr/rollback/i, 'get warning about nested rollback' );
+
+  my $fail_record= $artist->cds({
+    title => 'this should not exist',
+    year => 2005,
+  })->first;
+  my $followup_record= $artist->cds({
+    title => 'catch code inserts records',
+    year => 2006,
+  })->first;
+  ok( !defined $fail_record, 'record from failcode not committed' );
+  ok( !defined $followup_record, 'record from exception handler not committed' );
+}
+
 # make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
 warnings_are {
   my $factory = DBICTest->init_schema;
