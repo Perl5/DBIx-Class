@@ -176,7 +176,7 @@ EOC
         }
       ;
 
-      # make sure folks are not invoking a bizarre mix of deprecated and curent syntax
+      # make sure folks are not invoking a bizarre mix of deprecated and current syntax
       $self->throw_exception(
         "'%1$s' expects an arrayref of objects or hashrefs to link to, and an optional hashref of link data"
       ) if (
