@@ -125,8 +125,9 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
 
   # needs to happen separately and *after* db2exc, as the former shits all over /usr/include (wtf?!)
+  # the --reinstall is needed to fixup an already-installed lib on newer ubuntu's
   # for more info look at /opt/ibm/db2/V9.7/instance/db2iutil :: create_links()
-  apt_install unixodbc-dev
+  apt_install --reinstall unixodbc-dev
 
 
 ### config memcached
