@@ -40,9 +40,10 @@ if [[ -n "$BREWVER" ]] ; then
 
   BREWSRC="$BREWVER"
 
-  if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
-    BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
-  fi
+  # Keep around as example how to smoke a custom perl
+  #if [[ "$BREWVER" == "schmorp_stableperl" ]] ; then
+  #  BREWSRC="http://stableperl.schmorp.de/dist/stableperl-5.22.0-1.001.tar.gz"
+  #fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
     "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"

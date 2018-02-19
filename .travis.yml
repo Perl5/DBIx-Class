@@ -316,15 +316,6 @@ matrix:
         - BREWVER=blead
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
-    # CLEANTEST of http://schplog.schmorp.de/2015-06-06-a-stable-perl.html with non-tracing poisoning
-    - perl: "schmorp_stableperl_thr_mb"
-      sudo: false
-      dist: precise
-      env:
-        - CLEANTEST=true
-        - POISON_ENV=true
-        - BREWVER=schmorp_stableperl
-        - BREWOPTS="-Duseithreads -Dusemorebits"
 
   # which ones of the above can fail
   allow_failures:
@@ -339,7 +330,6 @@ matrix:
     - perl: devcpan_5.12.1_thr
     - perl: bleadperl
     - perl: devcpan_bleadperl_thr_mb
-    - perl: schmorp_stableperl_thr_mb
 
 
 ###
