@@ -119,7 +119,12 @@ else
   # do the preinstall in several passes to minimize amount of cross-deps installing
   # multiple times, and to avoid module re-architecture breaking another install
   # (e.g. once Carp is upgraded there's no more Carp::Heavy)
-  #
+
+  # (or once ExtUtil::MakeMaker is upgraded the lazy loads can't find base method
+  #  added in https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/commit/cde9367d1 )
+  # FIXME - we shouldn't be upgrading this but alas... Test::Requires :/
+  perl -MExtUtils::MakeMaker\ 6.64 -e1 &>/dev/null || parallel_installdeps_notest ExtUtils::MakeMaker
+
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
   parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime

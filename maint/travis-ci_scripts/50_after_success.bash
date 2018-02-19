@@ -49,6 +49,12 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
   tarball_assembled=1
 
 elif [[ "$CLEANTEST" != "true" ]] ; then
+
+  # FIXME - have to do this step separately:
+  # once ExtUtil::MakeMaker is upgraded the lazy loads can't find base method
+  # added in https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/commit/cde9367d1
+  parallel_installdeps_notest ExtUtils::MakeMaker
+
   parallel_installdeps_notest \
     "Module::Install@1.15" \
     $(perl -Ilib -MDBIx::Class -e '
