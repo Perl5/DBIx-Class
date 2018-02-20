@@ -27,6 +27,11 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
 
+  # FIXME
+  # https://metacpan.org/source/SMUELLER/Data-Dumper-2.167_02/Changes#L11-16
+  # sigh...
+  perl -MData::Dumper\ 2.126 -e1 &>/dev/null || parallel_installdeps_notest Data::Dumper
+
   parallel_installdeps_notest "Module::Install@1.15"
 
   # FIXME Change when Moose goes away
