@@ -137,7 +137,8 @@ else
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/ribasushi/patchup-Perl5-PPerl.git
 
-  # FIXME - temp workaround for RT#117959
+  # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
+  # ( multiple instances of this line throughout, re-grep when removing )
   if ! perl -M5.008004 -e1 &>/dev/null ; then
     parallel_installdeps_notest DateTime::Locale@1.06
     parallel_installdeps_notest DateTime::TimeZone@2.02
@@ -183,7 +184,9 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    HARD_DEPS="$(make listalldeps | sort -R)"
+    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
+    # ( multiple instances of this line throughout, re-grep when removing )
+    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
 
   else
 
@@ -226,7 +229,9 @@ MyDevelCover
 
   # if we are smoking devrels - make sure we upgrade everything we know about
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    parallel_installdeps_notest "$(make listalldeps | sort -R)"
+    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
+    # ( multiple instances of this line throughout, re-grep when removing )
+    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
   else
     parallel_installdeps_notest "$(make listdeps | sort -R)"
   fi
