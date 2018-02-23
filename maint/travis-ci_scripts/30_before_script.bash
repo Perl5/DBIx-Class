@@ -238,11 +238,18 @@ echo_err "$(tstamp) Dependency installation finished"
 
 # make sure we got everything we need
 if [[ -n "$(make listdeps)" ]] ; then
+
   echo_err "$(tstamp) Not all deps installed - something went wrong :("
   sleep 1 # without this the echo below confuses the console listener >.<
-  CPAN_is_sane || echo_err -e "Outdated CPAN.pm used - full installdep log follows\n$INSTALLDEPS_OUT\n\nSearch for 'NOT OK' in the text above\n\nDeps still missing:"
-  sleep 3 # without this the above echo confuses the console listener >.<
+
+  if [[ "$CLEANTEST" = "true" ]] && ! CPAN_is_sane ; then
+    echo_err -e "Outdated CPAN.pm used - full installdep log follows\n$INSTALLDEPS_OUT\n\nSearch for 'NOT OK' in the text above\n\n"
+    sleep 3 # without this the above echo confuses the console listener >.<
+  fi
+
+  echo_err "Deps still missing:"
   make listdeps
+
   exit 1
 fi
 
