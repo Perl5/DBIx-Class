@@ -455,6 +455,10 @@ for my $addr (keys %$weak_registry) {
     delete $weak_registry->{$addr}
       unless $cleared->{bheos_pptiehinthashfieldhash}++;
   }
+  elsif ($names =~ /^B::Hooks::EndOfScope::PP::HintHash::__GraveyardTransport/m) {
+    # a workaround for perl-level double free: these "leak" by design
+    delete $weak_registry->{$addr};
+  }
   elsif ($names =~ /^DateTime::TimeZone::UTC/m) {
     # DT is going through a refactor it seems - let it leak zones for now
     delete $weak_registry->{$addr};

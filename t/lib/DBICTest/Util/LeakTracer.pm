@@ -11,6 +11,7 @@ use Data::Dumper::Concise;
 use DBICTest::Util qw( stacktrace visit_namespaces );
 use constant {
   CV_TRACING => !DBICTest::RunMode->is_plain && DBIx::Class::Optional::Dependencies->req_ok_for ('test_leaks_heavy'),
+  SKIP_SCALAR_REFS => ( "$]" < 5.008004 ),
 };
 
 use base 'Exporter';
@@ -30,6 +31,8 @@ sub populate_weakregistry {
 
   # a registry could be fed to itself or another registry via recursive sweeps
   return $target if $reg_of_regs{$refaddr};
+
+  return $target if SKIP_SCALAR_REFS and reftype($target) eq 'SCALAR';
 
   weaken( $reg_of_regs{ hrefaddr($weak_registry) } = $weak_registry )
     unless( $reg_of_regs{ hrefaddr($weak_registry) } );
