@@ -20,15 +20,6 @@ branches:
     - /^blocked/
 
 notifications:
-  irc:
-    channels:
-      - "irc.perl.org#dbic-smoke"
-    template:
-      - "%{branch}#%{build_number} by %{author}: %{message} (%{build_url})"
-    on_success: change
-    on_failure: always
-    use_notice: true
-
   email:
     recipients:
       - CPAN-CI@leporine.io
