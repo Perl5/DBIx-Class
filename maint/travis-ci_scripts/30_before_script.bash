@@ -135,7 +135,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin git://github.com/ribasushi/patchup-Perl5-PPerl.git
+  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
   # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
   # ( multiple instances of this line throughout, re-grep when removing )
@@ -153,12 +153,16 @@ else
     parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-InterBase.git
   fi
 
-  # SCGI does not install under < 5.8.8 perls nor under parallel make
+  # SCGI does not install under ASan nor < 5.8.8 perls nor under parallel make
   # FIXME: The 5.8.8 thing is likely fixable, something to do with
   # #define speedy_new(s,n,t) Newx(s,n,t)
-  if perl -M5.008008 -e 1 &>/dev/null ; then
+  if perl -M5.008008 -e 1 &>/dev/null && ! ASan_enabled ; then
     MAKEFLAGS="" bash -c "parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-CGI-SpeedyCGI.git"
   fi
+
+  # PPerl does not work very will with ASan either
+  ASan_enabled || parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-PPerl.git
+
 fi
 
 
