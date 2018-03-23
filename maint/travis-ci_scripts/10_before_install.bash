@@ -68,7 +68,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   if [[ -z "$(tail -n +2 /proc/swaps)" ]] ; then
     run_or_err "Configuring swap (for Oracle)" \
-      "sudo bash -c 'dd if=/dev/zero of=/swap.img bs=256M count=5 && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
+      "sudo bash -c 'fallocate -l 1280M /swap.img && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
   fi
 
 
