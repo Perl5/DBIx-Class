@@ -186,7 +186,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
     # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
     # ( multiple instances of this line throughout, re-grep when removing )
-    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$|DBD::SQLite' | sort -R)"
 
   else
 
@@ -231,7 +231,8 @@ MyDevelCover
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
     # ( multiple instances of this line throughout, re-grep when removing )
-    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+    perl -MDBD::SQLite -e1 &>/dev/null || installdeps I/IS/ISHIGAKI/DBD-SQLite-1.55_07.tar.gz
+    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$|DBD::SQLite' | sort -R)"
   else
     parallel_installdeps_notest "$(make listdeps | sort -R)"
   fi
