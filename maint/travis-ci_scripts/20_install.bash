@@ -46,14 +46,14 @@ if [[ -n "$BREWVER" ]] ; then
   #fi
 
   run_or_err "Compiling/installing Perl $BREWVER (without testing, using ${perlbrew_jopt:-1} threads, may take up to 5 minutes)" \
-    "perlbrew install --as $BREWVER --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
+    "perlbrew install --as $TRAVIS_PERL_VERSION --notest --noman --verbose $BREWOPTS -j${perlbrew_jopt:-1}  $BREWSRC"
 
   # can not do 'perlbrew use' in the run_or_err subshell above, or a $()
   # furthermore some versions of `perlbrew use` return 0 regardless of whether
   # the perl is found (won't be there unless compilation suceeded, wich *ALSO* returns 0)
-  perlbrew use $BREWVER || /bin/true
+  perlbrew use $TRAVIS_PERL_VERSION || /bin/true
 
-  if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$BREWVER" ]] ; then
+  if [[ "$( perlbrew use | grep -oP '(?<=Currently using ).+' )" != "$TRAVIS_PERL_VERSION" ]] ; then
     echo_err "Unable to switch to $BREWVER - compilation failed...?"
     echo_err "$LASTOUT"
     exit 1
