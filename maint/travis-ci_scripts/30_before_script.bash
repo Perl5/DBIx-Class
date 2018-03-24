@@ -173,16 +173,6 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # and https://www.nntp.perl.org/group/perl.perl5.porters/2018/01/msg249123.html
   perl -MDBI -e1 &>/dev/null || perl -MStorable\ 2.16 -e1 &>/dev/null || parallel_installdeps_notest Storable
 
-  # FIXME - test latest DBD::SQLite in all *unspecified* cases, and also work around unavailability
-  # of test fix on CPAN: https://github.com/DBD-SQLite/DBD-SQLite/commit/7b949c35a
-
-    # need to get a DBI in case we don't have it
-    ! CPAN_is_sane && ! perl -MDBI -e1 &>/dev/null && installdeps DBI
-
-    # if we installed something already - roll with it
-    perl -MDBD::SQLite -e1 &>/dev/null || installdeps I/IS/ISHIGAKI/DBD-SQLite-1.55_07.tar.gz
-  # END SQLite FIXME
-
   run_or_err "Configure on current branch" "perl Makefile.PL"
 
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
@@ -190,7 +180,7 @@ if [[ "$CLEANTEST" = "true" ]]; then
 
     # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
     # ( multiple instances of this line throughout, re-grep when removing )
-    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$|DBD::SQLite' | sort -R)"
+    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
 
   else
 
@@ -235,8 +225,7 @@ MyDevelCover
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
     # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
     # ( multiple instances of this line throughout, re-grep when removing )
-    perl -MDBD::SQLite -e1 &>/dev/null || installdeps I/IS/ISHIGAKI/DBD-SQLite-1.55_07.tar.gz
-    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$|DBD::SQLite' | sort -R)"
+    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
   else
     parallel_installdeps_notest "$(make listdeps | sort -R)"
   fi
