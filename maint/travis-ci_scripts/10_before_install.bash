@@ -187,7 +187,10 @@ if [[ "$CLEANTEST" != "true" ]]; then
         cd "$(mktemp -d)"
         wget -qO- https://github.com/ribasushi/patchup-Firebird-ODBC-driver/archive/2.0.2.153.tar.gz | tar -zx --strip-components 1
         cd Builds/Gcc.lin
-        perl -p -i -e "s|/usr/lib64|/usr/lib/x86_64-linux-gnu|g" ../makefile.environ
+        perl -p -i -e "s|/usr/lib64|/usr/lib/x86_64-linux-gnu|g"                          ../makefile.environ
+        perl -p -i -e "s|major\".\"minor\".\"buildnum|major \".\" minor \".\" buildnum|"  ../../SetupAttributes.h
+      [[ -n "$ASAN_FLAGS_COMMON" ]] && \
+        perl -p -i -e "s|^GCC\s*\=\s*g\+\+$|GCC = $CXX $ASAN_FLAGS_COMMON|"               makefile.linux
         make -f makefile.linux
         sudo make -f makefile.linux install
       '

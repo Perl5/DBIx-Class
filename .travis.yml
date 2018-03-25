@@ -219,15 +219,17 @@ matrix:
         - CLEANTEST=false
         - DEVREL_DEPS=true
         - BREWVER=5.24.3
+        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
+        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
+        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
+        - CC=gcc-6
+        - CXX=g++-6
         # FIXME - something in perl confuses ASan, do no trace leaks for now
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
         - ASAN_OPTIONS=detect_leaks=0
         - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - BREWOPTS="-Duseithreads -Dcc=gcc-6 -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
+        - BREWOPTS="-Duseithreads -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
       addons:
         apt:
           sources:
@@ -237,9 +239,11 @@ matrix:
             - libc6:i386
             - binutils
             - gcc-6
+            - g++-6
 
     # ASan-instrumented threaded bleadperl with blead CPAN, full depchain test ( but only DBD::SQLite is used )
     - perl: "devcpan_bleadperl_thr_mb_asan"
+      # we do not need sudo for CLEANTEST below, however the VM infra has *much* beefier CPU
       sudo: required
       dist: trusty
       env:
@@ -247,15 +251,17 @@ matrix:
         - DEVREL_DEPS=true
         # FIXME - temp workaround for https://github.com/gugod/App-perlbrew/issues/606
         - BREWVER=5.27.10
+        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
+        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
+        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
+        - CC=gcc-6
+        - CXX=g++-6
         # FIXME - something in perl confuses ASan, do no trace leaks for now
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
         - ASAN_OPTIONS=detect_leaks=0
         - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - BREWOPTS="-Duseithreads -Dusemorebits -Dcc=gcc-6 -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
+        - BREWOPTS="-Duseithreads -Dusemorebits -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
       addons:
         apt:
           sources:
@@ -265,6 +271,7 @@ matrix:
             - libc6:i386
             - binutils
             - gcc-6
+            - g++-6
 
     # bleadperl with blead CPAN, single thread
     - perl: "devcpan_bleadperl_thr_mb"
