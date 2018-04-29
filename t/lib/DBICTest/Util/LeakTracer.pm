@@ -184,7 +184,7 @@ sub symtable_referenced_addresses {
 
         } keys %{"${pkg}::"} ],
       ) unless $pkg =~ /^ (?:
-        DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3
+        DB | next | B | .+? ::::ISA (?: ::CACHE ) | Class::C3 | B::Hooks::EndOfScope::PP::HintHash::.+
       ) $/x;
     }
   );
