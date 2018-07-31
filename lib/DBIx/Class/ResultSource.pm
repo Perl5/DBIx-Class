@@ -10,6 +10,7 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
+use Hash::Merge ();
 use SQL::Abstract 'is_literal_value';
 use Devel::GlobalDestruction;
 use Try::Tiny;
@@ -346,7 +347,7 @@ sub add_columns {
     # use an empty hashref
     if (ref $cols[0]) {
       my $new_info = shift(@cols);
-      %$column_info = (%$column_info, %$new_info);
+      %$column_info = %{ Hash::Merge::merge($column_info, $new_info) };
     }
     push(@added, $col) unless exists $columns->{$col};
     $columns->{$col} = $column_info;
