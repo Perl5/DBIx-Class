@@ -709,6 +709,10 @@ any foreign key columns of the new object to the related primary key columns
 of the source object for you.  The newly created result will not be saved into
 your storage until you call L<DBIx::Class::Row/insert> on it.
 
+If you pass keys that match relationships, the values will be used to create 
+related objects, such that calling C<< ->insert C>> on this new object will
+insert them all.
+
 =cut
 
 sub new_related {
