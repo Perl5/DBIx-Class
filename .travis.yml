@@ -219,11 +219,8 @@ matrix:
         - CLEANTEST=false
         - DEVREL_DEPS=true
         - BREWVER=5.24.3
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - CC=gcc-6
-        - CXX=g++-6
+        - CC=gcc-8
+        - CXX=g++-8
         # FIXME - something in perl confuses ASan, do no trace leaks for now
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
@@ -238,8 +235,8 @@ matrix:
             - libc6
             - libc6:i386
             - binutils
-            - gcc-6
-            - g++-6
+            - gcc-8
+            - g++-8
 
     # ASan-instrumented threaded bleadperl with blead CPAN, full depchain test ( but only DBD::SQLite is used )
     - perl: "devcpan_bleadperl_thr_mb_asan"
@@ -249,13 +246,9 @@ matrix:
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
-        # FIXME - temp workaround for https://github.com/gugod/App-perlbrew/issues/606
-        - BREWVER=5.27.10
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - CC=gcc-6
-        - CXX=g++-6
+        - BREWVER=blead
+        - CC=gcc-8
+        - CXX=g++-8
         # FIXME - something in perl confuses ASan, do no trace leaks for now
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
@@ -270,8 +263,8 @@ matrix:
             - libc6
             - libc6:i386
             - binutils
-            - gcc-6
-            - g++-6
+            - gcc-8
+            - g++-8
 
     # bleadperl with blead CPAN, single thread
     - perl: "devcpan_bleadperl_thr_mb"
