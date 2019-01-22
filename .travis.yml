@@ -80,7 +80,7 @@ matrix:
         - CLEANTEST=false
 
     # CLEANTEST of minimum supported with non-tracing poisoning, single thread (hence the sudo)
-    - perl: "5.8.3_nt_mb"
+    - perl: "livebrew_5.8.3_nt_mb"
       sudo: required
       dist: precise
       env:
@@ -92,7 +92,7 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # Full Test of minimum supported without threads with plain poisoned trace
-    - perl: "5.8.3_nt"
+    - perl: "livebrew_5.8.3_nt"
       sudo: required
       dist: precise
       # run these under legacy - great simulation of low memory env
@@ -104,7 +104,7 @@ matrix:
         - BREWVER=5.8.3
 
     # Full Test of minimum supported with threads with non-tracing poisoning
-    - perl: "5.8.5_thr"
+    - perl: "livebrew_5.8.5_thr"
       sudo: required
       dist: precise
       # run these under legacy - great simulation of low memory env
@@ -117,7 +117,7 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST of solaris-like perl with non-tracing poisoning
-    - perl: "5.8.4_nt"
+    - perl: "livebrew_5.8.4_nt"
       sudo: false
       dist: precise
       env:
@@ -127,7 +127,7 @@ matrix:
         - BREWVER=5.8.4
 
     # Full test: this particular perl is quite widespread, single thread
-    - perl: "5.8.8_thr"
+    - perl: "livebrew_5.8.8_thr"
       sudo: required
       dist: precise
       group: legacy
@@ -138,7 +138,7 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST: this is the perl suse ships, with env poisoning
-    - perl: "5.10.0_thr_dbg"
+    - perl: "livebrew_5.10.0_thr_dbg"
       sudo: false
       dist: precise
       env:
@@ -148,7 +148,7 @@ matrix:
         - BREWOPTS="-DDEBUGGING -Duseithreads"
 
     # CLEANTEST: this one is in a number of debian-based LTS (test a sane CPAN.pm, single thread)
-    - perl: "5.14.2_thr_mb"
+    - perl: "livebrew_5.14.2_thr_mb"
       sudo: required
       dist: precise
       env:
@@ -160,7 +160,7 @@ matrix:
     ###
     # some permutations of tracing and envvar poisoning
 
-    - perl: "5.12.3_thr"
+    - perl: "livebrew_5.12.3_thr"
       sudo: false
       dist: precise
       env:
@@ -173,7 +173,7 @@ matrix:
         - BREWVER=5.12.3
         - BREWOPTS="-Duseithreads"
 
-    - perl: "5.16.3_thr_mb"
+    - perl: "livebrew_5.16.3_thr_mb"
       sudo: required
       dist: precise
       env:
@@ -195,7 +195,7 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
-    - perl: "5.26.1_thr_qm"
+    - perl: "livebrew_5.26.1_thr_qm"
       # explicit new infra spec preparing for a future forced upgrade
       # also need to pull in a sufficiently new compiler for quadmath.h
       sudo: required
@@ -212,7 +212,7 @@ matrix:
     # Start of the allow_failures block
 
     # ASan-instrumented threaded latest 5.24 with blead CPAN, no tests on depchain ( run only DBICs tests )
-    - perl: "devcpan_5.24.3_thr_asan"
+    - perl: "livebrew_devcpan_5.24.3_thr_asan"
       sudo: required
       dist: trusty
       env:
@@ -239,7 +239,7 @@ matrix:
             - g++-8
 
     # ASan-instrumented threaded bleadperl with blead CPAN, full depchain test ( but only DBD::SQLite is used )
-    - perl: "devcpan_bleadperl_thr_mb_asan"
+    - perl: "livebrew_devcpan_bleadperl_thr_mb_asan"
       # we do not need sudo for CLEANTEST below, however the VM infra has *much* beefier CPU
       sudo: required
       dist: trusty
@@ -267,7 +267,7 @@ matrix:
             - g++-8
 
     # bleadperl with blead CPAN, single thread
-    - perl: "devcpan_bleadperl_thr_mb"
+    - perl: "livebrew_devcpan_bleadperl_thr_mb"
       sudo: required
       dist: trusty
       env:
@@ -278,7 +278,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # bleadperl with stock CPAN, full depchain test with non-tracing poisoning, single thread
-    - perl: "bleadperl"
+    - perl: "livebrew_bleadperl"
       sudo: required
       # explicitly do not specify dist - see what the default does
       env:
@@ -288,7 +288,7 @@ matrix:
         - BREWVER=blead
 
     # threaded oldest possible with blead CPAN
-    - perl: "devcpan_5.8.1_thr_mb"
+    - perl: "livebrew_devcpan_5.8.1_thr_mb"
       sudo: false
       dist: precise
       env:
@@ -298,7 +298,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # oldest possible with blead CPAN with poisoning and plain trace
-    - perl: "devcpan_5.8.1"
+    - perl: "livebrew_devcpan_5.8.1"
       sudo: false
       dist: precise
       env:
@@ -310,7 +310,7 @@ matrix:
         - BREWVER=5.8.1
 
     # 5.8.3 with blead CPAN
-    - perl: "devcpan_5.8.3_mb"
+    - perl: "livebrew_devcpan_5.8.3_mb"
       sudo: required
       # explicit new infra spec preparing for a future forced upgrade
       dist: trusty
@@ -321,7 +321,7 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # 5.8.7 threaded with blead CPAN with non-tracing poisoning
-    - perl: "devcpan_5.8.7_thr"
+    - perl: "livebrew_devcpan_5.8.7_thr"
       sudo: false
       dist: precise
       env:
@@ -332,7 +332,7 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # 5.8.8 threaded MB (exercises P5#72210)
-    - perl: "devcpan_5.8.8_thr_mb"
+    - perl: "livebrew_devcpan_5.8.8_thr_mb"
       sudo: false
       dist: precise
       env:
@@ -343,7 +343,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.10.0 threaded with blead CPAN
-    - perl: "devcpan_5.10.0_thr_mb"
+    - perl: "livebrew_devcpan_5.10.0_thr_mb"
       sudo: false
       dist: precise
       env:
@@ -353,7 +353,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.12.1 with blead CPAN
-    - perl: "devcpan_5.12.1_thr"
+    - perl: "livebrew_devcpan_5.12.1_thr"
       sudo: false
       dist: precise
       env:
@@ -367,17 +367,17 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.24.3_thr_asan
-    - perl: devcpan_bleadperl_thr_mb_asan
-    - perl: devcpan_bleadperl_thr_mb
-    - perl: bleadperl
-    - perl: devcpan_5.8.1_thr_mb
-    - perl: devcpan_5.8.1
-    - perl: devcpan_5.8.3_mb
-    - perl: devcpan_5.8.7_thr
-    - perl: devcpan_5.8.8_thr_mb
-    - perl: devcpan_5.10.0_thr_mb
-    - perl: devcpan_5.12.1_thr
+    - perl: livebrew_devcpan_5.24.3_thr_asan
+    - perl: livebrew_devcpan_bleadperl_thr_mb_asan
+    - perl: livebrew_devcpan_bleadperl_thr_mb
+    - perl: livebrew_bleadperl
+    - perl: livebrew_devcpan_5.8.1_thr_mb
+    - perl: livebrew_devcpan_5.8.1
+    - perl: livebrew_devcpan_5.8.3_mb
+    - perl: livebrew_devcpan_5.8.7_thr
+    - perl: livebrew_devcpan_5.8.8_thr_mb
+    - perl: livebrew_devcpan_5.10.0_thr_mb
+    - perl: livebrew_devcpan_5.12.1_thr
 
 
 ###
