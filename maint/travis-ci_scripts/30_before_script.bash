@@ -32,6 +32,12 @@ if [[ "$MVDT" == "true" ]] ; then
       echo_err "Installing same DBI version into the main perl (above the current local::lib)"
       $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
     fi
+
+    # We need to stick with older DBD::Oracle, otherwise it will bump the DBI version up
+    if [[ -n "$DBICTEST_ORA_DSN" ]] ; then
+      parallel_installdeps_notest DBD::Oracle@1.74
+    fi
+
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
 
