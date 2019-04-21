@@ -17,6 +17,13 @@ __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::SQLite');
 
+sub _determine_supports_multicolumn_in {
+  ( shift->_server_info->{normalized_dbms_version} < '3.014' )
+    ? 0
+    : 1
+}
+
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
