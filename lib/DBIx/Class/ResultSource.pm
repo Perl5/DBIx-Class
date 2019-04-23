@@ -1282,7 +1282,7 @@ the current schema. For example:
     'foreign.book_id' => 'self.id',
   });
 
-The condition C<$cond> needs to be an L<SQL::Abstract>-style
+The condition C<$cond> needs to be an L<SQL::Abstract::Classic>-style
 representation of the join between the tables. For example, if you're
 creating a relation from Author to Book,
 

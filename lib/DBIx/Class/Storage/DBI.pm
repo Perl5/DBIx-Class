@@ -2087,7 +2087,7 @@ sub _insert_bulk {
   # because a user-supplied literal/bind (or something else specific to a
   # resultsource and/or storage driver) can inject extra binds along the
   # way, so one can't rely on "shift positions" ordering at all. Also we
-  # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
+  # can't just hand SQLMaker a set of some known "values" (e.g. hashrefs that
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
   my ($proto_data, $serialized_bind_type_by_col_idx);
@@ -2435,7 +2435,7 @@ sub _select_args {
   # however currently we *may* pass the same $orig_attrs
   # with different ident/select/where
   # the whole interface needs to be rethought, since it
-  # was centered around the flawed SQLA API. We can do
+  # was centered around the flawed SQLMaker API. We can do
   # soooooo much better now. But that is also another
   # battle...
   #return (

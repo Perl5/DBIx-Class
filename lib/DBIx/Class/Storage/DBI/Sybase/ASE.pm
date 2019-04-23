@@ -625,7 +625,7 @@ sub _insert_bulk {
 
 ## FIXME - once this is done - address the FIXME on finish() below
 ## XXX get this to work instead of our own $sth
-## will require SQLA or *Hacks changes for ordered columns
+## will require SQLMaker or *Hacks changes for ordered columns
 #    $bulk->next::method($source, \@source_columns, \@new_data, {
 #      syb_bcp_attribs => {
 #        identity_flag   => $self->_autoinc_supplied_for_op ? 1 : 0,

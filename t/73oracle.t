@@ -281,7 +281,7 @@ sub _run_tests {
   }
 
   # rel name over 30 char limit with user condition
-  # This requires walking the SQLA data structure.
+  # This requires walking the WHERE data structure.
   {
     $query = $schema->resultset('Artist')->search({
       'cds_very_very_very_long_relationship_name.title' => 'EP C'

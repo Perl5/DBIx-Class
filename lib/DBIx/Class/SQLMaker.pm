@@ -5,17 +5,17 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::SQLMaker - An SQL::Abstract-based SQL maker class
+DBIx::Class::SQLMaker - An SQL::Abstract::Classic-like SQL maker class
 
 =head1 DESCRIPTION
 
-This module is a subclass of L<SQL::Abstract> and includes a number of
-DBIC-specific workarounds, not yet suitable for inclusion into the
-L<SQL::Abstract> core. It also provides all (and more than) the functionality
-of L<SQL::Abstract::Limit>, see L<DBIx::Class::SQLMaker::LimitDialects> for
-more info.
+This module is a subclass of L<SQL::Abstract::Classic> and includes a number
+of DBIC-specific workarounds, not suitable for inclusion into the core of
+L<SQLAC|SQL::Abstract::Classic>. It also provides all (and more than) the
+functionality of L<SQL::Abstract::Limit>,
+see L<DBIx::Class::SQLMaker::LimitDialects> for more info.
 
-Currently the enhancements to L<SQL::Abstract> are:
+Currently the enhancements over L<SQL::Abstract::Classic> are:
 
 =over
 
@@ -24,6 +24,8 @@ Currently the enhancements to L<SQL::Abstract> are:
 =item * Support of functions in C<SELECT> lists
 
 =item * C<GROUP BY>/C<HAVING> support (via extensions to the order_by parameter)
+
+=item * A rudimentary multicolumn IN operator
 
 =item * Support of C<...FOR UPDATE> type of select statement modifiers
 
@@ -163,8 +165,9 @@ sub select {
     if( $limiter = $self->can ('emulate_limit') ) {
       carp_unique(
         'Support for the legacy emulate_limit() mechanism inherited from '
-      . 'SQL::Abstract::Limit has been deprecated, and will be removed when '
-      . 'DBIC transitions to Data::Query. If your code uses this type of '
+      . 'SQL::Abstract::Limit has been deprecated, and will be removed at '
+      . 'some future point, as it gets in the way of architectural and/or '
+      . 'performance advances within DBIC. If your code uses this type of '
       . 'limit specification please file an RT and provide the source of '
       . 'your emulate_limit() implementation, so an acceptable upgrade-path '
       . 'can be devised'
@@ -228,9 +231,9 @@ sub insert {
 # optimized due to hotttnesss
 #  my ($self, $table, $data, $options) = @_;
 
-  # SQLA will emit INSERT INTO $table ( ) VALUES ( )
+  # FIXME SQLMaker will emit INSERT INTO $table ( ) VALUES ( )
   # which is sadly understood only by MySQL. Change default behavior here,
-  # until SQLA2 comes with proper dialect support
+  # until we fold the extra pieces into SQLMaker properly
   if (! $_[2] or (ref $_[2] eq 'HASH' and !keys %{$_[2]} ) ) {
     my @bind;
     my $sql = sprintf(
@@ -306,12 +309,15 @@ sub _recurse_fields {
 
 # this used to be a part of _order_by but is broken out for clarity.
 # What we have been doing forever is hijacking the $order arg of
-# SQLA::select to pass in arbitrary pieces of data (first the group_by,
+# SQLAC::select to pass in arbitrary pieces of data (first the group_by,
 # then pretty much the entire resultset attr-hash, as more and more
-# things in the SQLA space need to have more info about the $rs they
+# things in the SQLMaker space need to have more info about the $rs they
 # create SQL for. The alternative would be to keep expanding the
 # signature of _select with more and more positional parameters, which
-# is just gross. All hail SQLA2!
+# is just gross.
+#
+# FIXME - this will have to transition out to a subclass when the effort
+# of folding the SQL generating machinery into SQLMaker takes place
 sub _parse_rs_attrs {
   my ($self, $arg) = @_;
 
@@ -480,8 +486,8 @@ sub _join_condition {
   ) {
     carp_unique(
       "ResultSet {from} structures with conditions not conforming to the "
-    . "SQL::Abstract syntax are deprecated: you either need to stop abusing "
-    . "{from} altogether, or express the condition properly using the "
+    . "SQL::Abstract::Classic syntax are deprecated: you either need to stop "
+    . "abusing {from} altogether, or express the condition properly using the "
     . "{ -ident => ... } operator"
     );
     $cond = { keys %$cond => { -ident => values %$cond } }
@@ -501,9 +507,14 @@ sub _join_condition {
   return $self->_recurse_where($cond);
 }
 
-# This is hideously ugly, but SQLA does not understand multicol IN expressions
-# FIXME TEMPORARY - DQ should have native syntax for this
-# moved here to raise API questions
+# !!! EXPERIMENTAL API !!! WILL CHANGE !!!
+#
+# This is rather odd, but vanilla SQLA* variants do not have support for
+# multicolumn-IN expressions
+# Currently has only one callsite in ResultSet, body moved into this subclass
+# to raise API questions like:
+# - how do we convey a list of idents...?
+# - can binds reside on lhs?
 #
 # !!! EXPERIMENTAL API !!! WILL CHANGE !!!
 sub _where_op_multicolumn_in {
@@ -716,8 +727,8 @@ EOS
   # method, and the slower BETWEEN query is used instead
   #
   # FIXME - this is quite expensive, and does not perform caching of any sort
-  # as soon as some of the DQ work becomes viable consider switching this
-  # over
+  # as soon as some of the SQLMaker-inlining work becomes viable consider adding
+  # some rudimentary caching support
   if (
     $rs_attrs->{order_by}
       and

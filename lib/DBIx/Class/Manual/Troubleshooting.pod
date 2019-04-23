@@ -106,13 +106,12 @@ happen to turn on SQL-quoting.
 
   $rs->search( {}, { order_by => [ 'name DESC' ] } );
 
-Since L<DBIx::Class> >= 0.08100 and L<SQL::Abstract> >= 1.50 the above
-should be written as:
+The above should be written as:
 
   $rs->search( {}, { order_by => { -desc => 'name' } } );
 
 For more ways to express order clauses refer to
-L<SQL::Abstract/ORDER BY CLAUSES>
+L<SQL::Abstract::Classic/ORDER BY CLAUSES>
 
 =head2 Perl Performance Issues on Red Hat Systems
 

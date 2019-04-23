@@ -375,8 +375,8 @@ Or you can provide your own C<WHERE> clause:
   my @bind  = ( 'Peter Frampton', 1986 );
   my $rs    = $schema->resultset('Album')->search_literal( $where, @bind );
 
-The preferred way to generate complex queries is to provide a L<SQL::Abstract>
-construct to C<search>:
+The preferred way to generate complex queries is to provide a
+L<SQL::Abstract::Classic>-compatible construct to C<search>:
 
   my $rs = $schema->resultset('Album')->search({
     artist  => { '!=', 'Janis Joplin' },
