@@ -10,7 +10,7 @@ use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
 use SQL::Abstract 'is_literal_value';
-use DBIx::Class::_Util 'is_exception';
+use DBIx::Class::_Util qw( is_exception sigwarn_silencer );
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
@@ -444,6 +444,10 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
   $schema->source('CD')->name('dbic_t_schema.cd');
   $schema->source('Track')->name('dbic_t_schema.track');
   lives_ok {
+
+    # workaround for PG 9.5+, fix pending in mainline
+    local $SIG{__WARN__} = sigwarn_silencer( qr/SET CONSTRAINTS can only be used in transaction blocks/ );
+
     $schema->storage->with_deferred_fk_checks(sub {
       $schema->resultset('Track')->create({
         trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
@@ -468,8 +472,8 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
   # but it also should not warn
   warnings_like {
 
-    # workaround for PG 9.5, fix pending in mainline
-    local $schema->storage->_dbh->{PrintWarn} = 0;
+    # workaround for PG 9.5+, fix pending in mainline
+    local $SIG{__WARN__} = sigwarn_silencer( qr/SET CONSTRAINTS can only be used in transaction blocks/ );
 
     eval {
       $schema->storage->with_deferred_fk_checks(sub {
