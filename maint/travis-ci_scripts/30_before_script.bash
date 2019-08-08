@@ -57,6 +57,9 @@ if [[ "$MVDT" == "true" ]] ; then
   fi
 fi
 
+# FIXME freeze Clone until H::M is erradicated
+perl -M5.008008 -e1 &>/dev/null || installdeps G/GA/GARU/Clone-0.41.tar.gz
+
 #
 # try minimal fully tested installs *without* a compiler (with some exceptions of course)
 if [[ "$BREAK_CC" == "true" ]] ; then
