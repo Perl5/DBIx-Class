@@ -63,10 +63,6 @@ if [[ "$BREAK_CC" == "true" ]] ; then
 
   [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
 
-  # FIXME - work around https://github.com/perl5-dbi/dbi/pull/60
-  # and https://www.nntp.perl.org/group/perl.perl5.porters/2018/01/msg249123.html
-  perl -MDBI -e1 &>/dev/null || perl -MStorable\ 2.16 -e1 &>/dev/null || parallel_installdeps_notest Storable
-
   # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
   #
   # DEVREL_DEPS means our installer is cpanm, which will respect failures
@@ -174,10 +170,6 @@ fi
 
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
-
-  # FIXME - work around https://github.com/perl5-dbi/dbi/pull/60
-  # and https://www.nntp.perl.org/group/perl.perl5.porters/2018/01/msg249123.html
-  perl -MDBI -e1 &>/dev/null || perl -MStorable\ 2.16 -e1 &>/dev/null || parallel_installdeps_notest Storable
 
   run_or_err "Configure on current branch" "perl Makefile.PL"
 
