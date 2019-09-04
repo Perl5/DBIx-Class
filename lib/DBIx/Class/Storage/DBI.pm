@@ -1871,6 +1871,13 @@ sub _bind_sth_params {
   my ($self, $sth, $bind, $bind_attrs) = @_;
 
   for my $i (0 .. $#$bind) {
+    
+    if( my $func = $self->can('_bind_sth_params_specificities') ){
+      if( my $ado_type = $func->($self, $bind->[$i][0]{sqlt_datatype}) ){
+        $bind_attrs->[$i]{ado_type} = $ado_type;
+      }
+    }
+    
     if (ref $bind->[$i][1] eq 'SCALAR') {  # any scalarrefs are assumed to be bind_inouts
       $sth->bind_param_inout(
         $i + 1, # bind params counts are 1-based

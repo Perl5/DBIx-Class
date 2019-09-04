@@ -410,6 +410,84 @@ sub _mssql_max_data_type_representation_size_in_units {
   }
 }
 
+=head2 _bind_sth_params_specificities
+ 
+ Quick hack to manage sql server specificities for a part of numerics values with float
+ 
+ so use : 
+  my $Enums = DBD::ADO::Const->Enums;
+  $Enums->{DataTypeEnum}{adSingle} or $Enums->{DataTypeEnum}{adVarWChar}
+  
+  FixMe with a function like this e.g to manage with the good parameters definition (look like as https://metacpan.org/source/SGOELDNER/DBD-ADO-2.99/lib/DBD/ADO/TypeInfo.pm) :
+  
+  sub datatype_to_ado {
+    my ($self, $sqlt_datatype) = @_;
+    # https://www.w3schools.com/asp/ado_datatypes.asp
+    my $ado_type = {
+    # 'XXXXX'          => 'adArray',
+    # 'XXXXX'          => 'adBSTR',
+      'bigint'         => 'adBigInt',
+      'binary'         => 'adBinary',
+    # 'text'           => 'adBinary', #Guested!
+      'bit'            => 'adBoolean',
+    # 'XXXXX'          => 'adChapter',
+      'char'           => 'adChar',
+      'money'          => 'adCurrency',
+      'smallmoney'     => 'adCurrency',
+    # 'XX??date'       => 'adDBDate',
+      'date'           => 'adDate',
+      'datetime2'      => 'adDBTimeStamp',
+      'datetime'       => 'adDBTimeStamp',
+    # 'datetimeoffset' => '???',
+    # 'smalldatetime'  => '????',
+      'time'           => 'adDBTime',
+      'timestamp'      => 'adDBTimeStamp',
+      'decimal'        => 'adDecimal',
+    # 'XXXXX'          => 'adDouble',
+    # 'XXXXX'          => 'adEmpty',
+    # 'XXXXX'          => 'adError',
+    # 'XXXXX'          => 'adFileTime',
+    # 'XXXXX'          => 'adGUID',
+    # 'XXXXX'          => 'adIDispatch',
+    # 'XXXXX'          => 'adIUnknown',
+      'int'            => 'adInteger',
+      'integer'        => 'adInteger',
+    # 'XXXXX'          => 'adLongVarBinary',
+    # 'XXXXX'          => 'adLongVarChar',
+    # 'XXXXX'          => 'adLongVarWChar',
+      'numeric'        => 'adNumeric',
+    # 'XXXXX'          => 'adPropVariant',
+    # 'XXXXX'          => 'adSingle',
+      'smallint'       => 'adSmallInt',
+      'tinyint'        => 'adTinyInt',
+    # 'XXXXX'          => 'adUnsignedBigInt',
+    # 'XXXXX'          => 'adUnsignedInt',
+    # 'XXXXX'          => 'adUnsignedSmallInt',
+    # 'XXXXX'          => 'adUnsignedTinyInt',
+    # 'XXXXX'          => 'adUserDefined',
+      'varbinary'      => 'adVarBinary',
+      'varchar'        => 'adVarChar',
+      'float'          => 'adSingle',
+      'real'           => 'adVarNumeric',
+      'nvarchar'       => 'adVarWChar',
+      'variant'        => 'adVariant',
+      'nchar'          => 'adWChar',
+    }->{lc $sqlt_datatype};
+    if(defined $ado_type){
+      $ado_type = DBD::ADO::Const->Enums->{DataTypeEnum}{$ado_type};
+    } else{
+      warn "DBIx ADO: sql datatype $sqlt_datatype not mapped!";
+    }
+    return $ado_type;
+  }
+ 
+=cut
+
+sub _bind_sth_params_specificities {
+  my ($self, $sqlt_datatype) = @_;
+  return ($sqlt_datatype =~ /int|real|numeric|float|decimal/) ? 4 : 202;
+}
+
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server::DateTime::Format;
 
