@@ -11,7 +11,7 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 ###
 
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
-  PINS_REQUIRED+=( 'Data::Page~<2.04' )
+  PINS_REQUIRED+=( 'Data::Page~<2.04' 'SQL::Abstract~<1.90_01' )
 fi
 
 # FIXME freeze Clone until H::M is erradicated
@@ -167,7 +167,7 @@ else
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
+  parallel_installdeps_notest Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
 
   [[ "${PINS_OPTIONAL[@]}" != "" ]] && for m in "${PINS_OPTIONAL[@]}"; do parallel_installdeps_notest "$m"; done
