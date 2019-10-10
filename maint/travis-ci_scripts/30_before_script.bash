@@ -10,6 +10,10 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 ### CI-wide pins ( sadly necessary here and there )
 ###
 
+if [[ "$DEVREL_DEPS" == "true" ]] ; then
+  PINS_REQUIRED+=( 'Data::Page~<2.04' )
+fi
+
 # FIXME freeze Clone until H::M is erradicated
 if ! perl -M5.008008 -e1 &>/dev/null ; then
   PINS_REQUIRED+=( "G/GA/GARU/Clone-0.41.tar.gz" )
