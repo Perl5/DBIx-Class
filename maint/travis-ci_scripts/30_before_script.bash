@@ -92,10 +92,6 @@ if [[ "$BREAK_CC" == "true" ]] ; then
              "ln -fs /bin/true $HOME/bin/cc"
 fi
 
-# FIXME workaround Sub::Quote no longer installing on QM builds - just freeze it in 2018 for now
-perl -MConfig -e 'exit 1 if grep { $_ eq "USE_QUADMATH" } Config::bincompat_options()' \
-  || installdeps H/HA/HAARG/Sub-Quote-2.005001.tar.gz
-
 if [[ "$CLEANTEST" = "true" ]]; then
   # get the last inc/ off cpan - we will get rid of MI
   # soon enough, but till then this will do
