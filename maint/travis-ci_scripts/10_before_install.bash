@@ -81,6 +81,11 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   # these APT sources do not mean anything to us anyway
   sudo rm -rf /etc/apt/sources.list.d/*
+  sudo rm -rf /var/lib/apt/lists/*
+  sudo apt-get clean
+
+  # make sure all versions of apt DTRT
+  echo 'Acquire::CompressionTypes::Order:: { "gz"; "xz"; };' | sudo tee -a /etc/apt/apt.conf.d/99CI-repo-compression-workaround
 
   #
   # FIXME these debconf lines should automate the firebird config but seem not to :(((
@@ -88,7 +93,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
   run_or_err "Updating APT sources" "sudo apt-get update"
-  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
+  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev
 
 
   # need to stop them again, in case we installed them above (trusty)
@@ -172,7 +177,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
     run_or_err "Re-configuring Firebird" "
       sync
       sleep 5
-      DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
+      DEBIAN_FRONTEND=text sudo $(which expect) -c '$EXPECT_FB_SCRIPT'
     "
 
     if run_or_err "Creating Firebird TestDB" \

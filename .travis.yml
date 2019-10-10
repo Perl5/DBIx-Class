@@ -26,11 +26,13 @@ notifications:
     on_success: change
     on_failure: always
 
+# IFF this list is changed - make sure to backfill the override-addons further down too
 addons:
   apt:
     packages:
       - libapp-nopaste-perl
       - net-tools
+      - expect
 
 # This is probably a net-loss for setup etc - a bare 'C' will likely fare much better
 language: perl
@@ -232,6 +234,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - libapp-nopaste-perl
+            - net-tools
+            - expect
             - libc6
             - libc6:i386
             - binutils
@@ -260,6 +265,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - libapp-nopaste-perl
+            - net-tools
+            - expect
             - libc6
             - libc6:i386
             - binutils
