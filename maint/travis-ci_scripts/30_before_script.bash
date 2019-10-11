@@ -5,6 +5,26 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
+
+###
+### CI-wide pins ( sadly necessary here and there )
+###
+
+# FIXME freeze Clone until H::M is erradicated
+if ! perl -M5.008008 -e1 &>/dev/null ; then
+  PINS_REQUIRED+=( "G/GA/GARU/Clone-0.41.tar.gz" )
+fi
+
+# FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
+if ! perl -M5.008004 -e1 &>/dev/null ; then
+  PINS_OPTIONAL+=( "DateTime::Locale@1.06" "DateTime::TimeZone@2.02" "DateTime@1.38" "DateTime::Format::Strptime@1.71" )
+fi
+
+###
+### END OF CI-wide pins
+###
+
+
 # The DEVREL_DEPS prereq-install stage won't mix with MVDT
 # DEVREL wins
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
@@ -57,8 +77,9 @@ if [[ "$MVDT" == "true" ]] ; then
   fi
 fi
 
-# FIXME freeze Clone until H::M is erradicated
-perl -M5.008008 -e1 &>/dev/null || installdeps G/GA/GARU/Clone-0.41.tar.gz
+#
+# Any required pin needs to be installed before we do anything else
+[[ "${PINS_REQUIRED[@]}" != "" ]] && for m in "${PINS_REQUIRED[@]}"; do installdeps "$m" ; done
 
 #
 # try minimal fully tested installs *without* a compiler (with some exceptions of course)
@@ -74,11 +95,14 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   #
   # FIXME - the PathTools 3.47 is to work around https://rt.cpan.org/Ticket/Display.html?id=107392
   #
-  installdeps Sub::Name Clone Package::Stash::XS \
-              $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
-              $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
-              $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
-              $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
+  installdeps \
+    $( perl -MSub::Name -e1 &>/dev/null || echo "Sub::Name" ) \
+    $( perl -MClone -e1  &>/dev/null || echo "Clone" ) \
+    $( perl -MPackage::Stash::XS -e1 &>/dev/null || echo "Package::Stash::XS" ) \
+    $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
+    $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
+    $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
+    $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
 
   mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
   run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
@@ -141,14 +165,9 @@ else
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
   parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
-  # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-  # ( multiple instances of this line throughout, re-grep when removing )
-  if ! perl -M5.008004 -e1 &>/dev/null ; then
-    parallel_installdeps_notest DateTime::Locale@1.06
-    parallel_installdeps_notest DateTime::TimeZone@2.02
-    parallel_installdeps_notest DateTime@1.38
-    parallel_installdeps_notest DateTime::Format::Strptime@1.71
-  fi
+
+  [[ "${PINS_OPTIONAL[@]}" != "" ]] && for m in "${PINS_OPTIONAL[@]}"; do parallel_installdeps_notest "$m"; done
+
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
@@ -178,9 +197,8 @@ if [[ "$CLEANTEST" = "true" ]]; then
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-    # ( multiple instances of this line throughout, re-grep when removing )
-    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+    # we can't upgrade*everything* though - got to respect the pins
+    HARD_DEPS="$(make listalldeps | grep -vEf <( printf '%s\n' "${PINS_REQUIRED[@]}" "${PINS_OPTIONAL[@]}" | sed 's/[\@\~\-][^-]*$//' | sed 's/.*\///' | sed 's/-/::/g' | xargs printf '^%s$\n' ) | sort -R)"
 
   else
 
@@ -213,9 +231,10 @@ else
 
   # if we are smoking devrels - make sure we upgrade everything we know about
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-    # ( multiple instances of this line throughout, re-grep when removing )
-    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+
+    # we can't upgrade*everything* though - got to respect the pins
+    parallel_installdeps_notest "$(make listalldeps | grep -vEf <( printf '%s\n' "${PINS_REQUIRED[@]}" "${PINS_OPTIONAL[@]}" | sed 's/[\@\~\-][^-]*$//' | sed 's/.*\///' | sed 's/-/::/g' | xargs printf '^%s$\n' ) | sort -R)"
+
   else
     parallel_installdeps_notest "$(make listdeps | sort -R)"
   fi

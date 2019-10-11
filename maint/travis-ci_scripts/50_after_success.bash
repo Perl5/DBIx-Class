@@ -11,19 +11,18 @@ fi
 export VCPU_USE="$VCPU_AVAILABLE"
 export HARNESS_OPTIONS="j$VCPU_USE"
 
+[[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
+
+# FIXME sadly some stuff needs to be pinned for the wider deplist until CPAN can be fixed
+perl -MList::Util\ 1.45 -e1 &>/dev/null || installdeps P/PE/PEVANS/Scalar-List-Utils-1.50.tar.gz
+perl -MModule::Install\ 1.15 -e1 &>/dev/null || parallel_installdeps_notest E/ET/ETHER/Module-Install-1.15.tar.gz
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
 
-  [[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
-
   # FIXME - workaround for YAML/RT#81120 and L::SRH/RT#107681
   # We don't actually need these modules, only there because of SQLT (which will be fixed)
-  # does not test cleanly on 5.8.7 - just get them directly
-  if ! perl -M5.008008 -e1 &>/dev/null; then
-    parallel_installdeps_notest YAML Lexical::SealRequireHints
-  fi
-
-  parallel_installdeps_notest "Module::Install@1.15"
+  perl -M5.008008 -e1 &>/dev/null || parallel_installdeps_notest YAML
+  perl -M5.008009 -e1 &>/dev/null || parallel_installdeps_notest Lexical::SealRequireHints
 
   # FIXME Change when Moose goes away
   installdeps \
@@ -52,7 +51,6 @@ elif [[ "$CLEANTEST" != "true" ]] ; then
   parallel_installdeps_notest ExtUtils::MakeMaker
 
   parallel_installdeps_notest \
-    "Module::Install@1.15" \
     $(perl -Ilib -MDBIx::Class -e '
       print join " ", map
         { keys %{DBIx::Class::Optional::Dependencies->req_list_for($_) } }
@@ -93,7 +91,7 @@ if [[ -n "$tarball_assembled" ]] ; then
   #
   # not running tests on CPAN.pm - they are not terribly slow,
   # but https://rt.cpan.org/Ticket/Display.html?id=96437 sucks
-  parallel_installdeps_notest CPAN
+  installdeps CPAN
   run_or_err "Make sure CPAN was upgraded to at least 2.10" "perl -M'CPAN 2.010' -e1"
 
   run_or_err "Re-Configuring CPAN.pm" "perl -MCPAN -e '\
