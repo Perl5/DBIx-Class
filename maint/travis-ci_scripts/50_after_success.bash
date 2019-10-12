@@ -16,23 +16,12 @@ if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
 
   [[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
 
-  # FIXME - Devel::Cover (brought by Test::Strict, but soon needed anyway)
-  # does not test cleanly on 5.8.7 - just get it directly
-  if perl -M5.008007 -e1 &>/dev/null && ! perl -M5.008008 -e1 &>/dev/null; then
-    parallel_installdeps_notest Devel::Cover
-  fi
-
   # FIXME - workaround for YAML/RT#81120 and L::SRH/RT#107681
   # We don't actually need these modules, only there because of SQLT (which will be fixed)
   # does not test cleanly on 5.8.7 - just get them directly
   if ! perl -M5.008008 -e1 &>/dev/null; then
     parallel_installdeps_notest YAML Lexical::SealRequireHints
   fi
-
-  # FIXME
-  # https://metacpan.org/source/SMUELLER/Data-Dumper-2.167_02/Changes#L11-16
-  # sigh...
-  perl -MData::Dumper\ 2.126 -e1 &>/dev/null || parallel_installdeps_notest Data::Dumper
 
   parallel_installdeps_notest "Module::Install@1.15"
 
