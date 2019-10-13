@@ -135,6 +135,8 @@ matrix:
         - CLEANTEST=false
         - BREWVER=5.8.8
         - BREWOPTS="-Duseithreads"
+        # FIXME - I never managed to trace why *!!sudo!!* hangs without this dummy line :/
+        - DBIC_SOMETHING_UNRELATED_TO_PACIFY_TRAVISCI=console
 
     # CLEANTEST: this is the perl suse ships, with env poisoning
     - perl: "livebrew_5.10.0_thr_dbg"
