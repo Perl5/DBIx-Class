@@ -135,7 +135,7 @@ else
 
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
