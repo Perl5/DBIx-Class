@@ -98,7 +98,6 @@ matrix:
       sudo: required
       dist: precise
       # run these under legacy - great simulation of low memory env
-      group: legacy
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -110,7 +109,6 @@ matrix:
       sudo: required
       dist: precise
       # run these under legacy - great simulation of low memory env
-      group: legacy
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -132,7 +130,6 @@ matrix:
     - perl: "livebrew_5.8.8_thr"
       sudo: required
       dist: precise
-      group: legacy
       env:
         - VCPU_USE=1
         - CLEANTEST=false
