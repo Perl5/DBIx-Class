@@ -51,6 +51,8 @@ if [[ "$MVDT" == "true" ]] ; then
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
 
+    parallel_installdeps_notest DBD::Pg@2.17.2
+
     # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
     if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
       echo_err "Installing same DBI version into the main perl (above the current local::lib)"
@@ -64,6 +66,8 @@ if [[ "$MVDT" == "true" ]] ; then
 
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
+
+    parallel_installdeps_notest DBD::Pg@2.9.2
 
     # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
     if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
