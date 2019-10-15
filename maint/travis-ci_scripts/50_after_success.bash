@@ -19,6 +19,9 @@ perl -MModule::Install\ 1.15 -e1 &>/dev/null || parallel_installdeps_notest E/ET
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
 
+  # FIXME - ping Cpanel::JSON::XS until Reini figures out the test failures
+  parallel_installdeps_notest 'Cpanel::JSON::XS~!=4.13'
+
   # FIXME - workaround for YAML/RT#81120 and L::SRH/RT#107681
   # We don't actually need these modules, only there because of SQLT (which will be fixed)
   perl -M5.008008 -e1 &>/dev/null || parallel_installdeps_notest YAML
