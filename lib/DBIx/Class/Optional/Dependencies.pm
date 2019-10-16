@@ -28,6 +28,7 @@ my $moose_basic = {
 };
 
 my $replicated = {
+  'Clone' => 0,
   %$moose_basic,
 };
 
