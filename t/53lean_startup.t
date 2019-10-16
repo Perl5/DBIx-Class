@@ -132,7 +132,7 @@ BEGIN {
 
     Class::Accessor::Grouped
     Class::C3::Componentised
-    SQL::Abstract
+    SQL::Abstract::Util
   ));
 
   require DBICTest::Schema;
@@ -158,6 +158,7 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     DBI
+    SQL::Abstract::Classic
   ));
 
   my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
@@ -181,9 +182,9 @@ BEGIN {
 {
   local $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER};
   {
-    # in general we do not want DBICTest to load before sqla, but it is
+    # in general we do not want DBICTest to load before sqlac, but it is
     # ok to cheat here
-    local $INC{'SQL/Abstract.pm'};
+    local $INC{'SQL/Abstract/Classic.pm'};
     require DBICTest;
   }
   my $s = DBICTest->init_schema;

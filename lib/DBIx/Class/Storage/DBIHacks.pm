@@ -30,7 +30,7 @@ use mro 'c3';
 
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
-use SQL::Abstract qw(is_plain_value is_literal_value);
+use SQL::Abstract::Util qw(is_plain_value is_literal_value);
 use DBIx::Class::Carp;
 use namespace::clean;
 

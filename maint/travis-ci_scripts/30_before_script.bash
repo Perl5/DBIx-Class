@@ -11,7 +11,7 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 ###
 
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
-  PINS_REQUIRED+=( 'Data::Page~<2.04' 'SQL::Abstract~<1.90_01' )
+  PINS_REQUIRED+=( 'Data::Page~<2.04' )
 fi
 
 # FIXME freeze Clone until H::M is erradicated

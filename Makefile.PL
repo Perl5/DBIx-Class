@@ -76,7 +76,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.24',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.81',
+  'SQL::Abstract::Classic'   => '1.91',
   'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required

@@ -11,7 +11,7 @@ use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use SQL::Abstract qw(is_plain_value is_literal_value);
+use SQL::Abstract::Util qw(is_plain_value is_literal_value);
 use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor);
 use namespace::clean;
 

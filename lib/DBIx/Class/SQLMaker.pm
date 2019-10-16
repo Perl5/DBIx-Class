@@ -52,8 +52,8 @@ Currently the enhancements over L<SQL::Abstract::Classic> are:
 
 use base qw/
   DBIx::Class::SQLMaker::ClassicExtensions
-  SQL::Abstract
   DBIx::Class
+  SQL::Abstract::Classic
 /;
 use mro 'c3';
 
@@ -83,21 +83,14 @@ sub _quote_chars {
 # weaklink and channel through $schema->throw_exception
 sub throw_exception { DBIx::Class::Exception->throw($_[1]) }
 
-BEGIN {
-  # reinstall the belch()/puke() functions of SQL::Abstract with custom versions
-  # that use DBIx::Class::Carp/DBIx::Class::Exception instead of plain Carp
-  no warnings qw/redefine/;
+sub belch {
+  shift;  # throw away $self
+  carp( "Warning: ", @_ );
+};
 
-  *SQL::Abstract::belch = subname 'SQL::Abstract::belch' => sub (@) {
-    my($func) = (caller(1))[3];
-    carp "[$func] Warning: ", @_;
-  };
-
-  *SQL::Abstract::puke = subname 'SQL::Abstract::puke' => sub (@) {
-    my($func) = (caller(1))[3];
-    __PACKAGE__->throw_exception("[$func] Fatal: " . join ('',  @_));
-  };
-}
+sub puke {
+  shift->throw_exception("Fatal: " . join ('',  @_));
+};
 
 # the "oh noes offset/top without limit" constant
 # limited to 31 bits for sanity (and consistency,

@@ -9,7 +9,7 @@ use Config;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract::Util 'is_literal_value';
 use DBIx::Class::_Util qw( is_exception sigwarn_silencer );
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')

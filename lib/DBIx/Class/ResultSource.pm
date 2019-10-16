@@ -10,7 +10,7 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Carp;
 use DBIx::Class::_Util 'UNRESOLVABLE_CONDITION';
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract::Util 'is_literal_value';
 use Devel::GlobalDestruction;
 use Try::Tiny;
 use Scalar::Util qw/blessed weaken isweak/;

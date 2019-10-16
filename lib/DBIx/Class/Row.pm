@@ -8,7 +8,7 @@ use base qw/DBIx::Class/;
 use Scalar::Util 'blessed';
 use Try::Tiny;
 use DBIx::Class::Carp;
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract::Util 'is_literal_value';
 
 ###
 ### Internal method
