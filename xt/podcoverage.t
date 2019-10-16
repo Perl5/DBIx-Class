@@ -116,6 +116,14 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::Storage::Debug::PrettyTrace'      => {
+        ignore => [ qw/
+          print
+          query_start
+          query_end
+        /]
+    },
+
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::Optional::Dependencies'           => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },

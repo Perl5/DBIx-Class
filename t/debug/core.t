@@ -22,7 +22,7 @@ my $lfn = file("t/var/sql-$$.log");
 unlink $lfn or die $!
   if -e $lfn;
 
-# make sure we are testing the vanilla debugger and not ::PrettyPrint
+# make sure we are testing the vanilla debugger and not ::PrettyTrace
 require DBIx::Class::Storage::Statistics;
 $schema->storage->debugobj(DBIx::Class::Storage::Statistics->new);
 

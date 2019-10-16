@@ -23,7 +23,7 @@ BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE)} }
 
    my $schema = DBICTest->init_schema;
 
-   isa_ok($schema->storage->debugobj, 'DBIx::Class::Storage::Debug::PrettyPrint');;
+   isa_ok($schema->storage->debugobj, 'DBIx::Class::Storage::Debug::PrettyTrace');;
    is($schema->storage->debugobj->_sqlat->indent_string, ' ', 'indent string set correctly from console profile');
 }
 
@@ -32,7 +32,7 @@ BEGIN { delete @ENV{qw(DBIC_TRACE_PROFILE)} }
 
    my $schema = DBICTest->init_schema;
 
-   isa_ok($schema->storage->debugobj, 'DBIx::Class::Storage::Debug::PrettyPrint');;
+   isa_ok($schema->storage->debugobj, 'DBIx::Class::Storage::Debug::PrettyTrace');;
    is($schema->storage->debugobj->_sqlat->indent_string, 'frioux', 'indent string set correctly from file-based profile');
 }
 
