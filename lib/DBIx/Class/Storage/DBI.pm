@@ -1060,6 +1060,12 @@ sub _populate_dbh {
 }
 
 sub _run_connection_actions {
+  # there are pathological cases in the CI where this can loop
+  # did not investigae in depth, but in either case this makes
+  # sense to guard like this
+  return if $_[0]->{_running_connections_actions};
+
+  local $_[0]->{_running_connections_actions} = 1;
 
   $_[0]->_do_connection_actions(connect_call_ => $_) for (
     ( $_[0]->on_connect_call || () ),
@@ -1470,6 +1476,92 @@ sub _do_query {
   }
 
   return $self;
+}
+
+=head2 connect_call_rebase_sqlmaker
+
+This on-connect call takes as a single argument the name of a class to "rebase"
+the SQLMaker inheritance hierarchy upon. For this to work properly the target
+class B<MUST> inherit from L<DBIx::Class::SQLMaker::ClassicExtensions> and
+L<SQL::Abstract::Classic> as shown below.
+
+This infrastructure is provided to aid recent activity around experimental new
+aproaches to SQL generation within DBIx::Class. You can (and are encouraged to)
+mix and match old and new within the same codebase as follows:
+
+  package DBIx::Class::Awesomer::SQLMaker;
+  # you MUST inherit in this order to get the composition right
+  # you are free to override-without-next::method any part you need
+  use base qw(
+    DBIx::Class::SQLMaker::ClassicExtensions
+    << OPTIONAL::AWESOME::Class::Implementing::ExtraRainbowSauce >>
+    SQL::Abstract::Classic
+  );
+  << your new code goes here >>
+
+
+  ... and then ...
+
+
+  my $experimental_schema = $original_schema->connect(
+    sub {
+      $original_schema->storage->dbh
+    },
+    {
+      # the nested arrayref is important, as per
+      # https://metacpan.org/pod/DBIx::Class::Storage::DBI#on_connect_call
+      on_connect_call => [ [ rebase_sqlmaker => 'DBIx::Class::Awesomer::SQLMaker' ] ],
+    },
+  );
+
+=cut
+
+sub connect_call_rebase_sqlmaker {
+  my( $self, $requested_base_class ) = @_;
+
+  $self->throw_exception(
+    "The on_connect callee 'rebase_sqlmaker' expects a single plain string argument: the name of the target base class"
+  ) if (
+    @_ != 2
+      or
+    ! length( $requested_base_class )
+  );
+
+  my $old_class = ref( $self->sql_maker );
+
+  # nothing to do!
+  return if $old_class->isa( $requested_base_class );
+
+  my $synthetic_class = "${old_class}__REBASED_ON__${requested_base_class}";
+
+  {
+    no strict 'refs';
+
+    # skip if we already made that class
+    unless( @{"${synthetic_class}::ISA"} ) {
+
+      $self->ensure_class_loaded( $requested_base_class );
+
+      for my $base (qw(
+        DBIx::Class::SQLMaker::ClassicExtensions
+        SQL::Abstract::Classic
+      )) {
+
+        $self->throw_exception(
+          "The 'rebase_sqlmaker' target class '$requested_base_class' is not inheriting from '$base', this can not work"
+        ) unless $requested_base_class->isa( $base );
+      }
+
+      $self->inject_base( $synthetic_class, $old_class, $requested_base_class );
+
+      Class::C3->reinitialize
+        if DBIx::Class::_ENV_::OLD_MRO;
+    }
+  }
+
+  # force re-build on next access for this particular $storage instance
+  $self->sql_maker_class( $synthetic_class );
+  $self->_sql_maker( undef );
 }
 
 sub _connect {
