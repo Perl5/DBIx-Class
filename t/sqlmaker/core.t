@@ -92,9 +92,7 @@ my $sql_maker = $schema->storage->sql_maker;
       [],
     );
   }
-
 }
-
 
 
 # Make sure the carp/croak override in SQLA works (via SQLMaker)

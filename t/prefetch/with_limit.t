@@ -7,9 +7,8 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-use DBIx::Class::SQLMaker::LimitDialects;
 
-my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
+my $ROWS = DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype;
 
 my $schema = DBICTest->init_schema();
 

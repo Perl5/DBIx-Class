@@ -67,7 +67,7 @@ my $rs = $schema->resultset('Artist')->search_related('cds_unordered',
     )},
     [
       [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
-      [ DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype => 1 ],
+      [ DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype => 1 ],
       [ { sqlt_datatype => 'integer', dbic_colname => 'me.rank' } => 13 ],
     ],
     'correct SQL with aggregate boolean order on Pg',

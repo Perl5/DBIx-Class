@@ -7,11 +7,10 @@ use lib qw(t/lib);
 use List::Util 'min';
 
 use DBICTest ':DiffSQL';
-use DBIx::Class::SQLMaker::LimitDialects;
 
 my ($ROWS, $OFFSET) = (
-   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
-   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__offset_bindtype,
 );
 
 my $schema = DBICTest->init_schema(quote_names => 1);
@@ -82,7 +81,7 @@ for (
 
   my $rs = $filtered_cd_rs->search({}, { $limit ? (rows => $limit) : (), offset => $offset });
 
-  my $used_limit = $limit || DBIx::Class::SQLMaker->__max_int;
+  my $used_limit = $limit || $schema->storage->sql_maker->__max_int;
   my $offset_str = $offset ? 'OFFSET ?' : '';
 
   is_same_sql_bind(

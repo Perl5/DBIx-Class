@@ -5,11 +5,10 @@ use lib qw(t/lib);
 
 use Test::More;
 use DBICTest ':DiffSQL';
-use DBIx::Class::SQLMaker::LimitDialects;
 
 my ($ROWS, $OFFSET) = (
-   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
-   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__offset_bindtype,
 );
 
 my $schema = DBICTest->init_schema();

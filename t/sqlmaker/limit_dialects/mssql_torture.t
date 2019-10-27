@@ -3,9 +3,9 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-use DBIx::Class::SQLMaker::LimitDialects;
-my $OFFSET = DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype;
-my $TOTAL  = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype;
+
+my $OFFSET = DBIx::Class::SQLMaker::ClassicExtensions->__offset_bindtype;
+my $TOTAL  = DBIx::Class::SQLMaker::ClassicExtensions->__total_bindtype;
 
 my $schema = DBICTest->init_schema (
   storage_type => 'DBIx::Class::Storage::DBI::MSSQL',
