@@ -4,7 +4,11 @@
 my ($initial_inc_contents, $expected_dbic_deps, $require_sites);
 BEGIN {
   # these envvars *will* bring in more stuff than the baseline
-  delete @ENV{qw(DBICTEST_SQLT_DEPLOY DBIC_TRACE)};
+  delete @ENV{qw(
+    DBICTEST_SWAPOUT_SQLAC_WITH
+    DBICTEST_SQLT_DEPLOY
+    DBIC_TRACE
+  )};
 
   # make sure extras do not load even when this is set
   $ENV{PERL_STRICTURES_EXTRA} = 1;

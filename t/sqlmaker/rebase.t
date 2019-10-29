@@ -1,6 +1,9 @@
 use strict;
 use warnings;
 
+# test relies on the original default
+BEGIN { delete @ENV{qw( DBICTEST_SWAPOUT_SQLAC_WITH )} }
+
 use Test::More;
 
 use lib qw(t/lib);

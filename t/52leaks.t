@@ -304,7 +304,13 @@ unless (DBICTest::RunMode->is_plain) {
   # Only do this when we do have the bits to look inside CVs properly,
   # without it we are liable to pick up object defaults that are locked
   # in method closures
-  if (DBICTest::Util::LeakTracer::CV_TRACING) {
+  #
+  # Some elaborate SQLAC-replacements leak, do not worry about it for now
+  if (
+    DBICTest::Util::LeakTracer::CV_TRACING
+      and
+    ! $ENV{DBICTEST_SWAPOUT_SQLAC_WITH}
+  ) {
     visit_refs(
       refs => [ $base_collection ],
       action => sub {

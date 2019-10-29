@@ -12,6 +12,11 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
   PINS_REQUIRED+=( 'Data::Page~<2.04' )
+
+  # FIXME work around https://github.com/dbsrgits/sql-abstract/pull/16
+  if ! perl -M5.010 -e1 &>/dev/null ; then
+    PINS_REQUIRED+=( "I/IL/ILMARI/SQL-Abstract-1.86.tar.gz" )
+  fi
 fi
 
 # FIXME freeze Clone until H::M is erradicated
@@ -53,12 +58,6 @@ if [[ "$MVDT" == "true" ]] ; then
 
     parallel_installdeps_notest DBD::Pg@2.17.2
 
-    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
-    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
-      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
-      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
-    fi
-
     # We need to stick with older DBD::Oracle, otherwise it will bump the DBI version up
     if [[ -n "$DBICTEST_ORA_DSN" ]] ; then
       parallel_installdeps_notest DBD::Oracle@1.74
@@ -69,11 +68,6 @@ if [[ "$MVDT" == "true" ]] ; then
 
     parallel_installdeps_notest DBD::Pg@2.9.2
 
-    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
-    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
-      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
-      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz"
-    fi
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite
@@ -182,6 +176,11 @@ else
   # https://github.com/pilcrow/perl-dbd-interbase
   if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
     parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-InterBase.git
+  fi
+
+  # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+  if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+    parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-DB2.git
   fi
 
   # SCGI does not install under ASan nor < 5.8.8 perls nor under parallel make
