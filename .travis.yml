@@ -212,6 +212,17 @@ matrix:
     ###
     # Start of the allow_failures block
 
+    # Latest poisoned saneperl with blead CPAN and SQLA swapout, single thread
+    - perl: "5.24.3"
+      sudo: required
+      env:
+        - DBICTEST_SWAPOUT_SQLAC_WITH=SQL::Abstract
+        - VCPU_USE=1
+        - CLEANTEST=false
+        - DEVREL_DEPS=true
+        - POISON_ENV=true
+        - MVDT=false
+
     # ASan-instrumented threaded latest 5.24 with blead CPAN, no tests on depchain ( run only DBICs tests )
     - perl: "livebrew_devcpan_5.24.3_thr_asan"
       sudo: required
@@ -273,11 +284,12 @@ matrix:
             - gcc-8
             - g++-8
 
-    # bleadperl with blead CPAN, single thread
+    # bleadperl with blead CPAN and SQLA swapout, single thread
     - perl: "livebrew_devcpan_bleadperl_thr_mb"
       sudo: required
       dist: trusty
       env:
+        - DBICTEST_SWAPOUT_SQLAC_WITH=SQL::Abstract
         - VCPU_USE=1
         - CLEANTEST=false
         - DEVREL_DEPS=true
@@ -374,6 +386,7 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
+    - perl: 5.24.3
     - perl: livebrew_devcpan_5.24.3_thr_asan
     - perl: livebrew_devcpan_bleadperl_thr_mb_asan
     - perl: livebrew_devcpan_bleadperl_thr_mb

@@ -25,9 +25,8 @@ BEGIN {
 
 use DBICTest ':DiffSQL';
 
-use DBIx::Class::SQLMaker::LimitDialects;
-my $ROWS = DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype;
-my $TOTAL = DBIx::Class::SQLMaker::LimitDialects->__total_bindtype;
+my $ROWS = DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype;
+my $TOTAL = DBIx::Class::SQLMaker::ClassicExtensions->__total_bindtype;
 
 for my $q ( '', '"' ) {
 

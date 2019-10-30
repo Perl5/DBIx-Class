@@ -17,6 +17,8 @@ use DBICTest::Schema;
 
   use base 'DBIx::Class::Storage::DBI';
 
+  __PACKAGE__->sql_limit_dialect ('LimitOffset');
+
   sub _populate_dbh {
     my $self = shift;
 

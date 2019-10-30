@@ -163,7 +163,7 @@ See L<DBIx::Class::Row/delete>
 
 =over 1
 
-=item See L<SQL::Abstract>, L<DBIx::Class::ResultSet/next>, and L<DBIx::Class::ResultSet/search>
+=item See L<SQL::Abstract::Classic>, L<DBIx::Class::ResultSet/next>, and L<DBIx::Class::ResultSet/search>
 
 =item (kinda) introspectible
 
@@ -663,7 +663,7 @@ Better:
     price => \['price + ?', [inc => $inc]],
  });
 
-See L<SQL::Abstract/Literal SQL with placeholders and bind values (subqueries)>
+See L<SQL::Abstract::Classic/Literal SQL with placeholders and bind values (subqueries)>
 
 =head1 FURTHER QUESTIONS?
 

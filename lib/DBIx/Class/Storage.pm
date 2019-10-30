@@ -646,7 +646,7 @@ Old name for DBIC_TRACE
 =head1 SEE ALSO
 
 L<DBIx::Class::Storage::DBI> - reference storage implementation using
-SQL::Abstract and DBI.
+DBI and a subclass of SQL::Abstract::Classic ( or similar )
 
 =head1 FURTHER QUESTIONS?
 

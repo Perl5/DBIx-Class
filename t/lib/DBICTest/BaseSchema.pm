@@ -116,7 +116,49 @@ END {
 my $weak_registry = {};
 
 sub connection {
-  my $self = shift->next::method(@_);
+  my( $proto, @args ) = @_;
+
+  if( $ENV{DBICTEST_SWAPOUT_SQLAC_WITH} ) {
+
+    my( $sqlac_like ) = $ENV{DBICTEST_SWAPOUT_SQLAC_WITH} =~ /(.+)/;
+    Class::C3::Componentised->ensure_class_loaded( $sqlac_like );
+
+    require DBIx::Class::SQLMaker::ClassicExtensions;
+    require SQL::Abstract::Classic;
+
+    Class::C3::Componentised->inject_base(
+      'DBICTest::SQLAC::SwapOut',
+      'DBIx::Class::SQLMaker::ClassicExtensions',
+      $sqlac_like,
+      'SQL::Abstract::Classic',
+    );
+
+    # perl can be pretty disgusting...
+    push @args, {}
+      unless ref( $args[-1] ) eq 'HASH';
+
+    $args[-1] = { %{ $args[-1] } };
+
+    if( ref( $args[-1]{on_connect_call} ) ne 'ARRAY' ) {
+      $args[-1]{on_connect_call} = [
+        $args[-1]{on_connect_call}
+          ? [ $args[-1]{on_connect_call} ]
+          : ()
+      ];
+    }
+    elsif( ref( $args[-1]{on_connect_call}[0] ) ne 'ARRAY' ) {
+      $args[-1]{on_connect_call} = [ map
+        { [ $_ ] }
+        @{ $args[-1]{on_connect_call} }
+      ];
+    }
+
+    push @{ $args[-1]{on_connect_call} }, (
+      [ rebase_sqlmaker => 'DBICTest::SQLAC::SwapOut' ],
+    );
+  }
+
+  my $self = $proto->next::method( @args );
 
 # MASSIVE FIXME
 # we can't really lock based on DSN, as we do not yet have a way to tell that e.g.
@@ -145,9 +187,9 @@ sub connection {
       and
     ( ! $ENV{DBICTEST_LOCK_HOLDER} or $ENV{DBICTEST_LOCK_HOLDER} == $$ )
       and
-    ref($_[0]) ne 'CODE'
+    ref($args[0]) ne 'CODE'
       and
-    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
+    ($args[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
   ) {
 
     my $locktype;

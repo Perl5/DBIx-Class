@@ -8,7 +8,7 @@ use base qw/DBIx::Class/;
 use Scalar::Util 'blessed';
 use Try::Tiny;
 use DBIx::Class::Carp;
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract::Util 'is_literal_value';
 
 ###
 ### Internal method
@@ -523,10 +523,10 @@ contain scalar references, e.g.:
   $result->update({ last_modified => \'NOW()' });
 
 The update will pass the values verbatim into SQL. (See
-L<SQL::Abstract> docs).  The values in your Result object will NOT change
-as a result of the update call, if you want the object to be updated
-with the actual values from the database, call L</discard_changes>
-after the update.
+L<SQL::Abstract::Classic> docs).  The values in your Result object will NOT
+change as a result of the update call, if you want the object to be updated
+with the actual values from the database, call L</discard_changes> after the
+update.
 
   $result->update()->discard_changes();
 

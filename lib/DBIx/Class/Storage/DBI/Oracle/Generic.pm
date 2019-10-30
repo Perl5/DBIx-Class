@@ -650,7 +650,7 @@ sub relname_to_table_alias {
 
   my $alias = $self->next::method(@_);
 
-  # we need to shorten here in addition to the shortening in SQLA itself,
+  # we need to shorten here in addition to the shortening in SQLMaker itself,
   # since the final relnames are crucial for the join optimizer
   return $self->sql_maker->_shorten_identifier($alias);
 }

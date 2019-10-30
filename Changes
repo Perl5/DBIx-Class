@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * New Features
+        - An on_connect rebase_sqlmaker call allowing experimentation with
+          non-core SQL generators on a per-$schema-instance basis
+
     * Fixes
         - Work around breakage in Hash::Merge by soft-requiring Clone as part
           of the replicated subsystem (RT#124321)
@@ -10,6 +14,7 @@ Revision history for DBIx::Class
         - DBIC_TRACE_PROFILE=... now uses a ::Storage::Statistics subclass
           DBIx::Class::Storage::Debug::PrettyTrace which properly ships as a
           part of this distrinbution
+        - Switch out SQL::Abstract dependency with a slower moving dist
 
 0.082841 2018-01-29 08:10 (UTC)
     * Test-suite fixup changes only - no reason to upgrade, wait for 0.082850

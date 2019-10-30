@@ -5,11 +5,10 @@ use Test::More;
 use lib qw(t/lib);
 use List::Util 'min';
 use DBICTest ':DiffSQL';
-use DBIx::Class::SQLMaker::LimitDialects;
 my ($ROWS, $TOTAL, $OFFSET) = (
-   DBIx::Class::SQLMaker::LimitDialects->__rows_bindtype,
-   DBIx::Class::SQLMaker::LimitDialects->__total_bindtype,
-   DBIx::Class::SQLMaker::LimitDialects->__offset_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__rows_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__total_bindtype,
+   DBIx::Class::SQLMaker::ClassicExtensions->__offset_bindtype,
 );
 
 

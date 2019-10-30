@@ -4,7 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
-use SQL::Abstract qw(is_plain_value is_literal_value);
+use SQL::Abstract::Util qw(is_plain_value is_literal_value);
 use List::Util 'shuffle';
 use Data::Dumper;
 $Data::Dumper::Terse = 1;

@@ -972,6 +972,17 @@ sub connect_call_datetime_setup {
   $_->connect_call_datetime_setup for $self->all_storages;
 }
 
+=head2 connect_call_rebase_sqlmaker
+
+calls L<DBIx::Class::Storage::DBI/connect_call_rebase_sqlmaker> for all storages
+
+=cut
+
+sub connect_call_rebase_sqlmaker {
+  my( $self, $target_base ) = @_;
+  $_->connect_call_rebase_sqlmaker( $target_base ) for $self->all_storages;
+}
+
 sub _populate_dbh {
   my $self = shift;
   $_->_populate_dbh for $self->all_storages;

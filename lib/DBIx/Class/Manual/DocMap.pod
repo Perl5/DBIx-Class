@@ -37,7 +37,7 @@ The first two list items are the most important.
 =item L<DBIx::Class::ResultSet/search> - Selecting and manipulating sets.
 
 The DSL (mini-language) for query composition is only partially explained there,
-see L<SQL::Abstract/WHERE CLAUSES> for the complete details.
+see L<SQL::Abstract::Classic/WHERE CLAUSES> for the complete details.
 
 =item L<C<$schema>::Result::C<$resultclass>|DBIx::Class::Manual::ResultClass>
 - Classes representing a single result (row) from a DB query.
