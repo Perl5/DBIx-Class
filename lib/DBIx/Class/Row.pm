@@ -974,6 +974,7 @@ sub set_column {
         delete $self->{_inflated_column}{$rel_name};
       }
     }
+    delete $self->{_inflated_column}{$column};
 
     if (
       # value change from something (even if NULL)
