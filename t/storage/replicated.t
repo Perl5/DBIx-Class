@@ -21,7 +21,6 @@ BEGIN {
 
 use Test::Moose;
 use Test::Exception;
-use List::Util 'first';
 use Scalar::Util 'reftype';
 use File::Spec;
 use Moose();
@@ -378,7 +377,7 @@ ok @replicant_names, "found replicant names @replicant_names";
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ /$var_dir/ } @replicant_names;
 
 isa_ok $replicated->schema->storage->balancer->current_replicant
     => 'DBIx::Class::Storage::DBI';
@@ -426,7 +425,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ /$var_dir/ } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 
@@ -609,7 +608,7 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
 $replicated->schema->storage->debugobj->silence(1)
-  if first { $_ =~ /$var_dir/ } @replicant_names;
+  if grep { $_ =~ /$var_dir/ } @replicant_names;
 
 $replicated->schema->storage->pool->validate_replicants;
 
