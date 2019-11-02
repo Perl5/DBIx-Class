@@ -13,6 +13,14 @@ our $VERSION;
 # this ones version, whether that be s.c.o. or Module::Metadata, etc
 $VERSION = '0.082841';
 
+{
+  package
+    DBIx::Class::_ENV_;
+
+  require constant;
+  constant->import( DEVREL => ( ($DBIx::Class::VERSION =~ /_/) ? 1 : 0 ) );
+}
+
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 use DBIx::Class::_Util;

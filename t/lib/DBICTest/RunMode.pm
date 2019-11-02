@@ -25,6 +25,9 @@ BEGIN {
       &$ov;
     };
   }
+
+  # our own test suite doesn't need to see this
+  delete $ENV{DBICDEVREL_SWAPOUT_SQLAC_WITH};
 }
 
 use Path::Class qw/file dir/;

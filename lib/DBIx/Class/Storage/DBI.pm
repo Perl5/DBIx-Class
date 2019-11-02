@@ -1071,6 +1071,34 @@ sub _run_connection_actions {
     ( $_[0]->on_connect_call || () ),
     $_[0]->_parse_connect_do ('on_connect_do'),
   );
+
+  my $sqlac_like;
+  if(
+    DBIx::Class::_ENV_::DEVREL
+      and
+    $ENV{DBICDEVREL_SWAPOUT_SQLAC_WITH}
+      and
+    ( $sqlac_like ) = $ENV{DBICDEVREL_SWAPOUT_SQLAC_WITH} =~ /(.+)/
+      and
+    # delay calling ->sql_maker as long as we can
+    # ensure_class_loaded returns undef or throws
+    ( Class::C3::Componentised->ensure_class_loaded( $sqlac_like ), 1 )
+      and
+    ( ref $_[0]->sql_maker ) !~ /__REBASED__/
+  ) {
+
+    require DBIx::Class::SQLMaker::ClassicExtensions;
+    require SQL::Abstract::Classic;
+
+    Class::C3::Componentised->inject_base(
+      'DBICDevRel::SQLAC::SwapOut',
+      'DBIx::Class::SQLMaker::ClassicExtensions',
+      $sqlac_like,
+      'SQL::Abstract::Classic',
+    );
+
+    $_[0]->_do_connection_actions(connect_call_ => [[ rebase_sqlmaker => 'DBICDevRel::SQLAC::SwapOut' ]]);
+  }
 }
 
 

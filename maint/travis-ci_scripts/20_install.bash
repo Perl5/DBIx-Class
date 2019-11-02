@@ -101,6 +101,9 @@ export DBIC_SHUFFLE_UNORDERED_RESULTSETS=1
 export DBI_DSN="dbi:ODBC:server=NonexistentServerAddress"
 export DBI_DRIVER="ADO"
 
+# bogus rebase target, our tests should ignore it entirely
+DBICDEVREL_SWAPOUT_SQLAC_WITH=":NonExistentGarbage:"
+
 # some people do in fact set this - boggle!!!
 # it of course won't work before 5.8.4
 if perl -M5.008004 -e 1 &>/dev/null ; then
