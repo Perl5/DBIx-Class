@@ -1,87 +1,74 @@
-package # hide from pause
-  DBIx::Class::ResultSet::Pager;
+package DBIx::Class::ResultSet::Pager;
 
 use warnings;
 use strict;
 
-# temporary, to load MRO::Compat, will be soon entirely rewritten anyway
-use DBIx::Class::_Util;
-
-use base 'Data::Page';
-use mro 'c3';
-
-# simple support for lazy totals
-sub _total_entries_accessor {
-  if (@_ == 1 and ref $_[0]->{total_entries} eq 'CODE') {
-    return $_[0]->{total_entries} = $_[0]->{total_entries}->();
-  }
-
-  return shift->next::method(@_);
-}
-
-sub _skip_namespace_frames { qr/^Data::Page/ }
-
-1;
-
-__END__
-
-package Data::Page;
-use Carp;
-use strict;
-use base 'Class::Accessor::Chained::Fast';
-__PACKAGE__->mk_accessors(qw(total_entries entries_per_page current_page));
-
-use vars qw($VERSION);
-$VERSION = '2.02';
+use DBIx::Class::Exception;
 
 sub new {
-  my $class = shift;
-  my $self  = {};
-  bless( $self, $class );
+  my( $proto, $total_entries, $entries_per_page, $current_page ) = @_;
 
-  my ( $total_entries, $entries_per_page, $current_page ) = @_;
+  my $self  = {};
+  bless( $self, ( ref $proto || $proto ) );
+
   $self->total_entries( $total_entries       || 0 );
   $self->entries_per_page( $entries_per_page || 10 );
   $self->current_page( $current_page         || 1 );
+
   return $self;
 }
 
-sub entries_per_page {
-  my $self             = shift;
-  my $entries_per_page = $_[0];
-  if (@_) {
-    croak("Fewer than one entry per page!") if $entries_per_page < 1;
-    return $self->_entries_per_page_accessor(@_);
-  }
 
-  $self->_entries_per_page_accessor();
+sub entries_per_page {
+  my $self = shift;
+
+  return $self->{entries_per_page}
+    unless @_;
+
+  DBIx::Class::Exception->throw( "Fewer than one entry per page!" )
+    if $_[0] < 1;
+
+  $self->{entries_per_page} = $_[0];
+
+  $self;
 }
 
 sub current_page {
   my $self = shift;
-  if (@_) {
-    return $self->_current_page_accessor(@_);
+
+  if( @_ ) {
+    $self->{current_page} = $_[0];
+    return $self;
   }
 
   return $self->first_page
-    unless defined $self->_current_page_accessor;
+    unless defined $self->{current_page};
 
   return $self->first_page
-    if $self->_current_page_accessor < $self->first_page;
+    if $self->{current_page} < $self->first_page;
 
   return $self->last_page
-    if $self->_current_page_accessor > $self->last_page;
+    if $self->{current_page} > $self->last_page;
 
-  $self->_current_page_accessor();
+  $self->{current_page};
 }
 
 sub total_entries {
   my $self = shift;
-  if (@_) {
-    return $self->_total_entries_accessor(@_);
+
+  if( @_ ) {
+    $self->{total_entries} = $_[0];
+    return $self;
   }
-  return $self->_total_entries_accessor;
+
+  # lazification for DBIC's benefit
+  if( ref $self->{total_entries} eq 'CODE' ) {
+    $self->{total_entries} = $self->{total_entries}->();
+  }
+
+  $self->{total_entries};
 }
+
 
 sub entries_on_this_page {
   my $self = shift;
@@ -94,8 +81,6 @@ sub entries_on_this_page {
 }
 
 sub first_page {
-  my $self = shift;
-
   return 1;
 }
 
@@ -185,13 +170,13 @@ __END__
 
 =head1 NAME
 
-Data::Page - help when paging through sets of results
+DBIx::Class::ResultSet::Pager - help when paging through sets of results
 
 =head1 SYNOPSIS
 
-  use Data::Page;
+  use DBIx::Class::ResultSet::Pager;
 
-  my $page = Data::Page->new();
+  my $page = DBIx::Class::ResultSet::Pager->new();
   $page->total_entries($total_entries);
   $page->entries_per_page($entries_per_page);
   $page->current_page($current_page);
@@ -202,6 +187,23 @@ Data::Page - help when paging through sets of results
   print " Last entry on page: ", $page->last, "\n";
 
 =head1 DESCRIPTION
+
+This module is a near-verbatim copy of L<Data::Page 2.02
+|https://metacpan.org/pod/release/LBROCARD/Data-Page-2.02/lib/Data/Page.pm>,
+which remained unchanged on CPAN from late 2009 through late 2019. The only
+differences are dropping a number of accessor generators in lieu of direct
+method implementations, and the incorporation of the lazily evaluated
+L</total_entries> which was the only part originally provided by
+L<DBIx::Class::ResultSet::Pager>. This module passes the entire contemporary
+test suite of L<Data::Page> unmodified.
+
+
+
+
+B<WHAT FOLLOWS IS A VERBATIM COPY OF Data::Page's 2.02 DOCUMENTATION>
+
+
+
 
 When searching through large amounts of data, it is often the case
 that a result set is returned that is larger than we want to display
@@ -226,13 +228,13 @@ work this out.
 
 This is the constructor, which takes no arguments.
 
-  my $page = Data::Page->new();
+  my $page = DBIx::Class::ResultSet::Pager->new();
 
 There is also an old, deprecated constructor, which currently takes
 two mandatory arguments, the total number of entries and the number of
 entries per page. It also optionally takes the current page number:
 
-  my $page = Data::Page->new($total_entries, $entries_per_page, $current_page);
+  my $page = DBIx::Class::ResultSet::Pager->new($total_entries, $entries_per_page, $current_page);
 
 =head2 total_entries
 
@@ -338,25 +340,16 @@ must disagree. I have seen people write this kind of code over and
 over again and they always get it wrong. Perhaps now they will spend
 more time getting the rest of their code right...
 
-=head1 SEE ALSO
+Based on code originally by Leo Lapworth, with many changes added by by
+Leon Brocard <acme@astray.com>, and few enhancements by James Laver (ELPENGUIN)
 
-Related modules which may be of interest: L<Data::Pageset>,
-L<Data::Page::Tied>, L<Data::SpreadPagination>.
+=head1 FURTHER QUESTIONS?
 
-=head1 AUTHOR
+Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
 
-Based on code originally by Leo Lapworth, with many changes added by
-by Leon Brocard <acme@astray.com>.
+=head1 COPYRIGHT AND LICENSE
 
-=head1 CONTRIBUTORS
-
-James Laver (ELPENGUIN)
-
-=head1 COPYRIGHT
-
-Copyright (C) 2000-9, Leon Brocard
-
-=head1 LICENSE
-
-This module is free software; you can redistribute it or modify it
-under the same terms as Perl itself.
+This module is free software L<copyright|DBIx::Class/COPYRIGHT AND LICENSE>
+by the L<DBIx::Class (DBIC) authors|DBIx::Class/AUTHORS>. You can
+redistribute it and/or modify it under the same terms as the
+L<DBIx::Class library|DBIx::Class/COPYRIGHT AND LICENSE>.

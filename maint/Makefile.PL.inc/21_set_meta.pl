@@ -60,7 +60,6 @@ no_index package => $_ for (qw/
   DBIx::Class::Storage::BlockRunner
   DBIx::Class::Carp
   DBIx::Class::_Util
-  DBIx::Class::ResultSet::Pager
 /);
 
 # keep the Makefile.PL eval happy

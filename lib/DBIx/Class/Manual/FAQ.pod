@@ -361,9 +361,11 @@ Pass the C<rows> and C<page> attributes to your search, eg:
 
 =item .. get a count of all rows even when paging?
 
-Call C<pager> on the paged resultset, it will return a L<Data::Page>
-object. Calling C<total_entries> on the pager will return the correct
-total.
+Call C<pager> on the paged resultset, it will return a L<pager object
+|DBIx::Class::ResultSet::Pager> with an API/behavior identical to that
+of L<Data::Page from late 2009 through late 2019
+|https://metacpan.org/pod/release/LBROCARD/Data-Page-2.02/lib/Data/Page.pm>.
+Calling C<total_entries> on the pager will return the correct total.
 
 C<count> on the resultset will only return the total number in the page.
 

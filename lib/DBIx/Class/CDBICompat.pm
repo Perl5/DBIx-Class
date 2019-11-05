@@ -82,7 +82,7 @@ C<nocache> is fully emulated.
 
 =head3 Class::DBI::Sweet
 
-The features of CDBI::Sweet are better done using DBIC methods which are almost exactly the same.  It even uses L<Data::Page>.
+The features of CDBI::Sweet are better done using DBIC methods which are almost exactly the same.
 
 =head3 Class::DBI::Plugin::DeepAbstractSearch
 
