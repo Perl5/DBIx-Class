@@ -11,8 +11,6 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 ###
 
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
-  PINS_REQUIRED+=( 'Data::Page~<2.04' )
-
   # FIXME work around https://github.com/dbsrgits/sql-abstract/pull/16
   if ! perl -M5.010 -e1 &>/dev/null ; then
     PINS_REQUIRED+=( "I/IL/ILMARI/SQL-Abstract-1.86.tar.gz" )

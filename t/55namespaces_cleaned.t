@@ -104,10 +104,6 @@ my $skip_idx = { map { $_ => 1 } (
   'DBIx::Class::Admin::Descriptive',
   'DBIx::Class::Admin::Usage',
 
-  # this subclass is expected to inherit whatever crap comes
-  # from the parent
-  'DBIx::Class::ResultSet::Pager',
-
   # utility classes, not part of the inheritance chain
   'DBIx::Class::ResultSource::RowParser::Util',
   'DBIx::Class::_Util',

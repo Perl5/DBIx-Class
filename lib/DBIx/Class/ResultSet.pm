@@ -2497,15 +2497,17 @@ sub populate {
 
 =item Arguments: none
 
-=item Return Value: L<$pager|Data::Page>
+=item Return Value: L<$pager|DBIx::Class::ResultSet::Pager>
 
 =back
 
-Returns a L<Data::Page> object for the current resultset. Only makes
-sense for queries with a C<page> attribute.
+Returns a L<DBIx::Class::ResultSet::Pager> object tied to the current
+resultset. Requires the C<page> attribute to have been previously set on
+the resultset object, usually via a call to L</page>.
 
 To get the full count of entries for a paged resultset, call
-C<total_entries> on the L<Data::Page> object.
+L<total_entries|DBIx::Class::ResultSet::Pager/total_entries> on the pager
+object.
 
 =cut
 
@@ -2516,7 +2518,7 @@ sub pager {
 
   my $attrs = $self->{attrs};
   if (!defined $attrs->{page}) {
-    $self->throw_exception("Can't create pager for non-paged rs");
+    $self->throw_exception("Can't create pager for non-paged rs, you need to call page(\$num) first");
   }
   elsif ($attrs->{page} <= 0) {
     $self->throw_exception('Invalid page number (page-numbers are 1-based)');

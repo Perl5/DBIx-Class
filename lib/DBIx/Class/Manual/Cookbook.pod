@@ -21,8 +21,8 @@ paged resultset, which will fetch only a defined number of records at a time:
 
   return $rs->page(2); # records for page 2
 
-You can get a L<Data::Page> object for the resultset (suitable for use
-in e.g. a template) using the C<pager> method:
+You can get a L<DBIx::Class::ResultSet::Pager> object for the resultset
+(suitable for use in e.g. a template) using the C<pager> method:
 
   return $rs->pager();
 
