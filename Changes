@@ -3,12 +3,12 @@ Revision history for DBIx::Class
     * New Features
         - An on_connect rebase_sqlmaker call allowing experimentation with
           non-core SQL generators on a per-$schema-instance basis
+        - Automatically detect and use multi-column IN on recent versions of
+          libsqlite: ... WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
 
     * Fixes
         - Work around breakage in Hash::Merge by soft-requiring Clone as part
           of the replicated subsystem (RT#124321)
-        - Automatically detect and use multi-column IN on recent versions of
-          libsqlite: ... WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
 
     * Misc
         - DBIC_TRACE_PROFILE=... now uses a ::Storage::Statistics subclass
