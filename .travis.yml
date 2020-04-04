@@ -446,15 +446,14 @@ script:
   #
   - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
-###
-### Set -e back, work around https://github.com/travis-ci/travis-ci/issues/3533
-###
-  - set -e
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
+  ### Need to toggle -e again: work around https://github.com/travis-ci/travis-ci/issues/3533
+  - set -e
   - maint/getstatus /bin/bash maint/travis-ci_scripts/50_after_success.bash || ( /bin/bash maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
+  - set +e
 
 after_failure:
   # Final sysinfo printout on fail

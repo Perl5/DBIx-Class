@@ -295,7 +295,7 @@ accessible at the following locations:
 
 =item * Current git repository: L<https://github.com/Perl5/DBIx-Class>
 
-=item * Travis-CI log: L<https://travis-ci.org/Perl5/DBIx-Class/branches>
+=item * Travis-CI log: L<https://travis-ci.com/github/Perl5/DBIx-Class/branches>
 
 =back
 
