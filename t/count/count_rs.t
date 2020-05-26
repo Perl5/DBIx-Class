@@ -186,4 +186,40 @@ my $schema = DBICTest->init_schema();
   is ($crs->next, 3, 'Correct artist count (each with one 1998 or 2001 cd)');
 }
 
+# count with overlapping group by and having clauses
+{
+  my $rs = $schema->resultset("Artist")->search(
+    {},
+    {
+      columns   => [
+        'me.artist_id',
+        'cds.year',
+        { cds_per_year => { count => "cds.cdid" } },
+      ],
+      join      => 'cds',
+      group_by  => [ 'me.artistid', 'cds.year' ],
+      having    => \qq( MIN(cds.year) = cds.year ),
+    }
+  );
+
+  my $crs = $rs->count_rs;
+
+  is_same_sql_bind (
+    $crs->as_query,
+    '(SELECT COUNT( * )
+      FROM (
+        SELECT me.artistid, cds.year AS cds__year
+          FROM artist me
+          LEFT JOIN cd cds ON cds.artist = me.artistid
+          GROUP BY me.artistid, cds.year
+          HAVING  MIN(cds.year) = cds.year
+      ) me
+    )',
+    [], # Nothing to bind
+    'count with overlapping columns in group by and having clauses creates unambiguous select statement',
+  );
+
+  is ($crs->next, 5, 'Correct artist/year counts');
+}
+
 done_testing;
