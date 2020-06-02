@@ -108,6 +108,8 @@ my $idx_exceptions = {
     'ForceForeign'  => -1,
     'LinerNotes'    => -1,
     'TwoKeys'       => -1, # TwoKeys has the index turned off on the rel def
+    'CD'            => -1, # "track_cd_title" is UNIQUE constraint
+    'LyricVersion'  => -1, # "lyric_versions" is UNIQUE constraint
 };
 
 {

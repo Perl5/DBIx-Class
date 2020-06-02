@@ -146,6 +146,7 @@ sub parse {
         $table->primary_key(@primary) if @primary;
 
         my %unique_constraints = $source->unique_constraints;
+        my @unique;
         foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
@@ -153,8 +154,12 @@ sub parse {
                             name             => $uniq,
                             fields           => $unique_constraints{$uniq}
                 );
+                # store first column of unique constraint to avoid useless
+                # automatic index creation over this column later
+                push @unique, $unique_constraints{$uniq}->[0];
             }
         }
+        #{ local $" = q(, ); warn qq(Unique columns [$table_name]: @unique); }
 
         my @rels = $source->relationships();
 
@@ -283,6 +288,11 @@ sub parse {
                   # same cols but different order are allowed and sometimes
                   # needed
                   next if join("\x00", @keys) eq join("\x00", @primary);
+
+                  # Check that we do not create an index on a column being the
+                  # first column of a unique constraint
+                  #{ local $" = q(, ); warn qq(Checking for unique columns [$table_name]: [@keys] vs. [@unique]); }
+                  next if join("\x00", @keys) eq join("\x00", @unique);
 
                   if ($add_fk_index_rel) {
                       (my $idx_name = $table_name) =~ s/ ^ [^\.]+ \. //x;
