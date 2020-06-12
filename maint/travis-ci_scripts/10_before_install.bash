@@ -2,23 +2,20 @@
 
 export SHORT_CIRCUIT_SMOKE
 
-if have_sudo ; then
+# Stop possibly pre-started RDBMS, move their data back to disk (save RAM)
+# sync for some settle time (not available on all platforms)
+for d in mysql postgresql ; do
+  # maybe not even running
+  run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
 
-  # Stop pre-started RDBMS, move their data back to disk (save RAM)
-  # sync for some settle time (not available on all platforms)
-  for d in mysql postgresql ; do
-    # maybe not even running
-    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
-
-    # no longer available on newer build systems
-    if [[ -d /var/ramfs/$d ]] ; then
-      sudo rm -rf /var/lib/$d
-      sudo mv /var/ramfs/$d /var/lib/
-      sudo ln -s /var/lib/$d /var/ramfs/$d
-    fi
-  done
-  /bin/sync
-fi
+  # no longer available on newer build systems
+  if [[ -d /var/ramfs/$d ]] ; then
+    sudo rm -rf /var/lib/$d
+    sudo mv /var/ramfs/$d /var/lib/
+    sudo ln -s /var/lib/$d /var/ramfs/$d
+  fi
+done
+/bin/sync
 
 # Sanity check VM before continuing
 echo "
@@ -29,21 +26,9 @@ $(free -m -t)
 
 ============================================================================="
 
-CI_VM_MIN_FREE_MB=2000
-if [[ "$(free -m | grep 'buffers/cache:' | perl -p -e '$_ = (split /\s+/, $_)[3]')" -lt "$CI_VM_MIN_FREE_MB" ]]; then
-  SHORT_CIRCUIT_SMOKE=1
-  echo_err "
-=============================================================================
-
-CI virtual machine stuck in a state with a lot of memory locked for no reason.
-Under Travis this state usually results in a failed build.
-Short-circuiting buildjob to avoid false negatives, please restart it manually.
-
-============================================================================="
-
 # pull requests are always scrutinized after the fact anyway - run a
 # a simpler matrix
-elif [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
   if [[ -n "$BREWVER" ]]; then
     # just don't brew anything
     SHORT_CIRCUIT_SMOKE=1
