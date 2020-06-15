@@ -6,6 +6,7 @@ use warnings;
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
+use Scalar::Util 'weaken';
 use Time::HiRes 'sleep';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
@@ -110,6 +111,29 @@ END {
   if ($locker->{lock_name} and ($ENV{DBICTEST_LOCK_HOLDER}||0) == $$) {
     DEBUG_TEST_CONCURRENCY_LOCKS
       and dbg "$locker->{type} LOCK RELEASED (END): $locker->{lock_name}";
+
+    # we were using a lock-able RDBMS: if we are failing - dump the last diag
+    if (
+      $locker->{rdbms_connection_diag}
+        and
+      $INC{'Test/Builder.pm'}
+        and
+      my $tb = do {
+        local $@;
+        my $t = eval { Test::Builder->new }
+          or warn "Test::Builder->new failed:\n$@\n";
+        $t;
+      }
+    ) {
+      $tb->diag( "\nabove test failure almost certainly happened against:\n$locker->{rdbms_connection_diag}"  )
+        if (
+          !$tb->is_passing
+            or
+          !defined( $tb->has_plan )
+            or
+          ( $tb->has_plan ne 'no_plan' and $tb->has_plan != $tb->current_test )
+        )
+    }
   }
 }
 
@@ -285,14 +309,21 @@ sub connection {
 
     my $cur_connect_call = $self->storage->on_connect_call;
 
+    # without this weaken() the sub added below *sometimes* leaks
+    # ( can't reproduce locally :/ )
+    weaken( my $wlocker = $locker );
+
     $self->storage->on_connect_call([
       (ref $cur_connect_call eq 'ARRAY'
         ? @$cur_connect_call
         : ($cur_connect_call || ())
       ),
-      [sub {
-        populate_weakregistry( $weak_registry, shift->_dbh )
-      }],
+      [ sub { populate_weakregistry( $weak_registry, $_[0]->_dbh ) } ],
+      ( !$wlocker ? () : (
+        require Data::Dumper::Concise
+          and
+        [ sub { ($wlocker||{})->{rdbms_connection_diag} = Data::Dumper::Concise::Dumper( $_[0]->_describe_connection() ) } ],
+      )),
     ]);
   }
 

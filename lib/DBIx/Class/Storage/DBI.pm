@@ -12,7 +12,7 @@ use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use SQL::Abstract::Util qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor);
+use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor sigwarn_silencer);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -1221,15 +1221,18 @@ sub _describe_connection {
 
   $drv = "DBD::$drv" if $drv;
 
-  my $res = {
-    DBIC_DSN => $self->_dbi_connect_info->[0],
-    DBI_VER => DBI->VERSION,
-    DBIC_VER => DBIx::Class->VERSION,
-    DBIC_DRIVER => ref $self,
-    $drv ? (
-      DBD => $drv,
-      DBD_VER => try { $drv->VERSION },
-    ) : (),
+  my $res = do {
+    local $SIG{__WARN__} = sigwarn_silencer(qr/Argument .+? isn't numeric in subroutine entry/);
+    {
+      DBIC_DSN => $self->_dbi_connect_info->[0],
+      DBI_VER => DBI->VERSION,
+      DBIC_VER => DBIx::Class->VERSION,
+      DBIC_DRIVER => ref $self,
+      $drv ? (
+        DBD => $drv,
+        DBD_VER => try { $drv->VERSION },
+      ) : (),
+    }
   };
 
   # try to grab data even if we never managed to connect
