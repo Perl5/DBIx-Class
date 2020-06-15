@@ -375,6 +375,18 @@ my @tests = (
     efcc_result => { 'me.title' => 'Spoonful of bees' },
   },
 
+  # original from RT#132390
+  {
+    where => {
+      array_col => { '@>' => { -value => [ 1,2,3 ] } }
+    },
+    cc_result => {
+      array_col => { '@>' => { -value => [ 1,2,3 ] } }
+    },
+    sql => 'WHERE array_col @> ?',
+    efcc_result => {},
+  },
+
   # crazy literals
   {
     where => {

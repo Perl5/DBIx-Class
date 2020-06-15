@@ -29,6 +29,10 @@ for my $c (
     [ {} => 'foo' ],
     [ {} => 'foo' ],
   ]},
+  { cond => { '@>' => { -value => [ 1,2,3 ] } }, sql => '@> ?', bind => [
+    [ { dbic_colname => "title", sqlt_datatype => "varchar", sqlt_size => 100 } => [1, 2, 3] ],
+    [ { dbic_colname => "year", sqlt_datatype => "varchar", sqlt_size => 100 } => [1, 2, 3] ],
+  ]},
 ) {
   my $rs = $schema->resultset('CD')->search({}, { columns => 'title' });
 

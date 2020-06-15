@@ -1284,7 +1284,25 @@ sub _collapse_cond_unroll_pairs {
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
         push @conds, { $lhs => { '=', $rhs } };
       }
-      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-value} and is_plain_value $rhs->{-value}) {
+      # can't simply use is_plain_value result, as we need to
+      # preserve the -value marker where necessary (non-blessed ref)
+      elsif (
+        ref $rhs eq 'HASH'
+          and
+        keys %$rhs == 1
+          and
+        exists $rhs->{-value}
+          and
+        (
+          ! length ref( $rhs->{-value} )
+            or
+          (
+            defined( blessed $rhs->{-value} )
+              and
+            is_plain_value $rhs->{-value}
+          )
+        )
+      ) {
         push @conds, { $lhs => $rhs->{-value} };
       }
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}) {
@@ -1349,16 +1367,30 @@ sub _collapse_cond_unroll_pairs {
         }
       }
       # unroll func + { -value => ... }
+      # can't simply use is_plain_value result, as we need to
+      # preserve the -value marker where necessary (non-blessed ref)
       elsif (
         ref $rhs eq 'HASH'
           and
         ( my ($subop) = keys %$rhs ) == 1
           and
-        length ref ((values %$rhs)[0])
+        ref( (values %$rhs)[0] ) eq 'HASH'
           and
-        my $vref = is_plain_value( (values %$rhs)[0] )
+        keys %{ (values %$rhs)[0] } == 1
+          and
+        exists( (values %$rhs)[0]->{-value} )
+          and
+        (
+          ! length ref( (values %$rhs)[0]->{-value} )
+            or
+          (
+            defined( blessed( (values %$rhs)[0]->{-value} ) )
+              and
+            is_plain_value( (values %$rhs)[0]->{-value} )
+          )
+        )
       ) {
-        push @conds, { $lhs => { $subop => $$vref } }
+        push @conds, { $lhs => { $subop => (values %$rhs)[0]->{-value} } };
       }
       else {
         push @conds, { $lhs => $rhs };
