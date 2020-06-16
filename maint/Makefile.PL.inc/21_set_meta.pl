@@ -39,10 +39,8 @@ resources 'license' => 'http://dev.perl.org/licenses/';
 
 # misc resources
 abstract_from 'lib/DBIx/Class.pm';
-resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'repository'  => 'https://github.com/Perl5/DBIx-Class';
-resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
-resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class';
+resources 'bugtracker'  => 'https://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Class';
 
 # nothing determined at runtime, except for possibly SQLT dep
 # (see the check around DBICTEST_SQLT_DEPLOY in Makefile.PL)

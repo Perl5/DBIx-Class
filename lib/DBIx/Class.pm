@@ -119,16 +119,11 @@ list is sorted by "fastest response time"):
 
 =over
 
-=item * IRC: irc.perl.org#dbix-class
+=item * RT Bug Tracker: L<https://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Class>
 
-=for html
-<a href="https://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
+=item * Email: L<mailto:bug-DBIx-Class@rt.cpan.org>
 
-=item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
-
-=item * RT Bug Tracker: L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class>
-
-=item * Twitter: L<https://www.twitter.com/dbix_class>
+=item * Twitter: L<https://twitter.com/intent/tweet?text=%40ribasushi%20%23DBIC>
 
 =back
 
