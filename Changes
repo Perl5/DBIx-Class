@@ -1,8 +1,10 @@
 Revision history for DBIx::Class
 
+0.082842 2020-06-16 20:10 (UTC)
     * New Features
         - An on_connect rebase_sqlmaker call allowing experimentation with
           non-core SQL generators on a per-$schema-instance basis
+          https://is.gd/DBIC_rebase_sqlmaker
         - Automatically detect and use multi-column IN on recent versions of
           libsqlite: ... WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
 
