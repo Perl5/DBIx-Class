@@ -21,21 +21,24 @@ $schema->is_executed_querycount( sub {
 
   ok(!defined $cd[0]->liner_notes, 'No prefetch for NULL LEFT join');
 
-  is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
+  is($cd[1]->liner_notes->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
 
   is(ref $cd[1]->liner_notes, 'DBICTest::LinerNotes', 'Prefetch returns correct class');
 
-  is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
+  is($cd[2]->artist->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
 }, 1, 'prefetch ran only 1 select statement');
 
 # test for partial prefetch via columns attr
-my $cd = $schema->resultset('CD')->find(1,
+my $cd;
+$schema->is_executed_querycount( sub {
+  $cd = $schema->resultset('CD')->find(1,
     {
       columns => [qw/title artist artist.name/],
       join => { 'artist' => {} }
     }
-);
-is( $cd->artist->name, 'Caterwauler McCrae', 'single related column prefetched');
+  );
+  is( $cd->artist->name, 'Caterwauler McCrae', 'single related column prefetched');
+}, 1, 'manual prefetch ran only 1 select statement');
 
 # start test for nested prefetch SELECT count
 my $tag;
@@ -65,8 +68,8 @@ $schema->is_executed_querycount( sub {
 $schema->is_executed_querycount( sub {
   $cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
 
-  is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
-}, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
+  is($cd->artist->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
+}, 1, 'find with prefetch ran exactly 1 select statement');
 
 $schema->is_executed_querycount( sub {
   $cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' }, order_by => 'producer.producerid' });
