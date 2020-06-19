@@ -56,7 +56,7 @@ you need to specify a fully qualified namespace: C< package MySchema::MyTable; >
 
 =head2 fix ambiguous column references in ResultSets
 
-In your ResultSet are two columns named the same in different Tables and
+In your ResultSet are two columns named the same in different tables and
 DBIx::Class does not know how to properly address theme.
 
 Examples for given error messages:
