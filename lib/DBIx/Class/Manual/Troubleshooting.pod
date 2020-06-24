@@ -54,6 +54,31 @@ in this error message.  In particular make sure that the package
 declaration is correct. For example, for a schema C< MySchema >
 you need to specify a fully qualified namespace: C< package MySchema::MyTable; >.
 
+=head2 fix ambiguous column references in ResultSets
+
+In your ResultSet are two columns named the same in different tables and
+DBIx::Class does not know how to properly address them.
+
+Examples for given error messages:
+
+  MySQL:  the generated SQL contains an ambiguous column reference
+  PgSQL:  column reference "name" is ambiguous
+  SQLite: DBD::SQLite::db prepare_cached failed: ambiguous column name: id(1)
+
+To avoid those errors you can make use of L<DBIx::Class::ResultSet/current_source_alias>
+in your result set methods to address the columns properly. This function returns the current
+table alias for the result source this resultset is built on, that will be used in the SQL query.
+Usually it is C<me>.
+
+  method filter_by_type {
+
+    my ($self, $type) = @_;
+
+    my $me = $self->current_source_alias;
+
+    return $self->search_rs( { "$me.type_id" => $type->id } );
+  }
+
 =head2 syntax error at or near "<something>" ...
 
 This can happen if you have a relation whose name is a word reserved by your
