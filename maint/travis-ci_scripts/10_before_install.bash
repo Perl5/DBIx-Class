@@ -90,16 +90,12 @@ if [[ "$CLEANTEST" != "true" ]]; then
   export CACHE_DIR="/tmp/poormanscache"
   mkdir "$CACHE_DIR"
 
-  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
-  # someone needs to add a minimizing configuration akin to 9367d187
-  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
-    run_or_err "Getting DB2 from poor man's cache github" '
-      wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
-    | tar -C "$CACHE_DIR" -zx'
+  run_or_err "Getting DB2 from poor man's cache github" '
+    wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
+  | tar -C "$CACHE_DIR" -zx'
 
-    # the actual package is built for lucid, installs fine on both precise and trusty
-    manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
-  fi
+  # the actual package is built for lucid, installs seemingly fine
+  manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
 
   run_or_err "Getting Oracle from poor man's cache github" '
     wget -qO- https://github.com/poormanscache/poormanscache/archive/OracleXE/10.2.0_deb_mixed.tar.gz \

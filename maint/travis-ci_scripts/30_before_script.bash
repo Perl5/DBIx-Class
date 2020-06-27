@@ -108,8 +108,8 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
              "ln -s /bin/false $HOME/bin/cc"
 
-  # FIXME: working around RT#113682, and some other unfiled bugs
-  installdeps Module::Build Devel::GlobalDestruction Class::Accessor::Grouped
+  # FIXME: working around RT#113682
+  installdeps Module::Build
 
   run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
              "ln -fs /bin/true $HOME/bin/cc"
