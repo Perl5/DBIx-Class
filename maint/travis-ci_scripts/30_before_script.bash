@@ -54,8 +54,6 @@ if [[ "$MVDT" == "true" ]] ; then
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
 
-    parallel_installdeps_notest DBD::Pg@2.17.2
-
     # We need to stick with older DBD::Oracle, otherwise it will bump the DBI version up
     if [[ -n "$DBICTEST_ORA_DSN" ]] ; then
       parallel_installdeps_notest DBD::Oracle@1.74
