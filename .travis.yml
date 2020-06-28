@@ -73,12 +73,11 @@ matrix:
         - CLEANTEST=false
 
     # ASan-instrumented threaded latest 5.24 with, no tests on depchain ( run only DBICs tests )
-    - perl: "livebrew_devcpan_5.24.4_thr_qm_asan"
+    - perl: "livebrew_5.24.4_thr_qm_asan"
       # FIXME - move to bionic
       dist: trusty
       env:
         - CLEANTEST=false
-        - DEVREL_DEPS=true
         - POISON_ENV=true
         - MVDT=false
         - BREWVER=5.24.4
@@ -331,7 +330,7 @@ matrix:
         - BREWVER=5.8.7
         - BREWOPTS="-Duseithreads"
 
-    # 5.8.8 threaded MB (exercises P5#72210)
+    # 5.8.8 threaded MB with blead CPAN (exercises P5#72210)
     - perl: "livebrew_devcpan_5.8.8_thr_mb"
       dist: precise
       env:
