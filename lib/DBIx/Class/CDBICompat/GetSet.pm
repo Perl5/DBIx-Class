@@ -4,8 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-#use base qw/Class::Accessor/;
-
 sub get {
   my ($self, @cols) = @_;
   if (@cols > 1) {

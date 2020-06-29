@@ -76,15 +76,16 @@ TESTSCHEMACLASSES: {
     package DBIx::Class::DBI::Replicated::TestReplication;
 
     use DBICTest;
-    use base qw/Class::Accessor::Fast/;
+    use base 'Class::Accessor::Grouped';
 
-    __PACKAGE__->mk_accessors( qw/schema/ );
+
+    __PACKAGE__->mk_group_accessors( simple => 'schema' );
 
     ## Initialize the object
 
     sub new {
         my ($class, $schema_method) = (shift, shift);
-        my $self = $class->SUPER::new(@_);
+        my $self = bless( (shift || {}), $class );
 
         $self->schema( $self->init_schema($schema_method) );
         return $self;
@@ -148,13 +149,12 @@ TESTSCHEMACLASSES: {
     use File::Copy;
     use base 'DBIx::Class::DBI::Replicated::TestReplication';
 
-    __PACKAGE__->mk_accessors(qw/master_path slave_paths/);
+    __PACKAGE__->mk_group_accessors( simple => qw( master_path slave_paths ) );
 
     ## Set the master path from DBICTest
 
     sub new {
-        my $class = shift @_;
-        my $self = $class->SUPER::new(@_);
+        my $self = shift->next::method(@_);
 
         $self->master_path( DBICTest->_sqlite_dbfilename );
         $self->slave_paths([
