@@ -1685,10 +1685,12 @@ sub _count_subq_rs {
   # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
   delete @{$sub_attrs}{qw/collapse columns as select order_by for/};
 
+  # We use this a lot, so just memoize it.
+  my $alias_prefix = "$attrs->{alias}.";
   # if we multi-prefetch we group_by something unique, as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
   if ( $attrs->{collapse}  ) {
-    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } @{
+    $sub_attrs->{group_by} = [ map { $alias_prefix.$_ } @{
       $rsrc->_identifying_column_set || $self->throw_exception(
         'Unable to construct a unique group_by criteria properly collapsing the '
       . 'has_many prefetch before count()'
@@ -1712,6 +1714,14 @@ sub _count_subq_rs {
     # also look for named aggregates referred in the having clause
     # having often contains scalarrefs - thus parse it out entirely
     my @parts = @$g;
+    my %parts_seen = map {
+      # We need to account for *all* aliases, not just the primary alias,
+      # as some of the GROUP BY members may be from other tables, and
+      # unique field names are required for the reconstructed SELECT.
+      my $x = $_; # Copy; don't munge original in regex.
+      $x =~ s/^[^.]+[.]//;
+      $x => 1;
+    } @parts;
     if ($attrs->{having}) {
       local $sql_maker->{having_bind};
       local $sql_maker->{quote_char} = $sql_maker->{quote_char};
@@ -1726,7 +1736,6 @@ sub _count_subq_rs {
       my ($lquote, $rquote, $sep) = map { quotemeta $_ } ($sql_maker->_quote_chars, $sql_maker->name_sep);
 
       my $having_sql = $sql_maker->_parse_rs_attrs ({ having => $attrs->{having} });
-      my %seen_having;
 
       # search for both a proper quoted qualified string, for a naive unquoted scalarref
       # and if all fails for an utterly naive quoted scalar-with-function
@@ -1738,7 +1747,7 @@ sub _count_subq_rs {
         [\s,] $lquote (.+?) $rquote [\s,]
       /gx) {
         my $part = $1 || $2 || $3;  # one of them matched if we got here
-        unless ($seen_having{$part}++) {
+        unless ($parts_seen{$part}++) {
           push @parts, $part;
         }
       }
@@ -1749,7 +1758,7 @@ sub _count_subq_rs {
 
       # unqualify join-based group_by's. Arcane but possible query
       # also horrible horrible hack to alias a column (not a func.)
-      if ($colpiece =~ /\./ && $colpiece !~ /^$attrs->{alias}\./) {
+      if ($colpiece =~ /\./ && index($colpiece, $alias_prefix) != 0) {
         my $as = $colpiece;
         $as =~ s/\./__/;
         $colpiece = \ sprintf ('%s AS %s', map { $sql_maker->_quote ($_) } ($colpiece, $as) );
@@ -1758,7 +1767,7 @@ sub _count_subq_rs {
     }
   }
   else {
-    my @pcols = map { "$attrs->{alias}.$_" } ($rsrc->primary_columns);
+    my @pcols = map { $alias_prefix.$_ } ($rsrc->primary_columns);
     $sub_attrs->{select} = @pcols ? \@pcols : [ 1 ];
   }
 
