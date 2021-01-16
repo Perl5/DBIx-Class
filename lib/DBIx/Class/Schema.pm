@@ -1122,7 +1122,7 @@ This guard was activated beginning"
 
 =over 4
 
-=item Arguments: \%sqlt_args, $dir
+=item Arguments: \%sqlt_args?, $dir?
 
 =back
 
