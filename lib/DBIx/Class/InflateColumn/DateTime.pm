@@ -225,6 +225,8 @@ sub _post_inflate_datetime {
   my( $self, $dt, $info ) = @_;
 
   $dt->set_time_zone($info->{timezone}) if defined $info->{timezone};
+  my $inflate_timezone = $self->result_source->storage->_dbic_connect_attributes->{inflate_datetime_timezone};
+  $dt->set_time_zone($inflate_timezone) if( defined $inflate_timezone);
   $dt->set_locale($info->{locale}) if defined $info->{locale};
 
   return $dt;
