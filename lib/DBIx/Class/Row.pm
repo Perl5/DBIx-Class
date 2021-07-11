@@ -1590,6 +1590,23 @@ sub throw_exception {
 Returns the primary key(s) for a row. Can't be called as a class method.
 Actually implemented in L<DBIx::Class::PK>
 
+=head2 WHY THE HELL NOT ?
+
+JSON MUCH FUN # This is more of a question than a true PR 
+<< Allow fast JSON encoding with >>
+JSON::XS->new->convert_blessed->encode
+
+=cut
+
+sub TO_JSON {
+  my $c = shift;
+  return $c->{_column_data};
+}
+
+=back
+
+some data
+
 =head1 FURTHER QUESTIONS?
 
 Check the list of L<additional DBIC resources|DBIx::Class/GETTING HELP/SUPPORT>.
