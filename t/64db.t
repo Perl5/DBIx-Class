@@ -60,7 +60,7 @@ is_deeply (
           'is_nullable' => 1,
       },
       'rank' => {
-          'data_type' => 'integer',
+          'data_type' => 'INTEGER',
           'is_nullable' => 0,
           'default_value' => '13',
       },

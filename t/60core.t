@@ -410,7 +410,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
         size => 100
       },
       rank => {
-        data_type => "integer",
+        data_type => "INTEGER",
         default_value => 13,
         is_nullable => 0,
         size => undef
@@ -431,7 +431,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
         size => undef
       },
       rank => {
-        data_type => "integer",
+        data_type => "INTEGER",
         default_value => 13,
         is_nullable => 0,
         size => undef
