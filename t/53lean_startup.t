@@ -30,7 +30,7 @@ BEGIN {
         # exclude our test suite, known "module require-rs" and eval frames
         $caller[1] =~ /^ t [\/\\] /x
           or
-        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime ) $/x
+        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime ) $/x && $caller[3] !~ m/::BEGIN$/
           or
         $caller[3] eq '(eval)',
       )
