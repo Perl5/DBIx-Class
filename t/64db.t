@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -48,7 +49,7 @@ is_deeply (
 );
 
 {
-  is_deeply (
+  cmp_deeply (
     get_storage_column_info ($schema->storage, 'artist', qw/size/),
     {
       'artistid' => {
@@ -60,7 +61,7 @@ is_deeply (
           'is_nullable' => 1,
       },
       'rank' => {
-          'data_type' => 'integer',
+          'data_type' => re(qr/^integer$/i),
           'is_nullable' => 0,
           'default_value' => '13',
       },

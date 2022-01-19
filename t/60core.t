@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Warn;
+use Test::Deep;
 use lib qw(t/lib);
 use DBICTest ':DiffSQL';
 
@@ -387,7 +388,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
   $schema->source("Artist")->column_info_from_storage(1);
   $schema->source("Artist")->{_columns_info_loaded} = 0;
 
-  is_deeply (
+  cmp_deeply (
     $schema->source('Artist')->columns_info,
     {
       artistid => {
@@ -410,7 +411,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
         size => 100
       },
       rank => {
-        data_type => "integer",
+        data_type => re(qr/^integer$/i),
         default_value => 13,
         is_nullable => 0,
         size => undef
@@ -421,7 +422,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 
   ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info loaded flag set');
 
-  is_deeply (
+  cmp_deeply (
     $schema->source('Artist')->columns_info([qw/artistid rank/]),
     {
       artistid => {
@@ -431,7 +432,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
         size => undef
       },
       rank => {
-        data_type => "integer",
+        data_type => re(qr/^integer$/i),
         default_value => 13,
         is_nullable => 0,
         size => undef

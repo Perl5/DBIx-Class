@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
     * Fixes
+        - Adjust tests to account for DBD::SQLite's column_info() no longer
+          being case-preserving in recent versions
         - Fix t/storage/replicated.t relying on no-longer-available module
         - Adjust t/53lean_startup.t to work around spurious changes in
           Perl5 core (GH#143)
