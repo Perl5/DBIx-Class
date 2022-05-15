@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fix t/storage/replicated.t relying on no-longer-available module
+        - Adjust t/53lean_startup.t to work around spurious changes in
+          Perl5 core (GH#143)
 
 0.082842 2020-06-16 20:10 (UTC)
     * New Features
