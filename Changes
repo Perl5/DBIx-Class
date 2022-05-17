@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.082843 2022-05-17 10:50 (UTC)
     * Fixes
         - Adjust tests to account for DBD::SQLite's column_info() no longer
           being case-preserving in recent versions
