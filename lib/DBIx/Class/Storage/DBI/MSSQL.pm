@@ -9,6 +9,7 @@ use base qw/
 /;
 use mro 'c3';
 
+use SQL::Abstract::Classic 'is_literal_value';
 use Try::Tiny;
 use namespace::clean;
 
@@ -43,8 +44,21 @@ sub _prep_for_execute {
           &&
         $colinfo->{$col}{data_type} =~ /^money\z/i
       ) {
-        my $val = $fields->{$col};
-        $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
+        if(
+          length ref $fields->{$col}
+            and
+          my $lit = is_literal_value( $fields->{$col} )
+        ) {
+          # We are being fed a literal value
+          # Generally there is not much we can do about it, *except*
+          # in the unambiguous case of a lone bind parameter
+          $fields->{$col} = \[ 'CAST(? AS MONEY)', @{$lit}[ 1 .. $#$lit ] ]
+            if $lit->[0] eq '?';
+        }
+        # nonliteral - wrap away
+        else {
+          $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $fields->{$col} ]];
+        }
       }
     }
   }
