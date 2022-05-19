@@ -9,6 +9,8 @@ use base qw/
 /;
 use mro 'c3';
 
+use Context::Preserve 'preserve_context';
+use Scope::Guard ();
 use Try::Tiny;
 use namespace::clean;
 
@@ -183,6 +185,32 @@ sub _ping {
   } catch {
     0;
   };
+}
+
+sub with_deferred_fk_checks {
+    my ( $self, $sub ) = @_;
+
+    my $txn_scope_guard = $self->txn_scope_guard;
+
+    $self->_do_query(
+        'EXEC sp_msforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT ALL"');
+
+    my $sg = Scope::Guard->new(
+        sub {
+            $self->_do_query(
+                'EXEC sp_msforeachtable "ALTER TABLE ? CHECK CONSTRAINT ALL"'
+            );
+        } );
+
+    return preserve_context { $sub->() } after => sub {
+        # explicitly check constraints because MSSQL does not check when
+        # re-enabling them
+        $self->_do_query(
+            'EXEC sp_msforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL"'
+        );
+        $txn_scope_guard->commit;
+        $sg->dismiss;
+    };
 }
 
 package # hide from PAUSE
