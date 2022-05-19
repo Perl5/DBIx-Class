@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
+use Context::Preserve 'preserve_context';
 use SQL::Abstract::Util 'is_plain_value';
 use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
 use DBIx::Class::Carp;
@@ -358,6 +359,16 @@ sub _dbi_attrs_for_bind {
   }
 
   return $bindattrs;
+}
+
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('PRAGMA defer_foreign_keys = ON');
+
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 =head2 connect_call_use_foreign_keys
