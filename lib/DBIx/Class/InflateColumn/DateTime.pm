@@ -173,11 +173,14 @@ sub register_column {
           $infcopy->{__dbic_colname} = $column;
 
           my $dt = $obj->_inflate_to_datetime( $value, $infcopy );
+          defined $dt   or return undef;
 
-          return (defined $dt)
-            ? $obj->_post_inflate_datetime( $dt, $infcopy )
-            : undef
-          ;
+
+          # By default set same formatter class as for parsing
+          my $parser =  $obj->_datetime_parser;
+          $parser  &&  $dt->set_formatter( $parser );
+
+          return $obj->_post_inflate_datetime( $dt, $infcopy )
         },
         deflate => sub {
           my ($value, $obj) = @_;
