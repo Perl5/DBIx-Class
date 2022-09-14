@@ -383,7 +383,10 @@ be copied too. To turn this behaviour off, pass C<< cascade_copy => 0 >>
 in the C<$attr> hashref.
 
 The behaviour defaults to C<< cascade_copy => 1 >> for C<has_many>
-relationships.
+relationships. If your C<$condition> is a coderef (see L</Custom join conditions>)
+the default changes to C<< cascade_copy => 0 >>, and you need to
+explicitly turn this feature on by passing C<< cascade_copy => 1 >>
+in the C<$attr> hashref.
 
 =item cascade_delete
 
@@ -391,6 +394,11 @@ By default, DBIx::Class cascades deletes across C<has_many>,
 C<has_one> and C<might_have> relationships. You can disable this
 behaviour on a per-relationship basis by supplying
 C<< cascade_delete => 0 >> in the relationship attributes.
+
+If your C<$condition> is a coderef (see L</Custom join conditions>)
+the default changes to C<< cascade_delete => 0 >>, and you need to
+explicitly turn this feature on by passing C<< cascade_delete => 1 >>
+in the C<$attr> hashref.
 
 The cascaded operations are performed after the requested delete,
 so if your database has a constraint on the relationship, it will
@@ -403,6 +411,11 @@ By default, DBIx::Class cascades updates across C<has_one> and
 C<might_have> relationships. You can disable this behaviour on a
 per-relationship basis by supplying C<< cascade_update => 0 >> in
 the relationship attributes.
+
+If your C<$condition> is a coderef (see L</Custom join conditions>)
+the default changes to C<< cascade_update => 0 >>, and you need to
+explicitly turn this feature on by passing C<< cascade_update => 1 >>
+in the C<$attr> hashref.
 
 The C<belongs_to> relationship does not update across relationships
 by default, so if you have a 'proxy' attribute on a belongs_to and want to
