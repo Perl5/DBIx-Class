@@ -1,0 +1,108 @@
+name: CI in Docker container
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+#  schedule:
+#    - cron: '42 5 * * *'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        perl: [ '5.36' ]
+        postgres: [ 'latest' ]
+
+    services:
+      postgres_service:
+        image: postgres:${{matrix.postgres}}
+        env:
+          POSTGRES_USER: dbic_user
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: dbic_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+
+    runs-on: ubuntu-latest
+    container: perl:${{ matrix.perl }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Show Perl Version
+      run: |
+        perl -v
+
+    - name: Install Modules
+      run: |
+        cpanm -v
+        cpanm --notest Module::Install
+        cpanm --installdeps --notest .
+
+        cpanm --notest Class::DBI::Plugin::DeepAbstractSearch
+        cpanm --notest Class::MethodCache
+        cpanm --notest Class::Unload
+        cpanm --notest Date::Simple
+        cpanm --notest DateTime::Format::MySQL
+        cpanm --notest DateTime::Format::Pg
+        cpanm --notest DateTime::Format::SQLite
+        cpanm --notest DateTime::Format::Strptime
+        cpanm --notest JSON
+        cpanm --notest JSON::Any
+        cpanm --notest JSON::DWIW
+        cpanm --notest JSON::XS
+        cpanm --notest Math::Base36
+        cpanm --notest MooseX::Types::JSON
+        cpanm --notest MooseX::Types::LoadableClass
+        cpanm --notest MooseX::Types::Path::Class
+        cpanm --notest PadWalker
+        cpanm --notest Pod::Coverage
+        cpanm --notest SQL::Translator
+        cpanm --notest Test::EOL
+        cpanm --notest Test::NoTabs
+        cpanm --notest Test::Pod
+        cpanm --notest Test::Pod::Coverage
+        cpanm --notest Test::Strict
+        cpanm --notest Text::CSV
+        cpanm --notest Time::Piece::MySQL
+
+        apt-get install libpq-dev
+
+        cpanm --notest DBD::Pg
+
+    - name: Show Errors on Ubuntu
+      if:  ${{ failure() && startsWith( matrix.runner, 'ubuntu-')}}
+      run: |
+         cat /home/runner/.cpanm/work/*/build.log
+
+    - name: Run make
+      run: |
+        perl Makefile.PL
+        make
+
+    - name: Run tests with prove
+      env:
+        AUTHOR_TESTING: 1
+        RELEASE_TESTING: 1
+        DBICTEST_PG_DSN: 'dbi:Pg:database=dbic_test;host=postgres_service'
+        DBICTEST_PG_USER: 'dbic_user'
+        DBICTEST_PG_PASS: 'secret'
+      run: |
+        prove -lv t/50fork.t
+
+    - name: Run tests
+      env:
+        AUTHOR_TESTING: 1
+        RELEASE_TESTING: 1
+        DBICTEST_PG_DSN: 'dbi:Pg:database=dbic_test;host=postgres_service'
+        DBICTEST_PG_USER: 'dbic_user'
+        DBICTEST_PG_PASS: 'secret'
+      run: |
+        make test
+
