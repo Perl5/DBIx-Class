@@ -81,6 +81,21 @@ jobs:
       run: |
          cat /home/runner/.cpanm/work/*/build.log
 
+    - name: Run make
+      run: |
+        perl Makefile.PL
+        make
+
+    - name: Run tests with prove
+      env:
+        AUTHOR_TESTING: 1
+        RELEASE_TESTING: 1
+        DBICTEST_PG_DSN: 'dbi:Pg:database=dbic_test;host=postgres_service'
+        DBICTEST_PG_USER: 'dbic_user'
+        DBICTEST_PG_PASS: 'secret'
+      run: |
+        prove -lv t/50fork.t
+
     - name: Run tests
       env:
         AUTHOR_TESTING: 1
@@ -89,7 +104,5 @@ jobs:
         DBICTEST_PG_USER: 'dbic_user'
         DBICTEST_PG_PASS: 'secret'
       run: |
-        perl Makefile.PL
-        make
         make test
 
