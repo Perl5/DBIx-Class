@@ -1,4 +1,4 @@
-name: CI
+name: CI in Docker container
 
 on:
   push:
@@ -14,6 +14,20 @@ jobs:
       matrix:
         perl: [ '5.36' ]
 
+    services:
+      postgres_service:
+        image: postgres:${{matrix.postgres}}
+        env:
+          POSTGRES_USER: dbic_user
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: dbic_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+
     runs-on: ubuntu-latest
     container: perl:${{ matrix.perl }}
 
@@ -25,6 +39,10 @@ jobs:
         perl -v
 
     - name: Install Modules
+      env:
+        DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=postgres_service'
+        DBICTEST_PG_USER='dbic_user'
+        DBICTEST_PG_PASS='secret'
       run: |
         cpanm -v
         cpanm --notest Module::Install
@@ -56,6 +74,10 @@ jobs:
         cpanm --notest Test::Strict
         cpanm --notest Text::CSV
         cpanm --notest Time::Piece::MySQL
+
+        apt-get install libpq-dev
+
+        cpanm --notest DBD::Pg
 
     - name: Show Errors on Ubuntu
       if:  ${{ failure() && startsWith( matrix.runner, 'ubuntu-')}}
