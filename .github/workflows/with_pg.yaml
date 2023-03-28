@@ -39,10 +39,6 @@ jobs:
         perl -v
 
     - name: Install Modules
-      env:
-        DBICTEST_PG_DSN='dbi:Pg:database=dbic_test;host=postgres_service'
-        DBICTEST_PG_USER='dbic_user'
-        DBICTEST_PG_PASS='secret'
       run: |
         cpanm -v
         cpanm --notest Module::Install
@@ -88,6 +84,9 @@ jobs:
       env:
         AUTHOR_TESTING: 1
         RELEASE_TESTING: 1
+        DBICTEST_PG_DSN: 'dbi:Pg:database=dbic_test;host=postgres_service'
+        DBICTEST_PG_USER: 'dbic_user'
+        DBICTEST_PG_PASS: 'secret'
       run: |
         perl Makefile.PL
         make
