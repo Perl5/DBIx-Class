@@ -13,6 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         perl: [ '5.36' ]
+        postgres: [ 'latest' ]
 
     services:
       postgres_service:
