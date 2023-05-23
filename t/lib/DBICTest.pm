@@ -102,6 +102,7 @@ sub import {
             $global_exclusive_lock = 1;
         }
         elsif ($exp eq ':DiffSQL') {
+            require DBIx::Class::SQLMaker;
             require SQL::Abstract::Test;
             my $into = caller(0);
             for (qw(is_same_sql_bind is_same_sql is_same_bind)) {

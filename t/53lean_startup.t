@@ -4,7 +4,11 @@
 my ($initial_inc_contents, $expected_dbic_deps, $require_sites);
 BEGIN {
   # these envvars *will* bring in more stuff than the baseline
-  delete @ENV{qw(DBICTEST_SQLT_DEPLOY DBIC_TRACE)};
+  delete @ENV{qw(
+    DBICTEST_SWAPOUT_SQLAC_WITH
+    DBICTEST_SQLT_DEPLOY
+    DBIC_TRACE
+  )};
 
   # make sure extras do not load even when this is set
   $ENV{PERL_STRICTURES_EXTRA} = 1;
@@ -26,7 +30,7 @@ BEGIN {
         # exclude our test suite, known "module require-rs" and eval frames
         $caller[1] =~ /^ t [\/\\] /x
           or
-        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime ) $/x
+        $caller[0] =~ /^ (?: base | parent | Class::C3::Componentised | Module::Inspector | Module::Runtime ) $/x && $caller[3] !~ m/::BEGIN$/
           or
         $caller[3] eq '(eval)',
       )
@@ -72,7 +76,22 @@ BEGIN {
     if $ENV{PERL5OPT};
 
   plan skip_all => 'Dependency load patterns are radically different before perl 5.10'
-    if $] < 5.010;
+    if "$]" < 5.010;
+
+  # these envvars *will* bring in more stuff than the baseline
+  delete @ENV{qw(
+    DBIC_TRACE
+    DBIC_SHUFFLE_UNORDERED_RESULTSETS
+    DBICTEST_SQLT_DEPLOY
+    DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER
+    DBICTEST_VIA_REPLICATED
+    DBICTEST_DEBUG_CONCURRENCY_LOCKS
+  )};
+
+  $ENV{DBICTEST_ANFANG_DEFANG} = 1;
+
+  # make sure extras do not load even when this is set
+  $ENV{PERL_STRICTURES_EXTRA} = 1;
 
   # add what we loaded so far
   for (keys %INC) {
@@ -113,12 +132,11 @@ BEGIN {
 
     Hash::Merge
     Scalar::Util
-    List::Util
     Storable
 
     Class::Accessor::Grouped
     Class::C3::Componentised
-    SQL::Abstract
+    SQL::Abstract::Util
   ));
 
   require DBICTest::Schema;
@@ -144,6 +162,7 @@ BEGIN {
 {
   register_lazy_loadable_requires(qw(
     DBI
+    SQL::Abstract::Classic
   ));
 
   my $s = DBICTest::Schema->connect('dbi:SQLite::memory:');
@@ -159,6 +178,7 @@ BEGIN {
   my $art = $s->resultset('Artist')->create({ name => \[ '?' => 'foo'], rank => 42 });
   $art->discard_changes;
   $art->update({ rank => 69, name => 'foo' });
+  $s->resultset('Artist')->all;
   assert_no_missing_expected_requires();
 }
 
@@ -166,9 +186,9 @@ BEGIN {
 {
   local $ENV{DBICTEST_SQLITE_REVERSE_DEFAULT_ORDER};
   {
-    # in general we do not want DBICTest to load before sqla, but it is
+    # in general we do not want DBICTest to load before sqlac, but it is
     # ok to cheat here
-    local $INC{'SQL/Abstract.pm'};
+    local $INC{'SQL/Abstract/Classic.pm'};
     require DBICTest;
   }
   my $s = DBICTest->init_schema;

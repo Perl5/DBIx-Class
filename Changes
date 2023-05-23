@@ -1,5 +1,41 @@
 Revision history for DBIx::Class
 
+0.082843 2022-05-17 10:50 (UTC)
+    * Fixes
+        - Adjust tests to account for DBD::SQLite's column_info() no longer
+          being case-preserving in recent versions
+        - Fix t/storage/replicated.t relying on no-longer-available module
+        - Adjust t/53lean_startup.t to work around spurious changes in
+          Perl5 core (GH#143)
+
+0.082842 2020-06-16 20:10 (UTC)
+    * New Features
+        - An on_connect rebase_sqlmaker call allowing experimentation with
+          non-core SQL generators on a per-$schema-instance basis
+          https://is.gd/DBIC_rebase_sqlmaker
+        - Automatically detect and use multi-column IN on recent versions of
+          libsqlite: ... WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
+
+    * Fixes
+        - Fix silent failure to retrieve a primary key (RT#80283) or worse:
+          returning an incorrect value (RT#115381) in case a rdbms-side autoinc
+          column is declared as PK with the is_auto_increment attribute unset
+        - Fix overly-aggressive condition unrolling, corrupting custom ops with
+          array arguments (RT#132390)
+        - Fix docs on how to properly use Moo(se) in ResultSet's, and fix a
+          corner case of ->count not functioning properly when the old recipe
+          was being used (GH#105)
+        - Fix incorrect ::Storage->_ping() behavior under Sybase (RT#114214)
+        - Work around breakage in Hash::Merge by soft-requiring Clone as part
+          of the replicated subsystem (RT#124321)
+
+    * Misc
+        - DBIC_TRACE_PROFILE=... now uses a ::Storage::Statistics subclass
+          DBIx::Class::Storage::Debug::PrettyTrace which properly ships as a
+          part of this distrinbution
+        - Switch out SQL::Abstract dependency with a slower moving dist
+        - Remove Data::Page dependency by inlining its entirety into the core
+          DBIx::Class::ResultSet::Pager (RT#130686)
 
 0.082841 2018-01-29 08:10 (UTC)
     * Test-suite fixup changes only - no reason to upgrade, wait for 0.082850

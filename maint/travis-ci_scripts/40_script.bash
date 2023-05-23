@@ -7,10 +7,7 @@ if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
 run_harness_tests() {
   local -x HARNESS_OPTIONS=c:j$VCPU_USE
-  # if we run under docker (! have_sudo) the logic below won't work
-  # it seems as if ulimit acts globally, across the entire OS
-  # and is thus not served properly by a localised `ps xH`
-  if [[ "$VCPU_USE" == 1 ]] && have_sudo ; then
+  if [[ "$VCPU_USE" == 1 ]] ; then
     ulim=$(( ( $(ps xH | wc -l) - 3 ) + 4 )) # (real count excluding header + ps + wc) + space for ( make + tee + harness + <actual test> )
     echo_err "$(tstamp) Setting process/thread limit to $ulim"
     ulimit -u $ulim

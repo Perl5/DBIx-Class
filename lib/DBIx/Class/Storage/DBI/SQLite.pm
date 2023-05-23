@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-use SQL::Abstract 'is_plain_value';
+use SQL::Abstract::Util 'is_plain_value';
 use DBIx::Class::_Util qw(modver_gt_or_eq sigwarn_silencer);
 use DBIx::Class::Carp;
 use Try::Tiny;
@@ -16,6 +16,13 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 __PACKAGE__->sql_quote_char ('"');
 __PACKAGE__->datetime_parser_type ('DateTime::Format::SQLite');
+
+sub _determine_supports_multicolumn_in {
+  ( shift->_server_info->{normalized_dbms_version} < '3.014' )
+    ? 0
+    : 1
+}
+
 
 =head1 NAME
 

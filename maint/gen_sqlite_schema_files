@@ -3,7 +3,6 @@
 use strict;
 use warnings;
 
-use Module::Runtime 'use_module';
 use SQL::Translator;
 use Path::Class 'file';
 use Getopt::Long;
@@ -27,7 +26,8 @@ die "You may not specify more than one deploy path via --deploy-to\n"
   if @{$args->{'deploy-to'}||[]} > 1;
 
 local $ENV{DBI_DSN};
-my $schema = use_module( $args->{'schema-class'}[0] )->connect(
+eval "require $args->{'schema-class'}[0]" || die $@;
+my $schema = $args->{'schema-class'}[0]->connect(
   $args->{'deploy-to'}
     ? ( "DBI:SQLite:$args->{'deploy-to'}[0]", undef, undef, { on_connect_do => "PRAGMA synchronous = OFF" } )
     : ()

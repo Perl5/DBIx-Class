@@ -64,7 +64,6 @@ use B ();
 use Carp 'croak';
 use Storable 'nfreeze';
 use Scalar::Util qw(weaken blessed reftype refaddr);
-use List::Util qw(first);
 use Sub::Quote qw(qsub quote_sub);
 
 use base 'Exporter';
@@ -72,7 +71,7 @@ our @EXPORT_OK = qw(
   sigwarn_silencer modver_gt_or_eq modver_gt_or_eq_and_lt
   fail_on_internal_wantarray fail_on_internal_call
   refdesc refcount hrefaddr
-  scope_guard is_exception detected_reinvoked_destructor
+  scope_guard is_exception detected_reinvoked_destructor emit_loud_diag
   quote_sub qsub perlstring serialize
   UNRESOLVABLE_CONDITION
 );
@@ -117,6 +116,64 @@ sub serialize ($) {
   local $Storable::canonical = 1;
   nfreeze($_[0]);
 }
+
+
+my $seen_loud_screams;
+sub emit_loud_diag {
+  my $args = { ref $_[0] eq 'HASH' ? %{$_[0]} : @_ };
+
+  unless ( defined $args->{msg} and length $args->{msg} ) {
+    emit_loud_diag(
+      msg => "No 'msg' value supplied to emit_loud_diag()"
+    );
+    exit 70;
+  }
+
+  my $msg = "\n" . join( ': ',
+    ( $0 eq '-e' ? () : $0 ),
+    $args->{msg}
+  );
+
+  # when we die - we usually want to keep doing it
+  $args->{emit_dups} = !!$args->{confess}
+    unless exists $args->{emit_dups};
+
+  local $Carp::CarpLevel =
+    ( $args->{skip_frames} || 0 )
+      +
+    $Carp::CarpLevel
+      +
+    # hide our own frame
+    1
+  ;
+
+  my $longmess = Carp::longmess();
+
+  # different object references will thwart deduplication without this
+  ( my $key = "${msg}\n${longmess}" ) =~ s/\b0x[0-9a-f]+\b/0x.../gi;
+
+  return $seen_loud_screams->{$key} if
+    $seen_loud_screams->{$key}++
+      and
+    ! $args->{emit_dups}
+  ;
+
+  $msg .= $longmess
+    unless $msg =~ /\n\z/;
+
+  print STDERR "$msg\n"
+    or
+  print STDOUT "\n!!!STDERR ISN'T WRITABLE!!!:$msg\n";
+
+  return $seen_loud_screams->{$key}
+    unless $args->{confess};
+
+  # increment *again*, because... Carp.
+  $Carp::CarpLevel++;
+  # not $msg - Carp will reapply the longmess on its own
+  Carp::confess($args->{msg});
+}
+
 
 sub scope_guard (&) {
   croak 'Calling scope_guard() in void context makes no sense'

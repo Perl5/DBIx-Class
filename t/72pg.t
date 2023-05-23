@@ -9,8 +9,8 @@ use Config;
 use DBIx::Class::Optional::Dependencies ();
 use lib qw(t/lib);
 use DBICTest;
-use SQL::Abstract 'is_literal_value';
-use DBIx::Class::_Util 'is_exception';
+use SQL::Abstract::Util 'is_literal_value';
+use DBIx::Class::_Util qw( is_exception sigwarn_silencer );
 
 plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_pg')
   unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_pg');
@@ -211,6 +211,9 @@ for my $use_insert_returning ($test_server_supports_insert_returning
     __PACKAGE__->column_info_from_storage(1);
     __PACKAGE__->set_primary_key('id');
 
+    # FIXME - for some reason column_info_from_storage does not properly find
+    # the is_auto_increment setting...
+    __PACKAGE__->column_info('id')->{is_auto_increment} = 1;
   }
   SKIP: {
     skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
@@ -444,6 +447,10 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
   $schema->source('CD')->name('dbic_t_schema.cd');
   $schema->source('Track')->name('dbic_t_schema.track');
   lives_ok {
+
+    # workaround for PG 9.5+, fix pending in mainline
+    local $SIG{__WARN__} = sigwarn_silencer( qr/SET CONSTRAINTS can only be used in transaction blocks/ );
+
     $schema->storage->with_deferred_fk_checks(sub {
       $schema->resultset('Track')->create({
         trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
@@ -468,8 +475,8 @@ lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
   # but it also should not warn
   warnings_like {
 
-    # workaround for PG 9.5, fix pending in mainline
-    local $schema->storage->_dbh->{PrintWarn} = 0;
+    # workaround for PG 9.5+, fix pending in mainline
+    local $SIG{__WARN__} = sigwarn_silencer( qr/SET CONSTRAINTS can only be used in transaction blocks/ );
 
     eval {
       $schema->storage->with_deferred_fk_checks(sub {

@@ -6,11 +6,6 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-use DBIx::Class::SQLMaker::LimitDialects;
-use List::Util qw/first/;
-
-use namespace::clean;
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI::NoBindVars - Sometime DBDs have poor to no support for bind variables

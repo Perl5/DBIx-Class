@@ -2,11 +2,11 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use lib qw(t/lib);
+
 use DBICTest;
 my $schema = DBICTest->init_schema();
-
-plan tests => 19;
 
 # select from a class with resultset_attributes
 my $resultset = $schema->resultset('BooksInLibrary');
@@ -19,9 +19,12 @@ is($programming_perl->id, 1, 'select from a resultset with find_or_create for ex
 
 # and inserts?
 my $see_spot;
-$see_spot = eval { $owner->books->find_or_create({ title => "See Spot Run" }) };
-if ($@) { print $@ }
-ok(!$@, 'find_or_create on resultset with attribute for non-existent entry did not throw');
+$see_spot = eval {
+  warnings_exist {
+    $owner->books->find_or_create({ title => "See Spot Run" })
+  } qr/Missing value for primary key column 'id' on BooksInLibrary - perhaps you forgot to set its 'is_auto_increment'/;
+};
+is ($@, '',  'find_or_create on resultset with attribute for non-existent entry did not throw');
 ok(defined $see_spot, 'successfully did insert on resultset with attribute for non-existent entry');
 
 my $see_spot_rs = $owner->books->search({ title => "See Spot Run" });
@@ -82,3 +85,5 @@ if ($@) { print $@ }
 ok( !$@, 'many_to_many set_$rel(\@objects) did not throw');
 is($pointy_objects->count, $pointy_count, 'many_to_many set_$rel($hash) count correct');
 is($round_objects->count, $round_count, 'many_to_many set_$rel($hash) other rel count correct');
+
+done_testing;

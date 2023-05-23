@@ -24,8 +24,6 @@ CPAN_is_sane() { perl -MCPAN\ 1.94_56 -e 1 &>/dev/null ; }
 
 CPAN_supports_BUILDPL() { perl -MCPAN\ 1.9205 -e1 &>/dev/null; }
 
-have_sudo() { sudo /bin/true &>/dev/null ; }
-
 ASan_enabled() { perl -V:config_args | grep -q fsanitize=address ; }
 
 ci_vm_state_text() {
@@ -178,7 +176,7 @@ parallel_installdeps_notest() {
     "
 }
 
-export -f parallel_installdeps_notest run_or_err echo_err tstamp have_sudo ASan_enabled CPAN_is_sane CPAN_supports_BUILDPL
+export -f parallel_installdeps_notest run_or_err echo_err tstamp ASan_enabled CPAN_is_sane CPAN_supports_BUILDPL
 
 installdeps() {
   if [[ -z "$@" ]] ; then return; fi

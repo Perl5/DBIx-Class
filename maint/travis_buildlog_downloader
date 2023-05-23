@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+
+use HTTP::Tiny;
+use JSON::PP;
+
+( my $build_id = $ARGV[0]||'' ) =~ /^[0-9]+$/
+  or die "Expecting a numeric build id as argument\n";
+
+my $base_url = "http://api.travis-ci.com/build/$build_id?include=build.jobs";
+print "Retrieving $base_url\n";
+
+my $resp = (
+  my $ua = HTTP::Tiny->new( default_headers => { 'Travis-API-Version' => 3 } )
+)->get( $base_url );
+
+die "Unable to retrieve $resp->{url}: $resp->{status}\n$resp->{content}\n\n"
+  unless $resp->{success};
+
+my @jobs = ( map
+  { ( ($_->{id}||'') =~ /^([0-9]+)$/ ) ? [ $1 =>  $_->{number} ] : () }
+  @{( eval { decode_json( $resp->{content} )->{jobs} } || [] )}
+) or die "Unable to find any jobs:\n$resp->{content}\n\n";
+
+my $dir = "TravisCI_build_$build_id";
+
+mkdir $dir
+  unless -d $dir;
+
+for my $job (@jobs) {
+  my $log_url = "http://api.travis-ci.com/v3/job/$job->[0]/log.txt";
+  my $dest_fn = "$dir/job_$job->[1].$job->[0].log.gz";
+
+  print "Retrieving $log_url into $dest_fn\n";
+
+  $resp = $ua->mirror( $log_url, $dest_fn, {
+    headers => { 'Accept-Encoding' => 'gzip' }
+  });
+  warn "Error retrieving $resp->{url}: $resp->{status}\n$resp->{content}\n\n"
+    unless $resp->{success};
+}

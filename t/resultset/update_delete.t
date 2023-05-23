@@ -16,6 +16,7 @@ BEGIN {
   DBICTest::Schema::CD->table('cd');
 }
 
+use DBIx::Class::_Util 'scope_guard';
 use DBICTest;
 
 my $schema = DBICTest->init_schema;
@@ -61,9 +62,12 @@ my $fks = $schema->resultset ('FourKeys')->search (
   }, { join => { fourkeys_to_twokeys => 'twokeys' }}
 );
 
+my $read_count_inc = 0;
+
 is ($fks->count, 4, 'Joined FourKey count correct (2x2)');
 $schema->is_executed_sql_bind( sub {
-  $fks->update ({ read_count => \ 'read_count + 1' })
+  $fks->update ({ read_count => \ 'read_count + 1' });
+  $read_count_inc++;
 }, [[
   'UPDATE fourkeys
    SET read_count = read_count + 1
@@ -73,8 +77,8 @@ $schema->is_executed_sql_bind( sub {
   'c',
 ]], 'Correct update-SQL with multijoin with pruning' );
 
-is ($fa->discard_changes->read_count, 11, 'Update ran only once on discard-join resultset');
-is ($fb->discard_changes->read_count, 21, 'Update ran only once on discard-join resultset');
+is ($fa->discard_changes->read_count, 10 + $read_count_inc, 'Update ran only once on discard-join resultset');
+is ($fb->discard_changes->read_count, 20 + $read_count_inc, 'Update ran only once on discard-join resultset');
 is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
 
 # make the multi-join stick
@@ -82,92 +86,236 @@ my $fks_multi = $fks->search(
   { 'fourkeys_to_twokeys.pilot_sequence' => { '!=' => 666 } },
   { order_by => [ $fks->result_source->primary_columns ] },
 );
-$schema->is_executed_sql_bind( sub {
-  $fks_multi->update ({ read_count => \ 'read_count + 1' })
-}, [
-  [ 'BEGIN' ],
-  [
-    'SELECT me.foo, me.bar, me.hello, me.goodbye
-      FROM fourkeys me
-      LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
-        ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
-      WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
-      GROUP BY me.foo, me.bar, me.hello, me.goodbye
-      ORDER BY foo, bar, hello, goodbye
-    ',
-    (1, 2) x 2,
-    666,
-    (1, 2) x 2,
-    'c',
-  ],
-  [
-    'UPDATE fourkeys
-     SET read_count = read_count + 1
-     WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )
-    ',
-    ( (1) x 4, (2) x 4 ),
-  ],
-  [ 'COMMIT' ],
-], 'Correct update-SQL with multijoin without pruning' );
 
-is ($fa->discard_changes->read_count, 12, 'Update ran only once on joined resultset');
-is ($fb->discard_changes->read_count, 22, 'Update ran only once on joined resultset');
-is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+# Versions of libsqlite before 3.14 do not support multicolumn-in
+# namely   WHERE ( foo, bar ) IN ( SELECT foo, bar FROM ... )
+#
+# Run both variants to ensure the SQL is correct, and also observe whether
+# the autodetection worked correctly for the current SQLite version
+{
+  my $detected_can_mci = $schema->storage->_use_multicolumn_in ? 1 : 0;
 
-$schema->is_executed_sql_bind( sub {
-  my $res = $fks_multi->search (\' "blah" = "bleh" ')->delete;
-  ok ($res, 'operation is true');
-  cmp_ok ($res, '==', 0, 'zero rows affected');
-}, [
-  [ 'BEGIN' ],
-  [
-    'SELECT me.foo, me.bar, me.hello, me.goodbye
-      FROM fourkeys me
-      LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
-        ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
-      WHERE "blah" = "bleh" AND ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
-      GROUP BY me.foo, me.bar, me.hello, me.goodbye
-      ORDER BY foo, bar, hello, goodbye
-    ',
-    (1, 2) x 2,
-    666,
-    (1, 2) x 2,
-    'c',
-  ],
-  [ 'COMMIT' ],
-], 'Correct null-delete-SQL with multijoin without pruning' );
+  for my $force_use_mci (0, 1) {
 
-$schema->is_executed_sql_bind( sub {
-  $fks->search({ 'twokeys.artist' => { '!=' => 666 } })->update({ read_count => \ 'read_count + 1' });
-}, [
-  [ 'BEGIN' ],
-  [
-    'SELECT me.foo, me.bar, me.hello, me.goodbye
-      FROM fourkeys me
-      LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
-        ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
-      LEFT JOIN twokeys twokeys
-        ON twokeys.artist = fourkeys_to_twokeys.t_artist AND twokeys.cd = fourkeys_to_twokeys.t_cd
-      WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ? AND twokeys.artist != ?
-      GROUP BY me.foo, me.bar, me.hello, me.goodbye
-    ',
-    (1, 2) x 4,
-    'c',
-    666,
-  ],
-  [
-    'UPDATE fourkeys
-     SET read_count = read_count + 1
-     WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )
-    ',
-    ( (1) x 4, (2) x 4 ),
-  ],
-  [ 'COMMIT' ],
-], 'Correct update-SQL with premultiplied restricting join without pruning' );
+    my $orig_use_mci = $schema->storage->_use_multicolumn_in;
+    my $sg = scope_guard {
+      $schema->storage->_use_multicolumn_in($orig_use_mci);
+    };
+    $schema->storage->_use_multicolumn_in( $force_use_mci);
 
-is ($fa->discard_changes->read_count, 13, 'Update ran only once on joined resultset');
-is ($fb->discard_changes->read_count, 23, 'Update ran only once on joined resultset');
-is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+    $schema->is_executed_sql_bind( sub {
+      my $executed = 0;
+      eval {
+        $fks_multi->update ({ read_count => \ 'read_count + 1' });
+        $executed = 1;
+        $read_count_inc++;
+      };
+
+      is(
+        $executed,
+        ( ( ! $detected_can_mci and $force_use_mci) ? 0 : 1 ),
+        "Executed status as expected with multicolumn-in capability ($detected_can_mci) combined with forced-mci-use ($force_use_mci)"
+      );
+
+    }, [
+      $force_use_mci
+        ?(
+          [
+            'UPDATE fourkeys
+             SET read_count = read_count + 1
+             WHERE
+              (foo, bar, hello, goodbye) IN (
+                SELECT me.foo, me.bar, me.hello, me.goodbye
+                  FROM fourkeys me
+                  LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys ON
+                        fourkeys_to_twokeys.f_bar = me.bar
+                    AND fourkeys_to_twokeys.f_foo = me.foo
+                    AND fourkeys_to_twokeys.f_goodbye = me.goodbye
+                    AND fourkeys_to_twokeys.f_hello = me.hello
+                WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
+                ORDER BY foo, bar, hello, goodbye
+              )
+            ',
+            ( 1, 2) x 2,
+            666,
+            ( 1, 2) x 2,
+            'c',
+          ]
+        )
+        :(
+          [ 'BEGIN' ],
+          [
+            'SELECT me.foo, me.bar, me.hello, me.goodbye
+              FROM fourkeys me
+              LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
+                ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
+              WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
+              GROUP BY me.foo, me.bar, me.hello, me.goodbye
+              ORDER BY foo, bar, hello, goodbye
+            ',
+            (1, 2) x 2,
+            666,
+            (1, 2) x 2,
+            'c',
+          ],
+          [
+            'UPDATE fourkeys
+             SET read_count = read_count + 1
+             WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )
+            ',
+            ( (1) x 4, (2) x 4 ),
+          ],
+          [ 'COMMIT' ],
+        )
+    ], "Correct update-SQL with multijoin without pruning ( use_multicolumn_in forced to: $force_use_mci )" );
+
+    is ($fa->discard_changes->read_count, 10 + $read_count_inc, 'Update ran expected amount of times on joined resultset');
+    is ($fb->discard_changes->read_count, 20 + $read_count_inc, 'Update ran expected amount of times on joined resultset');
+    is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+
+    $schema->is_executed_sql_bind( sub {
+      my $executed = 0;
+      eval {
+        my $res = $fks_multi->search (\' "blah" = "bleh" ')->delete;
+        $executed = 1;
+        ok ($res, 'operation is true');
+        cmp_ok ($res, '==', 0, 'zero rows affected');
+      };
+
+      is(
+        $executed,
+        ( ( ! $detected_can_mci and $force_use_mci) ? 0 : 1 ),
+        "Executed status as expected with multicolumn-in capability ($detected_can_mci) combined with forced-mci-use ($force_use_mci)"
+      );
+
+    }, [
+      $force_use_mci
+        ? (
+          [
+            'DELETE FROM fourkeys
+              WHERE ( foo, bar, hello, goodbye ) IN (
+                SELECT me.foo, me.bar, me.hello, me.goodbye
+                  FROM fourkeys me
+                  LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
+                    ON    fourkeys_to_twokeys.f_bar = me.bar
+                      AND fourkeys_to_twokeys.f_foo = me.foo
+                      AND fourkeys_to_twokeys.f_goodbye = me.goodbye
+                      AND fourkeys_to_twokeys.f_hello = me.hello
+                WHERE
+                  "blah" = "bleh"
+                    AND
+                  ( bar = ? OR bar = ? )
+                    AND
+                  ( foo = ? OR foo = ? )
+                    AND
+                  fourkeys_to_twokeys.pilot_sequence != ?
+                    AND
+                  ( goodbye = ? OR goodbye = ? )
+                    AND
+                  ( hello = ? OR hello = ? )
+                    AND
+                  sensors != ?
+                ORDER BY foo, bar, hello, goodbye
+            )',
+            (1, 2) x 2,
+            666,
+            (1, 2) x 2,
+            'c',
+          ]
+        )
+        : (
+          [ 'BEGIN' ],
+          [
+            'SELECT me.foo, me.bar, me.hello, me.goodbye
+              FROM fourkeys me
+              LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
+                ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
+              WHERE "blah" = "bleh" AND ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND fourkeys_to_twokeys.pilot_sequence != ? AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ?
+              GROUP BY me.foo, me.bar, me.hello, me.goodbye
+              ORDER BY foo, bar, hello, goodbye
+            ',
+            (1, 2) x 2,
+            666,
+            (1, 2) x 2,
+            'c',
+          ],
+          [ 'COMMIT' ],
+        )
+    ], 'Correct null-delete-SQL with multijoin without pruning' );
+
+    is ($fa->discard_changes->read_count, 10 + $read_count_inc, 'Noop update did not touch anything');
+    is ($fb->discard_changes->read_count, 20 + $read_count_inc, 'Noop update did not touch anything');
+    is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+
+
+    $schema->is_executed_sql_bind( sub {
+      my $executed = 0;
+
+      eval {
+        $fks->search({ 'twokeys.artist' => { '!=' => 666 } })->update({ read_count => \ 'read_count + 1' });
+        $executed = 1;
+        $read_count_inc++;
+      };
+
+      is(
+        $executed,
+        ( ( ! $detected_can_mci and $force_use_mci) ? 0 : 1 ),
+        "Executed status as expected with multicolumn-in capability ($detected_can_mci) combined with forced-mci-use ($force_use_mci)"
+      );
+    }, [
+      $force_use_mci
+        ? (
+          [
+            'UPDATE fourkeys SET read_count = read_count + 1
+              WHERE ( foo, bar, hello, goodbye ) IN (
+                SELECT me.foo, me.bar, me.hello, me.goodbye
+                  FROM fourkeys me
+                    LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys ON
+                          fourkeys_to_twokeys.f_bar = me.bar
+                      AND fourkeys_to_twokeys.f_foo = me.foo
+                      AND fourkeys_to_twokeys.f_goodbye = me.goodbye
+                      AND fourkeys_to_twokeys.f_hello = me.hello
+                    LEFT JOIN twokeys twokeys
+                      ON twokeys.artist = fourkeys_to_twokeys.t_artist AND twokeys.cd = fourkeys_to_twokeys.t_cd
+                    WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ? AND twokeys.artist != ?
+            )',
+            (1, 2) x 4,
+            'c',
+            666,
+          ]
+        )
+        : (
+          [ 'BEGIN' ],
+          [
+            'SELECT me.foo, me.bar, me.hello, me.goodbye
+              FROM fourkeys me
+              LEFT JOIN fourkeys_to_twokeys fourkeys_to_twokeys
+                ON fourkeys_to_twokeys.f_bar = me.bar AND fourkeys_to_twokeys.f_foo = me.foo AND fourkeys_to_twokeys.f_goodbye = me.goodbye AND fourkeys_to_twokeys.f_hello = me.hello
+              LEFT JOIN twokeys twokeys
+                ON twokeys.artist = fourkeys_to_twokeys.t_artist AND twokeys.cd = fourkeys_to_twokeys.t_cd
+              WHERE ( bar = ? OR bar = ? ) AND ( foo = ? OR foo = ? ) AND ( goodbye = ? OR goodbye = ? ) AND ( hello = ? OR hello = ? ) AND sensors != ? AND twokeys.artist != ?
+              GROUP BY me.foo, me.bar, me.hello, me.goodbye
+            ',
+            (1, 2) x 4,
+            'c',
+            666,
+          ],
+          [
+            'UPDATE fourkeys
+             SET read_count = read_count + 1
+             WHERE ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? ) OR ( bar = ? AND foo = ? AND goodbye = ? AND hello = ? )
+            ',
+            ( (1) x 4, (2) x 4 ),
+          ],
+          [ 'COMMIT' ],
+        )
+    ], 'Correct update-SQL with premultiplied restricting join without pruning' );
+
+    is ($fa->discard_changes->read_count, 10 + $read_count_inc, 'Update ran expected amount of times on joined resultset');
+    is ($fb->discard_changes->read_count, 20 + $read_count_inc, 'Update ran expected amount of times on joined resultset');
+    is ($fc->discard_changes->read_count, 30, 'Update did not touch outlier');
+  }
+}
 
 #
 # Make sure multicolumn in or the equivalent functions correctly
@@ -185,12 +333,21 @@ my $sub_rs = $tkfks->search (
 
 is ($sub_rs->count, 2, 'Only two rows from fourkeys match');
 
-# attempts to delete a grouped rs should fail miserably
-throws_ok (
-  sub { $sub_rs->search ({}, { distinct => 1 })->delete },
-  qr/attempted a delete operation on a resultset which does group_by/,
-  'Grouped rs update/delete not allowed',
-);
+# ensure we do not do something dumb on MCI-not-supporting engines
+{
+  my $orig_use_mci = $schema->storage->_use_multicolumn_in;
+  my $sg = scope_guard {
+    $schema->storage->_use_multicolumn_in($orig_use_mci);
+  };
+  $schema->storage->_use_multicolumn_in(0);
+
+  # attempts to delete a global-grouped rs should fail miserably
+  throws_ok (
+    sub { $sub_rs->search ({}, { distinct => 1 })->delete },
+    qr/attempted a delete operation on a resultset which does group_by on columns other than the primary keys/,
+    'Grouped rs update/delete not allowed',
+  );
+}
 
 # grouping on PKs only should pass
 $sub_rs->search (

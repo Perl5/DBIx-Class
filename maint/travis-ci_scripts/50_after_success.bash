@@ -11,30 +11,18 @@ fi
 export VCPU_USE="$VCPU_AVAILABLE"
 export HARNESS_OPTIONS="j$VCPU_USE"
 
+[[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
+
+# FIXME sadly some stuff needs to be pinned for the wider deplist until CPAN can be fixed
+perl -MList::Util\ 1.45 -e1 &>/dev/null || installdeps P/PE/PEVANS/Scalar-List-Utils-1.50.tar.gz
+perl -MModule::Install\ 1.15 -e1 &>/dev/null || parallel_installdeps_notest E/ET/ETHER/Module-Install-1.15.tar.gz
 
 if [[ "$DEVREL_DEPS" == "true" ]] && perl -M5.008003 -e1 &>/dev/null ; then
 
-  [[ "$BREAK_CC" == "true" ]] && run_or_err "Unbreaking previously broken ~/bin/cc" "rm $HOME/bin/cc"
-
-  # FIXME - Devel::Cover (brought by Test::Strict, but soon needed anyway)
-  # does not test cleanly on 5.8.7 - just get it directly
-  if perl -M5.008007 -e1 &>/dev/null && ! perl -M5.008008 -e1 &>/dev/null; then
-    parallel_installdeps_notest Devel::Cover
-  fi
-
   # FIXME - workaround for YAML/RT#81120 and L::SRH/RT#107681
   # We don't actually need these modules, only there because of SQLT (which will be fixed)
-  # does not test cleanly on 5.8.7 - just get them directly
-  if ! perl -M5.008008 -e1 &>/dev/null; then
-    parallel_installdeps_notest YAML Lexical::SealRequireHints
-  fi
-
-  # FIXME
-  # https://metacpan.org/source/SMUELLER/Data-Dumper-2.167_02/Changes#L11-16
-  # sigh...
-  perl -MData::Dumper\ 2.126 -e1 &>/dev/null || parallel_installdeps_notest Data::Dumper
-
-  parallel_installdeps_notest "Module::Install@1.15"
+  perl -M5.008008 -e1 &>/dev/null || parallel_installdeps_notest YAML
+  perl -M5.008009 -e1 &>/dev/null || parallel_installdeps_notest Lexical::SealRequireHints
 
   # FIXME Change when Moose goes away
   installdeps \
@@ -63,7 +51,6 @@ elif [[ "$CLEANTEST" != "true" ]] ; then
   parallel_installdeps_notest ExtUtils::MakeMaker
 
   parallel_installdeps_notest \
-    "Module::Install@1.15" \
     $(perl -Ilib -MDBIx::Class -e '
       print join " ", map
         { keys %{DBIx::Class::Optional::Dependencies->req_list_for($_) } }
@@ -100,12 +87,9 @@ if [[ -n "$tarball_assembled" ]] ; then
   export DBICTEST_VIA_REPLICATED=""
 
 
-  # make sure we are retrying with newest CPAN possible
-  #
-  # not running tests on CPAN.pm - they are not terribly slow,
-  # but https://rt.cpan.org/Ticket/Display.html?id=96437 sucks
-  parallel_installdeps_notest CPAN
-  run_or_err "Make sure CPAN was upgraded to at least 2.10" "perl -M'CPAN 2.010' -e1"
+  # make sure we are retrying with newest CPAN possible (YAML breakage, etc)
+  installdeps CPAN
+  run_or_err "Make sure CPAN was upgraded to at least 2.28" "perl -M'CPAN 2.028' -e1"
 
   run_or_err "Re-Configuring CPAN.pm" "perl -MCPAN -e '\
     CPAN::Config->load;

@@ -5,8 +5,6 @@ use warnings;
 use base 'DBIx::Class::Storage::DBI';
 use mro 'c3';
 
-use namespace::clean;
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI::IdentityInsert - Storage Component for Sybase ASE and

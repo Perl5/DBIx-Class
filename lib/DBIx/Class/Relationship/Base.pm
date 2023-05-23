@@ -109,7 +109,7 @@ C<Edition> table refers to a publisher and a type (e.g. "paperback"):
 
 =head4 Multiple groups of simple equality conditions
 
-As is the default in L<SQL::Abstract>, the key-value pairs will be
+As is the default in L<SQL::Abstract::Classic>, the key-value pairs will be
 C<AND>ed in the resulting C<JOIN> clause. An C<OR> can be achieved with
 an arrayref. For example a condition like:
 
@@ -174,11 +174,11 @@ C<< $args->{foreign_alias} >> and C<< $args->{self_alias} >> are supplied the
 same values that would be otherwise substituted for C<foreign> and C<self>
 in the simple hashref syntax case.
 
-The coderef is expected to return a valid L<SQL::Abstract> query-structure, just
-like what one would supply as the first argument to
+The coderef is expected to return a valid L<SQL::Abstract::Classic>
+query-structure, just like what one would supply as the first argument to
 L<DBIx::Class::ResultSet/search>. The return value will be passed directly to
-L<SQL::Abstract> and the resulting SQL will be used verbatim as the C<ON>
-clause of the C<JOIN> statement associated with this relationship.
+L<DBIx::Class::SQLMaker> and the resulting SQL will be used verbatim as the
+C<ON> clause of the C<JOIN> statement associated with this relationship.
 
 While every coderef-based condition must return a valid C<ON> clause, it may
 elect to additionally return a simplified B<optional> join-free condition

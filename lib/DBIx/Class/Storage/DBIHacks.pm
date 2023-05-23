@@ -2,9 +2,24 @@ package   #hide from PAUSE
   DBIx::Class::Storage::DBIHacks;
 
 #
-# This module contains code that should never have seen the light of day,
-# does not belong in the Storage, or is otherwise unfit for public
-# display. The arrival of SQLA2 should immediately obsolete 90% of this
+# This module contains code supporting a battery of special cases and tests for
+# many corner cases pushing the envelope of what DBIC can do. When work on
+# these utilities began in mid 2009 (51a296b402c) it wasn't immediately obvious
+# that these pieces, despite their misleading on-first-sighe-flakiness, will
+# become part of the generic query rewriting machinery of DBIC, allowing it to
+# both generate and process queries representing incredibly complex sets with
+# reasonable efficiency.
+#
+# Now (end of 2019), more than 10 years later the routines in this class have
+# stabilized enough, and are meticulously covered with tests, to a point where
+# an effort to formalize them into user-facing APIs might be worthwhile.
+#
+# An implementor working on publicizing and/or replacing the routines with a
+# more modern SQL generation framework should keep in mind that pretty much all
+# existing tests are constructed on the basis of real-world code used in
+# production somewhere.
+#
+# Please hack on this responsibly ;)
 #
 
 use strict;
@@ -13,10 +28,9 @@ use warnings;
 use base 'DBIx::Class::Storage';
 use mro 'c3';
 
-use List::Util 'first';
 use Scalar::Util 'blessed';
 use DBIx::Class::_Util qw(UNRESOLVABLE_CONDITION serialize);
-use SQL::Abstract qw(is_plain_value is_literal_value);
+use SQL::Abstract::Util qw(is_plain_value is_literal_value);
 use DBIx::Class::Carp;
 use namespace::clean;
 
@@ -313,7 +327,7 @@ sub _adjust_select_args_for_complex_prefetch {
     ) {
       push @outer_from, $j
     }
-    elsif (first { $_->{$alias} } @outer_nonselecting_chains ) {
+    elsif (grep { $_->{$alias} } @outer_nonselecting_chains ) {
       push @outer_from, $j;
       $may_need_outer_group_by ||= $outer_aliastypes->{multiplying}{$alias} ? 1 : 0;
     }
@@ -330,27 +344,56 @@ sub _adjust_select_args_for_complex_prefetch {
     });
   }
 
-  # This is totally horrific - the {where} ends up in both the inner and outer query
-  # Unfortunately not much can be done until SQLA2 introspection arrives, and even
-  # then if where conditions apply to the *right* side of the prefetch, you may have
-  # to both filter the inner select (e.g. to apply a limit) and then have to re-filter
-  # the outer select to exclude joins you didn't want in the first place
+  # FIXME: The {where} ends up in both the inner and outer query, i.e. *twice*
+  #
+  # This is rather horrific, and while we currently *do* have enough
+  # introspection tooling available to attempt a stab at properly deciding
+  # whether or not to include the where condition on the outside, the
+  # machinery is still too slow to apply it here.
+  # Thus for the time being we do not attempt any sanitation of the where
+  # clause and just pass it through on both sides of the subquery. This *will*
+  # be addressed at a later stage, most likely after folding the SQL generator
+  # into SQLMaker proper
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
+  #
   return $outer_attrs;
 }
 
 #
-# I KNOW THIS SUCKS! GET SQLA2 OUT THE DOOR SO THIS CAN DIE!
+# This is probably the ickiest, yet most relied upon part of the codebase:
+# this is the place where we take arbitrary SQL input and break it into its
+# constituent parts, making sure we know which *sources* are used in what
+# *capacity* ( selecting / restricting / grouping / ordering / joining, etc. )
+# Although the method is pretty horrific, the worst thing that can happen is
+# for a classification failure, which in turn will result in a vocal exception,
+# and will lead to a relatively prompt fix.
+# The code has been slowly improving and is covered with a formiddable battery
+# of tests, so can be considered "reliably stable" at this point (Oct 2015).
 #
-# Due to a lack of SQLA2 we fall back to crude scans of all the
-# select/where/order/group attributes, in order to determine what
-# aliases are needed to fulfill the query. This information is used
-# throughout the code to prune unnecessary JOINs from the queries
-# in an attempt to reduce the execution time.
-# Although the method is pretty horrific, the worst thing that can
-# happen is for it to fail due to some scalar SQL, which in turn will
-# result in a vocal exception.
+# A note to implementors attempting to "replace" this - keep in mind that while
+# there are multiple optimization avenues, the actual "scan literal elements"
+# part *MAY NEVER BE REMOVED*, even if in the future it is limited to only AST
+# nodes that are deemed opaque (i.e. contain literal expressions). The use and
+# comprehension of blackbox literals is at this point firmly a user-facing API,
+# and is one of *the* reasons DBIC remains as flexible as it is.
+#
+# In other words, when working on this keep in mind that the following is both
+# a widespread and *encouraged* way of using DBIC in the wild when push comes
+# to shove:
+#
+# $rs->search( {}, {
+#   select => \[ $random, @stuff],
+#   from => \[ $random, @stuff ],
+#   where => \[ $random, @stuff ],
+#   group_by => \[ $random, @stuff ],
+#   order_by => \[ $random, @stuff ],
+# } )
+#
+# Various incarnations of the above are reflected in many of the tests. If one
+# gets to fail, or if a user complains: you get to fix it. A stance amounting
+# to "this is crazy, nobody does that" is not acceptable going forward.
+#
 sub _resolve_aliastypes_from_select_args {
   my ( $self, $attrs ) = @_;
 
@@ -387,7 +430,7 @@ sub _resolve_aliastypes_from_select_args {
   # get a column to source/alias map (including unambiguous unqualified ones)
   my $colinfo = $self->_resolve_column_info ($attrs->{from});
 
-  # set up a botched SQLA
+  # set up a botched SQLMaker
   my $sql_maker = $self->sql_maker;
 
   # these are throw away results, do not pollute the bind stack
@@ -980,13 +1023,15 @@ sub _extract_colinfo_of_stable_main_source_order_by_portion {
   ]) ? $colinfos_to_return : ();
 }
 
-# Attempts to flatten a passed in SQLA condition as much as possible towards
+# Attempts to flatten a passed in SQLAC condition as much as possible towards
 # a plain hashref, *without* altering its semantics. Required by
 # create/populate being able to extract definitive conditions from preexisting
 # resultset {where} stacks
 #
 # FIXME - while relatively robust, this is still imperfect, one of the first
-# things to tackle with DQ
+# things to tackle when we get access to a formalized AST. Note that this code
+# is covered by a *ridiculous* amount of tests, so starting with porting this
+# code would be a rather good exercise
 sub _collapse_cond {
   my ($self, $where, $where_is_anded_array) = @_;
 
@@ -1006,7 +1051,7 @@ sub _collapse_cond {
       if (ref $chunk eq 'HASH') {
         for (sort keys %$chunk) {
 
-          # Match SQLA 1.79 behavior
+          # Match SQLAC 1.79 behavior
           if ($_ eq '') {
             is_literal_value($chunk->{$_})
               ? carp 'Hash-pairs consisting of an empty string with a literal are deprecated, use -and => [ $literal ] instead'
@@ -1023,7 +1068,7 @@ sub _collapse_cond {
       }
       elsif ( ! length ref $chunk) {
 
-        # Match SQLA 1.79 behavior
+        # Match SQLAC 1.79 behavior
         $self->throw_exception("Supplying an empty left hand side argument is not supported in array-pairs")
           if $where_is_anded_array and (! defined $chunk or $chunk eq '');
 
@@ -1079,7 +1124,7 @@ sub _collapse_cond {
 
     for (my $i = 0; $i <= $#$where; $i++ ) {
 
-      # Match SQLA 1.79 behavior
+      # Match SQLAC 1.79 behavior
       $self->throw_exception(
         "Supplying an empty left hand side argument is not supported in array-pairs"
       ) if (! defined $where->[$i] or ! length $where->[$i]);
@@ -1233,13 +1278,31 @@ sub _collapse_cond_unroll_pairs {
     }
     else {
       if (ref $rhs eq 'HASH' and ! keys %$rhs) {
-        # FIXME - SQLA seems to be doing... nothing...?
+        # FIXME - SQLAC seems to be doing... nothing...?
       }
       # normalize top level -ident, for saner extract_fixed_condition_columns code
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-ident}) {
         push @conds, { $lhs => { '=', $rhs } };
       }
-      elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{-value} and is_plain_value $rhs->{-value}) {
+      # can't simply use is_plain_value result, as we need to
+      # preserve the -value marker where necessary (non-blessed ref)
+      elsif (
+        ref $rhs eq 'HASH'
+          and
+        keys %$rhs == 1
+          and
+        exists $rhs->{-value}
+          and
+        (
+          ! length ref( $rhs->{-value} )
+            or
+          (
+            defined( blessed $rhs->{-value} )
+              and
+            is_plain_value $rhs->{-value}
+          )
+        )
+      ) {
         push @conds, { $lhs => $rhs->{-value} };
       }
       elsif (ref $rhs eq 'HASH' and keys %$rhs == 1 and exists $rhs->{'='}) {
@@ -1304,16 +1367,30 @@ sub _collapse_cond_unroll_pairs {
         }
       }
       # unroll func + { -value => ... }
+      # can't simply use is_plain_value result, as we need to
+      # preserve the -value marker where necessary (non-blessed ref)
       elsif (
         ref $rhs eq 'HASH'
           and
         ( my ($subop) = keys %$rhs ) == 1
           and
-        length ref ((values %$rhs)[0])
+        ref( (values %$rhs)[0] ) eq 'HASH'
           and
-        my $vref = is_plain_value( (values %$rhs)[0] )
+        keys %{ (values %$rhs)[0] } == 1
+          and
+        exists( (values %$rhs)[0]->{-value} )
+          and
+        (
+          ! length ref( (values %$rhs)[0]->{-value} )
+            or
+          (
+            defined( blessed( (values %$rhs)[0]->{-value} ) )
+              and
+            is_plain_value( (values %$rhs)[0]->{-value} )
+          )
+        )
       ) {
-        push @conds, { $lhs => { $subop => $$vref } }
+        push @conds, { $lhs => { $subop => (values %$rhs)[0]->{-value} } };
       }
       else {
         push @conds, { $lhs => $rhs };

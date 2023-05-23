@@ -9,11 +9,10 @@ use mro 'c3';
 
 use DBIx::Class::Carp;
 use Scalar::Util qw/refaddr weaken reftype blessed/;
-use List::Util qw/first/;
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
-use SQL::Abstract qw(is_plain_value is_literal_value);
-use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor);
+use SQL::Abstract::Util qw(is_plain_value is_literal_value);
+use DBIx::Class::_Util qw(quote_sub perlstring serialize detected_reinvoked_destructor sigwarn_silencer);
 use namespace::clean;
 
 # default cursor class, overridable in connect_info attributes
@@ -1061,11 +1060,45 @@ sub _populate_dbh {
 }
 
 sub _run_connection_actions {
+  # there are pathological cases in the CI where this can loop
+  # did not investigae in depth, but in either case this makes
+  # sense to guard like this
+  return if $_[0]->{_running_connections_actions};
+
+  local $_[0]->{_running_connections_actions} = 1;
 
   $_[0]->_do_connection_actions(connect_call_ => $_) for (
     ( $_[0]->on_connect_call || () ),
     $_[0]->_parse_connect_do ('on_connect_do'),
   );
+
+  my $sqlac_like;
+  if(
+    DBIx::Class::_ENV_::DEVREL
+      and
+    $ENV{DBICDEVREL_SWAPOUT_SQLAC_WITH}
+      and
+    ( $sqlac_like ) = $ENV{DBICDEVREL_SWAPOUT_SQLAC_WITH} =~ /(.+)/
+      and
+    # delay calling ->sql_maker as long as we can
+    # ensure_class_loaded returns undef or throws
+    ( Class::C3::Componentised->ensure_class_loaded( $sqlac_like ), 1 )
+      and
+    ( ref $_[0]->sql_maker ) !~ /__REBASED__/
+  ) {
+
+    require DBIx::Class::SQLMaker::ClassicExtensions;
+    require SQL::Abstract::Classic;
+
+    Class::C3::Componentised->inject_base(
+      'DBICDevRel::SQLAC::SwapOut',
+      'DBIx::Class::SQLMaker::ClassicExtensions',
+      $sqlac_like,
+      'SQL::Abstract::Classic',
+    );
+
+    $_[0]->_do_connection_actions(connect_call_ => [[ rebase_sqlmaker => 'DBICDevRel::SQLAC::SwapOut' ]]);
+  }
 }
 
 
@@ -1188,15 +1221,18 @@ sub _describe_connection {
 
   $drv = "DBD::$drv" if $drv;
 
-  my $res = {
-    DBIC_DSN => $self->_dbi_connect_info->[0],
-    DBI_VER => DBI->VERSION,
-    DBIC_VER => DBIx::Class->VERSION,
-    DBIC_DRIVER => ref $self,
-    $drv ? (
-      DBD => $drv,
-      DBD_VER => try { $drv->VERSION },
-    ) : (),
+  my $res = do {
+    local $SIG{__WARN__} = sigwarn_silencer(qr/Argument .+? isn't numeric in subroutine entry/);
+    {
+      DBIC_DSN => $self->_dbi_connect_info->[0],
+      DBI_VER => DBI->VERSION,
+      DBIC_VER => DBIx::Class->VERSION,
+      DBIC_DRIVER => ref $self,
+      $drv ? (
+        DBD => $drv,
+        DBD_VER => try { $drv->VERSION },
+      ) : (),
+    }
   };
 
   # try to grab data even if we never managed to connect
@@ -1473,6 +1509,92 @@ sub _do_query {
   return $self;
 }
 
+=head2 connect_call_rebase_sqlmaker
+
+This on-connect call takes as a single argument the name of a class to "rebase"
+the SQLMaker inheritance hierarchy upon. For this to work properly the target
+class B<MUST> inherit from L<DBIx::Class::SQLMaker::ClassicExtensions> and
+L<SQL::Abstract::Classic> as shown below.
+
+This infrastructure is provided to aid recent activity around experimental new
+aproaches to SQL generation within DBIx::Class. You can (and are encouraged to)
+mix and match old and new within the same codebase as follows:
+
+  package DBIx::Class::Awesomer::SQLMaker;
+  # you MUST inherit in this order to get the composition right
+  # you are free to override-without-next::method any part you need
+  use base qw(
+    DBIx::Class::SQLMaker::ClassicExtensions
+    << OPTIONAL::AWESOME::Class::Implementing::ExtraRainbowSauce >>
+    SQL::Abstract::Classic
+  );
+  << your new code goes here >>
+
+
+  ... and then ...
+
+
+  my $experimental_schema = $original_schema->connect(
+    sub {
+      $original_schema->storage->dbh
+    },
+    {
+      # the nested arrayref is important, as per
+      # https://metacpan.org/pod/DBIx::Class::Storage::DBI#on_connect_call
+      on_connect_call => [ [ rebase_sqlmaker => 'DBIx::Class::Awesomer::SQLMaker' ] ],
+    },
+  );
+
+=cut
+
+sub connect_call_rebase_sqlmaker {
+  my( $self, $requested_base_class ) = @_;
+
+  $self->throw_exception(
+    "The on_connect callee 'rebase_sqlmaker' expects a single plain string argument: the name of the target base class"
+  ) if (
+    @_ != 2
+      or
+    ! length( $requested_base_class )
+  );
+
+  my $old_class = ref( $self->sql_maker );
+
+  # nothing to do!
+  return if $old_class->isa( $requested_base_class );
+
+  my $synthetic_class = "${old_class}__REBASED_ON__${requested_base_class}";
+
+  {
+    no strict 'refs';
+
+    # skip if we already made that class
+    unless( @{"${synthetic_class}::ISA"} ) {
+
+      $self->ensure_class_loaded( $requested_base_class );
+
+      for my $base (qw(
+        DBIx::Class::SQLMaker::ClassicExtensions
+        SQL::Abstract::Classic
+      )) {
+
+        $self->throw_exception(
+          "The 'rebase_sqlmaker' target class '$requested_base_class' is not inheriting from '$base', this can not work"
+        ) unless $requested_base_class->isa( $base );
+      }
+
+      $self->inject_base( $synthetic_class, $old_class, $requested_base_class );
+
+      Class::C3->reinitialize
+        if DBIx::Class::_ENV_::OLD_MRO;
+    }
+  }
+
+  # force re-build on next access for this particular $storage instance
+  $self->sql_maker_class( $synthetic_class );
+  $self->_sql_maker( undef );
+}
+
 sub _connect {
   my $self = shift;
 
@@ -1687,7 +1809,7 @@ sub _gen_sql_bind {
       and
     $op eq 'select'
       and
-    first {
+    grep {
       length ref $_->[1]
         and
       blessed($_->[1])
@@ -1937,19 +2059,43 @@ sub insert {
   # they can be fused once again with the final return
   $to_insert = { %$to_insert, %$prefetched_values };
 
-  # FIXME - we seem to assume undef values as non-supplied. This is wrong.
-  # Investigate what does it take to s/defined/exists/
   my %pcols = map { $_ => 1 } $source->primary_columns;
+
   my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
+
   for my $col ($source->columns) {
+
+    # first autoinc wins - this is why ->columns() in-order iteration is important
+    #
+    # FIXME - there ought to be a sanity-check for multiple is_auto_increment settings
+    # or something...
+    #
     if ($col_infos->{$col}{is_auto_increment}) {
+
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
       $autoinc_supplied ||= 1 if defined $to_insert->{$col};
+
       $retrieve_autoinc_col ||= $col unless $autoinc_supplied;
     }
 
     # nothing to retrieve when explicit values are supplied
     next if (
-      defined $to_insert->{$col} and ! is_literal_value($to_insert->{$col})
+      # FIXME - we seem to assume undef values as non-supplied.
+      # This is wrong.
+      # Investigate what does it take to s/defined/exists/
+      # ( fails t/cdbi/copy.t amoong other things )
+      defined $to_insert->{$col}
+        and
+      (
+        # not a ref - cheaper to check before a call to is_literal_value()
+        ! length ref $to_insert->{$col}
+          or
+        # not a literal we *MAY* need to pull out ( see check below )
+        ! is_literal_value( $to_insert->{$col} )
+      )
     );
 
     # the 'scalar keys' is a trick to preserve the ->columns declaration order
@@ -1959,6 +2105,35 @@ sub insert {
       $col_infos->{$col}{retrieve_on_insert}
     );
   };
+
+  # corner case of a non-supplied PK which is *not* declared as autoinc
+  if (
+    ! $autoinc_supplied
+      and
+    ! defined $retrieve_autoinc_col
+      and
+    # FIXME - first come-first serve, suboptimal...
+    ($retrieve_autoinc_col) = ( grep
+      {
+        $pcols{$_}
+          and
+        ! $col_infos->{$_}{retrieve_on_insert}
+          and
+        ! defined $col_infos->{$_}{is_auto_increment}
+      }
+      sort
+        { $retrieve_cols{$a} <=> $retrieve_cols{$b} }
+        keys %retrieve_cols
+    )
+  ) {
+    carp_unique(
+      "Missing value for primary key column '$retrieve_autoinc_col' on "
+    . "@{[ $source->source_name ]} - perhaps you forgot to set its "
+    . "'is_auto_increment' attribute during add_columns()? Treating "
+    . "'$retrieve_autoinc_col' implicitly as an autoinc, and attempting "
+    . 'value retrieval'
+    );
+  }
 
   local $self->{_autoinc_supplied_for_op} = $autoinc_supplied;
   local $self->{_perform_autoinc_retrieval} = $retrieve_autoinc_col;
@@ -2088,7 +2263,7 @@ sub _insert_bulk {
   # because a user-supplied literal/bind (or something else specific to a
   # resultsource and/or storage driver) can inject extra binds along the
   # way, so one can't rely on "shift positions" ordering at all. Also we
-  # can't just hand SQLA a set of some known "values" (e.g. hashrefs that
+  # can't just hand SQLMaker a set of some known "values" (e.g. hashrefs that
   # can be later matched up by address), because we want to supply a real
   # value on which perhaps e.g. datatype checks will be performed
   my ($proto_data, $serialized_bind_type_by_col_idx);
@@ -2436,7 +2611,7 @@ sub _select_args {
   # however currently we *may* pass the same $orig_attrs
   # with different ident/select/where
   # the whole interface needs to be rethought, since it
-  # was centered around the flawed SQLA API. We can do
+  # was centered around the flawed SQLMaker API. We can do
   # soooooo much better now. But that is also another
   # battle...
   #return (

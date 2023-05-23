@@ -5,6 +5,33 @@ source maint/travis-ci_scripts/common.bash
 
 if [[ -n "$SHORT_CIRCUIT_SMOKE" ]] ; then exit 0 ; fi
 
+
+###
+### CI-wide pins ( sadly necessary here and there )
+###
+
+if [[ "$DEVREL_DEPS" == "true" ]] ; then
+  # FIXME work around https://github.com/dbsrgits/sql-abstract/pull/16
+  if ! perl -M5.010 -e1 &>/dev/null ; then
+    PINS_REQUIRED+=( "I/IL/ILMARI/SQL-Abstract-1.86.tar.gz" )
+  fi
+fi
+
+# FIXME freeze Clone until H::M is erradicated
+if ! perl -M5.008008 -e1 &>/dev/null ; then
+  PINS_REQUIRED+=( "G/GA/GARU/Clone-0.41.tar.gz" )
+fi
+
+# FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
+if ! perl -M5.008004 -e1 &>/dev/null ; then
+  PINS_OPTIONAL+=( "DateTime::Locale@1.06" "DateTime::TimeZone@2.02" "DateTime@1.38" "DateTime::Format::Strptime@1.71" )
+fi
+
+###
+### END OF CI-wide pins
+###
+
+
 # The DEVREL_DEPS prereq-install stage won't mix with MVDT
 # DEVREL wins
 if [[ "$DEVREL_DEPS" == "true" ]] ; then
@@ -27,19 +54,18 @@ if [[ "$MVDT" == "true" ]] ; then
     # earlier DBI will not compile without PERL_POLLUTE which was gone in 5.14
     parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz
 
-    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
-    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
-      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
-      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.614.tar.gz"
+    parallel_installdeps_notest DBD::Pg@2.17.2
+
+    # We need to stick with older DBD::Oracle, otherwise it will bump the DBI version up
+    if [[ -n "$DBICTEST_ORA_DSN" ]] ; then
+      parallel_installdeps_notest DBD::Oracle@1.74
     fi
+
   else
     parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz
 
-    # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
-    if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
-      echo_err "Installing same DBI version into the main perl (above the current local::lib)"
-      $SHELL -lic "perlbrew use $( perlbrew use | grep -oP '(?<=Currently using )[^@]+' ) && parallel_installdeps_notest T/TI/TIMB/DBI-1.57.tar.gz"
-    fi
+    parallel_installdeps_notest DBD::Pg@2.9.2
+
   fi
 
   # Test both minimum DBD::SQLite and minimum BigInt SQLite
@@ -52,14 +78,14 @@ if [[ "$MVDT" == "true" ]] ; then
 fi
 
 #
+# Any required pin needs to be installed before we do anything else
+[[ "${PINS_REQUIRED[@]}" != "" ]] && for m in "${PINS_REQUIRED[@]}"; do installdeps "$m" ; done
+
+#
 # try minimal fully tested installs *without* a compiler (with some exceptions of course)
 if [[ "$BREAK_CC" == "true" ]] ; then
 
   [[ "$CLEANTEST" != "true" ]] && echo_err "Breaking the compiler without CLEANTEST makes no sense" && exit 1
-
-  # FIXME - work around https://github.com/perl5-dbi/dbi/pull/60
-  # and https://www.nntp.perl.org/group/perl.perl5.porters/2018/01/msg249123.html
-  perl -MDBI -e1 &>/dev/null || perl -MStorable\ 2.16 -e1 &>/dev/null || parallel_installdeps_notest Storable
 
   # FIXME - working around RT#74707, https://metacpan.org/source/DOY/Package-Stash-0.37/Makefile.PL#L112-122
   #
@@ -69,19 +95,21 @@ if [[ "$BREAK_CC" == "true" ]] ; then
   #
   # FIXME - the PathTools 3.47 is to work around https://rt.cpan.org/Ticket/Display.html?id=107392
   #
-  installdeps Sub::Name Clone Package::Stash::XS \
-              $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
-              $( perl -MList::Util\ 1.16 -e1 &>/dev/null || echo "List::Util" ) \
-              $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
-              $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
-              $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
+  installdeps \
+    $( perl -MSub::Name -e1 &>/dev/null || echo "Sub::Name" ) \
+    $( perl -MClone -e1  &>/dev/null || echo "Clone" ) \
+    $( perl -MPackage::Stash::XS -e1 &>/dev/null || echo "Package::Stash::XS" ) \
+    $( perl -MFile::Spec\ 3.26 -e1 &>/dev/null || echo "File::Path File::Spec" ) \
+    $( [[ "$DEVREL_DEPS" == "true" ]] && ( perl -MFile::Spec\ 3.13 -e1 &>/dev/null || echo "S/SM/SMUELLER/PathTools-3.47.tar.gz" ) ) \
+    $( perl -MDBI -e1 &>/dev/null || echo "DBI" ) \
+    $( perl -MDBD::SQLite -e1 &>/dev/null || echo "DBD::SQLite" )
 
   mkdir -p "$HOME/bin" # this is already in $PATH, just doesn't exist
   run_or_err "Linking ~/bin/cc to /bin/false - thus essentially BREAKING the C compiler" \
              "ln -s /bin/false $HOME/bin/cc"
 
-  # FIXME: working around RT#113682, and some other unfiled bugs
-  installdeps Module::Build Devel::GlobalDestruction Class::Accessor::Grouped
+  # FIXME: working around RT#113682
+  installdeps Module::Build
 
   run_or_err "Linking ~/bin/cc to /bin/true - BREAKING the C compiler even harder" \
              "ln -fs /bin/true $HOME/bin/cc"
@@ -131,26 +159,26 @@ else
 
   parallel_installdeps_notest Carp
   parallel_installdeps_notest Module::Build
-  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal Module::Runtime
+  parallel_installdeps_notest Test::Exception Encode::Locale Test::Fatal
   parallel_installdeps_notest Test::Warn B::Hooks::EndOfScope Test::Differences HTTP::Status
   parallel_installdeps_notest Test::Pod::Coverage Test::EOL Devel::GlobalDestruction Sub::Name MRO::Compat Class::XSAccessor URI::Escape HTML::Entities
   parallel_installdeps_notest YAML LWP Class::Trigger Class::Accessor::Grouped Package::Variant
-  parallel_installdeps_notest SQL::Abstract Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
+  parallel_installdeps_notest Moose Module::Install@1.15 JSON SQL::Translator File::Which Class::DBI::Plugin
 
-  # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-  # ( multiple instances of this line throughout, re-grep when removing )
-  if ! perl -M5.008004 -e1 &>/dev/null ; then
-    parallel_installdeps_notest DateTime::Locale@1.06
-    parallel_installdeps_notest DateTime::TimeZone@2.02
-    parallel_installdeps_notest DateTime@1.38
-    parallel_installdeps_notest DateTime::Format::Strptime@1.71
-  fi
+
+  [[ "${PINS_OPTIONAL[@]}" != "" ]] && for m in "${PINS_OPTIONAL[@]}"; do parallel_installdeps_notest "$m"; done
+
 
   # the official version is very much outdated and does not compile on 5.14+
   # use this rather updated source tree (needs to go to PAUSE):
   # https://github.com/pilcrow/perl-dbd-interbase
   if [[ -n "$DBICTEST_FIREBIRD_INTERBASE_DSN" ]] ; then
     parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-InterBase.git
+  fi
+
+  # FIXME work around DBD::DB2 being silly: https://rt.cpan.org/Ticket/Display.html?id=101659
+  if [[ -n "$DBICTEST_DB2_DSN" ]] ; then
+    parallel_installdeps_notest git://github.com/ribasushi/patchup-Perl5-DBD-DB2.git
   fi
 
   # SCGI does not install under ASan nor < 5.8.8 perls nor under parallel make
@@ -169,18 +197,13 @@ fi
 # install (remaining) dependencies, sometimes with a gentle push
 if [[ "$CLEANTEST" = "true" ]]; then
 
-  # FIXME - work around https://github.com/perl5-dbi/dbi/pull/60
-  # and https://www.nntp.perl.org/group/perl.perl5.porters/2018/01/msg249123.html
-  perl -MDBI -e1 &>/dev/null || perl -MStorable\ 2.16 -e1 &>/dev/null || parallel_installdeps_notest Storable
-
   run_or_err "Configure on current branch" "perl Makefile.PL"
 
   # we are doing a devrel pass - try to upgrade *everything* (we will be using cpanm so safe-ish)
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
 
-    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-    # ( multiple instances of this line throughout, re-grep when removing )
-    HARD_DEPS="$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+    # we can't upgrade*everything* though - got to respect the pins
+    HARD_DEPS="$(make listalldeps | grep -vEf <( printf '%s\n' "${PINS_REQUIRED[@]}" "${PINS_OPTIONAL[@]}" | sed 's/[\@\~\-][^-]*$//' | sed 's/.*\///' | sed 's/-/::/g' | xargs printf '^%s$\n' ) | sort -R)"
 
   else
 
@@ -211,21 +234,12 @@ else
 
   run_or_err "Configure on current branch with --with-optdeps" "perl Makefile.PL --with-optdeps"
 
-  # FIXME - evil evil work around for https://github.com/Manwar/Test-Strict/issues/17
-  if perl -M5.025 -e1 &>/dev/null; then
-    mkdir -p "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel"
-    cat <<MyDevelCover > "$( perl -MConfig -e 'print $Config{sitelib}' )/Devel/Cover.pm"
-package Devel::Cover;
-our \$VERSION = 0.43;
-1;
-MyDevelCover
-  fi
-
   # if we are smoking devrels - make sure we upgrade everything we know about
   if [[ "$DEVREL_DEPS" == "true" ]] ; then
-    # FIXME - work around DateTime* bumping their minimal version for no reason ( RT#117959 )
-    # ( multiple instances of this line throughout, re-grep when removing )
-    parallel_installdeps_notest "$(make listalldeps | grep -vE '^DateTime(::Format::Strptime)?$' | sort -R)"
+
+    # we can't upgrade*everything* though - got to respect the pins
+    parallel_installdeps_notest "$(make listalldeps | grep -vEf <( printf '%s\n' "${PINS_REQUIRED[@]}" "${PINS_OPTIONAL[@]}" | sed 's/[\@\~\-][^-]*$//' | sed 's/.*\///' | sed 's/-/::/g' | xargs printf '^%s$\n' ) | sort -R)"
+
   else
     parallel_installdeps_notest "$(make listdeps | sort -R)"
   fi

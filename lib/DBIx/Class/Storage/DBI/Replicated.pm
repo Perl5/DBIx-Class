@@ -14,7 +14,7 @@ use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSc
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
-use List::Util qw/min max reduce/;
+use List::Util ();
 use Context::Preserve 'preserve_context';
 use Try::Tiny;
 
@@ -329,6 +329,9 @@ my $method_dispatch = {
   unimplemented => [qw/
     _arm_global_destructor
     _verify_pid
+
+    _seems_connected
+    _ping
 
     get_use_dbms_capability
     set_use_dbms_capability
@@ -942,7 +945,7 @@ setting
 sub lag_behind_master {
   my $self = shift;
 
-  return max map $_->lag_behind_master, $self->replicants;
+  return List::Util::max( map { $_->lag_behind_master } $self->replicants );
 }
 
 =head2 is_replicating
@@ -967,6 +970,17 @@ calls L<DBIx::Class::Storage::DBI/connect_call_datetime_setup> for all storages
 sub connect_call_datetime_setup {
   my $self = shift;
   $_->connect_call_datetime_setup for $self->all_storages;
+}
+
+=head2 connect_call_rebase_sqlmaker
+
+calls L<DBIx::Class::Storage::DBI/connect_call_rebase_sqlmaker> for all storages
+
+=cut
+
+sub connect_call_rebase_sqlmaker {
+  my( $self, $target_base ) = @_;
+  $_->connect_call_rebase_sqlmaker( $target_base ) for $self->all_storages;
 }
 
 sub _populate_dbh {
@@ -1027,18 +1041,6 @@ sub connect_call_do_sql {
 sub disconnect_call_do_sql {
   my $self = shift;
   $_->disconnect_call_do_sql(@_) for $self->all_storages;
-}
-
-sub _seems_connected {
-  my $self = shift;
-
-  return min map $_->_seems_connected, $self->all_storages;
-}
-
-sub _ping {
-  my $self = shift;
-
-  return min map $_->_ping, $self->all_storages;
 }
 
 # not using the normalized_version, because we want to preserve

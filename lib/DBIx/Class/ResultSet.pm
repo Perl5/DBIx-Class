@@ -11,9 +11,6 @@ use DBIx::Class::_Util qw(
 );
 use Try::Tiny;
 
-# not importing first() as it will clash with our own method
-use List::Util ();
-
 BEGIN {
   # De-duplication in _merge_attr() is disabled, but left in for reference
   # (the merger is used for other things that ought not to be de-duped)
@@ -223,7 +220,7 @@ unusual signature of the L<constructor provided by DBIC
 
   use Moo;
   extends 'DBIx::Class::ResultSet';
-  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
+  sub BUILDARGS { $_[2] || {} } # ::RS::new() expects my ($class, $rsrc, $args) = @_
 
   ...your code...
 
@@ -241,7 +238,7 @@ with the DBIC one.
   use MooseX::NonMoose;
   extends 'DBIx::Class::ResultSet';
 
-  sub BUILDARGS { $_[2] } # ::RS::new() expects my ($class, $rsrc, $args) = @_
+  sub BUILDARGS { $_[2] || {} } # ::RS::new() expects my ($class, $rsrc, $args) = @_
 
   ...your code...
 
@@ -373,19 +370,20 @@ call it as C<search(undef, \%attrs)>.
 For a list of attributes that can be passed to C<search>, see
 L</ATTRIBUTES>. For more examples of using this function, see
 L<Searching|DBIx::Class::Manual::Cookbook/SEARCHING>. For a complete
-documentation for the first argument, see L<SQL::Abstract/"WHERE CLAUSES">
-and its extension L<DBIx::Class::SQLMaker>.
+documentation for the first argument, see
+L<SQL::Abstract::Classic/"WHERE CLAUSES"> and its extension
+L<DBIx::Class::SQLMaker>.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 =head3 CAVEAT
 
 Note that L</search> does not process/deflate any of the values passed in the
-L<SQL::Abstract>-compatible search condition structure. This is unlike other
-condition-bound methods L</new_result>, L</create> and L</find>. The user must ensure
-manually that any value passed to this method will stringify to something the
-RDBMS knows how to deal with. A notable example is the handling of L<DateTime>
-objects, for more info see:
+L<SQL::Abstract::Classic>-compatible search condition structure. This is unlike
+other condition-bound methods L</new_result>, L</create> and L</find>. The user
+must ensure manually that any value passed to this method will stringify to
+something the RDBMS knows how to deal with. A notable example is the handling
+of L<DateTime> objects, for more info see:
 L<DBIx::Class::Manual::Cookbook/Formatting DateTime objects in queries>.
 
 =cut
@@ -467,7 +465,7 @@ sub search_rs {
   # see if we can keep the cache (no $rs changes)
   my $cache;
   my %safe = (alias => 1, cache => 1);
-  if ( ! List::Util::first { !$safe{$_} } keys %$call_attrs and (
+  if ( ! grep { !$safe{$_} } keys %$call_attrs and (
     ! defined $call_cond
       or
     ref $call_cond eq 'HASH' && ! keys %$call_cond
@@ -491,9 +489,8 @@ sub search_rs {
     my @selector_attrs = qw/select as columns cols +select +as +columns include_columns/;
 
     # reset the current selector list if new selectors are supplied
-    if (List::Util::first { exists $call_attrs->{$_} } qw/columns cols select as/) {
-      delete @{$old_attrs}{(@selector_attrs, '_dark_selector')};
-    }
+    delete @{$old_attrs}{(@selector_attrs, '_dark_selector')}
+      if grep { exists $call_attrs->{$_} } qw(columns cols select as);
 
     # Normalize the new selector list (operates on the passed-in attr structure)
     # Need to do it on every chain instead of only once on _resolved_attrs, in
@@ -1752,7 +1749,6 @@ sub _count_subq_rs {
 
       # unqualify join-based group_by's. Arcane but possible query
       # also horrible horrible hack to alias a column (not a func.)
-      # (probably need to introduce SQLA syntax)
       if ($colpiece =~ /\./ && $colpiece !~ /^$attrs->{alias}\./) {
         my $as = $colpiece;
         $as =~ s/\./__/;
@@ -1909,7 +1905,7 @@ sub _rs_update_delete {
       $storage->_prune_unused_joins ($attrs);
 
     # any non-pruneable non-local restricting joins imply subq
-    $needs_subq = defined List::Util::first { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
+    $needs_subq = grep { $_ ne $attrs->{alias} } keys %{ $join_classifications->{restricting} || {} };
   }
 
   # check if the head is composite (by now all joins are thrown out unless $needs_subq)
@@ -2501,15 +2497,17 @@ sub populate {
 
 =item Arguments: none
 
-=item Return Value: L<$pager|Data::Page>
+=item Return Value: L<$pager|DBIx::Class::ResultSet::Pager>
 
 =back
 
-Returns a L<Data::Page> object for the current resultset. Only makes
-sense for queries with a C<page> attribute.
+Returns a L<DBIx::Class::ResultSet::Pager> object tied to the current
+resultset. Requires the C<page> attribute to have been previously set on
+the resultset object, usually via a call to L</page>.
 
 To get the full count of entries for a paged resultset, call
-C<total_entries> on the L<Data::Page> object.
+L<total_entries|DBIx::Class::ResultSet::Pager/total_entries> on the pager
+object.
 
 =cut
 
@@ -2520,7 +2518,7 @@ sub pager {
 
   my $attrs = $self->{attrs};
   if (!defined $attrs->{page}) {
-    $self->throw_exception("Can't create pager for non-paged rs");
+    $self->throw_exception("Can't create pager for non-paged rs, you need to call page(\$num) first");
   }
   elsif ($attrs->{page} <= 0) {
     $self->throw_exception('Invalid page number (page-numbers are 1-based)');
@@ -3390,7 +3388,8 @@ sub as_subselect_rs {
   my $attrs = $self->_resolved_attrs;
 
   my $fresh_rs = (ref $self)->new (
-    $self->result_source
+    $self->result_source,
+    {},
   );
 
   # these pieces will be locked in the subquery
@@ -3527,7 +3526,7 @@ sub _resolved_attrs {
 
   # default selection list
   $attrs->{columns} = [ $source->columns ]
-    unless List::Util::first { exists $attrs->{$_} } qw/columns cols select as/;
+    unless grep { exists $attrs->{$_} } qw/columns cols select as/;
 
   # merge selectors together
   for (qw/columns select as/) {
@@ -3715,7 +3714,7 @@ sub _resolved_attrs {
         if (
           ! $attrs->{_main_source_premultiplied}
             and
-          ! List::Util::first { ! $_->[0]{-is_single} } @fromlist
+          ! grep { ! $_->[0]{-is_single} } @fromlist
         ) {
           $attrs->{collapse} = 0;
         }
@@ -3913,7 +3912,7 @@ sub _merge_joinpref_attr {
           },
           ARRAY => sub {
             return $_[1] if !defined $_[0];
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [$_[0], @{$_[1]}]
           },
           HASH  => sub {
@@ -3926,7 +3925,7 @@ sub _merge_joinpref_attr {
         ARRAY => {
           SCALAR => sub {
             return $_[0] if !defined $_[1];
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [@{$_[0]}, $_[1]]
           },
           ARRAY => sub {
@@ -3939,7 +3938,7 @@ sub _merge_joinpref_attr {
           HASH => sub {
             return [ $_[1] ] if ! @{$_[0]};
             return $_[0] if !keys %{$_[1]};
-            return $_[0] if __HM_DEDUP and List::Util::first { $_ eq $_[1] } @{$_[0]};
+            return $_[0] if __HM_DEDUP and grep { $_ eq $_[1] } @{$_[0]};
             return [ @{$_[0]}, $_[1] ];
           },
         },
@@ -3954,7 +3953,7 @@ sub _merge_joinpref_attr {
             return [] if !keys %{$_[0]} and !@{$_[1]};
             return [ $_[0] ] if !@{$_[1]};
             return $_[1] if !keys %{$_[0]};
-            return $_[1] if __HM_DEDUP and List::Util::first { $_ eq $_[0] } @{$_[1]};
+            return $_[1] if __HM_DEDUP and grep { $_ eq $_[0] } @{$_[1]};
             return [ $_[0], @{$_[1]} ];
           },
           HASH => sub {
@@ -4046,7 +4045,7 @@ These are in no particular order:
 Which column(s) to order the results by.
 
 [The full list of suitable values is documented in
-L<SQL::Abstract/"ORDER BY CLAUSES">; the following is a summary of
+L<SQL::Abstract::Classic/"ORDER BY CLAUSES">; the following is a summary of
 common options.]
 
 If a single column name, or an arrayref of names is supplied, the
@@ -4107,7 +4106,7 @@ chain such that it matches existing relationships:
 Like elsewhere, literal SQL or literal values can be included by using a
 scalar reference or a literal bind value, and these values will be available
 in the result with C<get_column> (see also
-L<SQL::Abstract/Literal SQL and value type operators>):
+L<SQL::Abstract::Classic>/Literal SQL and value type operators>):
 
     # equivalent SQL: SELECT 1, 'a string', IF(my_column,?,?) ...
     # bind values: $true_value, $false_value
@@ -4567,9 +4566,10 @@ A arrayref of columns to group by. Can include columns of joined tables.
 The HAVING operator specifies a B<secondary> condition applied to the set
 after the grouping calculations have been done. In other words it is a
 constraint just like L</where> (and accepting the same
-L<SQL::Abstract syntax|SQL::Abstract/WHERE CLAUSES>) applied to the data
-as it exists after GROUP BY has taken place. Specifying L</having> without
-L</group_by> is a logical mistake, and a fatal error on most RDBMS engines.
+L<SQL::Abstract::Classic syntax|SQL::Abstract::Classic/WHERE CLAUSES>) applied
+to the data as it exists after GROUP BY has taken place. Specifying L</having>
+without L</group_by> is a logical mistake, and a fatal error on most RDBMS
+engines.
 
 E.g.
 
@@ -4611,7 +4611,7 @@ Adds to the WHERE clause.
 Can be overridden by passing C<< { where => undef } >> as an attribute
 to a resultset.
 
-For more complicated where clauses see L<SQL::Abstract/WHERE CLAUSES>.
+For more complicated where clauses see L<SQL::Abstract::Classic/WHERE CLAUSES>.
 
 =back
 

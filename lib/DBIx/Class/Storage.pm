@@ -472,7 +472,7 @@ sub debugobj {
 
   $self->{debugobj} ||= do {
     if (my $profile = $ENV{DBIC_TRACE_PROFILE}) {
-      require DBIx::Class::Storage::Debug::PrettyPrint;
+      require DBIx::Class::Storage::Debug::PrettyTrace;
       my @pp_args;
 
       if ($profile =~ /^\.?\//) {
@@ -497,7 +497,7 @@ sub debugobj {
       # *without* throwing an exception
       # This is a rather serious problem in the debug codepath
       # Insulate the condition here with a try{} until a review of
-      # DBIx::Class::Storage::Debug::PrettyPrint takes place
+      # DBIx::Class::Storage::Debug::PrettyTrace takes place
       # we do rethrow the error unconditionally, the only reason
       # to try{} is to preserve the precise state of $@ (down
       # to the scalar (if there is one) address level)
@@ -505,7 +505,7 @@ sub debugobj {
       # Yes I am aware this is fragile and TxnScopeGuard needs
       # a better fix. This is another yak to shave... :(
       try {
-        DBIx::Class::Storage::Debug::PrettyPrint->new(@pp_args);
+        DBIx::Class::Storage::Debug::PrettyTrace->new(@pp_args);
       } catch {
         $self->throw_exception($_);
       }
@@ -632,7 +632,7 @@ re-connect on your schema.
 
 =head2 DBIC_TRACE_PROFILE
 
-If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::Debug::PrettyPrint>
+If C<DBIC_TRACE_PROFILE> is set, L<DBIx::Class::Storage::Debug::PrettyTrace>
 will be used to format the output from C<DBIC_TRACE>.  The value it
 is set to is the C<profile> that it will be used.  If the value is a
 filename the file is read with L<Config::Any> and the results are
@@ -646,7 +646,7 @@ Old name for DBIC_TRACE
 =head1 SEE ALSO
 
 L<DBIx::Class::Storage::DBI> - reference storage implementation using
-SQL::Abstract and DBI.
+DBI and a subclass of SQL::Abstract::Classic ( or similar )
 
 =head1 FURTHER QUESTIONS?
 

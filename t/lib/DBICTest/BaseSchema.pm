@@ -6,6 +6,7 @@ use warnings;
 use base qw(DBICTest::Base DBIx::Class::Schema);
 
 use Fcntl qw(:DEFAULT :seek :flock);
+use Scalar::Util 'weaken';
 use Time::HiRes 'sleep';
 use DBICTest::Util::LeakTracer qw(populate_weakregistry assert_empty_weakregistry);
 use DBICTest::Util qw( local_umask await_flock dbg DEBUG_TEST_CONCURRENCY_LOCKS );
@@ -110,13 +111,78 @@ END {
   if ($locker->{lock_name} and ($ENV{DBICTEST_LOCK_HOLDER}||0) == $$) {
     DEBUG_TEST_CONCURRENCY_LOCKS
       and dbg "$locker->{type} LOCK RELEASED (END): $locker->{lock_name}";
+
+    # we were using a lock-able RDBMS: if we are failing - dump the last diag
+    if (
+      $locker->{rdbms_connection_diag}
+        and
+      $INC{'Test/Builder.pm'}
+        and
+      my $tb = do {
+        local $@;
+        my $t = eval { Test::Builder->new }
+          or warn "Test::Builder->new failed:\n$@\n";
+        $t;
+      }
+    ) {
+      $tb->diag( "\nabove test failure almost certainly happened against:\n$locker->{rdbms_connection_diag}"  )
+        if (
+          !$tb->is_passing
+            or
+          !defined( $tb->has_plan )
+            or
+          ( $tb->has_plan ne 'no_plan' and $tb->has_plan != $tb->current_test )
+        )
+    }
   }
 }
 
 my $weak_registry = {};
 
 sub connection {
-  my $self = shift->next::method(@_);
+  my( $proto, @args ) = @_;
+
+  if( $ENV{DBICTEST_SWAPOUT_SQLAC_WITH} ) {
+
+    my( $sqlac_like ) = $ENV{DBICTEST_SWAPOUT_SQLAC_WITH} =~ /(.+)/;
+    Class::C3::Componentised->ensure_class_loaded( $sqlac_like );
+
+    require DBIx::Class::SQLMaker::ClassicExtensions;
+    require SQL::Abstract::Classic;
+
+    Class::C3::Componentised->inject_base(
+      'DBICTest::SQLAC::SwapOut',
+      'DBIx::Class::SQLMaker::ClassicExtensions',
+      $sqlac_like,
+      'SQL::Abstract::Classic',
+    );
+
+    # perl can be pretty disgusting...
+    push @args, {}
+      unless ref( $args[-1] ) eq 'HASH';
+
+    $args[-1] = { %{ $args[-1] } };
+
+    if( ref( $args[-1]{on_connect_call} ) ne 'ARRAY' ) {
+      $args[-1]{on_connect_call} = [
+        $args[-1]{on_connect_call}
+          ? [ $args[-1]{on_connect_call} ]
+          : ()
+      ];
+    }
+    elsif( ref( $args[-1]{on_connect_call}[0] ) ne 'ARRAY' ) {
+      $args[-1]{on_connect_call} = [ map
+        { [ $_ ] }
+        @{ $args[-1]{on_connect_call} }
+      ];
+    }
+
+    push @{ $args[-1]{on_connect_call} }, (
+      [ rebase_sqlmaker => 'DBICTest::SQLAC::SwapOut' ],
+    );
+  }
+
+  my $self = $proto->next::method( @args );
 
 # MASSIVE FIXME
 # we can't really lock based on DSN, as we do not yet have a way to tell that e.g.
@@ -145,9 +211,9 @@ sub connection {
       and
     ( ! $ENV{DBICTEST_LOCK_HOLDER} or $ENV{DBICTEST_LOCK_HOLDER} == $$ )
       and
-    ref($_[0]) ne 'CODE'
+    ref($args[0]) ne 'CODE'
       and
-    ($_[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
+    ($args[0]||'') !~ /^ (?i:dbi) \: SQLite (?: \: | \W ) .*? (?: dbname\= )? (?: \:memory\: | t [\/\\] var [\/\\] DBIxClass\-) /x
   ) {
 
     my $locktype;
@@ -243,14 +309,21 @@ sub connection {
 
     my $cur_connect_call = $self->storage->on_connect_call;
 
+    # without this weaken() the sub added below *sometimes* leaks
+    # ( can't reproduce locally :/ )
+    weaken( my $wlocker = $locker );
+
     $self->storage->on_connect_call([
       (ref $cur_connect_call eq 'ARRAY'
         ? @$cur_connect_call
         : ($cur_connect_call || ())
       ),
-      [sub {
-        populate_weakregistry( $weak_registry, shift->_dbh )
-      }],
+      [ sub { populate_weakregistry( $weak_registry, $_[0]->_dbh ) } ],
+      ( !$wlocker ? () : (
+        require Data::Dumper::Concise
+          and
+        [ sub { ($wlocker||{})->{rdbms_connection_diag} = Data::Dumper::Concise::Dumper( $_[0]->_describe_connection() ) } ],
+      )),
     ]);
   }
 

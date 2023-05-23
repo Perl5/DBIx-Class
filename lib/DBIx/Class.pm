@@ -11,7 +11,15 @@ our $VERSION;
 # $VERSION declaration must stay up here, ahead of any other package
 # declarations, as to not confuse various modules attempting to determine
 # this ones version, whether that be s.c.o. or Module::Metadata, etc
-$VERSION = '0.082841';
+$VERSION = '0.082843';
+
+{
+  package
+    DBIx::Class::_ENV_;
+
+  require constant;
+  constant->import( DEVREL => ( ($DBIx::Class::VERSION =~ /_/) ? 1 : 0 ) );
+}
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
@@ -111,16 +119,11 @@ list is sorted by "fastest response time"):
 
 =over
 
-=item * IRC: irc.perl.org#dbix-class
+=item * RT Bug Tracker: L<https://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Class>
 
-=for html
-<a href="https://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
+=item * Email: L<mailto:bug-DBIx-Class@rt.cpan.org>
 
-=item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
-
-=item * RT Bug Tracker: L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class>
-
-=item * Twitter: L<https://www.twitter.com/dbix_class>
+=item * Twitter: L<https://twitter.com/intent/tweet?text=%40ribasushi%20%23DBIC>
 
 =back
 
@@ -195,7 +198,7 @@ Then you can use these classes in your application's code:
   # Create a result set to search for artists.
   # This does not query the DB.
   my $johns_rs = $schema->resultset('Artist')->search(
-    # Build your WHERE using an SQL::Abstract structure:
+    # Build your WHERE using an SQL::Abstract::Classic-compatible structure:
     { name => { like => 'John%' } }
   );
 
@@ -287,7 +290,7 @@ accessible at the following locations:
 
 =item * Current git repository: L<https://github.com/Perl5/DBIx-Class>
 
-=item * Travis-CI log: L<https://travis-ci.org/Perl5/DBIx-Class/branches>
+=item * Travis-CI log: L<https://travis-ci.com/github/Perl5/DBIx-Class/branches>
 
 =back
 

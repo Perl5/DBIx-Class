@@ -57,13 +57,6 @@ my $runtime_requires = {
 ###
   'DBI'                      => '1.57',
 
-  # on older versions first() leaks
-  # for the time being make it a hard dep - when we get
-  # rid of Sub::Name will revisit this (possibility is
-  # to use Devel::HideXS to force the pure-perl version
-  # or something like that)
-  'List::Util'               => '1.16',
-
   # XS (or XS-dependent) libs
   'Sub::Name'                => '0.04',
 
@@ -74,7 +67,6 @@ my $runtime_requires = {
   'Config::Any'              => '0.20',
   'Context::Preserve'        => '0.01',
   'Data::Dumper::Concise'    => '2.020',
-  'Data::Page'               => '2.00',
   'Devel::GlobalDestruction' => '0.09',
   'Hash::Merge'              => '0.12',
   'Moo'                      => '2.000',
@@ -83,7 +75,7 @@ my $runtime_requires = {
   'namespace::clean'         => '0.24',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.81',
+  'SQL::Abstract::Classic'   => '1.91',
   'Try::Tiny'                => '0.07',
 
   # Technically this is not a core dependency - it is only required

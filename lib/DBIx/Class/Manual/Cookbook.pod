@@ -21,8 +21,8 @@ paged resultset, which will fetch only a defined number of records at a time:
 
   return $rs->page(2); # records for page 2
 
-You can get a L<Data::Page> object for the resultset (suitable for use
-in e.g. a template) using the C<pager> method:
+You can get a L<DBIx::Class::ResultSet::Pager> object for the resultset
+(suitable for use in e.g. a template) using the C<pager> method:
 
   return $rs->pager();
 
@@ -60,7 +60,7 @@ This results in the following C<WHERE> clause:
     OR artist = 'Starchildren'
 
 For more information on generating complex queries, see
-L<SQL::Abstract/WHERE CLAUSES>.
+L<SQL::Abstract::Classic/WHERE CLAUSES>.
 
 =head2 Retrieve one and only one row from a resultset
 
@@ -443,7 +443,7 @@ to collect the search conditions:
 Note: the syntax for specifying the bind value's datatype and value is
 explained in L<DBIx::Class::ResultSet/DBIC BIND VALUES>.
 
-See also L<SQL::Abstract/Literal SQL with placeholders and bind values
+See also L<SQL::Abstract::Classic/Literal SQL with placeholders and bind values
 (subqueries)>.
 
 =head2 Software Limits
@@ -1756,16 +1756,9 @@ passing them as bind values:
 
   $resultset->search(
     {
-      numbers => \[ '= ?', [numbers => [1, 2, 3]] ]
+      numbers => { -value => [1, 2, 3] }
     }
   );
-
-See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
-placeholders and bind values (subqueries)> for more explanation. Note that
-L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
-the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
-arrayrefs together with the column name, like this:
-C<< [column_name => value] >>.
 
 =head2 Formatting DateTime objects in queries
 

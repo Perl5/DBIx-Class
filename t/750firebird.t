@@ -42,6 +42,15 @@ for my $prefix (shuffle keys %$env2optdep) { SKIP: {
   my ($dsn, $user, $pass) = map { $ENV{"${prefix}_$_"} } qw/DSN USER PASS/;
   next unless $dsn;
 
+
+  # FIXME - work around https://github.com/google/sanitizers/issues/934
+  $prefix eq 'DBICTEST_FIREBIRD_ODBC'
+    and
+  $Config::Config{config_args} =~ m{fsanitize\=address}
+    and
+  skip( "ODBC Firebird driver doesn't yet work with ASAN: https://github.com/google/sanitizers/issues/934", 1 );
+
+
   skip ("Testing with ${prefix}_DSN needs " . DBIx::Class::Optional::Dependencies->req_missing_for( $env2optdep->{$prefix} ), 1)
     unless  DBIx::Class::Optional::Dependencies->req_ok_for($env2optdep->{$prefix});
 

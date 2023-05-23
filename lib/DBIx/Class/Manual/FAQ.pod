@@ -246,9 +246,9 @@ to resort to literal SQL:
 
 =item .. find more help on constructing searches?
 
-Behind the scenes, DBIx::Class uses L<SQL::Abstract> to help construct
+Behind the scenes, DBIx::Class uses L<SQL::Abstract::Classic> to help construct
 its SQL searches. So if you fail to find help in the
-L<DBIx::Class::Manual::Cookbook>, try looking in the SQL::Abstract
+L<DBIx::Class::Manual::Cookbook>, try looking in the L<SQL::Abstract::Classic>
 documentation.
 
 =item .. make searches in Oracle (10gR2 and newer) case-insensitive?
@@ -361,9 +361,11 @@ Pass the C<rows> and C<page> attributes to your search, eg:
 
 =item .. get a count of all rows even when paging?
 
-Call C<pager> on the paged resultset, it will return a L<Data::Page>
-object. Calling C<total_entries> on the pager will return the correct
-total.
+Call C<pager> on the paged resultset, it will return a L<pager object
+|DBIx::Class::ResultSet::Pager> with an API/behavior identical to that
+of L<Data::Page from late 2009 through late 2019
+|https://metacpan.org/pod/release/LBROCARD/Data-Page-2.02/lib/Data/Page.pm>.
+Calling C<total_entries> on the pager will return the correct total.
 
 C<count> on the resultset will only return the total number in the page.
 
@@ -509,7 +511,7 @@ One method is to use the built in mk_group_accessors (via L<Class::Accessor::Gro
 	__PACKAGE__->table('foo'); #etc
 	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
 
-An another method is to use L<Moose> with your L<DBIx::Class> package.
+And another method is to use L<Moose> with your L<DBIx::Class> package.
 
 	package App::Schema::Result::MyTable;
 

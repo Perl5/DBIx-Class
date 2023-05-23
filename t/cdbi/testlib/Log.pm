@@ -17,6 +17,11 @@ __PACKAGE__->has_a(
   deflate        => 'mysql_datetime'
 );
 
+# Disables the implicit autoinc-on-non-supplied-pk behavior
+# (and the warning that goes with it)
+# This is the same behavior as it was pre 0.082900
+__PACKAGE__->column_info('id')->{is_auto_increment} = 0;
+
 __PACKAGE__->add_trigger(before_create => \&set_dts);
 __PACKAGE__->add_trigger(before_update => \&set_dts);
 

@@ -2,23 +2,20 @@
 
 export SHORT_CIRCUIT_SMOKE
 
-if have_sudo ; then
+# Stop possibly pre-started RDBMS, move their data back to disk (save RAM)
+# sync for some settle time (not available on all platforms)
+for d in mysql postgresql ; do
+  # maybe not even running
+  run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
 
-  # Stop pre-started RDBMS, move their data back to disk (save RAM)
-  # sync for some settle time (not available on all platforms)
-  for d in mysql postgresql ; do
-    # maybe not even running
-    run_or_err "Stopping $d" "sudo /etc/init.d/$d stop || /bin/true"
-
-    # no longer available on newer build systems
-    if [[ -d /var/ramfs/$d ]] ; then
-      sudo rm -rf /var/lib/$d
-      sudo mv /var/ramfs/$d /var/lib/
-      sudo ln -s /var/lib/$d /var/ramfs/$d
-    fi
-  done
-  /bin/sync
-fi
+  # no longer available on newer build systems
+  if [[ -d /var/ramfs/$d ]] ; then
+    sudo rm -rf /var/lib/$d
+    sudo mv /var/ramfs/$d /var/lib/
+    sudo ln -s /var/lib/$d /var/ramfs/$d
+  fi
+done
+/bin/sync
 
 # Sanity check VM before continuing
 echo "
@@ -29,21 +26,9 @@ $(free -m -t)
 
 ============================================================================="
 
-CI_VM_MIN_FREE_MB=2000
-if [[ "$(free -m | grep 'buffers/cache:' | perl -p -e '$_ = (split /\s+/, $_)[3]')" -lt "$CI_VM_MIN_FREE_MB" ]]; then
-  SHORT_CIRCUIT_SMOKE=1
-  echo_err "
-=============================================================================
-
-CI virtual machine stuck in a state with a lot of memory locked for no reason.
-Under Travis this state usually results in a failed build.
-Short-circuiting buildjob to avoid false negatives, please restart it manually.
-
-============================================================================="
-
 # pull requests are always scrutinized after the fact anyway - run a
 # a simpler matrix
-elif [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
   if [[ -n "$BREWVER" ]]; then
     # just don't brew anything
     SHORT_CIRCUIT_SMOKE=1
@@ -68,7 +53,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   if [[ -z "$(tail -n +2 /proc/swaps)" ]] ; then
     run_or_err "Configuring swap (for Oracle)" \
-      "sudo bash -c 'fallocate -l 1280M /swap.img && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
+      "sudo bash -c '( fallocate -l 1280M /swap.img || dd if=/dev/zero of=/swap.img bs=256M count=5 ) && chmod 600 /swap.img && mkswap /swap.img && swapon /swap.img'"
   fi
 
 
@@ -81,6 +66,11 @@ if [[ "$CLEANTEST" != "true" ]]; then
 
   # these APT sources do not mean anything to us anyway
   sudo rm -rf /etc/apt/sources.list.d/*
+  sudo rm -rf /var/lib/apt/lists/*
+  sudo apt-get clean
+
+  # make sure all versions of apt DTRT
+  echo 'Acquire::CompressionTypes::Order:: { "gz"; "xz"; };' | sudo tee -a /etc/apt/apt.conf.d/99CI-repo-compression-workaround
 
   #
   # FIXME these debconf lines should automate the firebird config but seem not to :(((
@@ -88,7 +78,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
   sudo bash -c 'echo -e "firebird2.5-super\tshared/firebird/sysdba_password/new_password\tpassword\t123" | debconf-set-selections'
 
   run_or_err "Updating APT sources" "sudo apt-get update"
-  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev expect
+  apt_install ${extra_debs[@]} libmysqlclient-dev memcached firebird2.5-super firebird2.5-dev
 
 
   # need to stop them again, in case we installed them above (trusty)
@@ -100,16 +90,12 @@ if [[ "$CLEANTEST" != "true" ]]; then
   export CACHE_DIR="/tmp/poormanscache"
   mkdir "$CACHE_DIR"
 
-  # FIXME - by default db2 eats too much memory, we won't be able to test on legacy infra
-  # someone needs to add a minimizing configuration akin to 9367d187
-  if [[ "$(free -m | grep 'Mem:' | perl -p -e '$_ = (split /\s+/, $_)[1]')" -gt 4000 ]] ; then
-    run_or_err "Getting DB2 from poor man's cache github" '
-      wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
-    | tar -C "$CACHE_DIR" -zx'
+  run_or_err "Getting DB2 from poor man's cache github" '
+    wget -qO- https://github.com/poormanscache/poormanscache/archive/DB2_ExC/9.7.5_deb_x86-64.tar.gz \
+  | tar -C "$CACHE_DIR" -zx'
 
-    # the actual package is built for lucid, installs fine on both precise and trusty
-    manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
-  fi
+  # the actual package is built for lucid, installs seemingly fine
+  manual_debs+=( "db2exc_9.7.5-0lucid0_amd64.deb" )
 
   run_or_err "Getting Oracle from poor man's cache github" '
     wget -qO- https://github.com/poormanscache/poormanscache/archive/OracleXE/10.2.0_deb_mixed.tar.gz \
@@ -172,7 +158,7 @@ if [[ "$CLEANTEST" != "true" ]]; then
     run_or_err "Re-configuring Firebird" "
       sync
       sleep 5
-      DEBIAN_FRONTEND=text sudo expect -c '$EXPECT_FB_SCRIPT'
+      DEBIAN_FRONTEND=text sudo $(which expect) -c '$EXPECT_FB_SCRIPT'
     "
 
     if run_or_err "Creating Firebird TestDB" \

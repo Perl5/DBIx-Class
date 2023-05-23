@@ -11,7 +11,6 @@ use base qw/
 use mro 'c3';
 use DBIx::Class::Carp;
 use Scalar::Util qw/blessed weaken/;
-use List::Util 'first';
 use Sub::Name();
 use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
@@ -474,10 +473,10 @@ sub update {
     if (keys %$fields) {
 
       # Now set the identity update flags for the actual update
-      local $self->{_autoinc_supplied_for_op} = (first
+      local $self->{_autoinc_supplied_for_op} = grep
         { $_->{is_auto_increment} }
         values %{ $source->columns_info([ keys %$fields ]) }
-      ) ? 1 : 0;
+      ;
 
       my $next = $self->next::can;
       my $args = \@_;
@@ -492,10 +491,10 @@ sub update {
   }
   else {
     # Set the identity update flags for the actual update
-    local $self->{_autoinc_supplied_for_op} = (first
+    local $self->{_autoinc_supplied_for_op} = grep
       { $_->{is_auto_increment} }
       values %{ $source->columns_info([ keys %$fields ]) }
-    ) ? 1 : 0;
+    ;
 
     return $self->next::method(@_);
   }
@@ -507,17 +506,14 @@ sub _insert_bulk {
 
   my $columns_info = $source->columns_info;
 
-  my $identity_col =
-    first { $columns_info->{$_}{is_auto_increment} }
+  my ($identity_col) =
+    grep { $columns_info->{$_}{is_auto_increment} }
       keys %$columns_info;
 
   # FIXME - this is duplication from DBI.pm. When refactored towards
   # the LobWriter this can be folded back where it belongs.
-  local $self->{_autoinc_supplied_for_op} =
-    (first { $_ eq $identity_col } @$cols)
-      ? 1
-      : 0
-  ;
+  local $self->{_autoinc_supplied_for_op}
+    = grep { $_ eq $identity_col } @$cols;
 
   my $use_bulk_api =
     $self->_bulk_storage &&
@@ -580,7 +576,7 @@ sub _insert_bulk {
   my @source_columns = $source->columns;
 
   # bcp identity index is 1-based
-  my $identity_idx = first { $source_columns[$_] eq $identity_col } (0..$#source_columns);
+  my ($identity_idx) = grep { $source_columns[$_] eq $identity_col } (0..$#source_columns);
   $identity_idx = defined $identity_idx ? $identity_idx + 1 : 0;
 
   my @new_data;
@@ -629,7 +625,7 @@ sub _insert_bulk {
 
 ## FIXME - once this is done - address the FIXME on finish() below
 ## XXX get this to work instead of our own $sth
-## will require SQLA or *Hacks changes for ordered columns
+## will require SQLMaker or *Hacks changes for ordered columns
 #    $bulk->next::method($source, \@source_columns, \@new_data, {
 #      syb_bcp_attribs => {
 #        identity_flag   => $self->_autoinc_supplied_for_op ? 1 : 0,

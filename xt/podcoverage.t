@@ -2,10 +2,8 @@ use warnings;
 use strict;
 
 use Test::More;
-use List::Util 'first';
 use lib qw(t/lib maint/.Generated_Pod/lib);
 use DBICTest;
-use namespace::clean;
 
 plan skip_all => "Skipping finicky test on older perl"
   if "$]" < 5.008005;
@@ -118,6 +116,14 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::Storage::Debug::PrettyTrace'      => {
+        ignore => [ qw/
+          print
+          query_start
+          query_end
+        /]
+    },
+
     'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::Optional::Dependencies'           => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
@@ -134,7 +140,6 @@ my $exceptions = {
 
 # test some specific components whose parents are exempt below
     'DBIx::Class::Relationship::Base'               => {},
-    'DBIx::Class::SQLMaker::LimitDialects'          => {},
 
 # internals
     'DBIx::Class::_Util'                            => { skip => 1 },
@@ -151,9 +156,6 @@ my $exceptions = {
 
 # skipped because the synopsis covers it clearly
     'DBIx::Class::InflateColumn::File'              => { skip => 1 },
-
-# internal subclass, nothing to POD
-    'DBIx::Class::ResultSet::Pager'                 => { skip => 1 },
 };
 
 my $ex_lookup = {};
@@ -170,7 +172,7 @@ foreach my $module (@modules) {
   SKIP: {
 
     my ($match) =
-      first { $module =~ $_ }
+      grep { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 

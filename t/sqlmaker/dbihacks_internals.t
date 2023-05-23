@@ -375,6 +375,18 @@ my @tests = (
     efcc_result => { 'me.title' => 'Spoonful of bees' },
   },
 
+  # original from RT#132390
+  {
+    where => {
+      array_col => { '@>' => { -value => [ 1,2,3 ] } }
+    },
+    cc_result => {
+      array_col => { '@>' => { -value => [ 1,2,3 ] } }
+    },
+    sql => 'WHERE array_col @> ?',
+    efcc_result => {},
+  },
+
   # crazy literals
   {
     where => {
@@ -443,7 +455,7 @@ my @tests = (
   },
 );
 
-# these die as of SQLA 1.80 - make sure we do not transform them
+# these die as of SQLAC 1.80 - make sure we do not transform them
 # into something usable instead
 for my $lhs (undef, '', { -ident => 'foo' }, { -value => 'foo' } ) {
   no warnings 'uninitialized';
@@ -484,7 +496,7 @@ for my $lhs (undef, '', { -ident => 'foo' }, { -value => 'foo' } ) {
   }
 }
 
-# these are deprecated as of SQLA 1.79 - make sure we do not transform
+# these are deprecated as of SQLAC 1.79 - make sure we do not transform
 # them without losing the warning
 for my $lhs (undef, '') {
   for my $rhs ( \"baz", \[ "baz" ] ) {

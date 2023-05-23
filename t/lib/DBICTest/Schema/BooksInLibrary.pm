@@ -9,8 +9,11 @@ use base qw/DBICTest::BaseResult/;
 __PACKAGE__->table('books');
 __PACKAGE__->add_columns(
   'id' => {
+    # part of a test (auto-retrieval of PK regardless of autoinc status)
+    # DO NOT define
+    #is_auto_increment => 1,
+
     data_type => 'integer',
-    is_auto_increment => 1,
   },
   'source' => {
     data_type => 'varchar',

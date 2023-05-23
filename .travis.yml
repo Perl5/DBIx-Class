@@ -26,11 +26,13 @@ notifications:
     on_success: change
     on_failure: always
 
+# IFF this list is changed - make sure to backfill the override-addons further down too
 addons:
   apt:
     packages:
       - libapp-nopaste-perl
       - net-tools
+      - expect
 
 # This is probably a net-loss for setup etc - a bare 'C' will likely fare much better
 language: perl
@@ -38,23 +40,17 @@ language: perl
 # Currently not trying osx: https://github.com/travis-ci/travis-ci/issues/2314
 os: linux
 
-# The defaults run under the more rapid container infra. The hardware is
-# actually *much* slower, but the jobs start much faster, for more info see
+# The defaults run under the older infra.
 # https://docs.travis-ci.com/user/ci-environment/#Virtualization-environments
-# Combined with 'fast_finish' this will result in an "uh-oh" email as early
-# as possible
 dist: precise
-sudo: false
 env: CLEANTEST=true
 
 perl:
   - "5.8"
   - "5.10"
-  - "5.22-extras"
+  - "5.24-shrplib"
 
 matrix:
-  fast_finish: true
-
   include:
 
     # Same as the "master matrix" above, frozen under older dist/infrastructure
@@ -62,27 +58,53 @@ matrix:
     # version indefinitely - there is little value in-depth smoking on
     # more recent software stacks
     - perl: "5.8"
-      sudo: required
       dist: precise
       env:
         - CLEANTEST=false
 
     - perl: "5.10"
-      sudo: required
       dist: precise
       env:
         - CLEANTEST=false
 
-    - perl: "5.22-extras"
-      sudo: required
+    - perl: "5.24-shrplib"
       dist: precise
       env:
         - CLEANTEST=false
 
-    # CLEANTEST of minimum supported with non-tracing poisoning, single thread (hence the sudo)
-    - perl: "5.8.3_nt_mb"
-      sudo: required
-      dist: precise
+    # ASan-instrumented threaded latest 5.24 with, no tests on depchain ( run only DBICs tests )
+    - perl: "livebrew_5.24.4_thr_qm_asan"
+      # FIXME - move to bionic
+      dist: trusty
+      env:
+        - CLEANTEST=false
+        - POISON_ENV=true
+        - MVDT=false
+        - BREWVER=5.24.4
+        - CC=gcc-8
+        - CXX=g++-8
+        # FIXME - something in perl confuses ASan, do no trace leaks for now
+        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
+        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
+        - ASAN_OPTIONS=detect_leaks=0
+        - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
+        - BREWOPTS="-Duseithreads -Dusequadmath -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - libapp-nopaste-perl
+            - net-tools
+            - expect
+            - libc6
+            - libc6:i386
+            - binutils
+            - gcc-8
+            - g++-8
+
+    # CLEANTEST of minimum supported with non-tracing poisoning, single thread
+    - perl: "livebrew_5.8.3_nt_mb"
       env:
         - VCPU_USE=1
         - CLEANTEST=true
@@ -92,11 +114,9 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # Full Test of minimum supported without threads with plain poisoned trace
-    - perl: "5.8.3_nt"
-      sudo: required
-      dist: precise
-      # run these under legacy - great simulation of low memory env
-      group: legacy
+    - perl: "livebrew_5.8.3_nt"
+      # FIXME - move to bionic
+      dist: trusty
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -104,11 +124,9 @@ matrix:
         - BREWVER=5.8.3
 
     # Full Test of minimum supported with threads with non-tracing poisoning
-    - perl: "5.8.5_thr"
-      sudo: required
-      dist: precise
-      # run these under legacy - great simulation of low memory env
-      group: legacy
+    - perl: "livebrew_5.8.5_thr"
+      # FIXME - move to xenial
+      dist: trusty
       env:
         - CLEANTEST=false
         - POISON_ENV=true
@@ -117,8 +135,7 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST of solaris-like perl with non-tracing poisoning
-    - perl: "5.8.4_nt"
-      sudo: false
+    - perl: "livebrew_5.8.4_nt"
       dist: precise
       env:
         - CLEANTEST=true
@@ -127,10 +144,8 @@ matrix:
         - BREWVER=5.8.4
 
     # Full test: this particular perl is quite widespread, single thread
-    - perl: "5.8.8_thr"
-      sudo: required
+    - perl: "livebrew_5.8.8_thr"
       dist: precise
-      group: legacy
       env:
         - VCPU_USE=1
         - CLEANTEST=false
@@ -138,8 +153,7 @@ matrix:
         - BREWOPTS="-Duseithreads"
 
     # CLEANTEST: this is the perl suse ships, with env poisoning
-    - perl: "5.10.0_thr_dbg"
-      sudo: false
+    - perl: "livebrew_5.10.0_thr_dbg"
       dist: precise
       env:
         - CLEANTEST=true
@@ -148,9 +162,9 @@ matrix:
         - BREWOPTS="-DDEBUGGING -Duseithreads"
 
     # CLEANTEST: this one is in a number of debian-based LTS (test a sane CPAN.pm, single thread)
-    - perl: "5.14.2_thr_mb"
-      sudo: required
-      dist: precise
+    - perl: "livebrew_5.14.2_thr_mb"
+      # FIXME - move to xenial
+      dist: trusty
       env:
         - VCPU_USE=1
         - CLEANTEST=true
@@ -160,8 +174,7 @@ matrix:
     ###
     # some permutations of tracing and envvar poisoning
 
-    - perl: "5.12.3_thr"
-      sudo: false
+    - perl: "livebrew_5.12.3_thr"
       dist: precise
       env:
         - CLEANTEST=true
@@ -173,9 +186,9 @@ matrix:
         - BREWVER=5.12.3
         - BREWOPTS="-Duseithreads"
 
-    - perl: "5.16.3_thr_mb"
-      sudo: required
-      dist: precise
+    - perl: "livebrew_5.16.3_thr_mb"
+      # FIXME - move to bionic
+      dist: trusty
       env:
         - CLEANTEST=false
         - DBIC_TRACE=1
@@ -184,8 +197,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     - perl: "5.18-extras"
-      sudo: required
-      # explicit new infra spec preparing for a future forced upgrade
+      # FIXME - move to xenial
       dist: trusty
       env:
         - CLEANTEST=false
@@ -195,109 +207,93 @@ matrix:
         - DBICTEST_VIA_REPLICATED=0
         - DBICTEST_VERSION_WARNS_INDISCRIMINATELY=1
 
-    - perl: "5.26.1_thr_qm"
-      # explicit new infra spec preparing for a future forced upgrade
-      # also need to pull in a sufficiently new compiler for quadmath.h
-      sudo: required
-      dist: trusty
-      env:
-        - CLEANTEST=true
-        - POISON_ENV=true
-        - MVDT=false
-        - BREWVER=5.26.1
-        - BREWOPTS="-Duseithreads -Dusequadmath"
-
 
     ###
     # Start of the allow_failures block
 
-    # ASan-instrumented threaded latest 5.24 with blead CPAN, no tests on depchain ( run only DBICs tests )
-    - perl: "devcpan_5.24.3_thr_asan"
-      sudo: required
-      dist: trusty
-      env:
-        - CLEANTEST=false
-        - DEVREL_DEPS=true
-        - BREWVER=5.24.3
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - CC=gcc-6
-        - CXX=g++-6
-        # FIXME - something in perl confuses ASan, do no trace leaks for now
-        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
-        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
-        - ASAN_OPTIONS=detect_leaks=0
-        - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
-        - BREWOPTS="-Duseithreads -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - libc6
-            - libc6:i386
-            - binutils
-            - gcc-6
-            - g++-6
-
     # ASan-instrumented threaded bleadperl with blead CPAN, full depchain test ( but only DBD::SQLite is used )
-    - perl: "devcpan_bleadperl_thr_mb_asan"
-      # we do not need sudo for CLEANTEST below, however the VM infra has *much* beefier CPU
-      sudo: required
-      dist: trusty
+    - perl: "livebrew_devcpan_bleadperl_thr_mb_dbg_asan"
+      dist: bionic
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
-        # FIXME - temp workaround for https://github.com/gugod/App-perlbrew/issues/606
-        - BREWVER=5.27.10
-        # FIXME - need to switch to gcc-7 for -fsanitize-address-use-after-scope,
-        #         https://github.com/travis-ci/apt-package-whitelist/issues/3933
-        #         https://travis-ci.org/Perl5/DBIx-Class/jobs/356823605#L3479-L3926
-        - CC=gcc-6
-        - CXX=g++-6
+        - BREWVER=blead
+        - CC=gcc-8
+        - CXX=g++-8
         # FIXME - something in perl confuses ASan, do no trace leaks for now
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
         #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
+        #- PERL_DESTRUCT_LEVEL=2
         - ASAN_OPTIONS=detect_leaks=0
         - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
-        - BREWOPTS="-Duseithreads -Dusemorebits -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
+        - BREWOPTS="-Duseithreads -Dusemorebits -DDEBUGGING -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - libapp-nopaste-perl
+            - net-tools
+            - expect
             - libc6
             - libc6:i386
             - binutils
-            - gcc-6
-            - g++-6
+            - gcc-8
+            - g++-8
 
-    # bleadperl with blead CPAN, single thread
-    - perl: "devcpan_bleadperl_thr_mb"
-      sudo: required
+    # ASan-instrumented threaded bleadperl with blead CPAN and SQLA swapout
+    - perl: "livebrew_devcpan_bleadperl_thr_dbg_asan"
       dist: trusty
       env:
-        - VCPU_USE=1
+        - DBICTEST_SWAPOUT_SQLAC_WITH=SQL::Abstract
         - CLEANTEST=false
         - DEVREL_DEPS=true
         - BREWVER=blead
-        - BREWOPTS="-Duseithreads -Dusemorebits"
+        - CC=gcc-8
+        - CXX=g++-8
+        # FIXME - something in perl confuses ASan, do no trace leaks for now
+        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250024.html
+        #         https://www.nntp.perl.org/group/perl.perl5.porters/2018/03/msg250022.html
+        #- PERL_DESTRUCT_LEVEL=2
+        - ASAN_OPTIONS=detect_leaks=0
+        - ASAN_FLAGS_COMMON="-fsanitize=address -fuse-ld=gold -fno-omit-frame-pointer -g -O2"
+        - BREWOPTS="-Duseithreads -DDEBUGGING -Dcc=$CC -Accflags='$ASAN_FLAGS_COMMON' -Aldflags='$ASAN_FLAGS_COMMON'"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - libapp-nopaste-perl
+            - net-tools
+            - expect
+            - libc6
+            - libc6:i386
+            - binutils
+            - gcc-8
+            - g++-8
 
     # bleadperl with stock CPAN, full depchain test with non-tracing poisoning, single thread
-    - perl: "bleadperl"
-      sudo: required
-      # explicitly do not specify dist - see what the default does
+    - perl: "livebrew_bleadperl"
       env:
         - VCPU_USE=1
         - CLEANTEST=true
         - POISON_ENV=true
         - BREWVER=blead
 
+    # Poisoned saneperl with blead CPAN and SQLA swapout, single thread
+    - perl: "5.24.3"
+      env:
+        - DBICTEST_SWAPOUT_SQLAC_WITH=SQL::Abstract
+        - VCPU_USE=1
+        - CLEANTEST=false
+        - DEVREL_DEPS=true
+        - POISON_ENV=true
+        - MVDT=false
+
     # threaded oldest possible with blead CPAN
-    - perl: "devcpan_5.8.1_thr_mb"
-      sudo: false
-      dist: precise
+    - perl: "livebrew_devcpan_5.8.1_thr_mb"
+      # FIXME - move to bionic
+      dist: trusty
       env:
         - CLEANTEST=true
         - DEVREL_DEPS=true
@@ -305,8 +301,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # oldest possible with blead CPAN with poisoning and plain trace
-    - perl: "devcpan_5.8.1"
-      sudo: false
+    - perl: "livebrew_devcpan_5.8.1"
       dist: precise
       env:
         - CLEANTEST=true
@@ -317,9 +312,7 @@ matrix:
         - BREWVER=5.8.1
 
     # 5.8.3 with blead CPAN
-    - perl: "devcpan_5.8.3_mb"
-      sudo: required
-      # explicit new infra spec preparing for a future forced upgrade
+    - perl: "livebrew_devcpan_5.8.3_mb"
       dist: trusty
       env:
         - CLEANTEST=false
@@ -328,8 +321,7 @@ matrix:
         - BREWOPTS="-Dusemorebits"
 
     # 5.8.7 threaded with blead CPAN with non-tracing poisoning
-    - perl: "devcpan_5.8.7_thr"
-      sudo: false
+    - perl: "livebrew_devcpan_5.8.7_thr"
       dist: precise
       env:
         - CLEANTEST=true
@@ -338,9 +330,8 @@ matrix:
         - BREWVER=5.8.7
         - BREWOPTS="-Duseithreads"
 
-    # 5.8.8 threaded MB (exercises P5#72210)
-    - perl: "devcpan_5.8.8_thr_mb"
-      sudo: false
+    # 5.8.8 threaded MB with blead CPAN (exercises P5#72210)
+    - perl: "livebrew_devcpan_5.8.8_thr_mb"
       dist: precise
       env:
         - CLEANTEST=true
@@ -350,8 +341,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.10.0 threaded with blead CPAN
-    - perl: "devcpan_5.10.0_thr_mb"
-      sudo: false
+    - perl: "livebrew_devcpan_5.10.0_thr_mb"
       dist: precise
       env:
         - CLEANTEST=true
@@ -360,8 +350,7 @@ matrix:
         - BREWOPTS="-Duseithreads -Dusemorebits"
 
     # 5.12.1 with blead CPAN
-    - perl: "devcpan_5.12.1_thr"
-      sudo: false
+    - perl: "livebrew_devcpan_5.12.1_thr"
       dist: precise
       env:
         - CLEANTEST=true
@@ -374,17 +363,18 @@ matrix:
   allow_failures:
 
     # these run with various dev snapshots - allowed to fail
-    - perl: devcpan_5.24.3_thr_asan
-    - perl: devcpan_bleadperl_thr_mb_asan
-    - perl: devcpan_bleadperl_thr_mb
-    - perl: bleadperl
-    - perl: devcpan_5.8.1_thr_mb
-    - perl: devcpan_5.8.1
-    - perl: devcpan_5.8.3_mb
-    - perl: devcpan_5.8.7_thr
-    - perl: devcpan_5.8.8_thr_mb
-    - perl: devcpan_5.10.0_thr_mb
-    - perl: devcpan_5.12.1_thr
+
+    - perl: livebrew_devcpan_bleadperl_thr_dbg_asan
+    - perl: livebrew_devcpan_bleadperl_thr_mb_dbg_asan
+    - perl: livebrew_bleadperl
+    - perl: 5.24.3
+    - perl: livebrew_devcpan_5.8.1_thr_mb
+    - perl: livebrew_devcpan_5.8.1
+    - perl: livebrew_devcpan_5.8.3_mb
+    - perl: livebrew_devcpan_5.8.7_thr
+    - perl: livebrew_devcpan_5.8.8_thr_mb
+    - perl: livebrew_devcpan_5.10.0_thr_mb
+    - perl: livebrew_devcpan_5.12.1_thr
 
 
 ###
@@ -433,15 +423,14 @@ script:
   #
   - maint/getstatus maint/travis-ci_scripts/40_script.bash
 
-###
-### Set -e back, work around https://github.com/travis-ci/travis-ci/issues/3533
-###
-  - set -e
 
 after_success:
   # Check if we can assemble a dist properly if not in CLEANTEST
   #
+  ### Need to toggle -e again: work around https://github.com/travis-ci/travis-ci/issues/3533
+  - set -e
   - maint/getstatus /bin/bash maint/travis-ci_scripts/50_after_success.bash || ( /bin/bash maint/travis-ci_scripts/50_after_failure.bash && /bin/false )
+  - set +e
 
 after_failure:
   # Final sysinfo printout on fail

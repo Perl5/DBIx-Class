@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::Row';
-use SQL::Abstract 'is_literal_value';
+use SQL::Abstract::Util 'is_literal_value';
 use namespace::clean;
 
 =head1 NAME
@@ -38,10 +38,10 @@ L<DBIx::Class::InflateColumn::DateTime>.
 
 It will handle all types of references except scalar references. It
 will not handle scalar values, these are ignored and thus passed
-through to L<SQL::Abstract>. This is to allow setting raw values to
-"just work". Scalar references are passed through to the database to
-deal with, to allow such settings as C< \'year + 1'> and C< \'DEFAULT' >
-to work.
+through to L<SQL::Abstract::Classic>. This is to allow setting raw
+values to "just work". Scalar references are passed through to the
+database to deal with, to allow such settings as C< \'year + 1'> and
+C< \'DEFAULT' > to work.
 
 If you want to filter plain scalar values and replace them with
 something else, see L<DBIx::Class::FilterColumn>.
