@@ -334,7 +334,7 @@ Then, assuming MyApp::Schema::LinerNotes has an accessor named notes, you can do
 
 For a 'belongs_to relationship, note the 'cascade_update':
 
-  MyApp::Schema::Track->belongs_to( cd => 'MyApp::Schema::CD', 'cd,
+  MyApp::Schema::Track->belongs_to( cd => 'MyApp::Schema::CD', 'cd',
       { proxy => ['title'], cascade_update => 1 }
   );
   $track->title('New Title');
