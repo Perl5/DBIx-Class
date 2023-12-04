@@ -935,7 +935,7 @@ B<Currently only available for C<many_to_many> relationships.>
 
 =over 4
 
-=item Arguments: (\@hashrefs_of_col_data | L<\@result_objs|DBIx::Class::Manual::ResultClass>), $link_vals?
+=item Arguments: (\@hashrefs_of_col_data | L<\@result_objs|DBIx::Class::Manual::ResultClass>), \%link_vals?
 
 =item Return Value: not defined
 
