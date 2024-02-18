@@ -381,8 +381,8 @@ This contains one SQL statement to execute.
 
 =item an array reference
 
-This contains SQL statements to execute in order.  Each element contains
-a string or a code reference that returns a string.
+This contains SQL statements to execute in order.  Each element is a
+string or a code reference that returns an array reference with strings.
 
 =item a code reference
 
