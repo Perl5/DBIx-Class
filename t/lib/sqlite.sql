@@ -239,8 +239,6 @@ CREATE TABLE "cd" (
   FOREIGN KEY ("genreid") REFERENCES "genre"("genreid") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE INDEX "cd_idx_artist" ON "cd" ("artist");
-
 CREATE INDEX "cd_idx_single_track" ON "cd" ("single_track");
 
 CREATE INDEX "cd_idx_genreid" ON "cd" ("genreid");
@@ -284,8 +282,6 @@ CREATE TABLE "lyric_versions" (
   "text" varchar(100) NOT NULL,
   FOREIGN KEY ("lyric_id") REFERENCES "lyrics"("lyric_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
-
-CREATE INDEX "lyric_versions_idx_lyric_id" ON "lyric_versions" ("lyric_id");
 
 CREATE UNIQUE INDEX "lyric_versions_lyric_id_text" ON "lyric_versions" ("lyric_id", "text");
 
