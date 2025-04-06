@@ -30,9 +30,11 @@ warnings_are {
 # test 'timestamp without time zone'
   my $dt = DateTime->from_epoch(epoch => time);
   $dt->set_nanosecond(int 500_000_000);
+  $dt->set_time_zone( "Europe/Zaporozhye" );
   $event->update({ts_without_tz => $dt});
   $event->discard_changes;
   isa_ok($event->ts_without_tz, "DateTime") or diag $event->created_on;
+  is($event->ts_without_tz->time_zone->name, "floating", "No specific timezone");
   is($event->ts_without_tz, $dt, 'timestamp without time zone inflation');
   is($event->ts_without_tz->microsecond, $dt->microsecond,
     'timestamp without time zone microseconds survived');
