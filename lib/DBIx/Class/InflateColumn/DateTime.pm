@@ -36,6 +36,26 @@ If you want to set a specific timezone and locale for that field, use:
     starts_when => { data_type => 'datetime', timezone => "America/Chicago", locale => "de_DE" }
   );
 
+If you want to set a specific formatter to use when print value of the inflated
+DateTime object to user:
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', formatter => DateTime::Format::Pg->new() }
+  );
+
+If you want the inflated DateTime object to have the detected formatter based on
+DBIx::Class::Storage::DBI::* you are using, set it to 'auto':
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', formatter => 'auto' }
+  );
+
+If you want all inflated DateTime objects to have the detected formatter set
+DBIC_AUTOSET_DATETIME_FORMATTER to 1.
+
+Please note: this affect only the formatter how DateTime will be formatter to a user.
+This does nothing how a value is formatted for a database.
+
 If you want to inflate no matter what data_type your column is,
 use inflate_datetime or inflate_date:
 
@@ -226,6 +246,12 @@ sub _post_inflate_datetime {
 
   $dt->set_time_zone($info->{timezone}) if defined $info->{timezone};
   $dt->set_locale($info->{locale}) if defined $info->{locale};
+  my $f =  defined $info->{formatter}  &&  $info->{formatter}
+    || $ENV{DBIC_AUTOSET_DATETIME_FORMATTER} && 'auto';
+  if( $f ) {
+    $f =  $f eq 'auto' ? $self->_datetime_parser : $f;
+    $dt->set_formatter( $f );
+  }
 
   return $dt;
 }

@@ -20,12 +20,18 @@ my $dt = DateTime->new( year => 2000, time_zone => "America/Chicago" );
 
 warnings_are {
   my $event = $schema->resultset("EventTZPg")->find(1);
+
   $event->update({created_on => '2009-01-15 17:00:00+00'});
   $event->discard_changes;
   isa_ok($event->created_on, "DateTime") or diag $event->created_on;
   is($event->created_on->time_zone->name, "America/Chicago", "Timezone changed");
+
   # Time zone difference -> -6hours
   is($event->created_on->iso8601, "2009-01-15T11:00:00", "Time with TZ correct");
+
+  # Test behavior when DateTime has or has not fomatter
+  is($event->created_on, "2009-01-15T11:00:00",      'Default DateTime does not display timezones');
+  is($event->starts_at,  "2006-04-25 22:24:33-0500", 'Inflated DateTime has initialized formatter');
 
 # test 'timestamp without time zone'
   my $dt = DateTime->from_epoch(epoch => time);
