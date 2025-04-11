@@ -97,19 +97,68 @@ sub delete {
   return ($sql, @bind);
 }
 
-# LOCK IN SHARE MODE
-my $for_syntax = {
-   update => 'FOR UPDATE',
-   shared => 'LOCK IN SHARE MODE'
+#
+# Support for MySQL lock clause syntax according to specification 
+# including updates introduced in MySQL 8.0.1)
+# FOR UPDATE | FOR SHARE [OF tbl_name [, tbl_name] ...] [NOWAIT | SKIP LOCKED]
+#
+
+my $lock_types = {
+  update => 'FOR UPDATE',
+  share => 'FOR SHARE',
+  shared => 'LOCK IN SHARE MODE'  # Deprecated but maintained
+};
+
+my $lock_modifiers = {
+  nowait => 'NOWAIT',
+  skip_locked => 'SKIP LOCKED'
 };
 
 sub _lock_select {
-   my ($self, $type) = @_;
+  my ($self, $type) = @_;
 
-   my $sql = $for_syntax->{$type}
+  if ($type eq 'shared') {
+    warnings::warnif(
+      'deprecated',
+       "'for => 'shared'' is deprecated. Please use 'for => 'share'' instead"
+    );
+  }
+   
+  # Handle hash-based configuration to support new featureset
+  if (ref $type eq 'HASH') {
+    my $lock_type = $type->{type};
+    my $tables = $type->{of};
+    my $modifier = $type->{modifier};
+      
+    my $lock_clause = $lock_types->{$lock_type} 
+      || $self->throw_exception("Unknown SELECT .. FOR type '$lock_type' requested");
+
+    # Add OF clause if tables are specified  
+    if ($tables) {
+      my @table_list = ref $tables eq 'ARRAY' ? @$tables : ($tables);
+      if (@table_list) {
+        my $quoted_tables = join(', ', 
+          map { $self->_quote($_) } @table_list
+        );
+        $lock_clause .= " OF $quoted_tables";
+      }
+    }
+
+    # Add modifier if specified  
+    if ($modifier) {
+      my $mod_sql = $lock_modifiers->{$modifier}
+        || $self->throw_exception("Unknown lock modifier '$modifier' requested");
+      $lock_clause .= " $mod_sql";
+    }
+      
+    return " $lock_clause";
+  }
+
+  # Handle simple string types (for backward compatibility)
+  my $sql = $lock_types->{$type}
     || $self->throw_exception("Unknown SELECT .. FOR type '$type' requested");
-
-   return " $sql";
+   
+  return " $sql";
 }
 
 1;

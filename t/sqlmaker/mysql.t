@@ -152,4 +152,169 @@ for (
   );
 }
 
+# Test support for locking clauses
+{
+  # Test basic locking options
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => 'update'})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE
+    )',
+    [],
+    'FOR UPDATE lock works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => 'shared'})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        LOCK IN SHARE MODE
+    )',
+    [],
+    'LOCK IN SHARE MODE (deprecated shared) works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => 'share'})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE
+    )',
+    [],
+    'FOR SHARE (new share syntax) works correctly'
+  );
+
+  # Test hash-based locking configuration
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'update'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE
+    )',
+    [],
+    'Hash-based FOR UPDATE works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'share'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE
+    )',
+    [],
+    'Hash-based FOR SHARE works correctly'
+  );
+
+  # Test NOWAIT modifier
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'update', modifier => 'nowait'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE NOWAIT
+    )',
+    [],
+    'FOR UPDATE NOWAIT works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'share', modifier => 'nowait'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE NOWAIT
+    )',
+    [],
+    'FOR SHARE NOWAIT works correctly'
+  );
+
+  # Test SKIP LOCKED modifier
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'update', modifier => 'skip_locked'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE SKIP LOCKED
+    )',
+    [],
+    'FOR UPDATE SKIP LOCKED works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'share', modifier => 'skip_locked'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE SKIP LOCKED
+    )',
+    [],
+    'FOR SHARE SKIP LOCKED works correctly'
+  );
+
+  # Test OF clause
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'update', of => 'artist'}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE OF `artist`
+    )',
+    [],
+    'FOR UPDATE OF table works correctly'
+  );
+
+  # Test OF clause with multiple tables
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {for => {type => 'share', of => ['artist', 'cd']}})->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE OF `artist`, `cd`
+    )',
+    [],
+    'FOR SHARE OF multiple tables works correctly'
+  );
+
+  # Test combination of OF clause and modifier
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {
+      for => {
+        type => 'update',
+        of => 'artist',
+        modifier => 'nowait'
+      }
+    })->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR UPDATE OF `artist` NOWAIT
+    )',
+    [],
+    'FOR UPDATE OF table NOWAIT works correctly'
+  );
+
+  is_same_sql_bind(
+    $schema->resultset('Artist')->search({}, {
+      for => {
+        type => 'share',
+        of => ['artist', 'cd'],
+        modifier => 'skip_locked'
+      }
+    })->as_query,
+    '(
+      SELECT `me`.`artistid`, `me`.`name`, `me`.`rank`, `me`.`charfield`
+        FROM `artist` `me`
+        FOR SHARE OF `artist`, `cd` SKIP LOCKED
+    )',
+    [],
+    'FOR SHARE OF multiple tables SKIP LOCKED works correctly'
+  );
+}
+
 done_testing;
