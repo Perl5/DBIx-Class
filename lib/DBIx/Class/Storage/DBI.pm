@@ -2061,7 +2061,7 @@ sub insert {
 
   my %pcols = map { $_ => 1 } $source->primary_columns;
 
-  my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col);
+  my (%retrieve_cols, $autoinc_supplied, $retrieve_autoinc_col, $pk_supplied);
 
   for my $col ($source->columns) {
 
@@ -2079,6 +2079,21 @@ sub insert {
       $autoinc_supplied ||= 1 if defined $to_insert->{$col};
 
       $retrieve_autoinc_col ||= $col unless $autoinc_supplied;
+    }
+
+    # Track if any primary key column has a supplied value (including scalar references)
+    if ($pcols{$col}) {
+      $pk_supplied ||= 1 if (
+        defined $to_insert->{$col}
+          and
+        (
+          # not a ref - cheaper to check before a call to is_literal_value()
+          ! length ref $to_insert->{$col}
+            or
+          # is a literal value (like scalar references for database functions)
+          is_literal_value( $to_insert->{$col} )
+        )
+      );
     }
 
     # nothing to retrieve when explicit values are supplied
@@ -2111,6 +2126,8 @@ sub insert {
     ! $autoinc_supplied
       and
     ! defined $retrieve_autoinc_col
+      and
+    ! $pk_supplied
       and
     # FIXME - first come-first serve, suboptimal...
     ($retrieve_autoinc_col) = ( grep
