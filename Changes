@@ -1,5 +1,20 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Stop a connection lost mid-transaction from wedging the storage
+          permanently: once the connection is confirmed gone, the failed
+          commit/rollback now resets the transaction bookkeeping that would
+          otherwise disable reconnection for every subsequent query. The
+          original exception is still thrown, and bookkeeping is left alone
+          when the connection is still alive
+        - Stop disconnect() from bailing out (and leaving the dead handle in
+          place) when its implicit rollback fails on an already-lost
+          connection under AutoCommit => 0
+        - Allow txn_do() to retry after a lost connection under
+          AutoCommit => 0: the post-reconnect sanity check did not account
+          for the resting transaction_depth of 1, and threw an internal
+          "Unexpected transaction depth" error instead of retrying
+
 0.082844 2025-01-16 13:00 (UTC) 😒
     * Misc
         - Put the tiresome discussion of factors and buses under a cloche

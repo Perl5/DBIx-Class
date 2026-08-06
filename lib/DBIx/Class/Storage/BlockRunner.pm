@@ -199,12 +199,19 @@ sub _run {
       ) if $self->retry_debug;
 
       $storage->ensure_connected;
-      # if txn_depth is > 1 this means something was done to the
-      # original $dbh, otherwise we would not get past the preceding if()
+      # a freshly connected handle sits at its resting depth: 0 normally, but 1
+      # with AutoCommit disabled, where a transaction is open at all times. Any
+      # deeper than that means something was done to the original $dbh,
+      # otherwise we would not get past the preceding if()
       $storage->throw_exception(sprintf
         'Unexpected transaction depth of %d on freshly connected handle',
         $storage->transaction_depth,
-      ) if (defined $txn_init_depth and $storage->transaction_depth);
+      ) if (
+        defined $txn_init_depth
+          and
+        # same $storage->{_dbh_autocommit} DBI-ism as assumed above
+        $storage->transaction_depth > ( $storage->{_dbh_autocommit} ? 0 : 1 )
+      );
 
       return $self->_run($cref, @$args);
     }

@@ -84,7 +84,15 @@ sub DESTROY {
     my $rollback_exception;
     # do minimal connectivity check due to weird shit like
     # https://rt.cpan.org/Public/Bug/Display.html?id=62370
-    try { $self->{storage}->_seems_connected && $self->{storage}->txn_rollback }
+    try {
+      $self->{storage}->_seems_connected
+        ? $self->{storage}->txn_rollback
+        # The connection went away and took the transaction with it, so there
+        # is nothing left to roll back. The storage bookkeeping still claims
+        # otherwise though, and left alone it would wedge the storage for good
+        : $self->{storage}->_reset_state_if_disconnected
+      ;
+    }
     catch { $rollback_exception = shift };
 
     if ( $rollback_exception and (
