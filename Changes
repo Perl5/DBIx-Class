@@ -7,6 +7,9 @@ Revision history for DBIx::Class
           otherwise disable reconnection for every subsequent query. The
           original exception is still thrown, and bookkeeping is left alone
           when the connection is still alive
+        - Stop disconnect() from bailing out (and leaving the dead handle in
+          place) when its implicit rollback fails on an already-lost
+          connection under AutoCommit => 0
 
 0.082844 2025-01-16 13:00 (UTC) 😒
     * Misc

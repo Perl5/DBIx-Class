@@ -878,7 +878,19 @@ sub disconnect {
     );
 
     # stops the "implicit rollback on disconnect" warning
-    $_[0]->_exec_txn_rollback unless $_[0]->_dbh_autocommit;
+    unless ($_[0]->_dbh_autocommit) {
+      # A failure here is not actionable: the connection is being torn down
+      # either way, and the server discards the transaction when the session
+      # ends regardless. What it must *not* do is abort the teardown - bailing
+      # out before _dbh is cleared below leaves the (dead) handle in place,
+      # which wedges the storage for good. This is reachable in practice
+      # because rolling back on an already-dead connection throws.
+      #
+      # $@ is localised because disconnect() is routinely called while an
+      # exception is unwinding, and this eval must not trample it.
+      local $@;
+      eval { $_[0]->_exec_txn_rollback };
+    }
 
     %{ $dbh->{CachedKids} } = ();
     $dbh->disconnect;

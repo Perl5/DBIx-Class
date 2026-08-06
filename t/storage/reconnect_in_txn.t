@@ -155,6 +155,57 @@ subtest 'connection dying during the commit exec itself' => sub {
   assert_storage_recovered('commit exec failure');
 };
 
+# The same wedge from a different direction. disconnect() issues a rollback when
+# AutoCommit is disabled, purely to suppress DBI's "implicit rollback" warning.
+# On an already-dead connection that rollback throws, which aborts disconnect()
+# before it gets to clear _dbh - leaving the storage holding a dead handle.
+#
+# Note this is only reachable with AutoCommit disabled, where the resting
+# transaction_depth is 1 rather than 0. That also means dbh_do's short circuit
+# is permanently in effect for such a storage, so nothing else will reconnect
+# on its behalf: completing the disconnect is the only way back.
+subtest 'disconnect() on a dead AutoCommit => 0 connection' => sub {
+  my ($dsn, $user, $pass) = @{ $schema->storage->_dbi_connect_info };
+
+  plan skip_all => 'test needs a plain dsn to open a second connection with'
+    if ref $dsn;
+
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+
+  # deliberately without DBICTest's connect actions - several of them cannot
+  # run inside a transaction, and with AutoCommit disabled there is always one
+  my $ac0 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
+  my $storage = $ac0->storage;
+  $storage->ensure_connected;
+
+  is ($storage->transaction_depth, 1,
+    'resting transaction_depth is 1 with AutoCommit disabled');
+
+  {
+    local $SIG{__WARN__} = sub {};
+    $storage->_dbh->disconnect;
+  }
+
+  lives_ok { $storage->disconnect } 'disconnect() completes on a dead connection';
+  is ($storage->_dbh, undef, 'the dead handle is not left behind');
+
+  my $count;
+  lives_ok { $count = $ac0->resultset('Artist')->count }
+    'storage is reusable afterwards';
+  is ($count, $artist_count, 'correct results after reconnect');
+
+  # Unconditionally, and without going through the code under test: this is a
+  # second connection to the shared test database, and DBICTest removes that
+  # file at END. Leaving a handle open on it (which is exactly what a failure
+  # above means) makes DBICTest complain in ways that obscure the real failure.
+  {
+    local $SIG{__WARN__} = sub {};
+    eval { $storage->_dbh->disconnect } if $storage->_dbh;
+    $storage->_dbh(undef);
+    $storage->transaction_depth(0);
+  }
+};
+
 # Conversely: a commit/rollback can fail with the connection perfectly alive,
 # in which case the server session may genuinely still hold an (aborted)
 # transaction. Zeroing the depth there would let subsequent statements run
