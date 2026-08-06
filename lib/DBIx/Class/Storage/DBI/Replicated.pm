@@ -274,6 +274,7 @@ my $method_dispatch = {
     _exec_txn_rollback
     _exec_txn_begin
     _exec_txn_commit
+    _reset_state_if_disconnected
     deploy
     with_deferred_fk_checks
     dbh_do

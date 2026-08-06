@@ -1713,11 +1713,48 @@ sub _exec_txn_begin {
   }
 }
 
+# If the connection is gone, so is any transaction the server was holding for
+# us. Local state still asserting a transaction is in progress is then not just
+# stale, it permanently disables recovery: dbh_do() short-circuits on a non-zero
+# transaction_depth (skipping the ping/reconnect/retry machinery entirely) and
+# every subsequent query runs on the dead cached handle, forever. Hence this
+# reset in the failure paths of the transaction-finalising operations, which
+# mirrors what _verify_pid() does when the handle turns out to belong to another
+# process.
+#
+# The connectivity check is what makes this safe, and it is deliberately a real
+# check rather than any kind of error interpretation. A commit or rollback can
+# just as well fail on a perfectly healthy connection, and there the session may
+# genuinely still be inside an (aborted) transaction - zeroing the depth would
+# let subsequent statements silently join it.
+sub _reset_state_if_disconnected {
+  my $self = shift;
+
+  return 0 if $self->connected;
+
+  $self->transaction_depth(0);
+  $self->savepoints([]);
+
+  # Dropping the handle is the part that actually unwedges things: the next
+  # _get_dbh() then goes through _populate_dbh(), which reconnects and sets the
+  # correct resting depth (1 rather than 0 when AutoCommit is disabled). Nothing
+  # useful can be done with the handle itself - even disconnect() would attempt
+  # a rollback on it and throw all over again.
+  {
+    local $SIG{__WARN__} = sub {};
+    $self->_dbh(undef);
+  }
+
+  return 1;
+}
+
 sub txn_commit {
   my $self = shift;
 
-  $self->throw_exception("Unable to txn_commit() on a disconnected storage")
-    unless $self->_seems_connected;
+  unless ($self->_seems_connected) {
+    $self->_reset_state_if_disconnected;
+    $self->throw_exception("Unable to txn_commit() on a disconnected storage");
+  }
 
   # esoteric case for folks using external $dbh handles
   if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {
@@ -1746,8 +1783,10 @@ sub _exec_txn_commit {
 sub txn_rollback {
   my $self = shift;
 
-  $self->throw_exception("Unable to txn_rollback() on a disconnected storage")
-    unless $self->_seems_connected;
+  unless ($self->_seems_connected) {
+    $self->_reset_state_if_disconnected;
+    $self->throw_exception("Unable to txn_rollback() on a disconnected storage");
+  }
 
   # esoteric case for folks using external $dbh handles
   if (! $self->transaction_depth and ! $self->_dbh->FETCH('AutoCommit') ) {

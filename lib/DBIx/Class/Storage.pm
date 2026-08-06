@@ -225,7 +225,15 @@ sub txn_commit {
 
   if ($self->transaction_depth == 1) {
     $self->debugobj->txn_commit() if $self->debug;
-    $self->_exec_txn_commit;
+
+    unless ( eval { $self->_exec_txn_commit; 1 } ) {
+      my $exception = $@;
+      # a failure in here (e.g. a driver whose connectivity check throws)
+      # must not mask the actual transaction failure
+      eval { $self->_reset_state_if_disconnected; 1 };
+      die $exception;
+    }
+
     $self->{transaction_depth}--;
     $self->savepoints([]);
   }
@@ -251,7 +259,14 @@ sub txn_rollback {
 
   if ($self->transaction_depth == 1) {
     $self->debugobj->txn_rollback() if $self->debug;
-    $self->_exec_txn_rollback;
+
+    unless ( eval { $self->_exec_txn_rollback; 1 } ) {
+      my $exception = $@;
+      # see the identical comment in txn_commit above
+      eval { $self->_reset_state_if_disconnected; 1 };
+      die $exception;
+    }
+
     $self->{transaction_depth}--;
     $self->savepoints([]);
   }
@@ -272,6 +287,16 @@ sub txn_rollback {
     $self->throw_exception( 'Refusing to roll back without a started transaction' );
   }
 }
+
+# Called when finalising a transaction has failed, to give the storage a chance
+# to notice that the connection went away underneath it and to bring its own
+# bookkeeping back in line with reality. See the DBI-specific implementation for
+# why this matters. Must return true only if a reset was actually performed.
+#
+# A storage which cannot tell whether it is still connected has nothing to do
+# here - the base transaction bookkeeping is only ever wrong when the connection
+# is gone.
+sub _reset_state_if_disconnected { 0 }
 
 =head2 svp_begin
 
