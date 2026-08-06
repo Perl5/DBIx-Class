@@ -10,6 +10,10 @@ Revision history for DBIx::Class
         - Stop disconnect() from bailing out (and leaving the dead handle in
           place) when its implicit rollback fails on an already-lost
           connection under AutoCommit => 0
+        - Allow txn_do() to retry after a lost connection under
+          AutoCommit => 0: the post-reconnect sanity check did not account
+          for the resting transaction_depth of 1, and threw an internal
+          "Unexpected transaction depth" error instead of retrying
 
 0.082844 2025-01-16 13:00 (UTC) 😒
     * Misc

@@ -22,10 +22,39 @@ cmp_ok ($artist_count, '>', 0, 'sanity check - artists in the test schema');
 
 # Kill the connection behind DBIC's back, the way a server-side death does.
 sub murder_connection {
+  my $victim = shift || $schema;
   # DBD::SQLite grumbles about disconnecting mid-transaction, which is
   # precisely what we are simulating
   local $SIG{__WARN__} = sub {};
-  $schema->storage->_dbh->disconnect;
+  $victim->storage->_dbh->disconnect;
+}
+
+# A second connection to the same database with AutoCommit disabled, where the
+# resting transaction_depth is 1 rather than 0. Deliberately without DBICTest's
+# connect actions: several of them cannot run inside a transaction, and with
+# AutoCommit disabled there is always one open. Returns nothing if the dsn is
+# not something we can reconnect with by hand.
+sub connect_autocommit_off {
+  my ($dsn, $user, $pass) = @{ $schema->storage->_dbi_connect_info };
+  return undef if ref $dsn;
+
+  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
+  my $ac0 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
+  $ac0->storage->ensure_connected;
+  $ac0;
+}
+
+# Unconditionally, and without going through anything under test: the schemas
+# above are extra connections to the shared test database, which DBICTest
+# removes at END. Leaving a handle open on it - which is exactly what a failed
+# assertion means - makes DBICTest complain in ways that obscure the real
+# failure.
+sub drop_connection_hard {
+  my $storage = shift->storage;
+  local $SIG{__WARN__} = sub {};
+  eval { $storage->_dbh->disconnect } if $storage->_dbh;
+  $storage->_dbh(undef);
+  $storage->transaction_depth(0);
 }
 
 # Both halves matter, and they are asserted separately on purpose:
@@ -165,26 +194,15 @@ subtest 'connection dying during the commit exec itself' => sub {
 # is permanently in effect for such a storage, so nothing else will reconnect
 # on its behalf: completing the disconnect is the only way back.
 subtest 'disconnect() on a dead AutoCommit => 0 connection' => sub {
-  my ($dsn, $user, $pass) = @{ $schema->storage->_dbi_connect_info };
+  my $ac0 = connect_autocommit_off()
+    or plan skip_all => 'test needs a plain dsn to open a second connection with';
 
-  plan skip_all => 'test needs a plain dsn to open a second connection with'
-    if ref $dsn;
-
-  local $ENV{DBIC_UNSAFE_AUTOCOMMIT_OK} = 1;
-
-  # deliberately without DBICTest's connect actions - several of them cannot
-  # run inside a transaction, and with AutoCommit disabled there is always one
-  my $ac0 = DBICTest::Schema->connect($dsn, $user, $pass, { AutoCommit => 0 });
   my $storage = $ac0->storage;
-  $storage->ensure_connected;
 
   is ($storage->transaction_depth, 1,
     'resting transaction_depth is 1 with AutoCommit disabled');
 
-  {
-    local $SIG{__WARN__} = sub {};
-    $storage->_dbh->disconnect;
-  }
+  murder_connection($ac0);
 
   lives_ok { $storage->disconnect } 'disconnect() completes on a dead connection';
   is ($storage->_dbh, undef, 'the dead handle is not left behind');
@@ -194,16 +212,37 @@ subtest 'disconnect() on a dead AutoCommit => 0 connection' => sub {
     'storage is reusable afterwards';
   is ($count, $artist_count, 'correct results after reconnect');
 
-  # Unconditionally, and without going through the code under test: this is a
-  # second connection to the shared test database, and DBICTest removes that
-  # file at END. Leaving a handle open on it (which is exactly what a failure
-  # above means) makes DBICTest complain in ways that obscure the real failure.
-  {
-    local $SIG{__WARN__} = sub {};
-    eval { $storage->_dbh->disconnect } if $storage->_dbh;
-    $storage->_dbh(undef);
-    $storage->transaction_depth(0);
-  }
+  drop_connection_hard($ac0);
+};
+
+# txn_do is the supported way to get retries, and it re-runs the whole coderef
+# rather than replaying a single statement - so retrying is safe no matter how
+# much work the transaction had already done. It was refused under
+# AutoCommit => 0 all the same, because the post-reconnect sanity check
+# compared the depth against 0 instead of against the resting depth (1 here),
+# turning every such retry into a confusing internal error.
+subtest 'txn_do retries after connection loss with AutoCommit => 0' => sub {
+  my $ac0 = connect_autocommit_off()
+    or plan skip_all => 'test needs a plain dsn to open a second connection with';
+
+  my $attempts = 0;
+  my $count;
+
+  lives_ok {
+    $count = $ac0->txn_do(sub {
+      $attempts++;
+      # do some work first, so that the retry is a real one rather than a
+      # transaction that never got as far as issuing its BEGIN
+      $ac0->resultset('Artist')->count;
+      murder_connection($ac0) if $attempts == 1;
+      $ac0->resultset('Artist')->count;
+    });
+  } 'txn_do survives losing the connection mid-transaction';
+
+  is ($attempts, 2, 'the transaction coderef was retried exactly once');
+  is ($count, $artist_count, 'correct results from the retried transaction');
+
+  drop_connection_hard($ac0);
 };
 
 # Conversely: a commit/rollback can fail with the connection perfectly alive,
