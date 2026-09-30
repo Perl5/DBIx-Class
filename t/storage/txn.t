@@ -427,6 +427,15 @@ warnings_are {
 }
 
 {
+  # Detect the line number reporting behaviour of this version of perl
+  my $use_block_end;
+  BEGIN {
+    sub X { my (undef, undef, $line) = caller;
+                $use_block_end++ if ($line != shift); }
+    X __LINE__, # $use_block_end = 0
+    sub { }     # $use_block_end = 1
+  };
+
   my @w;
   local $SIG{__WARN__} = sub {
     $_[0] =~ /\QExternal exception class DBICTest::BrokenOverload implements partial (broken) overloading preventing its instances from being used in simple (\E\$x eq \$y\Q) comparisons/
@@ -442,7 +451,7 @@ warnings_are {
   # FIXME - investigate what confuses the regex engine below
 
   # do not reformat - line-num part of the test
-  my $ln = __LINE__ + 6;
+  my $ln = __LINE__ + ($use_block_end ? 6 : 3);
   throws_ok {
     $s->txn_do( sub {
       $s->txn_do( sub {
